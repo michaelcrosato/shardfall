@@ -5,20 +5,50 @@ use glam::{Quat, Vec3};
 
 use crate::color::Color;
 use crate::entity::{Behavior, BodyKind, Spawn};
+use crate::level::Layout;
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
 use crate::statics::Block;
 
 pub const SCENES: &[(&str, &str)] = &[
+    ("playground", "Core movement test: crates, stairs, gap, crawl tunnel, ladder, destructible upper floor."),
     ("test", "Lit test scene: a small plaza, every primitive and style, props raining onto a pyramid."),
-    ("empty", "A single floor slab."),
+    ("empty", "A single floor slab with a player."),
 ];
+
+/// A room description (M2 subset of the M3 room format).
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct RoomFile {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub about: String,
+    pub layout: Layout,
+}
+
+pub const PLAYGROUND: &str = include_str!("../../../rooms/playground.toml");
+
+/// Builds a room from TOML text and spawns the player at its "player" marker.
+pub fn build_room_text(sim: &mut Sim, text: &str) -> Result<()> {
+    let room: RoomFile = toml::from_str(text).map_err(|e| anyhow::anyhow!("room file: {e}"))?;
+    let built = room.layout.build(sim);
+    for w in &built.warnings {
+        log::warn!("{w}");
+    }
+    sim.state.spawn = built.marker("player").unwrap_or(Vec3::new(0.0, 0.0, 0.0));
+    sim.spawn_player();
+    sim.state.focus = sim.state.spawn;
+    Ok(())
+}
 
 pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
     match name {
+        "playground" => build_room_text(sim, PLAYGROUND)?,
         "test" => test_scene(sim),
         "empty" => {
             floor(sim, 20);
+            sim.state.spawn = Vec3::new(0.5, 0.0, 0.5);
+            sim.spawn_player();
         }
         _ => bail!("unknown scene '{name}' (known: {})", SCENES.iter().map(|s| s.0).collect::<Vec<_>>().join(", ")),
     }

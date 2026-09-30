@@ -334,7 +334,9 @@ impl Renderer {
                 compilation_options: Default::default(),
                 buffers: &[Some(vl[0].clone()), Some(vl[1].clone())],
             },
-            primitive: wgpu::PrimitiveState { cull_mode: Some(wgpu::Face::Back), ..Default::default() },
+            // No culling: back faces become visible only where cutaway opened a solid, and are
+            // drawn as flat caps.
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
             depth_stencil: depth_main.clone(),
             multisample: ms,
             fragment: Some(wgpu::FragmentState {

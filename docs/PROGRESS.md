@@ -1,13 +1,13 @@
 # Progress log
 
-Current milestone: **M2 Core gameplay** (M1 complete).
+Current milestone: **M3 World & rooms** (M1, M2 complete).
 
 ## Status by milestone
 | Milestone | State |
 |---|---|
 | M1 Foundation | ✅ complete (2026-09-30) |
-| M2 Core gameplay | ⏳ next |
-| M3 World & rooms | pending |
+| M2 Core gameplay | ✅ complete (2026-09-30) |
+| M3 World & rooms | ⏳ next |
 | M4–M10 | pending (separate goal) |
 
 ## M1 Foundation — done
@@ -50,12 +50,54 @@ Current milestone: **M2 Core gameplay** (M1 complete).
 - **Temporary keys (M1):** F5 reset, F6 pause, F7 step, F8/F9 speed. M2 finalizes the fixed
   system layer.
 
-## Next (M2 Core gameplay)
-1. Tile/level format with heights, ladders, destructible floor tiles (rapier colliders).
-2. Player character: kinematic controller, instant + momentum models, jump, crouch/crawl,
-   ladder climb, bombs that destroy floor tiles; puppet v1 (skeleton, procedural walk, SDF parts).
-3. Input: keyboard+mouse and gamepad (gilrs) -> `InputFrame`; fixed system layer.
-4. egui tuning panel (all `Tunable`s), presets save/load, timing graphs.
-5. Rewind: snapshot ring + input log, restore + re-simulate; save snapshot to file.
-6. MCP stdio server over the tool registry; more tools (spawn, input, snapshots, record/replay).
-7. Test level "verticality" that exercises everything; send the M2 .exe.
+## M2 Core gameplay — done
+- **Tile levels with heights** (`pav_core/src/level.rs`): ASCII layers + legend (TOML), blocks
+  with relative heights, ladders, props, markers; identical neighbours merge into one block.
+  First room file: `rooms/playground.toml` (crates, stairs, plateaus with a gap, crawl tunnel,
+  two-storey building with ladder and destructible upper floor).
+- **Character controller** (`character.rs`): kinematic capsule on rapier's character controller;
+  movement models **instant** (with hold-to-slow focus) and **momentum** (accel/decel/skid/air
+  control); jump with coyote time, buffering and variable height; crouch and crawl (capsule
+  resizes, never stands up into a ceiling); ladder climbing with pull-up at the top; bombs thrown
+  at the aim point that remove destructible tiles, throw debris and push things.
+- **Puppet v1** (`puppet.rs`): skeleton with two-bone IK, speed-driven walk cycle, arm swing,
+  bob, lean into acceleration, squash & stretch spring, crouch/crawl/climb/air poses, eyes that
+  tilt toward the camera, optional stepped animation; all proportions/colours are sliders.
+- **Camera**: follows the player; "walls down" cutaway lowers geometry near the player and hides
+  what is above them (upper floors); occlusion fade tunnel; all parameters live; 8 presets.
+- **Input**: keyboard+mouse (physical keys) and gamepad (gilrs), camera-relative movement,
+  mouse aim on the ground plane at the player's height, right-stick aim; prompts follow the last
+  device used. Fixed system layer (Esc/F1–F12, hold Backspace rewind).
+- **Tuning panel** (F1): every tunable (sim, movement, bombs, puppet, camera, view, app) grouped
+  by path with filter; presets saved as JSON in `presets/` next to the exe; frame/tick graphs.
+- **Time**: pause, step, speed 0.05–8×, hold-to-rewind, timeline scrub slider, snapshot save/load
+  (`snapshots/quicksave.snap`), replay save (`replays/last.replay.json`).
+- **Agent layer**: new tools `player input spawn despawn teleport rewind snapshot_save
+  snapshot_load record_save replay`; MCP stdio server (`pav mcp`, registered in `.mcp.json`).
+- **Tests**: `crates/pav_core/tests/gameplay.rs` proves the M2 "done when" list headlessly.
+
+## Decisions (M2)
+- Characters are kinematic capsules (radius 0.32 m; stand 1.7 m, crouch 1.15 m, crawl 0.66 m).
+  Character gravity (32 m/s²) is separate from prop gravity (9.81) for game feel.
+- Rewind = snapshot every 20 ticks + per-tick input log; re-simulation is exact on the same
+  build (verified by test). History window default 30 s (`sim.history_seconds`).
+- Snapshot files use CBOR (ciborium): rapier and our tagged enums need a self-describing format.
+- Replays record inputs from scene start (run-length encoded JSON) plus the final state hash.
+- Cutaway lowers whole instances whose footprint touches the cut circle (clean "walls down"
+  look) and hides instances entirely above the cut; SDF parts use per-pixel cutting.
+- Bombs stop rolling after their throw arc so they land where aimed.
+- Startup room setting renamed to `start_room` (M1 files with `scene = "test"` are ignored);
+  default room: playground.
+- Deliverables are sent zipped (chat upload limit is 30 MB; the .exe is ~40 MB).
+- Deferred: live shader editing (M7/M8); per-room key rebinding (M3 room framework).
+
+## Next (M3 World & rooms)
+1. Room framework: room files in `rooms/` (+ built-in copies), metadata (name, about/info card,
+   primary device, movement model, camera defaults, controls), enter/exit, reset, teleport
+   menu, `--room` launch, control guide on entry.
+2. Hot reload of room files (notify) with validation errors shown in-game and via a tool.
+3. Chunk streaming around interest points; pavilion hub at the centre with doors to rooms;
+   procedural wilderness terrain regenerated from the seed; changed objects persist.
+4. Sandbox editing: spawn, drag, delete, save room to a file.
+5. Synth sound v1 (cpal output + offline .wav rendering), events -> sounds.
+6. Filmstrip capture tool.

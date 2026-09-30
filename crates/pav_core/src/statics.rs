@@ -50,7 +50,7 @@ pub struct Block {
     pub look: Look,
     #[serde(default)]
     pub flags: u32,
-    #[serde(skip)]
+    #[serde(default)]
     pub collider: Option<ColliderHandle>,
     #[serde(default = "yes")]
     pub alive: bool,
@@ -83,9 +83,63 @@ impl Block {
     }
 }
 
+/// Compass direction (north = -Z).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Facing {
+    #[default]
+    North,
+    East,
+    South,
+    West,
+}
+
+impl Facing {
+    /// Unit vector pointing in this direction on the ground plane.
+    pub fn dir(self) -> Vec3 {
+        match self {
+            Facing::North => Vec3::NEG_Z,
+            Facing::East => Vec3::X,
+            Facing::South => Vec3::Z,
+            Facing::West => Vec3::NEG_X,
+        }
+    }
+}
+
+/// A climbable zone. `facing` points from the climber toward the wall.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Ladder {
+    pub min: Vec3,
+    pub max: Vec3,
+    pub facing: Facing,
+    #[serde(default)]
+    pub color: Color,
+}
+
+impl Ladder {
+    pub fn top(&self) -> f32 {
+        self.max.y
+    }
+    pub fn center(&self) -> Vec3 {
+        (self.min + self.max) * 0.5
+    }
+    /// True when a vertical capsule (feet position, radius, height) overlaps the zone.
+    pub fn overlaps(&self, feet: Vec3, radius: f32, height: f32) -> bool {
+        let r = radius * 0.9;
+        feet.x + r > self.min.x
+            && feet.x - r < self.max.x
+            && feet.z + r > self.min.z
+            && feet.z - r < self.max.z
+            && feet.y + height > self.min.y
+            && feet.y < self.max.y + 0.05
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StaticChunk {
     pub blocks: Vec<Block>,
+    #[serde(default)]
+    pub ladders: Vec<Ladder>,
     /// Bumped on every change; the renderer caches per (chunk, version).
     pub version: u64,
 }
@@ -113,7 +167,7 @@ impl BlockRef {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StaticWorld {
     pub chunks: BTreeMap<ChunkKey, Arc<StaticChunk>>,
 }
@@ -137,6 +191,41 @@ impl StaticWorld {
         chunk.blocks.push(block);
         chunk.version += 1;
         r
+    }
+
+    pub fn add_ladder(&mut self, ladder: Ladder) {
+        let key = ChunkKey::of(ladder.center());
+        let chunk = Arc::make_mut(self.chunks.entry(key).or_default());
+        chunk.ladders.push(ladder);
+        chunk.version += 1;
+    }
+
+    /// Ladders in the 3x3 chunks around `p`.
+    pub fn ladders_near(&self, p: Vec3) -> impl Iterator<Item = &Ladder> {
+        let c = ChunkKey::of(p);
+        (-1..=1)
+            .flat_map(move |dx| (-1..=1).map(move |dz| ChunkKey(c.0 + dx, c.1 + dz)))
+            .filter_map(|k| self.chunks.get(&k))
+            .flat_map(|ch| ch.ladders.iter())
+    }
+
+    /// Alive blocks intersecting a sphere, in the chunks it can touch.
+    pub fn blocks_in_sphere(&self, center: Vec3, radius: f32) -> Vec<BlockRef> {
+        let lo = ChunkKey::of(center - Vec3::splat(radius + CHUNK_SIZE * 0.5));
+        let hi = ChunkKey::of(center + Vec3::splat(radius + CHUNK_SIZE * 0.5));
+        let mut out = Vec::new();
+        for cx in lo.0..=hi.0 {
+            for cz in lo.1..=hi.1 {
+                let key = ChunkKey(cx, cz);
+                let Some(chunk) = self.chunks.get(&key) else { continue };
+                for (i, b) in chunk.blocks.iter().enumerate() {
+                    if b.alive && center.clamp(b.min, b.max).distance_squared(center) < radius * radius {
+                        out.push(BlockRef { chunk: key, index: i as u32 });
+                    }
+                }
+            }
+        }
+        out
     }
 
     pub fn get(&self, r: BlockRef) -> Option<&Block> {

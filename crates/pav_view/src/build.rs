@@ -3,7 +3,10 @@
 use std::collections::HashMap;
 
 use glam::{Mat4, Quat, Vec3};
+use pav_core::frame::{PuppetFrame, SimEvent};
 use pav_core::params::{ChoiceParam, ParamVisitor, Tunable, nested};
+use pav_core::puppet::PuppetDef;
+use pav_core::statics::Ladder;
 use pav_core::statics::{ChunkKey, block_flags};
 use pav_core::{Color, Look, RenderFrame, RenderObject, Shape, choice_enum};
 use pav_render::scene::{self as rs, MeshInstance, MeshKey, Scene, SdfInstance, Style, Tonemap};
@@ -154,10 +157,26 @@ fn style_of(look: Look, ov: StyleOverride) -> Style {
     }
 }
 
-/// Keeps per-chunk instance caches between frames.
+#[derive(Clone, Copy, Debug)]
+enum EffectKind {
+    Explosion { radius: f32 },
+    Dust,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Effect {
+    kind: EffectKind,
+    pos: Vec3,
+    start: f64,
+}
+
+/// Keeps per-chunk instance caches and short-lived visual effects between frames.
 #[derive(Default)]
 pub struct ViewBuilder {
     static_cache: HashMap<ChunkKey, (u64, StyleOverride, Vec<MeshInstance>)>,
+    effects: Vec<Effect>,
+    /// Wall-clock seconds, drives effects.
+    pub now: f64,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -174,6 +193,12 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
             if p.pos.distance_squared(o.pos) < 4.0 {
                 obj.pos = p.pos.lerp(o.pos, alpha);
                 obj.rot = p.rot.slerp(o.rot, alpha);
+                if let (Some(a), Some(b)) = (p.puppet, o.puppet) {
+                    obj.puppet = Some(PuppetFrame {
+                        state: a.state.lerp(&b.state, alpha),
+                        feet_offset: a.feet_offset + (b.feet_offset - a.feet_offset) * alpha,
+                    });
+                }
             }
         }
         out.push(obj);
@@ -184,6 +209,76 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
 impl ViewBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Turns simulation events into visual effects (explosions, dust).
+    pub fn add_events(&mut self, events: &[SimEvent]) {
+        for e in events {
+            match e {
+                SimEvent::Explosion { pos, radius } => {
+                    self.effects.push(Effect { kind: EffectKind::Explosion { radius: *radius }, pos: *pos, start: self.now })
+                }
+                SimEvent::Land { pos, speed } if *speed > 6.0 => {
+                    self.effects.push(Effect { kind: EffectKind::Dust, pos: *pos, start: self.now })
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn emit_effects(&mut self, scene: &mut Scene) {
+        let now = self.now;
+        self.effects.retain(|e| now - e.start < 1.0);
+        for e in &self.effects {
+            let t = (now - e.start) as f32;
+            match e.kind {
+                EffectKind::Explosion { radius } => {
+                    if t < 0.35 {
+                        let grow = (t / 0.08).min(1.0);
+                        let fade = 1.0 - ((t - 0.08) / 0.27).clamp(0.0, 1.0);
+                        let r = radius * 0.85 * grow * fade.sqrt();
+                        if r > 0.01 {
+                            let mut s = SdfInstance::sphere(e.pos, r, Vec3::new(1.0, 0.62, 0.2));
+                            s.style = Style::Unlit;
+                            s.emissive = 2.0 * fade;
+                            s.flags = rs::flags::NO_SHADOW | rs::flags::NO_CUT;
+                            s.group = 0xfff0;
+                            scene.sdfs.push(s);
+                        }
+                        scene.point_lights.push(rs::PointLight {
+                            position: e.pos + Vec3::Y * 0.5,
+                            color: Vec3::new(1.0, 0.6, 0.25) * 6.0 * fade,
+                            radius: radius * 5.0,
+                        });
+                    }
+                    // Smoke puffs drifting up.
+                    if t < 0.9 {
+                        for k in 0..6 {
+                            let a = k as f32 * 1.047 + e.pos.x;
+                            let dir = Vec3::new(a.cos(), 0.6, a.sin());
+                            let p = e.pos + dir * (radius * 0.9 * (t * 3.0).min(1.0)) + Vec3::Y * t * 1.2;
+                            let r = radius * 0.35 * (1.0 - t / 0.9);
+                            let mut s = SdfInstance::sphere(p, r.max(0.0), Vec3::splat(0.35));
+                            s.flags = rs::flags::NO_SHADOW;
+                            s.group = 0xfff1;
+                            scene.sdfs.push(s);
+                        }
+                    }
+                }
+                EffectKind::Dust => {
+                    if t < 0.3 {
+                        for k in 0..5 {
+                            let a = k as f32 * 1.2566;
+                            let p = e.pos + Vec3::new(a.cos(), 0.1, a.sin()) * (0.25 + t * 2.0);
+                            let mut s = SdfInstance::sphere(p, 0.12 * (1.0 - t / 0.3), Vec3::splat(0.8));
+                            s.flags = rs::flags::NO_SHADOW;
+                            s.group = 0xfff2;
+                            scene.sdfs.push(s);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Builds the render scene. `alpha` in [0,1] blends `prev` -> `curr`.
@@ -230,10 +325,15 @@ impl ViewBuilder {
             TonemapChoice::Aces => Tonemap::Aces,
         };
         let c = &settings.cutaway;
+        let feet = curr
+            .player
+            .and_then(|id| curr.objects.iter().find(|o| o.id == id))
+            .and_then(|o| o.puppet.map(|p| focus - Vec3::Y * p.feet_offset))
+            .unwrap_or(focus);
         scene.cutaway = rs::Cutaway {
-            focus: focus + Vec3::Y * 0.9,
+            focus: feet + Vec3::Y * 0.9,
             height_cut: c.height_cut && curr.focus_is_player,
-            cut_height: focus.y + c.cut_above,
+            cut_height: feet.y + c.cut_above,
             cut_radius: c.cut_radius,
             fade: c.fade && curr.focus_is_player,
             fade_radius: c.fade_radius,
@@ -262,25 +362,110 @@ impl ViewBuilder {
                         group: 1,
                     });
                 }
+                for l in &chunk.ladders {
+                    emit_ladder(&mut list, l, style_of(Look::Cel, settings.style));
+                }
                 self.static_cache.insert(*key, (chunk.version, settings.style, list));
             }
             scene.meshes.extend_from_slice(&self.static_cache[key].2);
         }
 
         // Dynamic objects.
+        let cam_fwd = scene.camera.forward;
+        let now = self.now as f32;
         for o in interpolate(prev, curr, alpha) {
-            emit_object(&mut scene, &o, settings.style);
+            match o.puppet {
+                Some(p) => {
+                    let player = curr.player == Some(o.id);
+                    emit_puppet(&mut scene, &curr.puppet_def, &o, &p, cam_fwd, settings.style, player)
+                }
+                None => emit_object(&mut scene, &o, settings.style, now),
+            }
         }
+        self.emit_effects(&mut scene);
         scene
     }
 }
 
+/// Ladder: two rails and rungs against the wall.
+fn emit_ladder(list: &mut Vec<MeshInstance>, l: &Ladder, style: Style) {
+    let f = l.facing.dir();
+    let lat = Vec3::new(-f.z, 0.0, f.x);
+    let c = l.center();
+    let depth = (l.max - l.min).dot(f.abs());
+    let width = (l.max - l.min).dot(lat.abs());
+    let wall_side = c + f * (depth * 0.5 - 0.07);
+    let color = v3(l.color);
+    let h = l.max.y - l.min.y + 0.5;
+    let mut push = |center: Vec3, size: Vec3| {
+        list.push(MeshInstance {
+            mesh: MeshKey::Cube,
+            transform: Mat4::from_scale_rotation_translation(size, Quat::IDENTITY, center),
+            color,
+            emissive: 0.0,
+            style,
+            flags: 0,
+            group: 3,
+        })
+    };
+    let rail = |s: f32| wall_side + lat * s * (width * 0.5 - 0.04);
+    for s in [-1.0f32, 1.0] {
+        let p = rail(s);
+        let size = lat.abs() * 0.07 + f.abs() * 0.07 + Vec3::Y * h;
+        push(Vec3::new(p.x, l.min.y + h * 0.5, p.z), size);
+    }
+    let mut y = l.min.y + 0.3;
+    while y < l.max.y + 0.3 {
+        let size = lat.abs() * (width - 0.08) + f.abs() * 0.05 + Vec3::Y * 0.05;
+        push(Vec3::new(wall_side.x, y, wall_side.z), size);
+        y += 0.3;
+    }
+}
+
+fn emit_puppet(
+    scene: &mut Scene,
+    def: &PuppetDef,
+    o: &RenderObject,
+    p: &PuppetFrame,
+    cam_fwd: Vec3,
+    ov: StyleOverride,
+    player: bool,
+) {
+    let feet = o.pos - Vec3::Y * p.feet_offset;
+    let style = style_of(def.look, ov);
+    let flags = if player { rs::flags::NO_CUT } else { 0 };
+    for part in pav_core::puppet::pose(def, &p.state, feet, cam_fwd) {
+        scene.sdfs.push(SdfInstance {
+            a: part.a,
+            b: part.b,
+            ra: part.ra,
+            rb: part.rb,
+            color: v3(part.color),
+            emissive: 0.0,
+            style,
+            flags,
+            group: o.id.0 + 2,
+        });
+    }
+}
+
 /// Adds one object's instances to the scene.
-pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride) {
+pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: f32) {
     let v = &o.visual;
     let style = style_of(v.look, ov);
-    let color = v3(v.color);
+    let mut color = v3(v.color);
     let group = o.id.0 + 2;
+    let mut v = v.clone();
+    if o.pulse >= 0.0 {
+        // Bomb fuse: blink faster as it runs out.
+        let rate = 4.0 + 14.0 / (o.pulse + 0.25);
+        if (now * rate).sin() > 0.0 {
+            color = Vec3::new(1.0, 0.25, 0.15);
+            v.emissive = 1.2;
+            scene.point_lights.push(rs::PointLight { position: o.pos, color: Vec3::new(1.0, 0.2, 0.1) * 1.5, radius: 2.5 });
+        }
+    }
+    let v = &v;
     let mesh = |mesh, scale: Vec3| MeshInstance {
         mesh,
         transform: Mat4::from_scale_rotation_translation(scale, o.rot, o.pos),

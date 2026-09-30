@@ -5,8 +5,17 @@ use glam::{Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::entity::EntityId;
+use crate::puppet::{PuppetDef, PuppetState};
 use crate::shape::Visual;
 use crate::statics::StaticWorld;
+
+/// Animation state of a character, drawn as a puppet.
+#[derive(Clone, Copy, Debug)]
+pub struct PuppetFrame {
+    pub state: PuppetState,
+    /// Distance from the entity position (capsule centre) down to the feet.
+    pub feet_offset: f32,
+}
 
 #[derive(Clone, Debug)]
 pub struct RenderObject {
@@ -14,6 +23,9 @@ pub struct RenderObject {
     pub pos: Vec3,
     pub rot: Quat,
     pub visual: Visual,
+    pub puppet: Option<PuppetFrame>,
+    /// Blink/highlight driver: bomb fuse seconds left, or < 0 for none.
+    pub pulse: f32,
 }
 
 /// Things that happened during a tick, for sound and effects.
@@ -39,5 +51,7 @@ pub struct RenderFrame {
     pub focus: Vec3,
     /// True when `focus` is a player character (enables cutaway/fade helpers).
     pub focus_is_player: bool,
+    pub player: Option<EntityId>,
+    pub puppet_def: PuppetDef,
     pub events: Vec<SimEvent>,
 }

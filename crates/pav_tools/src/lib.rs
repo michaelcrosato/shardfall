@@ -2,6 +2,7 @@
 //! MCP stdio server. Every tool works on a `Session` (a simulation plus camera/view state and
 //! an optional headless GPU for captures).
 
+pub mod mcp;
 pub mod session;
 pub mod tools;
 

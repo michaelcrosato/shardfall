@@ -7,6 +7,7 @@ use glam::{Quat, Vec3};
 use rapier::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::character::Character;
 use crate::shape::Visual;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -47,17 +48,31 @@ pub enum BodyKind {
     Dynamic,
 }
 
-#[derive(Clone, Debug, Serialize)]
+/// A lit fuse.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Bomb {
+    pub fuse: f32,
+    pub radius: f32,
+    pub owner: Option<EntityId>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Entity {
     pub id: EntityId,
     pub name: String,
     pub pos: Vec3,
     pub rot: Quat,
     pub body_kind: BodyKind,
-    #[serde(skip)]
     pub body: Option<RigidBodyHandle>,
     pub visual: Option<Visual>,
     pub behavior: Behavior,
+    #[serde(default)]
+    pub character: Option<Box<Character>>,
+    #[serde(default)]
+    pub bomb: Option<Bomb>,
+    /// Ticks until the entity despawns by itself (debris).
+    #[serde(default)]
+    pub lifetime: Option<u32>,
 }
 
 /// Everything needed to create an entity.
@@ -128,7 +143,7 @@ impl Spawn {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Entities {
     pub map: BTreeMap<EntityId, Entity>,
     pub next: u32,

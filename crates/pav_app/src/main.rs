@@ -4,6 +4,8 @@
 mod app;
 mod boot;
 mod gfx;
+mod input;
+mod panel;
 mod platform;
 mod settings;
 mod simhost;

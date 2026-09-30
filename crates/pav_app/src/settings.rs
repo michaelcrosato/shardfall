@@ -11,14 +11,14 @@ pub struct Settings {
     pub width: u32,
     pub height: u32,
     pub fullscreen: bool,
-    /// Scene or room to start in.
+    /// Room to start in (empty = the default room). Command line: --room NAME.
     pub scene: String,
     pub seed: u64,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { backend: "vulkan".into(), vsync: true, width: 1600, height: 900, fullscreen: false, scene: "test".into(), seed: 1 }
+        Self { backend: "vulkan".into(), vsync: true, width: 1600, height: 900, fullscreen: false, scene: String::new(), seed: 1 }
     }
 }
 
@@ -63,6 +63,9 @@ impl Settings {
         if let Ok(b) = std::env::var("PAV_BACKEND") {
             s.backend = b;
         }
+        if s.scene.is_empty() {
+            s.scene = "playground".into();
+        }
         (s, note)
     }
 }
@@ -80,7 +83,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
             "width" => s.width = v.parse().map_err(|_| "bad width")?,
             "height" => s.height = v.parse().map_err(|_| "bad height")?,
             "fullscreen" => s.fullscreen = v == "true",
-            "scene" => s.scene = v.into(),
+            "start_room" => s.scene = v.into(),
             "seed" => s.seed = v.parse().map_err(|_| "bad seed")?,
             _ => {}
         }
@@ -90,7 +93,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
 
 fn toml_to_string(s: &Settings) -> String {
     format!(
-        "backend = \"{}\"\nvsync = {}\nwidth = {}\nheight = {}\nfullscreen = {}\nscene = \"{}\"\nseed = {}\n",
-        s.backend, s.vsync, s.width, s.height, s.fullscreen, s.scene, s.seed
+        "backend = \"{}\"\nvsync = {}\nwidth = {}\nheight = {}\nfullscreen = {}\n# start_room = \"playground\"\nseed = {}\n",
+        s.backend, s.vsync, s.width, s.height, s.fullscreen, s.seed
     )
 }

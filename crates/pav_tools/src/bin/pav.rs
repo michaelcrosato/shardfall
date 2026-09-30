@@ -40,7 +40,7 @@ fn print(out: Result<Output>) -> bool {
 }
 
 fn help() {
-    println!("pav — Pavilion agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav help\n\nTools:");
+    println!("pav — Pavilion agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav mcp [scene] | pav help\n\nTools:");
     for t in TOOLS {
         let args: Vec<String> = t.args.iter().map(|a| format!("{}=<{}>", a.name, a.kind)).collect();
         println!("  {:<10} {}  {}", t.name, t.help, args.join(" "));
@@ -56,8 +56,12 @@ fn main() -> Result<()> {
     };
     match cmd.as_str() {
         "help" | "--help" | "-h" => help(),
+        "mcp" => {
+            let scene = argv.get(1).cloned().unwrap_or_else(|| "playground".into());
+            pav_tools::mcp::serve(Session::new(&scene, 1)?)?;
+        }
         "repl" => {
-            let mut session = Session::new("test", 1)?;
+            let mut session = Session::new("playground", 1)?;
             for line in std::io::stdin().lock().lines() {
                 let line = line?;
                 let words: Vec<String> = line.split_whitespace().map(String::from).collect();
@@ -70,7 +74,7 @@ fn main() -> Result<()> {
         }
         name => {
             let args = parse_args(&argv[1..]);
-            let scene = args.get("scene").and_then(|v| v.as_str()).unwrap_or("test").to_string();
+            let scene = args.get("scene").and_then(|v| v.as_str()).unwrap_or("playground").to_string();
             let seed = args.get("seed").and_then(|v| v.as_u64()).unwrap_or(1);
             let mut session = Session::new(&scene, seed)?;
             if name != "step" && name != "bench" {

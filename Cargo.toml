@@ -22,10 +22,11 @@ egui-winit = { version = "0.36.2", default-features = false, features = ["clipbo
 gilrs = "0.11"
 cpal = "0.18"
 png = "0.18"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 toml = "1"
 notify = "8"
+ciborium = "0.2"
 anyhow = "1"
 log = "0.4"
 bytemuck = { version = "1", features = ["derive"] }

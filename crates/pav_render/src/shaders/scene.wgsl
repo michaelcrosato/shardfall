@@ -42,19 +42,15 @@ fn bayer4(frag: vec2<f32>) -> f32 {
     return (m[y * 4u + x] + 0.5) / 16.0;
 }
 
-// True when the fragment should be removed by the camera helpers.
-fn cut_away(p: vec3<f32>, frag: vec2<f32>, flags: u32) -> bool {
+// True when the fragment should be removed by the camera helpers. Meshes handle the height cut
+// in the vertex shader (walls are lowered), so they pass `height = false`.
+fn cut_away(p: vec3<f32>, frag: vec2<f32>, flags: u32, height: bool) -> bool {
     if ((flags & FLAG_NO_CUT) != 0u) {
         return false;
     }
-    if (g.cut2.y > 0.5) {
-        let dxz = length(p.xz - g.cut.xz);
-        if (p.y > g.cut.w && dxz < g.cut2.x) {
-            // soft dithered rim on the outer 25%
-            let k = smoothstep(g.cut2.x * 0.75, g.cut2.x, dxz);
-            if (bayer4(frag) >= k) {
-                return true;
-            }
+    if (height && g.cut2.y > 0.5) {
+        if (p.y > g.cut.w && length(p.xz - g.cut.xz) < g.cut2.x) {
+            return true;
         }
     }
     if (g.cut2.w > 0.5) {
@@ -210,8 +206,23 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
         n = -n;
     }
     var o: MeshOut;
-    o.clip = g.view_proj * wp;
-    o.world = wp.xyz;
+    var world = wp.xyz;
+    if (g.cut2.y > 0.5 && (i.params.y & FLAG_NO_CUT) == 0u) {
+        // "Walls down": instances whose footprint touches the cut circle are lowered to the
+        // cut height; instances entirely above it are hidden.
+        let ext = 0.5 * (abs(c0) + abs(c1) + abs(c2));
+        let c = i.m3.xyz;
+        let d = max(abs(g.cut.xz - c.xz) - ext.xz, vec2<f32>(0.0));
+        if (length(d) < g.cut2.x) {
+            if (c.y - ext.y >= g.cut.w - 0.01) {
+                o.clip = vec4<f32>(0.0, 0.0, 2.0, 1.0);
+                return o;
+            }
+            world.y = min(world.y, g.cut.w);
+        }
+    }
+    o.clip = g.view_proj * vec4<f32>(world, 1.0);
+    o.world = world;
     o.normal = normalize(n);
     o.color = i.color;
     o.params = i.params;
@@ -219,12 +230,18 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
 }
 
 @fragment
-fn fs_mesh(in: MeshOut) -> FsOut {
-    if (cut_away(in.world, in.clip.xy, in.params.y)) {
+fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
+    if (cut_away(in.world, in.clip.xy, in.params.y, false)) {
         discard;
     }
-    let n = normalize(in.normal);
     var o: FsOut;
+    if (!front) {
+        // Inside of a cut-open solid: draw a flat "cross-section" cap.
+        o.color = vec4<f32>(in.color.rgb * 0.42, 1.0);
+        o.normal = group_out(vec3<f32>(0.0, 1.0, 0.0), in.params.z);
+        return o;
+    }
+    let n = normalize(in.normal);
     o.color = vec4<f32>(shade(in.world, n, in.color.rgb, in.color.a, in.params.x, in.params.y), 1.0);
     o.normal = group_out(n, in.params.z);
     return o;
@@ -386,7 +403,7 @@ fn fs_sdf(in: SdfOut) -> SdfFsOut {
         discard;
     }
     let p = ro + rd * hit.x;
-    if (cut_away(p, in.clip.xy, in.params.y)) {
+    if (cut_away(p, in.clip.xy, in.params.y, true)) {
         discard;
     }
     let n = normalize(hit.yzw);

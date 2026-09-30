@@ -30,7 +30,7 @@ pub struct ParamsRoot<'a> {
 
 impl Tunable for ParamsRoot<'_> {
     fn visit(&mut self, v: &mut dyn ParamVisitor) {
-        nested(v, "sim", self.sim);
+        self.sim.visit_groups(v);
         nested(v, "camera", self.camera);
         nested(v, "view", self.view);
     }

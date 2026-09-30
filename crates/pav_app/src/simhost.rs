@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use pav_core::{InputFrame, RenderFrame, Sim};
+use pav_core::{InputFrame, RenderFrame, Sim, SimEvent};
 
 type Job = Box<dyn FnOnce(&mut Sim) + Send>;
 
@@ -22,11 +22,17 @@ pub struct TimeControl {
     pub speed: f32,
     /// Ticks to advance while paused.
     pub step_requests: u32,
+    /// Holding the rewind button.
+    pub rewinding: bool,
+    /// Ticks travelled back per tick while rewinding.
+    pub rewind_speed: u32,
+    /// Jump to this tick (timeline scrubbing), keeping the future until play resumes.
+    pub scrub: Option<u64>,
 }
 
 impl Default for TimeControl {
     fn default() -> Self {
-        Self { paused: false, speed: 1.0, step_requests: 0 }
+        Self { paused: false, speed: 1.0, step_requests: 0, rewinding: false, rewind_speed: 1, scrub: None }
     }
 }
 
@@ -38,6 +44,11 @@ pub struct SimStats {
     pub tick_ms: f32,
     pub tick: u64,
     pub entities: usize,
+    /// Rewind range available (ticks).
+    pub oldest: u64,
+    pub newest: u64,
+    pub history_mb: f32,
+    pub rewound: bool,
 }
 
 pub struct FramePair {
@@ -55,6 +66,8 @@ pub struct Shared {
     pub control: Mutex<TimeControl>,
     pub stats: Mutex<SimStats>,
     pub crashed: Mutex<Option<String>>,
+    /// Events for sound and effects, drained by the render thread.
+    pub events: Mutex<Vec<SimEvent>>,
 }
 
 pub struct SimHost {
@@ -72,6 +85,7 @@ impl SimHost {
             control: Mutex::new(TimeControl::default()),
             stats: Mutex::new(SimStats::default()),
             crashed: Mutex::new(None),
+            events: Mutex::new(Vec::new()),
         });
         let (tx, rx) = channel();
         let sh = shared.clone();
@@ -130,7 +144,16 @@ impl Drop for SimHost {
     }
 }
 
-fn publish(sim: &Sim, sh: &Shared, tick_wall: f32, at: Instant) {
+fn publish(sim: &mut Sim, sh: &Shared, tick_wall: f32, at: Instant) {
+    let events = sim.drain_events();
+    if !events.is_empty() {
+        let mut q = sh.events.lock().unwrap();
+        q.extend(events);
+        let n = q.len();
+        if n > 512 {
+            q.drain(..n - 512);
+        }
+    }
     let frame = Arc::new(sim.frame());
     let mut f = sh.frames.lock().unwrap();
     f.prev = std::mem::replace(&mut f.curr, frame);
@@ -143,13 +166,15 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
     let mut window_start = Instant::now();
     let mut window_ticks = 0u32;
     let mut busy = Duration::ZERO;
+    let mut rewound = false;
     loop {
         // Commands first.
         loop {
             match rx.try_recv() {
                 Ok(Cmd::Run(job)) => {
                     job(&mut sim);
-                    publish(&sim, &sh, sim.dt(), Instant::now());
+                    let dt = sim.dt();
+                    publish(&mut sim, &sh, dt, Instant::now());
                 }
                 Ok(Cmd::Quit) => return,
                 Err(std::sync::mpsc::TryRecvError::Empty) => break,
@@ -171,17 +196,45 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
             busy += t.elapsed();
             window_ticks += 1;
             publish(sim, &sh, tick_wall, at);
-            sim.drain_events();
         };
 
         let now = Instant::now();
-        if ctl.paused {
+        if ctl.rewinding {
+            if now >= next {
+                next = now + Duration::from_secs_f32(sim.dt());
+                let oldest = sim.history.oldest_tick().unwrap_or(sim.state.tick);
+                let target = sim.state.tick.saturating_sub(ctl.rewind_speed.max(1) as u64).max(oldest);
+                if target < sim.state.tick && sim.rewind_to(target) {
+                    rewound = true;
+                }
+                let dt = sim.dt();
+                publish(&mut sim, &sh, dt, now);
+            }
+        } else if let Some(t) = ctl.scrub {
+            sh.control.lock().unwrap().scrub = None;
+            if sim.rewind_to(t) {
+                rewound = true;
+            }
+            let dt = sim.dt();
+            publish(&mut sim, &sh, dt, now);
+            next = now;
+        } else if ctl.paused {
             if ctl.step_requests > 0 {
                 sh.control.lock().unwrap().step_requests -= 1;
+                if rewound {
+                    sim.commit_rewind();
+                    rewound = false;
+                }
                 tick_once(&mut sim, now);
             }
             next = now;
         } else {
+            if rewound {
+                // Acting after a rewind starts a new timeline.
+                sim.commit_rewind();
+                rewound = false;
+                next = now;
+            }
             let mut n = 0;
             while now >= next && n < 8 {
                 next += Duration::from_secs_f32(tick_wall);
@@ -200,6 +253,10 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
             s.tick_ms = if window_ticks > 0 { busy.as_secs_f32() * 1000.0 / window_ticks as f32 } else { 0.0 };
             s.tick = sim.state.tick;
             s.entities = sim.state.entities.len();
+            s.oldest = sim.history.oldest_tick().unwrap_or(sim.state.tick);
+            s.newest = sim.history.newest_tick().unwrap_or(sim.state.tick).max(sim.state.tick);
+            s.history_mb = sim.history.approx_bytes() as f32 / 1.0e6;
+            s.rewound = rewound;
             window_start = Instant::now();
             window_ticks = 0;
             busy = Duration::ZERO;
@@ -209,7 +266,8 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
         match rx.recv_timeout(wait) {
             Ok(Cmd::Run(job)) => {
                 job(&mut sim);
-                publish(&sim, &sh, sim.dt(), Instant::now());
+                let dt = sim.dt();
+                publish(&mut sim, &sh, dt, Instant::now());
             }
             Ok(Cmd::Quit) => return,
             Err(RecvTimeoutError::Timeout) => {}

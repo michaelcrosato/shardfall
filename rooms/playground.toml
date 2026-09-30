@@ -1,0 +1,100 @@
+# Playground: the M2 verticality test. Walk, jump onto crates, climb the ladder to the upper
+# floor, blow a hole in it with a bomb (F / left click) and drop through; crawl (Z) through
+# the tunnel; jump the gap between the plateaus.
+name = "Playground"
+about = "Core movement test: crates, stairs, plateaus with a gap, a crawl tunnel, and a two-storey building with a ladder and a destructible upper floor."
+
+[layout]
+origin = [-14.0, 0.0, -10.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+############################
+#..........................#
+#.P........................#
+#..........................#
+#...123.......#########....#
+#.............#.......#....#
+#......o......#...o...#....#
+#.............#.......#....#
+#...o..o......#.......#....#
+#...a.........###.#####....#
+#...b.............L........#
+#...c......................#
+#..RRRR..RRRR..............#
+#..RRRR..RRRR....TTTTTT....#
+#..RRRR..RRRR....tttttt....#
+#..RRRR..RRRR....TTTTTT....#
+#..........................#
+#..........................#
+#..........................#
+############################
+'''
+
+# Upper floor of the building, 3 m up. 'x' tiles can be blown away.
+[[layout.layer]]
+y = 3
+at = [14, 4]
+map = '''
+rrrrrrrrr
+rxxxxxxxr
+rxxxxxxxr
+rxxxxxxxr
+rxxxxxxxr
+=========
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }]
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }]
+marker = "player"
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }, { y0 = 0, y1 = 3, color = "#d9cbb0" }]
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }, { y0 = 0, y1 = 0.5, color = "#c9a27a", rounded = true }]
+
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }, { y0 = 0, y1 = 1.0, color = "#c9a27a", rounded = true }]
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }, { y0 = 0, y1 = 1.5, color = "#c9a27a", rounded = true }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0.25, color = "#b8a58a" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0.5, color = "#b8a58a" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0.75, color = "#b8a58a" }]
+
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 1.0, color = "#86b872" }]
+
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }, { y0 = 0, y1 = 1.2, color = "#9aa5b1" }]
+
+[layout.legend.'t']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7f9aa8" }, { y0 = 0.8, y1 = 1.2, color = "#9aa5b1" }]
+
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }]
+prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a", name = "crate" }
+
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8fbf7a" }]
+ladder = { facing = "north", height = 3.0 }
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.25, y1 = 0, color = "#c7b299" }, { y0 = 0, y1 = 0.8, color = "#d9cbb0" }]
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.25, y1 = 0, color = "#b89b72", destructible = true }]
+
+[layout.legend.'=']
+blocks = [{ y0 = -0.25, y1 = 0, color = "#c7b299" }]

@@ -17,7 +17,7 @@ pub fn entity_from_tag(tag: u128) -> Option<u32> {
     (tag & TAG_MASK == TAG_ENTITY).then_some(tag as u32)
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct PhysicsState {
     pub gravity: Vector,
     pub params: IntegrationParameters,
