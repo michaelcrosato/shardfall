@@ -1,0 +1,15 @@
+[package]
+name = "pav_tools"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+pav_core.workspace = true
+pav_render.workspace = true
+pav_view.workspace = true
+glam.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+log.workspace = true

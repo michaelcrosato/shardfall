@@ -1,0 +1,27 @@
+[package]
+name = "pav_app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "pavilion"
+path = "src/main.rs"
+
+[dependencies]
+pav_core.workspace = true
+pav_render.workspace = true
+pav_view.workspace = true
+pav_tools.workspace = true
+glam.workspace = true
+winit.workspace = true
+egui.workspace = true
+egui-wgpu = { workspace = true, features = ["winit"] }
+egui-winit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+log.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_Foundation"] }

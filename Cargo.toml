@@ -1,0 +1,47 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+pav_core = { path = "crates/pav_core" }
+pav_render = { path = "crates/pav_render" }
+pav_view = { path = "crates/pav_view" }
+pav_tools = { path = "crates/pav_tools" }
+glam = { version = "0.33", features = ["serde", "bytemuck"] }
+# Vulkan + DX12 only (no OpenGL); "webgpu" is for the later browser build.
+wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "dx12", "vulkan", "wgsl", "webgpu"] }
+winit = "0.30.13"
+egui = "0.36.2"
+egui-wgpu = { version = "0.36.2", default-features = false }
+egui-winit = { version = "0.36.2", default-features = false, features = ["clipboard", "links"] }
+gilrs = "0.11"
+cpal = "0.18"
+png = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+notify = "8"
+anyhow = "1"
+log = "0.4"
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "1"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+debug = "line-tables-only"
+
+# Distribution build (what gets sent to the user): smaller, still has function names in crash reports.
+[profile.dist]
+inherits = "release"
+debug = false
+strip = "debuginfo"
