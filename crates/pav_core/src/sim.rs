@@ -443,6 +443,11 @@ impl Sim {
                             fallen.push((id, ai.home));
                         }
                         npc_input = ai.think(feet, player_feet, &mut st.rng, dt);
+                        if let (Some(f), Some(ch)) = (ai.rest_facing(), e.character.as_mut()) {
+                            if ch.stun <= 0.0 {
+                                ch.facing = f;
+                            }
+                        }
                         &npc_input
                     }
                     _ => &idle,

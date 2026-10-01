@@ -476,6 +476,17 @@ fn camera_rules(def: &PuppetDef, facing: f32, feet: Vec3, cam_fwd: Vec3, parts: 
             p.a = card(p.a);
             p.b = card(p.b);
         }
+        // Small features (eyes, markings) inside a bigger ball sit on its front, so the flat
+        // drawing keeps them visible.
+        let balls: Vec<(Vec3, f32)> = parts.iter().filter(|p| p.a == p.b).map(|p| (p.a, p.ra)).collect();
+        for p in parts.iter_mut().filter(|p| p.a == p.b) {
+            if let Some((c, r)) = balls.iter().find(|(c, r)| *r > p.ra * 2.0 && (p.a - *c).length() < *r) {
+                let flat = p.a - toward * (p.a - *c).dot(toward);
+                let lift = (r * r - (flat - *c).length_squared()).max(0.0).sqrt();
+                p.a = flat + toward * (lift + p.ra * 0.2);
+                p.b = p.a;
+            }
+        }
     }
 }
 

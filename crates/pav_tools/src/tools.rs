@@ -219,6 +219,12 @@ pub static TOOLS: &[Tool] = &[
         run: t_camera_bench,
     },
     Tool {
+        name: "npcs",
+        help: "Non-player characters and creatures: body plan, feet, velocity, brain, steps taken, flinch.",
+        args: &[arg("name", "string", "only names starting with this")],
+        run: t_npcs,
+    },
+    Tool {
         name: "signal",
         help: "Send a pad signal (spawners listening for it fire on the next tick), then step 1 tick.",
         args: &[arg("name", "string", "signal name, e.g. drop or clear")],
@@ -898,6 +904,37 @@ fn t_camera_bench(s: &mut Session, a: &Args) -> Result<Output> {
     let names: Vec<&str> = list.iter().map(|(n, _)| n.as_str()).collect();
     let meta = json!({ "path": path, "tiles": names, "size": [tw, th] });
     Ok(Output::Image { png, path: Some(path), meta })
+}
+
+fn t_npcs(s: &mut Session, a: &Args) -> Result<Output> {
+    let prefix = get_str(a, "name").unwrap_or("");
+    let player = s.sim.state.player;
+    let r = |v: f32| (v * 1000.0).round() / 1000.0;
+    let list: Vec<Value> = s
+        .sim
+        .state
+        .entities
+        .iter()
+        .filter(|e| Some(e.id) != player && e.name.starts_with(prefix))
+        .filter_map(|e| {
+            let ch = e.character.as_ref()?;
+            let feet = e.pos - glam::Vec3::Y * ch.height() * 0.5;
+            let body = ch.puppet.as_ref().map(|d| d.body).unwrap_or(s.sim.config.puppet.body);
+            Some(json!({
+                "id": e.id.0,
+                "name": e.name,
+                "body": pav_core::params::ChoiceParam::name(body),
+                "feet": [r(feet.x), r(feet.y), r(feet.z)],
+                "vel": [r(ch.vel.x), r(ch.vel.y), r(ch.vel.z)],
+                "facing_deg": r(ch.facing.to_degrees()),
+                "grounded": ch.grounded,
+                "ai": e.ai.as_ref().map(|a| serde_json::to_value(&a.def).unwrap_or_default()),
+                "steps": ch.rig.as_ref().map(|r| r.steps),
+                "flinch": r(ch.anim.hit_side.abs() + ch.anim.hit_fwd.abs()),
+            }))
+        })
+        .collect();
+    Ok(Output::Json(json!(list)))
 }
 
 fn t_signal(s: &mut Session, a: &Args) -> Result<Output> {

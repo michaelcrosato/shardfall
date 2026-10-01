@@ -84,13 +84,27 @@ impl Ai {
         Self { def, home, points, speed, hop, facing, target: None, wait: 0.5, index: 0, hop_timer: hop, stuck: 0.0, last: home }
     }
 
+    /// Facing to turn to while standing still (idle brains face their start direction).
+    pub fn rest_facing(&self) -> Option<f32> {
+        matches!(self.def, AiDef::Idle).then_some(self.facing).filter(|_| self.target.is_none())
+    }
+
     /// Decides this tick's input. `feet` = own position, `player` = the player's feet.
     pub fn think(&mut self, feet: Vec3, player: Option<Vec3>, rng: &mut Rng, dt: f32) -> InputFrame {
         let mut out = InputFrame::default();
         let flat = |v: Vec3| Vec2::new(v.x, v.z);
         let mut dir = Vec2::ZERO;
         match &self.def {
-            AiDef::Idle => {}
+            AiDef::Idle => {
+                // Knocked away: walk back to the spot.
+                let d = flat(self.home - feet);
+                if d.length() > if self.target.is_some() { 0.15 } else { 0.6 } {
+                    self.target = Some(self.home);
+                    dir = d.normalize();
+                } else {
+                    self.target = None;
+                }
+            }
             AiDef::Wander { radius, pause } => {
                 if self.wait > 0.0 {
                     self.wait -= dt;
