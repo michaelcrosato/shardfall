@@ -59,7 +59,7 @@ small generators, and every system has an agent tool to build and inspect it.
 - **G5 World:** town hub with animated NPCs, layout generator and themes, twelve mechanics,
   designed levels 1-12, endless Depths, waypoints, saving. *(done: see "World" below)*
 - **G6 Showcase:** juice pass, the agent tools, bot balance pass, browser build, docs and the
-  final build.
+  final build. *(done)*
 
 ## Items (G2)
 - **Bases** (`game/items.toml`, 114): ten weapon kinds and nine slots, six tiers each by item
