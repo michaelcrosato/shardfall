@@ -170,6 +170,17 @@ fn layout(def: &PuppetDef) -> Layout {
             }
             (h, leg * 0.5, leg * 0.55)
         }
+        BodyPlan::Quadruped => {
+            // Legs straight under a raised body, front pair under the chest.
+            let h = leg * 0.95 + rb * 0.4;
+            for p in 0..n {
+                let z = bl * 0.42 * (1.0 - 2.0 * t(p));
+                for s in [-1.0f32, 1.0] {
+                    legs.push((Vec3::new(s * rb * 0.55, h - rb * 0.4, z), Vec3::new(s * rb * 0.62, 0.0, z)));
+                }
+            }
+            (h, leg * 0.53, leg * 0.53)
+        }
         BodyPlan::Blob => (def.torso_radius * k, 0.0, 0.0),
         BodyPlan::Biped => (def.leg_length * k * 0.97, 0.0, 0.0),
     };
@@ -205,6 +216,14 @@ fn chain_specs(def: &PuppetDef, crouch: f32) -> Vec<(ChainKind, Vec3, Vec3, f32,
         BodyPlan::Lizard => {
             (Vec3::new(0.0, lay.body_h, -bl * 0.5), Vec3::new(0.0, lay.body_h + rb * 0.6, bl * 0.5 + rb), def.head_radius * k)
         }
+        BodyPlan::Quadruped => {
+            let head = quad_head(def, lay.body_h, 0.0);
+            (
+                Vec3::new(0.0, lay.body_h + rb * 0.35, -bl * 0.5 - rb * 0.6),
+                head + Vec3::Y * def.head_radius * k * 0.7,
+                def.head_radius * k,
+            )
+        }
         BodyPlan::Blob => (Vec3::new(0.0, rb * 0.5, -rb), Vec3::new(0.0, rb * 1.9, rb * 0.2), rb * 0.6),
     };
     if def.body == BodyPlan::Lizard {
@@ -215,7 +234,9 @@ fn chain_specs(def: &PuppetDef, crouch: f32) -> Vec<(ChainKind, Vec3, Vec3, f32,
     }
     if def.tail_length > 0.01 {
         let segs = ((def.tail_length * k / 0.15) as usize).clamp(3, 9);
-        out.push((ChainKind::Tail, tail_root, Vec3::new(0.0, 0.25, -1.0).normalize(), def.tail_length * k, segs));
+        // Hounds carry their tails up.
+        let dir = if def.body == BodyPlan::Quadruped { Vec3::new(0.0, 0.8, -1.0) } else { Vec3::new(0.0, 0.25, -1.0) };
+        out.push((ChainKind::Tail, tail_root, dir.normalize(), def.tail_length * k, segs));
     }
     if def.antenna_length > 0.01 {
         for (kind, s) in [(ChainKind::AntennaL, -1.0f32), (ChainKind::AntennaR, 1.0)] {
@@ -224,6 +245,14 @@ fn chain_specs(def: &PuppetDef, crouch: f32) -> Vec<(ChainKind, Vec3, Vec3, f32,
         }
     }
     out
+}
+
+/// A quadruped's head in the body frame: forward of the chest on a raised neck, dipping a
+/// little with each stride (`bob`).
+fn quad_head(def: &PuppetDef, body_h: f32, bob: f32) -> Vec3 {
+    let k = def.scale;
+    let (rb, bl, hr) = (def.torso_radius * k, def.body_length * k, def.head_radius * k);
+    Vec3::new(0.0, body_h + rb * 1.1 + hr * 0.5 - bob, bl * 0.5 + rb * 0.75 + hr * 0.4)
 }
 
 /// Whether a def needs a rig at all (creatures, or bipeds with tails/antennae).
@@ -450,6 +479,26 @@ fn eyes(parts: &mut Vec<PuppetPart>, head: Vec3, r: f32, fwd: Vec3, right: Vec3,
     }
 }
 
+/// Attacks: a creature coils back, lunges through the strike and settles (any body plan;
+/// tails and antennae follow through `chain_parts`).
+pub fn lunge_offset(def: &PuppetDef, st: &PuppetState) -> Vec3 {
+    if st.act_kind == 0 || def.body == BodyPlan::Biped {
+        return Vec3::ZERO;
+    }
+    let h = st.act_hit.clamp(0.1, 0.9);
+    let a = st.act.clamp(0.0, 1.0);
+    let x = (a / h).min(1.0);
+    let back = -0.16 * x * x * (3.0 - 2.0 * x);
+    let lunge = if a < h {
+        back
+    } else if a < h + 0.08 {
+        back + (0.3 - back) * ((a - h) / 0.08)
+    } else {
+        0.3 * (1.0 - ((a - h - 0.08) / (1.0 - h - 0.08).max(0.05)).min(1.0)).powi(2)
+    };
+    Quat::from_rotation_y(st.facing) * Vec3::Z * lunge * def.scale
+}
+
 /// Parts of a creature (any body plan but biped).
 pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
     let rest;
@@ -465,7 +514,8 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
     let yaw = Quat::from_rotation_y(st.facing);
     let rot = yaw * Quat::from_rotation_x(-rig.tilt.x) * Quat::from_rotation_z(-rig.tilt.y);
     let (fwd, right, up) = (rot * Vec3::Z, rot * Vec3::X, rot * Vec3::Y);
-    let hit = (yaw * Vec3::X * st.hit_side + yaw * Vec3::Z * st.hit_fwd) * 0.3 * k;
+    let hit = (yaw * Vec3::X * st.hit_side + yaw * Vec3::Z * st.hit_fwd) * 0.3 * k + lunge_offset(def, st);
+
     let walk = (st.speed / 3.0).min(1.0) * (1.0 - st.air);
     let sq = (1.0 + st.squash).max(0.4);
     let sxz = 1.0 / sq.sqrt();
@@ -510,6 +560,16 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
     for (i, foot) in rig.feet.iter().enumerate().take(lay.legs.len()) {
         let side = if i % 2 == 0 { -1.0 } else { 1.0 };
         let hip = hip_of(i, spine);
+        if def.body == BodyPlan::Quadruped {
+            // Mammal legs: joints point backward (elbows and hocks), thick at the top, a paw.
+            let front = lay.legs[i].0.z > 0.0;
+            let bend = -fwd + Vec3::Y * if front { 0.1 } else { 0.35 };
+            let (knee, f) = ik(hip, *foot, lay.l1, lay.l2, bend);
+            push(&mut parts, hip, knee, lr * if front { 1.45 } else { 1.7 }, lr * 0.95, skin);
+            push(&mut parts, knee, f, lr * 0.9, lr * 0.7, skin);
+            push(&mut parts, f + fwd * lr * 0.4, f + Vec3::Y * lr * 0.3, lr * 0.85, lr * 0.85, skin);
+            continue;
+        }
         let bend = Vec3::Y * bend_up + right * side * (1.2 - bend_up * 0.5);
         let (knee, f) = ik(hip, *foot, lay.l1, lay.l2, bend);
         push(&mut parts, hip, knee, lr * 1.25, lr, skin);
@@ -588,6 +648,34 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
             let back: Vec<Vec3> = wiggled[1..n - 1].iter().map(|w| *w + Vec3::Y * rb * 0.15).collect();
             anchors = Some(mk(head, hr, d0, back, rb * 0.85, wiggled[n / 2]));
         }
+        BodyPlan::Quadruped => {
+            // A deep chest, a tucked waist, a neck up to the head, ears and a snout.
+            let chest = body + fwd * bl * 0.32 + up * rb * 0.1;
+            let hips = body - fwd * bl * 0.38;
+            push(&mut parts, hips, chest, rb * 0.92 * sxz, rb * 1.12 * sxz, shirt);
+            let belly = body - up * rb * 0.35;
+            push(&mut parts, belly - fwd * bl * 0.2, belly + fwd * bl * 0.25, rb * 0.6, rb * 0.7, accent);
+            // The head dips with each stride and looks about when standing.
+            let bob = (st.phase * TAU * 2.0).sin().abs() * 0.04 * k * walk;
+            let look = (st.time * 0.7).sin() * 0.35 * (1.0 - walk);
+            let local = quad_head(def, lay.body_h, bob);
+            let head = body + rot * (local - Vec3::Y * lay.body_h) + hit * 0.5;
+            let hf = (Quat::from_axis_angle(up, look) * fwd).normalize();
+            let hr_ = Vec3::new(hf.z, 0.0, -hf.x).normalize_or(right);
+            push(&mut parts, chest + up * rb * 0.35, head - hf * hr * 0.3, rb * 0.62, hr * 0.7, shirt);
+            push(&mut parts, head, head, hr, hr, skin);
+            push(&mut parts, head + hf * hr * 0.5, head + hf * hr * 1.45 - up * hr * 0.25, hr * 0.62, hr * 0.42, skin);
+            let nose = head + hf * hr * 1.55 - up * hr * 0.2;
+            push(&mut parts, nose, nose, hr * 0.2, hr * 0.2, Color::hex("#1e1612"));
+            let flop = 0.25 + 0.2 * (st.time * 3.0).sin().abs() * walk;
+            for s in [-1.0f32, 1.0] {
+                let base = head + up * hr * 0.7 + hr_ * s * hr * 0.55;
+                let tip = base + (up * (1.0 - flop) + hr_ * s * 0.35 - hf * 0.25).normalize() * hr * 0.85;
+                push(&mut parts, base, tip, hr * 0.28, hr * 0.12, skin);
+            }
+            eyes(&mut parts, head + hf * hr * 0.15, hr, hf, hr_, cam_fwd, def, 0.2);
+            anchors = Some(mk(head, hr, hf, vec![chest + up * rb * 0.85, hips + up * rb * 0.8], rb * 0.9, body));
+        }
         BodyPlan::Blob => {
             // Hops as it goes: stretched in the air, squashed on landing.
             let hop = (st.phase * TAU).sin().abs();
@@ -631,7 +719,7 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
 }
 
 /// Tails and antennae (any body plan); spines and abdomens are drawn by the body.
-pub fn chain_parts(def: &PuppetDef, rig: &RigView, parts: &mut Vec<PuppetPart>) {
+pub fn chain_parts(def: &PuppetDef, rig: &RigView, offset: Vec3, parts: &mut Vec<PuppetPart>) {
     let k = def.scale;
     for (kind, pts) in &rig.chains {
         if pts.len() < 2 {
@@ -658,9 +746,10 @@ pub fn chain_parts(def: &PuppetDef, rig: &RigView, parts: &mut Vec<PuppetPart>) 
         for i in 0..n {
             let t0 = i as f32 / n as f32;
             let t1 = (i + 1) as f32 / n as f32;
+            // The root moves with the body (lunges), the tip lags behind.
             parts.push(PuppetPart {
-                a: pts[i],
-                b: pts[i + 1],
+                a: pts[i] + offset * (1.0 - 0.7 * t0),
+                b: pts[i + 1] + offset * (1.0 - 0.7 * t1),
                 ra: r0 + (r1 - r0) * t0,
                 rb: r0 + (r1 - r0) * t1,
                 color,
@@ -668,7 +757,7 @@ pub fn chain_parts(def: &PuppetDef, rig: &RigView, parts: &mut Vec<PuppetPart>) 
             });
         }
         if let Some((r, c)) = tip {
-            let p = pts[n];
+            let p = pts[n] + offset * 0.3;
             parts.push(PuppetPart { a: p, b: p, ra: r, rb: r, color: c, glow: 0.0 });
         }
     }

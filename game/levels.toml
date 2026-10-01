@@ -1,0 +1,106 @@
+# The designed levels. Each introduces one mechanic and is named after it; later levels mix in
+# mechanics met before (`also`). Every mechanic can be ignored by a player who just fights,
+# and exploited by one who doesn't. After the last designed level come the endless Depths:
+# generated from the same pieces (themes, mechanics, monsters), forever.
+#
+# mechanic   shrines | powder_keg | gauntlet | rift_gates | windways | totems | molten_floor |
+#            frozen_lake | crumbling_halls | lightless_deep | cursed_vaults | time_rift
+# theme      a key in themes.toml; rooms: how many rooms on the way; boss: a boss at the end
+
+[[level]]
+name = "The Shrines"
+mechanic = "shrines"
+theme = "overgrown_ruins"
+rooms = 6
+about = "Shrines grant a burst of power when you walk through them. Chain them and you fly."
+
+[[level]]
+name = "The Powder Keg"
+mechanic = "powder_keg"
+theme = "bone_crypts"
+rooms = 7
+about = "Barrels of blackpowder everywhere. Hit one near a pack and step back."
+
+[[level]]
+name = "The Gauntlet"
+mechanic = "gauntlet"
+theme = "ashen_halls"
+rooms = 7
+about = "Spike plates fire on a beat. Monsters walk right over them; you don't have to."
+also = ["shrines"]
+
+[[level]]
+name = "The Rift Gates"
+mechanic = "rift_gates"
+theme = "storm_spire"
+rooms = 8
+about = "Paired gates fold the halls together. Find the shortcut or fight the long way round."
+also = ["powder_keg"]
+boss = "hollow_king"
+
+[[level]]
+name = "The Windways"
+mechanic = "windways"
+theme = "frost_caverns"
+rooms = 8
+about = "Gales blow down the corridors. Ride the wind, or push monsters into it."
+also = ["gauntlet"]
+
+[[level]]
+name = "The Totem Fields"
+mechanic = "totems"
+theme = "fungal_hollows"
+rooms = 8
+about = "Totems shield the monsters near them. Break the totem first, or just hit harder."
+also = ["shrines", "powder_keg"]
+
+[[level]]
+name = "The Molten Floor"
+mechanic = "molten_floor"
+theme = "ashen_halls"
+rooms = 9
+about = "Pools of lava burn whoever stands in them. Monsters too: knock them in."
+also = ["windways"]
+boss = "cinder_wyrm"
+
+[[level]]
+name = "The Frozen Lake"
+mechanic = "frozen_lake"
+theme = "frost_caverns"
+rooms = 9
+about = "Sheets of ice: everyone slides. Frozen monsters standing on ice shatter."
+also = ["totems", "gauntlet"]
+
+[[level]]
+name = "The Crumbling Halls"
+mechanic = "crumbling_halls"
+theme = "bone_crypts"
+rooms = 9
+about = "The floor gives way behind you. Keep moving; whatever falls is gone."
+also = ["rift_gates", "powder_keg"]
+
+[[level]]
+name = "The Lightless Deep"
+mechanic = "lightless_deep"
+theme = "obsidian_rift"
+rooms = 10
+about = "Darkness hides the monsters. Light the wells to see, and to burn brighter."
+also = ["shrines", "molten_floor"]
+boss = "mother_of_swarms"
+
+[[level]]
+name = "The Cursed Vaults"
+mechanic = "cursed_vaults"
+theme = "sunken_temple"
+rooms = 10
+about = "Cursed chests: open one and its keepers come. Survive them for the treasure."
+also = ["windways", "totems"]
+
+[[level]]
+name = "The Time Rift"
+mechanic = "time_rift"
+theme = "storm_spire"
+rooms = 11
+about = "Bubbles of slow time: monsters crawl inside them, you don't."
+also = ["crumbling_halls", "frozen_lake"]
+boss = "frostbound_colossus"

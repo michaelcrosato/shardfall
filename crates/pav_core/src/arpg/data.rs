@@ -314,6 +314,9 @@ pub struct Data {
     pub monster_affixes: Vec<super::genome::MonsterAffix>,
     /// Designed bosses (game/bosses.toml).
     pub bosses: Vec<super::boss::BossDef>,
+    /// Level themes (game/themes.toml) and the designed levels (game/levels.toml).
+    pub themes: BTreeMap<String, super::world::ThemeDef>,
+    pub levels: Vec<super::world::LevelDef>,
 }
 
 impl Data {
@@ -372,6 +375,8 @@ pub fn load() -> Result<Data, String> {
         genome: Default::default(),
         monster_affixes: Vec::new(),
         bosses: Vec::new(),
+        themes: BTreeMap::new(),
+        levels: Vec::new(),
     };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
@@ -460,6 +465,39 @@ pub fn load() -> Result<Data, String> {
     for b in &d.bosses {
         super::boss::boss_spec(&d, b, 10)?;
     }
+    for (k, mut t) in table::<super::world::ThemeDef>("themes")? {
+        t.key = k.clone();
+        for f in &t.families {
+            if d.family(f).is_none() {
+                return Err(format!("theme '{k}': unknown family '{f}'"));
+            }
+        }
+        for c in [&t.floor[0], &t.floor[1], &t.wall, &t.pillar, &t.accent, &t.light, &t.sky] {
+            if crate::color::Color::try_hex(c).is_none() {
+                return Err(format!("theme '{k}': bad colour '{c}'"));
+            }
+        }
+        d.themes.insert(k, t);
+    }
+    if d.themes.is_empty() {
+        return Err("game/themes.toml has no themes".into());
+    }
+    let text = source("levels").ok_or("game/levels.toml is missing")?;
+    let file: super::world::LevelsFile = toml::from_str(&text).map_err(|e| format!("game/levels.toml: {e}"))?;
+    for (i, l) in file.level.iter().enumerate() {
+        if !d.themes.contains_key(&l.theme) {
+            return Err(format!("level {} '{}': unknown theme '{}'", i + 1, l.name, l.theme));
+        }
+        if let Some(b) = &l.boss {
+            if !b.starts_with("gen:") && !d.bosses.iter().any(|x| &x.key == b) {
+                return Err(format!("level {} '{}': unknown boss '{b}'", i + 1, l.name));
+            }
+        }
+        if l.rooms < 3 {
+            return Err(format!("level {} '{}': needs at least 3 rooms", i + 1, l.name));
+        }
+    }
+    d.levels = file.level;
     // Every archetype must be able to make a creature.
     for k in d.genome.archetype.keys() {
         let opts = super::genome::GenomeOpts { archetype: Some(k.clone()), ..Default::default() };

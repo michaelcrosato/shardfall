@@ -26,6 +26,8 @@ pub enum MenuAction {
     Rooms,
     RoomCard,
     LoadScene(String),
+    /// Shardfall: erase the save, start over in town.
+    NewHero,
     Tuning,
     Feel,
     Physics,
@@ -165,6 +167,12 @@ pub fn pause_menu(
             if let Some(d) = difficulty {
                 ui.separator();
                 crate::arpg_ui::difficulty_ui(ui, d);
+                ui.horizontal(|ui| {
+                    if ui.button("New hero").on_hover_text("Erase the saved hero and start again in Emberwatch").clicked() {
+                        action = Some(MenuAction::NewHero);
+                    }
+                    ui.label(RichText::new("The hero is saved on every trip and on quit.").small().weak());
+                });
             }
             ui.separator();
             ui.label(RichText::new("Load scene").strong());

@@ -250,6 +250,8 @@ impl Genome {
                             (BodyPlan::Blob, Archetype::Skirmisher) => 0.2,
                             (BodyPlan::Spider, Archetype::Swarm) => 2.0,
                             (BodyPlan::Biped, Archetype::Caster | Archetype::Summoner) => 1.6,
+                            (BodyPlan::Quadruped, Archetype::Charger | Archetype::Skirmisher) => 1.8,
+                            (BodyPlan::Quadruped, Archetype::Caster | Archetype::Summoner) => 0.4,
                             _ => 1.0,
                         };
                         (k.as_str(), a, a.weight * fit)
@@ -559,7 +561,7 @@ mod tests {
             assert_eq!(serde_json::to_string(&g).unwrap(), serde_json::to_string(&again).unwrap(), "same seed, same creature");
             assert!(!g.spec(&d).skills.is_empty());
         }
-        assert_eq!(bodies.len(), 5, "{bodies:?}");
+        assert_eq!(bodies.len(), 6, "{bodies:?}");
         assert!(arches.len() >= 8, "{arches:?}");
         assert!(names.len() > 120, "{} distinct names", names.len());
         assert!(with_parts > 150, "{with_parts} with parts");

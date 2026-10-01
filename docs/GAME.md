@@ -57,7 +57,7 @@ small generators, and every system has an agent tool to build and inspect it.
 - **G4 Monsters:** genome, parts rendering, palettes, archetype brains, monster affixes, boss
   phases, creature lab. *(done: see "Monsters" below)*
 - **G5 World:** town hub with animated NPCs, layout generator and themes, twelve mechanics,
-  designed levels 1-12, endless Depths, waypoints, saving.
+  designed levels 1-12, endless Depths, waypoints, saving. *(done: see "World" below)*
 - **G6 Showcase:** juice pass, the agent tools, bot balance pass, browser build, docs and the
   final build.
 
@@ -110,3 +110,36 @@ small generators, and every system has an agent tool to build and inspect it.
   designed ones they are generated (summon a brood, change tactics, enrage).
 - **The Menagerie** shows twenty creatures at a time with their genome cards; let any of them
   out to fight it, or grow a new set.
+
+## World (G5)
+- **Emberwatch** (the town): Hilda the smith (vendor), Odo the gambler (a sealed box per slot:
+  magic 60%, rare 22%, unique 3%), Mother Wren the alchemist (up to 6 potions, stronger brews),
+  Captain Brannoc by the portal, villagers on their rounds and Biscuit the dog. The portal
+  lists every depth you've reached.
+- **The descent**: each level is rooms and corridors generated from a seed, painted by a theme,
+  with one signature mechanic and earlier ones mixed in. Find the way down; on boss levels it
+  is sealed until the boss falls (and the first time pays a passive point).
+
+| # | Level | Mechanic | Also | Boss |
+|---|---|---|---|---|
+| 1 | The Shrines | shrines: walk through for a boon | | |
+| 2 | The Powder Keg | kegs: hit one near a pack | | |
+| 3 | The Gauntlet | spike plates on a beat | shrines | |
+| 4 | The Rift Gates | paired gates, shortcuts | kegs | The Hollow King |
+| 5 | The Windways | wind carries everyone | spikes | |
+| 6 | The Totem Fields | totems ward monsters | shrines, kegs | |
+| 7 | The Molten Floor | lava burns whoever stands in it | wind | Cinder Wyrm |
+| 8 | The Frozen Lake | ice: slide; frozen foes shatter | totems, spikes | |
+| 9 | The Crumbling Halls | the floor falls behind you | gates, kegs | |
+| 10 | The Lightless Deep | darkness; light the wells | shrines, lava | Mother of Swarms |
+| 11 | The Cursed Vaults | chests call keepers, then pay | wind, totems | |
+| 12 | The Time Rift | bubbles of slow time | crumbling, ice | Frostbound Colossus |
+
+- **The Depths** (13 onward, forever): a theme turned around the colour wheel and lit by
+  another, two to four mechanics at once, monsters grown with the depth's favoured
+  archetypes, a boss every third depth. "The Howling Molten Caverns" is always Depth N; its
+  rooms are new every visit.
+- **Mechanics are optional**: every level can be cleared by fighting. Exploits: chain kegs
+  through packs, ride the wind, kite monsters into lava or over spikes, freeze them on ice and
+  shatter them, let them fall through the floor you broke, light wells mid-fight, fight inside
+  a time bubble, take the gate shortcut straight to the exit.

@@ -69,6 +69,8 @@ pub struct Hero {
     pub tree: std::collections::BTreeSet<u32>,
     pub masteries: std::collections::BTreeMap<u32, u8>,
     pub bonus_points: u32,
+    /// Deepest level reached (waypoints go back to any of them).
+    pub max_depth: u32,
 }
 
 impl Default for Hero {
@@ -119,6 +121,7 @@ impl Default for Hero {
             tree: Default::default(),
             masteries: Default::default(),
             bonus_points: 0,
+            max_depth: 0,
         }
     }
 }

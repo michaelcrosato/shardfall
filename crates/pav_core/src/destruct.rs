@@ -57,13 +57,14 @@ impl Sim {
     /// Crumbling tiles: start under characters, fall when their time is up, regrow later.
     pub(crate) fn update_crumbles(&mut self, dt: f32, events: &mut Vec<SimEvent>) {
         // Tiles under characters start crumbling.
-        let feet: Vec<(Vec3, RigidBodyHandle)> = self
+        let player = self.state.player;
+        let feet: Vec<(Vec3, RigidBodyHandle, bool)> = self
             .state
             .entities
             .iter()
-            .filter_map(|e| Some((e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5, e.body?)))
+            .filter_map(|e| Some((e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5, e.body?, Some(e.id) == player)))
             .collect();
-        for (f, body) in feet {
+        for (f, body, is_player) in feet {
             let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
             let hit = {
                 let qp = self.state.physics.query_filtered(filter);
@@ -74,6 +75,9 @@ impl Sim {
                 continue;
             };
             let Some(b) = self.state.statics.get(r) else { continue };
+            if b.flags & block_flags::PLAYER_CRUMBLE != 0 && !is_player {
+                continue;
+            }
             if b.crumble > 0.0 && b.alive && !self.state.crumbles.iter().any(|c| c.block == r) {
                 let t = b.crumble;
                 self.state.crumbles.push(Crumble { block: r, timer: t, fallen: false });

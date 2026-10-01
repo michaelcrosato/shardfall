@@ -163,6 +163,8 @@ pub struct App {
     /// Shardfall windows (inventory, vendor...), the latest game frame and the place whose
     /// look is applied.
     game_ui: crate::arpg_items::GameUi,
+    /// When the hero was last saved.
+    last_save: Instant,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
     game_place: Option<pav_core::arpg::Place>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -222,6 +224,7 @@ impl App {
             quit: false,
             game_saved: None,
             game_ui: Default::default(),
+            last_save: Instant::now(),
             game_frame: None,
             game_place: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -294,14 +297,17 @@ impl App {
             Err(e) => Ok((None, format!("no sound ({e}); continuing silently"))),
         })?;
         let sim = stage("simulation", || {
-            let sim = Sim::new(&s.scene, s.seed)?;
-            let d = format!(
+            let mut sim = Sim::new(&s.scene, s.seed)?;
+            let mut d = format!(
                 "scene '{}', seed {}, {} entities, {} blocks",
                 s.scene,
                 s.seed,
                 sim.state.entities.len(),
                 sim.state.statics.block_count()
             );
+            if let Some(level) = crate::save::restore_into(&mut sim) {
+                d += &format!(", saved hero (level {level})");
+            }
             Ok((sim, d))
         })?;
         self.sim_config = sim.config.clone();
@@ -335,12 +341,17 @@ impl App {
         let Some(host) = &self.host else { return };
         let (scene, seed) = (name.to_string(), self.settings.seed);
         let cfg = self.sim_config.clone();
-        host.exec(move |sim| match Sim::new(&scene, seed) {
-            Ok(mut fresh) => {
-                fresh.config = cfg;
-                *sim = fresh;
+        host.exec(move |sim| {
+            // Keep the hero: save, build the scene, put them back in.
+            crate::save::save_from(sim);
+            match Sim::new(&scene, seed) {
+                Ok(mut fresh) => {
+                    fresh.config = cfg;
+                    crate::save::restore_into(&mut fresh);
+                    *sim = fresh;
+                }
+                Err(e) => log::error!("could not load scene: {e:#}"),
             }
-            Err(e) => log::error!("could not load scene: {e:#}"),
         });
         self.scene_name = name.to_string();
         self.rig.params = CameraParams { yaw: self.rig.params.yaw, ..self.rig.params.clone() };
@@ -353,9 +364,11 @@ impl App {
             let cfg = self.sim_config.clone();
             host.exec(move |sim| {
                 sim.config = cfg;
+                crate::save::save_from(sim);
                 if let Err(e) = sim.reset() {
                     log::error!("reset failed: {e:#}");
                 }
+                crate::save::restore_into(sim);
             });
         }
         self.toast("scene reset");
@@ -479,6 +492,10 @@ impl App {
                 }
                 KeyCode::KeyP => {
                     ui.tree.open = !ui.tree.open;
+                    return;
+                }
+                KeyCode::KeyM => {
+                    ui.map = !ui.map;
                     return;
                 }
                 KeyCode::KeyT => {
@@ -699,7 +716,7 @@ impl App {
             if self.game_place != Some(g.place) {
                 self.game_place = Some(g.place);
                 self.game_ui.panel = None;
-                place_look(g.place, &mut self.view);
+                place_look(g, &mut self.view);
             }
         }
         let alpha =
@@ -720,7 +737,9 @@ impl App {
         let (mut held, mut pressed) = self.input.buttons();
         if pressed & pav_core::input::buttons::INTERACT != 0 {
             if let Some(g) = &curr.game {
-                self.game_ui.interact(g);
+                if let Some(c) = self.game_ui.interact(g) {
+                    host.shared.command(c);
+                }
             }
         }
         if pressed != 0 && self.input.last_device == Device::Gamepad {
@@ -767,6 +786,12 @@ impl App {
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
         self.builder.add_events(&events);
+        // Save the hero on every arrival somewhere, and once a minute while playing.
+        let travelled = events.iter().any(|e| matches!(e, pav_core::SimEvent::Travel { .. }));
+        if curr.game.is_some() && (travelled || self.last_save.elapsed().as_secs() >= 60) {
+            self.last_save = Instant::now();
+            host.exec(|sim| crate::save::save_from(sim));
+        }
         if let Some(a) = &self.audio {
             let (_, right) = self.rig.ground_axes();
             let l = pav_audio::Listener { pos: self.rig.target, right };
@@ -883,7 +908,7 @@ impl App {
             }
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
-                crate::arpg_ui::hud(&ctx, g, &proj, device);
+                crate::arpg_ui::hud(&ctx, g, &proj, device, game_ui.map);
                 if !menu_open {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
                 }
@@ -1100,6 +1125,21 @@ impl App {
                 self.set_menu(false);
                 self.load_scene(&name);
             }
+            MenuAction::NewHero => {
+                self.set_menu(false);
+                if let Some(host) = &self.host {
+                    let (cfg, seed) = (self.sim_config.clone(), self.settings.seed);
+                    host.exec(move |sim| {
+                        crate::save::erase();
+                        if let Ok(mut fresh) = Sim::new("town", seed) {
+                            fresh.config = cfg;
+                            *sim = fresh;
+                        }
+                    });
+                }
+                self.scene_name = "town".into();
+                self.toast("a new hero arrives in Emberwatch");
+            }
             MenuAction::Tuning => {
                 self.set_menu(false);
                 self.panel.open = true;
@@ -1170,7 +1210,12 @@ impl ApplicationHandler for App {
             _ => false,
         };
         match event {
-            WindowEvent::CloseRequested => el.exit(),
+            WindowEvent::CloseRequested => {
+                if let Some(host) = &self.host {
+                    host.exec(|sim| crate::save::save_from(sim));
+                }
+                el.exit()
+            }
             WindowEvent::Focused(false) => self.input.clear(),
             WindowEvent::Resized(sz) => {
                 if let Some(g) = &mut self.gfx {
@@ -1286,8 +1331,25 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
 }
 
 /// Each Shardfall place has its own light: Emberwatch at dusk, the Proving Grounds by day.
-fn place_look(place: pav_core::arpg::Place, v: &mut ViewSettings) {
-    match place {
+fn place_look(g: &pav_core::arpg::GameFrame, v: &mut ViewSettings) {
+    v.fog = false;
+    match g.place {
+        pav_core::arpg::Place::Level(_) => {
+            // The level's own mood (its theme; darkness levels nearly black).
+            let Some(m) = g.level.as_ref().map(|l| &l.mood) else { return };
+            v.sky = m.sky.clone();
+            v.light.sun_elevation = 55.0;
+            v.light.sun_azimuth = m.sun_angle;
+            v.light.sun_intensity = m.sun;
+            v.light.ambient = m.ambient;
+            v.bloom = 0.5;
+            v.saturation = 1.1;
+            if m.fog > 0.0 {
+                v.fog = true;
+                v.fog_start = m.fog * 0.45;
+                v.fog_end = m.fog;
+            }
+        }
         pav_core::arpg::Place::Town => {
             v.sky = "#1a1420".into();
             v.light.sun_elevation = 24.0;

@@ -25,6 +25,7 @@ pub fn build_place(sim: &mut Sim, place: Place, g: Game) {
         Place::Town => build_town(sim, Some(g)),
         Place::Arena => build_arena_with(sim, Some(g)),
         Place::Lab => build_lab(sim, Some(g)),
+        Place::Level(n) => super::world::build_level(sim, n, Some(g)),
     }
 }
 
@@ -290,7 +291,7 @@ fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
 }
 
 /// A shimmering portal: a ring of standing stones around a glowing pool.
-fn portal(sim: &mut Sim, at: Vec3) {
+pub(crate) fn portal(sim: &mut Sim, at: Vec3) {
     let st = &mut sim.state;
     let stone = Color::hex("#4a4650");
     for k in 0..10 {
@@ -373,8 +374,44 @@ fn house(sim: &mut Sim, min: Vec3, max: Vec3, wall: &str, roof: &str, door_side:
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NpcRole {
-    /// Hammers at the anvil; turns to greet the hero.
+    /// Hammers at the anvil (sparks on every blow); sells gear.
     Smith,
+    /// Flips a coin at the card table; sells mystery items by slot.
+    Gambler,
+    /// Stirs the cauldron; brews potion upgrades.
+    Alchemist,
+    /// Guards the portal; knows how deep you've been.
+    Captain,
+    /// Walks a round of the square, stops to look about.
+    Villager,
+    /// Follows the hero about town.
+    Dog,
+}
+
+impl NpcRole {
+    /// What they say when the hero comes near.
+    fn lines(self) -> &'static [&'static str] {
+        match self {
+            NpcRole::Smith => {
+                &["Need an edge on that blade?", "Fresh steel, still warm.", "Bring me something rare, I pay well."]
+            }
+            NpcRole::Gambler => &[
+                "Feeling lucky? Pick a slot.",
+                "Every box holds something. Sometimes something wonderful.",
+                "The house usually wins. Usually.",
+            ],
+            NpcRole::Alchemist => &["A stronger brew for the depths, dear?", "Drink deep, come back alive.", "Mind the fumes."],
+            NpcRole::Captain => &[
+                "The portal takes you to any depth you've reached.",
+                "Twelve levels down. Past them the Depths never end.",
+                "Watch the gates. Watch the floor. Watch everything.",
+            ],
+            NpcRole::Villager => {
+                &["Good day!", "Did you hear something below?", "Lovely evening for a descent.", "Mind the dog."]
+            }
+            NpcRole::Dog => &["Woof!", "*wags*", "*sniffs your boots*"],
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -387,6 +424,53 @@ pub struct Npc {
     pub work: Vec3,
     pub t: f32,
     pub greeted: bool,
+    /// Walkers: the points of their round, which one is next, how long to stand about.
+    #[serde(default)]
+    pub route: Vec<Vec3>,
+    #[serde(default)]
+    pub leg: usize,
+    #[serde(default)]
+    pub wait: f32,
+    /// A thing they handle (the gambler's coin).
+    #[serde(default)]
+    pub prop: Option<EntityId>,
+}
+
+impl Npc {
+    fn new(id: EntityId, role: NpcRole, name: &str, facing: f32, work: Vec3) -> Self {
+        Self {
+            id,
+            role,
+            name: name.into(),
+            facing,
+            work,
+            t: 0.0,
+            greeted: false,
+            route: Vec::new(),
+            leg: 0,
+            wait: 0.0,
+            prop: None,
+        }
+    }
+}
+
+/// Gambling: a mystery item of a slot for this much gold.
+pub fn gamble_price(level: u32, slot: super::items::Slot) -> u64 {
+    let l = level as f32;
+    let base = 40.0 + 8.0 * l + 0.35 * l * l;
+    (base * if slot == super::items::Slot::Weapon { 1.6 } else { 1.0 }).round() as u64
+}
+
+/// Brews: 0 = one more potion (up to 6), 1 = stronger potions (+20%, five times). None = maxed.
+pub fn brew_price(hero: &Hero, kind: u8) -> Option<u64> {
+    match kind {
+        0 if hero.potion_max < 6 => Some(150 * 2u64.pow(hero.potion_max.saturating_sub(3))),
+        1 => {
+            let n = (hero.mods.get(super::stats::Stat::PotionInc) / 20.0).round() as u64;
+            (n < 5).then(|| 200 * (n + 1) * (n + 1))
+        }
+        _ => None,
+    }
 }
 
 /// Emberwatch: a small square at dusk with a smith, the stash and the portal out.
@@ -505,6 +589,22 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
     }
     let portal_at = Vec3::new(0.0, 0.0, -16.0);
     portal(sim, portal_at);
+    let table = Vec3::new(9.0, 0.0, -7.0);
+    gamble_table(sim, table);
+    let cauldron = Vec3::new(-9.0, 0.0, 8.5);
+    cauldron_station(sim, cauldron);
+    // The captain's post by the portal: a banner and a brazier.
+    let post = Vec3::new(3.6, 0.0, -13.2);
+    let st = &mut sim.state;
+    st.statics.add(
+        &mut st.physics,
+        Block::new(post + Vec3::new(1.0, 0.0, -0.08), post + Vec3::new(1.16, 3.4, 0.08), Color::hex("#4a3a2a")),
+    );
+    st.statics.add(
+        &mut st.physics,
+        Block::new(post + Vec3::new(1.16, 1.9, -0.03), post + Vec3::new(1.96, 3.3, 0.03), Color::hex("#8a2a24")),
+    );
+    brazier(sim, post + Vec3::new(-1.6, 0.0, 0.6));
     // The smith.
     let smith_feet = anvil + Vec3::new(-0.9, 0.0, 0.0);
     let look = PuppetDef {
@@ -519,6 +619,7 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
         ..Default::default()
     };
     let smith = sim.spawn_npc("Hilda", smith_feet, std::f32::consts::FRAC_PI_2, look, None, None);
+    let folk = townsfolk(sim, table, cauldron, post);
     sim.state.spawn = Vec3::new(0.0, 0.05, 7.0);
     sim.spawn_player();
     if let Some(p) = sim.state.player {
@@ -536,62 +637,339 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
     g.spots.push(Spot { kind: SpotKind::Vendor, name: "Hilda the Smith".into(), pos: smith_feet, reach: 3.2, info: Vec::new() });
     g.spots.push(Spot { kind: SpotKind::Stash, name: "Stash".into(), pos: chest, reach: 2.6, info: Vec::new() });
     g.spots.push(Spot { kind: SpotKind::Portal, name: "Portal".into(), pos: portal_at, reach: 2.8, info: Vec::new() });
-    g.npcs.push(Npc {
-        id: smith,
-        role: NpcRole::Smith,
-        name: "Hilda".into(),
-        facing: std::f32::consts::FRAC_PI_2,
-        work: anvil + Vec3::Y * 0.8,
-        t: 0.0,
-        greeted: false,
+    g.npcs.push(Npc::new(smith, NpcRole::Smith, "Hilda", std::f32::consts::FRAC_PI_2, anvil + Vec3::Y * 0.8));
+    g.spots.push(Spot {
+        kind: SpotKind::Gamble,
+        name: "Odo the Gambler".into(),
+        pos: table + Vec3::new(0.0, 0.0, 1.2),
+        reach: 3.0,
+        info: Vec::new(),
     });
+    g.spots.push(Spot {
+        kind: SpotKind::Alchemist,
+        name: "Mother Wren".into(),
+        pos: cauldron + Vec3::new(1.2, 0.0, -0.6),
+        reach: 3.0,
+        info: Vec::new(),
+    });
+    g.npcs.extend(folk);
     g.restock(sim);
     g.say(Place::Town.name(), 2.5);
     sim.state.game = Some(g);
 }
 
-/// Townsfolk at work: the smith hammers (sparks on every blow) and turns to the hero.
+/// Townsfolk at work: the smith hammers (sparks on every blow), the gambler flips a coin, the
+/// alchemist stirs, the captain keeps watch, villagers walk their rounds and the dog follows
+/// you. Anyone working turns to greet the hero who comes close.
 pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>) {
     let hero = g.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0);
-    let mut greet = None;
+    let mut greet = Vec::new();
+    let deepest = g.hero.max_depth;
     for n in &mut g.npcs {
         let Some((feet, _)) = feet_of(sim, n.id) else { continue };
+        let walker = matches!(n.role, NpcRole::Villager | NpcRole::Dog);
+        let reach = if n.role == NpcRole::Dog { 2.2 } else { 4.5 };
+        let near = hero.filter(|h| flat(*h - feet).length() < reach);
         let Some(ch) = sim.state.entities.get_mut(n.id).and_then(|e| e.character.as_mut()) else { continue };
-        let near = hero.filter(|h| flat(*h - feet).length() < 4.5);
+        if let Some(h) = near {
+            if !walker || ch.vel.length() < 0.3 {
+                let to = flat(h - feet);
+                ch.face = Some(to.x.atan2(to.z));
+            }
+            if !walker {
+                ch.anim.act_kind = 0;
+                ch.anim.act = 0.0;
+                n.t = 0.0;
+            }
+            if !n.greeted {
+                n.greeted = true;
+                let lines = n.role.lines();
+                let i = sim.state.rng.below(lines.len() as u32) as usize;
+                let mut line = lines[i].to_string();
+                if n.role == NpcRole::Captain && i == 0 && deepest > 0 {
+                    line = format!("You've been as deep as level {deepest}. The portal remembers.");
+                }
+                greet.push((feet, n.name.clone(), line));
+            }
+            if !walker {
+                continue;
+            }
+        } else if hero.is_some_and(|h| flat(h - feet).length() > reach + 2.0) {
+            n.greeted = false;
+        }
         match n.role {
-            NpcRole::Smith => match near {
-                Some(h) => {
-                    // Stop, turn, nod.
-                    let to = flat(h - feet);
-                    ch.face = Some(to.x.atan2(to.z));
-                    ch.anim.act_kind = 0;
-                    ch.anim.act = 0.0;
-                    n.t = 0.0;
-                    if !n.greeted {
-                        n.greeted = true;
-                        greet = Some((feet, n.name.clone()));
-                    }
+            NpcRole::Smith => {
+                ch.face = Some(n.facing);
+                let period = 1.5;
+                let before = n.t;
+                n.t = (n.t + dt) % period;
+                ch.anim.act_kind = ActKind::Overhead.index();
+                ch.anim.act = n.t / period;
+                ch.anim.act_hit = 0.5;
+                ch.anim.act_side = 1.0;
+                if before < period * 0.5 && n.t >= period * 0.5 {
+                    events.push(SimEvent::Strike { pos: n.work, power: 3.0, element: 0, crit: false });
                 }
-                None => {
-                    n.greeted = false;
-                    ch.face = Some(n.facing);
-                    let period = 1.5;
-                    let before = n.t;
-                    n.t = (n.t + dt) % period;
-                    ch.anim.act_kind = ActKind::Overhead.index();
-                    ch.anim.act = n.t / period;
-                    ch.anim.act_hit = 0.5;
-                    ch.anim.act_side = 1.0;
-                    if before < period * 0.5 && n.t >= period * 0.5 {
-                        events.push(SimEvent::Strike { pos: n.work, power: 3.0, element: 0, crit: false });
-                    }
+            }
+            NpcRole::Gambler => {
+                // A coin flick every few seconds, the coin spinning up and back into the hand.
+                ch.face = Some(n.facing);
+                let period = 3.2;
+                n.t = (n.t + dt) % period;
+                let flick = (n.t / 0.5).min(1.0);
+                ch.anim.act_kind = if n.t < 0.5 { ActKind::Throw.index() } else { 0 };
+                ch.anim.act = flick;
+                ch.anim.act_hit = 0.4;
+                ch.anim.act_side = 1.0;
+                if let Some(c) = n.prop.and_then(|c| sim.state.entities.get_mut(c)) {
+                    let s = ((n.t - 0.2) / 1.0).clamp(0.0, 1.0);
+                    c.pos = n.work + Vec3::Y * (4.0 * 1.1 * s * (1.0 - s));
+                    c.rot = glam::Quat::from_rotation_x(s * 18.0);
                 }
-            },
+            }
+            NpcRole::Alchemist => {
+                // Stirring: the ladle sweeps one way, then back.
+                ch.face = Some(n.facing);
+                let period = 2.4;
+                let before = n.t;
+                n.t = (n.t + dt) % (period * 2.0);
+                let half = n.t % period;
+                ch.anim.act_kind = ActKind::Slash.index();
+                ch.anim.act = 0.15 + 0.7 * (half / period);
+                ch.anim.act_hit = 0.9;
+                ch.anim.act_side = if n.t < period { 1.0 } else { -1.0 };
+                if before < period && n.t >= period {
+                    events.push(SimEvent::Spell { pos: n.work, element: 4 });
+                }
+            }
+            NpcRole::Captain => {
+                ch.face = Some(n.facing + (n.t * 0.4).sin() * 0.5);
+                n.t += dt;
+            }
+            NpcRole::Villager => {
+                ch.anim.act_kind = 0;
+                if n.wait > 0.0 {
+                    // Standing about, looking around.
+                    n.t += dt;
+                    ch.face = Some(n.facing + (n.t * 0.9).sin() * 0.9);
+                } else {
+                    ch.face = None;
+                }
+            }
+            NpcRole::Dog => {
+                n.t += dt;
+                if ch.vel.length() > 0.3 {
+                    ch.face = None;
+                }
+            }
         }
     }
-    if let Some((at, name)) = greet {
-        g.float_text(at + Vec3::Y * 2.3, format!("{name}: \"Need an edge on that blade?\""));
+    for (at, name, line) in greet {
+        g.float_text(at + Vec3::Y * 2.3, format!("{name}: \"{line}\""));
     }
+}
+
+/// Walkers decide where to go before characters move: villagers walk their round at a
+/// stroll, the dog trots after the hero (and runs when left behind).
+pub(crate) fn npc_inputs(
+    g: &mut Game,
+    sim: &mut Sim,
+    dt: f32,
+    out: &mut std::collections::BTreeMap<EntityId, crate::input::InputFrame>,
+) {
+    let hero = g.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0);
+    for n in &mut g.npcs {
+        if !matches!(n.role, NpcRole::Villager | NpcRole::Dog) {
+            continue;
+        }
+        let Some((feet, _)) = feet_of(sim, n.id) else { continue };
+        let mut mv = Vec3::ZERO;
+        let mut haste = -0.6;
+        match n.role {
+            NpcRole::Villager => {
+                let blocked = hero.is_some_and(|h| flat(h - feet).length() < 1.3);
+                if n.wait > 0.0 {
+                    n.wait -= dt;
+                } else if let Some(t) = n.route.get(n.leg).copied() {
+                    let d = flat(t - feet);
+                    if d.length() < 0.6 {
+                        n.leg = (n.leg + 1) % n.route.len();
+                        n.wait = sim.state.rng.range(1.5, 4.5);
+                        n.facing = d.x.atan2(d.z);
+                        n.t = 0.0;
+                    } else if !blocked {
+                        mv = d.normalize();
+                    }
+                }
+            }
+            _ => {
+                if let Some(h) = hero {
+                    let d = flat(h - feet);
+                    let dist = d.length();
+                    if dist > 2.4 {
+                        mv = d / dist;
+                    }
+                    haste = if dist > 7.0 { 0.25 } else { -0.25 };
+                }
+            }
+        }
+        if let Some(ch) = sim.state.entities.get_mut(n.id).and_then(|e| e.character.as_mut()) {
+            ch.haste = haste;
+        }
+        out.insert(n.id, crate::input::InputFrame { move_dir: glam::Vec2::new(mv.x, mv.z), ..Default::default() });
+    }
+}
+
+/// The card table: green cloth, cards, stools, a lantern.
+fn gamble_table(sim: &mut Sim, at: Vec3) {
+    let st = &mut sim.state;
+    let wood = Color::hex("#5a3a24");
+    st.statics.add(&mut st.physics, Block::new(at + Vec3::new(-0.9, 0.0, -0.45), at + Vec3::new(0.9, 0.75, 0.45), wood));
+    st.statics.add(
+        &mut st.physics,
+        Block::new(at + Vec3::new(-0.85, 0.75, -0.4), at + Vec3::new(0.85, 0.78, 0.4), Color::hex("#2a6a3a")),
+    );
+    for (x, z) in [(-0.6f32, 0.1f32), (-0.35, -0.05), (0.4, 0.12)] {
+        st.statics.add(
+            &mut st.physics,
+            Block::new(at + Vec3::new(x - 0.07, 0.78, z - 0.1), at + Vec3::new(x + 0.07, 0.8, z + 0.1), Color::hex("#f2ece0"))
+                .with_flags(crate::statics::block_flags::GHOST),
+        );
+    }
+    for x in [-0.5f32, 0.5] {
+        st.statics.add(
+            &mut st.physics,
+            Block::new(at + Vec3::new(x - 0.2, 0.0, 0.75), at + Vec3::new(x + 0.2, 0.45, 1.1), wood.scale(0.8)),
+        );
+    }
+    lamp(sim, at + Vec3::new(2.3, 0.0, 0.7));
+}
+
+/// The alchemist's cauldron over a fire, green and bubbling, and her shelf of bottles.
+fn cauldron_station(sim: &mut Sim, at: Vec3) {
+    let mut pot = Visual::new(Shape::Cylinder { half_height: 0.42, radius: 0.72 }, Color::hex("#2a2a30"));
+    pot.look = Look::Lit;
+    sim.spawn(Spawn::new("cauldron", at + Vec3::Y * 0.55).visual(pot).body(BodyKind::Fixed));
+    let mut brew = Visual::new(Shape::Cylinder { half_height: 0.02, radius: 0.62 }, Color::hex("#6adf5a"));
+    brew.look = Look::Unlit;
+    brew.emissive = 1.2;
+    brew.light = Some(Box::new(LightDef {
+        color: "#7aff6a".into(),
+        radius: 6.0,
+        intensity: 1.6,
+        pulse: 0.4,
+        offset: Vec3::Y * 0.6,
+        ..Default::default()
+    }));
+    brew.particles = Some(Box::new(EmitterDef {
+        preset: "bubbles".into(),
+        color: "#b0ffa0".into(),
+        area: Vec3::new(0.45, 0.05, 0.45),
+        rate: 10.0,
+        ..Default::default()
+    }));
+    sim.spawn(Spawn::new("brew", at + Vec3::Y * 0.98).visual(brew));
+    let mut fire = Visual::new(Shape::Sphere { radius: 0.05 }, Color::hex("#ff8a3a"));
+    fire.look = Look::Unlit;
+    fire.light =
+        Some(Box::new(LightDef { color: "#ff8a3a".into(), radius: 4.0, intensity: 1.2, flicker: 0.6, ..Default::default() }));
+    fire.particles =
+        Some(Box::new(EmitterDef { preset: "fire".into(), area: Vec3::new(0.35, 0.02, 0.35), size: 0.6, ..Default::default() }));
+    sim.spawn(Spawn::new("cauldron fire", at + Vec3::Y * 0.08).visual(fire));
+    // A shelf with bottles.
+    let st = &mut sim.state;
+    let shelf = at + Vec3::new(-2.2, 0.0, 1.6);
+    st.statics.add(
+        &mut st.physics,
+        Block::new(shelf + Vec3::new(-0.9, 0.0, -0.2), shelf + Vec3::new(0.9, 1.6, 0.2), Color::hex("#4a3424")),
+    );
+    let colors = ["#c84a4a", "#4a7ac8", "#6ac85a", "#c8a84a", "#a85ac8"];
+    for (k, c) in colors.iter().enumerate() {
+        let mut b = Visual::new(Shape::Cylinder { half_height: 0.12, radius: 0.07 }, Color::hex(c));
+        b.look = Look::Unlit;
+        b.emissive = 0.6;
+        let x = -0.7 + k as f32 * 0.35;
+        sim.spawn(Spawn::new("bottle", shelf + Vec3::new(x, 1.73, -0.25)).visual(b));
+    }
+}
+
+/// The gambler, the alchemist, the captain, two villagers and the dog.
+fn townsfolk(sim: &mut Sim, table: Vec3, cauldron: Vec3, post: Vec3) -> Vec<Npc> {
+    use std::f32::consts::PI;
+    let biped = |skin: &str, shirt: &str, pants: &str, scale: f32, weapon: WeaponKind, wcolor: &str| PuppetDef {
+        scale,
+        skin: skin.into(),
+        shirt: shirt.into(),
+        pants: pants.into(),
+        shoes: "#2a2220".into(),
+        weapon: crate::puppet::WeaponLook { kind: weapon, color: wcolor.into(), size: 0.75, ..Default::default() },
+        ..Default::default()
+    };
+    let mut out = Vec::new();
+    // Odo behind his table, facing the square (south).
+    let odo_at = table + Vec3::new(0.0, 0.0, -0.95);
+    let odo =
+        sim.spawn_npc("Odo", odo_at, 0.0, biped("#d8a878", "#6a2a5a", "#2a2a3a", 0.98, WeaponKind::None, "#000000"), None, None);
+    let mut coin = Visual::new(Shape::Cylinder { half_height: 0.012, radius: 0.07 }, Color::hex("#ffd24a"));
+    coin.look = Look::Unlit;
+    coin.emissive = 1.2;
+    let coin_id = sim.spawn(Spawn::new("coin", odo_at + Vec3::new(0.25, 1.25, 0.25)).visual(coin));
+    let mut n = Npc::new(odo, NpcRole::Gambler, "Odo", 0.0, odo_at + Vec3::new(0.25, 1.25, 0.25));
+    n.prop = Some(coin_id);
+    out.push(n);
+    // Mother Wren at the cauldron, ladle in hand.
+    let wren_at = cauldron + Vec3::new(1.05, 0.0, -0.35);
+    let mut look = biped("#e8c0a0", "#3a5a3a", "#3a2a2a", 0.9, WeaponKind::Staff, "#6a4a2a");
+    look.weapon.size = 0.55;
+    look.gear.helm = crate::puppet::HelmKind::Hood;
+    look.gear.helm_color = "#3e5e46".into();
+    let wren = sim.spawn_npc("Mother Wren", wren_at, -PI * 0.5 - 0.3, look, None, None);
+    out.push(Npc::new(wren, NpcRole::Alchemist, "Mother Wren", -PI * 0.5 - 0.3, cauldron + Vec3::Y * 1.0));
+    // Captain Brannoc by the portal, spear grounded.
+    let mut look = biped("#c99a7a", "#5a5a66", "#3a3a44", 1.1, WeaponKind::Spear, "#a8a8b0");
+    look.gear.helm = crate::puppet::HelmKind::Cap;
+    let cap = sim.spawn_npc("Captain Brannoc", post, 0.0, look, None, None);
+    out.push(Npc::new(cap, NpcRole::Captain, "Captain Brannoc", 0.0, post));
+    // Villagers on their rounds.
+    let rounds = [
+        (
+            vec![Vec3::new(4.5, 0.0, 4.0), Vec3::new(-4.5, 0.0, 4.0), Vec3::new(-4.5, 0.0, -4.5), Vec3::new(4.5, 0.0, -4.5)],
+            "Tomas",
+            "#b08060",
+            "#5a6a8a",
+        ),
+        (
+            vec![
+                Vec3::new(14.0, 0.0, 9.0),
+                Vec3::new(3.0, 0.0, 10.5),
+                Vec3::new(-7.0, 0.0, 4.0),
+                Vec3::new(2.5, 0.0, -9.5),
+                Vec3::new(13.0, 0.0, -4.0),
+            ],
+            "Elsie",
+            "#e0b090",
+            "#8a5a3a",
+        ),
+    ];
+    for (route, name, skin, shirt) in rounds {
+        let start = route[0];
+        let id = sim.spawn_npc(name, start, 0.0, biped(skin, shirt, "#3a3028", 0.95, WeaponKind::None, "#000000"), None, None);
+        let mut n = Npc::new(id, NpcRole::Villager, name, 0.0, start);
+        n.route = route;
+        n.leg = 1;
+        n.wait = 1.0;
+        out.push(n);
+    }
+    // Biscuit the dog.
+    let mut dog = PuppetDef::preset(crate::puppet::BodyPlan::Quadruped);
+    dog.scale = 0.72;
+    dog.skin = "#c89a5a".into();
+    dog.shirt = "#d8aa6a".into();
+    dog.accent = "#f2e2c8".into();
+    dog.tail_length = 0.5;
+    let id = sim.spawn_npc("Biscuit", Vec3::new(2.0, 0.0, 9.0), PI, dog, None, None);
+    out.push(Npc::new(id, NpcRole::Dog, "Biscuit", PI, Vec3::ZERO));
+    out
 }
 
 const FAMILIES: &[(&str, u32)] =

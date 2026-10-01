@@ -83,6 +83,8 @@ choice_enum! {
         Crown => "crown",
         Horned => "horned",
         Halo => "halo",
+        /// A cloth hood with a drape down the back (townsfolk).
+        Hood => "hood",
     }
 }
 
@@ -244,6 +246,8 @@ choice_enum! {
         Lizard => "lizard",
         Beetle => "beetle",
         Blob => "blob",
+        /// Four legs under a raised body, a head on a neck: hounds, wolves, boars, the town dog.
+        Quadruped => "quadruped",
     }
 }
 
@@ -395,6 +399,23 @@ impl PuppetDef {
                 step_time: 0.1,
                 ..d
             },
+            BodyPlan::Quadruped => Self {
+                body: plan,
+                legs: 2,
+                leg_length: 0.5,
+                torso_radius: 0.17,
+                head_radius: 0.13,
+                limb_radius: 0.045,
+                body_length: 0.75,
+                tail_length: 0.45,
+                skin: "#8a6a4a".into(),
+                shirt: "#9a7650".into(),
+                accent: "#e8d2b0".into(),
+                eyes: "#2a1e14".into(),
+                step_time: 0.13,
+                wobble: 1.2,
+                ..d
+            },
             BodyPlan::Blob => Self {
                 body: plan,
                 torso_radius: 0.42,
@@ -415,6 +436,7 @@ impl PuppetDef {
             BodyPlan::Spider => 4,
             BodyPlan::Lizard => 2,
             BodyPlan::Beetle => 3,
+            BodyPlan::Quadruped => 2,
         };
         if self.legs > 0 { self.legs.clamp(1, 6) as usize } else { n }
     }
@@ -713,7 +735,7 @@ pub fn pose_ex(
         _ => (crate::rig::creature_parts(def, st, rig, feet, cam_fwd), None),
     };
     if let Some(r) = rig {
-        crate::rig::chain_parts(def, r, &mut parts);
+        crate::rig::chain_parts(def, r, crate::rig::lunge_offset(def, st), &mut parts);
     }
     // The span rides along through the whole-body motion as an extra part.
     let n = parts.len();
@@ -894,6 +916,11 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         let (f, x) = (Vec3::Z, Vec3::X);
         match gear.helm {
             HelmKind::Cap => push(head + hu * hr * 0.3, head + hu * hr * 0.3, hr * 0.9, hr * 0.9, hc),
+            HelmKind::Hood => {
+                let c = head + hu * hr * 0.2 - f * hr * 0.32;
+                push(c, c, hr * 1.12, hr * 1.12, hc);
+                push(head - f * hr * 0.75 - hu * hr * 0.1, head - f * hr * 0.95 - hu * hr * 1.5, hr * 0.8, hr * 0.5, hc);
+            }
             HelmKind::Crown => {
                 push(head + hu * hr * 0.3, head + hu * hr * 0.3, hr * 0.92, hr * 0.92, hc);
                 for i in 0..5 {
@@ -1225,7 +1252,7 @@ mod tests {
 
     #[test]
     fn every_body_plan_poses() {
-        for plan in [BodyPlan::Spider, BodyPlan::Lizard, BodyPlan::Beetle, BodyPlan::Blob] {
+        for plan in [BodyPlan::Spider, BodyPlan::Lizard, BodyPlan::Beetle, BodyPlan::Blob, BodyPlan::Quadruped] {
             let mut def = PuppetDef::preset(plan);
             let parts = pose(&def, &PuppetState::default(), None, Vec3::ZERO, Vec3::NEG_Y);
             assert!(!parts.is_empty(), "{plan:?}");

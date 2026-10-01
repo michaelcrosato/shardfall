@@ -24,6 +24,8 @@ pub struct GameUi {
     /// Which spot the panel belongs to (exhibits).
     pub panel_spot: Option<usize>,
     pub tree: crate::arpg_tree::TreeUi,
+    /// The big level map (M).
+    pub map: bool,
 }
 
 pub fn rarity_color(r: Rarity) -> Color32 {
@@ -325,16 +327,20 @@ impl GameUi {
         self.tree.open = false;
     }
 
-    /// Interact pressed: open whatever the hero stands at.
-    pub fn interact(&mut self, g: &GameFrame) {
+    /// Interact pressed: open whatever the hero stands at, or use it (the way down, a chest).
+    pub fn interact(&mut self, g: &GameFrame) -> Option<GameCmd> {
         if let Some(s) = g.near.and_then(|i| g.spots.get(i)) {
+            if matches!(s.kind, SpotKind::Exit | SpotKind::Chest) {
+                return g.near.map(|i| GameCmd::Use(i as u32));
+            }
             let same = self.panel == Some(s.kind) && self.panel_spot == g.near;
             self.panel = if same { None } else { Some(s.kind) };
             self.panel_spot = g.near;
-            if matches!(s.kind, SpotKind::Vendor | SpotKind::Stash) && self.panel.is_some() {
+            if matches!(s.kind, SpotKind::Vendor | SpotKind::Stash | SpotKind::Gamble) && self.panel.is_some() {
                 self.inventory = true;
             }
         }
+        None
     }
 
     /// Draws the windows and labels; returns the commands the player gave.
@@ -379,7 +385,9 @@ impl GameUi {
             Some(SpotKind::Stash) => self.stash_window(ctx, &d, &inv, &mut out),
             Some(SpotKind::Portal) => self.portal_window(ctx, g, &mut out),
             Some(SpotKind::Exhibit) => self.exhibit_window(ctx, g, &mut out),
-            None => {}
+            Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
+            Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
+            Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         out
     }
@@ -618,6 +626,89 @@ impl GameUi {
         }
     }
 
+    fn gamble_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let mut open = true;
+        egui::Window::new("Odo the Gambler")
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::LEFT_CENTER, EVec2::new(16.0, -40.0))
+            .show(ctx, |ui| {
+                ui.label(RichText::new("A sealed box for every slot. What's inside? Pay and see.").italics());
+                ui.label(
+                    RichText::new("Magic 60% · Rare 22% · Unique 3%  ·  item level up to yours + 2")
+                        .small()
+                        .color(Color32::from_white_alpha(150)),
+                );
+                ui.add_space(4.0);
+                egui::Grid::new("gamble").num_columns(2).spacing(EVec2::new(10.0, 6.0)).show(ui, |ui| {
+                    for (i, slot) in Slot::ALL.iter().enumerate() {
+                        let price = pav_core::arpg::scene::gamble_price(inv.level, *slot);
+                        let ok = inv.gold >= price && inv.inventory.len() < pav_core::arpg::hero::INVENTORY_SIZE;
+                        let b = ui.add_enabled(
+                            ok,
+                            egui::Button::new(RichText::new(slot.name()).size(15.0)).min_size(EVec2::new(130.0, 26.0)),
+                        );
+                        if b.clicked() {
+                            out.push(GameCmd::Gamble(i as u8));
+                        }
+                        let c = if inv.gold >= price { Color32::from_rgb(255, 205, 70) } else { Color32::from_rgb(170, 90, 80) };
+                        ui.label(RichText::new(format!("{price} gold")).color(c));
+                        ui.end_row();
+                    }
+                });
+                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
+    fn alchemist_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let mut open = true;
+        egui::Window::new("Mother Wren's Brews")
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(RichText::new("Stronger potions for deeper places.").italics());
+                ui.add_space(4.0);
+                let rows = [
+                    ("Another flask", format!("{} potions now (6 at most)", inv.potion_max)),
+                    ("A stronger brew", format!("Potions heal {:.0}% of your life", 45.0 * inv.sheet.potion)),
+                ];
+                for (k, (name, now)) in rows.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        match inv.brew[k] {
+                            Some(price) => {
+                                let b = ui.add_enabled(
+                                    inv.gold >= price,
+                                    egui::Button::new(RichText::new(format!("{name}  ·  {price} gold")).size(15.0))
+                                        .min_size(EVec2::new(240.0, 28.0)),
+                                );
+                                if b.clicked() {
+                                    out.push(GameCmd::Brew(k as u8));
+                                }
+                            }
+                            None => {
+                                ui.add_enabled(
+                                    false,
+                                    egui::Button::new(format!("{name}  ·  as strong as it gets"))
+                                        .min_size(EVec2::new(240.0, 28.0)),
+                                );
+                            }
+                        }
+                        ui.label(RichText::new(now).small().color(Color32::from_white_alpha(170)));
+                    });
+                }
+                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
     fn exhibit_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
         let Some(i) = self.panel_spot else { return };
         let Some(s) = g.spots.get(i) else { return };
@@ -650,6 +741,8 @@ impl GameUi {
 
     fn portal_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
         let mut open = true;
+        let deepest = g.inv.as_ref().map(|i| i.max_depth).unwrap_or(0).max(1);
+        let d = data();
         egui::Window::new("Portal")
             .open(&mut open)
             .resizable(false)
@@ -661,14 +754,40 @@ impl GameUi {
                     let here = p == g.place;
                     let b = ui.add_enabled(
                         !here,
-                        egui::Button::new(RichText::new(p.name()).size(16.0)).min_size(EVec2::new(240.0, 30.0)),
+                        egui::Button::new(RichText::new(p.name()).size(16.0)).min_size(EVec2::new(300.0, 30.0)),
                     );
                     if b.clicked() {
                         out.push(GameCmd::Travel(p.code()));
                         self.panel = None;
                     }
                 }
-                ui.label(RichText::new("The depths open in a later update.").small().color(Color32::from_white_alpha(110)));
+                ui.separator();
+                ui.label(RichText::new("Waypoints: the descent").strong());
+                egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+                    for n in (1..=deepest).rev() {
+                        let plan = pav_core::arpg::world::plan(&d, n);
+                        let p = Place::Level(n);
+                        let here = p == g.place;
+                        let mut text = RichText::new(format!("{} · {}", plan.label(), plan.name)).size(15.0);
+                        if plan.endless {
+                            text = text.color(Color32::from_rgb(200, 170, 255));
+                        }
+                        let b = ui.add_enabled(!here, egui::Button::new(text).min_size(EVec2::new(300.0, 26.0)));
+                        let b = b.on_hover_ui(|ui| {
+                            ui.label(RichText::new(&plan.about).italics());
+                            let mech: Vec<&str> = plan.mechanics.iter().map(|m| m.name()).collect();
+                            ui.label(format!("Mechanics: {}", mech.join(", ")));
+                            ui.label(format!("Monster level {}", plan.monster_level));
+                            if let Some(b) = &plan.boss {
+                                ui.label(RichText::new(format!("Boss: {b}")).color(Color32::from_rgb(255, 150, 80)));
+                            }
+                        });
+                        if b.clicked() {
+                            out.push(GameCmd::Travel(p.code()));
+                            self.panel = None;
+                        }
+                    }
+                });
             });
         if !open {
             self.panel = None;
@@ -848,6 +967,10 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Stash => "open the stash",
                 SpotKind::Portal => "travel",
                 SpotKind::Exhibit => "examine",
+                SpotKind::Exit => "descend",
+                SpotKind::Gamble => "gamble",
+                SpotKind::Alchemist => "brew",
+                SpotKind::Chest => "break the seal (keepers will come)",
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),
