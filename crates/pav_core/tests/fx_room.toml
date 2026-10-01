@@ -1,0 +1,94 @@
+name = "FX"
+entrance = { at = [10, 13], facing = "south" }
+[view]
+"light.sun_intensity" = 0.06
+"light.ambient" = 0.25
+sky = "#0e1424"
+bloom = 0.6
+[camera]
+distance = 14.0
+[layout]
+origin = [-10.0, 0.0, -7.0]
+[[layout.layer]]
+map = '''
+####################
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+##########.#########
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7d7a72" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7d7a72" }, { y0 = 0, y1 = 3, color = "#5d6470" }]
+
+[[object]]
+name = "torch_a"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.12 }
+pos = [4.5, 0.5, 4.5]
+color = "#4a3a2a"
+body = "fixed"
+light = { color = "#ffb060", radius = 7, intensity = 2.5, flicker = 0.8, offset = [0, 0.7, 0], shadows = true }
+particles = { preset = "fire", offset = [0, 0.55, 0] }
+distortion = { kind = "haze", radius = 0.8, strength = 0.2, offset = [0, 1.6, 0] }
+
+[[object]]
+name = "torch_b"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.12 }
+pos = [15.5, 0.5, 4.5]
+color = "#4a3a2a"
+body = "fixed"
+light = { color = "#60b0ff", radius = 7, intensity = 2.0, pulse = 0.5, offset = [0, 0.7, 0] }
+particles = { preset = "magic", offset = [0, 0.7, 0] }
+
+[[object]]
+name = "fountain"
+shape = { type = "cylinder", half_height = 0.15, radius = 0.6 }
+pos = [10.5, 0.15, 5.5]
+color = "#9aa4b0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.2, 0] }
+distortion = { kind = "ripple", radius = 1.4, strength = 0.12, offset = [0, 0.2, 0] }
+
+[[object]]
+name = "grinder"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [6.5, 0.4, 9.5]
+color = "#3a3f47"
+body = "fixed"
+emissive = 0.0
+particles = { preset = "sparks", offset = [0, 0.5, 0] }
+
+[[object]]
+name = "chimney"
+shape = { type = "box", half = [0.3, 0.6, 0.3] }
+pos = [14.5, 0.6, 9.5]
+color = "#5a4a40"
+body = "fixed"
+particles = { preset = "smoke", offset = [0, 0.7, 0] }
+
+[[object]]
+name = "orb"
+shape = { type = "sphere", radius = 0.5 }
+pos = [10.5, 1.5, 9.5]
+color = "#ffe0a0"
+body = "fixed"
+emissive = 3.0
+distortion = { kind = "lens", radius = 1.2, strength = 0.25 }
+
+[[object]]
+name = "fireflies"
+shape = { type = "sphere", radius = 0.01 }
+pos = [10.5, 1.0, 2.5]
+color = "#000000"
+body = "none"
+particles = { preset = "fireflies", rate = 10 }

@@ -87,6 +87,80 @@ impl Tunable for CutawaySettings {
     }
 }
 
+choice_enum! {
+    pub enum PaletteChoice {
+        None => "none",
+        GameBoy => "gameboy",
+        Pico8 => "pico8",
+        Cga => "cga",
+        OneBit => "1bit",
+        Amber => "amber",
+    }
+}
+
+/// Screen filters (retro looks, grading) applied after tonemapping.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FilterSettings {
+    pub pixelate: f32,
+    pub curvature: f32,
+    pub scanlines: f32,
+    pub scanline_px: f32,
+    pub dither: f32,
+    pub levels: f32,
+    pub palette: PaletteChoice,
+    pub split: f32,
+    pub temperature: f32,
+    pub tint: f32,
+    pub contrast: f32,
+    pub brightness: f32,
+    pub vignette: f32,
+    pub grain: f32,
+    pub chroma: f32,
+}
+
+impl Default for FilterSettings {
+    fn default() -> Self {
+        Self {
+            pixelate: 1.0,
+            curvature: 0.0,
+            scanlines: 0.0,
+            scanline_px: 3.0,
+            dither: 0.0,
+            levels: 0.0,
+            palette: PaletteChoice::None,
+            split: 0.0,
+            temperature: 0.0,
+            tint: 0.0,
+            contrast: 1.0,
+            brightness: 1.0,
+            vignette: 0.0,
+            grain: 0.0,
+            chroma: 0.0,
+        }
+    }
+}
+
+impl Tunable for FilterSettings {
+    fn visit(&mut self, v: &mut dyn ParamVisitor) {
+        v.float("pixelate", &mut self.pixelate, 1.0, 16.0, "Pixel size (1 = off)");
+        v.float("curvature", &mut self.curvature, 0.0, 0.5, "CRT tube curvature");
+        v.float("scanlines", &mut self.scanlines, 0.0, 1.0, "Scanline darkness");
+        v.float("scanline_px", &mut self.scanline_px, 1.0, 8.0, "Scanline period (pixels)");
+        v.float("dither", &mut self.dither, 0.0, 1.0, "Ordered dithering (with levels or a palette)");
+        v.float("levels", &mut self.levels, 0.0, 32.0, "Colour levels per channel (below 2 = off)");
+        self.palette.visit_choice(v, "palette", "Fixed palette");
+        v.float("split", &mut self.split, 0.0, 0.9, "Filters only right of this screen fraction (0 = whole screen)");
+        v.float("temperature", &mut self.temperature, -1.0, 1.0, "Colour temperature (warm +)");
+        v.float("tint", &mut self.tint, -1.0, 1.0, "Green tint");
+        v.float("contrast", &mut self.contrast, 0.3, 2.0, "Contrast");
+        v.float("brightness", &mut self.brightness, 0.3, 2.0, "Brightness");
+        v.float("vignette", &mut self.vignette, 0.0, 1.0, "Darkened corners");
+        v.float("grain", &mut self.grain, 0.0, 1.0, "Film grain");
+        v.float("chroma", &mut self.chroma, 0.0, 1.0, "Chromatic aberration");
+    }
+}
+
 /// Everything visual that is tunable live ("shaders" group in the panel).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -109,12 +183,15 @@ pub struct ViewSettings {
     pub distortion: bool,
     /// GPU particles (fire, smoke, sparks, event bursts).
     pub particles: bool,
+    /// Screen-space global illumination (bounce light + ambient occlusion), 0 = off.
+    pub gi: f32,
     pub sky: String,
     pub fog: bool,
     pub fog_start: f32,
     pub fog_end: f32,
     pub light: LightSettings,
     pub cutaway: CutawaySettings,
+    pub filter: FilterSettings,
 }
 
 impl Default for ViewSettings {
@@ -135,12 +212,14 @@ impl Default for ViewSettings {
             bloom_threshold: 1.2,
             distortion: true,
             particles: true,
+            gi: 0.0,
             sky: "#8fb8d8".into(),
             fog: true,
             fog_start: 48.0,
             fog_end: 80.0,
             light: LightSettings::default(),
             cutaway: CutawaySettings::default(),
+            filter: FilterSettings::default(),
         }
     }
 }
@@ -174,11 +253,13 @@ impl Tunable for ViewSettings {
         v.float("bloom_threshold", &mut self.bloom_threshold, 0.2, 4.0, "Brightness where glow starts");
         v.bool("distortion", &mut self.distortion, "Screen distortion (shockwaves, heat haze)");
         v.bool("particles", &mut self.particles, "GPU particles");
+        v.float("gi", &mut self.gi, 0.0, 2.0, "Screen-space global illumination: bounce light and occlusion (0 = off)");
         v.bool("fog", &mut self.fog, "Distance fog (hides streaming edges)");
         v.float("fog_start", &mut self.fog_start, 5.0, 300.0, "Fog starts at this distance from the camera target (m)");
         v.float("fog_end", &mut self.fog_end, 10.0, 400.0, "Fog is complete at this distance (m)");
         nested(v, "light", &mut self.light);
         nested(v, "cutaway", &mut self.cutaway);
+        nested(v, "filter", &mut self.filter);
     }
 }
 
@@ -421,6 +502,25 @@ impl ViewBuilder {
         scene.post.bloom = settings.bloom;
         scene.post.bloom_threshold = settings.bloom_threshold;
         scene.post.distortion = settings.distortion;
+        scene.post.gi = settings.gi;
+        let f = &settings.filter;
+        scene.filter = rs::FilterSettings {
+            pixelate: f.pixelate,
+            curvature: f.curvature,
+            scanlines: f.scanlines,
+            scanline_px: f.scanline_px,
+            dither: f.dither,
+            levels: f.levels,
+            palette: f.palette as u32,
+            split: f.split,
+            temperature: f.temperature,
+            tint: f.tint,
+            contrast: f.contrast,
+            brightness: f.brightness,
+            vignette: f.vignette,
+            grain: f.grain,
+            chroma: f.chroma,
+        };
         if settings.particles {
             scene.particles = std::mem::take(&mut self.pending_particles);
         } else {

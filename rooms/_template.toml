@@ -17,6 +17,11 @@ entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, a
 # tilt = 70.0
 # ortho = false
 
+# Optional: view settings while inside (`pav params prefix=view`, without "view."), e.g. night:
+# "light.sun_intensity" = 0.06, "light.ambient" = 0.25, sky = "#0e1424", bloom = 0.6, gi = 1.0,
+# "light.sun_elevation" = 20, distortion = true, particles = true, exposure = 1.2
+[view]
+
 # Optional: simulation parameter overrides while inside (full paths, see `pav params`).
 [params]
 # "movement.jump_height" = 2.0
@@ -79,6 +84,7 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 #   Zones are half-open boxes, so touching zones never overlap. A respawn point that lies in a
 #   zone does not trigger it (respawning onto START keeps the timer running).
 #   params = { "movement.model" = "momentum" }       pads: parameter changes until you leave
+#                     ("view.bloom" = 1.5 etc. change view settings the same way)
 #   signal = "drop"   pads: tells spawners listening for "drop" to fire
 #   camera = { set = { tilt = 90, ortho = true }, sweep = [{ param = "tilt", from = 90,
 #              to = 10, period = 12 }], flip_ortho = 6 }  pads (sticky) / camera zones (inside)
@@ -122,6 +128,18 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
 # restitution = 0.0 (bounciness 0..1; rapier averages it with the surface underneath),
 # damping = 0 (air drag). Pushing shares momentum: a 70 kg character barely moves 300 kg.
+# Visual-only effects on any object (never affect the simulation; body = "none" for invisible
+# emitters with a tiny sphere shape):
+#   light = { color = "#ffb060", radius = 7, intensity = 2.5, flicker = 0.8, pulse = 0,
+#             shadows = true, offset = [0, 0.7, 0] }   (the 4 shadow-casting lights nearest you)
+#   particles = { preset = "fire", rate = 0, color = "", size = 1, speed = 1, life = 1,
+#                 area = [0, 0, 0], offset = [0, 0.5, 0] }
+#     presets: fire smoke sparks embers fountain snow rain fireflies magic steam dust bubbles
+#     confetti (rate 0 = the preset's; area = spawn box half-size; snow/rain: put it up high)
+#   distortion = { kind = "haze", radius = 1.5, strength = 0.15, period = 1.5, offset = [0, 1, 0] }
+#     kinds: haze (heat shimmer) | lens (magnify; negative strength shrinks) | ripple | ring
+#     (a shockwave every `period` s). Bombs make shockwaves, sparks and smoke by themselves.
+#   emissive = 2..8 makes an object glow (bloom) and light its surroundings.
 # Soft (deformable) objects ignore `shape`:
 #   soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 6 }
 #   soft = { shape = { type = "sphere", radius = 0.6, subdivisions = 2 }, stiffness = 10 }

@@ -1,0 +1,1007 @@
+# Particle Garden: GPU particles by the thousand, all view-only (they never touch the simulation).
+#   NORTH   weather: a snow patch and a rain patch (emitters high up, area = the patch), a firefly pond
+#   MIDDLE  the ten presets, one plinth each: fire smoke steam sparks embers fountain magic bubbles dust confetti
+#   SOUTH   campfire (fire + smoke + embers + flickering light + logs), the same preset tuned six
+#           ways (size / speed / rate / colour), a bomb range, and PARTICLES ON / OFF pads
+# Emitter note: stretched/bouncy presets (rain, fountain, sparks) land at the emitter object's own height,
+# so ground-bound ones use an invisible emitter object standing on the floor with a high `offset`.
+name = "Particle Garden"
+about = "GPU particles by the thousand, all view-only: the ten presets on plinths, snow, rain and fireflies, a campfire that combines fire, smoke, embers and a flickering light, tuning overrides, and a bomb range."
+try = [
+  "Walk along the plinths and compare all ten presets (fire, smoke, steam, sparks, embers, fountain, magic, bubbles, dust, confetti)",
+  "Step into the fenced snow and rain patches and look up: the emitters sit 5 and 11 m above the floor",
+  "Wander over the dark blue pond to find the fireflies",
+  "Sit by the campfire: fire, smoke, embers and a flickering light together, with logs around it",
+  "Compare the three MAGIC and three FOUNTAIN plinths: same preset, different size, speed, rate and colour",
+  "Throw bombs (F or left click) on the range: sparks, fire, smoke and a shockwave, and the dummy crates fly",
+  "Step on PARTICLES OFF, then PARTICLES ON: only the effects change, the simulation never notices",
+  "Zoom out with the mouse wheel to see thousands of particles at once",
+]
+wing = "vfx"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [20, 29], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 17.0
+
+[view]
+"light.sun_intensity" = 0.3
+"light.ambient" = 0.6
+"light.sun_elevation" = 38
+sky = "#26304a"
+bloom = 0.6
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#FFFFFFFFFFF..FFFFFFFFFFF..............#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FsssssssssF..FrrrrrrrrrF...pppppppppp.#
+#FFFFFssFFFF..FFFFFrrFFFF..............#
+#......................................#
+#.tttttttttttttttttttttttttttttttttttt.#
+#.tttttttttttttttttttttttttttttttttttt.#
+#.tttttttttttttttttttttttttttttttttttt.#
+#.tttttttttttttttttttttttttttttttttttt.#
+#......................................#
+#...........................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd................ggggggggggg#
+#..ddddddddd..AAAAA....OOOOOggggggggggg#
+#.............AAAAA....OOOOOggggggggggg#
+#...........................ggggggggggg#
+#...........................ggggggggggg#
+####################..##################
+'''
+
+# Floors: plain, the gallery strip, snow, wet slate, pond (dark blue), dirt, sand; fence, walls, pads.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }]
+
+[layout.legend.'t']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#777b84" }]
+
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e4ebf3" }]
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4c5866" }]
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#102448" }]
+
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4a38" }]
+
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b3a27c" }]
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }, { y0 = 0, y1 = 0.7, color = "#8a6a45", inset = 0.3 }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }, { y0 = 0, y1 = 3.0, color = "#565d6a" }]
+
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }]
+zone = { kind = "pad", label = "PARTICLES ON", color = "#3bb273", params = { "view.particles" = true } }
+
+[layout.legend.'O']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }]
+zone = { kind = "pad", label = "PARTICLES OFF", color = "#e07a5f", params = { "view.particles" = false } }
+
+[[label]]
+text = "FIRE"
+pos = [4.0, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "SMOKE"
+pos = [7.5, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "STEAM"
+pos = [11.0, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "SPARKS"
+pos = [14.5, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "EMBERS"
+pos = [18.0, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "FOUNTAIN"
+pos = [21.5, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "MAGIC"
+pos = [25.0, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "BUBBLES"
+pos = [28.5, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "DUST"
+pos = [32.0, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "CONFETTI"
+pos = [35.5, 0.03, 14.05]
+size = 0.45
+color = "#f0ead8"
+
+[[label]]
+text = "SNOW"
+pos = [6.5, 0.03, 10.5]
+size = 0.55
+color = "#f0ead8"
+
+[[label]]
+text = "RAIN"
+pos = [19.5, 0.03, 10.5]
+size = 0.55
+color = "#f0ead8"
+
+[[label]]
+text = "FIREFLY POND"
+pos = [32.5, 0.03, 10.4]
+size = 0.5
+color = "#f0ead8"
+
+[[label]]
+text = "CAMPFIRE"
+pos = [7.5, 0.03, 24.7]
+size = 0.55
+color = "#f0ead8"
+
+[[label]]
+text = "FIRE + SMOKE + EMBERS + LIGHT"
+pos = [7.5, 0.03, 25.4]
+size = 0.3
+color = "#f0ead8"
+
+[[label]]
+text = "MAGIC"
+pos = [16.5, 0.03, 19.099999999999998]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "NO OVERRIDES"
+pos = [16.5, 0.03, 19.599999999999998]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "MAGIC"
+pos = [21.0, 0.03, 19.099999999999998]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "SIZE 2.5 SPEED 0.5"
+pos = [21.0, 0.03, 19.599999999999998]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "RATE 25 PINK"
+pos = [21.0, 0.03, 20.0]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "MAGIC"
+pos = [25.5, 0.03, 19.099999999999998]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "SIZE 0.5 SPEED 2.5"
+pos = [25.5, 0.03, 19.599999999999998]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "RATE 150 GREEN"
+pos = [25.5, 0.03, 20.0]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "FOUNTAIN"
+pos = [16.5, 0.03, 23.3]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "NO OVERRIDES"
+pos = [16.5, 0.03, 23.8]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "FOUNTAIN"
+pos = [21.0, 0.03, 23.3]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "SIZE 0.6 SPEED 1.4"
+pos = [21.0, 0.03, 23.8]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "RATE 170 WHITE"
+pos = [21.0, 0.03, 24.2]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "FOUNTAIN"
+pos = [25.5, 0.03, 23.3]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "SIZE 2.2 SPEED 0.5"
+pos = [25.5, 0.03, 23.8]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "RATE 35 AMBER"
+pos = [25.5, 0.03, 24.2]
+size = 0.28
+color = "#f0ead8"
+
+[[label]]
+text = "SAME PRESET, DIFFERENT OVERRIDES"
+pos = [21.0, 0.03, 16.4]
+size = 0.4
+color = "#f0ead8"
+
+[[label]]
+text = "THROW BOMBS HERE"
+pos = [33.5, 0.03, 24.2]
+size = 0.55
+color = "#2b2d35"
+
+[[label]]
+text = "F OR CLICK"
+pos = [33.5, 0.03, 25.1]
+size = 0.4
+color = "#2b2d35"
+
+[[label]]
+text = "BOMB RANGE"
+pos = [33.5, 0.03, 16.6]
+size = 0.4
+color = "#2b2d35"
+
+[[label]]
+text = "PARTICLE GARDEN"
+pos = [21.0, 0.03, 26.0]
+size = 0.4
+color = "#f0ead8"
+
+
+# Free-placed objects.
+
+[[object]]
+name = "plinth_fire"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.4 }
+pos = [4.0, 0.3, 12.5]
+color = "#3a3d44"
+body = "fixed"
+particles = { preset = "fire", offset = [0, 0.35, 0], size = 0.8 }
+light = { color = "#ff9a45", radius = 4.5, intensity = 1.2, shadows = false, offset = [0, 0.9, 0], flicker = 0.8 }
+distortion = { kind = "haze", radius = 0.8, strength = 0.1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "plinth_smoke"
+shape = { type = "box", half = [0.3, 0.6, 0.3] }
+pos = [7.5, 0.6, 12.5]
+color = "#8a5a48"
+body = "fixed"
+particles = { preset = "smoke", offset = [0, 0.65, 0] }
+
+[[object]]
+name = "plinth_steam"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.45 }
+pos = [11.0, 0.3, 12.5]
+color = "#b87333"
+body = "fixed"
+particles = { preset = "steam", offset = [0, 0.35, 0] }
+
+[[object]]
+name = "plinth_sparks"
+shape = { type = "box", half = [0.4, 0.35, 0.4] }
+pos = [14.5, 0.35, 12.5]
+color = "#3a3f47"
+body = "fixed"
+light = { color = "#ff9a45", radius = 3.5, intensity = 1.0, shadows = false, offset = [0, 0.9, 0], flicker = 1.0 }
+
+[[object]]
+name = "emit_sparks"
+shape = { type = "sphere", radius = 0.01 }
+pos = [14.5, 0.0, 12.5]
+color = "#000000"
+body = "none"
+particles = { preset = "sparks", offset = [0, 0.8, 0] }
+
+[[object]]
+name = "plinth_embers"
+shape = { type = "box", half = [0.4, 0.3, 0.4] }
+pos = [18.0, 0.3, 12.5]
+color = "#5a4a40"
+body = "fixed"
+particles = { preset = "embers", offset = [0, 0.7, 0] }
+
+[[object]]
+name = "coals"
+shape = { type = "cylinder", half_height = 0.06, radius = 0.32 }
+pos = [18.0, 0.66, 12.5]
+color = "#a83a12"
+body = "none"
+emissive = 1.6
+light = { color = "#ff6a2a", radius = 4, intensity = 1.2, shadows = false, offset = [0, 0.5, 0], flicker = 0.6 }
+
+[[object]]
+name = "plinth_fountain"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.8 }
+pos = [21.5, 0.25, 12.5]
+color = "#9aa4b0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.3, 0] }
+distortion = { kind = "ripple", radius = 1.4, strength = 0.08, offset = [0, 0.5, 0] }
+
+[[object]]
+name = "plinth_magic"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.3 }
+pos = [25.0, 0.4, 12.5]
+color = "#5a4f7a"
+body = "fixed"
+particles = { preset = "magic", offset = [0, 0.5, 0] }
+light = { color = "#9a6aff", radius = 4, intensity = 1.0, shadows = false, offset = [0, 1.0, 0], pulse = 0.5 }
+
+[[object]]
+name = "plinth_bubbles"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.6 }
+pos = [28.5, 0.25, 12.5]
+color = "#6a8fa8"
+body = "fixed"
+particles = { preset = "bubbles", offset = [0, 0.3, 0] }
+
+[[object]]
+name = "plinth_dust"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [32.0, 0.4, 12.5]
+color = "#a07a50"
+body = "fixed"
+particles = { preset = "dust", offset = [0, 0.45, 0] }
+
+[[object]]
+name = "plinth_confetti"
+shape = { type = "box", half = [0.3, 0.5, 0.3] }
+pos = [35.5, 0.5, 12.5]
+color = "#d85a7a"
+body = "fixed"
+particles = { preset = "confetti", offset = [0, 0.55, 0] }
+
+[[object]]
+name = "snow"
+shape = { type = "sphere", radius = 0.01 }
+pos = [6.5, 0.0, 5.5]
+color = "#000000"
+body = "none"
+particles = { preset = "snow", offset = [0, 5.0, 0], rate = 80, area = [4.5, 0, 3.5], life = 0.7 }
+
+[[object]]
+name = "rain"
+shape = { type = "sphere", radius = 0.01 }
+pos = [19.5, 0.0, 5.5]
+color = "#000000"
+body = "none"
+particles = { preset = "rain", offset = [0, 10.5, 0], rate = 260, area = [4.5, 0, 3.5], life = 0.85 }
+
+[[object]]
+name = "fireflies"
+shape = { type = "sphere", radius = 0.01 }
+pos = [32.5, 0.0, 5.5]
+color = "#000000"
+body = "none"
+particles = { preset = "fireflies", offset = [0, 1.1, 0], rate = 22, area = [4.5, 0.7, 3.2] }
+
+[[object]]
+name = "reed_0"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [28.4, 0.45, 2.4]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_1"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [28.9, 0.45, 2.9]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_2"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [29.3, 0.45, 2.3]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_3"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [37.6, 0.45, 2.5]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_4"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [37.2, 0.45, 3.0]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_5"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [28.6, 0.45, 7.8]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_6"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [37.5, 0.45, 7.7]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "reed_7"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.04 }
+pos = [36.9, 0.45, 8.1]
+color = "#3f6b3a"
+body = "none"
+
+[[object]]
+name = "lily_0"
+shape = { type = "cylinder", half_height = 0.012, radius = 0.32 }
+pos = [31.0, 0.012, 4.0]
+color = "#2f7a4a"
+body = "none"
+
+[[object]]
+name = "lily_1"
+shape = { type = "cylinder", half_height = 0.012, radius = 0.32 }
+pos = [34.5, 0.012, 6.2]
+color = "#2f7a4a"
+body = "none"
+
+[[object]]
+name = "lily_2"
+shape = { type = "cylinder", half_height = 0.012, radius = 0.32 }
+pos = [33.2, 0.012, 3.2]
+color = "#2f7a4a"
+body = "none"
+
+[[object]]
+name = "lily_3"
+shape = { type = "cylinder", half_height = 0.012, radius = 0.32 }
+pos = [30.2, 0.012, 6.6]
+color = "#2f7a4a"
+body = "none"
+
+[[object]]
+name = "lily_4"
+shape = { type = "cylinder", half_height = 0.012, radius = 0.32 }
+pos = [35.8, 0.012, 4.4]
+color = "#2f7a4a"
+body = "none"
+
+[[object]]
+name = "fire_pit"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.62 }
+pos = [7.5, 0.1, 21.5]
+color = "#2b2523"
+body = "fixed"
+
+[[object]]
+name = "stone_0"
+shape = { type = "sphere", radius = 0.17 }
+pos = [8.35, 0.12, 21.5]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_1"
+shape = { type = "sphere", radius = 0.17 }
+pos = [8.15, 0.12, 22.05]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_2"
+shape = { type = "sphere", radius = 0.17 }
+pos = [7.65, 0.12, 22.34]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_3"
+shape = { type = "sphere", radius = 0.17 }
+pos = [7.08, 0.12, 22.24]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_4"
+shape = { type = "sphere", radius = 0.17 }
+pos = [6.7, 0.12, 21.79]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_5"
+shape = { type = "sphere", radius = 0.17 }
+pos = [6.7, 0.12, 21.21]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_6"
+shape = { type = "sphere", radius = 0.17 }
+pos = [7.07, 0.12, 20.76]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_7"
+shape = { type = "sphere", radius = 0.17 }
+pos = [7.65, 0.12, 20.66]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "stone_8"
+shape = { type = "sphere", radius = 0.17 }
+pos = [8.15, 0.12, 20.95]
+color = "#8a8a90"
+body = "fixed"
+
+[[object]]
+name = "campfire_flames"
+shape = { type = "sphere", radius = 0.01 }
+pos = [7.5, 0.2, 21.5]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", offset = [0, 0.1, 0], rate = 95, size = 1.4, area = [0.3, 0.05, 0.3] }
+light = { color = "#ff9a40", radius = 8, intensity = 2.6, shadows = false, offset = [0, 0.9, 0], flicker = 0.9 }
+distortion = { kind = "haze", radius = 1.0, strength = 0.12, offset = [0, 1.6, 0] }
+
+[[object]]
+name = "campfire_smoke"
+shape = { type = "sphere", radius = 0.01 }
+pos = [7.5, 0.2, 21.5]
+color = "#000000"
+body = "none"
+particles = { preset = "smoke", offset = [0, 1.3, 0], rate = 18, size = 1.6, area = [0.3, 0.05, 0.3] }
+
+[[object]]
+name = "campfire_embers"
+shape = { type = "sphere", radius = 0.01 }
+pos = [7.5, 0.2, 21.5]
+color = "#000000"
+body = "none"
+particles = { preset = "embers", offset = [0, 0.5, 0], rate = 22, area = [0.4, 0.1, 0.4] }
+
+[[object]]
+name = "campfire_coals"
+shape = { type = "cylinder", half_height = 0.05, radius = 0.4 }
+pos = [7.5, 0.23, 21.5]
+color = "#a83a12"
+body = "none"
+emissive = 1.4
+
+[[object]]
+name = "kindling_0"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.07 }
+pos = [7.66, 0.28, 21.41]
+color = "#4a3322"
+body = "none"
+yaw = 30
+pitch = 35
+
+[[object]]
+name = "kindling_1"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.07 }
+pos = [7.34, 0.28, 21.41]
+color = "#4a3322"
+body = "none"
+yaw = 150
+pitch = 35
+
+[[object]]
+name = "kindling_2"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.07 }
+pos = [7.5, 0.28, 21.68]
+color = "#4a3322"
+body = "none"
+yaw = 270
+pitch = 35
+
+[[object]]
+name = "log_0"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [9.41, 0.26, 22.6]
+color = "#6b4a2e"
+body = "fixed"
+yaw = -120.0
+roll = 90
+
+[[object]]
+name = "log_1"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [7.5, 0.26, 23.7]
+color = "#6b4a2e"
+body = "fixed"
+yaw = -180.0
+roll = 90
+
+[[object]]
+name = "log_2"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [5.59, 0.26, 22.6]
+color = "#6b4a2e"
+body = "fixed"
+yaw = 120.0
+roll = 90
+
+[[object]]
+name = "log_3"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [5.59, 0.26, 20.4]
+color = "#6b4a2e"
+body = "fixed"
+yaw = 60.0
+roll = 90
+
+[[object]]
+name = "log_4"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [7.5, 0.26, 19.3]
+color = "#6b4a2e"
+body = "fixed"
+yaw = 0.0
+roll = 90
+
+[[object]]
+name = "log_5"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.26 }
+pos = [9.41, 0.26, 20.4]
+color = "#6b4a2e"
+body = "fixed"
+yaw = -60.0
+roll = 90
+
+[[object]]
+name = "plinth_magic_default"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.3 }
+pos = [16.5, 0.4, 17.9]
+color = "#5a4f7a"
+body = "fixed"
+particles = { preset = "magic", offset = [0, 0.5, 0] }
+light = { color = "#9a6aff", radius = 3.5, intensity = 1.0, shadows = false, offset = [0, 1.0, 0], pulse = 0.5 }
+
+[[object]]
+name = "plinth_magic_big"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.3 }
+pos = [21.0, 0.4, 17.9]
+color = "#5a4f7a"
+body = "fixed"
+particles = { preset = "magic", offset = [0, 0.5, 0], size = 2.5, speed = 0.5, rate = 25, color = "#ff5fa8" }
+light = { color = "#ff5fa8", radius = 3.5, intensity = 1.0, shadows = false, offset = [0, 1.0, 0], pulse = 0.5 }
+
+[[object]]
+name = "plinth_magic_tiny"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.3 }
+pos = [25.5, 0.4, 17.9]
+color = "#5a4f7a"
+body = "fixed"
+particles = { preset = "magic", offset = [0, 0.5, 0], size = 0.5, speed = 2.5, rate = 150, color = "#5fff9a" }
+light = { color = "#5fff9a", radius = 3.5, intensity = 1.0, shadows = false, offset = [0, 1.0, 0], pulse = 0.5 }
+
+[[object]]
+name = "plinth_fountain_default"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.8 }
+pos = [16.5, 0.25, 22.0]
+color = "#9aa4b0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.3, 0] }
+
+[[object]]
+name = "plinth_fountain_high"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.8 }
+pos = [21.0, 0.25, 22.0]
+color = "#9aa4b0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.3, 0], size = 0.6, speed = 1.4, rate = 170, color = "#ffffff" }
+
+[[object]]
+name = "plinth_fountain_low"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.8 }
+pos = [25.5, 0.25, 22.0]
+color = "#9aa4b0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.3, 0], size = 2.2, speed = 0.5, rate = 35, color = "#ffb04a" }
+
+[[object]]
+name = "target_0"
+shape = { type = "cylinder", half_height = 0.01, radius = 1.8 }
+pos = [33.5, 0.01, 20.4]
+color = "#b8352e"
+body = "none"
+
+[[object]]
+name = "target_1"
+shape = { type = "cylinder", half_height = 0.01, radius = 1.35 }
+pos = [33.5, 0.015, 20.4]
+color = "#f0ead8"
+body = "none"
+
+[[object]]
+name = "target_2"
+shape = { type = "cylinder", half_height = 0.01, radius = 0.9 }
+pos = [33.5, 0.02, 20.4]
+color = "#b8352e"
+body = "none"
+
+[[object]]
+name = "target_3"
+shape = { type = "cylinder", half_height = 0.01, radius = 0.45 }
+pos = [33.5, 0.025, 20.4]
+color = "#f0ead8"
+body = "none"
+
+[[object]]
+name = "pyr_a_0"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [30.0, 0.3, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_a_1"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [30.6, 0.3, 18.2]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_a_2"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [31.2, 0.3, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_a_3"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [30.3, 0.9, 18.2]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_a_4"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [30.9, 0.9, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_a_5"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [30.6, 1.5, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_0"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [35.8, 0.3, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_1"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [36.4, 0.3, 18.2]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_2"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [37.0, 0.3, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_3"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [36.1, 0.9, 18.2]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_4"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [36.7, 0.9, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_b_5"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [36.4, 1.5, 18.2]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_0"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [32.6, 0.3, 17.8]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_1"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.2, 0.3, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_2"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.8, 0.3, 17.8]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_3"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [34.4, 0.3, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_4"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [32.9, 0.9, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_5"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.5, 0.9, 17.8]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_6"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [34.1, 0.9, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_7"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.2, 1.5, 17.8]
+color = "#d9b88a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_8"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.8, 1.5, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+
+[[object]]
+name = "pyr_c_9"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [33.5, 2.1, 17.8]
+color = "#c9a27a"
+body = "dynamic"
+density = 20
+friction = 0.6
+

@@ -1,0 +1,725 @@
+# Heat & Shockwaves: screen distortion (heat haze, lenses, ripples, repeating shockwaves, bomb
+# blasts) over patterned floors, since a warp only shows where the picture behind it has detail.
+#   NORTH-WEST  lava strip (emissive floor objects, fire and embers, haze) and a forge
+#   NORTH-EAST  glass orbs with lens distortion +0.15 / +0.3 / -0.2 over a checker floor
+#   MIDDLE      ripple pool + fountain, shockwave pads (period 1 / 2 / 3 s), bomb range
+#   SOUTH       DISTORTION ON / OFF pads (view.distortion) next to a ring demo
+name = "Heat & Shockwaves"
+about = "Screen distortion warps the rendered image around a source: heat haze over lava and a forge, magnifying and shrinking glass orbs, rippling water, repeating shockwave rings and bomb blasts. Warps only show over detail, so every source stands in front of bricks, checkers or stripes."
+try = [
+  "Walk up to the lava strip and the forge: the bricks behind the rising heat shimmer",
+  "Step on DISTORTION OFF (south), look at the ring demo, then step on DISTORTION ON",
+  "Walk behind the glass orbs: +0.15 and +0.3 magnify the checker, -0.2 shrinks it",
+  "Stand next to the fountain pool and watch the water ripples distort the tiles",
+  "Compare the 1 s, 2 s and 3 s shockwave pads over the stripes",
+  "Throw bombs (F or left click) on the bomb range: each blast makes its own shockwave",
+  "Bomb the crates next to the glass orbs' checker to see a blast ring cross the pattern",
+  "Press F5 to reset the room and put the crates back",
+]
+wing = "vfx"
+order = 4
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 62.0
+distance = 17.0
+
+# Dusk: dim sun and fill so the lava, forge and glass glow, bloom on, distortion on.
+[view]
+"light.sun_intensity" = 0.32
+"light.ambient" = 0.75
+"light.sun_elevation" = 38
+sky = "#171c2e"
+bloom = 0.55
+distortion = true
+particles = true
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#rRrRrRrRrRrRrRrRrRr.aAaAaAaAaAaAaAaAaA#
+#RrRrRrRrRrRrRrRrRrR.AaAaAaAaAaAaAaAaAa#
+#rLLLLLrLLLLLrRrRrRr.aAaAaAaAaAaAaAaAaA#
+#RLLLLLRLLLLLRrRrRrR.AaAaAaAaAaAaAaAaAa#
+#rRrRrRrRrRrRrRrRrRr.aAaAaAaAaAaAaAaAaA#
+#RrRrRrRrRrRrRrRrRrR.AaAaAaAaAaAaAaAaAa#
+#rRrRrRrRrRrRrRrRrRr.aAaAaAaAaAaAaAaAaA#
+#RrRrRrRrRrRrRrRrRrR.AaAaAaAaAaAaAaAaAa#
+#......................................#
+#..........................ffffffffffff#
+#pPpPpPpPpPpP.ykkyykkyykkyyfOoOoOoOoOoO#
+#PpPpPpPpPpPp.kkyykkyykkyykfoOoOoOoOoOo#
+#pPpPpPpPpPpP.kyykkyykkyykkfOoOoOoOoOoO#
+#PpPpPpPpPpPp.yykkyykkyykkyfoOoOoOoOoOo#
+#pPpPpPpPpPpP.ykkyykkyykkyyfOoOoOoOoOoO#
+#PpPpPpPpPpPp.kkyykkyykkyykfoOoOoOoOoOo#
+#pPpPpPpPpPpP.kyykkyykkyykkfOoOoOoOoOoO#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#................kyykky................#
+#............NNN.yykkyy.FFF............#
+#............NNN.ykkyyk.FFF............#
+#............NNN.kkyykk.FFF............#
+#................kyykky................#
+#......................................#
+#......................................#
+###################..###################
+'''
+
+# Plain dark floor and the 3 m wall.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }, { y0 = 0, y1 = 3.0, color = "#596073" }]
+
+# Brick floor of the heat area and the lava ridge (0.45 m high stone with glowing lava objects on top).
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8a7366" }]
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4f423b" }]
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0.45, color = "#2b1c17" }]
+
+# Lens checker (cream / slate), pool tiles (two blues), hazard stripes, bomb range checker.
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ebe6d6" }]
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#272c38" }]
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2a68ad" }]
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#58a8ee" }]
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e8c13a" }]
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#22252d" }]
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9783c" }]
+[layout.legend.'O']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f0e3c6" }]
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }, { y0 = 0, y1 = 1.0, color = "#8a7a66" }]
+
+# The switch: view settings from a pad stay until you leave the room.
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }]
+zone = { kind = "pad", label = "DISTORTION ON", color = "#3bb273", params = { "view.distortion" = true } }
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }]
+zone = { kind = "pad", label = "DISTORTION OFF", color = "#e07a5f", params = { "view.distortion" = false } }
+
+# Exhibit names (light text on the plain dark floor strips).
+[[label]]
+text = "LAVA STRIP + HAZE"
+pos = [7.5, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "FORGE"
+pos = [16.5, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "+0.15"
+pos = [25.0, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "+0.30"
+pos = [30.0, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "-0.20"
+pos = [35.0, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "RIPPLE POOL"
+pos = [6.5, 0.03, 18.6]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "RING 1 s"
+pos = [16.5, 0.03, 18.6]
+size = 0.45
+color = "#f2e8c9"
+
+[[label]]
+text = "RING 2 s"
+pos = [20.5, 0.03, 18.6]
+size = 0.45
+color = "#f2e8c9"
+
+[[label]]
+text = "RING 3 s"
+pos = [24.5, 0.03, 18.6]
+size = 0.45
+color = "#f2e8c9"
+
+[[label]]
+text = "THROW BOMBS HERE (F / click)"
+pos = [33.0, 0.03, 18.6]
+size = 0.42
+color = "#f2e8c9"
+
+[[label]]
+text = "HEAT & SHOCKWAVES"
+pos = [20.0, 0.03, 20.6]
+size = 0.6
+color = "#f2e8c9"
+
+[[label]]
+text = "RING DEMO"
+pos = [20.0, 0.03, 27.3]
+size = 0.45
+color = "#f2e8c9"
+
+# ---- objects (keep at the end of the file) ----
+
+[[object]]
+name = "lava_0"
+shape = { type = "box", half = [2.45, 0.02, 0.95] }
+pos = [4.5, 0.46, 4]
+color = "#e4521a"
+body = "none"
+emissive = 2.4
+
+[[object]]
+name = "lava_1"
+shape = { type = "box", half = [2.45, 0.02, 0.95] }
+pos = [10.5, 0.46, 4]
+color = "#e4521a"
+body = "none"
+emissive = 2.4
+
+[[object]]
+name = "crust_0"
+shape = { type = "box", half = [0.7, 0.015, 0.28] }
+pos = [3.2, 0.485, 3.6]
+color = "#2a1710"
+body = "none"
+yaw = 20
+
+[[object]]
+name = "crust_1"
+shape = { type = "box", half = [0.55, 0.015, 0.22] }
+pos = [5.6, 0.485, 4.4]
+color = "#2a1710"
+body = "none"
+yaw = -15
+
+[[object]]
+name = "crust_2"
+shape = { type = "box", half = [0.5, 0.015, 0.3] }
+pos = [9, 0.485, 3.5]
+color = "#2a1710"
+body = "none"
+yaw = 30
+
+[[object]]
+name = "crust_3"
+shape = { type = "box", half = [0.75, 0.015, 0.25] }
+pos = [11.3, 0.485, 4.5]
+color = "#2a1710"
+body = "none"
+yaw = -25
+
+[[object]]
+name = "crust_4"
+shape = { type = "box", half = [0.4, 0.015, 0.2] }
+pos = [4.4, 0.485, 4.5]
+color = "#2a1710"
+body = "none"
+yaw = 10
+
+[[object]]
+name = "crust_5"
+shape = { type = "box", half = [0.45, 0.015, 0.2] }
+pos = [10.3, 0.485, 4]
+color = "#2a1710"
+body = "none"
+yaw = 40
+
+[[object]]
+name = "crack_0"
+shape = { type = "box", half = [0.9, 0.015, 0.05] }
+pos = [3.8, 0.505, 3.9]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = 10
+
+[[object]]
+name = "crack_1"
+shape = { type = "box", half = [0.6, 0.015, 0.05] }
+pos = [4.9, 0.505, 4.2]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = -35
+
+[[object]]
+name = "crack_2"
+shape = { type = "box", half = [0.5, 0.015, 0.05] }
+pos = [2.9, 0.505, 4.4]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = 60
+
+[[object]]
+name = "crack_3"
+shape = { type = "box", half = [0.5, 0.015, 0.05] }
+pos = [5.8, 0.505, 3.4]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = 25
+
+[[object]]
+name = "crack_4"
+shape = { type = "box", half = [0.9, 0.015, 0.05] }
+pos = [9.7, 0.505, 3.7]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = -10
+
+[[object]]
+name = "crack_5"
+shape = { type = "box", half = [0.7, 0.015, 0.05] }
+pos = [10.9, 0.505, 4.1]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = 40
+
+[[object]]
+name = "crack_6"
+shape = { type = "box", half = [0.4, 0.015, 0.05] }
+pos = [8.8, 0.505, 4.4]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = -50
+
+[[object]]
+name = "crack_7"
+shape = { type = "box", half = [0.5, 0.015, 0.05] }
+pos = [11.8, 0.505, 3.5]
+color = "#ffc43d"
+body = "none"
+emissive = 4.0
+yaw = 20
+
+[[object]]
+name = "lava_fire_0"
+shape = { type = "sphere", radius = 0.01 }
+pos = [3.5, 0.5, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+
+[[object]]
+name = "lava_fire_1"
+shape = { type = "sphere", radius = 0.01 }
+pos = [5.5, 0.5, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+
+[[object]]
+name = "lava_fire_2"
+shape = { type = "sphere", radius = 0.01 }
+pos = [9.5, 0.5, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+
+[[object]]
+name = "lava_fire_3"
+shape = { type = "sphere", radius = 0.01 }
+pos = [11.5, 0.5, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+
+[[object]]
+name = "lava_embers_0"
+shape = { type = "sphere", radius = 0.01 }
+pos = [4.5, 0.6, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "embers", area = [1.8, 0, 0.7], offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lava_embers_1"
+shape = { type = "sphere", radius = 0.01 }
+pos = [10.5, 0.6, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "embers", area = [1.8, 0, 0.7], offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lava_haze_0"
+shape = { type = "sphere", radius = 0.01 }
+pos = [2.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "lava_haze_1"
+shape = { type = "sphere", radius = 0.01 }
+pos = [4.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "lava_haze_2"
+shape = { type = "sphere", radius = 0.01 }
+pos = [6.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "lava_haze_3"
+shape = { type = "sphere", radius = 0.01 }
+pos = [8.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "lava_haze_4"
+shape = { type = "sphere", radius = 0.01 }
+pos = [10.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "lava_haze_5"
+shape = { type = "sphere", radius = 0.01 }
+pos = [12.5, 0.5, 4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+
+[[object]]
+name = "forge_base"
+shape = { type = "box", half = [0.9, 0.45, 0.6] }
+pos = [16.5, 0.45, 4.8]
+color = "#5b5f69"
+body = "fixed"
+
+[[object]]
+name = "forge_hood"
+shape = { type = "box", half = [0.9, 1.2, 0.2] }
+pos = [16.5, 1.2, 4]
+color = "#463c37"
+body = "fixed"
+
+[[object]]
+name = "forge_coals"
+shape = { type = "box", half = [0.7, 0.05, 0.4] }
+pos = [16.5, 0.93, 4.85]
+color = "#ff6a20"
+body = "none"
+emissive = 3.5
+
+[[object]]
+name = "forge_fire"
+shape = { type = "sphere", radius = 0.01 }
+pos = [16.5, 1, 4.85]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", size = 0.8, area = [0.4, 0, 0.2], offset = [0, 0.05, 0] }
+light = { color = "#ff8a3a", radius = 8, intensity = 2.4, flicker = 0.8, shadows = true, offset = [0, 0.8, 0] }
+distortion = { kind = "haze", radius = 2, strength = 1.2, offset = [0, 1.9, 0] }
+
+[[object]]
+name = "forge_smoke"
+shape = { type = "sphere", radius = 0.01 }
+pos = [16.5, 2.4, 4]
+color = "#000000"
+body = "none"
+particles = { preset = "smoke", offset = [0, 0.1, 0] }
+
+[[object]]
+name = "forge_haze_top"
+shape = { type = "sphere", radius = 0.01 }
+pos = [16.5, 2.4, 4.4]
+color = "#000000"
+body = "none"
+distortion = { kind = "haze", radius = 1.6, strength = 0.9, offset = [0, 1, 0] }
+
+[[object]]
+name = "anvil_base"
+shape = { type = "box", half = [0.25, 0.3, 0.2] }
+pos = [18.4, 0.3, 5.8]
+color = "#2a2d33"
+body = "fixed"
+
+[[object]]
+name = "anvil_top"
+shape = { type = "box", half = [0.5, 0.12, 0.2] }
+pos = [18.4, 0.72, 5.8]
+color = "#3a3e47"
+body = "fixed"
+
+[[object]]
+name = "anvil_sparks"
+shape = { type = "sphere", radius = 0.01 }
+pos = [18.4, 0.9, 5.8]
+color = "#000000"
+body = "none"
+particles = { preset = "sparks", rate = 7, offset = [0, 0, 0] }
+
+[[object]]
+name = "forge_ingot"
+shape = { type = "box", half = [0.25, 0.06, 0.12] }
+pos = [18.4, 0.9, 5.8]
+color = "#ff7a2a"
+body = "none"
+emissive = 3.0
+yaw = 20
+
+[[object]]
+name = "stand_0"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
+pos = [25, 0.4, 4.5]
+color = "#8c93a3"
+body = "fixed"
+
+[[object]]
+name = "orb_0"
+shape = { type = "sphere", radius = 0.5 }
+pos = [25, 1.35, 4.5]
+color = "#cfeaff"
+body = "none"
+distortion = { kind = "lens", radius = 2, strength = 0.15, offset = [0, 0, 0] }
+
+[[object]]
+name = "stand_1"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
+pos = [30, 0.4, 4.5]
+color = "#8c93a3"
+body = "fixed"
+
+[[object]]
+name = "orb_1"
+shape = { type = "sphere", radius = 0.5 }
+pos = [30, 1.35, 4.5]
+color = "#cfeaff"
+body = "none"
+distortion = { kind = "lens", radius = 2, strength = 0.3, offset = [0, 0, 0] }
+
+[[object]]
+name = "stand_2"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
+pos = [35, 0.4, 4.5]
+color = "#8c93a3"
+body = "fixed"
+
+[[object]]
+name = "orb_2"
+shape = { type = "sphere", radius = 0.5 }
+pos = [35, 1.35, 4.5]
+color = "#cfeaff"
+body = "none"
+distortion = { kind = "lens", radius = 2, strength = -0.2, offset = [0, 0, 0] }
+
+[[object]]
+name = "fountain_basin"
+shape = { type = "cylinder", half_height = 0.2, radius = 0.8 }
+pos = [6.5, 0.2, 14]
+color = "#9aa4b0"
+body = "fixed"
+
+[[object]]
+name = "fountain_spout"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.12 }
+pos = [6.5, 0.55, 14]
+color = "#aab4c0"
+body = "fixed"
+particles = { preset = "fountain", offset = [0, 0.45, 0] }
+distortion = { kind = "ripple", radius = 3, strength = 1.2, offset = [0, 0.2, 0] }
+
+[[object]]
+name = "lily_0"
+shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
+pos = [2.5, 0.03, 12.5]
+color = "#4fb36a"
+body = "none"
+distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lily_1"
+shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
+pos = [10.5, 0.03, 12.5]
+color = "#4fb36a"
+body = "none"
+distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lily_2"
+shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
+pos = [2.5, 0.03, 16]
+color = "#4fb36a"
+body = "none"
+distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lily_3"
+shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
+pos = [10.5, 0.03, 16]
+color = "#4fb36a"
+body = "none"
+distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "ring_pad_0"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.55 }
+pos = [16.5, 0.1, 14]
+color = "#ff5a3c"
+body = "fixed"
+emissive = 1.8
+distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 1, offset = [0, 0.3, 0] }
+
+[[object]]
+name = "ring_pad_1"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.55 }
+pos = [20.5, 0.1, 14]
+color = "#ffb020"
+body = "fixed"
+emissive = 1.8
+distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 2, offset = [0, 0.3, 0] }
+
+[[object]]
+name = "ring_pad_2"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.55 }
+pos = [24.5, 0.1, 14]
+color = "#3ccf9a"
+body = "fixed"
+emissive = 1.8
+distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 3, offset = [0, 0.3, 0] }
+
+[[object]]
+name = "crate_0"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [30.5, 0.4, 13]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_1"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [31.7, 0.4, 13]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_2"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [35.5, 0.4, 14.5]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_3"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [36.7, 0.4, 14.5]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_4"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [33, 0.4, 15.8]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_5"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [34.2, 0.4, 15.8]
+color = "#c9965a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_6"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [31.1, 1.2, 13]
+color = "#d6a96a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "crate_7"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [36.1, 1.2, 14.5]
+color = "#d6a96a"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "barrel_0"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.35 }
+pos = [29.5, 0.45, 15.5]
+color = "#7a8aa8"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "barrel_1"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.35 }
+pos = [37.2, 0.45, 12.2]
+color = "#7a8aa8"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "barrel_2"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.35 }
+pos = [34.5, 0.45, 12.2]
+color = "#7a8aa8"
+body = "dynamic"
+density = 25
+
+[[object]]
+name = "demo_pad"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.5 }
+pos = [20, 0.1, 24]
+color = "#8ad0ff"
+body = "fixed"
+emissive = 1.8
+distortion = { kind = "ring", radius = 3, strength = 1.6, period = 1.5, offset = [0, 0.3, 0] }
+

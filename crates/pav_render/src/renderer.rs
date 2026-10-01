@@ -78,11 +78,14 @@ struct GpuGlyph {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct PostUniform {
     inv_proj: [[f32; 4]; 4],
+    view: [[f32; 4]; 4],
+    gi: [f32; 4],
     outline_color: [f32; 4],
     outline: [f32; 4],
     tone: [f32; 4],
     misc: [f32; 4],
     fwd: [f32; 4],
+    filt: [[f32; 4]; 4],
 }
 
 struct GpuMesh {
@@ -1205,6 +1208,9 @@ impl Renderer {
         let p = &scene.post;
         let post = PostUniform {
             inv_proj: mat(cam.proj.inverse()),
+            view: mat(cam.view),
+            // Screen-space bounce light: strength, world radius, pixels per metre at 1 m.
+            gi: [p.gi, 1.6, size.1 as f32 * cam.proj.y_axis.y * 0.5, self.frame as f32],
             outline_color: match p.outline_color {
                 Some(c) => c.extend(1.0).to_array(),
                 None => [0.0; 4],
@@ -1222,6 +1228,15 @@ impl Renderer {
             ],
             misc: [p.outline_darken, bloom, if distorted { 1.0 } else { 0.0 }, 0.0],
             fwd: cam.forward.normalize_or(Vec3::NEG_Z).extend(0.0).to_array(),
+            filt: {
+                let f = &scene.filter;
+                [
+                    [f.pixelate, f.curvature, f.scanlines, f.scanline_px],
+                    [f.dither, f.levels, f.palette as f32, f.split],
+                    [f.temperature, f.tint, f.contrast, f.brightness],
+                    [f.vignette, f.grain, f.chroma, scene.time],
+                ]
+            },
         };
         self.queue.write_buffer(&self.post_buf, 0, bytemuck::bytes_of(&post));
         self.post_pipeline(target_format);

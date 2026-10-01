@@ -208,6 +208,8 @@ pub struct PostSettings {
     pub bloom_threshold: f32,
     /// Screen distortion (shockwaves, haze) on/off.
     pub distortion: bool,
+    /// Screen-space global illumination: bounce light and ambient occlusion (0 = off).
+    pub gi: f32,
 }
 
 impl Default for PostSettings {
@@ -225,6 +227,7 @@ impl Default for PostSettings {
             bloom: 0.35,
             bloom_threshold: 1.2,
             distortion: true,
+            gi: 0.0,
         }
     }
 }
@@ -309,6 +312,55 @@ impl Default for ParticleBurst {
     }
 }
 
+/// Screen filters applied after tonemapping (retro looks and grading).
+#[derive(Clone, Copy, Debug)]
+pub struct FilterSettings {
+    /// Pixel block size (1 = off).
+    pub pixelate: f32,
+    /// CRT tube curvature (0 = flat).
+    pub curvature: f32,
+    /// Scanline darkness (0 = off) and period in pixels.
+    pub scanlines: f32,
+    pub scanline_px: f32,
+    /// Ordered dithering amount, colour levels per channel (< 2 = off), palette (0 = none,
+    /// 1 Game Boy, 2 PICO-8, 3 CGA, 4 1-bit, 5 amber).
+    pub dither: f32,
+    pub levels: f32,
+    pub palette: u32,
+    /// Filters only right of this screen fraction (0 = whole screen): side-by-side comparisons.
+    pub split: f32,
+    pub temperature: f32,
+    pub tint: f32,
+    pub contrast: f32,
+    pub brightness: f32,
+    pub vignette: f32,
+    pub grain: f32,
+    /// Chromatic aberration.
+    pub chroma: f32,
+}
+
+impl Default for FilterSettings {
+    fn default() -> Self {
+        Self {
+            pixelate: 1.0,
+            curvature: 0.0,
+            scanlines: 0.0,
+            scanline_px: 3.0,
+            dither: 0.0,
+            levels: 0.0,
+            palette: 0,
+            split: 0.0,
+            temperature: 0.0,
+            tint: 0.0,
+            contrast: 1.0,
+            brightness: 1.0,
+            vignette: 0.0,
+            grain: 0.0,
+            chroma: 0.0,
+        }
+    }
+}
+
 /// Distance fog around a centre point (usually the camera target), blending into `color`.
 #[derive(Clone, Copy, Debug)]
 pub struct Fog {
@@ -356,6 +408,7 @@ pub struct Scene {
     pub clear_color: Vec3,
     pub style: StyleSettings,
     pub post: PostSettings,
+    pub filter: FilterSettings,
     pub cutaway: Cutaway,
     pub fog: Fog,
     /// Data for every `MeshKey::Custom` referenced this frame (uploaded when missing).
@@ -382,6 +435,7 @@ impl Default for Scene {
             clear_color: srgb(0x8f, 0xb8, 0xd8),
             style: StyleSettings::default(),
             post: PostSettings::default(),
+            filter: FilterSettings::default(),
             cutaway: Cutaway::default(),
             fog: Fog::default(),
             custom_meshes: Vec::new(),
