@@ -201,3 +201,20 @@ fn hazards_knock_back() {
     let f = feet(&sim);
     assert!(f.x < p.x, "knocked back west: {p} -> {f}");
 }
+
+#[test]
+fn walk_across_a_kinematic_slab() {
+    let mut sim = Sim::new("empty", 1).unwrap();
+    sim.spawn(
+        Spawn::new("slab", Vec3::new(0.0, 1.9, 0.0))
+            .visual(Visual::new(Shape::Box { half: Vec3::new(6.0, 0.2, 6.0) }, Color::WHITE))
+            .body(BodyKind::Kinematic),
+    );
+    let id = sim.state.player.unwrap();
+    sim.set_position(id, Vec3::new(-4.0, 2.1, 0.0));
+    go(&mut sim, Vec2::ZERO, 30);
+    go(&mut sim, Vec2::new(1.0, 0.0), 60);
+    let f = feet(&sim);
+    assert!(f.x > 1.5, "walked across the slab: {f}");
+    assert!(f.y > 2.05, "on top: {f}");
+}

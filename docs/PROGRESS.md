@@ -169,8 +169,17 @@ Done so far (all committed):
 - Tests: `crates/pav_core/tests/movement.rs` (10 checks).
 
 ## Decisions (M4)
-- Simulation order changed: behaviours → physics step → characters (move against the updated
-  world, ride platforms) → bombs → projectiles → zones/courses → feel metrics.
+- Simulation order: behaviours (set mover velocities) → characters → physics step → bombs →
+  projectiles → zones/courses → feel metrics. Rapier's character controller carries and pushes
+  characters with kinematic bodies (it expects characters to move before the step); our code
+  only adds crush detection (squeezed into a kinematic object = respawn), hazards, and keeps the
+  controller's small gap above kinematic floors (without it a character cannot slide on them).
+- Ledge grab is off by default; rooms opt in (`movement.ledge_grab`), because a jump plus a grab
+  reaches about 3.4 m and would let players climb out of rooms with 2.5–3 m walls.
+- Zones are half-open boxes on the ground plane; respawning into a zone doesn't trigger it;
+  clipping another course's START never cancels a running timer.
+- Low cameras (tilt < 30°) cut away everything in front of the player ("front cut"), so side
+  views work in rooms with walls.
 - Walking off an edge only grabs ledges higher than where you left the ground; after a jump any
   ledge can be grabbed (so walking into a bombed hole drops you, a short jump is rescued).
 - Vehicle (drift car) and flight (helicopter) movement models come with the Genre Wing (M9);

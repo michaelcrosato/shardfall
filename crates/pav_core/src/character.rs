@@ -401,42 +401,34 @@ pub fn tick(
     }
     ch.bomb_cooldown = (ch.bomb_cooldown - dt).max(0.0);
 
-    // --- moving platforms: get pushed out of kinematic objects, ride the one underneath
-    let kcc_basic = KinematicCharacterController {
-        up: Vector::Y,
-        offset: CharacterLength::Absolute(0.02),
-        slide: true,
-        autostep: None,
-        snap_to_ground: None,
-        ..Default::default()
-    };
+    // --- hazards, crushing, kinematic floors. Riding and being pushed by moving (kinematic)
+    // objects is done by rapier's character controller, which moves the character with the
+    // velocity of kinematic bodies it touches.
     {
         let shape = st.physics.colliders[col_h].shared_shape().clone();
         let pose = Pose::from_translation(center);
-        let mut push = Vec3::ZERO;
-        let mut pushers = Vec::new();
+        let qp = st.physics.query_filtered(filter);
+        // Hazards: a slightly fatter capsule (the controller keeps a small gap to walls).
+        let fat = SharedShape::capsule_y(ch.posture.half_height(), RADIUS + 0.08);
         let mut hazard: Option<(Vec3, f32, bool)> = None;
-        {
-            let qp = st.physics.query_filtered(filter);
-            // Hazards: a slightly fatter capsule (the controller keeps a small gap to walls).
-            let fat = SharedShape::capsule_y(ch.posture.half_height(), RADIUS + 0.08);
-            for (_, c) in qp.intersect_shape(pose, fat.as_ref()) {
-                let Some(e) = entity_from_tag(c.user_data).and_then(|i| st.entities.get(EntityId(i))) else { continue };
-                if let Some(hz) = &e.hazard {
-                    hazard.get_or_insert((e.pos, hz.knockback, hz.respawn));
-                }
+        let mut crushed: Option<Vec3> = None;
+        let mut lift = 0.0f32;
+        for (_, c) in qp.intersect_shape(pose, fat.as_ref()) {
+            let Some(e) = entity_from_tag(c.user_data).and_then(|i| st.entities.get(EntityId(i))) else { continue };
+            if let Some(hz) = &e.hazard {
+                hazard.get_or_insert((e.pos, hz.knockback, hz.respawn));
             }
-            for (h, c) in qp.intersect_shape(pose, shape.as_ref()) {
-                let Some(eid) = entity_from_tag(c.user_data).map(EntityId) else { continue };
-                let Some(e) = st.entities.get(eid) else { continue };
-                let kinematic = c.parent().and_then(|b| st.physics.bodies.get(b)).is_some_and(|b| b.is_kinematic());
-                if kinematic && e.character.is_none() {
-                    if let Ok(Some(ct)) = rapier::parry::query::contact(&pose, shape.as_ref(), c.position(), c.shape(), 0.0) {
-                        if ct.dist < 0.0 {
-                            push += ct.normal2 * (-ct.dist + 0.01);
-                            pushers.push(h);
-                        }
-                    }
+            let kinematic = c.parent().and_then(|b| st.physics.bodies.get(b)).is_some_and(|b| b.is_kinematic());
+            if !kinematic || e.character.is_some() {
+                continue;
+            }
+            if let Ok(Some(ct)) = rapier::parry::query::contact(&pose, shape.as_ref(), c.position(), c.shape(), 0.05) {
+                if ct.normal2.y >= 0.6 {
+                    // Standing on it: keep the controller's small gap, or it cannot slide.
+                    lift = lift.max(0.025 - ct.dist);
+                } else if ct.dist < -0.12 {
+                    // Squeezed into it (a mover pushed us against a wall).
+                    crushed = Some(ct.normal2);
                 }
             }
         }
@@ -445,37 +437,13 @@ pub fn tick(
                 actions.push(Action::Hit { id, at: center, dir: center - from, knockback: kb, respawn });
             }
         }
-        // Ride: the kinematic object under the feet carries the character.
-        let mut ride = Vec3::ZERO;
-        let mut carrier = None;
-        if was_grounded && ch.vel.y <= 0.5 {
-            let qp = st.physics.query_filtered(filter);
-            let ray = Ray::new(center, Vec3::NEG_Y);
-            if let Some((h, _toi)) = qp.cast_ray(&ray, (ch.height() * 0.5 + 0.15) as Real, true) {
-                let c = &st.physics.colliders[h];
-                if let Some(b) = c.parent().and_then(|b| st.physics.bodies.get(b)) {
-                    let is_char = entity_from_tag(c.user_data).and_then(|e| st.entities.get(EntityId(e))).is_some_and(|e| e.character.is_some());
-                    if b.is_kinematic() && !is_char {
-                        let feet = center - Vec3::Y * ch.height() * 0.5;
-                        ride = b.velocity_at_point(feet) * dt;
-                        carrier = Some(h);
-                    }
-                }
+        if let Some(n) = crushed {
+            if ch.invuln <= 0.0 {
+                actions.push(Action::Hit { id, at: center, dir: n, knockback: 2.0, respawn: true });
             }
         }
-        let carry = push + ride;
-        if carry.length_squared() > 1e-10 {
-            let mut f = filter;
-            let skip: Vec<ColliderHandle> = pushers.iter().copied().chain(carrier).collect();
-            let pred = |h: ColliderHandle, _: &Collider| !skip.contains(&h);
-            f = f.predicate(&pred);
-            let qp = st.physics.query_filtered(f);
-            let mv = kcc_basic.move_shape(dt as Real, &qp, shape.as_ref(), &pose, carry, |_| {});
-            center += mv.translation;
-            if push.length() > 0.05 && (mv.translation - carry).length() > 0.25 && ch.invuln <= 0.0 {
-                // Squeezed between a moving object and a wall.
-                actions.push(Action::Hit { id, at: center, dir: push, knockback: 2.0, respawn: true });
-            }
+        if lift > 0.0 && lift < 0.3 {
+            center.y += lift;
         }
     }
 
@@ -832,10 +800,15 @@ pub fn tick(
         normal_nudge_factor: 1.0e-4,
     };
     let shape = st.physics.colliders[col_h].shared_shape().clone();
-    let desired = match hang_move {
+    let mut desired = match hang_move {
         Some(m) => m,
         None => ch.vel * dt + lock_fix,
     };
+    if desired.length_squared() < 1e-8 && !climbing && !hanging {
+        // A hair of downward motion keeps the controller running its ground checks, which is
+        // where it carries the character along with moving platforms.
+        desired.y -= 1e-3;
+    }
     let mut collisions: Vec<CharacterCollision> = Vec::new();
     let mv = {
         let qp = st.physics.query_filtered(filter);
@@ -850,7 +823,6 @@ pub fn tick(
     let moved = mv.translation;
     let new_center = center + moved;
     if let Some(b) = st.physics.bodies.get_mut(body_h) {
-        b.set_translation(new_center, true);
         b.set_next_kinematic_translation(new_center);
     }
 

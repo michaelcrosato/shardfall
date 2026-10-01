@@ -116,6 +116,38 @@ zone = { kind = "finish", course = "timing", color = "none" }
 
 
 
+# --- signs: one per section, on the floor where the section begins; the arrows show the way ----
+[[label]]
+text = "1  DOORS  >>>"
+pos = [7.4, 0.03, 26.0]
+size = 0.6
+
+[[label]]
+text = "<<<  2  CRUSHERS"
+pos = [30.6, 0.03, 21.2]
+size = 0.6
+
+[[label]]
+text = "3  SWEEPERS  >>>"
+pos = [4.6, 0.03, 16.3]
+size = 0.6
+
+[[label]]
+text = "<<<  4  PLATFORMS"
+pos = [30.6, 0.03, 10.4]
+size = 0.6
+
+[[label]]
+text = "5  PENDULUMS  >>>"
+pos = [4.8, 0.03, 2.6]
+size = 0.6
+
+[[label]]
+text = "FINISH"
+pos = [29.9, 0.03, 4.5]
+size = 0.7
+
+
 # 1. SLIDING DOORS: wall-to-wall slabs that slide up out of the way and drop back down.
 # Every door has its own phase, so you stop in the bays and wait for the next opening.
 [[object]]
@@ -278,11 +310,11 @@ behavior = { type = "move", offset = [-2.64, 0.0, 0.0], period = 6.0, phase = 0.
 # The rods are visual only and swing with the bobs.
 [[object]]
 name = "pendulum_1"
-shape = { type = "box", half = [0.8, 0.5, 1.2] }
+shape = { type = "box", half = [0.7, 0.5, 0.9] }
 pos = [9.5, 0.95, 4.5]
 color = "#d9534f"
 body = "kinematic"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
 hazard = { knockback = 7 }
 
 [[object]]
@@ -291,15 +323,15 @@ shape = { type = "box", half = [0.05, 1.25, 0.05] }
 pos = [9.5, 2.7, 4.5]
 color = "#3d4350"
 body = "none"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
 
 [[object]]
 name = "pendulum_2"
-shape = { type = "box", half = [0.8, 0.5, 1.2] }
+shape = { type = "box", half = [0.7, 0.5, 0.9] }
 pos = [14.5, 0.95, 4.5]
 color = "#d9534f"
 body = "kinematic"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
 hazard = { knockback = 7 }
 
 [[object]]
@@ -308,15 +340,15 @@ shape = { type = "box", half = [0.05, 1.25, 0.05] }
 pos = [14.5, 2.7, 4.5]
 color = "#3d4350"
 body = "none"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }
 
 [[object]]
 name = "pendulum_3"
-shape = { type = "box", half = [0.8, 0.5, 1.2] }
+shape = { type = "box", half = [0.7, 0.5, 0.9] }
 pos = [19.5, 0.95, 4.5]
 color = "#d9534f"
 body = "kinematic"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
 hazard = { knockback = 7 }
 
 [[object]]
@@ -325,15 +357,15 @@ shape = { type = "box", half = [0.05, 1.25, 0.05] }
 pos = [19.5, 2.7, 4.5]
 color = "#3d4350"
 body = "none"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
 
 [[object]]
 name = "pendulum_4"
-shape = { type = "box", half = [0.8, 0.5, 1.2] }
+shape = { type = "box", half = [0.7, 0.5, 0.9] }
 pos = [25.0, 0.95, 4.5]
 color = "#d9534f"
 body = "kinematic"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
 hazard = { knockback = 7 }
 
 [[object]]
@@ -342,4 +374,4 @@ shape = { type = "box", half = [0.05, 1.25, 0.05] }
 pos = [25.0, 2.7, 4.5]
 color = "#3d4350"
 body = "none"
-behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 60.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }

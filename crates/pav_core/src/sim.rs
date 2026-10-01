@@ -350,11 +350,10 @@ impl Sim {
         self.state.physics.params.dt = dt as Real;
         self.state.physics.gravity = Vector::new(0.0, -self.config.gravity as Real, 0.0);
 
-        // The world moves first (movers, props), then characters move against it.
+        // Behaviours set this tick's velocities of moving objects; characters then move
+        // (rapier's controller carries them with kinematic platforms) and the physics step
+        // advances everything together.
         self.run_behaviors(dt);
-        let collector = EventCollector::default();
-        self.state.physics.step(&mut self.pipeline, &collector);
-        self.sync_from_physics();
 
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
@@ -385,6 +384,9 @@ impl Sim {
                 Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
             }
         }
+        let collector = EventCollector::default();
+        self.state.physics.step(&mut self.pipeline, &collector);
+        self.sync_from_physics();
 
         // Bombs and debris.
         let mut blasts = Vec::new();

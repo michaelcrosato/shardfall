@@ -267,14 +267,15 @@ facing = "south"
 # Free-placed objects (keep them at the end of the file; edit mode rewrites this part).
 
 # Sliding beam in the 5 m gap between the second and third checkpoint. It rests in line with the
-# path (z = 12.5), then slides 4 m south, away from both platforms, and back (6 s per cycle).
+# path (z = 12.5) for about a second, then slides 4 m south, away from both platforms, and back
+# (6 s per cycle). The gaps are 5 m so a running jump (about 4.3 m) cannot clear them.
 [[object]]
 name = "sliding beam"
 shape = { type = "box", half = [2.8, 0.15, 0.4] }
 pos = [16.5, -0.15, 12.5]
 color = "#5b8def"
 body = "kinematic"
-behavior = { type = "move", offset = [0, 0, 4], period = 6, smooth = true, hold = 0.3 }
+behavior = { type = "move", offset = [0, 0, 4], period = 6, smooth = true, hold = 0.4 }
 
 # Turning plank in the 5 m gap between the fourth and fifth checkpoint: it only bridges the
 # gap while it lines up with the path (25 deg/s is a half turn every 7.2 s).
