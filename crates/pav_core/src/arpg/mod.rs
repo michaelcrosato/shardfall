@@ -149,6 +149,12 @@ pub struct Game {
     pub lab_seed: u64,
     /// The level in progress (levels only).
     pub level: Option<Box<mechanics::LevelState>>,
+    /// Kill streak: kills chained within a moment of each other, the clock, the xp they gave.
+    #[serde(default)]
+    pub streak: (u32, f32, f64),
+    /// How many gib chunks are flying (keeps big fights in budget).
+    #[serde(default)]
+    pub gib_load: f32,
 }
 
 impl Game {
@@ -188,6 +194,8 @@ impl Game {
             exhibits: Vec::new(),
             lab_seed: 0,
             level: None,
+            streak: (0, 0.0, 0.0),
+            gib_load: 0.0,
         }
     }
 
@@ -850,6 +858,8 @@ impl Game {
             }
         }
         self.hitstop = (self.hitstop - raw_dt).max(0.0);
+        self.gib_load = (self.gib_load - 30.0 * dt).max(0.0);
+        self.tick_streak(sim, dt, events);
         self.shake *= (-9.0 * raw_dt).exp();
         self.level_flash += raw_dt;
         scene::update_arena(self, sim, dt);
@@ -1078,9 +1088,81 @@ impl Game {
             crit: dmg.crit,
         });
         if killed {
+            // A crushing blow bursts it apart.
+            if team == Team::Monster && (dmg.crit || total >= life_max * 0.6 || shattered) {
+                self.gibs(sim, target, feet, height, from, (total / life_max).min(2.0));
+            }
             self.kill(sim, target, events);
         }
         total
+    }
+
+    /// Kill streaks: kills chained within 1.6 s of each other pay a bonus when the chain ends
+    /// (from six kills: +3% of the chain's xp per kill past five, up to +75%).
+    fn tick_streak(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>) {
+        if self.streak.0 == 0 {
+            return;
+        }
+        self.streak.1 -= dt;
+        if self.streak.1 > 0.0 {
+            return;
+        }
+        let (n, _, xp) = std::mem::take(&mut self.streak);
+        if n < 6 {
+            return;
+        }
+        let bonus = (xp * (0.03 * (n - 5) as f64).min(0.75)).round();
+        let ups = self.hero.gain_xp(bonus);
+        let name = match n {
+            6..=11 => "Rampage",
+            12..=24 => "Massacre",
+            _ => "Annihilation",
+        };
+        if let Some(hf) = self.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0) {
+            self.float_text(hf + Vec3::Y * 2.7, format!("{name}! x{n}  +{bonus} xp"));
+            events.push(SimEvent::Coin { pos: hf });
+            if ups > 0 {
+                refresh_hero(sim, self, true);
+                self.level_flash = 0.0;
+                events.push(SimEvent::LevelUp { pos: hf });
+            }
+        }
+    }
+
+    /// Chunks of a monster's colours that fly from the blow and bounce about (physics bodies).
+    fn gibs(&mut self, sim: &mut Sim, id: EntityId, feet: Vec3, height: f32, from: Vec3, power: f32) {
+        if self.gib_load > 70.0 {
+            return;
+        }
+        let Some(p) = sim.state.entities.get(id).and_then(|e| e.character.as_ref()?.puppet.clone()) else { return };
+        let cols: Vec<crate::color::Color> =
+            [&p.skin, &p.shirt, &p.accent].iter().filter_map(|c| crate::color::Color::try_hex(c)).collect();
+        if cols.is_empty() {
+            return;
+        }
+        let n = (4.0 + power * 4.0).min(10.0) as usize;
+        self.gib_load += n as f32;
+        let away = flat(feet - from).normalize_or(Vec3::X);
+        let hz = sim.config.tick_rate.hz() as f32;
+        for i in 0..n {
+            let rng = &mut sim.state.rng;
+            let at = feet + Vec3::new(rng.range(-0.25, 0.25), rng.range(0.25, 0.9) * height, rng.range(-0.25, 0.25));
+            let s = rng.range(0.05, 0.12) * p.scale.max(0.5);
+            let half = Vec3::new(s, s * rng.range(0.6, 1.0), s * rng.range(0.7, 1.3));
+            let dir = (away + Vec3::new(rng.range(-0.7, 0.7), 0.0, rng.range(-0.7, 0.7))).normalize_or(away);
+            let vel = dir * rng.range(2.0, 4.5) * (0.8 + power * 0.4) + Vec3::Y * rng.range(2.0, 4.5);
+            let rot = glam::Quat::from_euler(glam::EulerRot::XYZ, rng.range(0.0, 3.0), rng.range(0.0, 3.0), 0.0);
+            let life = (rng.range(1.8, 2.8) * hz) as u32;
+            let mut v = crate::shape::Visual::new(crate::shape::Shape::Box { half }, cols[i % cols.len()]);
+            v.look = crate::shape::Look::Lit;
+            let gid = sim.spawn(crate::entity::Spawn::new("~gib", at).visual(v).body(crate::entity::BodyKind::Dynamic).rot(rot));
+            if let Some(e) = sim.state.entities.get_mut(gid) {
+                e.lifetime = Some(life);
+                if let Some(bd) = e.body.and_then(|h| sim.state.physics.bodies.get_mut(h)) {
+                    bd.set_linvel(vel, true);
+                }
+            }
+        }
     }
 
     /// Something died: rewards for the hero, or the hero is down.
@@ -1122,6 +1204,7 @@ impl Game {
             None => (1.0, 0.0),
         };
         let ups = self.hero.gain_xp((xp * xp_gain) as f64);
+        self.streak = (self.streak.0 + 1, 1.6, self.streak.2 + (xp * xp_gain) as f64);
         if let Some(h) = self.actors.get_mut(&hid) {
             h.life = (h.life + on_kill).min(h.sheet.life_max);
         }

@@ -716,7 +716,7 @@ impl App {
             if self.game_place != Some(g.place) {
                 self.game_place = Some(g.place);
                 self.game_ui.panel = None;
-                place_look(g, &mut self.view);
+                pav_view::arpg::place_look(g, &mut self.view);
             }
         }
         let alpha =
@@ -1328,54 +1328,4 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
-}
-
-/// Each Shardfall place has its own light: Emberwatch at dusk, the Proving Grounds by day.
-fn place_look(g: &pav_core::arpg::GameFrame, v: &mut ViewSettings) {
-    v.fog = false;
-    match g.place {
-        pav_core::arpg::Place::Level(_) => {
-            // The level's own mood (its theme; darkness levels nearly black).
-            let Some(m) = g.level.as_ref().map(|l| &l.mood) else { return };
-            v.sky = m.sky.clone();
-            v.light.sun_elevation = 55.0;
-            v.light.sun_azimuth = m.sun_angle;
-            v.light.sun_intensity = m.sun;
-            v.light.ambient = m.ambient;
-            v.bloom = 0.5;
-            v.saturation = 1.1;
-            if m.fog > 0.0 {
-                v.fog = true;
-                v.fog_start = m.fog * 0.45;
-                v.fog_end = m.fog;
-            }
-        }
-        pav_core::arpg::Place::Town => {
-            v.sky = "#1a1420".into();
-            v.light.sun_elevation = 24.0;
-            v.light.sun_azimuth = 250.0;
-            v.light.sun_intensity = 0.55;
-            v.light.ambient = 0.36;
-            v.bloom = 0.7;
-            v.saturation = 1.12;
-        }
-        pav_core::arpg::Place::Lab => {
-            v.sky = "#0e0d14".into();
-            v.light.sun_elevation = 70.0;
-            v.light.sun_azimuth = 120.0;
-            v.light.sun_intensity = 0.45;
-            v.light.ambient = 0.42;
-            v.bloom = 0.65;
-            v.saturation = 1.1;
-        }
-        pav_core::arpg::Place::Arena => {
-            v.sky = "#14161c".into();
-            v.light.sun_elevation = 52.0;
-            v.light.sun_azimuth = 35.0;
-            v.light.sun_intensity = 0.95;
-            v.light.ambient = 0.5;
-            v.bloom = 0.55;
-            v.saturation = 1.08;
-        }
-    }
 }

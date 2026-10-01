@@ -461,7 +461,15 @@ pub fn build_level(sim: &mut Sim, depth: u32, game: Option<Game>) {
     let start = b.layout.rooms[b.layout.start].rect.center();
     let spawn = Vec3::new(start.x, 0.1, start.y + 2.0);
     let portal_at = Vec3::new(start.x, 0.0, start.y - 3.0);
-    super::scene::portal(b.sim, portal_at);
+    // A softer portal down here: the levels are darker than the town.
+    let pool = super::scene::portal(b.sim, portal_at);
+    if let Some(v) = b.sim.state.entities.get_mut(pool).and_then(|e| e.visual.as_mut()) {
+        v.emissive = 0.3;
+        v.color = Color::hex("#4aa8d8");
+        if let Some(l) = v.light.as_mut() {
+            l.intensity = 1.2;
+        }
+    }
     b.taken[b.layout.start].push((Vec2::new(portal_at.x, portal_at.z), 3.0));
     b.taken[b.layout.start].push((Vec2::new(spawn.x, spawn.z), 2.5));
     let exit = b.layout.rooms[b.layout.exit].rect.center();

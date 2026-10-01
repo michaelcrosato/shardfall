@@ -420,6 +420,55 @@ impl Canvas {
             }
         }
     }
+    /// A circle outline.
+    pub fn ring(&mut self, cx: f32, cy: f32, r: f32, width: f32, c: [u8; 3]) {
+        let (x0, x1, y0, y1) =
+            ((cx - r - width) as i32, (cx + r + width) as i32, (cy - r - width) as i32, (cy + r + width) as i32);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let d = ((x as f32 + 0.5 - cx).powi(2) + (y as f32 + 0.5 - cy).powi(2)).sqrt();
+                let a = (width * 0.5 + 0.5 - (d - r).abs()).clamp(0.0, 1.0);
+                if a > 0.0 {
+                    self.blend(x, y, c, a);
+                }
+            }
+        }
+    }
+
+    /// Width in pixels of a number drawn with `number`.
+    pub fn number_width(&self, n: usize, scale: f32) -> f32 {
+        let digits = n.to_string().len() as f32;
+        digits * 4.0 * scale - scale
+    }
+
+    /// A number in a 3x5 pixel font (marks on screenshots).
+    pub fn number(&mut self, x: f32, y: f32, n: usize, scale: f32, c: [u8; 3]) {
+        const GLYPHS: [u16; 10] = [
+            0b111_101_101_101_111,
+            0b010_110_010_010_111,
+            0b111_001_111_100_111,
+            0b111_001_111_001_111,
+            0b101_101_111_001_001,
+            0b111_100_111_001_111,
+            0b111_100_111_101_111,
+            0b111_001_001_001_001,
+            0b111_101_111_101_111,
+            0b111_101_111_001_111,
+        ];
+        for (i, ch) in n.to_string().chars().enumerate() {
+            let g = GLYPHS[ch.to_digit(10).unwrap_or(0) as usize];
+            let ox = x + i as f32 * 4.0 * scale;
+            for row in 0..5 {
+                for col in 0..3 {
+                    if g & (1 << (14 - (row * 3 + col))) != 0 {
+                        let (px, py) = (ox + col as f32 * scale, y + row as f32 * scale);
+                        self.rect((px, py), (px + scale, py + scale), c, 1.0);
+                    }
+                }
+            }
+        }
+    }
+
     /// A filled axis-aligned rectangle (pixel coordinates, any corner order).
     pub fn rect(&mut self, a: (f32, f32), b: (f32, f32), c: [u8; 3], alpha: f32) {
         let (x0, x1) = (a.0.min(b.0).round() as i32, a.0.max(b.0).round() as i32);
@@ -779,6 +828,40 @@ fn creature_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::Pup
     Ok(("the hero".into(), p, d.skill_id("slash").map(|i| d.skill(i).clone())))
 }
 
+/// `creature_look` with `def=` applied: JSON puppet fields laid over the chosen creature
+/// (`{"parts": [{"kind": "wings"}], "shirt": "#3050a0"}`), or a whole new one with
+/// `{"body": "quadruped", ...}` and nothing else chosen.
+fn authored_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::PuppetDef, Option<pav_core::arpg::data::SkillDef>)> {
+    use pav_core::params::ChoiceParam;
+    let (mut name, look, skill) = creature_look(s, a)?;
+    let Some(over) = a.get("def") else { return Ok((name, look, skill)) };
+    let over: Value = match over {
+        Value::String(t) => serde_json::from_str(t).map_err(|e| anyhow!("def is not JSON: {e}"))?,
+        v => v.clone(),
+    };
+    let Value::Object(fields) = over else { bail!("def must be a JSON object of puppet fields") };
+    // A new body plan starts from that plan's preset, not the chosen creature's proportions.
+    let mut base = match fields.get("body").and_then(|b| b.as_str()) {
+        Some(b) if b != look.body.name() => {
+            let plan = pav_core::puppet::BodyPlan::NAMES
+                .iter()
+                .position(|n| *n == b)
+                .map(pav_core::puppet::BodyPlan::from_index)
+                .ok_or_else(|| anyhow!("unknown body '{b}'"))?;
+            name = format!("a new {b}");
+            serde_json::to_value(pav_core::puppet::PuppetDef::preset(plan))?
+        }
+        _ => serde_json::to_value(&look)?,
+    };
+    if let Value::Object(m) = &mut base {
+        for (k, v) in fields {
+            m.insert(k, v);
+        }
+    }
+    let def: pav_core::puppet::PuppetDef = serde_json::from_value(base).map_err(|e| anyhow!("def: {e}"))?;
+    Ok((format!("{name} (authored)"), def, skill))
+}
+
 /// Renders a creature alone on a small floor: from several angles, or through an action.
 fn creature_frames(
     s: &mut Session,
@@ -838,7 +921,8 @@ fn save_png(a: &Args, default: &str, png: &[u8]) -> Result<std::path::PathBuf> {
 }
 
 pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
-    let (name, look, _) = creature_look(s, a)?;
+    let (name, look, _) = authored_look(s, a)?;
+    let body = crate::agent_tools::anatomy(&look);
     let angles = get_u64(a, "angles", 8)?.clamp(1, 16) as usize;
     let size = get_u64(a, "size", 256)?.clamp(64, 1024) as u32;
     let shots = creature_frames(s, look, angles, size, None)?;
@@ -846,12 +930,16 @@ pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
     let png = pav_render::capture::encode_png(tw, th, &px)?;
     let path = save_png(a, "out/turntable.png", &png)?;
-    Ok(Output::Image { png, path: Some(path.clone()), meta: json!({ "creature": name, "angles": angles, "path": path }) })
+    Ok(Output::Image {
+        png,
+        path: Some(path.clone()),
+        meta: json!({ "creature": name, "angles": angles, "path": path, "anatomy": body, "def": look_json(a) }),
+    })
 }
 
 pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
     let d = data();
-    let (name, look, first) = creature_look(s, a)?;
+    let (name, look, first) = authored_look(s, a)?;
     let def = match get_str(a, "skill") {
         Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
         None => first.ok_or_else(|| anyhow!("no skill to show"))?,
@@ -1131,4 +1219,9 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
         "legend": "blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests",
     });
     Ok(Output::Image { png, path: Some(path), meta })
+}
+
+/// The authored overrides, echoed back so a design session can be replayed.
+fn look_json(a: &Args) -> Value {
+    a.get("def").cloned().unwrap_or(Value::Null)
 }

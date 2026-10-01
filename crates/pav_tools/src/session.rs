@@ -247,12 +247,37 @@ impl Session {
         let focus = frame.focus;
         self.camera.snap(focus);
         let camera = self.camera.clone();
-        let view = self.view.clone();
+        let mut view = self.view.clone();
+        if let Some(g) = &frame.game {
+            pav_view::arpg::place_look(g, &mut view);
+        }
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.builder.add_events(&events);
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
         pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
+    }
+
+    /// Renders like `render` and also returns the camera's view-projection (to place marks).
+    pub fn render_with_camera(&mut self, width: u32, height: u32) -> Result<(Vec<u8>, glam::Mat4)> {
+        let frame = self.sim.frame();
+        let focus = frame.focus;
+        self.camera.snap(focus);
+        let camera = self.camera.clone();
+        let mut view = self.view.clone();
+        if let Some(g) = &frame.game {
+            pav_view::arpg::place_look(g, &mut view);
+        }
+        let events = std::mem::take(&mut self.events);
+        let gpu = self.gpu()?;
+        gpu.builder.add_events(&events);
+        let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
+        let vp = scene.camera.proj * scene.camera.view;
+        Ok((pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)?, vp))
+    }
+
+    pub fn camera_eye(&self) -> Vec3 {
+        self.camera.eye()
     }
 
     pub fn focus(&self) -> Vec3 {
