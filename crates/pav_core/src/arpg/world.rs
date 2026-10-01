@@ -270,8 +270,9 @@ pub fn plan(d: &Data, depth: u32) -> LevelPlan {
     let k = depth - n;
     let mut rng = Rng::new(0x5ad_e9d5 ^ (depth as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15));
     let keys: Vec<&String> = d.themes.keys().collect();
-    let a = &d.themes[keys[rng.below(keys.len() as u32) as usize]];
-    let b = &d.themes[keys[rng.below(keys.len() as u32) as usize]];
+    let ia = rng.below(keys.len() as u32) as usize;
+    let ib = (ia + 1 + rng.below(keys.len().max(2) as u32 - 1) as usize) % keys.len();
+    let (a, b) = (&d.themes[keys[ia]], &d.themes[keys[ib]]);
     let hue = [0.0, 25.0, -25.0, 50.0, -50.0, 90.0, 180.0, -90.0][rng.below(8) as usize];
     let theme = blend_theme(a, b, hue);
     // Mechanics: one signature, one to three mixed in as the depths go on.
@@ -286,8 +287,11 @@ pub fn plan(d: &Data, depth: u32) -> LevelPlan {
     let name = format!("The {} {}", mechanics.iter().take(2).map(|m| m.adjective()).collect::<Vec<_>>().join(" "), noun);
     let names: Vec<&str> = mechanics.iter().map(|m| m.name()).collect();
     let about = format!("{}: everything you have learned, all at once.", join_and(&names));
-    let arch: Vec<&String> = d.genome.archetype.keys().collect();
-    let archetypes = (0..2).map(|_| arch[rng.below(arch.len() as u32) as usize].clone()).collect::<Vec<_>>();
+    let mut arch: Vec<&String> = d.genome.archetype.keys().collect();
+    let mut archetypes = Vec::new();
+    for _ in 0..2.min(arch.len()) {
+        archetypes.push(arch.remove(rng.below(arch.len() as u32) as usize).clone());
+    }
     // Bosses: the designed ones no level used yet, then grown ones, every third depth.
     let boss = if k.is_multiple_of(3) {
         let unused: Vec<&super::boss::BossDef> =
