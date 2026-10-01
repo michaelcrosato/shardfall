@@ -74,6 +74,18 @@ pub struct Shared {
     pub input_stamp: Mutex<Option<Instant>>,
     /// (pressed, consumed by a tick, that tick's number) for the latest measured press.
     pub latency_probe: Mutex<Option<(Instant, Instant, u64)>>,
+    /// Menu commands waiting for a tick (one rides along with each tick's input).
+    pub cmds: Mutex<std::collections::VecDeque<pav_core::arpg::GameCmd>>,
+}
+
+impl Shared {
+    /// Queues a game command for the next free tick.
+    pub fn command(&self, c: pav_core::arpg::GameCmd) {
+        let mut q = self.cmds.lock().unwrap();
+        if q.len() < 64 {
+            q.push_back(c);
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -102,6 +114,7 @@ fn shared_for(sim: &mut Sim) -> Arc<Shared> {
         events: Mutex::new(Vec::new()),
         input_stamp: Mutex::new(None),
         latency_probe: Mutex::new(None),
+        cmds: Mutex::new(Default::default()),
     })
 }
 
@@ -239,8 +252,9 @@ impl Clock {
         let mut tick_once = |sim: &mut Sim, at: Instant| {
             let input = {
                 let mut i = sh.input.lock().unwrap();
-                let frame = *i;
+                let mut frame = *i;
                 i.pressed = 0;
+                frame.cmd = sh.cmds.lock().unwrap().pop_front();
                 frame
             };
             let stamp = sh.input_stamp.lock().unwrap().take();

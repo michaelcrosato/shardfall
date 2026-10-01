@@ -8,6 +8,8 @@ use anyhow::{Result, anyhow, bail};
 use glam::Vec3;
 use pav_core::arpg::combat::{Rarity, Team};
 use pav_core::arpg::data::data;
+use pav_core::arpg::items::{EquipSlot, Item, RollSpec, Slot, roll_item, unique_item};
+use pav_core::arpg::{GameCmd, Place};
 use serde_json::{Value, json};
 
 use crate::session::Session;
@@ -36,6 +38,8 @@ fn hero_json(s: &Session) -> Result<Value> {
         "dead": h.map(|a| a.dead),
         "weapon": g.hero.weapon.name,
         "bar": g.hero.bar,
+        "place": format!("{:?}", g.place).to_lowercase(),
+        "bag": g.hero.inventory.len(),
     }))
 }
 
@@ -184,4 +188,204 @@ pub fn t_game_reload(_: &mut Session, _: &Args) -> Result<Output> {
     pav_core::arpg::data::reload(true).map_err(|e| anyhow!(e))?;
     let d = data();
     Ok(Output::Json(json!({ "skills": d.skills.len(), "families": d.families.len() })))
+}
+
+fn rarity_arg(a: &Args) -> Result<Option<Rarity>> {
+    Ok(match get_str(a, "rarity") {
+        None => None,
+        Some("normal") => Some(Rarity::Normal),
+        Some("magic") => Some(Rarity::Magic),
+        Some("rare") => Some(Rarity::Rare),
+        Some("unique") => Some(Rarity::Unique),
+        Some(o) => bail!("unknown rarity '{o}'"),
+    })
+}
+
+fn slot_arg(a: &Args) -> Result<Option<Slot>> {
+    match get_str(a, "slot") {
+        None => Ok(None),
+        Some(k) => Slot::ALL.iter().copied().find(|s| s.key() == k).map(Some).ok_or_else(|| anyhow!("unknown slot '{k}'")),
+    }
+}
+
+/// An item as JSON: name, rarity, level, tooltip lines.
+pub fn item_json(it: &Item) -> Value {
+    let d = data();
+    let t = it.describe(&d);
+    json!({
+        "id": it.id,
+        "name": t.name,
+        "base": it.base,
+        "rarity": format!("{:?}", it.rarity).to_lowercase(),
+        "level": it.level,
+        "kind": t.kind,
+        "header": t.header,
+        "implicit": t.implicit,
+        "mods": t.mods.iter().map(|m| m.0.clone()).collect::<Vec<_>>(),
+        "power": (!t.power.is_empty()).then_some(t.power),
+        "value": it.value(),
+    })
+}
+
+pub fn t_loot_roll(s: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    let level = get_u64(a, "level", s.sim.state.game.as_ref().map(|g| g.hero.level as u64).unwrap_or(10))? as u32;
+    let count = get_u64(a, "count", 5)?.clamp(1, 20000) as usize;
+    let mut rng = pav_core::rng::Rng::new(get_u64(a, "seed", 1)?);
+    let spec = RollSpec {
+        level,
+        rarity: rarity_arg(a)?,
+        slot: slot_arg(a)?,
+        rarity_bonus: a.get("bonus").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+    };
+    let items: Vec<Item> = (0..count).filter_map(|i| roll_item(&d, &mut rng, spec, i as u32 + 1)).collect();
+    if count <= 20 {
+        return Ok(Output::Json(json!(items.iter().map(item_json).collect::<Vec<_>>())));
+    }
+    // A summary: how loot is distributed.
+    let mut rarity: BTreeMap<String, usize> = BTreeMap::new();
+    let mut slots: BTreeMap<String, usize> = BTreeMap::new();
+    let mut affixes: BTreeMap<String, usize> = BTreeMap::new();
+    let mut uniques: BTreeMap<String, usize> = BTreeMap::new();
+    let mut values = Vec::new();
+    for it in &items {
+        *rarity.entry(format!("{:?}", it.rarity).to_lowercase()).or_default() += 1;
+        *slots.entry(it.slot(&d).key().to_string()).or_default() += 1;
+        for m in &it.mods {
+            if !m.affix.is_empty() {
+                *affixes.entry(m.affix.clone()).or_default() += 1;
+            }
+        }
+        if !it.unique.is_empty() {
+            *uniques.entry(it.unique.clone()).or_default() += 1;
+        }
+        values.push(it.value());
+    }
+    values.sort();
+    let mut top: Vec<(String, usize)> = affixes.into_iter().collect();
+    top.sort_by_key(|t| std::cmp::Reverse(t.1));
+    let never: Vec<&str> = d
+        .affixes
+        .iter()
+        .filter(|af| af.reached(level) > 0 && !top.iter().any(|t| t.0 == af.key))
+        .map(|af| af.key.as_str())
+        .collect();
+    Ok(Output::Json(json!({
+        "items": items.len(),
+        "level": level,
+        "rarity": rarity,
+        "slots": slots,
+        "uniques": uniques,
+        "affixes_most": top.iter().take(12).collect::<Vec<_>>(),
+        "affixes_least": top.iter().rev().take(8).collect::<Vec<_>>(),
+        "affixes_never_rolled": never,
+        "value": { "min": values.first(), "median": values.get(values.len() / 2), "max": values.last() },
+    })))
+}
+
+pub fn t_give(s: &mut Session, a: &Args) -> Result<Output> {
+    game(s)?;
+    let d = data();
+    let level = get_u64(a, "level", game(s)?.hero.level as u64)? as u32;
+    let mut g = s.sim.state.game.take().unwrap();
+    let id = g.hero.new_id();
+    let item = if let Some(u) = get_str(a, "unique") {
+        match d.unique(u) {
+            Some(def) => Ok(unique_item(&d, &mut s.sim.state.rng, def, level, id)),
+            None => Err(anyhow!(
+                "unknown unique '{u}' (known: {})",
+                d.uniques.iter().map(|u| u.key.as_str()).collect::<Vec<_>>().join(", ")
+            )),
+        }
+    } else if let Some(b) = get_str(a, "base") {
+        d.base(b).map(|b| Item::plain(id, b, level)).ok_or_else(|| anyhow!("unknown base '{b}'"))
+    } else {
+        let spec = RollSpec { level, rarity: rarity_arg(a)?, slot: slot_arg(a)?, rarity_bonus: 0.0 };
+        roll_item(&d, &mut s.sim.state.rng, spec, id).ok_or_else(|| anyhow!("nothing fits"))
+    };
+    let item = match item {
+        Ok(i) => i,
+        Err(e) => {
+            s.sim.state.game = Some(g);
+            return Err(e);
+        }
+    };
+    let json = item_json(&item);
+    g.hero.inventory.push(item);
+    g.inv_changed();
+    s.sim.state.game = Some(g);
+    if a.get("equip").and_then(|v| v.as_bool()).unwrap_or(false) {
+        s.sim.step(&pav_core::InputFrame { cmd: Some(GameCmd::Equip(id)), ..Default::default() });
+        s.keep_events();
+    }
+    Ok(Output::Json(json!({ "item": json, "hero": hero_json(s)? })))
+}
+
+pub fn t_inventory(s: &mut Session, a: &Args) -> Result<Output> {
+    let g = game(s)?;
+    let brief = a.get("brief").and_then(|v| v.as_bool()).unwrap_or(false);
+    let show = |it: &Item| {
+        if brief { json!(format!("#{} {} ({:?}, level {})", it.id, it.name, it.rarity, it.level)) } else { item_json(it) }
+    };
+    let worn: BTreeMap<&str, Value> =
+        EquipSlot::ALL.iter().filter_map(|e| g.hero.worn(*e).map(|it| (e.key(), show(it)))).collect();
+    Ok(Output::Json(json!({
+        "place": format!("{:?}", g.place).to_lowercase(),
+        "gold": g.hero.gold,
+        "worn": worn,
+        "bag": g.hero.inventory.iter().map(show).collect::<Vec<_>>(),
+        "stash": g.hero.stash.iter().map(show).collect::<Vec<_>>(),
+        "vendor": g.vendor.iter().map(|it| { let mut v = show(it); if let Some(o) = v.as_object_mut() { o.insert("price".into(), json!(pav_core::arpg::cmd::buy_price(it))); } v }).collect::<Vec<_>>(),
+        "on_ground": g.loot.iter().map(|l| json!({ "id": l.item.id, "name": l.item.name, "rarity": format!("{:?}", l.item.rarity).to_lowercase(), "pos": [round3(l.pos.x), round3(l.pos.y), round3(l.pos.z)] })).collect::<Vec<_>>(),
+        "powers": g.hero.powers.iter().map(|p| p.describe()).collect::<Vec<_>>(),
+        "weapon": g.hero.weapon,
+    })))
+}
+
+pub fn t_game_cmd(s: &mut Session, a: &Args) -> Result<Output> {
+    game(s)?;
+    let d = data();
+    let what = get_str(a, "do").ok_or_else(|| anyhow!("'do' is required"))?;
+    let id = || -> Result<u32> { Ok(get_u64(a, "id", 0)? as u32) };
+    let eslot = || -> Result<u8> {
+        let k = get_str(a, "slot").ok_or_else(|| anyhow!("slot is required"))?;
+        Ok(EquipSlot::from_key(k).ok_or_else(|| anyhow!("unknown slot '{k}'"))?.index() as u8)
+    };
+    let cmd = match what {
+        "pickup" => GameCmd::Pickup(id()?),
+        "equip" if a.contains_key("slot") => GameCmd::EquipTo(id()?, eslot()?),
+        "equip" => GameCmd::Equip(id()?),
+        "unequip" => GameCmd::Unequip(eslot()?),
+        "drop" => GameCmd::Drop(id()?),
+        "sell" => GameCmd::Sell(id()?),
+        "buy" => GameCmd::Buy(id()?),
+        "stash" => GameCmd::Stash(id()?),
+        "take" => GameCmd::Take(id()?),
+        "sell_all" => GameCmd::SellAll(get_u64(a, "rarity", 0)? as u8),
+        "auto_loot" => GameCmd::AutoLoot(get_u64(a, "rarity", 1)? as u8),
+        "sort" => GameCmd::Sort,
+        "bar" => {
+            let slot = get_str(a, "slot").and_then(|x| x.parse::<u8>().ok()).ok_or_else(|| anyhow!("slot 0-5 is required"))?;
+            let k = get_str(a, "skill").ok_or_else(|| anyhow!("skill is required"))?;
+            GameCmd::Bar(slot, d.skill_id(k).ok_or_else(|| anyhow!("unknown skill '{k}'"))?)
+        }
+        "travel" => {
+            let p = match get_str(a, "place").unwrap_or("town") {
+                "town" => Place::Town,
+                "arena" => Place::Arena,
+                o => bail!("unknown place '{o}' (town, arena)"),
+            };
+            GameCmd::Travel(p.code())
+        }
+        o => bail!("unknown action '{o}'"),
+    };
+    let floaters_before = game(s)?.floaters.len();
+    s.sim.step(&pav_core::InputFrame { cmd: Some(cmd), ..Default::default() });
+    s.keep_events();
+    s.sync_camera();
+    // Complaints float over the hero; report them.
+    let g = game(s)?;
+    let said: Vec<String> =
+        g.floaters.iter().skip(floaters_before).filter(|f| !f.text.is_empty()).map(|f| f.text.clone()).collect();
+    Ok(Output::Json(json!({ "did": format!("{cmd:?}"), "said": said, "scene": s.sim.state.scene, "hero": hero_json(s)? })))
 }

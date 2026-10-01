@@ -107,8 +107,15 @@ tools; they act on what is on screen (captures render the game's camera on a sec
 
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
-room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`
+room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
+Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd`
 (`pav help` for args).
+- Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
+  fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
+  unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
+  `game_cmd do=sell id=12` does any menu action exactly as the player would (it rides in the
+  input frame, so replays include it). Game data lives in `game/*.toml` (`game_reload` re-reads
+  it live).
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
@@ -141,7 +148,8 @@ entity fields); keep rooms as data wherever possible.
 
 ### Scenes
 `world` (default: pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
-`<room key>` (that room alone, no terrain), `test`, `empty`. Code scenes live in `scenes.rs`.
+`<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` and `arena`.
+Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 
 ## Game controls (current)
 Keyboard+mouse: WASD move, Space jump (hold = higher), C/Ctrl crouch, Z crawl toggle, F or left
@@ -150,6 +158,10 @@ and keep pushing toward it to grab it (push again/Space = pull up, C = drop), Sp
 committed model: C while running = dodge roll; right-drag rotate camera, wheel zoom, 1–8 camera
 presets. Gamepad: left stick move, right stick aim, A jump,
 B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
+
+Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
+G use (vendor, stash, portal), I/Tab inventory, C character, K skills, T town portal; gamepad
+X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use.
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
 F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
@@ -165,6 +177,8 @@ ledge grab, swimming, pits, grid/committed models, projectiles, moving platforms
 `tests/physics.rs` (rope bridge, chain, soft bodies, conveyor, bounce, crumble/regrow, glass,
 spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a compact example
 of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
+Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
+rewind across travel, unique powers).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

@@ -331,7 +331,7 @@ pub fn load() -> Result<Data, String> {
         }
         d.bases.push(b);
     }
-    d.bases.sort_by(|a, b| (a.slot, a.kind.clone(), a.level).cmp(&(b.slot, b.kind.clone(), b.level)));
+    d.bases.sort_by_key(|b| (b.slot, b.kind.clone(), b.level));
     for (k, mut a) in table::<AffixDef>("affixes")? {
         a.key = k.clone();
         a.stat_id = Some(stat(&format!("affix '{k}'"), &a.stat)?);

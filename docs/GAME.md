@@ -51,7 +51,7 @@ small generators, and every system has an agent tool to build and inspect it.
 - **G1 Combat core:** arena, hero combo, dodge and first skills, three monster archetypes with
   telegraphs, damage, death, XP and gold, HUD, hit feel, difficulty sliders.
 - **G2 Loot:** items, affixes, rarity, drops, pickup, inventory and equipment, tooltips, stats
-  from gear, vendor and stash, weapon visuals.
+  from gear, vendor and stash, weapon visuals. *(done: see "Items" below)*
 - **G3 Builds:** passive tree (data + layout + UI), all 16 skills, masteries, keystones,
   respec.
 - **G4 Monsters:** genome, parts rendering, palettes, archetype brains, monster affixes, boss
@@ -60,3 +60,29 @@ small generators, and every system has an agent tool to build and inspect it.
   designed levels 1-12, endless Depths, waypoints, saving.
 - **G6 Showcase:** juice pass, the agent tools, bot balance pass, browser build, docs and the
   final build.
+
+## Items (G2)
+- **Bases** (`game/items.toml`, 114): ten weapon kinds and nine slots, six tiers each by item
+  level (1, 10, 22, 38, 55, 75). Numbers grow with item level by `base_scale` (x45 at 75, and on
+  forever), so a tier is a look and a bigger implicit, never a dead end.
+- **Affixes** (`game/affixes.toml`, 74): prefix/suffix, slot lists (slot names, weapon kinds or
+  `armor`), tiers `[ilvl, min, max]`; past the last tier values grow by `grow` per level
+  (percent stats cap with `grow = 0`). `local` affixes change the item itself (weapon damage,
+  attack speed, crit; armour). Magic: 1-2 affixes, rare: 3-6 (max 3 per side).
+- **Uniques** (`game/uniques.toml`, 19): fixed stats scaled to the drop level and a **power**.
+  Powers (`arpg/powers.rs`, 16 kinds: corpse burst, frost crits, blood magic, execute, fire
+  trail, orbiting blades, echo strike, dodge reset, storm call, block nova, ignite aura, stand
+  firm, meteor slam, frenzy, mana shield, quickening) belong to actors, not items, so passive
+  keystones (G3) and monster affixes (G4) reuse them. Power hits use internal `power_*` skills
+  in skills.toml.
+- **Drops**: item chance per kill by monster rarity (bosses shower), rarity weights 70/24/5.5/0.5
+  shifted by item rarity and monster rank, slot shares fixed regardless of base counts. Items
+  pop out and bounce (simple ballistic flight, ground found by ray), gold piles fly to the hero.
+  Auto-pickup by rarity filter; labels on the ground are clickable.
+- **Commands**: every menu action is a `GameCmd` carried in `InputFrame::cmd` (queued one per
+  tick by the app), so trading and equipping record, replay and rewind exactly.
+- **Places**: `Place::Town` (Emberwatch: Hilda the smith sells and buys, the stash, a portal)
+  and `Place::Arena` (the Proving Grounds). Travel rebuilds the scene inside the same tick and
+  random stream, carrying the `Game` (hero, bags, settings).
+- **Looks**: the hero's puppet wears the gear: weapon kind/colour/glow, shield or focus, helmet
+  shapes (cap, helm, great helm, crown, horned, halo), shoulder plates, cape, gloves, buckle.

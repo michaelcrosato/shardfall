@@ -400,8 +400,8 @@ Windows build.
 | Milestone | State |
 |---|---|
 | G1 Combat core | ✅ done (3423ab6) |
-| G2 Loot, items, inventory | ⏳ next |
-| G3 Passive tree, all skills | ⏳ |
+| G2 Loot, items, inventory | ✅ done |
+| G3 Passive tree, all skills | ⏳ next |
 | G4 Monster genome, bosses | ⏳ |
 | G5 Town, levels, mechanics, endless | ⏳ |
 | G6 Polish, agent tools, final build | ⏳ |
@@ -434,6 +434,35 @@ Windows build.
   game_reload. Tests: tests/arpg.rs (bot clears waves, monsters hurt, mana/cooldowns, dodge,
   rewind exact).
 
+## G2 Loot, items, inventory — done
+- Data: `game/items.toml` (114 bases, generated table), `game/affixes.toml` (74 affixes with
+  endless tiers), `game/uniques.toml` (19 uniques with powers); loaded and validated in
+  `arpg/data.rs` (unknown stats, slots, bases are load errors).
+- `arpg/items.rs` (Slot, EquipSlot, BaseDef/AffixDef/UniqueDef, Item, roll_item, unique_item,
+  base_scale, local affixes, tooltips `ItemText`, value), `arpg/loot.rs` (drops, ground items,
+  gold magnet, auto-loot), `arpg/powers.rs` (16 powers + hooks: on fire, on kill, per tick,
+  in `hit`), `arpg/cmd.rs` (`GameCmd`, `Place`, `Spot`, vendor restock), hero equipment (10
+  slots), bag (40), stash (120), `refresh_hero` sums gear (weapon stats, armour, powers, blood
+  magic) and dresses the puppet (`hero_look`, `PuppetDef::gear` = `GearLook`).
+- Town scene `town` (Emberwatch: square, houses, well, lamps, forge, Hilda hammering with
+  sparks and turning to greet, stash chest, portal with ripple distortion); arena has a portal
+  home. `Sim::game_travel` rebuilds the place at the end of the tick (same tick/rng, entity ids
+  continue, region versions bumped so the renderer refreshes).
+- `InputFrame::cmd` (one menu command per tick; simhost queues them in `Shared::cmds`).
+- View: loot (item shapes, rarity rings, light pillars for rare/unique), coins, burning fields,
+  orbiting blades, the usable spot ring; fx/sounds for drops by rarity, pickups, travel.
+- App (`arpg_items.rs`): inventory with paper doll, tooltips with tier tags and a compare panel
+  (stat-by-stat gains/losses, DPS), green frame on upgrades, context menu (wear, right hand,
+  sell, stash, drop), vendor (wares, buy-back, sell all), stash, portal window, character sheet,
+  skill bar picker, clickable loot labels (stacked), spot labels with "G: trade" prompts;
+  keys I/Tab C K T G; each place has its own light (town at dusk).
+- Tools: `loot_roll` (tooltips or distribution summary), `give`, `inventory`, `game_cmd`.
+- Tests: tests/loot.rs (drops picked up, equip changes weapon/two-hander/armour/helm look, town
+  trade + buy-back + stash + travel both ways, rewind across travel exact, orbiting blades hit
+  and vanish when unequipped); items unit tests (every level/rarity rolls, scaling, local).
+- Known gaps (later milestones): no saving yet (G5), gamepad cannot drive the menus yet (G6),
+  vendor only has the smith (more NPCs in G5), item level requirements are not used.
+
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
   it, including rewind mid-fight and the live bridge.
@@ -442,3 +471,12 @@ Windows build.
 - Actors live in a side table (`Game::actors`, keyed by entity) instead of new Entity fields.
 - Damage numbers and health bars are egui drawn over the 3D view (crisp); trails are additive
   particles (meshes have no transparency).
+- Items store their rolled stat and value (not just an affix id), so data edits never change
+  existing items; affix keys are kept for tooltips and analysis.
+- Base numbers scale with *item level*, not base tier: endless scaling with one table; tiers
+  differ by look and implicit size.
+- Menu actions are input (GameCmd in the input frame) rather than direct state edits, so the
+  replay/rewind guarantees cover trading too.
+- Travel rebuilds the whole SimState in place (not a second Sim): history snapshots hold the
+  entire state, so rewinding across a portal just works.
+- Powers are on actors, fed by items now and by keystones/monster affixes later.

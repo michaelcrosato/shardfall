@@ -575,20 +575,26 @@ fn pick_weighted<T>(rng: &mut Rng, items: &[(T, f32)]) -> Option<usize> {
 
 /// A base for an item level: recent tiers are the most common.
 pub fn roll_base<'a>(d: &'a super::data::Data, rng: &mut Rng, level: u32, slot: Option<Slot>) -> Option<&'a BaseDef> {
+    let eligible = |b: &&BaseDef| b.level <= level.max(1) && slot.is_none_or(|s| s == b.slot);
+    // Each slot gets its share of drops however many bases it has; within a slot, recent
+    // tiers are the most common.
+    let share = |s: Slot| match s {
+        Slot::Weapon => 0.2,
+        Slot::Ring => 0.11,
+        Slot::Amulet => 0.07,
+        Slot::Offhand | Slot::Belt => 0.08,
+        _ => 0.09,
+    };
+    let mut weight_sum = [0.0f32; 9];
+    let recency = |b: &BaseDef| 1.0 / (1.0 + (level - b.level.min(level)) as f32 / 8.0);
+    for b in d.bases.iter().filter(eligible) {
+        weight_sum[b.slot as usize] += recency(b);
+    }
     let cands: Vec<(&BaseDef, f32)> = d
         .bases
         .iter()
-        .filter(|b| b.level <= level.max(1) && slot.is_none_or(|s| s == b.slot))
-        .map(|b| {
-            let behind = (level - b.level.min(level)) as f32;
-            // Weapons a little more common than any one armour slot; jewellery rarer.
-            let slot_w = match b.slot {
-                Slot::Weapon => 1.0,
-                Slot::Amulet | Slot::Ring => 1.6,
-                _ => 2.2,
-            };
-            (b, slot_w / (1.0 + behind / 8.0))
-        })
+        .filter(eligible)
+        .map(|b| (b, share(b.slot) * recency(b) / weight_sum[b.slot as usize].max(1e-6)))
         .collect();
     pick_weighted(rng, &cands).map(|i| cands[i].0)
 }
@@ -689,15 +695,8 @@ pub fn roll_item(d: &super::data::Data, rng: &mut Rng, spec: RollSpec, id: u32) 
             let n = 3 + rng.below(4);
             let (mut pre, mut suf) = (0, 0);
             for _ in 0..n {
-                let kind = if pre >= 3 {
-                    AffixKind::Suffix
-                } else if suf >= 3 {
-                    AffixKind::Prefix
-                } else if rng.f32() < 0.5 {
-                    AffixKind::Prefix
-                } else {
-                    AffixKind::Suffix
-                };
+                // Prefix or suffix at random, until one side has three.
+                let kind = if suf >= 3 || (pre < 3 && rng.f32() < 0.5) { AffixKind::Prefix } else { AffixKind::Suffix };
                 if roll_affix(d, rng, &mut item, base, kind).is_some() {
                     if kind == AffixKind::Prefix {
                         pre += 1;

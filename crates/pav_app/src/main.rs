@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod app;
+mod arpg_items;
 mod arpg_ui;
 mod boot;
 #[cfg(not(target_arch = "wasm32"))]

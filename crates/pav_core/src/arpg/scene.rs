@@ -274,14 +274,13 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
         &mut st.physics,
         Block::new(forge + Vec3::new(-1.0, 1.2, -0.5), forge + Vec3::new(-0.2, 3.6, 0.5), Color::hex("#3e3636")),
     );
-    // Awning over the smithy.
-    for (x, z) in [(-14.4f32, -3.2f32), (-14.4, 3.2), (-8.6, -3.2), (-8.6, 3.2)] {
+    // Posts of the smithy (open to the sky so the camera sees the smith at work).
+    for z in [-3.2f32, 3.2] {
         st.statics.add(
             &mut st.physics,
-            Block::new(Vec3::new(x - 0.12, 0.0, z - 0.12), Vec3::new(x + 0.12, 3.0, z + 0.12), Color::hex("#5a4030")),
+            Block::new(Vec3::new(-14.5, 0.0, z - 0.12), Vec3::new(-14.26, 2.6, z + 0.12), Color::hex("#5a4030")),
         );
     }
-    st.statics.add(&mut st.physics, Block::new(Vec3::new(-14.7, 3.0, -3.5), Vec3::new(-8.3, 3.2, 3.5), Color::hex("#8a4a2a")));
     let mut fire = Visual::new(Shape::Box { half: Vec3::new(0.5, 0.05, 0.9) }, Color::hex("#ff8a3a"));
     fire.look = Look::Unlit;
     fire.emissive = 2.5;

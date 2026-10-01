@@ -160,6 +160,11 @@ pub struct App {
     quit: bool,
     /// Camera and look from before the game started (restored when leaving it).
     game_saved: Option<(CameraParams, ViewSettings)>,
+    /// Shardfall windows (inventory, vendor...), the latest game frame and the place whose
+    /// look is applied.
+    game_ui: crate::arpg_items::GameUi,
+    game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
+    game_place: Option<pav_core::arpg::Place>,
     #[cfg(not(target_arch = "wasm32"))]
     bridge: Option<crate::bridge::Bridge>,
     #[cfg(target_arch = "wasm32")]
@@ -216,6 +221,9 @@ impl App {
             physics: PhysicsOverlay::default(),
             quit: false,
             game_saved: None,
+            game_ui: Default::default(),
+            game_frame: None,
+            game_place: None,
             #[cfg(not(target_arch = "wasm32"))]
             bridge: None,
             #[cfg(target_arch = "wasm32")]
@@ -453,6 +461,36 @@ impl App {
     /// The fixed system layer: never rebinds, works in every room.
     fn handle_key(&mut self, code: KeyCode) {
         let Some(host) = &self.host else { return };
+        // Shardfall's menu keys.
+        if self.input.game && !self.menu_open {
+            let ui = &mut self.game_ui;
+            match code {
+                KeyCode::KeyI | KeyCode::Tab => {
+                    ui.inventory = !ui.inventory;
+                    return;
+                }
+                KeyCode::KeyC => {
+                    ui.character = !ui.character;
+                    return;
+                }
+                KeyCode::KeyK => {
+                    ui.skills = !ui.skills;
+                    return;
+                }
+                KeyCode::KeyT => {
+                    // Town portal: home from anywhere.
+                    if self.game_frame.as_ref().is_some_and(|g| g.place != pav_core::arpg::Place::Town) {
+                        host.shared.command(pav_core::arpg::GameCmd::Travel(pav_core::arpg::Place::Town.code()));
+                    }
+                    return;
+                }
+                KeyCode::Escape if ui.any_open() => {
+                    ui.close_all();
+                    return;
+                }
+                _ => {}
+            }
+        }
         match code {
             KeyCode::Escape => {
                 let open = !self.menu_open;
@@ -505,7 +543,10 @@ impl App {
                     KeyCode::Digit7,
                     KeyCode::Digit8,
                 ];
-                if let Some(i) = digits.iter().position(|k| *k == code).filter(|i| *i < CameraParams::PRESETS.len()) {
+                // (In Shardfall the number keys are potions and belt items.)
+                let digit =
+                    digits.iter().position(|k| *k == code).filter(|i| *i < CameraParams::PRESETS.len() && !self.input.game);
+                if let Some(i) = digit {
                     let yaw = self.rig.params.yaw;
                     self.rig.params = (CameraParams::PRESETS[i].1)();
                     if CameraParams::PRESETS[i].0 != "isometric" {
@@ -645,6 +686,18 @@ impl App {
                 self.view = view;
             }
         }
+        self.game_frame = curr.game.clone();
+        if !game_mode {
+            self.game_ui.close_all();
+            self.game_place = None;
+        }
+        if let Some(g) = &curr.game {
+            if self.game_place != Some(g.place) {
+                self.game_place = Some(g.place);
+                self.game_ui.panel = None;
+                place_look(g.place, &mut self.view);
+            }
+        }
         let alpha =
             if self.app_settings.smoothing { ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0) } else { 1.0 };
         let focus = prev.focus.lerp(curr.focus, alpha);
@@ -661,6 +714,11 @@ impl App {
             self.input.mouse_taps.clear();
         }
         let (mut held, mut pressed) = self.input.buttons();
+        if pressed & pav_core::input::buttons::INTERACT != 0 {
+            if let Some(g) = &curr.game {
+                self.game_ui.interact(g);
+            }
+        }
         if pressed != 0 && self.input.last_device == Device::Gamepad {
             // Gamepad presses are timed from when they were polled (gilrs queues them).
             self.latency.press();
@@ -803,6 +861,8 @@ impl App {
         let latency = &self.latency;
         let hud_ctx = HudCtx { hud: &curr.hud, tick: curr.tick, dt: curr.dt };
         let game_frame = curr.game.clone();
+        let game_ui = &mut self.game_ui;
+        let mut game_cmds = Vec::new();
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
@@ -820,6 +880,9 @@ impl App {
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
                 crate::arpg_ui::hud(&ctx, g, &proj, device);
+                if !menu_open {
+                    game_cmds = game_ui.ui(&ctx, g, &proj);
+                }
             }
             if card_visible && !menu_open {
                 hud.card(&ctx, device);
@@ -851,12 +914,15 @@ impl App {
                 &ctx,
                 match (device, game_frame.is_some()) {
                     (Device::Gamepad, _) => "Start: menu",
-                    (_, true) => "Esc menu (difficulty) · F1 tuning · Space dodge · 1 potion",
+                    (_, true) => "Esc menu · I inventory · C character · K skills · T town · G use · Space dodge · 1 potion",
                     _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
                 },
             );
         });
         self.show_boot = show_boot;
+        for c in game_cmds {
+            host.shared.command(c);
+        }
         if ctl.paused != ctl_before.paused
             || ctl.speed != ctl_before.speed
             || ctl.step_requests != ctl_before.step_requests
@@ -1211,4 +1277,28 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
+}
+
+/// Each Shardfall place has its own light: Emberwatch at dusk, the Proving Grounds by day.
+fn place_look(place: pav_core::arpg::Place, v: &mut ViewSettings) {
+    match place {
+        pav_core::arpg::Place::Town => {
+            v.sky = "#1a1420".into();
+            v.light.sun_elevation = 24.0;
+            v.light.sun_azimuth = 250.0;
+            v.light.sun_intensity = 0.55;
+            v.light.ambient = 0.36;
+            v.bloom = 0.7;
+            v.saturation = 1.12;
+        }
+        pav_core::arpg::Place::Arena => {
+            v.sky = "#14161c".into();
+            v.light.sun_elevation = 52.0;
+            v.light.sun_azimuth = 35.0;
+            v.light.sun_intensity = 0.95;
+            v.light.ambient = 0.5;
+            v.bloom = 0.55;
+            v.saturation = 1.08;
+        }
+    }
 }

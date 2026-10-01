@@ -315,6 +315,55 @@ pub static TOOLS: &[Tool] = &[
         args: &[],
         run: crate::game_tools::t_game_reload,
     },
+    Tool {
+        name: "loot_roll",
+        help: "Roll items without playing (item level, rarity, slot, count): full tooltips, or a summary of many rolls (rarity spread, affix frequency, value ranges) to check loot tables.",
+        args: &[
+            arg("level", "integer", "item level (default the hero's or 10)"),
+            arg("rarity", "string", "normal | magic | rare | unique (default: rolled)"),
+            arg("slot", "string", "weapon | offhand | helmet | body | gloves | boots | belt | amulet | ring"),
+            arg("count", "integer", "how many (default 5; more than 20 gives a summary)"),
+            arg("bonus", "number", "item rarity bonus in percent"),
+            arg("seed", "integer", "random seed (default 1)"),
+        ],
+        run: crate::game_tools::t_loot_roll,
+    },
+    Tool {
+        name: "give",
+        help: "Give the hero an item: a unique by key, or a rolled item (level, rarity, slot); optionally wear it at once.",
+        args: &[
+            arg("unique", "string", "unique key (game/uniques.toml)"),
+            arg("base", "string", "item base key (game/items.toml) for a plain item"),
+            arg("level", "integer", "item level (default the hero's)"),
+            arg("rarity", "string", "normal | magic | rare | unique"),
+            arg("slot", "string", "item slot"),
+            arg("equip", "boolean", "wear it now"),
+        ],
+        run: crate::game_tools::t_give,
+    },
+    Tool {
+        name: "inventory",
+        help: "The hero's worn gear, bag and stash with every item described, gold, and the vendor's wares in town.",
+        args: &[arg("brief", "boolean", "names only")],
+        run: crate::game_tools::t_inventory,
+    },
+    Tool {
+        name: "game_cmd",
+        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|auto_loot|sort with id/slot/skill/place.",
+        args: &[
+            arg("do", "string", "the action"),
+            arg("id", "integer", "item id (equip, drop, sell, buy, stash, take, pickup)"),
+            arg(
+                "slot",
+                "string",
+                "equip slot (weapon, offhand, helmet, body, gloves, boots, belt, amulet, ring1, ring2) or bar slot 0-5",
+            ),
+            arg("skill", "string", "skill key for bar"),
+            arg("place", "string", "town | arena for travel"),
+            arg("rarity", "integer", "sell_all up to / auto_loot from this rarity (0 normal .. 3 unique, 4 off)"),
+        ],
+        run: crate::game_tools::t_game_cmd,
+    },
 ];
 
 pub fn find(name: &str) -> Option<&'static Tool> {
