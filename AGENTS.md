@@ -147,8 +147,9 @@ game hot-reloads room files. New *mechanics* are Rust (character.rs / sim.rs beh
 entity fields); keep rooms as data wherever possible.
 
 ### Scenes
-`world` (default: pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
-`<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` and `arena`.
+`world` (pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
+`<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` (the game
+starts here by default) and `arena`.
 Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 
 ## Game controls (current)

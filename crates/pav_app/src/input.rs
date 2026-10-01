@@ -169,6 +169,10 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Dodge roll", "Space (cancels any attack)"),
             ("Potion", "1"),
             ("Attack in place", "hold Shift"),
+            ("Use (trade, stash, portal)", "G"),
+            ("Inventory · character · skills", "I · C · K"),
+            ("Town portal", "T"),
+            ("Pick up", "walk over it, or click its name"),
             ("Camera", "middle-drag rotate · wheel zoom"),
             ("Rewind", "hold Backspace"),
             ("Menu / tuning", "Esc / F1"),
@@ -178,6 +182,7 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Skills", "X · Y · B · RB · LB · RT"),
             ("Dodge roll", "A"),
             ("Potion", "D-pad up"),
+            ("Use (trade, stash, portal)", "D-pad right"),
             ("Menu", "Start"),
         ],
     }

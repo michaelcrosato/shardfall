@@ -11,7 +11,8 @@ pub struct Settings {
     pub width: u32,
     pub height: u32,
     pub fullscreen: bool,
-    /// Room to start in (empty = the default room). Command line: --room NAME.
+    /// Scene to start in (empty = Shardfall's town; `world` = the pavilion). Command line:
+    /// --scene NAME or --room NAME.
     pub scene: String,
     pub seed: u64,
     /// Live agent bridge address ("" = off). Command line: --bridge [ADDR].
@@ -54,7 +55,8 @@ impl Settings {
             }
         }
         if s.scene.is_empty() {
-            s.scene = "world".into();
+            // Shardfall's town; the engine's pavilion is the `world` scene (pause menu).
+            s.scene = "town".into();
         }
         (s, "page address (?room=NAME&seed=N)".into())
     }
@@ -106,7 +108,8 @@ impl Settings {
             s.backend = b;
         }
         if s.scene.is_empty() {
-            s.scene = "world".into();
+            // Shardfall's town; the engine's pavilion is the `world` scene (pause menu).
+            s.scene = "town".into();
         }
         (s, note)
     }
