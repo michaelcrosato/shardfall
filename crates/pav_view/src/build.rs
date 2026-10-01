@@ -753,7 +753,24 @@ impl ViewBuilder {
             match &o.puppet {
                 Some(p) => {
                     let def = p.def.as_deref().unwrap_or(&curr.puppet_def);
-                    emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style)
+                    emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style);
+                    // A small hitbox (bullet hell) shows as a glowing dot of its true size over
+                    // the head: hits test a vertical column of that radius.
+                    let hitbox = curr.config.movement.hitbox;
+                    if Some(o.id) == curr.player && hitbox < pav_core::character::RADIUS * 0.6 {
+                        let top = o.pos + Vec3::Y * (p.feet_offset + 0.3);
+                        scene.sdfs.push(rs::SdfInstance {
+                            a: top,
+                            b: top,
+                            ra: hitbox.max(0.06),
+                            rb: hitbox.max(0.06),
+                            color: Vec3::new(1.0, 0.35, 0.6),
+                            emissive: 2.0,
+                            style: Style::Unlit,
+                            flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
+                            group: o.id.0 + 2,
+                        });
+                    }
                 }
                 None => {
                     emit_object(&mut scene, &o, settings.style, now);

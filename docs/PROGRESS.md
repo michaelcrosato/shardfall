@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M10 Browser build, live bridge, polish** (M1–M9 complete; M4–M10 run as one goal).
+All milestones M1–M10 are complete (M4–M10 ran as one goal). See *Known issues and limits* below.
 
 ## Status by milestone
 | Milestone | State |
@@ -14,7 +14,7 @@ Current milestone: **M10 Browser build, live bridge, polish** (M1–M9 complete;
 | M7 Visual Effects Wing | ✅ complete (2026-10-01) |
 | M8 Aesthetic & Filter Wing | ✅ complete (2026-10-01) |
 | M9 Genre Wing | ✅ complete (2026-10-01) |
-| M10 Browser build, live bridge, polish | 🔨 in progress (bridge + browser build done) |
+| M10 Browser build, live bridge, polish | ✅ complete (2026-10-01) |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -349,21 +349,39 @@ guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
 - Grid steps take the stick's strength as their pace (keyboard = full pace; NPC `speed` scales).
 - The boss bar only shows for a boss in the player's current room.
 
-## M10 Browser build, live bridge, polish — in progress (started early, alongside M9)
-- **Live agent bridge** ✅ (a4fdd13): the game listens with `--bridge [ADDR]` (default
-  127.0.0.1:7878) or `bridge = "ADDR"` in pavilion.toml. JSON lines over TCP; each request runs a
-  registry tool on the simulation thread against the running game (`Session::from_live`), with the
-  game's camera and view; camera/view changes come back to the game. Captures use a separate
-  headless device. Clients: `pav live [ADDR]` (REPL) and `pav mcp --live [ADDR]` (MCP).
-- **Browser build** ✅ (f8975fb): `scripts/build-web.sh` -> `target/web/` (index.html,
-  pavilion.js, pavilion_bg.wasm ~13 MB). Same `pav_app` crate with `cfg(target_arch = "wasm32")`:
-  the sim is stepped from the frame loop (no threads), GPU setup is async (finishes in
-  `about_to_wait`), egui input via a small adapter (`uiinput.rs`; egui-winit is native-only), Web
-  Audio (resumed on first input), `web-time` Instant, room from `?room=NAME&seed=N`, no file
-  watcher / bridge / screenshots. Verified in headless Chromium (WebGPU on SwiftShader, flags
+## M10 Browser build, live bridge, polish — done
+- **Live agent bridge**: the game listens with `--bridge [ADDR]` (default 127.0.0.1:7878) or
+  `bridge = "ADDR"` in pavilion.toml. JSON lines over TCP; each request runs a registry tool on
+  the simulation thread against the running game (`Session::from_live`), with the game's camera
+  and view; camera/view changes come back to the game. Captures use a separate headless device.
+  Clients: `pav live [ADDR]` (REPL) and `pav mcp --live [ADDR]` (MCP). Verified on Linux and with
+  the Windows .exe under Wine (status, input, set, capture).
+- **Browser build**: `scripts/build-web.sh` -> `target/web/` (index.html, pavilion.js,
+  pavilion_bg.wasm ~13 MB). Same `pav_app` crate with `cfg(target_arch = "wasm32")`: the sim is
+  stepped from the frame loop (no threads), GPU setup is async (finishes in `about_to_wait`),
+  egui input via a small adapter (`uiinput.rs`; egui-winit is native-only), Web Audio (resumed on
+  first input), `web-time` Instant, room from `?room=NAME&seed=N`, no file watcher / bridge /
+  screenshots. Verified in headless Chromium (WebGPU on SwiftShader, flags
   `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader
   --use-angle=swiftshader`): boots, renders the world, plays sound, takes keyboard input.
-- Polish pass: ⏳.
+- **Polish**: wing signs over each corridor mouth and a welcome line in the plaza; F2 rooms in the
+  hint bar; control guide lists vehicles and room keys; gamepad D-pad right gets in vehicles;
+  more glyphs in the world font (dashes, ellipsis, ±, ², ½); bullet-hell hitbox dot; boss bar
+  only in the boss's room; `player` / `npcs` tools report vehicle and guard alert; README.
+
+## Known issues and limits
+- Browser: needs WebGPU (recent Chrome/Edge); no screenshots, hot reload or file saves
+  (sandbox save, presets); the sim shares the main thread, so very slow frames slow the game.
+  Not yet tried on a real GPU in a browser (only SwiftShader in the container).
+- Distortion has no depth test (shimmer can show through a wall in front of the source).
+- The player cannot break glass (bombs and props can); crumble tiles test one centre ray.
+- `follow` NPCs have no pathfinding (they walk straight at you and slide along walls).
+- The `teleport` tool does not trigger zones (pads, checkpoints) where it lands.
+- Drift: no reset-car key (F5 resets the room); grippy and drifty cars differ mostly under the
+  handbrake. Helicopter: hitting a tower just stops it (no crash).
+- Stealth: a guard that glimpses you stops sweeping (no forgiveness); SPOTTED counts as a fall.
+- Bullet hell: score only counts once you leave START; player shots hit in 3D (targets near 1.1 m).
+- Determinism across machines, Mac, other browsers: out of scope (DESIGN §16).
 
 ## Decisions (M10)
 - Bridge requests swap the live `Sim` into a `Session` and back on the sim thread (no copies);
