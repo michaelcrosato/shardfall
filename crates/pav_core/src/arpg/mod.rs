@@ -13,6 +13,7 @@ pub mod data;
 pub mod genome;
 pub mod hero;
 pub mod items;
+pub mod levelgen;
 pub mod loot;
 pub mod powers;
 pub mod scene;

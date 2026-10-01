@@ -1,0 +1,146 @@
+# Level themes: how a level looks and which monsters live there. The level generator builds
+# rooms and corridors and paints them with a theme; endless depths pick themes in turn.
+#
+# floor / wall / pillar / accent    colours (floor tiles alternate between the two floor colours)
+# light      colour of braziers and lamps; light_every: one per this many floor tiles of a room
+# sky / sun / sun_angle / ambient   the level's mood (sun 0 = dark, only lamps)
+# particles  ambience drifting about (embers, snow, fireflies, dust, magic, spores...)
+# elements   how likely each element is for its creatures [physical, fire, cold, lightning, poison]
+# families   designed families that live here (the rest are grown from genomes)
+# props      decorations: rocks, crystals, bones, mushrooms, columns, crates
+
+[ashen_halls]
+name = "Ashen Halls"
+floor = ["#4a3f3a", "#433834"]
+wall = "#5a4a44"
+pillar = "#6a5850"
+accent = "#ff7a2a"
+light = "#ff8a3a"
+light_every = 40
+sky = "#1a1210"
+sun = 0.35
+sun_angle = 30
+ambient = 0.35
+particles = "embers"
+elements = [1, 4, 0.5, 0.5, 0.5]
+families = ["ghoul", "ashdrake", "bonecrusher"]
+props = ["rocks", "bones", "crates"]
+
+[frost_caverns]
+name = "Frost Caverns"
+floor = ["#b8c8d8", "#a8bccc"]
+wall = "#8aa0b8"
+pillar = "#c8dcec"
+accent = "#9ae4ff"
+light = "#9ad8ff"
+light_every = 45
+sky = "#0e1620"
+sun = 0.5
+sun_angle = 45
+ambient = 0.45
+particles = "snow"
+elements = [1, 0.3, 4, 0.8, 0.3]
+families = ["skitterer", "ghoul"]
+props = ["crystals", "rocks"]
+
+[fungal_hollows]
+name = "Fungal Hollows"
+floor = ["#3a3a2e", "#34342a"]
+wall = "#4a4238"
+pillar = "#5a4a5a"
+accent = "#c8f25a"
+light = "#b0ff7a"
+light_every = 50
+sky = "#10140e"
+sun = 0.25
+sun_angle = 50
+ambient = 0.38
+particles = "fireflies"
+elements = [1, 0.3, 0.3, 0.5, 4]
+families = ["bile_ooze", "spitter", "skitterer"]
+props = ["mushrooms", "rocks"]
+
+[storm_spire]
+name = "Storm Spire"
+floor = ["#4a4a5a", "#424252"]
+wall = "#5a5a6e"
+pillar = "#6e6e86"
+accent = "#ffe85a"
+light = "#c8d8ff"
+light_every = 40
+sky = "#121220"
+sun = 0.45
+sun_angle = 60
+ambient = 0.42
+particles = "magic"
+elements = [0.8, 0.5, 0.8, 4, 0.3]
+families = ["spitter", "ghoul"]
+props = ["crystals", "columns"]
+
+[bone_crypts]
+name = "Bone Crypts"
+floor = ["#5a5248", "#524a42"]
+wall = "#6a6056"
+pillar = "#8a8070"
+accent = "#e8e0c8"
+light = "#ffd8a0"
+light_every = 45
+sky = "#121010"
+sun = 0.3
+sun_angle = 35
+ambient = 0.36
+particles = "dust"
+elements = [4, 0.5, 0.5, 0.3, 0.8]
+families = ["ghoul", "bonecrusher", "skitterer"]
+props = ["bones", "columns", "crates"]
+
+[sunken_temple]
+name = "Sunken Temple"
+floor = ["#3a5a5a", "#345252"]
+wall = "#4a6a6a"
+pillar = "#6a8a86"
+accent = "#7affd8"
+light = "#7affe0"
+light_every = 45
+sky = "#0a1416"
+sun = 0.4
+sun_angle = 55
+ambient = 0.42
+particles = "bubbles"
+elements = [1, 0.3, 2.5, 0.8, 2]
+families = ["bile_ooze", "spitter"]
+props = ["columns", "crystals"]
+
+[obsidian_rift]
+name = "Obsidian Rift"
+floor = ["#2a2430", "#26202c"]
+wall = "#3a3040"
+pillar = "#4a3a54"
+accent = "#c070ff"
+light = "#c08aff"
+light_every = 40
+sky = "#0c0812"
+sun = 0.2
+sun_angle = 25
+ambient = 0.32
+particles = "magic"
+elements = [0.8, 2.5, 0.5, 2.5, 0.5]
+families = ["ashdrake", "skitterer"]
+props = ["crystals", "rocks"]
+
+[overgrown_ruins]
+name = "Overgrown Ruins"
+floor = ["#4a5a3a", "#425234"]
+wall = "#6a6a5a"
+pillar = "#7a7a68"
+accent = "#a0e060"
+light = "#ffe0a0"
+light_every = 55
+sky = "#141a12"
+sun = 0.6
+sun_angle = 55
+ambient = 0.5
+particles = "fireflies"
+elements = [3, 0.5, 0.5, 0.5, 1.5]
+families = ["ghoul", "spitter", "bile_ooze", "bonecrusher"]
+props = ["columns", "rocks", "mushrooms"]
