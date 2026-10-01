@@ -184,6 +184,8 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Potion", "D-pad up"),
             ("Use (trade, portal, way down, chests)", "D-pad right"),
             ("Map", "D-pad left"),
+            ("Inventory, character, skills, passives", "D-pad down, then LB / RB"),
+            ("In menus", "stick: cursor · A click · X right-click · hold Y: shift · right stick scroll · B close"),
             ("Menu", "Start"),
         ],
     }
@@ -238,6 +240,13 @@ pub struct Pad {
     pub start_pressed: bool,
     /// D-pad left (the game's map).
     pub map_pressed: bool,
+    /// Buttons pressed since the last poll (menus read these as taps).
+    pub taps: Vec<gilrs::Button>,
+    /// A (south) and X (west) held: the menu cursor's left and right mouse buttons.
+    pub a_held: bool,
+    pub x_held: bool,
+    /// Y (north) held: Shift for the menu cursor (take a whole path in the passive tree).
+    pub y_held: bool,
     pub back_held: bool,
     pub any_activity: bool,
 }
@@ -248,6 +257,8 @@ pub struct Input {
     pub cursor: Vec2,
     pub mouse_active: bool,
     pub gilrs: Option<gilrs::Gilrs>,
+    /// A scripted gamepad (`--pad-script FILE`): tests and agents drive controller flows.
+    pub pad_script: Option<PadScript>,
     pub pad: Pad,
     pub last_device: Device,
     prev_held: u32,
@@ -257,6 +268,98 @@ pub struct Input {
     pub bindings: Bindings,
     /// Game mode: the right mouse button is a skill and the gamepad uses the game layout.
     pub game: bool,
+}
+
+/// A pad's raw state for one frame.
+struct PadState {
+    left: Vec2,
+    right: Vec2,
+    held: Vec<gilrs::Button>,
+    lt2: bool,
+    rt2: bool,
+}
+
+/// One line of a pad script: hold this for so many frames.
+#[derive(Clone, Debug, Default)]
+pub struct PadStep {
+    pub frames: u32,
+    pub left: Vec2,
+    pub right: Vec2,
+    pub hold: Vec<gilrs::Button>,
+    pub tap: Vec<gilrs::Button>,
+}
+
+/// A scripted gamepad, one step per line:
+/// `<frames> [left=x,y] [right=x,y] [hold=South,North] [tap=DPadDown]` (`#` comments).
+/// Buttons are gilrs names: South (A), East (B), West (X), North (Y), LeftTrigger (LB),
+/// RightTrigger (RB), Start, Select, DPadUp/Down/Left/Right.
+#[derive(Clone, Debug, Default)]
+pub struct PadScript {
+    pub steps: Vec<PadStep>,
+    at: usize,
+    frame: u32,
+}
+
+impl PadScript {
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pub fn parse(text: &str) -> Result<PadScript, String> {
+        let button = |n: &str| -> Result<gilrs::Button, String> {
+            use gilrs::Button as B;
+            Ok(match n {
+                "South" | "A" => B::South,
+                "East" | "B" => B::East,
+                "West" | "X" => B::West,
+                "North" | "Y" => B::North,
+                "LeftTrigger" | "LB" => B::LeftTrigger,
+                "RightTrigger" | "RB" => B::RightTrigger,
+                "Start" => B::Start,
+                "Select" => B::Select,
+                "DPadUp" => B::DPadUp,
+                "DPadDown" => B::DPadDown,
+                "DPadLeft" => B::DPadLeft,
+                "DPadRight" => B::DPadRight,
+                o => return Err(format!("unknown button '{o}'")),
+            })
+        };
+        let vec = |v: &str| -> Result<Vec2, String> {
+            let (x, y) = v.split_once(',').ok_or(format!("'{v}': want x,y"))?;
+            Ok(Vec2::new(x.trim().parse().map_err(|_| format!("'{v}'"))?, y.trim().parse().map_err(|_| format!("'{v}'"))?))
+        };
+        let mut steps = Vec::new();
+        for (n, line) in text.lines().enumerate() {
+            let line = line.split('#').next().unwrap_or("").trim();
+            if line.is_empty() {
+                continue;
+            }
+            let mut words = line.split_whitespace();
+            let frames = words.next().and_then(|w| w.parse().ok()).ok_or(format!("line {}: starts with a frame count", n + 1))?;
+            let mut st = PadStep { frames, ..Default::default() };
+            for w in words {
+                let (k, v) = w.split_once('=').ok_or(format!("line {}: '{w}'", n + 1))?;
+                match k {
+                    "left" => st.left = vec(v)?,
+                    "right" => st.right = vec(v)?,
+                    "hold" => st.hold = v.split(',').map(button).collect::<Result<_, _>>()?,
+                    "tap" => st.tap = v.split(',').map(button).collect::<Result<_, _>>()?,
+                    o => return Err(format!("line {}: unknown '{o}'", n + 1)),
+                }
+            }
+            steps.push(st);
+        }
+        Ok(PadScript { steps, at: 0, frame: 0 })
+    }
+
+    /// This frame's step (and whether it's the step's first frame); None when done.
+    fn next(&mut self) -> Option<(PadStep, bool)> {
+        let st = self.steps.get(self.at)?.clone();
+        let first = self.frame == 0;
+        self.frame += 1;
+        if self.frame >= st.frames.max(1) {
+            self.at += 1;
+            self.frame = 0;
+        }
+        Some((st, first))
+    }
 }
 
 fn deadzone(v: Vec2, dz: f32) -> Vec2 {
@@ -284,6 +387,7 @@ impl Input {
             cursor: Vec2::ZERO,
             mouse_active: false,
             gilrs,
+            pad_script: None,
             pad: Pad::default(),
             last_device: Device::KeyboardMouse,
             prev_held: 0,
@@ -328,33 +432,68 @@ impl Input {
 
     /// Reads gamepad events and state (first connected pad).
     pub fn poll_gamepad(&mut self) {
-        let Some(g) = &mut self.gilrs else { return };
+        use gilrs::{Axis, Button};
         let mut activity = false;
-        let mut start = false;
-        let mut map = false;
-        while let Some(ev) = g.next_event() {
-            match ev.event {
-                gilrs::EventType::ButtonPressed(gilrs::Button::Start, _) => {
-                    start = true;
-                    activity = true;
+        let mut taps = Vec::new();
+        // One pad state from the first connected pad, or from the pad script while it runs.
+        let mut state: Option<PadState> = None;
+        if let Some(g) = &mut self.gilrs {
+            while let Some(ev) = g.next_event() {
+                match ev.event {
+                    gilrs::EventType::ButtonPressed(b, _) => {
+                        taps.push(b);
+                        activity = true;
+                    }
+                    gilrs::EventType::AxisChanged(_, v, _) if v.abs() > 0.4 => activity = true,
+                    gilrs::EventType::Connected => log::info!("gamepad connected"),
+                    gilrs::EventType::Disconnected => log::info!("gamepad disconnected"),
+                    _ => {}
                 }
-                gilrs::EventType::ButtonPressed(gilrs::Button::DPadLeft, _) => {
-                    map = true;
-                    activity = true;
-                }
-                gilrs::EventType::ButtonPressed(..) => activity = true,
-                gilrs::EventType::AxisChanged(_, v, _) if v.abs() > 0.4 => activity = true,
-                gilrs::EventType::Connected => log::info!("gamepad connected"),
-                gilrs::EventType::Disconnected => log::info!("gamepad disconnected"),
-                _ => {}
+            }
+            if let Some((_, gp)) = g.gamepads().next() {
+                const ALL: [Button; 15] = [
+                    Button::South,
+                    Button::East,
+                    Button::North,
+                    Button::West,
+                    Button::LeftTrigger,
+                    Button::RightTrigger,
+                    Button::Select,
+                    Button::Start,
+                    Button::DPadUp,
+                    Button::DPadDown,
+                    Button::DPadLeft,
+                    Button::DPadRight,
+                    Button::LeftThumb,
+                    Button::RightThumb,
+                    Button::Mode,
+                ];
+                let trig = |b: Button| gp.button_data(b).map(|d| d.value()).unwrap_or(0.0) > 0.35;
+                state = Some(PadState {
+                    left: Vec2::new(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY)),
+                    right: Vec2::new(gp.value(Axis::RightStickX), gp.value(Axis::RightStickY)),
+                    held: ALL.into_iter().filter(|b| gp.is_pressed(*b)).collect(),
+                    lt2: trig(Button::LeftTrigger2),
+                    rt2: trig(Button::RightTrigger2),
+                });
             }
         }
-        let mut pad = Pad { start_pressed: start, map_pressed: map, any_activity: activity, ..Default::default() };
-        if let Some((_, gp)) = g.gamepads().next() {
-            use gilrs::{Axis, Button};
-            pad.left = deadzone(Vec2::new(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY)), 0.18);
-            pad.right = deadzone(Vec2::new(gp.value(Axis::RightStickX), gp.value(Axis::RightStickY)), 0.25);
-            let trig = |b: Button| gp.button_data(b).map(|d| d.value()).unwrap_or(0.0) > 0.35;
+        if let Some(script) = &mut self.pad_script {
+            if let Some((st, first)) = script.next() {
+                if first {
+                    taps.extend(st.tap.iter().copied());
+                }
+                activity = true;
+                state = Some(PadState { left: st.left, right: st.right, held: st.hold.clone(), lt2: false, rt2: false });
+            }
+        }
+        let start = taps.contains(&Button::Start);
+        let map = taps.contains(&Button::DPadLeft);
+        let mut pad = Pad { start_pressed: start, map_pressed: map, taps, any_activity: activity, ..Default::default() };
+        if let Some(st) = state {
+            let is = |b: Button| st.held.contains(&b);
+            pad.left = deadzone(st.left, 0.18);
+            pad.right = deadzone(st.right, 0.25);
             let mut held = 0;
             let layout: &[(Button, u32)] = if self.game {
                 &[
@@ -377,24 +516,24 @@ impl Input {
                 ]
             };
             for (btn, action) in layout {
-                if gp.is_pressed(*btn) {
+                if is(*btn) {
                     held |= action;
                 }
             }
-            if trig(Button::RightTrigger2) {
+            if st.rt2 {
                 held |= if self.game { buttons::SKILL6 } else { buttons::USE };
             }
-            if trig(Button::LeftTrigger2) {
+            if st.lt2 {
                 held |= buttons::FOCUS;
             }
             pad.held = held;
-            pad.rotate = if self.game {
-                0.0
-            } else {
-                (gp.is_pressed(Button::RightTrigger) as i32 - gp.is_pressed(Button::LeftTrigger) as i32) as f32
-            };
-            pad.zoom = (gp.is_pressed(Button::DPadDown) as i32 - gp.is_pressed(Button::DPadUp) as i32) as f32;
-            pad.back_held = gp.is_pressed(Button::Select);
+            pad.rotate = if self.game { 0.0 } else { (is(Button::RightTrigger) as i32 - is(Button::LeftTrigger) as i32) as f32 };
+            // In the game the D-pad is potion / use / map / panels, not zoom.
+            pad.zoom = if self.game { 0.0 } else { (is(Button::DPadDown) as i32 - is(Button::DPadUp) as i32) as f32 };
+            pad.a_held = is(Button::South);
+            pad.x_held = is(Button::West);
+            pad.y_held = is(Button::North);
+            pad.back_held = is(Button::Select);
             if pad.left.length() > 0.3 || pad.right.length() > 0.3 || held != 0 {
                 pad.any_activity = true;
             }
@@ -460,5 +599,23 @@ impl Input {
 
     pub fn rewind_held(&self) -> bool {
         self.keys.contains(&KeyCode::Backspace) || self.pad.back_held
+    }
+}
+
+#[cfg(test)]
+mod pad_script_tests {
+    use super::*;
+
+    #[test]
+    fn pad_scripts_parse_and_play() {
+        let mut p = PadScript::parse("# open the bag\n2\n1 tap=DPadDown\n3 left=0.5,-1 hold=A,Y\n").unwrap();
+        assert_eq!(p.steps.len(), 3);
+        let frames: Vec<(PadStep, bool)> = std::iter::from_fn(|| p.next()).collect();
+        assert_eq!(frames.len(), 6);
+        assert!(frames[2].1 && frames[2].0.tap == vec![gilrs::Button::DPadDown]);
+        assert_eq!(frames[3].0.hold, vec![gilrs::Button::South, gilrs::Button::North]);
+        assert_eq!(frames[5].0.left, Vec2::new(0.5, -1.0));
+        assert!(PadScript::parse("x tap=A").is_err());
+        assert!(PadScript::parse("1 tap=Q").is_err());
     }
 }

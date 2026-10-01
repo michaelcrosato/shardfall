@@ -186,7 +186,11 @@ B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start me
 Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
 G use (vendor, stash, portal, gambler, alchemist, the way down, cursed chests), I/Tab
 inventory, P passive tree, C character, K skills, M map, T town portal; gamepad
-X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use, D-pad left map.
+X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use, D-pad left map, D-pad down
+panels (LB/RB switch); in any window or the menu the stick drives a cursor (A click, X
+right-click, hold Y shift, right stick scroll, B close). Controller flows can be scripted and
+screenshotted: `pavilion --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y]
+[hold=A,Y] [tap=DPadDown]`, see `PadScript` in input.rs).
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
 F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·

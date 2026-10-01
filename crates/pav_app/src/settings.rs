@@ -17,6 +17,9 @@ pub struct Settings {
     pub seed: u64,
     /// Live agent bridge address ("" = off). Command line: --bridge [ADDR].
     pub bridge: String,
+    /// A scripted gamepad to play (command line only: --pad-script FILE).
+    #[serde(skip)]
+    pub pad_script: String,
 }
 
 impl Default for Settings {
@@ -30,6 +33,7 @@ impl Default for Settings {
             scene: String::new(),
             seed: 1,
             bridge: String::new(),
+            pad_script: String::new(),
         }
     }
 }
@@ -97,6 +101,7 @@ impl Settings {
                 "--scene" => s.scene = it.next().cloned().unwrap_or(s.scene),
                 "--room" => s.scene = it.next().map(|r| format!("world/{r}")).unwrap_or(s.scene),
                 "--seed" => s.seed = it.next().and_then(|v| v.parse().ok()).unwrap_or(s.seed),
+                "--pad-script" => s.pad_script = it.next().cloned().unwrap_or_default(),
                 "--no-vsync" => s.vsync = false,
                 "--vsync" => s.vsync = true,
                 "--fullscreen" => s.fullscreen = true,

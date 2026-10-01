@@ -14,6 +14,8 @@ pub struct TreeUi {
     /// Canvas centre in tree units and pixels per tree unit.
     pan: Vec2,
     zoom: f32,
+    /// On a gamepad: hints name its buttons.
+    pub pad: bool,
     search: String,
     /// Mastery node whose options are shown.
     mastery: Option<u32>,
@@ -21,7 +23,7 @@ pub struct TreeUi {
 
 impl Default for TreeUi {
     fn default() -> Self {
-        Self { open: false, pan: Vec2::ZERO, zoom: 21.0, search: String::new(), mastery: None }
+        Self { open: false, pan: Vec2::ZERO, zoom: 21.0, search: String::new(), mastery: None, pad: false }
     }
 }
 
@@ -77,7 +79,7 @@ impl TreeUi {
                         self.zoom = 21.0;
                     }
                     ui.label(
-                        RichText::new("click: take · shift-click: take the path · right-click: refund · drag: pan · wheel: zoom · P to close")
+                        RichText::new(crate::arpg_items::hint(self.pad, "click: take · shift-click: take the path · right-click: refund · drag: pan · wheel: zoom · P to close"))
                             .small()
                             .color(Color32::from_white_alpha(120)),
                     );

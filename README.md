@@ -32,7 +32,11 @@ still there: Esc menu → Load scene → `world` (or `pavilion.exe --scene world
 | Esc | menu (difficulty sliders for play-testing, new hero) |
 
 Items drop as you fight (walk over magic+ items or click their names); hover an item to compare
-it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use.
+it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use,
+D-pad left map, D-pad down the hero's panels (LB / RB switch between inventory, character,
+skills and passive tree). With a window open, the stick moves a cursor: A clicks, X
+right-clicks, hold Y for shift (take a whole path in the tree), the right stick scrolls and
+zooms, B closes. Start opens the menu, which works the same way.
 
 ## Playing
 Windows: run `pavilion.exe`. It writes `pavilion.toml` next to itself on first start (Vulkan by

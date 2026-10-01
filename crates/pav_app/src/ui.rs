@@ -164,6 +164,7 @@ pub fn pause_menu(
                     action = Some(MenuAction::Quit);
                 }
             });
+            let difficulty_shown = difficulty.is_some();
             if let Some(d) = difficulty {
                 ui.separator();
                 crate::arpg_ui::difficulty_ui(ui, d);
@@ -187,7 +188,7 @@ pub fn pause_menu(
             ui.separator();
             ui.label(RichText::new("Controls").strong());
             egui::Grid::new("menu_guide").show(ui, |ui| {
-                for (a, k) in guide(device) {
+                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { guide(device) } {
                     ui.label(*a);
                     ui.label(RichText::new(*k).monospace());
                     ui.end_row();

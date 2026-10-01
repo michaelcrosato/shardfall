@@ -26,6 +26,33 @@ pub struct GameUi {
     pub tree: crate::arpg_tree::TreeUi,
     /// The big level map (M).
     pub map: bool,
+    /// The player is on a gamepad: hints name its buttons.
+    pub pad: bool,
+}
+
+/// A mouse hint in gamepad words when the player is on a pad (A click, X right-click, hold Y for
+/// shift, B close, stick and right stick for drag and wheel).
+pub fn hint(pad: bool, s: &str) -> String {
+    if !pad {
+        return s.to_string();
+    }
+    let mut t = s.to_string();
+    for (a, b) in [
+        ("Shift-click", "Y+A"),
+        ("shift-click", "Y+A"),
+        ("Right-click", "X"),
+        ("right-click", "X"),
+        ("Click", "A"),
+        ("(click)", "(A)"),
+        ("click", "A"),
+        ("drag: pan", "hold A + stick: pan"),
+        ("wheel: zoom", "right stick: zoom"),
+        ("I to close", "B to close · LB/RB: panels"),
+        ("P to close", "B to close · LB/RB: panels"),
+    ] {
+        t = t.replace(a, b);
+    }
+    t
 }
 
 pub fn rarity_color(r: Rarity) -> Color32 {
@@ -419,14 +446,16 @@ impl GameUi {
                         }
                         resp.on_hover_ui(|ui| {
                             item_tooltip(ui, d, it, Some(slot.name()));
-                            ui.label(RichText::new("Click: take off").small().color(Color32::from_white_alpha(120)));
+                            ui.label(
+                                RichText::new(hint(self.pad, "Click: take off")).small().color(Color32::from_white_alpha(120)),
+                            );
                         });
                     }
                 }
                 ui.label(RichText::new(format!("{} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
                 ui.separator();
                 // The bag: 8 x 5.
-                let hint = if vendor {
+                let hint_text = if vendor {
                     "Click: sell · Right-click: more"
                 } else if stash {
                     "Click: stash · Right-click: more"
@@ -506,7 +535,7 @@ impl GameUi {
                     });
                 });
                 ui.label(
-                    RichText::new(format!("{}   ·   green frame: an upgrade   ·   I to close", hint))
+                    RichText::new(hint(self.pad, &format!("{}   ·   green frame: an upgrade   ·   I to close", hint_text)))
                         .small()
                         .color(Color32::from_white_alpha(120)),
                 );
@@ -548,7 +577,8 @@ impl GameUi {
                                 item_tooltip(ui, d, it, None);
                                 compare(ui, d, it, worn_for(inv, d, it));
                                 ui.label(
-                                    RichText::new(format!("Buy for {price} gold (click)")).color(Color32::from_rgb(255, 205, 70)),
+                                    RichText::new(hint(self.pad, &format!("Buy for {price} gold (click)")))
+                                        .color(Color32::from_rgb(255, 205, 70)),
                                 );
                             });
                         });
@@ -619,7 +649,7 @@ impl GameUi {
                         }
                     });
                 });
-                ui.label(RichText::new("Click: take into the bag").small().color(Color32::from_white_alpha(120)));
+                ui.label(RichText::new(hint(self.pad, "Click: take into the bag")).small().color(Color32::from_white_alpha(120)));
             });
         if !open {
             self.panel = None;
