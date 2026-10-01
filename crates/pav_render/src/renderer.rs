@@ -967,8 +967,8 @@ impl Renderer {
                 pass.set_pipeline(&self.mesh_shadow_pipeline);
                 pass.set_vertex_buffer(1, self.mesh_instances.buf.slice(..));
                 for b in &batches {
-                    if b.4 > b.3 {
-                        let mesh = &self.meshes[&b.0];
+                    let mesh = &self.meshes[&b.0];
+                    if b.4 > b.3 && mesh.index_count > 0 {
                         pass.set_vertex_buffer(0, mesh.vbuf.slice(..));
                         pass.set_index_buffer(mesh.ibuf.slice(..), wgpu::IndexFormat::Uint32);
                         pass.draw_indexed(0..mesh.index_count, 0, b.3..b.4);
@@ -1034,6 +1034,9 @@ impl Renderer {
             pass.set_vertex_buffer(1, self.mesh_instances.buf.slice(..));
             for b in &batches {
                 let mesh = &self.meshes[&b.0];
+                if mesh.index_count == 0 {
+                    continue;
+                }
                 pass.set_vertex_buffer(0, mesh.vbuf.slice(..));
                 pass.set_index_buffer(mesh.ibuf.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..mesh.index_count, 0, b.1..b.2);

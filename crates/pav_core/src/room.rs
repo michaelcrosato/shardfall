@@ -71,6 +71,9 @@ pub struct ObjectDef {
     pub friction: f32,
     #[serde(default)]
     pub restitution: f32,
+    /// Air drag (linear and angular damping, 0 = none).
+    #[serde(default)]
+    pub damping: f32,
     /// A deformable body instead of a rigid one (jelly, ball, cloth, rope).
     #[serde(default)]
     pub soft: Option<SoftDef>,
@@ -102,6 +105,9 @@ pub struct JointDef {
     pub b: String,
     /// Anchor point in layout space (x = column, y = height, z = row).
     pub at: Vec3,
+    /// Anchor on `b` (or the world) when it differs from `at`: a spring that starts stretched.
+    #[serde(default)]
+    pub at_b: Option<Vec3>,
     pub joint: JointKind,
 }
 
@@ -132,6 +138,8 @@ pub struct ChainDef {
     pub sag: f32,
     pub color: String,
     pub density: f32,
+    /// Air drag on the links (calms bouncing bridges).
+    pub damping: f32,
     /// Ends fixed to the world (default: the start always, the end for bridges) ...
     pub fix_from: bool,
     pub fix_to: Option<bool>,
@@ -153,6 +161,7 @@ impl Default for ChainDef {
             color: "#8a8f99".into(),
             // Wood/steel-ish: light links make joints unstable under a character's weight.
             density: 400.0,
+            damping: 0.3,
             fix_from: true,
             fix_to: None,
             attach_from: String::new(),
@@ -220,8 +229,58 @@ pub struct RoomDef {
     pub joints: Vec<JointDef>,
     #[serde(default, rename = "chain")]
     pub chains: Vec<ChainDef>,
+    #[serde(default, rename = "npc")]
+    pub npcs: Vec<NpcDef>,
     #[serde(default, rename = "object")]
     pub objects: Vec<ObjectDef>,
+}
+
+/// A non-player character or creature (layout space).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NpcDef {
+    #[serde(default)]
+    pub name: String,
+    /// Body plan preset: biped | spider | lizard | beetle | blob.
+    #[serde(default)]
+    pub kind: crate::puppet::BodyPlan,
+    /// Feet position (layout space).
+    pub pos: Vec3,
+    /// Facing (degrees about Y, 0 = +Z / south).
+    #[serde(default)]
+    pub yaw: f32,
+    #[serde(default)]
+    pub ai: crate::ai::AiDef,
+    /// Fraction of full speed (0..1).
+    #[serde(default = "half_speed")]
+    pub speed: f32,
+    /// Seconds between hops (0 = never).
+    #[serde(default)]
+    pub hop: f32,
+    /// Puppet settings over the preset (any puppet field: colours, proportions, look...).
+    #[serde(default)]
+    pub look: toml::Table,
+}
+
+fn half_speed() -> f32 {
+    0.5
+}
+
+impl NpcDef {
+    /// The preset for `kind` with `look` applied.
+    pub fn puppet(&self) -> Result<crate::puppet::PuppetDef, String> {
+        let preset = crate::puppet::PuppetDef::preset(self.kind);
+        if self.look.is_empty() {
+            return Ok(preset);
+        }
+        let mut table = toml::Table::try_from(&preset).map_err(|e| e.to_string())?;
+        for (k, v) in &self.look {
+            if !table.contains_key(k) {
+                return Err(format!("npc '{}': unknown look setting '{k}'", self.name));
+            }
+            table.insert(k.clone(), v.clone());
+        }
+        toml::Value::Table(table).try_into().map_err(|e: toml::de::Error| format!("npc '{}': {e}", self.name))
+    }
 }
 
 impl RoomDef {
@@ -233,6 +292,9 @@ impl RoomDef {
 
     /// Checks things the parser cannot (unknown legend characters, entrance on the map...).
     pub fn validate(&self) -> Result<(), String> {
+        for n in &self.npcs {
+            n.puppet()?;
+        }
         let (w, h) = self.layout.extent();
         if w == 0 || h == 0 {
             return Err("layout has no map rows".into());

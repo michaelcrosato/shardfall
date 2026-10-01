@@ -525,8 +525,8 @@ impl App {
             if self.app_settings.smoothing { ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0) } else { 1.0 };
         let focus = prev.focus.lerp(curr.focus, alpha);
         let player = curr.player.and_then(|id| curr.objects.iter().find(|o| o.id == id));
-        let feet = player.and_then(|p| p.puppet.map(|pp| p.pos - Vec3::Y * pp.feet_offset)).unwrap_or(focus);
-        let facing = player.and_then(|p| p.puppet.map(|pp| pp.state.facing)).unwrap_or(0.0);
+        let feet = player.and_then(|p| p.puppet.as_ref().map(|pp| p.pos - Vec3::Y * pp.feet_offset)).unwrap_or(focus);
+        let facing = player.and_then(|p| p.puppet.as_ref().map(|pp| pp.state.facing)).unwrap_or(0.0);
 
         // Game input -> the simulation thread.
         let (w, h) = self.gfx.as_ref().unwrap().size();

@@ -22,7 +22,11 @@ crates/
               terrain.rs (procedural wilderness), tile levels (level.rs), characters
               (character.rs: movement models instant/momentum/grid/committed, jump,
               crouch/crawl, ladders, ledge grab/mantle, swimming, axis lock, moving platforms,
-              knockback, bombs), puppet (puppet.rs: skeleton + procedural animation),
+              knockback, pushing shares momentum, bombs), puppet (puppet.rs: body plans
+              biped/spider/lizard/beetle/blob, procedural animation, hit recoil, foot IK,
+              cutout look and camera cheats), rig.rs (creature feet that plant and step,
+              follow-the-leader spines, verlet tails/antennae), ai.rs (NPC brains: idle,
+              wander, patrol, circle, follow; they drive characters through InputFrames),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
               spawners), projectile.rs (lightweight bullets), feel.rs (feel metrics),

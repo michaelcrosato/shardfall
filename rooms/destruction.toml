@@ -1,0 +1,235 @@
+# Destructible Floors: tiles that crumble, shatter and blow apart.
+#   NORTH WEST  CRUMBLE RUN: sprint over 10 crumbling tiles (a timed course, start to finish)
+#   WEST        SLOW vs FAST crumble lanes side by side (1.5 s vs 0.3 s)
+#   NORTH EAST  GLASS FLOOR: walk on it, then DROP WEIGHTS through it; it repairs itself
+#   SOUTH EAST  BOMB WALL: blow a hole through the bricks into the vault
+#   SOUTH WEST  CRUMBLING STAIRS up to a summit platform
+# Pits with a kill zone send you back to the last checkpoint; the glass pit has none (climb the
+# stairs in its west edge to get out). Glass strength = contact force (N) that breaks a tile: a
+# walking, jumping character never loads it, heavy props crashing onto it do (see the legend).
+name = "Destructible Floors"
+about = "Floors that give way: crumbling tiles on a timed run and in slow and fast lanes, a glass floor that shatters under dropped weights and then repairs itself, a brick wall you bomb open, and a staircase that falls apart behind you."
+try = [
+  "Sprint across the CRUMBLE RUN from START to FINISH without stopping; stand still and drop into the pit",
+  "Cross the SLOW lane at walking pace (hold Shift) and the FAST lane at a sprint; stop on FAST and fall",
+  "Walk and jump on the GLASS FLOOR: it holds you",
+  "Step on DROP WEIGHTS and watch four heavy blocks smash through the glass; it grows back after 8 seconds",
+  "Climb out of the glass pit by the stairs in its west corner, or step on CLEAR to remove the weights",
+  "Throw bombs (F or left click, aim at the wall's foot) at the BOMB WALL until you can walk into the vault",
+  "Step on YOU GOT IN for a shower of gold, then press F5 to rebuild the wall",
+  "Run up the CRUMBLING STAIRS: the steps fall away behind you and regrow later",
+]
+wing = "physics"
+order = 6
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 26.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#..dddddddddddd.......ddddddddddd......#
+#..d__________d.......d4ggggggggd......#
+#.SScccc______FF......d3ggggggggd......#
+#.SSccccccccccFF......d2ggggggggd......#
+#.SS__________FF......d1ggggggggd......#
+#..d__________d.......dqggggggggd......#
+#..dddddddddddd.......dqggggggggd......#
+#.....................ddddddddddd......#
+#......................................#
+#..dddddddd............................#
+#kkk______kkk.............DDD.CC.......#
+#kkkwwwwwwkkk.............DDD.CC.......#
+#kkk______kkk..........................#
+#kkkffffffkkk..........................#
+#kkk______kkk..........................#
+#..dddddddd............................#
+#......................................#
+#...........................############
+#...........................BBBaaaaaaaa#
+#...........................BBBaaaPPPaa#
+#.......TTTT................BBBaaaPPPaa#
+#....uvyTTTT................BBBaaaPPPaa#
+#....uvyTTTT................BBBaaaaaaaa#
+#.......TTTT................############
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+###################.####################
+'''
+
+# ---- plain floor, walls and rims --------------------------------------------------------------
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+# Floor next to a pit: a solid column down to the pit floor, so the pit has real walls.
+[layout.legend.'d']
+blocks = [{ y0 = -3.5, y1 = 0, color = "#d9d6cc" }]
+
+# ---- pits with a kill zone (falling in = back to the last checkpoint) --------------------------
+[layout.legend.'_']
+blocks = [{ y0 = -3.5, y1 = -3, color = "#5d6b5a" }]
+zone = { kind = "kill", y0 = -2.9, y1 = -1 }
+
+# Crumble run tile: falls 0.6 s after you step on it, grows back after 4 s.
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c9a27a", crumble = 0.6, regrow = 4 }, { y0 = -3.5, y1 = -3, color = "#5d6b5a" }]
+zone = { kind = "kill", y0 = -2.9, y1 = -1 }
+
+# SLOW lane tile (1.5 s) and FAST lane tile (0.3 s).
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7fb77e", crumble = 1.5, regrow = 4 }, { y0 = -3.5, y1 = -3, color = "#5d6b5a" }]
+zone = { kind = "kill", y0 = -2.9, y1 = -1 }
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e8704a", crumble = 0.3, regrow = 4 }, { y0 = -3.5, y1 = -3, color = "#5d6b5a" }]
+zone = { kind = "kill", y0 = -2.9, y1 = -1 }
+
+# START / FINISH of the crumble run, and the checkpoint platforms of the two lanes.
+[layout.legend.'S']
+blocks = [{ y0 = -3.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "start", course = "crumble", facing = "east", label = "START", label_size = 0.45 }
+
+[layout.legend.'F']
+blocks = [{ y0 = -3.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "finish", course = "crumble", label = "FINISH", label_size = 0.4 }
+
+[layout.legend.'k']
+blocks = [{ y0 = -3.5, y1 = 0, color = "#cfd8c4" }]
+zone = { kind = "checkpoint", facing = "east", label = "CHECKPOINT", label_size = 0.34 }
+
+# ---- glass floor over a shallow pit (no kill zone) ---------------------------------------------
+# strength = contact force (N) that breaks a tile. A character is not a physics body and never
+# loads a tile, so no value breaks under the player. Props do: a resting prop breaks a tile when
+# its mass x 9.81 exceeds the strength (40 = any 5 kg crate, 4000 = only 400 kg and more).
+# Measured with the 205 kg weights from about 5 m: they break glass up to strength ~100000 and
+# bounce off at 300000. 4000 punches clean holes every time (about 12-20 tiles per drop of four,
+# the sides of falling boxes break neighbours); 20000 breaks ~8 but some weights then stay on top.
+[layout.legend.'g']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#a8d8ea", strength = 4000, regrow = 8 }, { y0 = -3, y1 = -2.5, color = "#7d8793" }]
+
+# Pit floor without glass, and the stairs out of the pit (steps of 0.5 m, tops at -2, -1.5, -1, -0.5).
+[layout.legend.'q']
+blocks = [{ y0 = -3, y1 = -2.5, color = "#7d8793" }]
+[layout.legend.'1']
+blocks = [{ y0 = -3, y1 = -2.0, color = "#c99f74" }]
+[layout.legend.'2']
+blocks = [{ y0 = -3, y1 = -1.5, color = "#c99f74" }]
+[layout.legend.'3']
+blocks = [{ y0 = -3, y1 = -1.0, color = "#c99f74" }]
+[layout.legend.'4']
+blocks = [{ y0 = -3, y1 = -0.5, color = "#c99f74" }]
+
+# Pads: DROP WEIGHTS fires the "weights" spawner above the glass, CLEAR removes the weights.
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "DROP WEIGHTS", color = "#3bb273", signal = "weights" }
+
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_weights" }
+
+# ---- bomb wall and vault ------------------------------------------------------------------------
+# Three stacked 1 m bricks per cell, each one a destructible block: a bomb (radius 1.35 m) takes
+# out everything it touches, so it takes about three bombs to dig a doorway through the 3 m thick wall.
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 1, color = "#b5654a", destructible = true }, { y0 = 1, y1 = 2, color = "#c27a5a", destructible = true }, { y0 = 2, y1 = 3, color = "#a95a40", destructible = true }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ecdca8" }]
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ecdca8" }]
+zone = { kind = "pad", label = "YOU GOT IN", color = "#d9a21b", signal = "coins" }
+
+# ---- crumbling stairs (0.5 / 1.0 / 1.5 m steps, 1 s, regrow 5 s) and the summit ----------------
+[layout.legend.'u']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.5, color = "#c99f74", crumble = 1.0, regrow = 5 }]
+[layout.legend.'v']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 1.0, color = "#c99f74", crumble = 1.0, regrow = 5 }]
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 1.5, color = "#c99f74", crumble = 1.0, regrow = 5 }]
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 2.0, color = "#b59a7b" }]
+
+# ---- exhibit names (floor text, layout space) ----------------------------------------------------
+[[label]]
+text = "CRUMBLE RUN  0.6 s"
+pos = [8.5, 0.03, 7.5]
+size = 0.5
+
+[[label]]
+text = "SLOW 1.5 s"
+pos = [6.5, 0.03, 10.5]
+size = 0.45
+
+[[label]]
+text = "FAST 0.3 s"
+pos = [6.5, 0.03, 16.5]
+size = 0.45
+
+[[label]]
+text = "GLASS FLOOR"
+pos = [28.0, 0.03, 8.5]
+size = 0.55
+
+[[label]]
+text = "BOMB WALL"
+pos = [24.5, 0.03, 20.5]
+size = 0.55
+
+[[label]]
+text = "F / CLICK = BOMB"
+pos = [24.5, 0.03, 22.0]
+size = 0.35
+
+[[label]]
+text = "CRUMBLING STAIRS"
+pos = [8.0, 0.03, 26.0]
+size = 0.5
+
+[[label]]
+text = "SUMMIT"
+pos = [9.5, 2.03, 22.5]
+size = 0.5
+
+[[label]]
+text = "DESTRUCTIBLE FLOORS"
+pos = [19.5, 0.03, 26.8]
+size = 0.55
+
+[[label]]
+text = "STAIRS OUT"
+pos = [21.0, 0.03, 3.0]
+size = 0.3
+
+# ---- objects (keep at the end of the file) ----------------------------------------------------------
+
+# Four heavy boxes (density 400, 0.8 m cube = 205 kg) fall from about 6 m onto the glass.
+[[object]]
+name = "weights"
+pos = [28.0, 6.0, 5.0]
+body = "none"
+shape = { type = "sphere", radius = 0.1 }
+behavior = { type = "spawner", shape = { type = "box", half = [0.4, 0.4, 0.4] }, color = "#4a505c", count = 4, max = 12, area = [2.0, 2.0, 1.5], signal = "weights", clear = "clear_weights", density = 400, friction = 0.8, restitution = 0.0, tumble = true }
+
+# Gold for getting into the vault.
+[[object]]
+name = "coins"
+pos = [35.0, 3.0, 21.5]
+body = "none"
+shape = { type = "sphere", radius = 0.1 }
+behavior = { type = "spawner", shape = { type = "box", half = [0.14, 0.14, 0.14] }, color = "#f2c14e", count = 30, max = 60, area = [3.0, 0.5, 1.5], signal = "coins", density = 5, restitution = 0.2, tumble = true }

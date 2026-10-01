@@ -1,0 +1,503 @@
+# Bounce & Friction Gallery: what the material numbers (restitution, friction, density) do.
+# They are plain fields on [[object]] and spawner behaviours; the room only sets them.
+#   NORTH-WEST  BOUNCE GALLERY: five balls (restitution 0 .. 0.95) fall from the same height onto
+#               lane strips with the same restitution (rapier averages the pair of surfaces and
+#               the stone floor is 0). DROP BALLS clears them and drops a fresh set.
+#   NORTH-EAST  FRICTION RAMPS: four 22 degree ramps (friction 0) with boxes of friction
+#               0 / 0.2 / 0.5 / 1.0 (averaged with the ramp: only the 1.0 box sticks).
+#               RESET BOXES sends fresh boxes to the tops.
+#   MIDDLE      BOUNCE PADS (launch 10 / 15 / 22 m/s = 1.7 / 3.7 / 7.7 m for the player), a SEESAW
+#               on a world hinge with a heavy and a light box.
+#   SOUTH       ICE vs RUBBER lanes (strip + box friction) and balls of density 10 / 100 / 1000.
+# The balls and the sliding boxes are spawners (count 1, signal + clear on their pad) carrying
+# pending = 1, so each one exists from the first tick without a separate start object. Fixed
+# strips are 5 cm proud of the floor so props touch the strip (its own friction / restitution)
+# and never the floor block beneath. Pushing shares momentum, so heavy props slow you down.
+name = "Bounce & Friction Gallery"
+about = "Drop five balls of rising bounciness, race four boxes down ramps of rising friction, launch yourself from three bounce pads, tip a seesaw, and shove ice, rubber and balls of density 10, 100 and 1000 to feel what the material numbers mean."
+try = [
+  "Step on DROP BALLS: five balls (restitution 0 to 0.95) fall from the same height, the 0.95 one bounces for about 25 s",
+  "Watch the four ramp boxes: friction 0 slides all the way, 1.0 never moves; step on RESET BOXES to run it again",
+  "Hop on the LOW, MID and HIGH bounce pads (about 1.7, 3.7 and 7.7 m up)",
+  "Jump onto the seesaw's low end and walk across it: it tips and the boxes slide off (F5 resets)",
+  "Push the ice box and the rubber box along their lanes: ice keeps coasting, rubber stops dead",
+  "Shove the balls of density 10, 100 and 1000 up their lanes: the heaviest is slow to get moving",
+  "Throw bombs (F or left click) at the ramp boxes and the lanes",
+  "Reset the room with F5",
+]
+wing = "physics"
+order = 5
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [18, 29], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 34.0
+
+[layout]
+origin = [-19.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+######################################
+#....................................#
+#....................................#
+#.................................RRR#
+#.................................RRR#
+#.................................RRR#
+#....................................#
+#....................................#
+#.......DDD..........................#
+#.......DDD..........................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#..111..222..333.....................#
+#..111..222..333.....................#
+#..111..222..333.....................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#..ffff.ffff..........ffffffffff.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+#..f..f.f..f..........f..f..f..f.....#
+##################..##################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+# Low fences: ramp run-out and the push lanes.
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.8, color = "#8f9fae" }]
+
+# Pads.
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "DROP BALLS", color = "#2a8a57", signal = "drop" }
+
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "RESET BOXES", color = "#c9573a", label_size = 0.4, signal = "ramps" }
+
+# Bounce pads: launch speed in m/s (the character falls at about 29 m/s^2, so heights are ~v^2/58).
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 10, label = "LOW", color = "#7ec8e3" }
+
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 15, label = "MID", color = "#f2c14e" }
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 22, label = "HIGH", color = "#c93c3c" }
+
+# ---- labels ----
+
+[[label]]
+text = "BOUNCE GALLERY"
+pos = [9.5, 0.03, 1.9]
+size = 0.6
+
+[[label]]
+text = "RESTITUTION"
+pos = [9.5, 0.03, 7.4]
+size = 0.4
+
+[[label]]
+text = "0"
+pos = [3.5, 0.03, 6.6]
+size = 0.5
+
+[[label]]
+text = "0.25"
+pos = [6.5, 0.03, 6.6]
+size = 0.5
+
+[[label]]
+text = "0.5"
+pos = [9.5, 0.03, 6.6]
+size = 0.5
+
+[[label]]
+text = "0.75"
+pos = [12.5, 0.03, 6.6]
+size = 0.5
+
+[[label]]
+text = "0.95"
+pos = [15.5, 0.03, 6.6]
+size = 0.5
+
+[[label]]
+text = "0"
+pos = [21.5, 0.03, 8.6]
+size = 0.5
+
+[[label]]
+text = "0.2"
+pos = [25.0, 0.03, 8.6]
+size = 0.5
+
+[[label]]
+text = "0.5"
+pos = [28.5, 0.03, 8.6]
+size = 0.5
+
+[[label]]
+text = "1.0"
+pos = [32.0, 0.03, 8.6]
+size = 0.5
+
+[[label]]
+text = "BOX FRICTION (RAMP 0)"
+pos = [27.0, 0.03, 9.5]
+size = 0.4
+
+[[label]]
+text = "FRICTION RAMPS"
+pos = [27.0, 0.03, 10.5]
+size = 0.6
+
+[[label]]
+text = "BOUNCE PADS"
+pos = [9.5, 0.03, 12.7]
+size = 0.6
+
+[[label]]
+text = "10 m/s = 1.7 m"
+pos = [4.5, 0.03, 17.6]
+size = 0.4
+
+[[label]]
+text = "15 m/s = 3.7 m"
+pos = [9.5, 0.03, 17.6]
+size = 0.4
+
+[[label]]
+text = "22 m/s = 7.7 m"
+pos = [14.5, 0.03, 17.6]
+size = 0.4
+
+[[label]]
+text = "SEESAW"
+pos = [27.0, 0.03, 17.9]
+size = 0.5
+
+[[label]]
+text = "JUMP ON, WALK ACROSS"
+pos = [27.0, 0.03, 18.7]
+size = 0.35
+
+[[label]]
+text = "DENSITY 10 / 100 / 1000"
+pos = [27.0, 0.03, 19.8]
+size = 0.4
+
+[[label]]
+text = "ICE vs RUBBER"
+pos = [7.5, 0.03, 19.8]
+size = 0.45
+
+[[label]]
+text = "ICE"
+pos = [5.0, 0.07, 23.4]
+size = 0.6
+
+[[label]]
+text = "RUBBER"
+pos = [10.0, 0.07, 23.4]
+size = 0.4
+color = "#f2f2f2"
+
+[[label]]
+text = "10"
+pos = [24.0, 0.03, 23.4]
+size = 0.6
+
+[[label]]
+text = "100"
+pos = [27.0, 0.03, 23.4]
+size = 0.6
+
+[[label]]
+text = "1000"
+pos = [30.0, 0.03, 23.4]
+size = 0.6
+
+# ---- objects (keep at the end of the file) ----
+
+# Bounce lanes: strips whose restitution equals the ball dropped on them (rapier averages the pair).
+[[object]]
+name = "lane_0"
+shape = { type = "box", half = [1.2, 0.05, 1.0] }
+pos = [3.500, 0.000, 5.000]
+color = "#8fa3b8"
+body = "fixed"
+friction = 0.5
+restitution = 0.0
+
+[[object]]
+name = "lane_1"
+shape = { type = "box", half = [1.2, 0.05, 1.0] }
+pos = [6.500, 0.000, 5.000]
+color = "#6fb1d8"
+body = "fixed"
+friction = 0.5
+restitution = 0.25
+
+[[object]]
+name = "lane_2"
+shape = { type = "box", half = [1.2, 0.05, 1.0] }
+pos = [9.500, 0.000, 5.000]
+color = "#4fc3a1"
+body = "fixed"
+friction = 0.5
+restitution = 0.5
+
+[[object]]
+name = "lane_3"
+shape = { type = "box", half = [1.2, 0.05, 1.0] }
+pos = [12.500, 0.000, 5.000]
+color = "#f2c14e"
+body = "fixed"
+friction = 0.5
+restitution = 0.75
+
+[[object]]
+name = "lane_4"
+shape = { type = "box", half = [1.2, 0.05, 1.0] }
+pos = [15.500, 0.000, 5.000]
+color = "#ef6f6c"
+body = "fixed"
+friction = 0.5
+restitution = 0.95
+
+# One spawner per ball: pending = 1 drops each ball at room start; DROP BALLS (signal "drop") clears the old one and drops a fresh one.
+[[object]]
+name = "ball_spawner_0"
+shape = { type = "sphere", radius = 0.02 }
+pos = [3.5, 4.0, 5.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "#8fa3b8", count = 1, max = 1, area = [0, 0, 0], signal = "drop", clear = "drop", density = 50, friction = 0.5, restitution = 0.0, tumble = false, pending = 1 }
+
+[[object]]
+name = "ball_spawner_1"
+shape = { type = "sphere", radius = 0.02 }
+pos = [6.5, 4.0, 5.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "#6fb1d8", count = 1, max = 1, area = [0, 0, 0], signal = "drop", clear = "drop", density = 50, friction = 0.5, restitution = 0.25, tumble = false, pending = 1 }
+
+[[object]]
+name = "ball_spawner_2"
+shape = { type = "sphere", radius = 0.02 }
+pos = [9.5, 4.0, 5.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "#4fc3a1", count = 1, max = 1, area = [0, 0, 0], signal = "drop", clear = "drop", density = 50, friction = 0.5, restitution = 0.5, tumble = false, pending = 1 }
+
+[[object]]
+name = "ball_spawner_3"
+shape = { type = "sphere", radius = 0.02 }
+pos = [12.5, 4.0, 5.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "#f2c14e", count = 1, max = 1, area = [0, 0, 0], signal = "drop", clear = "drop", density = 50, friction = 0.5, restitution = 0.75, tumble = false, pending = 1 }
+
+[[object]]
+name = "ball_spawner_4"
+shape = { type = "sphere", radius = 0.02 }
+pos = [15.5, 4.0, 5.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "#ef6f6c", count = 1, max = 1, area = [0, 0, 0], signal = "drop", clear = "drop", density = 50, friction = 0.5, restitution = 0.95, tumble = false, pending = 1 }
+
+# Ramps: 4 m slabs, pitch 22 degrees, friction 0 (sunk so their low end is flush with the floor). The box friction is averaged with it.
+[[object]]
+name = "ramp_0"
+shape = { type = "box", half = [0.9, 0.1, 2.0] }
+pos = [21.500, 0.656, 3.817]
+pitch = 22.0
+color = "#b9c3cf"
+body = "fixed"
+friction = 0.0
+
+[[object]]
+name = "slider_spawner_0"
+shape = { type = "sphere", radius = 0.02 }
+pos = [21.5, 1.594, 2.576]
+pitch = 22.0
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "#7ec8e3", count = 1, max = 1, area = [0, 0, 0], signal = "ramps", clear = "ramps", density = 100, friction = 0.0, restitution = 0.0, tumble = false, pending = 1 }
+
+[[object]]
+name = "ramp_1"
+shape = { type = "box", half = [0.9, 0.1, 2.0] }
+pos = [25.000, 0.656, 3.817]
+pitch = 22.0
+color = "#b9c3cf"
+body = "fixed"
+friction = 0.0
+
+[[object]]
+name = "slider_spawner_1"
+shape = { type = "sphere", radius = 0.02 }
+pos = [25.0, 1.594, 2.576]
+pitch = 22.0
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "#4fc3a1", count = 1, max = 1, area = [0, 0, 0], signal = "ramps", clear = "ramps", density = 100, friction = 0.2, restitution = 0.0, tumble = false, pending = 1 }
+
+[[object]]
+name = "ramp_2"
+shape = { type = "box", half = [0.9, 0.1, 2.0] }
+pos = [28.500, 0.656, 3.817]
+pitch = 22.0
+color = "#b9c3cf"
+body = "fixed"
+friction = 0.0
+
+[[object]]
+name = "slider_spawner_2"
+shape = { type = "sphere", radius = 0.02 }
+pos = [28.5, 1.594, 2.576]
+pitch = 22.0
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "#f2c14e", count = 1, max = 1, area = [0, 0, 0], signal = "ramps", clear = "ramps", density = 100, friction = 0.5, restitution = 0.0, tumble = false, pending = 1 }
+
+[[object]]
+name = "ramp_3"
+shape = { type = "box", half = [0.9, 0.1, 2.0] }
+pos = [32.000, 0.656, 3.817]
+pitch = 22.0
+color = "#b9c3cf"
+body = "fixed"
+friction = 0.0
+
+[[object]]
+name = "slider_spawner_3"
+shape = { type = "sphere", radius = 0.02 }
+pos = [32.0, 1.594, 2.576]
+pitch = 22.0
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "#ef6f6c", count = 1, max = 1, area = [0, 0, 0], signal = "ramps", clear = "ramps", density = 100, friction = 1.0, restitution = 0.0, tumble = false, pending = 1 }
+
+# Seesaw: a plank on a horizontal world hinge (axis along z), resting tilted with the heavy box (86 kg, near the pivot) down; the player (70 kg) crossing the pivot tips it.
+[[object]]
+name = "fulcrum"
+shape = { type = "box", half = [0.15, 0.25, 0.5] }
+pos = [27.000, 0.250, 16.500]
+color = "#8f9fae"
+body = "none"
+
+[[object]]
+name = "see_step"
+shape = { type = "box", half = [0.5, 0.1, 0.6] }
+pos = [24.250, 0.100, 16.500]
+color = "#b9c3cf"
+body = "fixed"
+friction = 0.8
+
+[[object]]
+name = "plank"
+shape = { type = "box", half = [2.2, 0.1, 0.6] }
+pos = [27.000, 0.650, 16.500]
+roll = 14.0
+color = "#c9a27a"
+density = 50
+friction = 0.8
+
+[[object]]
+name = "see_heavy"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [26.126, 0.849, 16.500]
+roll = 14.0
+color = "#4a4f57"
+density = 400
+friction = 0.8
+
+[[object]]
+name = "see_light"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [28.467, 1.382, 16.500]
+roll = 14.0
+color = "#f2c14e"
+density = 100
+friction = 0.8
+
+[[joint]]
+a = "plank"
+b = ""
+at = [27.0, 0.65, 16.5]
+joint = { type = "hinge", axis = [0, 0, 1], limits = [-14, 14] }
+
+# Ice and rubber lanes: strips with their own friction (the floor block is 0.8) and a box on each.
+[[object]]
+name = "ice_lane"
+shape = { type = "box", half = [1.0, 0.05, 3.5] }
+pos = [5.000, 0.000, 25.500]
+color = "#cfeaf5"
+body = "fixed"
+friction = 0.0
+
+[[object]]
+name = "rubber_lane"
+shape = { type = "box", half = [1.0, 0.05, 3.5] }
+pos = [10.000, 0.000, 25.500]
+color = "#3a3d44"
+body = "fixed"
+friction = 1.5
+
+[[object]]
+name = "ice_box"
+shape = { type = "box", half = [0.4, 0.25, 0.4] }
+pos = [5.000, 0.310, 27.300]
+color = "#7ec8e3"
+density = 60
+friction = 0.0
+
+[[object]]
+name = "rubber_box"
+shape = { type = "box", half = [0.4, 0.25, 0.4] }
+pos = [10.000, 0.310, 27.300]
+color = "#ef6f6c"
+density = 60
+friction = 1.5
+
+# Three balls of the same size, density 10 / 100 / 1000 (3 / 27 / 268 kg).
+[[object]]
+name = "ball_d10"
+shape = { type = "sphere", radius = 0.4 }
+pos = [24.000, 0.410, 27.300]
+color = "#f6d6a8"
+density = 10
+friction = 0.5
+restitution = 0.1
+
+[[object]]
+name = "ball_d100"
+shape = { type = "sphere", radius = 0.4 }
+pos = [27.000, 0.410, 27.300]
+color = "#e8a04a"
+density = 100
+friction = 0.5
+restitution = 0.1
+
+[[object]]
+name = "ball_d1000"
+shape = { type = "sphere", radius = 0.4 }
+pos = [30.000, 0.410, 27.300]
+color = "#5a4632"
+density = 1000
+friction = 0.5
+restitution = 0.1

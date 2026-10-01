@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goal).
+Current milestone: **M6 Procedural Animation Lab** (M1–M5 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -9,8 +9,9 @@ Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goa
 | M2 Core gameplay | ✅ complete (2026-09-30) |
 | M3 World & rooms | ✅ complete (2026-10-01) |
 | M4 Movement & Feel Lab | ✅ complete (2026-10-01) |
-| M5 Physics Lab | 🔨 in progress |
-| M6–M10 | ⏳ next |
+| M5 Physics Lab | ✅ complete (2026-10-01) |
+| M6 Procedural Animation Lab | 🔨 in progress |
+| M7–M10 | ⏳ next |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -198,29 +199,55 @@ Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goa
 - Dev builds use line-table debug info and no incremental cache (disk allowance in the cloud).
 - Map rows: only a truly empty first line is dropped (a leading row of spaces is a real row).
 
-## M5 Physics Lab — in progress
-Engine pieces done (uncommitted parts get committed as they land):
-- `softbody.rs`: rapier soft bodies as entities (`[[object]] soft = { shape = {type = cuboid |
-  sphere | cloth | rope ...}, stiffness, damping, mass, pin, tear, attach }`); drawn as per-frame
-  dynamic meshes (renderer `Scene.dynamic`, TWO_SIDED flag for cloth) or rope capsules; kept
-  through dormancy (particle positions saved).
-- `joints.rs`: joints owned by entities (fixed/ball/hinge/slider/rope/spring), world anchor body,
-  recreated when regions wake; room `[[joint]]` (a, b, at, joint) and `[[chain]]` generator
-  (chains of capsule links, rope bridges of hinged planks; density 400 default).
-- `destruct.rs`: crumbling tiles (`crumble`, `regrow`), breakable tiles (`strength`, contact force
-  events), conveyors and bounce pads acting on props; characters ride conveyors, bounce on pads
-  and press on dynamic floors with their weight (`movement.weight`).
-- Spawner behaviour + pad `signal`s; physics stats overlay (`overlays = ["physics"]`).
-- Objects: pitch/roll, density/friction/restitution.
-Verified headlessly in a scratch room (bridge walkable, chain + wrecking ball, cloth flag, rope,
-jelly cube, conveyor, bounce, crumble + regrow, glass breaks, spawner pad).
-Remaining: tests, template docs, the seven rooms (helpers), Windows build, merge, send.
+## M5 Physics Lab — done
+Seven rooms in the north corridor (wing `physics`), built by helper agents from data and reviewed:
+- **Stacking & Toppling** (`stacking`): 10-box tower, Jenga, pyramid, mixed shapes, curving
+  domino line, light vs heavy walls, crate shower pad.
+- **Springs & Soft Bodies** (`soft_bodies`): jelly cubes soft/medium/stiff, balloons, tearable
+  banner, walk-through curtain, ropes (one tied to a box), spring platforms on sliders, wobbly
+  posts on spring joints.
+- **Chains & Rope Bridges** (`chains`): 11 m and 16 m bridges over kill pits with checkpoints,
+  wrecking ball, hinge door, hanging chains, Newton's cradle, seesaw.
+- **Conveyors** (`conveyors`): crate loop, 1/3/6 m/s lanes, upstream course, sorting line into a
+  bin, opposing belts.
+- **Bounce & Friction Gallery** (`materials`): restitution drop lanes, friction ramps, bounce
+  pads, seesaw, ice vs rubber, density lanes.
+- **Destructible Floors** (`destruction`): crumble-run course, slow vs fast crumble, glass floor
+  smashed by dropped weights, bomb wall, crumbling stairs.
+- **Stress Test** (`stress`): spawn pads up to 600 bodies, bullet storm, physics stats overlay
+  (~600 ticks/s with 600 bodies).
+Engine: soft bodies, joints/chains/bridges, spawners + pad signals, conveyors, bounce pads,
+crumbling/breakable tiles, physics overlay, damping, hinge springs, mass-aware pushing, bombs push
+soft bodies, `signal` agent tool. Tests: tests/physics.rs (9) + every room builds.
 
-## Next: M5 Physics Lab (plan)
-Rooms (wing = "physics", north corridor): stacking & toppling, springs & soft bodies (rapier 0.36
-soft bodies: cuboid/sphere/cloth/rope), chains & rope bridges (joints in room data + chain/bridge
-generators), conveyors, bounce & friction gallery (spawners, tilted ramps), destructible floors
-(crumbling and impact-breakable tiles), stress test with a physics stats overlay and spawn pads
-(signals from pads to spawners). Renderer: per-frame dynamic meshes for soft bodies.
-Helper-agent tips: give each helper its own scratch subdirectory; keep briefs explicit about
-coordinates, tools and what to verify.
+## Decisions (M5)
+- Chains default to density 400 and damping 0.3; bridges fix both ends by default
+  (`fix_to = Option`), so light links can't fold under a character.
+- Characters press on dynamic floors with `movement.weight` (70 kg), and pushing shares momentum:
+  speed × push_mass / (push_mass + pushed mass), so heavy props are slow to shove.
+- Autostep includes dynamic bodies, so you can walk onto low planks and seesaws.
+- Joints to the world measure the object against the world (slider +limit = along +axis).
+  `at_b` gives a joint a second anchor (springs that start stretched).
+- Glass `strength` is a contact force in newtons; characters never break glass (they are
+  kinematic), dropped weights do.
+- Conveyors move props whose centre is in the zone; loops need belts that hand over one cell past
+  corners (see conveyors.toml).
+- Empty meshes are skipped in the renderer (a world capture used to panic on one).
+- Helper-agent tips: give each helper its own scratch subdirectory; keep briefs explicit about
+  coordinates, tools and what to verify; they work from the prebuilt `target/debug/pav`.
+
+## M6 Procedural Animation Lab — in progress
+Engine done (uncommitted parts get committed as they land):
+- Body plans (`puppet.body`): biped, spider, lizard, beetle, blob. Creatures are characters with a
+  low capsule (crawl height), full speed and jumping, so they reuse the whole controller.
+- `rig.rs`: creature feet plant and step (furthest-behind first, neighbours never lift
+  together), body height/tilt from the feet, lizard follow-the-leader spine with walking wiggle,
+  verlet tails / antennae / spider abdomen (`tail_length`, `antenna_length`, `wobble`).
+- Bipeds: foot IK on steps (ground probe under each foot, pelvis drops), hit recoil spring
+  (flinch away from hits and blasts, arms fling).
+- Looks: `cutout` (side view on a camera-facing card, mirrored by facing), `face_camera` lean.
+- NPCs: room `[[npc]]` (kind, pos, yaw, ai, speed, hop, look overrides over the kind's preset);
+  brains in `ai.rs`; NPCs sleep/wake with their room, respawn home if they fall out.
+- Tests: tests/animation.rs (5) on tests/anim_room.toml.
+Next: agent tool for NPCs, the six rooms (walk cycles, creatures, recoil, squash & stretch,
+secondary motion, Character Style Bench), Windows build, merge, send.

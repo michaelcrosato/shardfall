@@ -27,6 +27,11 @@ pub enum JointKind {
         motor_speed: f32,
         #[serde(default)]
         motor_force: f32,
+        /// Spring back to the start angle (self-closing doors); 0 = none.
+        #[serde(default)]
+        spring: f32,
+        #[serde(default)]
+        damping: f32,
     },
     /// Slider along `axis`, optional limits (m).
     Slider {
@@ -84,6 +89,11 @@ impl JointLink {
     /// A joint whose anchor (and axis) are given in world space, for two bodies at their
     /// current poses.
     pub fn at(kind: JointKind, anchor: Vec3, a: (Vec3, Quat), b: Option<(EntityId, Vec3, Quat)>) -> Self {
+        Self::between(kind, anchor, anchor, a, b)
+    }
+
+    /// Like `at`, with separate anchors on the two sides (a spring that starts stretched).
+    pub fn between(kind: JointKind, anchor: Vec3, anchor_b: Vec3, a: (Vec3, Quat), b: Option<(EntityId, Vec3, Quat)>) -> Self {
         let axis = match &kind {
             JointKind::Hinge { axis, .. } | JointKind::Slider { axis, .. } => axis.normalize_or(Vec3::X),
             _ => Vec3::X,
@@ -91,8 +101,8 @@ impl JointLink {
         let local_a = a.1.inverse() * (anchor - a.0);
         let axis_a = a.1.inverse() * axis;
         let (other, local_b, axis_b) = match b {
-            Some((id, p, q)) => (Some(id), q.inverse() * (anchor - p), q.inverse() * axis),
-            None => (None, anchor, axis),
+            Some((id, p, q)) => (Some(id), q.inverse() * (anchor_b - p), q.inverse() * axis),
+            None => (None, anchor_b, axis),
         };
         Self { other, local_a, local_b, axis_a, axis_b, kind }
     }
@@ -103,14 +113,16 @@ fn generic(link: &JointLink) -> GenericJoint {
     match &link.kind {
         JointKind::Fixed => FixedJointBuilder::new().local_anchor1(a).local_anchor2(b).build().into(),
         JointKind::Ball => SphericalJointBuilder::new().local_anchor1(a).local_anchor2(b).build().into(),
-        JointKind::Hinge { limits, motor_speed, motor_force, .. } => {
+        JointKind::Hinge { limits, motor_speed, motor_force, spring, damping, .. } => {
             let mut j = RevoluteJointBuilder::new(link.axis_a.normalize_or(Vec3::X))
                 .local_anchor1(a)
                 .local_anchor2(b);
             if let Some([lo, hi]) = limits {
                 j = j.limits([lo.to_radians(), hi.to_radians()]);
             }
-            if *motor_force > 0.0 {
+            if *spring > 0.0 {
+                j = j.motor_position(0.0, *spring, *damping);
+            } else if *motor_force > 0.0 {
                 j = j.motor_velocity(motor_speed.to_radians(), *motor_force);
             }
             let mut g: GenericJoint = j.build().into();
@@ -149,10 +161,22 @@ impl PhysicsState {
 
     /// Creates the rapier joint for a link between `body` and `other` (None = world).
     pub fn insert_joint(&mut self, body: RigidBodyHandle, other: Option<RigidBodyHandle>, link: &JointLink) -> ImpulseJointHandle {
-        let b2 = match other {
-            Some(b) => b,
-            None => self.world_anchor(),
-        };
-        self.impulse_joints.insert(body, b2, generic(link), true)
+        match other {
+            Some(b) => self.impulse_joints.insert(body, b, generic(link), true),
+            None => {
+                // World joints measure the body against the world, so limits and motors read
+                // naturally (a vertical slider's +limit is up, a hinge turns about +axis).
+                let flipped = JointLink {
+                    other: None,
+                    local_a: link.local_b,
+                    local_b: link.local_a,
+                    axis_a: link.axis_b,
+                    axis_b: link.axis_a,
+                    kind: link.kind.clone(),
+                };
+                let w = self.world_anchor();
+                self.impulse_joints.insert(w, body, generic(&flipped), true)
+            }
+        }
     }
 }

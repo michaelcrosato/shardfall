@@ -1,0 +1,438 @@
+# Springs & Soft Bodies: things that squish, stretch, swing and bounce back. Everything is data:
+# soft = { .. } objects (jelly, balloons, cloth, rope) plus [[joint]]s on plain dynamic objects.
+#   NORTH  jelly stiffness row, balloons, a hanging banner
+#   MIDDLE a walk-through cloth curtain and ropes (one with a dangling box)
+#   SOUTH  spring platforms to jump on, wobbly spring-mounted posts and a spring-tethered ball
+# Soft bodies: stiffness is the spring natural frequency in Hz (balloons need >= 10 to stay round,
+# and from ~50 up the particles jitter); a rope tied to a box needs segment length >= box half size,
+# else the end particles fight the box's collider.
+name = "Springs & Soft Bodies"
+about = "Things that give and spring back: three jelly cubes from soft to stiff, balloons, a cloth curtain and a banner you can walk through, ropes, spring platforms that sink and bob under you, and wobbly posts and a ball on springs."
+try = [
+  "Run into the SOFT, MEDIUM and STIFF jelly cubes and compare how they squash and rebound",
+  "Push the balloons around the floor: the stiff one keeps its shape, the soft one flops",
+  "Run through the cloth curtain and the banner and watch the cloth swish around you",
+  "Bump the ropes, and swing the box that dangles from the one on the right",
+  "Jump onto the SPRING PLATFORMS: they sink under your weight and bob back up when you hop off",
+  "Shove the wobbly posts, then throw bombs (F or left click at the cursor) at them and the spring ball",
+  "Run into the spring ball: it is tied to its spot by a spring and snaps back, overshooting",
+  "Reset the room with F5 to put everything back",
+]
+wing = "physics"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 26.0
+
+[layout]
+origin = [-19.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+######################################
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+#....................................#
+###################.##################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+# Exhibit names (floor text, layout space: x = column, z = row).
+
+[[label]]
+text = "SOFT 3"
+pos = [5.0, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "MEDIUM 8"
+pos = [8.5, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "STIFF 25"
+pos = [12.0, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "JELLY CUBES"
+pos = [8.5, 0.03, 9.3]
+size = 0.55
+
+[[label]]
+text = "SOFT 10"
+pos = [17.5, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "MEDIUM 18"
+pos = [21.0, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "STIFF 32"
+pos = [24.5, 0.03, 8.0]
+size = 0.4
+
+[[label]]
+text = "BALLOONS"
+pos = [21.0, 0.03, 9.3]
+size = 0.55
+
+[[label]]
+text = "BANNER"
+pos = [31.5, 0.03, 9.3]
+size = 0.55
+
+[[label]]
+text = "CURTAIN"
+pos = [8.3, 0.03, 17.0]
+size = 0.55
+
+[[label]]
+text = "ROPES"
+pos = [21.5, 0.03, 17.0]
+size = 0.55
+
+[[label]]
+text = "SOFT"
+pos = [5.5, 0.03, 24.9]
+size = 0.35
+
+[[label]]
+text = "MEDIUM"
+pos = [10.5, 0.03, 24.9]
+size = 0.35
+
+[[label]]
+text = "FIRM"
+pos = [15.5, 0.03, 24.9]
+size = 0.35
+
+[[label]]
+text = "SPRING PLATFORMS"
+pos = [10.5, 0.03, 26.4]
+size = 0.5
+
+[[label]]
+text = "WOBBLY POSTS"
+pos = [27.5, 0.03, 26.4]
+size = 0.5
+
+[[label]]
+text = "SPRING BALL"
+pos = [34.0, 0.03, 25.0]
+size = 0.4
+
+# ---- objects (keep at the end of the file) ----
+
+# Jelly stiffness row: the same 1.2 m cube at three stiffnesses (natural frequency in Hz).
+[[object]]
+name = "jelly_soft"
+pos = [5.0, 0.75, 6.0]
+color = "#ff8fb1"
+soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 3 }
+
+[[object]]
+name = "jelly_medium"
+pos = [8.5, 0.75, 6.0]
+color = "#f2c14e"
+soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 8 }
+
+[[object]]
+name = "jelly_stiff"
+pos = [12.0, 0.75, 6.0]
+color = "#5b8def"
+soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 25 }
+
+# Balloons
+[[object]]
+name = "balloon_soft"
+pos = [17.5, 0.8, 6.0]
+color = "#e8704a"
+soft = { shape = { type = "sphere", radius = 0.7, subdivisions = 2 }, stiffness = 10 }
+
+[[object]]
+name = "balloon_medium"
+pos = [21.0, 0.8, 6.0]
+color = "#3bb273"
+soft = { shape = { type = "sphere", radius = 0.7, subdivisions = 2 }, stiffness = 18 }
+
+[[object]]
+name = "balloon_stiff"
+pos = [24.5, 0.8, 6.0]
+color = "#9b5de5"
+soft = { shape = { type = "sphere", radius = 0.7, subdivisions = 2 }, stiffness = 32 }
+
+# Banner: cloth hung from its top corners on a crossbar. tear = 0.55 rips it when stretched 55%
+# (bomb blasts do not reach soft bodies yet, so for now only a big stretch would tear it).
+[[object]]
+name = "banner_bar"
+shape = { type = "box", half = [1.75, 0.06, 0.06] }
+pos = [31.5, 2.78, 6.0]
+body = "fixed"
+color = "#8f9fae"
+
+[[object]]
+name = "banner_post_l"
+shape = { type = "box", half = [0.06, 1.42, 0.06] }
+pos = [29.75, 1.42, 6.0]
+body = "fixed"
+color = "#8f9fae"
+
+[[object]]
+name = "banner_post_r"
+shape = { type = "box", half = [0.06, 1.42, 0.06] }
+pos = [33.25, 1.42, 6.0]
+body = "fixed"
+color = "#8f9fae"
+
+[[object]]
+name = "banner"
+pos = [31.5, 2.7, 6.0]
+color = "#e8704a"
+soft = { shape = { type = "cloth", size = [3.0, 1.8], res = [10, 8], vertical = true }, pin = "top_corners", stiffness = 12, tear = 0.55 }
+
+# Curtain: four cloths pinned along the top; walk through them.
+[[object]]
+name = "curtain_bar"
+shape = { type = "box", half = [4.4, 0.06, 0.06] }
+pos = [8.3, 2.8, 14.0]
+body = "fixed"
+color = "#8f9fae"
+
+[[object]]
+name = "curtain_0"
+pos = [5.0, 2.7, 14.0]
+color = "#e8704a"
+soft = { shape = { type = "cloth", size = [2.0, 2.4], res = [8, 7], vertical = true }, pin = "top", stiffness = 6 }
+
+[[object]]
+name = "curtain_1"
+pos = [7.2, 2.7, 14.0]
+color = "#f2c14e"
+soft = { shape = { type = "cloth", size = [2.0, 2.4], res = [8, 7], vertical = true }, pin = "top", stiffness = 6 }
+
+[[object]]
+name = "curtain_2"
+pos = [9.4, 2.7, 14.0]
+color = "#3bb273"
+soft = { shape = { type = "cloth", size = [2.0, 2.4], res = [8, 7], vertical = true }, pin = "top", stiffness = 6 }
+
+[[object]]
+name = "curtain_3"
+pos = [11.6, 2.7, 14.0]
+color = "#5b8def"
+soft = { shape = { type = "cloth", size = [2.0, 2.4], res = [8, 7], vertical = true }, pin = "top", stiffness = 6 }
+
+# Ropes
+[[object]]
+name = "rope_bar"
+shape = { type = "box", half = [4.4, 0.06, 0.06] }
+pos = [21.5, 3.12, 14.0]
+body = "fixed"
+color = "#8f9fae"
+
+[[object]]
+name = "rope_a"
+pos = [18.0, 2.94, 14.0]
+color = "#a0703c"
+soft = { shape = { type = "rope", to = [0.0, -2.4, 0.0], segments = 12, radius = 0.06 }, pin = "start", stiffness = 30 }
+
+[[object]]
+name = "rope_b"
+pos = [20.5, 2.94, 14.0]
+color = "#d9a066"
+soft = { shape = { type = "rope", to = [0.0, -2.4, 0.0], segments = 12, radius = 0.1 }, pin = "start", stiffness = 30 }
+
+[[object]]
+name = "rope_c"
+pos = [23.5, 2.94, 14.0]
+color = "#a0703c"
+soft = { shape = { type = "rope", to = [0.0, -1.5, 0.0], segments = 6, radius = 0.06 }, pin = "start", stiffness = 30, attach = "rope_box" }
+
+[[object]]
+name = "rope_box"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [23.5, 1.44, 14.0]
+color = "#e8704a"
+density = 50
+
+# Spring platforms: 1.6 x 0.3 x 1.6 m slabs (100 kg/m3) on vertical slider joints to the world.
+# The slider spring is acceleration based: it sags g/k under gravity (so each slab starts g/k above
+# its 0.85 m rest height) and sinks further under the player. Slider limits are measured as
+# (world anchor - slab anchor) along the axis, so [-0.25, 1.0] = 0.25 m up, 1.0 m down.
+[[object]]
+name = "plat_base_0"
+shape = { type = "box", half = [0.95, 0.03, 0.95] }
+pos = [5.5, 0.03, 23.0]
+body = "fixed"
+color = "#6c7684"
+
+[[object]]
+name = "plat_0"
+shape = { type = "box", half = [0.8, 0.15, 0.8] }
+pos = [5.5, 0.789, 23.0]
+color = "#ff8fb1"
+density = 100
+friction = 0.8
+
+[[joint]]
+a = "plat_0"
+b = ""
+at = [5.5, 0.789, 23.0]
+joint = { type = "slider", axis = [0, 1, 0], limits = [-1.0, 0.25], spring = 110, damping = 2.5 }
+
+[[object]]
+name = "plat_base_1"
+shape = { type = "box", half = [0.95, 0.03, 0.95] }
+pos = [10.5, 0.03, 23.0]
+body = "fixed"
+color = "#6c7684"
+
+[[object]]
+name = "plat_1"
+shape = { type = "box", half = [0.8, 0.15, 0.8] }
+pos = [10.5, 0.761, 23.0]
+color = "#f2c14e"
+density = 100
+friction = 0.8
+
+[[joint]]
+a = "plat_1"
+b = ""
+at = [10.5, 0.761, 23.0]
+joint = { type = "slider", axis = [0, 1, 0], limits = [-1.0, 0.25], spring = 160, damping = 3.0 }
+
+[[object]]
+name = "plat_base_2"
+shape = { type = "box", half = [0.95, 0.03, 0.95] }
+pos = [15.5, 0.03, 23.0]
+body = "fixed"
+color = "#6c7684"
+
+[[object]]
+name = "plat_2"
+shape = { type = "box", half = [0.8, 0.15, 0.8] }
+pos = [15.5, 0.741, 23.0]
+color = "#5b8def"
+density = 100
+friction = 0.8
+
+[[joint]]
+a = "plat_2"
+b = ""
+at = [15.5, 0.741, 23.0]
+joint = { type = "slider", axis = [0, 1, 0], limits = [-1.0, 0.25], spring = 240, damping = 3.5 }
+
+# Wobbly posts: a capsule on a ball joint at its foot, held upright by a zero-length spring from
+# its top to the world (spring joints start with both anchors together, so the spring only pulls
+# once the post is pushed away from where it was built). Stiffness (N/m) / damping (N s/m).
+[[object]]
+name = "post_0"
+shape = { type = "capsule", half_height = 0.6, radius = 0.25 }
+pos = [24.5, 0.85, 23.0]
+color = "#9b5de5"
+density = 100
+
+[[joint]]
+a = "post_0"
+b = ""
+at = [24.5, 0.25, 23.0]
+joint = { type = "ball" }
+
+[[joint]]
+a = "post_0"
+b = ""
+at = [24.5, 1.45, 23.0]
+joint = { type = "spring", length = 0.0, stiffness = 200, damping = 7 }
+
+[[object]]
+name = "post_1"
+shape = { type = "capsule", half_height = 0.6, radius = 0.25 }
+pos = [27.5, 0.85, 23.0]
+color = "#e8704a"
+density = 100
+
+[[joint]]
+a = "post_1"
+b = ""
+at = [27.5, 0.25, 23.0]
+joint = { type = "ball" }
+
+[[joint]]
+a = "post_1"
+b = ""
+at = [27.5, 1.45, 23.0]
+joint = { type = "spring", length = 0.0, stiffness = 300, damping = 10 }
+
+[[object]]
+name = "post_2"
+shape = { type = "capsule", half_height = 0.6, radius = 0.25 }
+pos = [30.5, 0.85, 23.0]
+color = "#3bb273"
+density = 100
+
+[[joint]]
+a = "post_2"
+b = ""
+at = [30.5, 0.25, 23.0]
+joint = { type = "ball" }
+
+[[joint]]
+a = "post_2"
+b = ""
+at = [30.5, 1.45, 23.0]
+joint = { type = "spring", length = 0.0, stiffness = 500, damping = 16 }
+
+# Spring ball: a ball tied to its starting spot by an invisible zero-length spring.
+[[object]]
+name = "spring_ball"
+shape = { type = "sphere", radius = 0.5 }
+pos = [34.0, 0.5, 23.0]
+color = "#ff8fb1"
+density = 100
+friction = 0.3
+restitution = 0.5
+
+[[joint]]
+a = "spring_ball"
+b = ""
+at = [34.0, 0.5, 23.0]
+joint = { type = "spring", length = 0.0, stiffness = 300, damping = 40 }

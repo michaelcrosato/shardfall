@@ -5,9 +5,24 @@
 use glam::{Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
+use crate::choice_enum;
 use crate::color::Color;
 use crate::params::{ChoiceParam, ParamVisitor, Tunable};
+use crate::rig::RigView;
 use crate::shape::Look;
+
+choice_enum! {
+    /// Body plan: the skeleton the puppet is built on.
+    #[derive(Default)]
+    pub enum BodyPlan {
+        #[default]
+        Biped => "biped",
+        Spider => "spider",
+        Lizard => "lizard",
+        Beetle => "beetle",
+        Blob => "blob",
+    }
+}
 
 /// Proportions, colours and animation settings. Everything is a slider.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -39,6 +54,24 @@ pub struct PuppetDef {
     pub anim_fps: f32,
     /// Tilt the eyes toward the camera so they stay visible from above (0..1).
     pub eyes_to_camera: f32,
+    /// Lean the whole body toward the camera (0..1): a 2D "cheat" for high camera angles.
+    pub face_camera: f32,
+    /// Skeleton: biped, or a creature with planted feet (spider, lizard, beetle) or a blob.
+    pub body: BodyPlan,
+    /// Leg pairs of creatures (0 = the body plan's usual number).
+    pub legs: i32,
+    /// Creature body length (m).
+    pub body_length: f32,
+    /// Tail length (m, 0 = none); swings with secondary motion.
+    pub tail_length: f32,
+    /// Antenna length (m, 0 = none).
+    pub antenna_length: f32,
+    /// Seconds a creature foot takes for one step.
+    pub step_time: f32,
+    /// Floppiness of tails, antennae and abdomens (0 = stiff, 2 = very floppy).
+    pub wobble: f32,
+    /// Second colour (shells, stripes, tail tips).
+    pub accent: String,
 }
 
 impl Default for PuppetDef {
@@ -67,7 +100,91 @@ impl Default for PuppetDef {
             squash: 1.0,
             anim_fps: 0.0,
             eyes_to_camera: 0.6,
+            face_camera: 0.0,
+            body: BodyPlan::Biped,
+            legs: 0,
+            body_length: 0.7,
+            tail_length: 0.0,
+            antenna_length: 0.0,
+            step_time: 0.15,
+            wobble: 1.0,
+            accent: "#3a3f4b".into(),
         }
+    }
+}
+
+impl PuppetDef {
+    /// Sensible proportions and colours for a body plan.
+    pub fn preset(plan: BodyPlan) -> Self {
+        let d = Self::default();
+        match plan {
+            BodyPlan::Biped => d,
+            BodyPlan::Spider => Self {
+                body: plan,
+                legs: 4,
+                leg_length: 0.8,
+                torso_radius: 0.2,
+                head_radius: 0.12,
+                limb_radius: 0.035,
+                skin: "#3b3540".into(),
+                shirt: "#4a4252".into(),
+                accent: "#c0563b".into(),
+                eyes: "#f2e6c9".into(),
+                step_time: 0.12,
+                ..d
+            },
+            BodyPlan::Lizard => Self {
+                body: plan,
+                legs: 2,
+                leg_length: 0.42,
+                torso_radius: 0.15,
+                head_radius: 0.14,
+                limb_radius: 0.05,
+                body_length: 0.9,
+                tail_length: 1.0,
+                skin: "#6fae5a".into(),
+                shirt: "#5d9a4c".into(),
+                accent: "#e8c547".into(),
+                step_time: 0.14,
+                ..d
+            },
+            BodyPlan::Beetle => Self {
+                body: plan,
+                legs: 3,
+                leg_length: 0.5,
+                torso_radius: 0.24,
+                head_radius: 0.13,
+                limb_radius: 0.035,
+                body_length: 0.75,
+                antenna_length: 0.45,
+                skin: "#26303b".into(),
+                shirt: "#2e6f8e".into(),
+                accent: "#9fd3e6".into(),
+                step_time: 0.1,
+                ..d
+            },
+            BodyPlan::Blob => Self {
+                body: plan,
+                torso_radius: 0.42,
+                head_radius: 0.0,
+                skin: "#7fd6a4".into(),
+                shirt: "#7fd6a4".into(),
+                squash: 1.6,
+                stride: 1.4,
+                ..d
+            },
+        }
+    }
+
+    /// Leg pairs actually used.
+    pub fn leg_pairs(&self) -> usize {
+        let n = match self.body {
+            BodyPlan::Biped | BodyPlan::Blob => return 0,
+            BodyPlan::Spider => 4,
+            BodyPlan::Lizard => 2,
+            BodyPlan::Beetle => 3,
+        };
+        if self.legs > 0 { self.legs.clamp(1, 6) as usize } else { n }
     }
 }
 
@@ -91,6 +208,14 @@ impl Tunable for PuppetDef {
         v.float("squash", &mut self.squash, 0.0, 3.0, "Squash & stretch amount");
         v.float("anim_fps", &mut self.anim_fps, 0.0, 30.0, "Stepped animation rate (0 = smooth)");
         v.float("eyes_to_camera", &mut self.eyes_to_camera, 0.0, 1.0, "Keep eyes visible from above");
+        v.float("face_camera", &mut self.face_camera, 0.0, 1.0, "Lean the body toward the camera");
+        self.body.visit_choice(v, "body", "Body plan: biped, spider, lizard, beetle or blob");
+        v.int("legs", &mut self.legs, 0, 6, "Creature leg pairs (0 = usual)");
+        v.float("body_length", &mut self.body_length, 0.2, 2.0, "Creature body length (m)");
+        v.float("tail_length", &mut self.tail_length, 0.0, 2.5, "Tail length (m, 0 = none)");
+        v.float("antenna_length", &mut self.antenna_length, 0.0, 1.0, "Antenna length (m, 0 = none)");
+        v.float("step_time", &mut self.step_time, 0.04, 0.5, "Creature step duration (s)");
+        v.float("wobble", &mut self.wobble, 0.0, 2.0, "Floppiness of tails and antennae");
     }
 }
 
@@ -127,6 +252,20 @@ pub struct PuppetState {
     pub roll: f32,
     #[serde(default)]
     pub roll_angle: f32,
+    /// Hit recoil: flinch lean (sideways, forward; radians-ish) and its spring velocity.
+    #[serde(default)]
+    pub hit_side: f32,
+    #[serde(default)]
+    pub hit_fwd: f32,
+    #[serde(default)]
+    pub hit_vs: f32,
+    #[serde(default)]
+    pub hit_vf: f32,
+    /// Foot IK: ground height under each foot relative to the feet (left, right).
+    #[serde(default)]
+    pub foot_l: f32,
+    #[serde(default)]
+    pub foot_r: f32,
 }
 
 /// What the character is doing this tick (input to the animator).
@@ -202,6 +341,24 @@ impl PuppetState {
             let full = (self.roll_angle / std::f32::consts::TAU).round() * std::f32::consts::TAU;
             self.roll_angle = approach(self.roll_angle, full, 20.0, dt);
         }
+        // Hit recoil: a damped spring pulls the flinch back upright.
+        let (k, c) = (150.0, 9.0);
+        self.hit_vs += (-self.hit_side * k - self.hit_vs * c) * dt;
+        self.hit_vf += (-self.hit_fwd * k - self.hit_vf * c) * dt;
+        self.hit_side = (self.hit_side + self.hit_vs * dt).clamp(-0.9, 0.9);
+        self.hit_fwd = (self.hit_fwd + self.hit_vf * dt).clamp(-0.9, 0.9);
+    }
+
+    /// Flinch away from a hit coming along `dir` (world), `strength` ~ 1 for a normal hit.
+    pub fn hit(&mut self, dir: Vec3, strength: f32) {
+        let (s, c) = self.facing.sin_cos();
+        let fwd = Vec3::new(s, 0.0, c);
+        let right = Vec3::new(c, 0.0, -s);
+        let d = Vec3::new(dir.x, 0.0, dir.z).normalize_or(-fwd);
+        let kick = 7.0 * strength.clamp(0.2, 3.0);
+        self.hit_vs += d.dot(right) * kick;
+        self.hit_vf += d.dot(fwd) * kick;
+        self.recoil = self.recoil.max(0.6 * strength.min(1.5));
     }
 
     /// Blends two states (for render interpolation).
@@ -235,6 +392,12 @@ impl PuppetState {
             swim: l(self.swim, o.swim),
             roll: l(self.roll, o.roll),
             roll_angle: l(self.roll_angle, o.roll_angle),
+            hit_side: l(self.hit_side, o.hit_side),
+            hit_fwd: l(self.hit_fwd, o.hit_fwd),
+            hit_vs: o.hit_vs,
+            hit_vf: o.hit_vf,
+            foot_l: l(self.foot_l, o.foot_l),
+            foot_r: l(self.foot_r, o.foot_r),
         }
     }
 }
@@ -250,7 +413,7 @@ pub struct PuppetPart {
 }
 
 /// Two-bone IK: returns the joint (knee/elbow) position.
-fn ik(root: Vec3, target: Vec3, l1: f32, l2: f32, bend: Vec3) -> (Vec3, Vec3) {
+pub(crate) fn ik(root: Vec3, target: Vec3, l1: f32, l2: f32, bend: Vec3) -> (Vec3, Vec3) {
     let mut d = target - root;
     let dist = d.length().max(1e-4);
     let reach = (l1 + l2) * 0.999;
@@ -270,8 +433,53 @@ fn ik(root: Vec3, target: Vec3, l1: f32, l2: f32, bend: Vec3) -> (Vec3, Vec3) {
 }
 
 /// Builds the puppet's parts in world space. `feet` is the ground contact point, `cam_fwd`
-/// the camera's forward vector (for camera-aware tweaks).
-pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
+/// the camera's forward vector (for camera-aware tweaks), `rig` the simulated feet and chains
+/// (creatures, tails, antennae).
+pub fn pose(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
+    let mut parts = match def.body {
+        BodyPlan::Biped => biped(def, st, feet, cam_fwd),
+        _ => crate::rig::creature_parts(def, st, rig, feet, cam_fwd),
+    };
+    if let Some(r) = rig {
+        crate::rig::chain_parts(def, r, &mut parts);
+    }
+    camera_rules(def, st.facing, feet, cam_fwd, &mut parts);
+    parts
+}
+
+/// Camera-aware cheats applied to the finished parts: lean toward the camera, and the cutout
+/// look (the side view drawn flat on a card that faces the camera, mirrored by facing).
+fn camera_rules(def: &PuppetDef, facing: f32, feet: Vec3, cam_fwd: Vec3, parts: &mut [PuppetPart]) {
+    let flat_fwd = Vec3::new(cam_fwd.x, 0.0, cam_fwd.z);
+    let cam_right = Vec3::new(-flat_fwd.z, 0.0, flat_fwd.x).normalize_or(Vec3::X);
+    if def.face_camera > 0.0 {
+        let elev = (-cam_fwd.y).clamp(0.0, 1.0).asin();
+        let q = Quat::from_axis_angle(cam_right, elev * def.face_camera * 0.5);
+        for p in parts.iter_mut() {
+            p.a = feet + q * (p.a - feet);
+            p.b = feet + q * (p.b - feet);
+        }
+    }
+    if def.look == Look::Cutout {
+        // Character space -> card: forward maps to screen right (or left when facing left),
+        // up to the camera's up; depth shrinks to a thin layering offset.
+        let inv = Quat::from_rotation_y(facing).inverse();
+        let fwd_w = Quat::from_rotation_y(facing) * Vec3::Z;
+        let sign = if fwd_w.dot(cam_right) >= 0.0 { 1.0 } else { -1.0 };
+        let cam_up = cam_right.cross(cam_fwd).normalize_or(Vec3::Y);
+        let toward = -cam_fwd;
+        let card = |p: Vec3| -> Vec3 {
+            let l = inv * (p - feet);
+            feet + cam_right * (l.z * sign) + cam_up * l.y + toward * (-l.x * sign * 0.25)
+        };
+        for p in parts.iter_mut() {
+            p.a = card(p.a);
+            p.b = card(p.b);
+        }
+    }
+}
+
+fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
     let mut st = *st;
     if def.anim_fps > 0.5 {
         // Stepped animation: hold poses between discrete animation frames.
@@ -314,20 +522,27 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
     let swim = st.swim;
     let stroke = st.time * 5.0;
 
+    // Foot IK: each foot sits on the ground under it; the pelvis drops so the lower one reaches.
+    let plant = (1.0 - st.air) * (1.0 - climb) * (1.0 - swim) * (1.0 - crawl);
+    let (fl, fr) = (st.foot_l * plant, st.foot_r * plant);
+    let drop = (-fl.min(fr)).clamp(0.0, 0.35 * leg);
+
     // Pelvis height: standing -> crouch -> crawl.
-    let stand_pelvis = leg * 0.97 + bob;
+    let stand_pelvis = leg * 0.97 + bob - drop;
     let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl) * (1.0 - 0.05 * swim);
-    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb;
+    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd;
     let pelvis = Vec3::new(0.0, pelvis_h, -0.05 * crawl * leg);
     // Torso direction: upright, leaning, or horizontal when crawling.
-    let torso_dir = Vec3::new(st.lean_side, 1.0, lean_f)
+    let torso_dir = Vec3::new(st.lean_side + st.hit_side, 1.0, lean_f)
         .normalize()
         .lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl)
         .lerp(Vec3::new(0.0, 0.45, 1.0).normalize(), swim)
         .normalize();
     let chest = pelvis + torso_dir * def.torso_length * k;
     let neck = chest + torso_dir * (def.head_radius * 0.55 * k);
-    let head = neck + torso_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * def.head_radius * k * 0.95;
+    // The head snaps a little further than the torso on a hit.
+    let head_dir = (torso_dir + Vec3::new(st.hit_side, 0.0, st.hit_fwd) * 0.6).normalize();
+    let head = neck + head_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * def.head_radius * k * 0.95;
 
     let mut parts = Vec::with_capacity(20);
     let mut push = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color| {
@@ -343,7 +558,9 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
         let hip = pelvis + Vec3::new(s * def.hip_width * k, 0.0, 0.0);
         let ph = cyc + if s > 0.0 { 0.0 } else { std::f32::consts::PI };
         let amp = def.stride * k * 0.25 * walk;
-        let mut foot = Vec3::new(s * def.hip_width * k * 1.1, (ph.cos().max(0.0)) * def.step_height * k * walk, ph.sin() * amp);
+        let ground = if s > 0.0 { fr } else { fl };
+        let mut foot =
+            Vec3::new(s * def.hip_width * k * 1.1, ground + (ph.cos().max(0.0)) * def.step_height * k * walk, ph.sin() * amp);
         // Air: tuck feet; crouch: feet under hips; crawl: knees on the ground behind.
         foot =
             foot.lerp(Vec3::new(s * def.hip_width * k, pelvis_h * 0.35, -0.05 + if st.vy > 0.0 { 0.1 } else { -0.05 }), st.air);
@@ -389,6 +606,9 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
         let swim_hand = shoulder + Vec3::new(s * 0.18, sp.sin() * 0.25 * k, sp.cos() * arm * 0.75);
         hand = hand.lerp(swim_hand, swim);
         hand.z -= st.recoil * 0.3;
+        // Arms fling out on a hit.
+        let fling = (st.hit_side.abs() + st.hit_fwd.abs()).min(0.8);
+        hand += Vec3::new(s * 0.5, 0.6, 0.0) * fling * arm;
         let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
         let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
         push(shoulder, elbow, lr * 1.05, lr * 0.95, shirt);
@@ -431,10 +651,36 @@ mod tests {
 
     #[test]
     fn pose_produces_parts() {
-        let parts = pose(&PuppetDef::default(), &PuppetState::default(), Vec3::ZERO, Vec3::NEG_Y);
+        let parts = pose(&PuppetDef::default(), &PuppetState::default(), None, Vec3::ZERO, Vec3::NEG_Y);
         assert!(parts.len() > 10);
         // Standing puppet is roughly 1.6-1.9 m tall.
         let top = parts.iter().map(|p| p.a.y.max(p.b.y) + p.ra.max(p.rb)).fold(0.0, f32::max);
         assert!(top > 1.4 && top < 2.1, "height {top}");
+    }
+
+    #[test]
+    fn every_body_plan_poses() {
+        for plan in [BodyPlan::Spider, BodyPlan::Lizard, BodyPlan::Beetle, BodyPlan::Blob] {
+            let mut def = PuppetDef::preset(plan);
+            let parts = pose(&def, &PuppetState::default(), None, Vec3::ZERO, Vec3::NEG_Y);
+            assert!(!parts.is_empty(), "{plan:?}");
+            def.look = Look::Cutout;
+            let flat = pose(&def, &PuppetState::default(), None, Vec3::ZERO, Vec3::new(0.0, -0.5, -0.86).normalize());
+            assert!(flat.iter().all(|p| p.a.is_finite() && p.b.is_finite()));
+        }
+    }
+
+    #[test]
+    fn hit_recoil_springs_back() {
+        let mut st = PuppetState::default();
+        st.hit(Vec3::X, 1.0);
+        let def = PuppetDef::default();
+        let mut peak = 0.0f32;
+        for _ in 0..120 {
+            st.update(&def, &AnimInput { grounded: true, ..Default::default() }, 1.0 / 60.0);
+            peak = peak.max(st.hit_side.abs());
+        }
+        assert!(peak > 0.15, "flinched {peak}");
+        assert!(st.hit_side.abs() < 0.02, "back upright: {}", st.hit_side);
     }
 }

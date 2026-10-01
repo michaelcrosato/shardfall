@@ -364,7 +364,8 @@ impl Sim {
                 .behavior(o.behavior.clone())
                 .density(o.density)
                 .friction(o.friction)
-                .restitution(o.restitution);
+                .restitution(o.restitution)
+                .damping(o.damping);
             sp.region = Some(region);
             sp.hazard = o.hazard.clone();
             sp.soft = o.soft.clone();
@@ -394,11 +395,31 @@ impl Sim {
             let pose = |id: EntityId| self.state.entities.get(id).map(|e| (e.pos, e.rot));
             let Some(pa) = pose(a) else { continue };
             let pb = b.and_then(|b| pose(b).map(|(p, q)| (b, p, q)));
-            let link = crate::joints::JointLink::at(kind, slot.place.point(j.at), pa, pb);
+            let at_b = slot.place.point(j.at_b.unwrap_or(j.at));
+            let link = crate::joints::JointLink::between(kind, slot.place.point(j.at), at_b, pa, pb);
             self.add_joint(a, link);
         }
         for c in &slot.def.chains {
             self.build_chain(c, &slot.place, region, &named);
+        }
+        for n in &slot.def.npcs {
+            let def = match n.puppet() {
+                Ok(d) => d,
+                Err(e) => {
+                    log::warn!("room {}: {e}", slot.key);
+                    continue;
+                }
+            };
+            let feet = slot.place.point(n.pos);
+            let dir = slot.place.rotate(Vec3::new(n.yaw.to_radians().sin(), 0.0, n.yaw.to_radians().cos()));
+            let facing = dir.x.atan2(dir.z);
+            let points = match &n.ai {
+                crate::ai::AiDef::Patrol { points, .. } => points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect(),
+                _ => Vec::new(),
+            };
+            let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
+            let name = if n.name.is_empty() { "npc" } else { &n.name };
+            self.spawn_npc(name, feet, facing, def, Some(ai), Some(region));
         }
         for l in &slot.def.labels {
             if let Some(p) = l.pos {
@@ -468,7 +489,8 @@ impl Sim {
                 let rot = Quat::from_rotation_arc(Vec3::Y, dir);
                 (Shape::Capsule { half_height: (len * 0.5 - c.radius).max(0.01), radius: c.radius }, rot, "~link")
             };
-            let mut sp = Spawn::new(name, mid).visual(Visual::new(shape, color)).body(BodyKind::Dynamic).rot(rot).density(c.density);
+            let mut sp =
+                Spawn::new(name, mid).visual(Visual::new(shape, color)).body(BodyKind::Dynamic).rot(rot).density(c.density).damping(c.damping);
             sp.region = Some(region);
             ids.push(self.spawn(sp));
         }
@@ -793,7 +815,7 @@ impl Sim {
             .state
             .entities
             .iter()
-            .filter(|e| Some(e.id) != player && e.character.is_none() && e.bomb.is_none() && e.lifetime.is_none())
+            .filter(|e| Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none())
             .filter(|e| match area {
                 Some((lo, hi)) => {
                     let p = e.pos;
@@ -866,7 +888,13 @@ impl Sim {
                 fresh.tied_to = part.tied_to;
                 e.soft = Some(fresh);
             }
-            if e.body_kind != BodyKind::None {
+            if let Some(ch) = &mut e.character {
+                // Characters (NPCs) get their capsule back.
+                ch.vel = Vec3::ZERO;
+                let posture = ch.posture;
+                let (id, pos) = (e.id, e.pos);
+                e.body = Some(self.character_body(id, pos, posture));
+            } else if e.body_kind != BodyKind::None {
                 let shape = e.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
                 let builder = match e.body_kind {
                     BodyKind::Fixed => RigidBodyBuilder::fixed(),
@@ -875,7 +903,9 @@ impl Sim {
                 }
                 .pose(Pose::from_parts(e.pos, e.rot))
                 .linvel(d.linvel)
-                .angvel(d.angvel);
+                .angvel(d.angvel)
+                .linear_damping(e.material.damping as Real)
+                .angular_damping(e.material.damping as Real);
                 let m = e.material;
                 let collider = shape
                     .collider()
@@ -1030,6 +1060,7 @@ impl Sim {
                     density: e.material.density,
                     friction: e.material.friction,
                     restitution: e.material.restitution,
+                    damping: e.material.damping,
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1141,7 +1172,7 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
             t.push_str(&format!("hazard = {}\n", inline(&v)));
         }
     }
-    for (k, v, d) in [("density", o.density, 1.0), ("friction", o.friction, 0.5), ("restitution", o.restitution, 0.0)] {
+    for (k, v, d) in [("density", o.density, 1.0), ("friction", o.friction, 0.5), ("restitution", o.restitution, 0.0), ("damping", o.damping, 0.0)] {
         if (v - d).abs() > 1e-4 {
             t.push_str(&format!("{k} = {}\n", num(v)));
         }

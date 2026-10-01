@@ -1,0 +1,635 @@
+# Chains & Rope Bridges: everything here is plain rapier joints, built from [[chain]] and [[joint]]
+# entries plus ordinary dynamic [[object]]s (no scripts).
+#   NORTH   two gorges: an 11 m rope bridge and a 16 m saggy one (stepping on a ledge sets a
+#           checkpoint, so a fall puts you back at the end of the bridge you started from)
+#   MIDDLE  a wrecking ball on a chain beside a stack of light boxes, a hinged door in a wall,
+#           and a row of loose hanging chains
+#   SOUTH   a Newton's cradle (five hinged balls) and a seesaw (plank on a hinge)
+# Tuning notes (found by testing, keep when editing):
+#  - Bridges: fewer, longer planks stay steadier (7 and 12 links); the rope settles about 0.1 m
+#    in its first second. sag 0.035 -> feet dip to -0.5 m, sag 0.105 -> -1.8 m (kill zone is
+#    below -2.6 m). A chain must not start inside a fixed body (the crane arm / crossbar sit a
+#    few cm above the first link), or contact and joint fight and the whole chain jitters.
+#  - Wrecking ball: fat links (radius 0.1) and a ball density of 120 keep the chain steady;
+#    thin links under a heavy ball stretch and bounce.
+#  - Door: the hinge motor with speed 0 is a damper (motor_force 30), so the door stays where
+#    you leave it instead of swinging for ever.
+#  - Cradle: each ball hangs on a hinge along z, so it only swings along the row.
+#  - Seesaw: hinge 0.2 m off the plank centre, so it rests with the east end down. The player
+#    cannot step onto a dynamic plank (autostep ignores dynamic bodies): jump on.
+name = "Chains & Rope Bridges"
+about = "Joints you can walk on and push around: two rope bridges over gorges (one long and saggy), a wrecking ball on a chain, a hinged door, loose hanging chains, a Newton's cradle and a seesaw."
+try = [
+  "Cross the 11 m rope bridge, feel it sway, then jump up and down in the middle",
+  "Cross the 16 m saggy bridge, then walk off its side: you fall in and respawn at the ledge",
+  "Run into the wrecking ball so it swings into the box stack (or throw a bomb: F or left click)",
+  "Walk into the hinged door from either side and watch it swing open",
+  "Walk through the row of hanging chains and watch them swing",
+  "Push the first ball of the Newton's cradle and watch the others swing and knock together",
+  "Jump onto the seesaw (Space) and walk across the middle: it tips under your weight",
+  "Reset the room with F5 to rebuild everything",
+]
+wing = "physics"
+order = 3
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [20, 26], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 24.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#ll___________lllllll________________ll#
+#ll___________lllllll________________ll#
+#aa___________bblllaa________________bb#
+#aa___________bblllaa________________bb#
+#aa___________bblllaa________________bb#
+#ll___________lllllll________________ll#
+#ll___________lllllll________________ll#
+#ll___________lllllll________________ll#
+#llllllllllllllllllllllllllllllllllllll#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+####################.###################
+'''
+
+# #  wall (3 m)        .  floor            l  stone ledge (deep, next to the gorges)
+# _  gorge floor + kill zone (falling in respawns you at the last checkpoint)
+# a  checkpoint on a ledge, respawn facing east    b  the same, facing west
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -3.5, y1 = 0, color = "#a89f8b" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+[layout.legend.'l']
+blocks = [{ y0 = -3.5, y1 = -0.5, color = "#a89f8b" }, { y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'_']
+blocks = [{ y0 = -4.0, y1 = -3.5, color = "#3b3f4a" }]
+zone = { kind = "kill", y0 = -3.4, y1 = -2.6 }
+
+[layout.legend.'a']
+blocks = [{ y0 = -3.5, y1 = -0.5, color = "#a89f8b" }, { y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "checkpoint", facing = "east" }
+
+[layout.legend.'b']
+blocks = [{ y0 = -3.5, y1 = -0.5, color = "#a89f8b" }, { y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "checkpoint", facing = "west" }
+
+# Exhibit names (floor text, layout space: x = column, z = row).
+
+[[label]]
+text = "ROPE BRIDGE 11 M"
+pos = [8.5, 0.03, 9.6]
+size = 0.5
+
+[[label]]
+text = "LONG SAGGY BRIDGE 16 M"
+pos = [33.6, 0.03, 9.6]
+size = 0.45
+
+[[label]]
+text = "WRECKING BALL"
+pos = [6.5, 0.03, 18.5]
+size = 0.5
+
+[[label]]
+text = "PUSH IT INTO THE BOXES"
+pos = [6.5, 0.03, 19.3]
+size = 0.35
+
+[[label]]
+text = "HINGE DOOR"
+pos = [18.5, 0.03, 17.0]
+size = 0.5
+
+[[label]]
+text = "WALK INTO IT"
+pos = [18.5, 0.03, 17.8]
+size = 0.35
+
+[[label]]
+text = "HANGING CHAINS"
+pos = [29.0, 0.03, 17.0]
+size = 0.5
+
+[[label]]
+text = "WALK THROUGH THEM"
+pos = [29.0, 0.03, 17.8]
+size = 0.35
+
+[[label]]
+text = "NEWTONS CRADLE"
+pos = [8.0, 0.03, 24.7]
+size = 0.5
+
+[[label]]
+text = "PUSH THE FIRST BALL"
+pos = [8.0, 0.03, 25.5]
+size = 0.35
+
+[[label]]
+text = "SEESAW"
+pos = [29.5, 0.03, 24.7]
+size = 0.5
+
+[[label]]
+text = "JUMP ON, WALK ACROSS"
+pos = [29.5, 0.03, 25.5]
+size = 0.35
+
+# ---- joints ----
+
+[[joint]]
+a = "door"
+b = ""
+at = [18.03, 1.0, 14.5]
+joint = { type = "hinge", axis = [0, 1, 0], limits = [-100, 100], motor_speed = 0, motor_force = 30 }
+
+[[joint]]
+a = "cradle_0"
+b = ""
+at = [6.4, 3.7, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1] }
+
+[[joint]]
+a = "cradle_1"
+b = ""
+at = [7.2, 3.7, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1] }
+
+[[joint]]
+a = "cradle_2"
+b = ""
+at = [8.0, 3.7, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1] }
+
+[[joint]]
+a = "cradle_3"
+b = ""
+at = [8.8, 3.7, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1] }
+
+[[joint]]
+a = "cradle_4"
+b = ""
+at = [9.6, 3.7, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1] }
+
+[[joint]]
+a = "seesaw"
+b = ""
+at = [29.5, 0.6, 22.5]
+joint = { type = "hinge", axis = [0, 0, 1], limits = [-12, 12] }
+
+# ---- chains ----
+
+[[chain]]
+style = "bridge"
+from = [3.0, 0.0, 4.5]
+to = [14.0, 0.0, 4.5]
+links = 7
+width = 1.4
+radius = 0.1
+density = 400.0
+sag = 0.035
+color = "#a0703c"
+
+[[chain]]
+style = "bridge"
+from = [21.0, 0.0, 4.5]
+to = [37.0, 0.0, 4.5]
+links = 12
+width = 1.4
+radius = 0.1
+density = 400.0
+sag = 0.105
+color = "#b5803f"
+
+[[chain]]
+from = [5.0, 5.05, 15.5]
+to = [5.0, 1.51, 15.5]
+links = 8
+radius = 0.1
+density = 400.0
+fix_to = false
+attach_to = "wreck_ball"
+color = "#4a4f57"
+
+[[chain]]
+from = [27.9, 3.0, 14.5]
+to = [27.9, 0.3, 14.5]
+links = 7
+radius = 0.05
+density = 400.0
+fix_to = false
+color = "#e8704a"
+
+[[chain]]
+from = [28.45, 3.0, 14.5]
+to = [28.45, 0.55, 14.5]
+links = 7
+radius = 0.05
+density = 400.0
+fix_to = false
+color = "#f2c14e"
+
+[[chain]]
+from = [29.0, 3.0, 14.5]
+to = [29.0, 0.3, 14.5]
+links = 7
+radius = 0.05
+density = 400.0
+fix_to = false
+color = "#5b8def"
+
+[[chain]]
+from = [29.55, 3.0, 14.5]
+to = [29.55, 0.55, 14.5]
+links = 7
+radius = 0.05
+density = 400.0
+fix_to = false
+color = "#3bb273"
+
+[[chain]]
+from = [30.1, 3.0, 14.5]
+to = [30.1, 0.3, 14.5]
+links = 7
+radius = 0.05
+density = 400.0
+fix_to = false
+color = "#9b5de5"
+
+# ---- objects (keep at the end of the file) ----
+
+[[object]]
+name = "crane_post"
+shape = { type = "box", half = [0.15, 2.6, 0.15] }
+pos = [2.5, 2.6, 15.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "crane_arm"
+shape = { type = "box", half = [1.35, 0.1, 0.1] }
+pos = [3.75, 5.17, 15.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "wreck_ball"
+shape = { type = "sphere", radius = 0.6 }
+pos = [5, 0.91, 15.5]
+color = "#4a4f57"
+density = 120.0
+friction = 0.5
+restitution = 0.2
+
+[[object]]
+name = "box_0_0_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.25, 15]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_0_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.25, 15.5]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_0_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.25, 16]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_1_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.75, 15]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_1_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.75, 15.5]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_1_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 0.75, 16]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_2_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.25, 15]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_2_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.25, 15.5]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_2_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.25, 16]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_3_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.75, 15]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_3_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.75, 15.5]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_0_3_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.3, 1.75, 16]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_0_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.25, 15]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_0_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.25, 15.5]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_0_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.25, 16]
+color = "#e8704a"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_1_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.75, 15]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_1_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.75, 15.5]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_1_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 0.75, 16]
+color = "#f2c14e"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_2_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.25, 15]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_2_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.25, 15.5]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_2_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.25, 16]
+color = "#5b8def"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_3_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.75, 15]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_3_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.75, 15.5]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "box_1_3_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [7.8, 1.75, 16]
+color = "#3bb273"
+density = 10.0
+friction = 0.6
+
+[[object]]
+name = "wall_left"
+shape = { type = "box", half = [1.5, 1.1, 0.1] }
+pos = [16.5, 1.1, 14.5]
+color = "#aeb7c2"
+body = "fixed"
+
+[[object]]
+name = "wall_right"
+shape = { type = "box", half = [1.5, 1.1, 0.1] }
+pos = [20.5, 1.1, 14.5]
+color = "#aeb7c2"
+body = "fixed"
+
+[[object]]
+name = "door_lintel"
+shape = { type = "box", half = [0.5, 0.1, 0.1] }
+pos = [18.5, 2.1, 14.5]
+color = "#aeb7c2"
+body = "fixed"
+
+[[object]]
+name = "door"
+shape = { type = "box", half = [0.47, 0.95, 0.05] }
+pos = [18.5, 1, 14.5]
+color = "#c9803c"
+density = 100.0
+friction = 0.4
+
+[[object]]
+name = "hang_post_l"
+shape = { type = "box", half = [0.1, 1.55, 0.1] }
+pos = [27.1, 1.55, 14.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "hang_post_r"
+shape = { type = "box", half = [0.1, 1.55, 0.1] }
+pos = [30.9, 1.55, 14.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "hang_bar"
+shape = { type = "box", half = [1.9, 0.06, 0.06] }
+pos = [29, 3.07, 14.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "cradle_post_l"
+shape = { type = "box", half = [0.1, 1.9, 0.1] }
+pos = [3.8, 1.9, 22.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "cradle_post_r"
+shape = { type = "box", half = [0.1, 1.9, 0.1] }
+pos = [12.2, 1.9, 22.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "cradle_bar"
+shape = { type = "box", half = [4.4, 0.1, 0.1] }
+pos = [8, 3.8, 22.5]
+color = "#6b7480"
+body = "fixed"
+
+[[object]]
+name = "cradle_0"
+shape = { type = "sphere", radius = 0.4 }
+pos = [6.4, 1, 22.5]
+color = "#e8704a"
+density = 150.0
+friction = 0.0
+restitution = 1.0
+
+[[object]]
+name = "cradle_1"
+shape = { type = "sphere", radius = 0.4 }
+pos = [7.2, 1, 22.5]
+color = "#f2c14e"
+density = 150.0
+friction = 0.0
+restitution = 1.0
+
+[[object]]
+name = "cradle_2"
+shape = { type = "sphere", radius = 0.4 }
+pos = [8, 1, 22.5]
+color = "#5b8def"
+density = 150.0
+friction = 0.0
+restitution = 1.0
+
+[[object]]
+name = "cradle_3"
+shape = { type = "sphere", radius = 0.4 }
+pos = [8.8, 1, 22.5]
+color = "#3bb273"
+density = 150.0
+friction = 0.0
+restitution = 1.0
+
+[[object]]
+name = "cradle_4"
+shape = { type = "sphere", radius = 0.4 }
+pos = [9.6, 1, 22.5]
+color = "#9b5de5"
+density = 150.0
+friction = 0.0
+restitution = 1.0
+
+[[object]]
+name = "seesaw_fulcrum"
+shape = { type = "box", half = [0.26, 0.26, 0.6] }
+pos = [29.5, 0.152, 22.5]
+color = "#8a7f6a"
+body = "fixed"
+roll = 45
+
+[[object]]
+name = "seesaw"
+shape = { type = "box", half = [2.2, 0.06, 0.6] }
+pos = [29.7, 0.6, 22.5]
+color = "#c9a27a"
+density = 200
+friction = 0.7
+

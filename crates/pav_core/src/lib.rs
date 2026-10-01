@@ -2,6 +2,7 @@
 // `x as Real` casts are no-ops with f32 physics but required by the f64 switch.
 #![allow(clippy::unnecessary_cast)]
 
+pub mod ai;
 pub mod behaviors;
 pub mod character;
 pub mod color;
@@ -18,6 +19,7 @@ pub mod params;
 pub mod physics;
 pub mod projectile;
 pub mod puppet;
+pub mod rig;
 pub mod rng;
 pub mod room;
 pub mod scenes;

@@ -117,9 +117,11 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #   behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "",
 #                count = 20, interval = 0, max = 200, area = [1.5, 0.5, 1.5], signal = "drop",
 #                clear = "clear", density = 1, friction = 0.5, restitution = 0.1, tumble = true }
+#     (pending = 1 drops one batch on the first tick, so the room starts with its props)
 # More object fields: pitch = 20, roll = 0 (tilt in degrees, e.g. ramps), density = 1 (kg/m³:
 # 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
-# restitution = 0.0 (bounciness 0..1).
+# restitution = 0.0 (bounciness 0..1; rapier averages it with the surface underneath),
+# damping = 0 (air drag). Pushing shares momentum: a 70 kg character barely moves 300 kg.
 # Soft (deformable) objects ignore `shape`:
 #   soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 6 }
 #   soft = { shape = { type = "sphere", radius = 0.6, subdivisions = 2 }, stiffness = 10 }
@@ -136,8 +138,12 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # b = ""
 # at = [3.0, 1.0, 2.0]
 # joint = { type = "hinge", axis = [0, 1, 0], limits = [-90, 90] }
-#   joint types: fixed | ball | hinge (axis, limits deg, motor_speed deg/s, motor_force) |
-#   slider (axis, limits m, spring, damping) | rope (length) | spring (length, stiffness, damping)
+#   joint types: fixed | ball | hinge (axis, limits deg, motor_speed deg/s, motor_force, or
+#   spring + damping to swing back: self-closing doors) | slider (axis, limits m, spring, damping)
+#   | rope (length) | spring (length, stiffness, damping)
+#   Joints to the world measure the object: a vertical slider's limits = [-1, 0.25] travel 1 m
+#   down and 0.25 m up. at_b = [x, y, z] puts b's (or the world's) anchor elsewhere, e.g. a
+#   spring that starts stretched. Keep chain/joint parts a few cm clear of fixed colliders.
 
 # Generated chains and rope bridges (layout space; density defaults to 400):
 # [[chain]]
@@ -153,3 +159,19 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # links = 12
 # width = 1.4
 # sag = 0.04                  # hangs 4% of the span lower in the middle
+# damping = 0.3               # air drag on the links (default 0.3); fewer, longer planks are calmer
+
+# Characters and creatures (layout space). kind = biped | spider | lizard | beetle | blob;
+# ai = idle | wander (radius, pause = [min, max]) | patrol (points = [[x, z], ...], pause) |
+#      circle (radius, clockwise) | follow (distance: follows the player)
+# speed = 0.5 (fraction of full speed), hop = 0 (seconds between jumps), yaw = facing degrees.
+# look = any puppet setting over the kind's preset: colours (skin, shirt, pants, shoes, eyes,
+# accent), proportions (scale, leg_length, torso_radius, head_radius, body_length, legs,
+# tail_length, antenna_length), animation (stride, step_height, step_time, squash, lean, wobble,
+# anim_fps = 12 for "on twos") and look = "cel" | "flat" | "lit" | "cutout".
+# [[npc]]
+# name = "spidey"
+# kind = "spider"
+# pos = [6.5, 0, 4.5]
+# ai = { type = "wander", radius = 3 }
+# look = { accent = "#3bb273", leg_length = 1.0 }

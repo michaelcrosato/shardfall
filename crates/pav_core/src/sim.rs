@@ -236,7 +236,9 @@ impl Sim {
                     BodyKind::Kinematic => RigidBodyBuilder::kinematic_velocity_based(),
                     _ => RigidBodyBuilder::dynamic(),
                 }
-                .pose(Pose::from_parts(s.pos, s.rot));
+                .pose(Pose::from_parts(s.pos, s.rot))
+                .linear_damping(s.damping as Real)
+                .angular_damping(s.damping as Real);
                 let shape = s.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
                 let collider = shape
                     .collider()
@@ -263,10 +265,11 @@ impl Sim {
                 bomb: None,
                 lifetime: None,
                 region: s.region,
-                material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution },
+                material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution, damping: s.damping },
                 hazard: s.hazard,
                 soft,
                 joints: Vec::new(),
+                ai: None,
             },
         );
         if !self.replaying {
@@ -280,11 +283,7 @@ impl Sim {
         let id = self.state.entities.alloc_id();
         let ch = Character::new();
         let center = feet + Vec3::Y * (ch.height() * 0.5);
-        let body = RigidBodyBuilder::kinematic_position_based().translation(center);
-        let collider = ColliderBuilder::capsule_y(ch.posture.half_height() as Real, RADIUS as Real)
-            .friction(0.0)
-            .user_data(entity_tag(id.0));
-        let (b, _) = self.state.physics.insert(body, collider);
+        let b = self.character_body(id, center, ch.posture);
         self.state.entities.map.insert(
             id,
             Entity {
@@ -304,9 +303,40 @@ impl Sim {
                 hazard: None,
                 soft: None,
                 joints: Vec::new(),
+                ai: None,
             },
         );
         id
+    }
+
+    /// Creates a non-player character with its own look and (optionally) a brain.
+    pub fn spawn_npc(
+        &mut self,
+        name: &str,
+        feet: Vec3,
+        facing: f32,
+        def: PuppetDef,
+        ai: Option<crate::ai::Ai>,
+        region: Option<crate::statics::RegionKey>,
+    ) -> EntityId {
+        let id = self.spawn_character(name, feet);
+        if let Some(e) = self.state.entities.get_mut(id) {
+            e.region = region;
+            e.ai = ai.map(Box::new);
+            if let Some(ch) = &mut e.character {
+                ch.facing = facing;
+                ch.anim.facing = facing;
+                ch.puppet = Some(std::sync::Arc::new(def));
+            }
+        }
+        id
+    }
+
+    /// A character's kinematic capsule (when it is created or wakes up).
+    pub(crate) fn character_body(&mut self, id: EntityId, center: Vec3, posture: character::Posture) -> RigidBodyHandle {
+        let body = RigidBodyBuilder::kinematic_position_based().translation(center);
+        let collider = ColliderBuilder::capsule_y(posture.half_height() as Real, RADIUS as Real).friction(0.0).user_data(entity_tag(id.0));
+        self.state.physics.insert(body, collider).0
     }
 
     /// Spawns the player at the scene's spawn point and makes the camera follow it.
@@ -396,20 +426,44 @@ impl Sim {
         let mut actions = Vec::new();
         let mut events = Vec::new();
         let idle = InputFrame::default();
+        let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
+        let mut fallen = Vec::new();
         for id in ids {
-            let inp = if Some(id) == self.state.player { input } else { &idle };
+            let npc_input: InputFrame;
+            let inp = if Some(id) == self.state.player {
+                input
+            } else {
+                // Non-player characters: their brain drives them like a player would.
+                let st = &mut self.state;
+                match st.entities.map.get_mut(&id) {
+                    Some(e) if e.ai.is_some() => {
+                        let feet = e.pos - Vec3::Y * e.character.as_ref().map(|c| c.height() * 0.5).unwrap_or(0.0);
+                        let ai = e.ai.as_mut().unwrap();
+                        if feet.y < crate::course::FALL_LIMIT {
+                            fallen.push((id, ai.home));
+                        }
+                        npc_input = ai.think(feet, player_feet, &mut st.rng, dt);
+                        &npc_input
+                    }
+                    _ => &idle,
+                }
+            };
+            let own = self.state.entities.get(id).and_then(|e| e.character.as_ref()).and_then(|c| c.puppet.clone());
             character::tick(
                 &mut self.state,
                 id,
                 inp,
                 &self.config.movement,
                 &self.config.bombs,
-                &self.config.puppet,
+                own.as_deref().unwrap_or(&self.config.puppet),
                 self.config.gravity,
                 dt,
                 &mut events,
                 &mut actions,
             );
+        }
+        for (id, home) in fallen {
+            self.set_position(id, home);
         }
         for a in actions {
             match a {
@@ -567,10 +621,25 @@ impl Sim {
             }
             let fall = 1.0 - dist / reach;
             let dir = (d + Vec3::Y * 0.5).normalize_or(Vec3::Y);
+            if let Some(h) = e.soft.as_ref().and_then(|s| s.handle) {
+                // Soft bodies: every particle in reach gets kicked away from the blast.
+                if let Some(sb) = self.state.physics.soft_bodies.get_mut(h) {
+                    let pv: Vec<(Vec3, Vec3)> = sb.particle_positions().zip(sb.particle_velocities()).collect();
+                    for (i, (p, v)) in pv.into_iter().enumerate() {
+                        let d = p - pos;
+                        let f = 1.0 - d.length() / reach;
+                        if f > 0.0 {
+                            sb.set_particle_velocity(i, v + (d + Vec3::Y * 0.5).normalize_or(Vec3::Y) * push * f);
+                        }
+                    }
+                }
+                continue;
+            }
             if let Some(ch) = &mut e.character {
                 ch.impulse += dir * push * fall;
                 ch.stun = ch.stun.max(0.25 * fall);
                 ch.hang = None;
+                ch.anim.hit(dir, 0.5 + 1.5 * fall);
             } else if let Some(b) = e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
                 if b.is_dynamic() {
                     let m = b.mass();
@@ -725,7 +794,12 @@ impl Sim {
                 .entities
                 .iter()
                 .filter_map(|e| {
-                    let puppet = e.character.as_ref().map(|c| PuppetFrame { state: c.anim, feet_offset: c.height() * 0.5 });
+                    let puppet = e.character.as_ref().map(|c| PuppetFrame {
+                        state: c.anim,
+                        feet_offset: c.height() * 0.5,
+                        def: c.puppet.clone(),
+                        rig: c.rig.as_ref().map(|r| r.view()),
+                    });
                     if e.visual.is_none() && puppet.is_none() {
                         return None;
                     }

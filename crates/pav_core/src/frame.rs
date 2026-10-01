@@ -10,11 +10,15 @@ use crate::shape::Visual;
 use crate::statics::StaticWorld;
 
 /// Animation state of a character, drawn as a puppet.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct PuppetFrame {
     pub state: PuppetState,
     /// Distance from the entity position (capsule centre) down to the feet.
     pub feet_offset: f32,
+    /// Own look (NPCs); None = `RenderFrame::puppet_def`.
+    pub def: Option<std::sync::Arc<PuppetDef>>,
+    /// Creature feet and swinging chains.
+    pub rig: Option<crate::rig::RigView>,
 }
 
 #[derive(Clone, Debug)]

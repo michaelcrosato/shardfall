@@ -1,0 +1,399 @@
+# Conveyors: belts carry the player and any dynamic prop standing on them (a belt is a "conveyor"
+# zone on floor cells: facing + speed). Belts are dark, with arrows written on them in text.
+#   NORTH-WEST  a rectangular belt loop (2 cells wide) that circulates a few crates for ever
+#   NORTH-EAST  three speed lanes: 1, 3 and 6 m/s
+#   CENTRE      UPSTREAM: a 4.5 m/s belt that carries you back to the entrance; walk against it to FINISH
+#   SOUTH-WEST  a sorting line: the BOXES pad drops 10 boxes onto a belt that feeds a fenced bin
+#   SOUTH-EAST  two adjacent belts running in opposite directions (an oval: 1-cell end belts hand the
+#               balls over), so balls on the seam are sheared apart and circulate for ever
+# Props are carried while their centre is over a belt cell, so each belt hands over to the next one
+# a full cell beyond the island's corner (a crate that turned right at the corner would catch on it).
+# Speeds: crate loop 2.5, lanes 1 / 3 / 6, upstream 4.5 (you walk at 6), sorting belt 4, oval 2.5 m/s.
+name = "Conveyors"
+about = "Floor belts that carry you and any prop on them: a crate loop that never ends, three speed lanes (1, 3, 6 m/s), a 4.5 m/s belt you must walk against, a sorting line into a bin, and an oval of two opposing belts that shears balls apart."
+try = [
+  "Jump over the fence (hold jump) onto the crate loop and ride it round with the crates",
+  "Stand still on each speed lane (1, 3 and 6 m/s) and see how far it takes you",
+  "Run UPSTREAM against the 4.5 m/s belt from START to FINISH, then try bunny-hopping up it: the belt only carries you while your feet touch it",
+  "Step on DROP BOXES, then watch ten boxes ride the sorting line into the bin; CLEAR empties it",
+  "Stand on the belt of the sorting line and let it carry you into the bin",
+  "Step on DROP BALLS next to the opposing belts: the balls split east and west along the seam and keep circulating (CLEAR removes them)",
+  "Stand on the seam between the opposing belts, then step one way or the other",
+  "Throw bombs (F or left click) at the crates and boxes on the belts",
+]
+wing = "physics"
+order = 4
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [20, 29], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 34.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#ffffffffffffffff......................#
+#faaaaaaaaaaaaabf......................#
+#fddaaaaaaaaaaabf......111111111111111.#
+#fddiiiiiiiiiibbf......111111111111111.#
+#fddiiiiiiiiiibbf......................#
+#fddiiiiiiiiiibbf......333333333333333.#
+#fddiiiiiiiiiibbf......333333333333333.#
+#fddiiiiiiiiiibbf......................#
+#fddiiiiiiiiiibbf......666666666666666.#
+#fdcccccccccccbbf......666666666666666.#
+#fdcccccccccccccf.fEEEf................#
+#ffffffffffffffff.fEEEf................#
+#.................fuuuf................#
+#.................fuuuf................#
+#.................fuuuf................#
+#.................fuuuf................#
+#.................fuuuf..fffffffffffff.#
+#.................fuuuf..fxxxxxxxxxxrf.#
+#...fffffffffffff.fuuuf..fxxxxxxxxxxrf.#
+#DDD.sssssssnnnnf.fuuuf..fxxxxxxxxxxrf.#
+#DDD.sssssssnnnnf.fuuuf..fwyyyyyyyyyyf.#
+#DDD.sssssssnnnnf.fuuuf..fwyyyyyyyyyyf.#
+#...fffffffffffff.fuuuf..fwyyyyyyyyyyf.#
+#.................fuuuf..fffffffffffff.#
+#............CCC..fuuuf................#
+#............CCC..fuuuf....BBB...KKK...#
+#..................SSS.....BBB...KKK...#
+#..................SSS.................#
+####################.###################
+'''
+
+# Map key:  # wall (3 m)  . floor  f fence (0.8 m)  i island in the loop (0.8 m)  n bin floor
+#   a b c d  loop belts east / south / west / north (2.5 m/s)     1 3 6  speed lanes (m/s)
+#   u upstream belt (faces south, 4.5 m/s)  S START  E FINISH  s sorting belt (east, 4 m/s)
+#   x y r w  opposing belts east / west and their end belts south / north (2.5 m/s)   D C  BOXES / CLEAR pads   B K  BALLS / CLEAR pads
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+# Fence (0.8 m: keeps props on the belts, easy to jump over) and the loop's island.
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.8, color = "#8f9fae" }]
+
+[layout.legend.'i']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.8, color = "#c9bda4" }]
+
+[layout.legend.'n']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c9bda4" }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 2.5, label = "" }
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "south", speed = 2.5, label = "" }
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "west", speed = 2.5, label = "" }
+
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "north", speed = 2.5, label = "" }
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 1, label = ">>>   1 M/S   >>>" }
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 3, label = ">>>>>   3 M/S   >>>>>" }
+
+[layout.legend.'6']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 6, label = ">>>>>>>   6 M/S   >>>>>>>" }
+
+[layout.legend.'u']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "south", speed = 4.5, label = "4.5 M/S" }
+
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 4, label = ">>>   >>>   >>>" }
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 2.5, label = ">>>>   >>>>   >>>>" }
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "west", speed = 2.5, label = "<<<<   <<<<   <<<<" }
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "south", speed = 2.5, label = "v", label_size = 0.5 }
+
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "north", speed = 2.5, label = "^", label_size = 0.5 }
+
+# Pads: stepping on one sends its signal once (the spawners below listen to them).
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "DROP BOXES", color = "#3bb273", signal = "boxes" }
+
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "DROP BALLS", color = "#3bb273", signal = "balls" }
+
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_balls" }
+
+# UPSTREAM course: leaving START starts the timer, FINISH stops it.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "start", course = "upstream", label = "START", facing = "north" }
+
+[layout.legend.'E']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "finish", course = "upstream", label = "FINISH" }
+
+# ---- exhibit names (floor text, layout space) ----
+
+[[label]]
+text = "CRATE LOOP"
+pos = [9.0, 0.83, 6.4]
+size = 0.7
+
+[[label]]
+text = "ROUND AND ROUND"
+pos = [9.0, 0.83, 7.6]
+size = 0.4
+
+
+# Arrows on the loop belts (the belts themselves carry no zone label).
+[[label]]
+text = ">>>>    >>>>    >>>>"
+pos = [8.5, 0.03, 3.0]
+size = 0.55
+color = "#d8dce2"
+
+[[label]]
+text = "<<<<    <<<<    <<<<"
+pos = [9.5, 0.03, 11.0]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "v   v"
+pos = [15.0, 0.03, 4.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "^   ^"
+pos = [3.0, 0.03, 4.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "v   v"
+pos = [15.0, 0.03, 6.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "^   ^"
+pos = [3.0, 0.03, 6.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "v   v"
+pos = [15.0, 0.03, 8.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "^   ^"
+pos = [3.0, 0.03, 8.6]
+size = 0.5
+color = "#d8dce2"
+
+[[label]]
+text = "SPEED LANES"
+pos = [30.5, 0.03, 1.8]
+size = 0.6
+
+[[label]]
+text = "UPSTREAM"
+pos = [20.5, 0.03, 9.3]
+size = 0.6
+
+[[label]]
+text = "WALK UP IT"
+pos = [20.5, 0.03, 10.2]
+size = 0.4
+
+[[label]]
+text = "SORTING LINE"
+pos = [10.5, 0.03, 17.5]
+size = 0.55
+
+[[label]]
+text = "BIN"
+pos = [14.0, 0.03, 21.5]
+size = 0.5
+
+[[label]]
+text = "OPPOSING BELTS"
+pos = [31.5, 0.03, 15.4]
+size = 0.55
+
+
+[[label]]
+text = "v v v"
+pos = [20.5, 0.03, 14.5]
+size = 0.6
+color = "#d8dce2"
+
+[[label]]
+text = "v v v"
+pos = [20.5, 0.03, 17.0]
+size = 0.6
+color = "#d8dce2"
+
+[[label]]
+text = "v v v"
+pos = [20.5, 0.03, 23.0]
+size = 0.6
+color = "#d8dce2"
+
+[[label]]
+text = "v v v"
+pos = [20.5, 0.03, 25.5]
+size = 0.6
+color = "#d8dce2"
+
+# ---- objects (keep at the end of the file) ----
+
+# Loop crates: 0.5 m cubes lying on the belts (density 60: light enough to be shoved around).
+[[object]]
+name = "crate_0"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [5.5, 0.25, 3.0]
+color = "#e8704a"
+density = 60
+friction = 0.5
+[[object]]
+name = "crate_1"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [10.5, 0.25, 3.0]
+color = "#f2c14e"
+density = 60
+friction = 0.5
+[[object]]
+name = "crate_2"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [15.0, 0.25, 6.5]
+color = "#5b8def"
+density = 60
+friction = 0.5
+[[object]]
+name = "crate_3"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [11.5, 0.25, 11.0]
+color = "#3bb273"
+density = 60
+friction = 0.5
+[[object]]
+name = "crate_4"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [6.5, 0.25, 11.0]
+color = "#9b5de5"
+density = 60
+friction = 0.5
+[[object]]
+name = "crate_5"
+shape = { type = "box", half = [0.25, 0.25, 0.25] }
+pos = [3.0, 0.25, 7.5]
+color = "#f15bb5"
+density = 60
+friction = 0.5
+
+# Balls on the opposing belts: warm ones start on the east belt, cool ones on the west belt.
+[[object]]
+name = "ball_a0"
+shape = { type = "sphere", radius = 0.35 }
+pos = [28.5, 0.35, 19.0]
+color = "#e8704a"
+density = 100
+friction = 0.5
+restitution = 0.3
+[[object]]
+name = "ball_a1"
+shape = { type = "sphere", radius = 0.35 }
+pos = [31.5, 0.35, 19.6]
+color = "#f2c14e"
+density = 100
+friction = 0.5
+restitution = 0.3
+[[object]]
+name = "ball_a2"
+shape = { type = "sphere", radius = 0.35 }
+pos = [34.5, 0.35, 19.2]
+color = "#f15bb5"
+density = 100
+friction = 0.5
+restitution = 0.3
+[[object]]
+name = "ball_b0"
+shape = { type = "sphere", radius = 0.35 }
+pos = [34.5, 0.35, 22.5]
+color = "#5b8def"
+density = 100
+friction = 0.5
+restitution = 0.3
+[[object]]
+name = "ball_b1"
+shape = { type = "sphere", radius = 0.35 }
+pos = [31.5, 0.35, 22.0]
+color = "#00bbf9"
+density = 100
+friction = 0.5
+restitution = 0.3
+[[object]]
+name = "ball_b2"
+shape = { type = "sphere", radius = 0.35 }
+pos = [28.5, 0.35, 22.8]
+color = "#9b5de5"
+density = 100
+friction = 0.5
+restitution = 0.3
+
+# Box dropper over the start of the sorting belt (DROP BOXES -> "boxes", CLEAR -> "clear").
+[[object]]
+name = "box_spawner"
+shape = { type = "sphere", radius = 0.1 }
+pos = [7.0, 2.5, 21.5]
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.25, 0.25, 0.25] }, color = "", count = 10, area = [1.0, 0.8, 0.9], max = 40, signal = "boxes", clear = "clear", density = 60, friction = 0.15, restitution = 0.1, tumble = true }
+
+# Ball dropper over the seam of the opposing belts.
+[[object]]
+name = "ball_spawner"
+shape = { type = "sphere", radius = 0.1 }
+pos = [31.5, 3.0, 21.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "sphere", radius = 0.3 }, color = "", count = 12, area = [3.5, 0.8, 2.2], max = 36, signal = "balls", clear = "clear_balls", density = 100, friction = 0.5, restitution = 0.3, tumble = false }

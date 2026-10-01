@@ -167,7 +167,7 @@ fn style_of(look: Look, ov: StyleOverride) -> Style {
         StyleOverride::PerObject => {}
     }
     match look {
-        Look::Flat => Style::Flat,
+        Look::Flat | Look::Cutout => Style::Flat,
         Look::Cel => Style::Cel,
         Look::Lit => Style::Lit,
         Look::Unlit => Style::Unlit,
@@ -229,10 +229,15 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
                         }
                     }
                 }
-                if let (Some(a), Some(b)) = (p.puppet, o.puppet) {
+                if let (Some(a), Some(b)) = (&p.puppet, &o.puppet) {
                     obj.puppet = Some(PuppetFrame {
                         state: a.state.lerp(&b.state, alpha),
                         feet_offset: a.feet_offset + (b.feet_offset - a.feet_offset) * alpha,
+                        def: b.def.clone(),
+                        rig: match (&a.rig, &b.rig) {
+                            (Some(ra), Some(rb)) => Some(ra.lerp(rb, alpha)),
+                            _ => b.rig.clone(),
+                        },
                     });
                 }
             }
@@ -402,7 +407,7 @@ impl ViewBuilder {
         let feet = curr
             .player
             .and_then(|id| curr.objects.iter().find(|o| o.id == id))
-            .and_then(|o| o.puppet.map(|p| focus - Vec3::Y * p.feet_offset))
+            .and_then(|o| o.puppet.as_ref().map(|p| focus - Vec3::Y * p.feet_offset))
             .unwrap_or(focus);
         scene.cutaway = rs::Cutaway {
             focus: feet + Vec3::Y * 0.9,
@@ -518,10 +523,11 @@ impl ViewBuilder {
                 emit_soft(&mut scene, &o, s, settings.style);
                 continue;
             }
-            match o.puppet {
+            match &o.puppet {
                 Some(p) => {
                     let player = curr.player == Some(o.id);
-                    emit_puppet(&mut scene, &curr.puppet_def, &o, &p, cam_fwd, settings.style, player)
+                    let def = p.def.as_deref().unwrap_or(&curr.puppet_def);
+                    emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style, player)
                 }
                 None => emit_object(&mut scene, &o, settings.style, now),
             }
@@ -704,7 +710,7 @@ fn emit_puppet(
     let feet = o.pos - Vec3::Y * p.feet_offset;
     let style = style_of(def.look, ov);
     let flags = if player { rs::flags::NO_CUT } else { 0 };
-    for part in pav_core::puppet::pose(def, &p.state, feet, cam_fwd) {
+    for part in pav_core::puppet::pose(def, &p.state, p.rig.as_ref(), feet, cam_fwd) {
         scene.sdfs.push(SdfInstance {
             a: part.a,
             b: part.b,

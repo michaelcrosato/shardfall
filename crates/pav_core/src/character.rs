@@ -13,7 +13,7 @@ use crate::frame::SimEvent;
 use crate::input::{InputFrame, buttons};
 use crate::params::{ChoiceParam, ParamVisitor, Tunable};
 use crate::physics::entity_from_tag;
-use crate::puppet::{AnimInput, PuppetDef, PuppetState};
+use crate::puppet::{AnimInput, BodyPlan, PuppetDef, PuppetState};
 use crate::sim::SimState;
 use crate::statics::Ladder;
 use crate::zones::ZoneKind;
@@ -281,6 +281,15 @@ pub struct Character {
     pub air_from: f32,
     #[serde(default)]
     pub air_jumped: bool,
+    /// Own look (NPCs); None = the shared puppet settings.
+    #[serde(default)]
+    pub puppet: Option<std::sync::Arc<PuppetDef>>,
+    /// Creature feet, tails and antennae.
+    #[serde(default)]
+    pub rig: Option<Box<crate::rig::Rig>>,
+    /// Mass (kg) of the props being pushed, smoothed: heavy things slow the character down.
+    #[serde(default)]
+    pub push_load: f32,
 }
 
 impl Character {
@@ -467,9 +476,13 @@ pub fn tick(
     let was_swimming = ch.swimming;
     ch.swimming = ch.water_depth > if was_swimming { 1.05 } else { 1.25 } && ch.climbing.is_none() && ch.hang.is_none();
     let rolling = ch.roll > 0.0;
+    // Creatures (spiders, lizards, ...) keep a low capsule and move at full speed.
+    let creature = puppet.body != BodyPlan::Biped;
 
     // --- posture (never stand up into a ceiling)
-    let want = if ch.climbing.is_some() || ch.hang.is_some() || ch.swimming {
+    let want = if creature {
+        Posture::Crawl
+    } else if ch.climbing.is_some() || ch.hang.is_some() || ch.swimming {
         Posture::Stand
     } else if rolling || ch.crawl_toggle {
         Posture::Crawl
@@ -626,6 +639,7 @@ pub fn tick(
     // --- horizontal movement
     if !climbing && !hanging {
         let mult = match ch.posture {
+            _ if creature => 1.0,
             Posture::Stand => 1.0,
             Posture::Crouch => mp.crouch_mult,
             Posture::Crawl => mp.crawl_mult,
@@ -744,7 +758,8 @@ pub fn tick(
                 jumped = true;
             }
         } else {
-            let can_jump = (ch.grounded || ch.air_time < mp.coyote_time) && ch.posture != Posture::Crawl && mp.allow_jump && !rolling;
+            let can_jump =
+                (ch.grounded || ch.air_time < mp.coyote_time) && (ch.posture != Posture::Crawl || creature) && mp.allow_jump && !rolling;
             if ch.since_jump_press <= mp.jump_buffer && can_jump && !ch.jumping {
                 ch.vel.y = (2.0 * mp.gravity * mp.jump_height).sqrt();
                 ch.jumping = true;
@@ -808,7 +823,8 @@ pub fn tick(
         autostep: (!climbing && !hanging).then_some(CharacterAutostep {
             max_height: CharacterLength::Absolute(mp.step_height as Real),
             min_width: CharacterLength::Absolute(0.12),
-            include_dynamic_bodies: false,
+            // Step onto low planks, seesaws and debris (tall crates still get pushed).
+            include_dynamic_bodies: true,
         }),
         max_slope_climb_angle: 50f32.to_radians() as Real,
         min_slope_slide_angle: 40f32.to_radians() as Real,
@@ -821,6 +837,12 @@ pub fn tick(
         Some(m) => m,
         None => ch.vel * dt + lock_fix,
     };
+    if ch.push_load > 1.0 && hang_move.is_none() {
+        // Pushing something heavy: share the momentum (a 70 kg push on a 280 kg ball crawls).
+        let f = mp.push_mass / (mp.push_mass + ch.push_load);
+        desired.x *= f;
+        desired.z *= f;
+    }
     if was_grounded && !climbing && !hanging {
         // Conveyor belts carry whoever stands on them.
         desired += conveyor * dt;
@@ -841,6 +863,15 @@ pub fn tick(
             ph.broad_phase.as_query_pipeline_mut(ph.narrow_phase.query_dispatcher(), &mut ph.bodies, &mut ph.colliders, filter);
         kcc.solve_character_collision_impulses(dt as Real, &mut qpm, shape.as_ref(), mp.push_mass as Real, collisions.iter());
     }
+    // Heaviest prop pushed sideways this tick.
+    let load = collisions
+        .iter()
+        .filter(|c| c.hit.normal1.y.abs() < 0.7)
+        .filter_map(|c| st.physics.colliders.get(c.handle).and_then(|c| c.parent()).and_then(|p| st.physics.bodies.get(p)))
+        .filter(|b| b.is_dynamic())
+        .map(|b| b.mass() as f32)
+        .fold(0.0f32, f32::max);
+    ch.push_load = if load > ch.push_load { load } else { ch.push_load * (-8.0 * dt).exp() };
     let moved = mv.translation;
     let new_center = center + moved;
     if let Some(b) = st.physics.bodies.get_mut(body_h) {
@@ -936,7 +967,7 @@ pub fn tick(
             accel,
             grounded: ch.grounded,
             crouch: ch.posture == Posture::Crouch,
-            crawl: ch.posture == Posture::Crawl && !rolling,
+            crawl: ch.posture == Posture::Crawl && !rolling && !creature,
             climbing: climbing || hanging,
             facing: ch.facing,
             landed,
@@ -949,8 +980,33 @@ pub fn tick(
     if hanging {
         ch.anim.climb_phase = 0.25;
     }
+    // Rig: creature feet step on the ground, tails and antennae swing; bipeds find the ground
+    // under each foot.
+    {
+        let feet_now = new_center - Vec3::Y * height * 0.5;
+        let qp = st.physics.query_filtered(filter);
+        let ground = |p: Vec3| -> Option<f32> {
+            qp.cast_ray(&Ray::new(Vec3::new(p.x, feet_now.y + 0.6, p.z), Vec3::NEG_Y), 1.4, true).map(|(_, t)| feet_now.y + 0.6 - t as f32)
+        };
+        if crate::rig::needs_rig(puppet) {
+            let rig = ch.rig.get_or_insert_with(|| Box::new(crate::rig::Rig::at_rest(puppet, feet_now, ch.anim.facing)));
+            let before = rig.steps;
+            rig.update(puppet, &ch.anim, feet_now, ch.vel, ch.grounded && !climbing && !hanging, &ground, dt);
+            if creature && rig.steps / 2 != before / 2 {
+                events.push(SimEvent::Step { pos: feet_now });
+            }
+        } else {
+            ch.rig = None;
+        }
+        if !creature {
+            let (l, r) = if ch.grounded && !climbing && !hanging { crate::rig::biped_feet(puppet, &ch.anim, feet_now, &ground) } else { (0.0, 0.0) };
+            let k = 1.0 - (-20.0 * dt).exp();
+            ch.anim.foot_l += (l - ch.anim.foot_l) * k;
+            ch.anim.foot_r += (r - ch.anim.foot_r) * k;
+        }
+    }
     // Footsteps when the walk cycle passes a contact point.
-    if ch.grounded && !climbing && Vec2::new(ch.vel.x, ch.vel.z).length() > 0.5 {
+    if !creature && ch.grounded && !climbing && Vec2::new(ch.vel.x, ch.vel.z).length() > 0.5 {
         let (a, b) = (phase_before, ch.anim.phase);
         let crossed = |x: f32| if b >= a { a < x && b >= x } else { a < x || b >= x };
         if crossed(0.25) || crossed(0.75) {

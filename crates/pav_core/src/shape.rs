@@ -65,6 +65,8 @@ choice_enum! {
         Cel => "cel",
         Lit => "lit",
         Unlit => "unlit",
+        /// Characters: flat 2D art on a camera-facing card (other objects draw flat).
+        Cutout => "cutout",
     }
 }
 

@@ -1,0 +1,73 @@
+name = "AT"
+entrance = { at = [10, 15], facing = "south" }
+[layout]
+origin = [-10.0, 0.0, -8.0]
+[[layout.layer]]
+map = '''
+####################
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#..................#
+#.........123......#
+#.........123......#
+#..................#
+#..................#
+#..................#
+##########.#########
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d2c4" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d2c4" }, { y0 = 0, y1 = 3, color = "#b9c3cf" }]
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0.25, color = "#c9b79c" }]
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0.5, color = "#c9b79c" }]
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0.75, color = "#c9b79c" }]
+
+[[npc]]
+name = "walker"
+pos = [4.5, 0, 4.5]
+ai = { type = "circle", radius = 2.5 }
+speed = 0.5
+
+[[npc]]
+name = "spider"
+kind = "spider"
+pos = [10.5, 0, 4.5]
+ai = { type = "wander", radius = 3 }
+speed = 0.6
+
+[[npc]]
+name = "lizard"
+kind = "lizard"
+pos = [15.5, 0, 4.5]
+ai = { type = "patrol", points = [[15.5, 3.5], [15.5, 9.5]] }
+speed = 0.6
+
+[[npc]]
+name = "beetle"
+kind = "beetle"
+pos = [4.5, 0, 10.5]
+ai = { type = "circle", radius = 1.5, clockwise = true }
+speed = 0.4
+
+[[npc]]
+name = "blob"
+kind = "blob"
+pos = [15.5, 0, 12.5]
+ai = { type = "wander", radius = 2 }
+hop = 1.5
+
+[[npc]]
+name = "critter"
+pos = [8.5, 0, 13.0]
+yaw = 180
+look = { tail_length = 0.8, antenna_length = 0.35, shirt = "#7a5cff", look = "cutout" }

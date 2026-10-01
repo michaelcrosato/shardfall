@@ -17,11 +17,14 @@ pub struct Material {
     pub density: f32,
     pub friction: f32,
     pub restitution: f32,
+    /// Linear and angular damping (air drag): calms chains and bridges.
+    #[serde(default)]
+    pub damping: f32,
 }
 
 impl Default for Material {
     fn default() -> Self {
-        Self { density: 1.0, friction: 0.5, restitution: 0.0 }
+        Self { density: 1.0, friction: 0.5, restitution: 0.0, damping: 0.0 }
     }
 }
 
@@ -323,6 +326,9 @@ pub struct Entity {
     /// Joints this entity owns (to other entities or the world).
     #[serde(default)]
     pub joints: Vec<crate::joints::JointLink>,
+    /// Brain of a non-player character.
+    #[serde(default)]
+    pub ai: Option<Box<crate::ai::Ai>>,
 }
 
 /// Everything needed to create an entity.
@@ -343,6 +349,8 @@ pub struct Spawn {
     pub friction: f32,
     #[serde(default)]
     pub restitution: f32,
+    #[serde(default)]
+    pub damping: f32,
     #[serde(default)]
     pub behavior: Behavior,
     #[serde(default)]
@@ -374,6 +382,7 @@ impl Spawn {
             density: 1.0,
             friction: 0.5,
             restitution: 0.0,
+            damping: 0.0,
             behavior: Behavior::None,
             region: None,
             hazard: None,
@@ -406,6 +415,10 @@ impl Spawn {
     }
     pub fn density(mut self, d: f32) -> Self {
         self.density = d;
+        self
+    }
+    pub fn damping(mut self, d: f32) -> Self {
+        self.damping = d;
         self
     }
 }
