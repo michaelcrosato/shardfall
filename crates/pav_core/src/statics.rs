@@ -29,6 +29,8 @@ pub mod block_flags {
     pub const ROUNDED: u32 = 8;
     /// About to crumble (drawn cracked).
     pub const CRACKED: u32 = 16;
+    /// Crumbles only under the player (monsters fall into holes but don't make them).
+    pub const PLAYER_CRUMBLE: u32 = 32;
 }
 
 /// Which region static content belongs to.

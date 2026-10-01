@@ -51,6 +51,10 @@ pub enum GameCmd {
     Reroll,
     /// Use a spot in the world (spot index): take the way down, open a cursed chest.
     Use(u32),
+    /// The gambler: a mystery item of a slot (`Slot` index) for gold.
+    Gamble(u8),
+    /// The alchemist: 0 = one more potion, 1 = stronger potions.
+    Brew(u8),
 }
 
 /// Where the hero can be. Codes: 0 town, 1 arena, 2 the Menagerie, 100 + n depth n.
@@ -119,6 +123,9 @@ pub enum SpotKind {
     Exit,
     /// A cursed chest (levels).
     Chest,
+    /// Odo the gambler and Mother Wren the alchemist (town).
+    Gamble,
+    Alchemist,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -290,6 +297,69 @@ impl Game {
                     }
                 }
                 self.travel = Some(place.code());
+            }
+            GameCmd::Gamble(slot) => {
+                if !self.near_kind(sim, SpotKind::Gamble) {
+                    return Err("Odo is not here".into());
+                }
+                let slot = *Slot::ALL.get(slot as usize).ok_or("no such slot")?;
+                let price = super::scene::gamble_price(self.hero.level, slot);
+                if self.hero.gold < price {
+                    return Err(format!("{price} gold needed"));
+                }
+                if self.hero.inventory.len() >= super::hero::INVENTORY_SIZE {
+                    return Err("Your bag is full".into());
+                }
+                let d = data();
+                let rng = &mut sim.state.rng;
+                let roll = rng.f32();
+                let rarity = if roll < 0.03 {
+                    Rarity::Unique
+                } else if roll < 0.25 {
+                    Rarity::Rare
+                } else if roll < 0.85 {
+                    Rarity::Magic
+                } else {
+                    Rarity::Normal
+                };
+                let level = self.hero.level + rng.below(3);
+                let id = self.hero.new_id();
+                let spec = RollSpec { level, rarity: Some(rarity), slot: Some(slot), rarity_bonus: 0.0 };
+                let item = roll_item(&d, &mut sim.state.rng, spec, id)
+                    .or_else(|| roll_item(&d, &mut sim.state.rng, RollSpec { rarity: Some(Rarity::Rare), ..spec }, id))
+                    .ok_or("Odo shrugs: nothing in the box")?;
+                self.hero.gold -= price;
+                let name = item.name.clone();
+                let r = item.rarity;
+                self.hero.inventory.push(item);
+                self.inv_changed();
+                self.notify(sim, format!("Odo: \"{}{}\"", name, if r >= Rarity::Rare { "! Lucky you." } else { "." }));
+                if let Some((f, _)) = self.hero_id.and_then(|h| feet_of(sim, h)) {
+                    events.push(SimEvent::Loot { pos: f, rarity: r as u8 });
+                }
+            }
+            GameCmd::Brew(kind) => {
+                if !self.near_kind(sim, SpotKind::Alchemist) {
+                    return Err("Mother Wren is not here".into());
+                }
+                let price = super::scene::brew_price(&self.hero, kind).ok_or("That brew is as strong as it gets")?;
+                if self.hero.gold < price {
+                    return Err(format!("{price} gold needed"));
+                }
+                self.hero.gold -= price;
+                match kind {
+                    0 => {
+                        self.hero.potion_max += 1;
+                        self.hero.potions = self.hero.potion_max;
+                        self.notify(sim, format!("Mother Wren: \"{} potions now. Use them.\"", self.hero.potion_max));
+                    }
+                    _ => {
+                        self.hero.mods.add(super::stats::Stat::PotionInc, 20.0);
+                        self.notify(sim, "Mother Wren: \"Stronger stuff. Don't drink it all at once.\"");
+                    }
+                }
+                refresh_hero(sim, self, false);
+                self.inv_changed();
             }
             GameCmd::Use(i) => {
                 let s = self.spots.get(i as usize).ok_or("nothing there")?.clone();

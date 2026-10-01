@@ -1303,7 +1303,7 @@ fn place_look(g: &pav_core::arpg::GameFrame, v: &mut ViewSettings) {
             v.light.sun_azimuth = m.sun_angle;
             v.light.sun_intensity = m.sun;
             v.light.ambient = m.ambient;
-            v.bloom = 0.75;
+            v.bloom = 0.5;
             v.saturation = 1.1;
             if m.fog > 0.0 {
                 v.fog = true;

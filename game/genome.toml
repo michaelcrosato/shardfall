@@ -56,6 +56,18 @@ antenna = [0.2, 0.7]
 antenna_chance = 0.7
 radius = 0.5
 
+[body.quadruped]
+weight = 2
+scale = [0.8, 1.7]
+torso = [0.85, 1.35]
+head = [0.8, 1.3]
+legs = [0.8, 1.3]
+limbs = [0.85, 1.4]
+body_length = [0.8, 1.4]
+tail = [0.3, 0.9]
+tail_chance = 0.85
+radius = 0.5
+
 [body.blob]
 weight = 1
 scale = [0.7, 1.6]
@@ -66,24 +78,24 @@ radius = 0.55
 # Which parts can grow on which bodies, how often, how big; a genome gets 0-3 parts.
 [part.horns]
 weight = 3
-bodies = ["biped", "lizard", "beetle", "blob"]
+bodies = ["biped", "lizard", "beetle", "blob", "quadruped"]
 size = [0.7, 1.7]
 [part.antlers]
 weight = 1
-bodies = ["biped", "lizard"]
+bodies = ["biped", "lizard", "quadruped"]
 size = [0.7, 1.3]
 [part.spikes]
 weight = 3
-bodies = ["biped", "spider", "lizard", "beetle", "blob"]
+bodies = ["biped", "spider", "lizard", "beetle", "blob", "quadruped"]
 size = [0.7, 1.6]
 count = [3, 8]
 [part.crest]
 weight = 2
-bodies = ["biped", "lizard"]
+bodies = ["biped", "lizard", "quadruped"]
 size = [0.8, 1.5]
 [part.tusks]
 weight = 2
-bodies = ["biped", "lizard", "beetle"]
+bodies = ["biped", "lizard", "beetle", "quadruped"]
 size = [0.7, 1.4]
 [part.mandibles]
 weight = 2
@@ -91,22 +103,22 @@ bodies = ["spider", "beetle", "lizard"]
 size = [0.8, 1.5]
 [part.plates]
 weight = 2
-bodies = ["biped", "lizard", "beetle", "spider"]
+bodies = ["biped", "lizard", "beetle", "spider", "quadruped"]
 size = [0.8, 1.3]
 count = [2, 6]
 [part.eyes]
 weight = 2
-bodies = ["biped", "spider", "beetle", "blob", "lizard"]
+bodies = ["biped", "spider", "beetle", "blob", "lizard", "quadruped"]
 size = [0.8, 1.4]
 count = [2, 6]
 [part.orbs]
 weight = 1
-bodies = ["biped", "blob", "spider", "beetle"]
+bodies = ["biped", "blob", "spider", "beetle", "quadruped"]
 size = [0.8, 1.4]
 count = [2, 5]
 [part.wings]
 weight = 1
-bodies = ["biped", "lizard", "beetle"]
+bodies = ["biped", "lizard", "beetle", "quadruped"]
 size = [0.8, 1.4]
 
 # ------------------------------------------------------------------------------ palettes
@@ -234,6 +246,7 @@ spider = ["Skitterer", "Weaver", "Crawler", "Lurker", "Broodmother", "Creeper"]
 lizard = ["Drake", "Wyrm", "Basilisk", "Salamander", "Monitor", "Serpent"]
 beetle = ["Scarab", "Shellback", "Carapace", "Borer", "Crawler", "Beetle"]
 blob = ["Ooze", "Slime", "Bloat", "Jelly", "Sludge", "Mass"]
+quadruped = ["Hound", "Wolf", "Boar", "Stalker", "Mauler", "Jackal", "Warg"]
 brute = ["", "", "Bruiser"]
 stalker = ["Stalker", "Prowler", ""]
 spitter = ["Spitter", "", "Lobber"]

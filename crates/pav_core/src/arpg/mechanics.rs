@@ -390,8 +390,8 @@ fn lantern(sim: &mut Sim, lv: &mut LevelState, hero: Option<Vec3>) {
             v.look = Look::Unlit;
             v.light = Some(Box::new(LightDef {
                 color: "#ffd8a0".into(),
-                radius: 8.0,
-                intensity: 1.5,
+                radius: 11.0,
+                intensity: 2.3,
                 flicker: 0.15,
                 shadows: true,
                 ..Default::default()
@@ -518,7 +518,7 @@ fn feature(
                     let r = Quat::from_rotation_y(yaw + sd * 0.7);
                     let arm = r * Vec3::Z;
                     if let Some(id) = chevrons.get(k * 2 + j) {
-                        set_pos(sim, *id, tip - arm * 0.55, Some(r));
+                        set_pos(sim, *id, tip - arm * 0.45, Some(r));
                     }
                 }
             }

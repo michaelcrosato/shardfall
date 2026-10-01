@@ -220,7 +220,7 @@ impl LevelPlan {
             sky: t.sky.clone(),
             sun: t.sun * (1.0 - dark * 0.9),
             sun_angle: t.sun_angle,
-            ambient: t.ambient * (1.0 - dark * 0.75),
+            ambient: t.ambient * (1.0 - dark * 0.6),
             fog: if dark >= 1.0 { 26.0 } else { 70.0 },
         }
     }
@@ -441,7 +441,7 @@ pub(crate) fn spawn_pack(
 
 // ------------------------------------------------------------------------------- building
 
-const WALL_H: f32 = 2.4;
+const WALL_H: f32 = 1.9;
 
 /// Builds depth `depth` around a game in progress (travel) or a fresh one.
 pub fn build_level(sim: &mut Sim, depth: u32, game: Option<Game>) {
@@ -627,6 +627,7 @@ impl<'a> Builder<'a> {
                 if crumble {
                     b.crumble = 0.55;
                     b.regrow = 16.0;
+                    b.flags |= block_flags::PLAYER_CRUMBLE;
                 }
                 let st = &mut self.sim.state;
                 st.statics.add(&mut st.physics, b);
@@ -1332,9 +1333,9 @@ impl<'a> Builder<'a> {
         let mut chevrons = Vec::new();
         for k in 0..n {
             for sd in [-1.0f32, 1.0] {
-                let mut v = Visual::new(Shape::Box { half: Vec3::new(0.06, 0.012, 0.55) }, Color::hex("#cfeeff"));
+                let mut v = Visual::new(Shape::Box { half: Vec3::new(0.04, 0.01, 0.45) }, Color::hex("#bfe4f8"));
                 v.look = Look::Unlit;
-                v.emissive = 0.5;
+                v.emissive = 0.25;
                 let mut s = Spawn::new("~wind", Vec3::new(c.x, 0.03, c.y)).visual(v);
                 s.rot = Quat::from_rotation_y(dir.x.atan2(dir.z) + sd * 0.7);
                 let id = self.sim.spawn(s);
@@ -1347,7 +1348,8 @@ impl<'a> Builder<'a> {
         v.particles = Some(Box::new(EmitterDef {
             preset: "dust".into(),
             color: "#dff2ff".into(),
-            rate: 10.0,
+            rate: 8.0,
+            size: 0.5,
             area: Vec3::new(rect.size().x * 0.5, 0.6, rect.size().y * 0.5),
             ..Default::default()
         }));
@@ -1387,13 +1389,13 @@ impl<'a> Builder<'a> {
         let mut crust = Visual::new(Shape::Cylinder { half_height: 0.02, radius: radius + 0.35 }, Color::hex("#1e1410"));
         crust.look = Look::Lit;
         let crust = self.sim.spawn(Spawn::new("lava crust", at + Vec3::Y * 0.015).visual(crust));
-        let mut v = Visual::new(Shape::Cylinder { half_height: 0.02, radius }, Color::hex("#ff5a14"));
+        let mut v = Visual::new(Shape::Cylinder { half_height: 0.02, radius }, Color::hex("#d8380a"));
         v.look = Look::Unlit;
-        v.emissive = 1.8;
+        v.emissive = 0.75;
         v.light = Some(Box::new(LightDef {
-            color: "#ff6a20".into(),
-            radius: radius * 2.6,
-            intensity: 2.0,
+            color: "#ff5a18".into(),
+            radius: radius * 2.4,
+            intensity: 1.5,
             flicker: 0.35,
             offset: Vec3::Y * 0.8,
             ..Default::default()
@@ -1412,15 +1414,27 @@ impl<'a> Builder<'a> {
             offset: Vec3::Y * 0.6,
         }));
         let pool = self.sim.spawn(Spawn::new("lava", at + Vec3::Y * 0.04).visual(v));
-        self.feature(FeatureKind::Lava { radius, tick: 0.0 }, at, room, Some(pool), vec![crust]);
+        // Brighter seams and darker cooling crusts floating on it.
+        let mut deco = vec![crust];
+        for k in 0..3 {
+            let a = self.rng.range(0.0, std::f32::consts::TAU);
+            let o = Vec3::new(a.cos(), 0.0, a.sin()) * radius * self.rng.range(0.15, 0.6);
+            let r = radius * self.rng.range(0.18, 0.32);
+            let (c, e) = if k == 0 { ("#ffb030", 1.1) } else { ("#3a1a10", 0.0) };
+            let mut v = Visual::new(Shape::Cylinder { half_height: 0.02, radius: r }, Color::hex(c));
+            v.look = if e > 0.0 { Look::Unlit } else { Look::Lit };
+            v.emissive = e;
+            deco.push(self.sim.spawn(Spawn::new("~lava crust", at + o + Vec3::Y * (0.06 + k as f32 * 0.004)).visual(v)));
+        }
+        self.feature(FeatureKind::Lava { radius, tick: 0.0 }, at, room, Some(pool), deco);
     }
 
     fn bubble(&mut self, p: Vec2, room: usize, radius: f32) {
         let at = Vec3::new(p.x, 0.0, p.y);
         self.taken[room].push((p, 1.0));
-        let mut v = Visual::new(Shape::Cylinder { half_height: 0.01, radius }, Color::hex("#5ab8ff"));
+        let mut v = Visual::new(Shape::Cylinder { half_height: 0.01, radius }, Color::hex("#1c3c5c"));
         v.look = Look::Unlit;
-        v.emissive = 0.22;
+        v.emissive = 0.08;
         v.light = Some(Box::new(LightDef {
             color: "#8fd0ff".into(),
             radius: radius * 1.6,

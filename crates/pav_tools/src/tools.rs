@@ -349,7 +349,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "game_cmd",
-        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|auto_loot|sort with id/slot/skill/place.",
+        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|use|auto_loot|sort with id/slot/skill/place/spot.",
         args: &[
             arg("do", "string", "the action"),
             arg("id", "integer", "item id (equip, drop, sell, buy, stash, take, pickup)"),
@@ -359,7 +359,9 @@ pub static TOOLS: &[Tool] = &[
                 "equip slot (weapon, offhand, helmet, body, gloves, boots, belt, amulet, ring1, ring2) or bar slot 0-5",
             ),
             arg("skill", "string", "skill key for bar"),
-            arg("place", "string", "town | arena for travel"),
+            arg("place", "string", "town | arena | lab | level for travel"),
+            arg("depth", "integer", "depth for place=level"),
+            arg("spot", "integer", "spot index for use (the way down, a cursed chest)"),
             arg("rarity", "integer", "sell_all up to / auto_loot from this rarity (0 normal .. 3 unique, 4 off)"),
         ],
         run: crate::game_tools::t_game_cmd,
@@ -459,6 +461,42 @@ pub static TOOLS: &[Tool] = &[
             arg("out", "string", "PNG path"),
         ],
         run: crate::game_tools::t_animsheet,
+    },
+    Tool {
+        name: "level",
+        help: "Shardfall levels: with depth= what that depth is (name, theme colours, mechanics, boss, monster level; to= for a range); with no args the level being played (features by kind with positions and state, spots, rooms seen, exit).",
+        args: &[
+            arg("depth", "integer", "a depth to describe (1-12 designed, then endless)"),
+            arg("to", "integer", "describe depth..to"),
+        ],
+        run: crate::game_tools::t_level,
+    },
+    Tool {
+        name: "levelmap",
+        help: "Top-down PNG map of a level: the current one, or a fresh one built for depth= (and seed=). Rooms, corridors, every mechanic's pieces, monster packs, the boss, exit and portal.",
+        args: &[
+            arg("depth", "integer", "build this depth (default: the level being played)"),
+            arg("seed", "integer", "layout seed for depth= (default 1)"),
+            arg("size", "integer", "image size in pixels (default 900)"),
+            arg("out", "string", "PNG path"),
+        ],
+        run: crate::game_tools::t_levelmap,
+    },
+    Tool {
+        name: "go",
+        help: "Travel at once: place=town|arena|lab|level (depth= for levels; unlocks the waypoint).",
+        args: &[arg("place", "string", "town | arena | lab | level"), arg("depth", "integer", "depth for place=level")],
+        run: crate::game_tools::t_go,
+    },
+    Tool {
+        name: "goto_feature",
+        help: "Put the hero next to a level feature: kind=shrine|keg|spikes|gate|wind|totem|lava|ice|crumble|well|chest|bubble|exit|portal (n= picks which one).",
+        args: &[
+            arg("kind", "string", "feature kind"),
+            arg("n", "integer", "which one (default 0)"),
+            arg("offset", "array", "[x, y, z] from it (default [0, 0, 3])"),
+        ],
+        run: crate::game_tools::t_goto_feature,
     },
 ];
 

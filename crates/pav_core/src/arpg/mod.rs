@@ -219,6 +219,8 @@ impl Game {
             respec_cost: self.hero.respec_cost(),
             tweaks: self.hero_actor().map(|a| a.tweaks.clone()).unwrap_or_default(),
             max_depth: self.hero.max_depth,
+            brew: [scene::brew_price(&self.hero, 0), scene::brew_price(&self.hero, 1)],
+            potion_max: self.hero.potion_max,
         }
     }
 
@@ -560,6 +562,9 @@ impl Game {
         }
         if let Some(hid) = self.hero_id {
             self.hero_input(sim, hid, input, &mut out, events);
+        }
+        if !self.npcs.is_empty() {
+            scene::npc_inputs(self, sim, dt, &mut out);
         }
         let hero = self.hero_id.and_then(|h| {
             let a = self.actors.get(&h)?;
@@ -1225,6 +1230,9 @@ pub struct InvView {
     pub tweaks: Vec<skills::Tweak>,
     /// Deepest level reached (waypoints).
     pub max_depth: u32,
+    /// The alchemist's brews (more potions, stronger potions): price, or None when maxed.
+    pub brew: [Option<u64>; 2],
+    pub potion_max: u32,
 }
 
 /// An item on the ground as the HUD and view see it.

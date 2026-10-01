@@ -336,7 +336,7 @@ impl GameUi {
             let same = self.panel == Some(s.kind) && self.panel_spot == g.near;
             self.panel = if same { None } else { Some(s.kind) };
             self.panel_spot = g.near;
-            if matches!(s.kind, SpotKind::Vendor | SpotKind::Stash) && self.panel.is_some() {
+            if matches!(s.kind, SpotKind::Vendor | SpotKind::Stash | SpotKind::Gamble) && self.panel.is_some() {
                 self.inventory = true;
             }
         }
@@ -385,6 +385,8 @@ impl GameUi {
             Some(SpotKind::Stash) => self.stash_window(ctx, &d, &inv, &mut out),
             Some(SpotKind::Portal) => self.portal_window(ctx, g, &mut out),
             Some(SpotKind::Exhibit) => self.exhibit_window(ctx, g, &mut out),
+            Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
+            Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
             Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         out
@@ -618,6 +620,89 @@ impl GameUi {
                     });
                 });
                 ui.label(RichText::new("Click: take into the bag").small().color(Color32::from_white_alpha(120)));
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
+    fn gamble_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let mut open = true;
+        egui::Window::new("Odo the Gambler")
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::LEFT_CENTER, EVec2::new(16.0, -40.0))
+            .show(ctx, |ui| {
+                ui.label(RichText::new("A sealed box for every slot. What's inside? Pay and see.").italics());
+                ui.label(
+                    RichText::new("Magic 60% · Rare 22% · Unique 3%  ·  item level up to yours + 2")
+                        .small()
+                        .color(Color32::from_white_alpha(150)),
+                );
+                ui.add_space(4.0);
+                egui::Grid::new("gamble").num_columns(2).spacing(EVec2::new(10.0, 6.0)).show(ui, |ui| {
+                    for (i, slot) in Slot::ALL.iter().enumerate() {
+                        let price = pav_core::arpg::scene::gamble_price(inv.level, *slot);
+                        let ok = inv.gold >= price && inv.inventory.len() < pav_core::arpg::hero::INVENTORY_SIZE;
+                        let b = ui.add_enabled(
+                            ok,
+                            egui::Button::new(RichText::new(slot.name()).size(15.0)).min_size(EVec2::new(130.0, 26.0)),
+                        );
+                        if b.clicked() {
+                            out.push(GameCmd::Gamble(i as u8));
+                        }
+                        let c = if inv.gold >= price { Color32::from_rgb(255, 205, 70) } else { Color32::from_rgb(170, 90, 80) };
+                        ui.label(RichText::new(format!("{price} gold")).color(c));
+                        ui.end_row();
+                    }
+                });
+                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
+    fn alchemist_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let mut open = true;
+        egui::Window::new("Mother Wren's Brews")
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(RichText::new("Stronger potions for deeper places.").italics());
+                ui.add_space(4.0);
+                let rows = [
+                    ("Another flask", format!("{} potions now (6 at most)", inv.potion_max)),
+                    ("A stronger brew", format!("Potions heal {:.0}% of your life", 45.0 * inv.sheet.potion)),
+                ];
+                for (k, (name, now)) in rows.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        match inv.brew[k] {
+                            Some(price) => {
+                                let b = ui.add_enabled(
+                                    inv.gold >= price,
+                                    egui::Button::new(RichText::new(format!("{name}  ·  {price} gold")).size(15.0))
+                                        .min_size(EVec2::new(240.0, 28.0)),
+                                );
+                                if b.clicked() {
+                                    out.push(GameCmd::Brew(k as u8));
+                                }
+                            }
+                            None => {
+                                ui.add_enabled(
+                                    false,
+                                    egui::Button::new(format!("{name}  ·  as strong as it gets"))
+                                        .min_size(EVec2::new(240.0, 28.0)),
+                                );
+                            }
+                        }
+                        ui.label(RichText::new(now).small().color(Color32::from_white_alpha(170)));
+                    });
+                }
+                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
             });
         if !open {
             self.panel = None;
@@ -883,6 +968,8 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Portal => "travel",
                 SpotKind::Exhibit => "examine",
                 SpotKind::Exit => "descend",
+                SpotKind::Gamble => "gamble",
+                SpotKind::Alchemist => "brew",
                 SpotKind::Chest => "break the seal (keepers will come)",
             };
             p.text(

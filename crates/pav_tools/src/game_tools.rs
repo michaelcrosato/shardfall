@@ -369,14 +369,8 @@ pub fn t_game_cmd(s: &mut Session, a: &Args) -> Result<Output> {
             let k = get_str(a, "skill").ok_or_else(|| anyhow!("skill is required"))?;
             GameCmd::Bar(slot, d.skill_id(k).ok_or_else(|| anyhow!("unknown skill '{k}'"))?)
         }
-        "travel" => {
-            let p = match get_str(a, "place").unwrap_or("town") {
-                "town" => Place::Town,
-                "arena" => Place::Arena,
-                o => bail!("unknown place '{o}' (town, arena)"),
-            };
-            GameCmd::Travel(p.code())
-        }
+        "travel" => GameCmd::Travel(place_arg(a)?.code()),
+        "use" => GameCmd::Use(get_u64(a, "spot", 0)? as u32),
         o => bail!("unknown action '{o}'"),
     };
     let floaters_before = game(s)?.floaters.len();
@@ -423,6 +417,16 @@ impl Canvas {
                 if a > 0.0 {
                     self.blend(x, y, c, a);
                 }
+            }
+        }
+    }
+    /// A filled axis-aligned rectangle (pixel coordinates, any corner order).
+    pub fn rect(&mut self, a: (f32, f32), b: (f32, f32), c: [u8; 3], alpha: f32) {
+        let (x0, x1) = (a.0.min(b.0).round() as i32, a.0.max(b.0).round() as i32);
+        let (y0, y1) = (a.1.min(b.1).round() as i32, a.1.max(b.1).round() as i32);
+        for y in y0..y1 {
+            for x in x0..x1 {
+                self.blend(x, y, c, alpha);
             }
         }
     }
@@ -864,4 +868,267 @@ pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
         path: Some(path.clone()),
         meta: json!({ "creature": name, "skill": def.key, "anim": format!("{:?}", def.anim).to_lowercase(), "frames": frames, "path": path }),
     })
+}
+
+/// `place=town|arena|lab|level` (with `depth=` for levels).
+fn place_arg(a: &Args) -> Result<Place> {
+    Ok(match get_str(a, "place").unwrap_or("town") {
+        "town" => Place::Town,
+        "arena" => Place::Arena,
+        "lab" => Place::Lab,
+        "level" => Place::Level(get_u64(a, "depth", 1)?.max(1) as u32),
+        o => bail!("unknown place '{o}' (town, arena, lab, level)"),
+    })
+}
+
+fn plan_json(p: &pav_core::arpg::world::LevelPlan) -> Value {
+    json!({
+        "depth": p.depth,
+        "label": p.label(),
+        "name": p.name,
+        "about": p.about,
+        "endless": p.endless,
+        "theme": p.theme.key,
+        "palette": { "floor": p.theme.floor, "wall": p.theme.wall, "accent": p.theme.accent, "light": p.theme.light, "sky": p.theme.sky },
+        "mechanics": p.mechanics.iter().map(|m| json!({ "key": m.key(), "name": m.name(), "hint": m.hint(), "weight": p.weight(*m) })).collect::<Vec<_>>(),
+        "rooms": p.rooms,
+        "boss": p.boss,
+        "monster_level": p.monster_level,
+        "families": p.theme.families,
+        "favoured_archetypes": p.archetypes,
+        "genome_share": round3(p.genome_share),
+    })
+}
+
+fn feature_name(k: &pav_core::arpg::mechanics::FeatureKind) -> &'static str {
+    use pav_core::arpg::mechanics::FeatureKind as F;
+    match k {
+        F::Shrine { .. } => "shrine",
+        F::Keg { .. } => "keg",
+        F::Spikes { .. } => "spikes",
+        F::Gate { .. } => "gate",
+        F::Wind { .. } => "wind",
+        F::Totem => "totem",
+        F::Lava { .. } => "lava",
+        F::Ice { .. } => "ice",
+        F::Crumble { .. } => "crumble",
+        F::Well { .. } => "well",
+        F::Chest { .. } => "chest",
+        F::Bubble { .. } => "bubble",
+    }
+}
+
+/// What a depth is (no args: the level being played, with its live state).
+pub fn t_level(s: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    if let Some(depth) = a.get("depth").map(|_| get_u64(a, "depth", 1)) {
+        let depth = depth?.max(1) as u32;
+        let to = get_u64(a, "to", depth as u64)?.max(depth as u64) as u32;
+        if to > depth {
+            let list: Vec<Value> = (depth..=to.min(depth + 60)).map(|n| plan_json(&pav_core::arpg::world::plan(&d, n))).collect();
+            return Ok(Output::Json(json!({ "designed": pav_core::arpg::world::designed(&d), "levels": list })));
+        }
+        return Ok(Output::Json(plan_json(&pav_core::arpg::world::plan(&d, depth))));
+    }
+    let g = game(s)?;
+    let lv = g.level.as_ref().ok_or_else(|| anyhow!("not in a level (try `level depth=3`, or `go place=level depth=3`)"))?;
+    let mut by_kind: BTreeMap<&str, Vec<Value>> = BTreeMap::new();
+    for (i, f) in lv.features.iter().enumerate() {
+        let state = match &f.kind {
+            pav_core::arpg::mechanics::FeatureKind::Shrine { boon, used } => json!({ "boon": boon.name(), "used": used }),
+            pav_core::arpg::mechanics::FeatureKind::Gate { to, .. } => json!({ "to": to }),
+            pav_core::arpg::mechanics::FeatureKind::Well { lit } => json!({ "lit": lit }),
+            pav_core::arpg::mechanics::FeatureKind::Chest { state, wave, .. } => {
+                json!({ "state": format!("{state:?}").to_lowercase(), "wave": wave })
+            }
+            pav_core::arpg::mechanics::FeatureKind::Keg { fuse } => json!({ "exploded": *fuse < 0.0 }),
+            pav_core::arpg::mechanics::FeatureKind::Totem => json!({ "alive": f.entity.is_some() }),
+            _ => json!({}),
+        };
+        by_kind
+            .entry(feature_name(&f.kind))
+            .or_default()
+            .push(json!({ "i": i, "room": f.room, "pos": [round3(f.pos.x), round3(f.pos.z)], "state": state }));
+    }
+    let hero = g.hero_id.and_then(|h| s.sim.state.entities.get(h)).map(|e| e.pos);
+    Ok(Output::Json(json!({
+        "depth": lv.depth,
+        "label": lv.label,
+        "name": lv.name,
+        "mechanics": lv.mechanics.iter().map(|m| m.key()).collect::<Vec<_>>(),
+        "rooms": lv.layout.rooms.len(),
+        "rooms_seen": lv.seen.iter().filter(|x| **x).count(),
+        "hero_room": hero.and_then(|p| lv.room_at(p)),
+        "exit_open": lv.exit_open,
+        "boss": if lv.boss_name.is_empty() { None } else { Some(&lv.boss_name) },
+        "monsters_alive": g.monsters_alive(),
+        "features": by_kind,
+        "spots": g.spots.iter().enumerate().map(|(i, s)| json!({ "i": i, "kind": format!("{:?}", s.kind).to_lowercase(), "name": s.name, "pos": [round3(s.pos.x), round3(s.pos.z)] })).collect::<Vec<_>>(),
+        "time": round3(lv.time),
+    })))
+}
+
+/// Travel anywhere at once (waypoints unlocked as needed): the place is built around the hero.
+pub fn t_go(s: &mut Session, a: &Args) -> Result<Output> {
+    let place = place_arg(a)?;
+    let g = s.sim.state.game.as_mut().ok_or_else(|| anyhow!("this scene is not running Shardfall"))?;
+    if let Place::Level(n) = place {
+        g.hero.max_depth = g.hero.max_depth.max(n);
+    }
+    let said = run_cmd(s, GameCmd::Travel(place.code()));
+    s.sync_camera();
+    let g = game(s)?;
+    Ok(Output::Json(
+        json!({ "place": g.place.name(), "said": said, "scene": s.sim.state.scene, "monsters_alive": g.monsters_alive() }),
+    ))
+}
+
+/// Puts the hero next to a level feature (shrine, keg, gate, totem, lava, well, chest, bubble,
+/// spikes, wind, ice, crumble), the exit or the portal: the quickest way to look at one.
+pub fn t_goto_feature(s: &mut Session, a: &Args) -> Result<Output> {
+    let kind = get_str(a, "kind").ok_or_else(|| anyhow!("kind is required (shrine, keg, gate, exit, ...)"))?;
+    let nth = get_u64(a, "n", 0)? as usize;
+    let g = game(s)?;
+    let lv = g.level.as_ref().ok_or_else(|| anyhow!("not in a level"))?;
+    let pos = match kind {
+        "exit" => g.spots.iter().find(|s| s.kind == pav_core::arpg::SpotKind::Exit).map(|s| s.pos),
+        "portal" => g.spots.iter().find(|s| s.kind == pav_core::arpg::SpotKind::Portal).map(|s| s.pos),
+        k => lv.features.iter().filter(|f| feature_name(&f.kind) == k).nth(nth).map(|f| f.pos),
+    }
+    .ok_or_else(|| anyhow!("no '{kind}' #{nth} in this level"))?;
+    let off = match vec_arg(a, "offset")? {
+        Some(v) if v.len() == 3 => Vec3::new(v[0], v[1], v[2]),
+        Some(_) => bail!("offset is [x, y, z]"),
+        None => Vec3::new(0.0, 0.0, 3.0),
+    };
+    let hid = g.hero_id.ok_or_else(|| anyhow!("no hero"))?;
+    s.sim.set_position(hid, pos + off + Vec3::Y * 0.05);
+    s.sim.step(&pav_core::InputFrame::default());
+    s.keep_events();
+    s.sync_camera();
+    Ok(Output::Json(json!({ "kind": kind, "at": [round3(pos.x), round3(pos.y), round3(pos.z)], "hero": hero_json(s)? })))
+}
+
+/// A top-down map of a level (the one being played, or a fresh one built for `depth=`):
+/// rooms by role, corridors, walls, every mechanic's pieces, packs and the boss.
+pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_core::arpg::mechanics::FeatureKind as F;
+    let fresh;
+    let sim = if a.contains_key("depth") {
+        let depth = get_u64(a, "depth", 1)?.max(1);
+        let seed = get_u64(a, "seed", 1)?;
+        fresh = pav_core::Sim::new(&format!("level/{depth}"), seed)?;
+        &fresh
+    } else {
+        &s.sim
+    };
+    let g = sim.state.game.as_deref().ok_or_else(|| anyhow!("not running Shardfall"))?;
+    let lv = g.level.as_ref().ok_or_else(|| anyhow!("not in a level (pass depth=N)"))?;
+    let size = get_u64(a, "size", 900)?.clamp(256, 4096) as u32;
+    let b = lv.layout.bounds();
+    let span = (b.max - b.min).max_element() + 8.0;
+    let k = size as f32 / span;
+    let o = (b.min + b.max) * 0.5;
+    let at = |x: f32, z: f32| (size as f32 * 0.5 + (x - o.x) * k, size as f32 * 0.5 + (z - o.y) * k);
+    let mut c = Canvas::new(size, size, [16, 15, 20]);
+    let hexc = |h: &str| {
+        let v = u32::from_str_radix(h.trim_start_matches('#'), 16).unwrap_or(0x808080);
+        [(v >> 16) as u8, (v >> 8) as u8, v as u8]
+    };
+    let theme = pav_core::arpg::world::plan(&data(), lv.depth).theme;
+    for cor in &lv.layout.corridors {
+        c.rect(at(cor.rect.min.x, cor.rect.min.y), at(cor.rect.max.x, cor.rect.max.y), hexc(&theme.floor[1]), 1.0);
+    }
+    for r in &lv.layout.rooms {
+        let col = match r.role {
+            pav_core::arpg::levelgen::RoomRole::Start => [70, 120, 170],
+            pav_core::arpg::levelgen::RoomRole::Exit => [180, 150, 70],
+            _ => hexc(&theme.floor[0]),
+        };
+        c.rect(at(r.rect.min.x - 1.0, r.rect.min.y - 1.0), at(r.rect.max.x + 1.0, r.rect.max.y + 1.0), hexc(&theme.wall), 1.0);
+        c.rect(at(r.rect.min.x, r.rect.min.y), at(r.rect.max.x, r.rect.max.y), col, 1.0);
+    }
+    for cor in &lv.layout.corridors {
+        c.rect(at(cor.rect.min.x, cor.rect.min.y), at(cor.rect.max.x, cor.rect.max.y), hexc(&theme.floor[1]), 1.0);
+    }
+    for f in &lv.features {
+        let (x, y) = at(f.pos.x, f.pos.z);
+        match &f.kind {
+            F::Ice { min, max } => c.rect(at(min.x, min.y), at(max.x, max.y), [170, 215, 240], 0.45),
+            F::Crumble { min, max } => c.rect(at(min.x, min.y), at(max.x, max.y), [60, 40, 30], 0.45),
+            F::Wind { min, max, .. } => c.rect(at(min.x, min.y), at(max.x, max.y), [200, 235, 255], 0.3),
+            F::Lava { radius, .. } => c.disc(x, y, radius * k, [255, 100, 30]),
+            F::Bubble { radius, .. } => c.disc(x, y, radius * k, [90, 170, 255]),
+            F::Spikes { half, .. } => {
+                c.rect(at(f.pos.x - half, f.pos.z - half), at(f.pos.x + half, f.pos.z + half), [150, 60, 50], 0.8)
+            }
+            _ => {}
+        }
+    }
+    for f in &lv.features {
+        let (x, y) = at(f.pos.x, f.pos.z);
+        let r = (k * 0.8).max(3.0);
+        match &f.kind {
+            F::Shrine { boon, .. } => c.disc(x, y, r * 1.2, hexc(boon.color())),
+            F::Keg { fuse } if *fuse >= 0.0 => c.disc(x, y, r * 0.7, [210, 120, 40]),
+            F::Gate { to, .. } => {
+                c.disc(x, y, r * 1.3, [180, 110, 255]);
+                if let Some(t) = lv.features.get(*to) {
+                    c.line((x, y), at(t.pos.x, t.pos.z), 1.0, [140, 90, 200]);
+                }
+            }
+            F::Totem if f.entity.is_some() => c.disc(x, y, r, [150, 230, 90]),
+            F::Well { lit } => c.disc(x, y, r, if *lit { [255, 190, 90] } else { [130, 60, 30] }),
+            F::Chest { .. } => c.disc(x, y, r * 1.2, [160, 80, 255]),
+            _ => {}
+        }
+    }
+    for (id, act) in &g.actors {
+        if act.team != Team::Monster || act.dead || act.family == "totem" {
+            continue;
+        }
+        let Some(e) = sim.state.entities.get(*id) else { continue };
+        let (x, y) = at(e.pos.x, e.pos.z);
+        let (r, col) = match act.rarity {
+            Rarity::Unique => (k * 1.6, [255, 60, 40]),
+            Rarity::Rare => (k * 0.9, [255, 220, 90]),
+            Rarity::Magic => (k * 0.6, [120, 150, 255]),
+            Rarity::Normal => (k * 0.45, [220, 70, 60]),
+        };
+        c.disc(x, y, r.max(1.5), col);
+    }
+    for sp in &g.spots {
+        let (x, y) = at(sp.pos.x, sp.pos.z);
+        match sp.kind {
+            pav_core::arpg::SpotKind::Exit => c.disc(x, y, k * 1.8, [255, 215, 110]),
+            pav_core::arpg::SpotKind::Portal => c.disc(x, y, k * 1.5, [110, 200, 255]),
+            _ => {}
+        }
+    }
+    if let Some(h) = g.hero_id.and_then(|h| sim.state.entities.get(h)) {
+        let (x, y) = at(h.pos.x, h.pos.z);
+        c.disc(x, y, (k * 0.9).max(3.0), [255, 255, 255]);
+    }
+    let png = pav_render::capture::encode_png(size, size, &c.px)?;
+    let path = std::path::PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/level{}.png", lv.depth)));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for f in &lv.features {
+        *counts.entry(feature_name(&f.kind)).or_default() += 1;
+    }
+    let meta = json!({
+        "path": path,
+        "depth": lv.depth,
+        "name": lv.name,
+        "rooms": lv.layout.rooms.len(),
+        "corridors": lv.layout.corridors.len(),
+        "features": counts,
+        "monsters": g.monsters_alive(),
+        "boss": if lv.boss_name.is_empty() { None } else { Some(&lv.boss_name) },
+        "legend": "blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests",
+    });
+    Ok(Output::Image { png, path: Some(path), meta })
 }
