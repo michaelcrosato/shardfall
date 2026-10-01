@@ -133,7 +133,7 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
     let ago = |tick: u64| h.tick.saturating_sub(tick) as f32 * h.dt;
     let result = h.hud.last_result.as_ref().filter(|r| ago(r.tick) < 6.0);
     let msg = h.hud.message.as_ref().filter(|(_, t)| ago(*t) < 2.5);
-    if h.hud.course.is_none() && result.is_none() && msg.is_none() {
+    if h.hud.course.is_none() && result.is_none() && msg.is_none() && h.hud.boss.is_none() {
         return;
     }
     egui::Area::new(egui::Id::new("course_hud")).anchor(egui::Align2::CENTER_TOP, [0.0, 10.0]).show(ctx, |ui| {
@@ -156,6 +156,9 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                         if c.falls > 0 {
                             ui.label(format!("falls {}", c.falls));
                         }
+                        if c.score > 0 {
+                            ui.label(RichText::new(format!("score {}", c.score)).color(Color32::from_rgb(140, 220, 255)).strong());
+                        }
                         if let Some(b) = c.best {
                             ui.label(RichText::new(format!("best {b:.2} s")).weak());
                         }
@@ -174,6 +177,9 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                     if r.falls > 0 {
                         sub.push(format!("{} falls", r.falls));
                     }
+                    if r.score > 0 {
+                        sub.push(format!("score {}", r.score));
+                    }
                     if r.new_best {
                         ui.label(RichText::new("NEW BEST").color(Color32::from_rgb(255, 215, 90)).strong());
                     } else {
@@ -185,6 +191,15 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                 }
                 if let Some((m, _)) = msg {
                     ui.label(RichText::new(m).color(Color32::from_rgb(255, 220, 140)).strong());
+                }
+                if let Some((name, f)) = &h.hud.boss {
+                    // Boss health bar.
+                    ui.label(RichText::new(name.to_uppercase()).strong().color(Color32::from_rgb(255, 140, 120)));
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(320.0, 12.0), egui::Sense::hover());
+                    ui.painter().rect_filled(rect, 3.0, Color32::from_gray(40));
+                    let mut fill = rect;
+                    fill.set_width(rect.width() * f.clamp(0.0, 1.0));
+                    ui.painter().rect_filled(fill, 3.0, Color32::from_rgb(230, 70, 60));
                 }
             });
         });

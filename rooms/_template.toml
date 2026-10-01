@@ -142,6 +142,20 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #     kinds: haze (heat shimmer) | lens (magnify; negative strength shrinks) | ripple | ring
 #     (a shockwave every `period` s). Bombs make shockwaves, sparks and smoke by themselves.
 #   emissive = 2..8 makes an object glow (bloom) and light its surroundings.
+# Drivable vehicles (E to get in / out; jump = handbrake / climb, crouch = brake / descend):
+#   vehicle = { kind = "car" }   or   vehicle = { kind = "helicopter" }
+#   optional: color, accent, size = [half x, y, z], mass, power, max_speed, grip, drift_grip
+#   (rear grip with the handbrake: low = big drifts), steer (deg), climb (helicopter m/s).
+#   `pos` is where it stands; shape/body come from the vehicle. Courses and checkpoints work
+#   while driving (you respawn in the vehicle).
+# Shootable things (bullet hell, targets): the player shoots with the blaster
+# ([params] "bombs.weapon" = "blaster", "bombs.fire_interval" = 0.1, "bombs.shoot_angle" = 180
+# for always-north, -1 = at the cursor; "movement.hitbox" = 0.12 for a tiny hitbox):
+#   health = { hp = 40, score = 100, signal = "boss_dead", finish = true, bar = true,
+#              sway = [3, 5], phases = [{ below = 0.5, behavior = { type = "emitter", ... } }] }
+#   (finish: destroying it finishes the running course; bar: boss health bar; sway: drift
+#   amplitude (m) / period (s) along the object's X; phases: new behaviour below a health
+#   fraction). Score adds to the running course and shows in the HUD.
 # Soft (deformable) objects ignore `shape`:
 #   soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 6 }
 #   soft = { shape = { type = "sphere", radius = 0.6, subdivisions = 2 }, stiffness = 10 }
@@ -183,7 +197,10 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 
 # Characters and creatures (layout space). kind = biped | spider | lizard | beetle | blob;
 # ai = idle | wander (radius, pause = [min, max]) | patrol (points = [[x, z], ...], pause) |
-#      circle (radius, clockwise) | follow (distance: follows the player)
+#      circle (radius, clockwise) | follow (distance: follows the player) |
+#      guard (points, pause, range = 7, angle = 70): a stealth guard with a vision cone; it spots
+#      you in plain sight within range/angle (crouching: 60% range); a full alert meter sends you
+#      back to the last checkpoint ("SPOTTED!"). It looks around while paused.
 # speed = 0.5 (fraction of full speed), hop = 0 (seconds between jumps), yaw = facing degrees.
 # look = any puppet setting over the kind's preset: colours (skin, shirt, pants, shoes, eyes,
 # accent), proportions (scale, leg_length, torso_radius, head_radius, body_length, legs,

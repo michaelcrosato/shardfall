@@ -234,6 +234,8 @@ impl Sim {
                 knockback: em.knockback,
                 gravity: em.gravity,
                 owner: Some(id),
+                team: crate::projectile::Team::Enemy,
+                damage: 1.0,
             });
         }
     }

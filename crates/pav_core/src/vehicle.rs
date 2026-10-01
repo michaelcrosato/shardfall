@@ -24,8 +24,8 @@ choice_enum! {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
+/// Unset fields come from the kind's preset (see `VehicleDef::preset`).
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct VehicleDef {
     pub kind: VehicleKind,
     pub color: String,
@@ -44,6 +44,34 @@ pub struct VehicleDef {
     pub steer: f32,
     /// Helicopter: climb speed (m/s).
     pub climb: f32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VehicleDefRaw {
+    kind: Option<VehicleKind>,
+    color: Option<String>,
+    accent: Option<String>,
+    size: Option<Vec3>,
+    mass: Option<f32>,
+    power: Option<f32>,
+    max_speed: Option<f32>,
+    grip: Option<f32>,
+    drift_grip: Option<f32>,
+    steer: Option<f32>,
+    climb: Option<f32>,
+}
+
+impl<'de> Deserialize<'de> for VehicleDef {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let r = VehicleDefRaw::deserialize(d)?;
+        let mut v = VehicleDef::preset(r.kind.unwrap_or_default());
+        macro_rules! set {
+            ($($f:ident),*) => { $( if let Some(x) = r.$f { v.$f = x; } )* };
+        }
+        set!(color, accent, size, mass, power, max_speed, grip, drift_grip, steer, climb);
+        Ok(v)
+    }
 }
 
 impl Default for VehicleDef {

@@ -394,6 +394,9 @@ impl ViewBuilder {
             if let SimEvent::Explosion { pos, radius } = e {
                 self.shocks.push((*pos, radius * 3.5, self.last_time.unwrap_or(0.0)));
             }
+            if let SimEvent::Destroyed { pos, size } = e {
+                self.shocks.push((*pos, size.max(0.5) * 5.0, self.last_time.unwrap_or(0.0)));
+            }
             match e {
                 SimEvent::Explosion { pos, radius } => {
                     self.effects.push(Effect { kind: EffectKind::Explosion { radius: *radius }, pos: *pos, start: self.now })
@@ -703,6 +706,9 @@ impl ViewBuilder {
         let mut live = Vec::new();
         for o in interpolate(prev, curr, alpha) {
             let v = &o.visual;
+            if let Some(c) = &o.cone {
+                crate::vehicles::emit_cone(&mut scene, c, 0xfff8);
+            }
             if let Some(l) = &v.light {
                 scene.point_lights.push(crate::fx::light(l, o.pos, time, o.id.0 as f32 * 1.7));
             }
@@ -736,7 +742,12 @@ impl ViewBuilder {
                     let def = p.def.as_deref().unwrap_or(&curr.puppet_def);
                     emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style)
                 }
-                None => emit_object(&mut scene, &o, settings.style, now),
+                None => {
+                    emit_object(&mut scene, &o, settings.style, now);
+                    if let Some(v) = &o.vehicle {
+                        crate::vehicles::emit_vehicle(&mut scene, &o, v, style_of(o.visual.look, settings.style), settings.particles);
+                    }
+                }
             }
         }
         self.emit_carry.retain(|id, _| live.contains(id));

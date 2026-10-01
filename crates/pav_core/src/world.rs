@@ -392,7 +392,11 @@ impl Sim {
             sp.region = Some(region);
             sp.hazard = o.hazard.clone();
             sp.soft = o.soft.clone();
+            let pos0 = sp.pos;
             let id = self.spawn(sp);
+            if let (Some(h), Some(e)) = (&o.health, self.state.entities.get_mut(id)) {
+                e.health = Some(Box::new(crate::entity::Health::new(h.clone(), pos0, rot * Vec3::X)));
+            }
             if !o.name.is_empty() {
                 named.entry(o.name.clone()).or_insert(id);
             }
@@ -437,7 +441,9 @@ impl Sim {
             let dir = slot.place.rotate(Vec3::new(n.yaw.to_radians().sin(), 0.0, n.yaw.to_radians().cos()));
             let facing = dir.x.atan2(dir.z);
             let points = match &n.ai {
-                crate::ai::AiDef::Patrol { points, .. } => points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect(),
+                crate::ai::AiDef::Patrol { points, .. } | crate::ai::AiDef::Guard { points, .. } => {
+                    points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect()
+                }
                 _ => Vec::new(),
             };
             let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
@@ -1104,6 +1110,7 @@ impl Sim {
                     particles: v.particles.as_deref().cloned(),
                     distortion: v.distortion.as_deref().cloned(),
                     vehicle: e.vehicle.as_ref().map(|x| x.def.clone()),
+                    health: e.health.as_ref().map(|x| x.def.clone()),
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1230,6 +1237,7 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         ("particles", o.particles.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("distortion", o.distortion.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("vehicle", o.vehicle.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+        ("health", o.health.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
     ];
     for (k, v) in fx {
         if let Some(v) = v {

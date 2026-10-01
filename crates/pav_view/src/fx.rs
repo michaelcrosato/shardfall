@@ -333,6 +333,33 @@ pub fn event_bursts(e: &pav_core::frame::SimEvent, out: &mut Vec<ParticleBurst>)
             b.area = Vec3::new(0.3, 0.8, 0.3);
         })),
         E::Bounce { pos } => out.push(with("dust", *pos, 10, &|b| b.spread = 2.0)),
+        E::Shot { pos } => out.push(with("sparks", *pos, 3, &|b| {
+            b.spread = 1.0;
+            b.vel = Vec3::ZERO;
+            b.life = (0.05, 0.12);
+            b.color0 = Vec4::new(1.5, 3.0, 4.0, 1.0);
+            b.floor = None;
+        })),
+        E::Damage { pos } => out.push(with("sparks", *pos, 6, &|b| {
+            b.spread = 3.0;
+            b.vel = Vec3::ZERO;
+            b.life = (0.1, 0.3);
+            b.floor = None;
+        })),
+        E::Destroyed { pos, size } => {
+            let s = size.max(0.3);
+            out.push(with("sparks", *pos, (40.0 * s).min(160.0) as u32, &|b| {
+                b.spread = 6.0 * s.sqrt();
+                b.vel = Vec3::ZERO;
+                b.floor = None;
+            }));
+            out.push(with("fire", *pos, (30.0 * s).min(120.0) as u32, &|b| {
+                b.area = Vec3::splat(s * 0.5);
+                b.spread = 2.0 * s;
+                b.size = (0.3 * s.max(0.6), 0.05);
+                b.life = (0.25, 0.6);
+            }));
+        }
         E::Land { pos, speed } if *speed > 8.0 => out.push(with("dust", *pos, 12, &|b| b.spread = 2.0)),
         _ => {}
     }

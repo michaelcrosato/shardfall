@@ -1,0 +1,57 @@
+name = "GT"
+entrance = { at = [14, 19], facing = "south" }
+[layout]
+origin = [-15.0, 0.0, -10.0]
+[[layout.layer]]
+map = '''
+##############################
+#............................#
+#.SSSS.......................#
+#.SSSS.......................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#.........WWWWW..............#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+##############..##############
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }, { y0 = 0, y1 = 2.5, color = "#c0c7cf" }]
+[layout.legend.'W']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }, { y0 = 0, y1 = 2.5, color = "#6d737c" }]
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "start", course = "hunt" }
+
+[[npc]]
+name = "guard"
+pos = [11.5, 0, 6.5]
+ai = { type = "guard", points = [[11.5, 6.5]], pause = 1000, range = 7, angle = 100 }
+
+[[object]]
+name = "drone"
+shape = { type = "sphere", radius = 0.5 }
+pos = [5.5, 1.0, 14.5]
+color = "#e05a4f"
+body = "fixed"
+health = { hp = 3, score = 50, signal = "drone_down" }
+
+[[object]]
+name = "boss"
+shape = { type = "sphere", radius = 1.0 }
+pos = [24.5, 1.2, 14.5]
+color = "#8a3fd6"
+body = "kinematic"
+health = { hp = 20, score = 500, finish = true, bar = true, sway = [2, 4], phases = [{ below = 0.5, behavior = { type = "spin", speed = 3 } }] }

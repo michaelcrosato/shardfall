@@ -88,6 +88,9 @@ pub struct ObjectDef {
     /// where its wheels / skids stand.
     #[serde(default)]
     pub vehicle: Option<crate::vehicle::VehicleDef>,
+    /// Shootable (enemies, bosses): hp, score, signal, finish, bar, sway, phases.
+    #[serde(default)]
+    pub health: Option<crate::entity::HealthDef>,
 }
 
 impl ObjectDef {

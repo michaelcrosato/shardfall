@@ -112,6 +112,9 @@ pub struct MovementParams {
     pub lock_axis: LockAxis,
     pub face_aim: bool,
     pub push_mass: f32,
+    /// Radius bullets must come within to hit you (small = fair dense patterns).
+    #[serde(default = "hitbox")]
+    pub hitbox: f32,
 }
 
 impl Default for MovementParams {
@@ -147,6 +150,7 @@ impl Default for MovementParams {
             hit_stun: 0.35,
             weight: 70.0,
             lock_axis: LockAxis::None,
+            hitbox: hitbox(),
             face_aim: false,
             push_mass: 70.0,
         }
@@ -185,6 +189,7 @@ impl Tunable for MovementParams {
         v.float("hit_stun", &mut self.hit_stun, 0.0, 2.0, "Seconds without control after a hit");
         v.float("weight", &mut self.weight, 0.0, 500.0, "Weight pressing on movable floors (kg)");
         self.lock_axis.visit_choice(v, "lock_axis", "Lock motion along an axis (side view)");
+        v.float("hitbox", &mut self.hitbox, 0.05, 0.6, "Bullet hit radius (m)");
         v.bool("face_aim", &mut self.face_aim, "Face the aim point instead of the movement direction");
         v.float("push_mass", &mut self.push_mass, 1.0, 500.0, "How hard the character pushes props (kg)");
     }
@@ -199,11 +204,55 @@ pub struct BombParams {
     pub throw_range: f32,
     pub flight_time: f32,
     pub push: f32,
+    /// What the fire button does: throw bombs, or shoot (hold to keep firing).
+    #[serde(default)]
+    pub weapon: Weapon,
+    #[serde(default = "fire_interval")]
+    pub fire_interval: f32,
+    #[serde(default = "bullet_speed")]
+    pub bullet_speed: f32,
+    /// Fixed shooting direction (degrees, 180 = north/-Z), or < 0 to shoot where you aim/face.
+    #[serde(default = "shoot_angle")]
+    pub shoot_angle: f32,
+}
+
+fn hitbox() -> f32 {
+    RADIUS
+}
+
+fn fire_interval() -> f32 {
+    0.12
+}
+fn bullet_speed() -> f32 {
+    22.0
+}
+fn shoot_angle() -> f32 {
+    -1.0
+}
+
+choice_enum! {
+    #[derive(Default)]
+    pub enum Weapon {
+        #[default]
+        Bombs => "bombs",
+        Blaster => "blaster",
+    }
 }
 
 impl Default for BombParams {
     fn default() -> Self {
-        Self { fuse: 1.4, radius: 1.35, cooldown: 0.3, throw_range: 8.0, flight_time: 0.55, push: 9.0 }
+        Self {
+            fuse: 1.4,
+            radius: 1.35,
+            cooldown: 0.3,
+            throw_range: 8.0,
+            flight_time: 0.55,
+            push: 9.0,
+            weapon: Weapon::Bombs,
+            fire_interval: fire_interval(),
+            bullet_speed: bullet_speed(),
+            shoot_angle: shoot_angle(),
+        }
     }
 }
 
@@ -215,6 +264,10 @@ impl Tunable for BombParams {
         v.float("throw_range", &mut self.throw_range, 0.0, 30.0, "Maximum throw distance (m)");
         v.float("flight_time", &mut self.flight_time, 0.1, 2.0, "Throw arc duration (s)");
         v.float("push", &mut self.push, 0.0, 40.0, "Blast push strength");
+        self.weapon.visit_choice(v, "weapon", "Fire button: bombs or blaster (hold to shoot)");
+        v.float("fire_interval", &mut self.fire_interval, 0.03, 1.0, "Blaster: seconds between shots");
+        v.float("bullet_speed", &mut self.bullet_speed, 2.0, 60.0, "Blaster: bullet speed (m/s)");
+        v.float("shoot_angle", &mut self.shoot_angle, -1.0, 360.0, "Blaster: fixed direction (deg, 180 = north), -1 = aim");
     }
 }
 
@@ -307,6 +360,8 @@ impl Character {
 /// Requests the simulation carries out after a character update.
 pub enum Action {
     ThrowBomb { from: Vec3, vel: Vec3, owner: EntityId },
+    /// A blaster shot.
+    Shoot { from: Vec3, vel: Vec3, owner: EntityId },
     /// Touched a hazard or got crushed.
     Hit { id: EntityId, at: Vec3, dir: Vec3, knockback: f32, respawn: bool },
 }
@@ -959,8 +1014,26 @@ pub fn tick(
         }
     }
 
+    // --- blaster: hold fire
+    if bp.weapon == Weapon::Blaster {
+        if (held(buttons::USE) || held(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !stunned {
+            ch.bomb_cooldown = bp.fire_interval;
+            let from = new_center + Vec3::Y * 0.25;
+            let dir = if bp.shoot_angle >= 0.0 {
+                let a = bp.shoot_angle.to_radians();
+                Vec3::new(a.sin(), 0.0, a.cos())
+            } else {
+                match input.aim {
+                    Some(a) => Vec3::new(a.x - from.x, 0.0, a.z - from.z).normalize_or(dir_of(ch.facing)),
+                    None => dir_of(ch.facing),
+                }
+            };
+            actions.push(Action::Shoot { from: from + dir * 0.45, vel: dir * bp.bullet_speed, owner: id });
+            ch.anim.recoil = ch.anim.recoil.max(0.4);
+        }
+    }
     // --- bombs
-    if (pressed(buttons::USE) || pressed(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !ch.swimming {
+    else if (pressed(buttons::USE) || pressed(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !ch.swimming {
         ch.bomb_cooldown = bp.cooldown;
         let from = new_center + Vec3::Y * 0.35;
         let dir3 = dir_of(ch.facing);

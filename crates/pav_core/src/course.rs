@@ -35,6 +35,9 @@ pub struct CourseRun {
     pub missed: u32,
     pub hits: u32,
     pub falls: u32,
+    /// Points for destroyed enemies.
+    #[serde(default)]
+    pub score: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -50,6 +53,8 @@ pub struct CourseResult {
     pub best: f32,
     pub new_best: bool,
     pub tick: u64,
+    #[serde(default)]
+    pub score: u32,
 }
 
 /// Course state shown by the HUD.
@@ -64,6 +69,7 @@ pub struct CourseHud {
     pub hits: u32,
     pub falls: u32,
     pub best: Option<f32>,
+    pub score: u32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -108,6 +114,7 @@ impl Courses {
             hits: r.hits,
             falls: r.falls,
             best: self.best.get(&r.key).copied(),
+            score: r.score,
         })
     }
 }
@@ -247,6 +254,36 @@ impl Sim {
         }
     }
 
+    /// Ends the running course: final time with penalties, best times, result card.
+    pub(crate) fn finish_course(&mut self, pos: Vec3, events: &mut Vec<SimEvent>) {
+        let tick = self.state.tick;
+        let dt = self.dt();
+        let Some(run) = self.state.courses.run.take() else { return };
+        let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
+        let raw = (tick - run.start_tick) as f32 * dt;
+        let time = raw + missed as f32 * GATE_PENALTY;
+        let old = self.state.courses.best.get(&run.key).copied();
+        let new_best = old.is_none_or(|b| time < b);
+        if new_best {
+            self.state.courses.best.insert(run.key.clone(), time);
+        }
+        let best = old.map(|b| b.min(time)).unwrap_or(time);
+        self.state.courses.last = Some(CourseResult {
+            course: run.course.clone(),
+            key: run.key.clone(),
+            time,
+            raw,
+            missed,
+            hits: run.hits,
+            falls: run.falls,
+            best,
+            new_best,
+            tick,
+            score: run.score,
+        });
+        events.push(SimEvent::CourseFinish { pos, time, new_best });
+    }
+
     /// Zone enter/exit for the player: courses, checkpoints, pits, pads, camera cues.
     pub(crate) fn update_zones(&mut self, events: &mut Vec<SimEvent>) {
         let Some((_pid, feet, facing)) = self.player_feet() else { return };
@@ -259,7 +296,6 @@ impl Sim {
         let prev = std::mem::take(&mut self.state.courses.inside);
         self.state.courses.inside = now.iter().map(|(r, _)| *r).collect();
         let tick = self.state.tick;
-        let dt = self.dt();
 
         // Exits.
         for r in &prev {
@@ -321,6 +357,7 @@ impl Sim {
                         missed: 0,
                         hits: 0,
                         falls: 0,
+                        score: 0,
                     });
                     let yaw = z.facing.map(|f| yaw_of(f.dir())).unwrap_or(facing);
                     self.state.courses.checkpoint = Some((z.floor_center(), yaw));
@@ -353,29 +390,7 @@ impl Sim {
                         .as_ref()
                         .is_some_and(|x| x.region == r.region && x.course == z.course && x.started && tick > x.start_tick);
                     if matches {
-                        let run = self.state.courses.run.take().unwrap();
-                        let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
-                        let raw = (tick - run.start_tick) as f32 * dt;
-                        let time = raw + missed as f32 * GATE_PENALTY;
-                        let old = self.state.courses.best.get(&run.key).copied();
-                        let new_best = old.is_none_or(|b| time < b);
-                        if new_best {
-                            self.state.courses.best.insert(run.key.clone(), time);
-                        }
-                        let best = old.map(|b| b.min(time)).unwrap_or(time);
-                        self.state.courses.last = Some(CourseResult {
-                            course: run.course.clone(),
-                            key: run.key.clone(),
-                            time,
-                            raw,
-                            missed,
-                            hits: run.hits,
-                            falls: run.falls,
-                            best,
-                            new_best,
-                            tick,
-                        });
-                        events.push(SimEvent::CourseFinish { pos: feet, time, new_best });
+                        self.finish_course(feet, events);
                     }
                 }
                 ZoneKind::Checkpoint => {

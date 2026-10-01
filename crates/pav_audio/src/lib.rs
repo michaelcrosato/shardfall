@@ -314,6 +314,19 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             Patch { attack: 0.02, decay: 0.2, volume: 0.1, cutoff: 600.0, cutoff_end: 2400.0, ..Patch::new(Noise, 1.0) },
             0.0,
         )],
+        SimEvent::Spotted { .. } => vec![
+            (Patch { decay: 0.18, volume: 0.16, ..Patch::new(Square, 990.0) }, 0.0),
+            (Patch { decay: 0.25, volume: 0.16, ..Patch::new(Square, 660.0) }, 0.16),
+        ],
+        SimEvent::Shot { .. } => vec![(Patch { freq_end: 420.0, glide: 0.06, decay: 0.06, volume: 0.05, ..Patch::new(Square, 1500.0) }, 0.0)],
+        SimEvent::Damage { .. } => vec![(Patch { decay: 0.03, volume: 0.08, cutoff: 3500.0, cutoff_end: 1200.0, ..Patch::new(Noise, 1.0) }, 0.0)],
+        SimEvent::Destroyed { size, .. } => {
+            let v = size.clamp(0.4, 2.0);
+            vec![
+                (Patch { attack: 0.003, decay: 0.3, volume: 0.35 * v, cutoff: 5000.0, cutoff_end: 200.0, ..Patch::new(Noise, 1.0) }, 0.0),
+                (Patch { freq_end: 40.0, glide: 0.35, decay: 0.4, volume: 0.4 * v, ..Patch::new(Sine, 140.0) }, 0.0),
+            ]
+        }
         _ => Vec::new(),
     }
 }
@@ -333,7 +346,10 @@ pub fn event_pos(ev: &SimEvent) -> Option<Vec3> {
         | SimEvent::Roll { pos }
         | SimEvent::Break { pos }
         | SimEvent::Crack { pos }
-        | SimEvent::Bounce { pos } => Some(*pos),
+        | SimEvent::Bounce { pos }
+        | SimEvent::Shot { pos }
+        | SimEvent::Damage { pos }
+        | SimEvent::Destroyed { pos, .. } => Some(*pos),
         _ => None,
     }
 }
