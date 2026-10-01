@@ -14,3 +14,6 @@ png.workspace = true
 pollster.workspace = true
 ab_glyph.workspace = true
 epaint_default_fonts.workspace = true
+
+[lints]
+workspace = true

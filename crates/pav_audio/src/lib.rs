@@ -261,6 +261,50 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             (Patch { decay: 0.25, volume: 0.12, ..Patch::new(Triangle, 659.3) }, 0.0),
             (Patch { decay: 0.35, volume: 0.12, ..Patch::new(Triangle, 987.8) }, 0.09),
         ],
+        SimEvent::Hit { strength, .. } => {
+            let v = (strength / 8.0).clamp(0.4, 1.2);
+            vec![
+                (Patch { decay: 0.09, volume: 0.3 * v, cutoff: 2500.0, cutoff_end: 300.0, ..Patch::new(Noise, 1.0) }, 0.0),
+                (Patch { freq_end: 90.0, glide: 0.12, decay: 0.16, volume: 0.3 * v, duty: 0.4, ..Patch::new(Square, 220.0) }, 0.0),
+            ]
+        }
+        SimEvent::Respawn { .. } => vec![
+            (Patch { freq_end: 880.0, glide: 0.18, decay: 0.2, volume: 0.12, ..Patch::new(Sine, 220.0) }, 0.0),
+            (Patch { decay: 0.15, volume: 0.08, ..Patch::new(Triangle, 1320.0) }, 0.16),
+        ],
+        SimEvent::CourseStart { .. } => vec![(Patch { decay: 0.12, volume: 0.14, ..Patch::new(Square, 880.0) }, 0.0)],
+        SimEvent::Gate { ok, .. } => {
+            if *ok {
+                vec![(Patch { decay: 0.1, volume: 0.12, ..Patch::new(Triangle, 1046.5) }, 0.0)]
+            } else {
+                vec![(Patch { freq_end: 160.0, glide: 0.2, decay: 0.25, volume: 0.14, duty: 0.3, ..Patch::new(Square, 330.0) }, 0.0)]
+            }
+        }
+        SimEvent::CourseFinish { new_best, .. } => {
+            let mut v = vec![
+                (Patch { decay: 0.18, volume: 0.13, ..Patch::new(Triangle, 523.3) }, 0.0),
+                (Patch { decay: 0.18, volume: 0.13, ..Patch::new(Triangle, 659.3) }, 0.1),
+                (Patch { decay: 0.4, volume: 0.14, ..Patch::new(Triangle, 784.0) }, 0.2),
+            ];
+            if *new_best {
+                v.push((Patch { decay: 0.5, volume: 0.13, ..Patch::new(Triangle, 1046.5) }, 0.34));
+            }
+            v
+        }
+        SimEvent::Checkpoint { .. } => vec![
+            (Patch { decay: 0.12, volume: 0.1, ..Patch::new(Sine, 1174.7) }, 0.0),
+            (Patch { decay: 0.2, volume: 0.1, ..Patch::new(Sine, 1568.0) }, 0.07),
+        ],
+        SimEvent::Splash { .. } => vec![(
+            Patch { attack: 0.01, decay: 0.35, volume: 0.25, cutoff: 3000.0, cutoff_end: 400.0, ..Patch::new(Noise, 1.0) },
+            0.0,
+        )],
+        SimEvent::Pad { .. } => vec![(Patch { freq_end: 1200.0, glide: 0.08, decay: 0.12, volume: 0.1, ..Patch::new(Sine, 600.0) }, 0.0)],
+        SimEvent::Grab { .. } => vec![(Patch { decay: 0.05, volume: 0.12, cutoff: 1500.0, cutoff_end: 600.0, ..Patch::new(Noise, 1.0) }, 0.0)],
+        SimEvent::Roll { .. } => vec![(
+            Patch { attack: 0.02, decay: 0.2, volume: 0.1, cutoff: 600.0, cutoff_end: 2400.0, ..Patch::new(Noise, 1.0) },
+            0.0,
+        )],
         _ => Vec::new(),
     }
 }
@@ -273,7 +317,11 @@ pub fn event_pos(ev: &SimEvent) -> Option<Vec3> {
         | SimEvent::Step { pos }
         | SimEvent::Throw { pos }
         | SimEvent::Explosion { pos, .. }
-        | SimEvent::Impact { pos, .. } => Some(*pos),
+        | SimEvent::Impact { pos, .. }
+        | SimEvent::Hit { pos, .. }
+        | SimEvent::Splash { pos }
+        | SimEvent::Grab { pos }
+        | SimEvent::Roll { pos } => Some(*pos),
         _ => None,
     }
 }

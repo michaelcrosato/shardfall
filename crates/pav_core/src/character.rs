@@ -138,7 +138,7 @@ impl Default for MovementParams {
             crouch_mult: 0.45,
             crawl_mult: 0.32,
             climb_speed: 3.2,
-            ledge_grab: true,
+            ledge_grab: false,
             ledge_climb_time: 0.38,
             swim_speed: 3.2,
             wade_mult: 0.65,
@@ -175,7 +175,7 @@ impl Tunable for MovementParams {
         v.float("crouch_mult", &mut self.crouch_mult, 0.05, 1.0, "Speed multiplier when crouching");
         v.float("crawl_mult", &mut self.crawl_mult, 0.05, 1.0, "Speed multiplier when crawling");
         v.float("climb_speed", &mut self.climb_speed, 0.5, 10.0, "Ladder climb speed (m/s)");
-        v.bool("ledge_grab", &mut self.ledge_grab, "Grab ledges while falling next to them");
+        v.bool("ledge_grab", &mut self.ledge_grab, "Grab ledges while falling next to them (rooms opt in)");
         v.float("ledge_climb_time", &mut self.ledge_climb_time, 0.05, 1.5, "Seconds to pull up onto a ledge");
         v.float("swim_speed", &mut self.swim_speed, 0.5, 10.0, "Swimming speed (m/s)");
         v.float("wade_mult", &mut self.wade_mult, 0.1, 1.0, "Speed multiplier in shallow water");

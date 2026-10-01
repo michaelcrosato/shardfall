@@ -293,7 +293,7 @@ impl App {
                 let name = r.def.name.clone();
                 self.toast(format!("reset {name}"));
             }
-            None => self.toast("Not in a room (Esc → Reset scene resets everything)"),
+            None => self.toast("Not in a room (Esc, Reset scene resets everything)"),
         }
     }
 
@@ -303,7 +303,7 @@ impl App {
             TeleportTarget::Room(key) => {
                 let k = key.clone();
                 let ok = host.query(move |sim| sim.teleport_to_room(&k)).unwrap_or(false);
-                if ok { format!("→ {key}") } else { format!("could not go to {key}") }
+                if ok { format!("went to {key}") } else { format!("could not go to {key}") }
             }
             TeleportTarget::Hub => {
                 host.exec(|sim| {
@@ -311,7 +311,7 @@ impl App {
                         sim.set_position(pid, Vec3::new(0.0, 0.0, 6.0));
                     }
                 });
-                "→ plaza".into()
+                "went to the plaza".into()
             }
             TeleportTarget::Wilderness => {
                 let a = self.started.elapsed().as_secs_f32() * 7.3;
@@ -324,7 +324,7 @@ impl App {
                         sim.set_position(pid, p);
                     }
                 });
-                "→ wilderness".into()
+                "went to the wilderness".into()
             }
         };
         self.toast(msg);
@@ -527,6 +527,10 @@ impl App {
             self.input.mouse_taps.clear();
         }
         let (mut held, mut pressed) = self.input.buttons();
+        if pressed != 0 && self.input.last_device == Device::Gamepad {
+            // Gamepad presses are timed from when they were polled (gilrs queues them).
+            self.latency.press();
+        }
         let room_id = self.hud.current.as_ref().map(|r| r.id);
         let left = self.input.mouse.contains(&MouseButton::Left) && !over_ui;
         if left_tap && !self.editor.on && game_input {

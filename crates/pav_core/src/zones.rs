@@ -90,6 +90,8 @@ pub struct Zone {
     /// Text drawn on the floor of the zone.
     #[serde(default)]
     pub label: String,
+    #[serde(default)]
+    pub label_size: Option<f32>,
     /// Floor marking colour (None = the kind's default; transparent kinds draw nothing).
     #[serde(default)]
     pub color: Option<Color>,
@@ -99,8 +101,9 @@ pub struct Zone {
 }
 
 impl Zone {
+    /// Half-open on the ground plane, so zones that touch never both contain a point.
     pub fn contains(&self, p: Vec3) -> bool {
-        p.x >= self.min.x && p.x <= self.max.x && p.y >= self.min.y && p.y <= self.max.y && p.z >= self.min.z && p.z <= self.max.z
+        p.x >= self.min.x && p.x < self.max.x && p.y >= self.min.y && p.y <= self.max.y && p.z >= self.min.z && p.z < self.max.z
     }
     pub fn center(&self) -> Vec3 {
         (self.min + self.max) * 0.5

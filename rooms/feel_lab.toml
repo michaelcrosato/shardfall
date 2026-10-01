@@ -4,7 +4,7 @@ name = "Feel Lab"
 about = "Switch movement models on the pads and feel the difference: a timed sprint lane with distance marks, jump-height poles, gaps, a ledge wall and a pool. The feel overlay measures input delay, acceleration, stopping, turning and jumps live."
 try = [
   "Step on a pad (INSTANT / MOMENTUM / GRID / COMMITTED) to switch the movement model",
-  "Run the sprint lane (green START → checkered FINISH) with each model and compare times",
+  "Run the sprint lane (green START to the checkered FINISH) with each model and compare times",
   "Watch the feel overlay: input delay, time to top speed, stopping distance, turnaround",
   "Jump onto the poles: 0.5–1.5 m are jumps, 2 m and 2.5 m need a ledge grab",
   "Jump at the 2.4 m wall and hold toward it: grab the ledge, then pull up (or crouch to drop)",
@@ -21,6 +21,9 @@ entrance = { at = [15, 25], facing = "south" }
 [camera]
 tilt = 58.0
 distance = 20.0
+
+[params]
+"movement.ledge_grab" = true
 
 [layout]
 origin = [-16.0, 0.0, -13.0]
@@ -60,7 +63,7 @@ map = '''
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
 
 [layout.legend.'#']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 2.5, color = "#b9c3cf" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 4.0, color = "#b9c3cf" }]
 
 # Sprint lane: start, distance marks every 2 m, finish.
 [layout.legend.'S']

@@ -36,6 +36,7 @@ struct Globals {
     viewport: [f32; 4],
     fog: [f32; 4],
     fog2: [f32; 4],
+    cut3: [f32; 4],
 }
 
 #[repr(C)]
@@ -802,12 +803,14 @@ impl Renderer {
             viewport: [size.0 as f32, size.1 as f32, 1.0 / size.0.max(1) as f32, 1.0 / size.1.max(1) as f32],
             fog: scene.fog.color.extend(if scene.fog.enabled { 1.0 } else { 0.0 }).to_array(),
             fog2: [scene.fog.center.x, scene.fog.center.z, scene.fog.start, scene.fog.end.max(scene.fog.start + 0.01)],
+            cut3: [cut.front_cut, if cut.front_cut > 0.0 { 1.0 } else { 0.0 }, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
         globals.view_proj = mat(light_vp);
         globals.eye = [0.0, 0.0, 0.0, 0.0];
         globals.forward = sun_dir.extend(0.0).to_array();
         globals.cut2 = [0.0; 4];
+        globals.cut3 = [0.0; 4];
         self.queue.write_buffer(&self.shadow_globals_buf, 0, bytemuck::bytes_of(&globals));
 
         let mut lights: Vec<GpuPointLight> = scene.point_lights[..n_lights]

@@ -109,6 +109,9 @@ impl FontAtlas {
         let mut glyphs = HashMap::new();
         for ch in chars {
             let id = font.glyph_id(ch);
+            if id.0 == 0 && ch != ' ' {
+                continue; // not in the font: layout falls back to '?'
+            }
             let advance = font.h_advance_unscaled(id) * px_per_unit / EM_PX;
             let glyph: Glyph = id.with_scale_and_position(scale, point(0.0, 0.0));
             let Some(outline) = font.outline_glyph(glyph) else {

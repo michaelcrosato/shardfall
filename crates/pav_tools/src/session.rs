@@ -22,6 +22,7 @@ pub struct Session {
     /// Room whose camera defaults were applied last, and the camera before entering it.
     room_cam: Option<(u16, CameraParams)>,
     cue_serial: u64,
+    cue_base: Option<CameraParams>,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -54,6 +55,7 @@ impl Session {
             prev_frame,
             room_cam: None,
             cue_serial: 0,
+            cue_base: None,
         };
         s.sync_camera();
         Ok(s)
@@ -88,6 +90,33 @@ impl Session {
         let w = &self.sim.state.world;
         let now = w.current_room;
         let rot = |yaw: f64, q: u8| ParamValue::Float((yaw + q as f64 * 90.0 + 540.0).rem_euclid(360.0) - 180.0);
+        let c = &self.sim.state.courses;
+        if c.cue_serial != self.cue_serial {
+            self.cue_serial = c.cue_serial;
+            // Like the game: each cue applies on top of the camera from before the first cue;
+            // sweeps start at their `from` value (captures are single moments).
+            match c.cue() {
+                Some(cue) => {
+                    let q = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.place.quarters).unwrap_or(0);
+                    let base = self.cue_base.get_or_insert_with(|| self.camera.params.clone()).clone();
+                    let mut set = cue.set.clone();
+                    for sw in &cue.sweep {
+                        set.insert(sw.param.clone(), ParamValue::Float(sw.from as f64));
+                    }
+                    if let Some(y) = set.get("yaw").and_then(|v| v.as_f64()) {
+                        set.insert("yaw".into(), rot(y, q));
+                    }
+                    self.camera.params = base;
+                    apply_map(&mut self.camera.params, &set);
+                }
+                None => {
+                    if let Some(b) = self.cue_base.take() {
+                        self.camera.params = b;
+                    }
+                }
+            }
+        }
+        // Room changes after cues (leaving a room clears its cue first, then restores the camera).
         if now != self.room_cam.as_ref().map(|r| r.0) {
             if let Some((_, saved)) = self.room_cam.take() {
                 self.camera.params = saved;
@@ -99,18 +128,6 @@ impl Session {
                 cam.insert("yaw".into(), rot(yaw, r.place.quarters));
                 apply_map(&mut self.camera.params, &cam);
                 self.room_cam = Some((r.id, saved));
-            }
-        }
-        let c = &self.sim.state.courses;
-        if c.cue_serial != self.cue_serial {
-            self.cue_serial = c.cue_serial;
-            if let Some(cue) = c.cue() {
-                let q = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.place.quarters).unwrap_or(0);
-                let mut set = cue.set.clone();
-                if let Some(y) = set.get("yaw").and_then(|v| v.as_f64()) {
-                    set.insert("yaw".into(), rot(y, q));
-                }
-                apply_map(&mut self.camera.params, &set);
             }
         }
     }

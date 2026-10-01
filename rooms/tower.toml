@@ -1,0 +1,232 @@
+# Verticality Tower: a three-storey building for the full vertical toolkit: stairs, a ladder,
+# a lift, ledge grabs, a crawl vent, a duck corridor with turrets, and a floor you can blow up
+# and drop through. The camera's "walls down" cutaway shows the floor you are on.
+name = "Verticality Tower"
+about = "Three floors of verticality: stairs, a ladder and a lift up, a crawl vent, a corridor of turrets to duck and jump, a ledge to grab, and a destructible floor to bomb and drop through. Race from the lobby to the top floor."
+try = [
+  "Race from START (lobby) to FINISH (top floor, north-west)",
+  "Take the stairs, the ladder or the lift up to the first floor",
+  "First floor corridor: crouch (C) under the high shots, jump the low ones",
+  "Jump at the tall block east of the corridor and hold toward it to grab the ledge",
+  "Bomb the cracked floor on the first floor (F / click) and drop through",
+  "Crawl (Z) through the vent between the two ground-floor rooms",
+]
+wing = "movement"
+order = 7
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [12, 21], facing = "south" }
+
+[camera]
+tilt = 60.0
+distance = 20.0
+
+[params]
+"movement.ledge_grab" = true
+
+[layout]
+origin = [-13.0, 0.0, -11.0]
+
+# Ground floor: lobby, stairs (west), ladder, lift (east), two rooms under the first floor.
+[[layout.layer]]
+y = 0
+map = '''
+##########################
+#..........W.............#
+#..........W........o....#
+#..........W.........o...#
+#..........v.............#
+#..........W.............#
+#..........W.............#
+#..........W.............#
+#..........W.............#
+#PPPPP..PPPPPPPP..PPPPPPP#
+#LLL..........l..........#
+#LLL.....................#
+#77......................#
+#66......................#
+#55......................#
+#44......................#
+#33......................#
+#22......................#
+#11........SSSS..........#
+#..........SSSS..........#
+#........................#
+############..############
+'''
+
+# First floor (3.5 m): cracked floor (x), duck corridor, ladder up, ledge block.
+[[layout.layer]]
+y = 3.5
+map = '''
+                          
+ ======================== 
+ ====xxxxx=============== 
+ ====xxxxx=============== 
+ ====xxxxx===uuuuuuu===== 
+ ====xxxxx=====k====GGGGG 
+ ====xxxxx==========GGGGG 
+ ===rrrrrrrrrrrrrrr===ccc 
+ =====================ccc 
+ cccrrrrrrrrrrrrrrr====== 
+                          
+                          
+'''
+
+# Top floor (7 m).
+[[layout.layer]]
+y = 7.0
+map = '''
+                          
+             FF========== 
+             FF========== 
+             FF========== 
+             FF========== 
+                          
+
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 10.5, color = "#e0d4bd" }]
+
+# Ground-floor walls up to the first floor's underside.
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.2, color = "#d6c7ad" }]
+[layout.legend.'W']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.2, color = "#d6c7ad" }]
+
+# Crawl vent: a wall with a 0.8 m opening at the bottom.
+[layout.legend.'v']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0.8, y1 = 3.2, color = "#d6c7ad" }]
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 0.5, color = "#c99f74" }]
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.0, color = "#c99f74" }]
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.5, color = "#c99f74" }]
+[layout.legend.'4']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.0, color = "#c99f74" }]
+[layout.legend.'5']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.5, color = "#c99f74" }]
+[layout.legend.'6']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.0, color = "#c99f74" }]
+[layout.legend.'7']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.5, color = "#c99f74" }]
+
+# Stair landing, level with the first floor.
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.5, color = "#c99f74" }]
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }]
+ladder = { facing = "north", height = 3.5 }
+
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }]
+zone = { kind = "start", course = "climb", facing = "north" }
+
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }]
+prop = { shape = { type = "box", half = [0.4, 0.4, 0.4] }, color = "#e8704a", name = "crate" }
+
+# Upper floors (heights relative to each layer).
+[layout.legend.'=']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }]
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#a8875f", destructible = true }]
+
+# Corridor walls: too tall to grab (no skipping the turrets).
+[layout.legend.'r']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }, { y0 = 0, y1 = 3.6, color = "#cdb99a" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }]
+zone = { kind = "checkpoint" }
+
+[layout.legend.'u']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }, { y0 = 0, y1 = 3.2, color = "#cdb99a" }]
+
+[layout.legend.'k']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }]
+ladder = { facing = "north", height = 3.5 }
+
+[layout.legend.'G']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }, { y0 = 0, y1 = 2.4, color = "#b59a7b" }]
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#bba98f" }]
+zone = { kind = "finish", course = "climb" }
+
+# Signs.
+[[label]]
+text = "STAIRS"
+pos = [3.6, 0.03, 15.0]
+size = 0.45
+
+[[label]]
+text = "LADDER"
+pos = [14.5, 0.03, 12.0]
+size = 0.4
+
+[[label]]
+text = "LIFT"
+pos = [21.5, 0.03, 14.2]
+size = 0.5
+
+[[label]]
+text = "VENT (crawl: Z)"
+pos = [8.5, 0.03, 5.0]
+size = 0.35
+
+[[label]]
+text = "BOMB IT (F)"
+pos = [7.5, 3.53, 4.5]
+size = 0.45
+
+[[label]]
+text = "DUCK (C) · JUMP"
+pos = [6.0, 3.53, 8.5]
+size = 0.35
+
+[[label]]
+text = "LEDGE"
+pos = [22.0, 3.53, 9.3]
+size = 0.4
+
+[[label]]
+text = "TOP FLOOR"
+pos = [19.0, 7.03, 2.5]
+size = 0.6
+
+# The lift: a platform that rises to the first floor, waits, and comes back down.
+[[object]]
+name = "lift"
+shape = { type = "box", half = [1.5, 0.15, 1.5] }
+pos = [21.5, 0.15, 11.5]
+color = "#7a8796"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, 3.2, 0.0], period = 9.0, hold = 0.35 }
+
+# Duck corridor turrets at its east end, firing west along the corridor.
+[[object]]
+name = "turret_high"
+shape = { type = "cylinder", half_height = 0.22, radius = 0.3 }
+pos = [19.5, 4.9, 8.5]
+yaw = -90.0
+color = "#5b5f66"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.9, speed = 7.0, radius = 0.16, range = 16.0, color = "#ff5a3c" }
+
+[[object]]
+name = "turret_low"
+shape = { type = "cylinder", half_height = 0.22, radius = 0.3 }
+pos = [19.5, 3.85, 8.5]
+yaw = -90.0
+color = "#5b5f66"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 1.35, delay = 0.45, speed = 6.0, radius = 0.16, range = 16.0, color = "#ffb13c" }

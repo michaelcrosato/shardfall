@@ -1,0 +1,345 @@
+# Timing Gates: a timed obstacle course through five sections of moving obstacles. Every mover
+# is a kinematic object whose motion is a pure function of time, so the rhythm is the same on
+# every run and you can learn it.
+name = "Timing Gates"
+about = "A timed obstacle course from START to FINISH through five sections of moving obstacles: sliding doors, crushers, sweepers, platforms over a pit and pendulums. Read the rhythm, pick your moment, and use the checkpoints between the sections."
+try = [
+  "Walk out of the green START pad to start the clock, and run the course to the checkered FINISH",
+  "Sliding doors: wait in the bays between the doors; each one opens on its own beat",
+  "Crushers: sneak under while the block is up (touching one sends you back to the checkpoint); some are split in two lanes that take turns",
+  "Sweepers: the bars are knee high, so jump over them (a hit knocks you back)",
+  "Moving platforms: step onto a platform when it docks, ride it over the pit and step off on the pier (falling respawns you at the last checkpoint)",
+  "Pendulums: cross the swing when the bob is at the far side of the corridor",
+  "Beat your best time: the course HUD shows the timer, hits and falls",
+]
+wing = "movement"
+order = 4
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [3, 29], facing = "south" }
+
+[camera]
+tilt = 64.0
+distance = 18.0
+
+[layout]
+origin = [-18.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+####################################
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefFf#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeFfF#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefFf#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeFfF#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefFf#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeFfF#
+#JJJJeeeeeeeeeeeeeeeeeeeeeeeeeeefFf#
+#JJJJ%%%%%%%%XXXXXXXXXXXXXXX%%%%%%%#
+#LLLLLLLLLLLL______kkk______LLLLLLL#
+#LLLLLLLLLLLL______kkk______LLLLLLL#
+#LLLLLLLLLLLL______kkk______LLLLLLL#
+#LLLLLLLLLLLL______kkk______LLLLLLL#
+#LLLLLLLLLLLL______kkk______LLLKKKK#
+#%%%%%%%%%%%%XXXXXXXXXXXXXXX%%%KKKK#
+#cccccccccccccccccccccccccccccccccc#
+#cccccccccccccccccccccccccccccccccc#
+#cccccccccccccccccccccccccccccccccc#
+#JJJJcccccccccccccccccccccccccccccc#
+#JJJJ%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbKKKK#
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%KKKK#
+#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#aSSSaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#aSSSaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#aSSSaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+###..###############################
+'''
+
+
+# --- tiles ------------------------------------------------------------------------------
+# Floors are tinted per section so you always know where you are.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d5d9cf" }]
+
+[layout.legend.'a']          # 1 doors
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e6dcc4" }]
+[layout.legend.'b']          # 2 crushers
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e5d0c8" }]
+[layout.legend.'c']          # 3 sweepers
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cde0e6" }]
+[layout.legend.'e']          # 5 pendulums
+blocks = [{ y0 = -0.5, y1 = 0, color = "#dcd3e8" }]
+
+# Outer wall (2.8 m) and the taller partitions between the sections (too high to ledge-grab).
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d5d9cf" }, { y0 = 0, y1 = 2.8, color = "#b9c3cf" }]
+[layout.legend.'%']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d5d9cf" }, { y0 = 0, y1 = 3.6, color = "#a6b2c2" }]
+
+# The pit: ledges and partitions go down to the pit floor (y -4); the floor is y -4 .. -3.5 and
+# the kill zone sits just above it (y -3.4 .. -1), so a fall respawns you at the last checkpoint.
+[layout.legend.'L']
+blocks = [{ y0 = -4.0, y1 = 0, color = "#c4d0bc" }]
+[layout.legend.'X']
+blocks = [{ y0 = -4.0, y1 = 0, color = "#c4d0bc" }, { y0 = 0, y1 = 3.6, color = "#a6b2c2" }]
+[layout.legend.'_']
+blocks = [{ y0 = -4.0, y1 = -3.5, color = "#4b525c" }]
+zone = { kind = "kill", y0 = -3.4, y1 = -1.0 }
+
+# START (leaving it starts the clock), CHECKPOINTs (respawn points; `facing` = the way you
+# face after a respawn) and the checkered FINISH.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe3cf" }]
+zone = { kind = "start", course = "timing", facing = "east", label = "START" }
+
+[layout.legend.'K']          # checkpoint, the way on leads west
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f1e6b8" }]
+zone = { kind = "checkpoint", facing = "west", label = "CHECKPOINT" }
+[layout.legend.'J']          # checkpoint, the way on leads east
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f1e6b8" }]
+zone = { kind = "checkpoint", facing = "east", label = "CHECKPOINT" }
+[layout.legend.'k']          # checkpoint on the pier in the pit
+blocks = [{ y0 = -4.0, y1 = 0, color = "#f1e6b8" }]
+zone = { kind = "checkpoint", facing = "west", label = "CHECKPOINT" }
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f4f4ee", look = "flat" }]
+zone = { kind = "finish", course = "timing", color = "none" }
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2b2d35", look = "flat" }]
+zone = { kind = "finish", course = "timing", color = "none" }
+
+
+
+# 1. SLIDING DOORS: wall-to-wall slabs that slide up out of the way and drop back down.
+# Every door has its own phase, so you stop in the bays and wait for the next opening.
+[[object]]
+name = "door_1"
+shape = { type = "box", half = [0.4, 1.25, 1.97] }
+pos = [10.5, 1.25, 27.0]
+color = "#e0a458"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, 2.6, 0.0], period = 3.0, hold = 0.4 }
+
+[[object]]
+name = "door_2"
+shape = { type = "box", half = [0.4, 1.25, 1.97] }
+pos = [15.5, 1.25, 27.0]
+color = "#e0a458"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, 2.6, 0.0], period = 3.0, phase = 0.72, hold = 0.4 }
+
+[[object]]
+name = "door_3"
+shape = { type = "box", half = [0.4, 1.25, 1.97] }
+pos = [20.5, 1.25, 27.0]
+color = "#e0a458"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, 2.6, 0.0], period = 3.0, phase = 0.2, hold = 0.4 }
+
+[[object]]
+name = "door_4"
+shape = { type = "box", half = [0.4, 1.25, 1.97] }
+pos = [25.5, 1.25, 27.0]
+color = "#e0a458"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, 2.6, 0.0], period = 3.0, phase = 0.9, hold = 0.4 }
+
+# 2. CRUSHERS: heavy blocks that stamp down onto the path and rise again (touching one sends you back
+# to the checkpoint). Two of them are split in two lanes that take turns: use whichever lane is open.
+[[object]]
+name = "crusher_1"
+shape = { type = "box", half = [1.0, 0.7, 1.97] }
+pos = [26.5, 3.3, 22.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+[[object]]
+name = "crusher_2a"
+shape = { type = "box", half = [1.0, 0.7, 0.97] }
+pos = [21.0, 3.3, 21.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+[[object]]
+name = "crusher_2b"
+shape = { type = "box", half = [1.0, 0.7, 0.97] }
+pos = [21.0, 3.3, 23.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, phase = 0.5, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+[[object]]
+name = "crusher_3"
+shape = { type = "box", half = [1.0, 0.7, 1.97] }
+pos = [15.5, 3.3, 22.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, phase = 0.5, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+[[object]]
+name = "crusher_4a"
+shape = { type = "box", half = [1.0, 0.7, 0.97] }
+pos = [10.0, 3.3, 21.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, phase = 0.25, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+[[object]]
+name = "crusher_4b"
+shape = { type = "box", half = [1.0, 0.7, 0.97] }
+pos = [10.0, 3.3, 23.0]
+color = "#5f6577"
+body = "kinematic"
+behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, phase = 0.75, hold = 0.4 }
+hazard = { knockback = 4, respawn = true }
+
+# 3. SWEEPERS: knee-high bars turning about a hub. Jump over them (the hit knocks you back).
+# The middle one turns the other way.
+[[object]]
+name = "sweeper_1_hub"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.3 }
+pos = [10.0, 0.45, 17.0]
+color = "#3d4350"
+body = "none"
+
+[[object]]
+name = "sweeper_1"
+shape = { type = "box", half = [1.9, 0.15, 0.18] }
+pos = [10.0, 0.3, 17.0]
+color = "#f2c14e"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0.0, 1.0, 0.0], speed = 90.0 }
+hazard = { knockback = 8 }
+
+[[object]]
+name = "sweeper_2_hub"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.3 }
+pos = [17.0, 0.45, 17.0]
+color = "#3d4350"
+body = "none"
+
+[[object]]
+name = "sweeper_2"
+shape = { type = "box", half = [1.9, 0.15, 0.18] }
+pos = [17.0, 0.3, 17.0]
+color = "#f2c14e"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0.0, 1.0, 0.0], speed = -75.0 }
+hazard = { knockback = 8 }
+
+[[object]]
+name = "sweeper_3_hub"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.3 }
+pos = [24.0, 0.45, 17.0]
+color = "#3d4350"
+body = "none"
+
+[[object]]
+name = "sweeper_3"
+shape = { type = "box", half = [1.9, 0.15, 0.18] }
+pos = [24.0, 0.3, 17.0]
+color = "#f2c14e"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0.0, 1.0, 0.0], speed = 105.0 }
+hazard = { knockback = 8 }
+
+# 4. MOVING PLATFORMS: two shuttles carry you across the pit (floor y -4, kill zone above it);
+# the pier between them is a checkpoint.
+[[object]]
+name = "platform_1"
+shape = { type = "box", half = [1.6, 0.25, 1.9] }
+pos = [26.32, -0.25, 11.5]
+color = "#5b8def"
+body = "kinematic"
+behavior = { type = "move", offset = [-2.64, 0.0, 0.0], period = 6.0, hold = 0.3 }
+
+[[object]]
+name = "platform_2"
+shape = { type = "box", half = [1.6, 0.25, 1.9] }
+pos = [17.32, -0.25, 11.5]
+color = "#5b8def"
+body = "kinematic"
+behavior = { type = "move", offset = [-2.64, 0.0, 0.0], period = 6.0, phase = 0.5, hold = 0.3 }
+
+# 5. PENDULUMS: heavy bobs swinging across the corridor (axis X) and a bar swinging along it (axis Z).
+# The rods are visual only and swing with the bobs.
+[[object]]
+name = "pendulum_1"
+shape = { type = "box", half = [0.8, 0.5, 1.2] }
+pos = [9.5, 0.95, 4.5]
+color = "#d9534f"
+body = "kinematic"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
+hazard = { knockback = 7 }
+
+[[object]]
+name = "pendulum_1_rod"
+shape = { type = "box", half = [0.05, 1.25, 0.05] }
+pos = [9.5, 2.7, 4.5]
+color = "#3d4350"
+body = "none"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
+
+[[object]]
+name = "pendulum_2"
+shape = { type = "box", half = [0.8, 0.5, 1.2] }
+pos = [14.5, 0.95, 4.5]
+color = "#d9534f"
+body = "kinematic"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
+hazard = { knockback = 7 }
+
+[[object]]
+name = "pendulum_2_rod"
+shape = { type = "box", half = [0.05, 1.25, 0.05] }
+pos = [14.5, 2.7, 4.5]
+color = "#3d4350"
+body = "none"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }
+
+[[object]]
+name = "pendulum_3"
+shape = { type = "box", half = [0.8, 0.5, 1.2] }
+pos = [19.5, 0.95, 4.5]
+color = "#d9534f"
+body = "kinematic"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 3.0, 0.0] }
+hazard = { knockback = 7 }
+
+[[object]]
+name = "pendulum_3_rod"
+shape = { type = "box", half = [0.05, 1.25, 0.05] }
+pos = [19.5, 2.7, 4.5]
+color = "#3d4350"
+body = "none"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, pivot = [0.0, 1.25, 0.0] }
+
+[[object]]
+name = "pendulum_4"
+shape = { type = "box", half = [0.8, 0.5, 1.2] }
+pos = [25.0, 0.95, 4.5]
+color = "#d9534f"
+body = "kinematic"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 3.0, 0.0] }
+hazard = { knockback = 7 }
+
+[[object]]
+name = "pendulum_4_rod"
+shape = { type = "box", half = [0.05, 1.25, 0.05] }
+pos = [25.0, 2.7, 4.5]
+color = "#3d4350"
+body = "none"
+behavior = { type = "rotate", axis = [1.0, 0.0, 0.0], swing = 70.0, period = 2.2, phase = 0.5, pivot = [0.0, 1.25, 0.0] }

@@ -1,0 +1,292 @@
+# Camera Bench: play the SAME short timed loop under different camera setups and compare.
+# Nine camera pads sit around a compact obstacle loop; stepping on one switches the camera
+# smoothly and it stays until another pad or until you leave the room. A camera zone over the
+# crawl tunnel shows the "while inside" kind of cue. Every number in a pad's cue is a live
+# camera parameter (tilt, yaw, distance, fov, ortho, height_offset); yaw is relative to the
+# room's orientation.
+name = "Camera Bench"
+about = "Run one short obstacle loop under different cameras and compare. Nine pads switch the camera (top-down, classic, high, low, side view, isometric, wide-angle, close third person and an auto-sweeping one) while the timed loop stays the same: crates, a 2 m gap, a ladder to a 3 m platform, a narrow beam over a pit, a crawl tunnel and props to push."
+try = [
+  "Step on a camera pad: the camera glides to its setup and stays until another pad (or leaving the room)",
+  "Run the loop (green START to checkered FINISH) once per camera and compare the times; the gold squares are gates (a missed gate adds 2 s)",
+  "Judge the 2 m gap and the 0.4 m beam from TOP 90° ORTHO, then from LOW 35°: which view hides depth?",
+  "ISOMETRIC and SIDE 0° are orthographic (no perspective); WIDE FOV 75° and CLOSE 3RD PERSON exaggerate it",
+  "AUTO SWEEP slowly swings tilt and yaw and flips between orthographic and perspective every 7 s",
+  "Crawl (Z) into the tunnel: a camera zone switches to a close low camera while you are inside, then the pad camera returns",
+  "Climb the ladder to the 3 m platform and drop off its west side onto the checkpoint; falling into a pit or off the beam respawns you at the last checkpoint (falls are counted)",
+  "Push the crates and balls around; right-drag rotates the camera and the wheel zooms until you step on a pad again",
+]
+wing = "movement"
+order = 6
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [16, 25], facing = "south" }
+
+# Room default camera (the "CLASSIC 62°" pad sets the same values explicitly).
+[camera]
+tilt = 62.0
+distance = 18.0
+fov = 40.0
+ortho = false
+
+[layout]
+origin = [-17.0, 0.0, -13.0]
+
+# 34 x 26 room. South = bottom row (entrance gap at columns 16-17). The loop is 14 x 12 and
+# starts at column 10, row 8; the route runs counter-clockwise:
+#   START 'S' (SW corner) -> 0.5 m and 1.0 m crate hurdles 'a' 'b' -> checkpoint 'K'
+#   -> 2 m GAP '_' (pit) -> north up the east lane (crates 'o' and two balls to push)
+#   -> ladder 'L' to the 3 m platform 'P' -> drop off its west side onto the checkpoint 'k'
+#   -> narrow beam '=' over a pit -> crawl tunnel 't' (walls 'T') down the west lane
+#   -> FINISH 'F' (right next to START, so you can go again).
+# Camera pads (6 x 2 cells), west = orthographic ones, east = perspective tilts, north = the rest:
+#   'A' TOP 90° ORTHO   'G' ISOMETRIC   'E' SIDE 0°          (west column, top to bottom)
+#   'C' HIGH 75°        'B' CLASSIC 62° 'D' LOW 35°          (east column, top to bottom)
+#   'H' WIDE FOV 75°    'I' CLOSE 3RD PERSON   'J' AUTO SWEEP (north row, left to right)
+# The pads stay clear of the entrance path (columns 16-17 up to the loop). Floors are 3 m thick
+# so the pits read as real holes from low cameras.
+[[layout.layer]]
+y = 0
+map = '''
+##################################
+#................................#
+#................................#
+#.....HHHHHH..IIIIII..JJJJJJ.....#
+#.....HHHHHH..IIIIII..JJJJJJ.....#
+#................................#
+#................................#
+#................................#
+#.AAAAAA..,,,_____,k,PPP..CCCCCC.#
+#.AAAAAA..,,e=====ek,PPP..CCCCCC.#
+#.........,c,_____,k,PPP.........#
+#.........TtT........,L,.........#
+#.........TtT........,,,.........#
+#.GGGGGG..TtT........o,,..BBBBBB.#
+#.GGGGGG..TtT........,,,..BBBBBB.#
+#.........FFF........,,o.........#
+#.........FFF........,,,.........#
+#.........SS,,,a,bK__,,,.........#
+#.EEEEEE..SS,,,a,bK__,,,..DDDDDD.#
+#.EEEEEE..SS,,,a,bK__,,,..DDDDDD.#
+#................................#
+#................................#
+#................................#
+#................................#
+#................................#
+################..################
+'''
+
+# Gates of the course (invisible referees, drawn as gold squares where they sit on a surface).
+# Zones can't share a tile, so they live in a second layer laid over the loop (offset to its
+# top-left corner, column 10 row 8). They force the route: 1 the 1 m crate, 2 the platform top,
+# 3 the beam, 4 the tunnel. Pass them in order or each missed gate adds 2 s.
+[[layout.layer]]
+y = 0
+at = [10, 8]
+map = '''
+           222
+     3     222
+           222
+
+
+ 4
+
+
+
+       1
+       1
+       1
+'''
+
+# Floors, walls.
+[layout.legend.'.']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -3.0, y1 = 2.6, color = "#a7b0bd" }]
+
+# The loop's lane floor (warm, so the course reads against the pale room floor).
+[layout.legend.',']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+
+# Course start / finish / checkpoints. START arms the course, leaving it starts the clock;
+# a checkpoint ('K' before the gap, 'k' after the platform drop) is where a fall respawns you.
+[layout.legend.'S']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+zone = { kind = "start", course = "bench", facing = "east" }
+
+[layout.legend.'F']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+zone = { kind = "finish", course = "bench" }
+
+[layout.legend.'k']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+zone = { kind = "checkpoint", facing = "west" }
+[layout.legend.'K']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+zone = { kind = "checkpoint", facing = "east" }
+
+# Crates to push (dynamic props) and crate hurdles to jump onto (0.5 m and 1.0 m).
+[layout.legend.'o']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a", name = "crate" }
+[layout.legend.'a']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }, { y0 = 0, y1 = 0.5, color = "#e8a87c", rounded = true }]
+[layout.legend.'b']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }, { y0 = 0, y1 = 1.0, color = "#d9895b", rounded = true }]
+
+# Pit: floor at -3 .. -2.5, kill zone above it (back to the last checkpoint).
+[layout.legend.'_']
+blocks = [{ y0 = -3.0, y1 = -2.5, color = "#59606b" }]
+zone = { kind = "kill", y0 = -2.4, y1 = -1.0 }
+
+# Narrow beam (0.4 m wide: the block is inset 0.3 on every side) over a pit. 'e' is a beam
+# end resting on the lane floor, '=' is the part over the pit.
+[layout.legend.'e']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }, { y0 = -0.5, y1 = 0.06, color = "#c9a27a", inset = 0.3 }]
+[layout.legend.'=']
+blocks = [{ y0 = -3.0, y1 = -2.5, color = "#59606b" }, { y0 = -0.5, y1 = 0.06, color = "#c9a27a", inset = 0.3 }]
+zone = { kind = "kill", y0 = -2.4, y1 = -1.0 }
+
+# 3 m platform and the ladder up its south face.
+[layout.legend.'P']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }, { y0 = 0, y1 = 3.0, color = "#8fa3c7" }]
+[layout.legend.'L']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+ladder = { facing = "north", height = 3.0 }
+
+# Crawl tunnel: 1.2 m side blocks with a 0.8 m high slot (ceiling block at 0.8 .. 1.2).
+# The slot ('t') and one cell before it ('c') are a camera zone: while you are inside, the
+# camera switches to a close low view; leaving it brings the pad camera back.
+[layout.legend.'T']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }, { y0 = 0, y1 = 1.2, color = "#8e99a8" }]
+[layout.legend.'t']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#bdb59f" }, { y0 = 0.8, y1 = 1.2, color = "#8e99a8" }]
+zone = { kind = "camera", camera = { set = { tilt = 24, distance = 5, fov = 62, height_offset = 0.5, ortho = false } } }
+[layout.legend.'c']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#e6dec9" }]
+zone = { kind = "camera", camera = { set = { tilt = 24, distance = 5, fov = 62, height_offset = 0.5, ortho = false } } }
+
+# Gates (second layer): zone only, no blocks.
+[layout.legend.'1']
+zone = { kind = "gate", course = "bench", index = 1, y0 = 1.0, y1 = 3.0, color = "#f2c94c" }
+[layout.legend.'2']
+zone = { kind = "gate", course = "bench", index = 2, y0 = 3.0, y1 = 6.0, color = "#f2c94c" }
+[layout.legend.'3']
+zone = { kind = "gate", course = "bench", index = 3 }
+[layout.legend.'4']
+zone = { kind = "gate", course = "bench", index = 4, y0 = 0, y1 = 1.0 }
+
+# Camera pads. Each one is a floor tile with a pad zone: the camera cue (`set` = values to
+# apply, optional `sweep` = animated parameters, `flip_ortho` = seconds between ortho and
+# perspective) lasts until another pad or until you leave the room.
+[layout.legend.'A']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "TOP 90° ORTHO", color = "#4f7be0", camera = { set = { tilt = 90, ortho = true, distance = 22 } } }
+[layout.legend.'B']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "CLASSIC 62°", color = "#2e9e68", camera = { set = { tilt = 62, ortho = false, distance = 18, fov = 40 } } }
+[layout.legend.'C']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "HIGH 75°", color = "#1fa5b8", camera = { set = { tilt = 75, ortho = false, distance = 18 } } }
+[layout.legend.'D']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "LOW 35°", color = "#e0623a", camera = { set = { tilt = 35, ortho = false, distance = 14 } } }
+[layout.legend.'E']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "SIDE 0°", color = "#8a52d6", camera = { set = { tilt = 0, ortho = true, distance = 16, height_offset = 1.5 } } }
+[layout.legend.'G']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "ISOMETRIC", color = "#d4891c", camera = { set = { tilt = 35.264, yaw = 45, ortho = true, distance = 24 } } }
+[layout.legend.'H']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "WIDE FOV 75°", color = "#d63a52", camera = { set = { tilt = 50, fov = 75, distance = 9, ortho = false } } }
+[layout.legend.'I']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "CLOSE 3RD PERSON", color = "#7d9a22", camera = { set = { tilt = 22, fov = 60, distance = 7, height_offset = 1.4, ortho = false } } }
+[layout.legend.'J']
+blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
+zone = { kind = "pad", label = "AUTO SWEEP", color = "#c43fb0", camera = { set = { distance = 18 }, sweep = [{ param = "tilt", from = 88, to = 8, period = 14 }, { param = "yaw", from = -60, to = 60, period = 22 }], flip_ortho = 7 } }
+
+# Signs (floor text turns to read upright from the camera).
+[[label]]
+text = "CAMERA BENCH"
+pos = [17.0, 0.03, 21.6]
+size = 0.9
+
+[[label]]
+text = "STEP ON A PAD TO SWITCH THE CAMERA"
+pos = [17.0, 0.03, 22.9]
+size = 0.4
+
+[[label]]
+text = "THEN RUN THE LOOP FROM START TO FINISH"
+pos = [17.0, 0.03, 23.6]
+size = 0.4
+
+[[label]]
+text = "CAMERA PADS"
+pos = [17.0, 0.03, 1.8]
+size = 0.6
+
+[[label]]
+text = "THE CAMERA STAYS UNTIL ANOTHER PAD OR UNTIL YOU LEAVE THE ROOM"
+pos = [17.0, 0.03, 6.0]
+size = 0.36
+
+[[label]]
+text = "ORTHOGRAPHIC"
+pos = [5.0, 0.03, 6.8]
+size = 0.4
+
+[[label]]
+text = "PERSPECTIVE TILTS"
+pos = [29.0, 0.03, 6.8]
+size = 0.4
+
+# Loop labels (in the courtyard, next to what they name).
+[[label]]
+text = "CRATES 0.5 / 1 m"
+pos = [16.0, 0.03, 16.5]
+size = 0.4
+
+[[label]]
+text = "GAP 2 m"
+pos = [20.0, 0.03, 16.5]
+size = 0.4
+
+[[label]]
+text = "BEAM 0.4 m"
+pos = [15.5, 0.03, 11.5]
+size = 0.4
+
+[[label]]
+text = "CRAWL (Z)"
+pos = [14.7, 0.03, 13.0]
+size = 0.4
+
+[[label]]
+text = "LADDER 3 m"
+pos = [19.3, 0.03, 12.5]
+size = 0.4
+
+[[label]]
+text = "FINISH"
+pos = [8.7, 0.03, 15.5]
+size = 0.4
+
+# Free-placed objects (keep them at the end of the file; edit mode rewrites this part).
+# Two balls to push in the east lane (the crates are 'o' tiles on the south lane).
+[[object]]
+name = "ball"
+shape = { type = "sphere", radius = 0.4 }
+pos = [22.5, 0.4, 14.5]
+color = "#5b8def"
+body = "dynamic"
+
+[[object]]
+name = "ball"
+shape = { type = "sphere", radius = 0.4 }
+pos = [21.6, 0.4, 15.6]
+color = "#e8704a"
+body = "dynamic"

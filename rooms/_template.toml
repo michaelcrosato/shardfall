@@ -20,6 +20,9 @@ entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, a
 # Optional: simulation parameter overrides while inside (full paths, see `pav params`).
 [params]
 # "movement.jump_height" = 2.0
+# "movement.ledge_grab" = true     # off by default: a jump reaches ledges up to ~3.4 m, so keep
+#                                   # walls you must not climb at 4 m or more in such rooms
+# "movement.lock_axis" = "z"       # side-view rooms (axis in the room's own frame)
 
 # Optional: keyboard remapping while inside (action = [physical key names]).
 [keys]
@@ -67,7 +70,10 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 #                     gates must be passed in `index` order (missed gate = +2 s), FINISH stops it
 #   index = 1         gate order
 #   y0 = 0, y1 = 3    height range relative to the layer (kill zones in pits: e.g. y0 = -3, y1 = -1)
-#   label = "TEXT"    drawn on the floor; color = "#rrggbb" or "none"; facing = "east" (respawn)
+#   label = "TEXT"    drawn on the floor (label_size = 0.5 to override the auto fit);
+#                     color = "#rrggbb" or "none"; facing = "east" (respawn direction)
+#   Zones are half-open boxes, so touching zones never overlap. A respawn point that lies in a
+#   zone does not trigger it (respawning onto START keeps the timer running).
 #   params = { "movement.model" = "momentum" }       pads: parameter changes until you leave
 #   camera = { set = { tilt = 90, ortho = true }, sweep = [{ param = "tilt", from = 90,
 #              to = 10, period = 12 }], flip_ortho = 6 }  pads (sticky) / camera zones (inside)
@@ -94,7 +100,7 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #   behavior = { type = "rotate", axis = [0, 1, 0], speed = 90 }                   (deg/s)
 #   behavior = { type = "rotate", axis = [1, 0, 0], swing = 60, period = 2, pivot = [0, 2, 0] }
 #   behavior = { type = "spin", speed = 1.5 }                                       (rad/s)
-# Projectile emitters (body = "none" or "fixed"):
+# Projectile emitters (body = "none", or "fixed" with a slim shape; bullets ignore their emitter):
 #   behavior = { type = "emitter", pattern = "aimed", interval = 1.0, count = 1, spread = 0,
 #                speed = 6, radius = 0.15, height = 0, range = 30, delay = 0, burst = 0, pause = 1,
 #                color = "#ff5a3c", knockback = 6, gravity = 0, spin = 12, life = 6 }

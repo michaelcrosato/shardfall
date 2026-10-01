@@ -543,6 +543,21 @@ impl Sim {
                 for d in decor {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, d);
                 }
+                // Room names on the corridor floor in front of each door.
+                for r in &st.world.rooms {
+                    let name = if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() };
+                    st.statics.add_label_to(
+                        RegionKey::Hub,
+                        crate::zones::Label {
+                            text: name,
+                            pos: r.outside + r.inward * 0.6 + Vec3::Y * 0.03,
+                            size: 0.55,
+                            color: Color::hex("#5a4a36"),
+                            mode: crate::zones::LabelMode::Floor,
+                            facing: Facing::South,
+                        },
+                    );
+                }
             }
             self.state.world.hub_built = true;
         } else if !hub_near && self.state.statics.is_active(RegionKey::Hub) {

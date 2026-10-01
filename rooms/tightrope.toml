@@ -1,0 +1,287 @@
+# Tightrope: a timed balance course over a deep pit. START is in the south, FINISH in the north.
+# Narrow beams get thinner and thinner (0.6 -> 0.4 -> 0.25 -> 0.15 m) with small checkpoint
+# platforms in between, plus a zig-zag, a sliding beam and a slowly turning plank.
+# Fall into the pit and you respawn at the last checkpoint (the fall is counted).
+#
+# Route (column, row): START (2..6, 26..27) -> 0.6 m beam north -> P1 (3..5, 16..18) -> 0.4 m
+# zig-zag -> P2 (11..13, 11..13) -> sliding beam east -> P3 (19..21, 11..13) -> 0.25 m beam east
+# -> P4 (28..30, 11..13) -> turning plank north -> P5 (28..30, 3..5) -> 0.15 m beam west -> FINISH.
+name = "Tightrope"
+about = "A timed balance course over a deep pit: START in the south, FINISH in the north. The beams shrink from 0.6 m down to 0.15 m, with a zig-zag, a sliding beam and a turning plank on the way. Fall in and you respawn at the last checkpoint platform."
+try = [
+  "Stand on START (green) to arm the course; the timer starts when you walk off it",
+  "Run the wide 0.6 m beam, then hold Shift (focus) to walk slowly on the thinner ones",
+  "Cross the 0.4 m zig-zag: the beam turns 90 degrees three times",
+  "Watch the sliding beam: it rests in line with the path, then slides away to the side",
+  "Board the turning plank when it lines up with the path, before it swings away",
+  "Fall off on purpose: you respawn at the last blue CHECKPOINT and the fall is counted",
+  "Reach the checkered FINISH, then run it again for a better time",
+]
+wing = "movement"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [4, 28], facing = "south" }
+
+[camera]
+tilt = 68.0
+distance = 18.0
+
+[layout]
+origin = [-17.0, 0.0, -14.5]
+
+# Map layers (cell = 1 m; column = x east, row = z south, so START is at the bottom).
+# Layer 1 is the world: walls, pit, platforms and zones. Layers 2 and 3 only hold the beams:
+# `inset` shrinks a block on every side, so a thin beam would stop short of its platform; here
+# every beam runs one cell into the platform at each end instead, and north-south and east-west
+# beams are separate layers so the zig-zag corners overlap into real L shapes.
+# In layers 2 and 3 '.' is empty (it has no legend entry); layer 1 never uses '.'.
+#   #  wall                     _  pit floor with kill zone       p  entrance floor
+#   S  START zone               F  FINISH zone
+#   n  e  w  checkpoint platform (respawn facing north / east / west)
+#   a  b  c  d  beam, 0.6 / 0.4 / 0.25 / 0.15 m wide
+[[layout.layer]]
+y = 0
+map = '''
+##################################
+#________________________________#
+#________________________________#
+#______________FFFFF________www__#
+#______________FFFFF________www__#
+#______________FFFFF________www__#
+#________________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#__________eee_____eee______nnn__#
+#__________eee_____eee______nnn__#
+#__________eee_____eee______nnn__#
+#________________________________#
+#________________________________#
+#__nnn___________________________#
+#__nnn___________________________#
+#__nnn___________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#________________________________#
+#_nnnnn__________________________#
+#_SSSSS__________________________#
+#_SSSSS__________________________#
+####p#############################
+'''
+
+# Beams running north-south.
+[[layout.layer]]
+y = 0
+map = '''
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+.......b..........................
+.......b..........................
+....b..b..........................
+....b.............................
+....b.............................
+..................................
+....a.............................
+....a.............................
+....a.............................
+....a.............................
+....a.............................
+....a.............................
+....a.............................
+....a.............................
+..................................
+..................................
+..................................
+'''
+
+# Beams running east-west.
+[[layout.layer]]
+y = 0
+map = '''
+..................................
+..................................
+..................................
+..................................
+...................dddddddddd.....
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+.......bbbbb.........cccccccc.....
+..................................
+....bbbb..........................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+'''
+
+# Wall: stone above the floor (2.8 m), dark below it down to the pit floor.
+[layout.legend.'#']
+blocks = [{ y0 = -4.0, y1 = 0, color = "#4a4f5c" }, { y0 = 0, y1 = 2.8, color = "#b9c3cf" }]
+
+# Pit: a floor 4 m down and a kill zone above it (falling in respawns you at the last checkpoint).
+[layout.legend.'_']
+blocks = [{ y0 = -4.0, y1 = -3.5, color = "#2a2d36" }]
+zone = { kind = "kill", y0 = -3.4, y1 = -1.0 }
+
+# Platforms: stone pillars standing in the pit with a lighter slab on top (top = floor level).
+[layout.legend.'p']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+
+# START: step on it to arm the course, walk off it to start the timer. The strip of checkpoint
+# cells north of it is where the first beam begins, so a fall on beam 1 respawns there.
+[layout.legend.'S']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+zone = { kind = "start", course = "tightrope", facing = "north" }
+
+# FINISH: entering it stops the timer.
+[layout.legend.'F']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+zone = { kind = "finish", course = "tightrope" }
+
+# Checkpoint platforms: stepping on one sets the respawn point at its centre; `facing` is the
+# direction you face after respawning (toward the next beam).
+[layout.legend.'n']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+zone = { kind = "checkpoint", facing = "north" }
+
+[layout.legend.'e']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+zone = { kind = "checkpoint", facing = "east" }
+
+[layout.legend.'w']
+blocks = [{ y0 = -4.0, y1 = -0.5, color = "#7d7461" }, { y0 = -0.5, y1 = 0, color = "#cdbf9f" }]
+zone = { kind = "checkpoint", facing = "west" }
+
+# Beams: planks 0.3 m thick with the top at floor level; `inset` shrinks the 1 m cell on every
+# side (0.2 -> 0.6 m wide, 0.3 -> 0.4 m, 0.375 -> 0.25 m, 0.425 -> 0.15 m). Warmer = thinner.
+[layout.legend.'a']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#6fbf8a", inset = 0.2 }]
+[layout.legend.'b']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#e6c25a", inset = 0.3 }]
+[layout.legend.'c']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#ee9a4d", inset = 0.375 }]
+[layout.legend.'d']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#e0584f", inset = 0.425 }]
+
+# Signs: the beam that leaves each platform, and what the platform is.
+[[label]]
+text = "0.6 m"
+pos = [4.5, 0.03, 25.5]
+size = 0.35
+
+[[label]]
+text = "0.4 m"
+pos = [4.5, 0.03, 16.7]
+size = 0.45
+
+[[label]]
+text = "CHECKPOINT"
+pos = [4.5, 0.03, 17.7]
+size = 0.25
+
+[[label]]
+text = "SLIDING BEAM"
+pos = [12.5, 0.03, 11.7]
+size = 0.28
+
+[[label]]
+text = "CHECKPOINT"
+pos = [12.5, 0.03, 12.7]
+size = 0.25
+
+[[label]]
+text = "0.25 m"
+pos = [20.5, 0.03, 11.7]
+size = 0.45
+
+[[label]]
+text = "CHECKPOINT"
+pos = [20.5, 0.03, 12.7]
+size = 0.25
+
+[[label]]
+text = "TURNING PLANK"
+pos = [29.5, 0.03, 11.7]
+size = 0.28
+
+[[label]]
+text = "CHECKPOINT"
+pos = [29.5, 0.03, 12.7]
+size = 0.25
+
+[[label]]
+text = "0.15 m"
+pos = [29.5, 0.03, 3.7]
+size = 0.45
+
+[[label]]
+text = "CHECKPOINT"
+pos = [29.5, 0.03, 4.7]
+size = 0.25
+
+# Wall signs on the inside of the north wall (they face south, toward the camera).
+[[label]]
+text = "TIGHTROPE"
+pos = [8.5, 1.4, 1.02]
+size = 1.0
+mode = "wall"
+facing = "south"
+
+[[label]]
+text = "FINISH"
+pos = [17.5, 1.4, 1.02]
+size = 0.8
+mode = "wall"
+facing = "south"
+
+# Free-placed objects (keep them at the end of the file; edit mode rewrites this part).
+
+# Sliding beam in the 5 m gap between the second and third checkpoint. It rests in line with the
+# path (z = 12.5), then slides 4 m south, away from both platforms, and back (6 s per cycle).
+[[object]]
+name = "sliding beam"
+shape = { type = "box", half = [2.8, 0.15, 0.4] }
+pos = [16.5, -0.15, 12.5]
+color = "#5b8def"
+body = "kinematic"
+behavior = { type = "move", offset = [0, 0, 4], period = 6, smooth = true, hold = 0.3 }
+
+# Turning plank in the 5 m gap between the fourth and fifth checkpoint: it only bridges the
+# gap while it lines up with the path (25 deg/s is a half turn every 7.2 s).
+[[object]]
+name = "turning plank"
+shape = { type = "box", half = [0.5, 0.15, 3.0] }
+pos = [29.5, -0.15, 8.5]
+color = "#9b5de5"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 25 }

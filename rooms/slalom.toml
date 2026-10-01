@@ -1,0 +1,307 @@
+# Slalom: weave through numbered gates against the clock, and change how the floor and the
+# movement model feel with pads. Two timed courses share the field: a 10-gate SLALOM (up the
+# west lane, across the top, back down the east lane) and a short TIGHT course (6 gates 2 m
+# apart). Pads sit along the south wall, out of the racing lines, and stay active until you
+# leave the room.
+name = "Slalom"
+about = "A big open field with two timed slalom courses and surface pads. Pass the numbered gates in order (a missed gate adds 2 s), then change the floor (ICE / NORMAL / GRIP) or the movement model (INSTANT / MOMENTUM) on the pads and see how the same course feels."
+try = [
+  "Run the SLALOM: step on the green START, leave it to start the clock, pass gates 1 to 10 in order, finish on the checkered FINISH",
+  "Skip a gate on purpose: it adds 2 s per missed gate to your time",
+  "Step on INSTANT, run the course, then MOMENTUM and run it again: INSTANT is a flat 6 m/s with no inertia, MOMENTUM tops out at 7.5 m/s but has to brake and turn",
+  "Run the TIGHT course (6 gates, 2 m apart) on GRIP, then on ICE: ice slides wide and is slow to stop",
+  "GRIP turns and stops almost instantly, so you can brake late; NORMAL puts the surface back to the default",
+  "Surface pads change acceleration, deceleration and braking; model pads change the movement model (INSTANT ignores the surface)",
+  "Beat your best time (shown in the course HUD): carry speed through the gates or brake early for each corner",
+]
+wing = "movement"
+order = 3
+primary_device = "keyboard_mouse"
+movement_model = "momentum"
+entrance = { at = [14, 29], facing = "south" }
+
+# Camera defaults while inside (yaw is relative to the room).
+[camera]
+tilt = 65.0
+distance = 22.0
+
+[layout]
+origin = [-15.0, 0.0, -15.0]
+
+# 30 x 30 field. South = bottom row (entrance gap at column 14, on the south wall).
+#
+#   SLALOM (course "slalom"): 10 gates in a zig-zag, red / blue pillars alternating.
+#     START 'S' (cols 7-9, rows 23-24) -> west lane north: gates 1-5 (rows 20, 16, 12, 8, 4)
+#     -> across the top -> east lane south: gates 6-10 (rows 4, 8, 12, 16, 20) -> FINISH 'F'.
+#     Gate zone chars are '1'..'9' and '0' (= gate 10). Each gate is 2 cells wide; the zones of
+#     consecutive gates are separated by 3 empty columns so a straight line cannot hit them all.
+#   TIGHT (course "tight"): 6 gates 2 m apart in the middle, orange / teal pillars.
+#     START 'Q' -> gates 'a'..'f' (rows 20, 18, 16, 14, 12, 10) -> FINISH 'W'.
+#     Gate zones are 2 cells wide, 1 column apart (the pillars between them form a pole line).
+#   Pads along the south wall, out of the racing lines (corridor at the entrance stays free):
+#     'J' INSTANT, 'M' MOMENTUM (west) | 'I' ICE, 'N' NORMAL, 'G' GRIP (east).
+#   Pillars: 'R' red, 'B' blue (slalom), 'O' orange, 'T' teal (tight).
+[[layout.layer]]
+y = 0
+map = '''
+##############################
+#............................#
+#............................#
+#............................#
+#......R55R........B66B......#
+#............................#
+#............................#
+#...............WW...........#
+#.B44B..........WW......R77R.#
+#............................#
+#..............TffT..........#
+#............................#
+#......R33R.OeeO...B88B......#
+#............................#
+#..............TddT..........#
+#............................#
+#.B22B......OccO........R99R.#
+#............................#
+#..............TbbT..........#
+#............................#
+#......R11R.OaaO...B00B......#
+#............................#
+#............................#
+#......SSS...QQ.....FFF......#
+#......SSS...QQ.....FFF......#
+#............................#
+#............................#
+#.JJJJJ.MMMMM...IIIINNNNGGGG.#
+#.JJJJJ.MMMMM...IIIINNNNGGGG.#
+##############.###############
+'''
+
+# Ground and outer wall (2.8 m).
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }, { y0 = 0, y1 = 2.8, color = "#b9c3cf" }]
+
+# Course start / finish lines.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "start", course = "slalom", facing = "north" }
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "finish", course = "slalom" }
+
+[layout.legend.'Q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "start", course = "tight", facing = "north" }
+
+[layout.legend.'W']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "finish", course = "tight" }
+
+# Gate pillars: thin (0.3 m) posts, 1.5 m tall (tight course 1.2 m). A gate is two pillars
+# with a gate zone on the cells between them. Colours alternate gate by gate.
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }, { y0 = 0, y1 = 1.5, color = "#e0483e", rounded = true, inset = 0.35 }]
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }, { y0 = 0, y1 = 1.5, color = "#3d6fe0", rounded = true, inset = 0.35 }]
+[layout.legend.'O']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }, { y0 = 0, y1 = 1.2, color = "#f2a33a", rounded = true, inset = 0.35 }]
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }, { y0 = 0, y1 = 1.2, color = "#2fb5a0", rounded = true, inset = 0.35 }]
+
+# SLALOM gates 1..10 (gates must be passed in index order; '0' is gate 10). The faint floor
+# strip matches the pillar colour and carries the gate number.
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 1, color = "#d98f87" }
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 2, color = "#86a0d9" }
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 3, color = "#d98f87" }
+[layout.legend.'4']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 4, color = "#86a0d9" }
+[layout.legend.'5']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 5, color = "#d98f87" }
+[layout.legend.'6']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 6, color = "#86a0d9" }
+[layout.legend.'7']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 7, color = "#d98f87" }
+[layout.legend.'8']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 8, color = "#86a0d9" }
+[layout.legend.'9']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 9, color = "#d98f87" }
+[layout.legend.'0']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "slalom", index = 10, color = "#86a0d9" }
+
+# TIGHT gates 1..6 ('a'..'f').
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 1, color = "#e0b877" }
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 2, color = "#6fc3b6" }
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 3, color = "#e0b877" }
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 4, color = "#6fc3b6" }
+[layout.legend.'e']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 5, color = "#e0b877" }
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "gate", course = "tight", index = 6, color = "#6fc3b6" }
+
+# Movement model pads (same colours as the Feel Lab).
+[layout.legend.'J']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" } }
+[layout.legend.'M']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" } }
+
+# Surface pads: how fast you speed up, coast down and brake (momentum model).
+# NORMAL = the engine defaults, ICE = slippery, GRIP = snappy.
+[layout.legend.'I']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "pad", label = "ICE", color = "#4fa3c7", params = { "movement.accel" = 10.0, "movement.decel" = 3.0, "movement.skid_decel" = 14.0 } }
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "pad", label = "NORMAL", color = "#7d8794", params = { "movement.accel" = 45.0, "movement.decel" = 32.0, "movement.skid_decel" = 90.0 } }
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+zone = { kind = "pad", label = "GRIP", color = "#2f9e6b", params = { "movement.accel" = 90.0, "movement.decel" = 70.0, "movement.skid_decel" = 160.0 } }
+
+# Signs (layout space: x = column, y = height, z = row).
+[[label]]
+text = "SLALOM"
+pos = [3.6, 0.03, 23.2]
+size = 0.7
+
+[[label]]
+text = "10 gates"
+pos = [3.6, 0.03, 24.2]
+size = 0.4
+
+[[label]]
+text = "TIGHT"
+pos = [17.6, 0.03, 23.2]
+size = 0.6
+
+[[label]]
+text = "6 gates"
+pos = [17.6, 0.03, 24.2]
+size = 0.4
+
+[[label]]
+text = "SLALOM FINISH"
+pos = [21.5, 0.03, 21.9]
+size = 0.45
+
+[[label]]
+text = "TIGHT FINISH"
+pos = [17.0, 0.03, 5.9]
+size = 0.45
+
+[[label]]
+text = "MOVEMENT MODEL"
+pos = [7.0, 0.03, 26.55]
+size = 0.4
+
+[[label]]
+text = "SURFACE (momentum)"
+pos = [21.5, 0.03, 26.55]
+size = 0.4
+
+# Gate numbers (slalom gates 1-10, then tight gates 1-6), centred on each gate zone.
+[[label]]
+text = "1"
+pos = [9.0, 0.03, 20.5]
+size = 0.55
+
+[[label]]
+text = "2"
+pos = [4.0, 0.03, 16.5]
+size = 0.55
+
+[[label]]
+text = "3"
+pos = [9.0, 0.03, 12.5]
+size = 0.55
+
+[[label]]
+text = "4"
+pos = [4.0, 0.03, 8.5]
+size = 0.55
+
+[[label]]
+text = "5"
+pos = [9.0, 0.03, 4.5]
+size = 0.55
+
+[[label]]
+text = "6"
+pos = [21.0, 0.03, 4.5]
+size = 0.55
+
+[[label]]
+text = "7"
+pos = [26.0, 0.03, 8.5]
+size = 0.55
+
+[[label]]
+text = "8"
+pos = [21.0, 0.03, 12.5]
+size = 0.55
+
+[[label]]
+text = "9"
+pos = [26.0, 0.03, 16.5]
+size = 0.55
+
+[[label]]
+text = "10"
+pos = [21.0, 0.03, 20.5]
+size = 0.55
+
+[[label]]
+text = "1"
+pos = [14.0, 0.03, 20.5]
+size = 0.45
+
+[[label]]
+text = "2"
+pos = [17.0, 0.03, 18.5]
+size = 0.45
+
+[[label]]
+text = "3"
+pos = [14.0, 0.03, 16.5]
+size = 0.45
+
+[[label]]
+text = "4"
+pos = [17.0, 0.03, 14.5]
+size = 0.45
+
+[[label]]
+text = "5"
+pos = [14.0, 0.03, 12.5]
+size = 0.45
+
+[[label]]
+text = "6"
+pos = [17.0, 0.03, 10.5]
+size = 0.45

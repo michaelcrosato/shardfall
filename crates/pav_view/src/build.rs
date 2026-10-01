@@ -65,11 +65,13 @@ pub struct CutawaySettings {
     pub cut_radius: f32,
     pub fade: bool,
     pub fade_radius: f32,
+    pub front_cut: bool,
+    pub front_cut_below: f32,
 }
 
 impl Default for CutawaySettings {
     fn default() -> Self {
-        Self { height_cut: true, cut_above: 2.4, cut_radius: 9.0, fade: true, fade_radius: 1.6 }
+        Self { height_cut: true, cut_above: 2.4, cut_radius: 9.0, fade: true, fade_radius: 1.6, front_cut: true, front_cut_below: 30.0 }
     }
 }
 
@@ -80,6 +82,8 @@ impl Tunable for CutawaySettings {
         v.float("cut_radius", &mut self.cut_radius, 1.0, 40.0, "Horizontal radius of the cut (m)");
         v.bool("fade", &mut self.fade, "Dither out geometry between camera and player");
         v.float("fade_radius", &mut self.fade_radius, 0.2, 6.0, "Radius of the see-through tunnel (m)");
+        v.bool("front_cut", &mut self.front_cut, "Low cameras: remove everything between the camera and the player");
+        v.float("front_cut_below", &mut self.front_cut_below, 0.0, 90.0, "Front cut is used below this camera tilt (degrees)");
     }
 }
 
@@ -174,6 +178,8 @@ fn style_of(look: Look, ov: StyleOverride) -> Style {
 enum EffectKind {
     Explosion { radius: f32 },
     Dust,
+    /// A burst of small spheres in a colour (hits, splashes, respawns).
+    Burst { color: [f32; 3], up: f32 },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -244,6 +250,21 @@ impl ViewBuilder {
                 SimEvent::Land { pos, speed } if *speed > 6.0 => {
                     self.effects.push(Effect { kind: EffectKind::Dust, pos: *pos, start: self.now })
                 }
+                SimEvent::Hit { pos, .. } => self.effects.push(Effect {
+                    kind: EffectKind::Burst { color: [1.0, 0.35, 0.2], up: 0.5 },
+                    pos: *pos,
+                    start: self.now,
+                }),
+                SimEvent::Splash { pos } => self.effects.push(Effect {
+                    kind: EffectKind::Burst { color: [0.75, 0.88, 1.0], up: 2.5 },
+                    pos: *pos + Vec3::Y * 0.3,
+                    start: self.now,
+                }),
+                SimEvent::Respawn { pos } => self.effects.push(Effect {
+                    kind: EffectKind::Burst { color: [1.0, 1.0, 1.0], up: 1.5 },
+                    pos: *pos + Vec3::Y * 0.4,
+                    start: self.now,
+                }),
                 _ => {}
             }
         }
@@ -288,6 +309,21 @@ impl ViewBuilder {
                         }
                     }
                 }
+                EffectKind::Burst { color, up } => {
+                    if t < 0.45 {
+                        for k in 0..8 {
+                            let a = k as f32 * 0.785 + e.pos.x * 3.0;
+                            let v = Vec3::new(a.cos() * 2.2, up + (k % 3) as f32 * 0.6, a.sin() * 2.2);
+                            let p = e.pos + v * t - Vec3::Y * 5.0 * t * t;
+                            let mut s = SdfInstance::sphere(p, 0.07 * (1.0 - t / 0.45), Vec3::from(color));
+                            s.style = Style::Unlit;
+                            s.emissive = 0.4;
+                            s.flags = rs::flags::NO_SHADOW | rs::flags::NO_CUT;
+                            s.group = 0xfff3;
+                            scene.sdfs.push(s);
+                        }
+                    }
+                }
                 EffectKind::Dust => {
                     if t < 0.3 {
                         for k in 0..5 {
@@ -315,9 +351,7 @@ impl ViewBuilder {
         settings: &ViewSettings,
         focus: Vec3,
     ) -> Scene {
-        let mut scene = Scene::default();
-        scene.camera = rig.data(aspect);
-        scene.time = curr.time as f32;
+        let mut scene = Scene { camera: rig.data(aspect), time: curr.time as f32, ..Default::default() };
 
         let l = &settings.light;
         let (el, az) = (l.sun_elevation.to_radians(), l.sun_azimuth.to_radians());
@@ -360,6 +394,8 @@ impl ViewBuilder {
             cut_radius: c.cut_radius,
             fade: c.fade && curr.focus_is_player,
             fade_radius: c.fade_radius,
+            // Low cameras look through walls: cut away everything in front of the player.
+            front_cut: if c.front_cut && curr.focus_is_player && rig.current().tilt < c.front_cut_below { 0.9 } else { 0.0 },
         };
 
         // Static geometry (cached per region version).
@@ -415,11 +451,18 @@ impl ViewBuilder {
             for z in chunk.zones.iter().filter(|z| !z.label.is_empty() || (z.kind == ZoneKind::Start && z.color.is_some())) {
                 let text = if !z.label.is_empty() { z.label.clone() } else { "START".into() };
                 let (w, d) = (z.max.x - z.min.x, z.max.z - z.min.z);
+                // Light text on dark markings, dark text on light ones (or on the bare floor).
+                let lum = z.color.map(|c| 0.2126 * c.0[0] + 0.7152 * c.0[1] + 0.0722 * c.0[2]).unwrap_or(1.0);
+                let size = z.label_size.unwrap_or_else(|| {
+                    // Fit the text along the zone's long side (about 0.58 em per letter).
+                    let fit = 0.92 * w.max(d) / (0.58 * text.chars().count().max(1) as f32);
+                    (w.min(d) * 0.32).clamp(0.35, 0.7).min(fit).max(0.2)
+                });
                 let label = Label {
                     text,
                     pos: z.floor_center() + Vec3::Y * 0.035,
-                    size: (w.min(d) * 0.32).clamp(0.25, 0.7),
-                    color: if z.kind == ZoneKind::Finish { Color::hex("#1d1f24") } else { Color::hex("#f6f3ea") },
+                    size,
+                    color: if lum > 0.45 { Color::hex("#1d1f24") } else { Color::hex("#f6f3ea") },
                     mode: LabelMode::Floor,
                     facing: Default::default(),
                 };

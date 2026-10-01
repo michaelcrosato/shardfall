@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as a separate goal).
+Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -8,7 +8,8 @@ Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as
 | M1 Foundation | ✅ complete (2026-09-30) |
 | M2 Core gameplay | ✅ complete (2026-09-30) |
 | M3 World & rooms | ✅ complete (2026-10-01) |
-| M4–M10 | ⏳ next (separate goal) |
+| M4 Movement & Feel Lab | 🔨 in progress |
+| M5–M10 | ⏳ next |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -132,7 +133,50 @@ Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as
 - Deferred to later milestones: gamepad remapping per room (keyboard only now), impact
   sounds from physics contacts, signage/in-world text.
 
-## Next: M4–M10 (separate goal)
-See docs/DESIGN.md §15. Start with M4 Movement & Feel Lab: build each course as a room file in
-`rooms/` (wing = "movement"), adding mechanics in Rust only where needed (timing gates, moving
-hazards, projectile system, feel metrics overlay, camera bench automation).
+## M4 Movement & Feel Lab — in progress
+Done so far (all committed):
+- **Zones** (`zones.rs`, legend `zone = {...}`): start/finish/gate/checkpoint/kill/water/pad/camera,
+  merged into rectangles; floor markings (checkered finish, flags on checkpoints, water surface).
+- **Courses** (`course.rs`): leaving START starts the timer, gates in order (missed = +2 s),
+  FINISH stores the result and best time per `room/course`; checkpoints; pits respawn; falling
+  below -30 m respawns; HUD timer + result card + messages (`pav_app/src/hud.rs`).
+- **Pads** apply parameters (restored when leaving the room) and sticky camera cues; **camera
+  zones** apply a cue while inside; cues can sweep parameters and flip ortho (camera bench).
+  Camera changes blend smoothly (`CameraRig::blend_from_current`); room cameras turn with the room.
+- **Behaviours** (`behaviors.rs`): `move` (platforms/doors/crushers, with hold), `rotate`
+  (sweepers, pendulums with pivot), `emitter` (aimed/forward/ring/spiral/random, bursts).
+  Motion is a function of the tick (exact after rewind).
+- **Projectiles** (`projectile.rs`): plain structs, ray-tested against fixed geometry, capsule test
+  against characters; cap 6000. Drawn as glowing SDF spheres.
+- **Characters**: models instant / momentum / **grid** / **committed** (turn rate, fixed jump arcs,
+  crouch-while-running dodge roll); **ledge grab** + shimmy + pull-up, mantle when close to the top;
+  **swimming** (float, dive, climb out), wading; **moving platforms** carry, kinematic objects push
+  (squeezed against a wall = respawn); **hazards** (knockback/respawn) and hit stun +
+  invulnerability flash; **axis lock** (`movement.lock_axis`, for side-view rooms); flat rooms via
+  `movement.allow_jump = false`.
+- **Feel metrics** (`feel.rs` + app overlay): response ticks, time to top speed, stop time/
+  distance, turnaround, jump height/air time/distance, speed graph; **input delay** measured from
+  the OS key event to the simulation tick and to the submitted frame. Model / tick rate / vsync /
+  smoothing switches in the overlay. Rooms open it with `overlays = ["feel"]`.
+- **In-world text** (`pav_render/src/text.rs`): SDF font atlas (Ubuntu Light from egui's fonts),
+  alpha-to-coverage glyph quads; room `[[label]]`s, legend labels, zone labels; floor labels turn
+  to stay readable for the current camera.
+- **Tools**: `course`, `feel`, `camera_bench`; `player` shows hang/swim/roll/stun/model; agent
+  sessions apply room camera defaults and cues like the game.
+- **Rooms**: `feel_lab` (pads, sprint lane, jump poles, gaps, ledge wall, pool), `tower`
+  (3-floor verticality: stairs, ladders, lift, ledge, crawl vent, duck corridor, bombable floor).
+  Helper agents are building `tightrope`, `slalom`, `timing_gates`, `gauntlet`, `camera_bench`.
+- Tests: `crates/pav_core/tests/movement.rs` (10 checks).
+
+## Decisions (M4)
+- Simulation order changed: behaviours → physics step → characters (move against the updated
+  world, ride platforms) → bombs → projectiles → zones/courses → feel metrics.
+- Walking off an edge only grabs ledges higher than where you left the ground; after a jump any
+  ledge can be grabbed (so walking into a bombed hole drops you, a short jump is rescued).
+- Vehicle (drift car) and flight (helicopter) movement models come with the Genre Wing (M9);
+  M4 adds grid, committed, swimming, ledges. Climbing ladders existed since M2.
+- Dev builds use line-table debug info and no incremental cache (disk allowance in the cloud).
+- Map rows: only a truly empty first line is dropped (a leading row of spaces is a real row).
+
+## Next
+Finish M4: review helper rooms, docs, Windows build, merge, send. Then M5 Physics Lab.

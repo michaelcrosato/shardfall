@@ -153,6 +153,9 @@ pub struct ZoneDef {
     pub camera: Option<CameraCue>,
     #[serde(default)]
     pub label: String,
+    /// Letter height of the label (default: fits the zone).
+    #[serde(default)]
+    pub label_size: Option<f32>,
     /// Floor marking colour; "none" hides it.
     #[serde(default)]
     pub color: Option<String>,
@@ -272,10 +275,10 @@ impl BuiltLayout {
 }
 
 /// Map rows. A leading empty line (common in multi-line strings) and trailing blank lines are
-/// ignored; blank lines in between are kept as empty rows so rows stay aligned.
-fn rows(map: &str) -> Vec<&str> {
+/// ignored; blank lines in between (and a leading row of spaces) are kept so rows stay aligned.
+pub(crate) fn rows(map: &str) -> Vec<&str> {
     let mut lines: Vec<&str> = map.lines().collect();
-    if lines.first().is_some_and(|l| l.trim().is_empty()) {
+    if lines.first().is_some_and(|l| l.is_empty()) {
         lines.remove(0);
     }
     while lines.last().is_some_and(|l| l.trim().is_empty()) {
@@ -432,6 +435,7 @@ impl Layout {
                     params: z.params.clone(),
                     camera: z.camera.clone(),
                     label: z.label.clone(),
+                    label_size: z.label_size,
                     color,
                     facing: z.facing.map(|f| place.facing(f)),
                 };

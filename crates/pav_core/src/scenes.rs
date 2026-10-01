@@ -68,10 +68,7 @@ pub fn build_standalone_room(sim: &mut Sim, key: &str, def: RoomDef) {
 
 fn find_marker(def: &RoomDef, place: &Placement, name: &str) -> Option<Vec3> {
     for l in &def.layout.layers {
-        let mut lines: Vec<&str> = l.map.lines().collect();
-        if lines.first().is_some_and(|x| x.trim().is_empty()) {
-            lines.remove(0);
-        }
+        let lines = crate::level::rows(&l.map);
         for (r, row) in lines.iter().enumerate() {
             for (c, ch) in row.chars().enumerate() {
                 if def.layout.legend.get(&ch.to_string()).and_then(|t| t.marker.as_deref()) == Some(name) {

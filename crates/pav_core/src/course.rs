@@ -153,6 +153,9 @@ impl Sim {
         if let Some(r) = &mut self.state.courses.run {
             r.falls += 1;
         }
+        // Zones at the respawn point count as already entered (respawning onto START must not
+        // restart the run).
+        self.state.courses.inside = self.state.statics.zones_at(pos + Vec3::Y * 0.1).map(|(r, _)| r).collect();
         events.push(SimEvent::Respawn { pos });
     }
 
@@ -266,6 +269,11 @@ impl Sim {
             }
             match z.kind {
                 ZoneKind::Start => {
+                    // A running timer of another course is not cancelled by clipping this start.
+                    let busy = self.state.courses.run.as_ref().is_some_and(|x| x.started && (x.region != r.region || x.course != z.course));
+                    if busy {
+                        continue;
+                    }
                     let mut gates: Vec<i32> = self
                         .state
                         .statics
@@ -314,7 +322,12 @@ impl Sim {
                     }
                 }
                 ZoneKind::Finish => {
-                    let matches = self.state.courses.run.as_ref().is_some_and(|x| x.region == r.region && x.course == z.course && x.started);
+                    let matches = self
+                        .state
+                        .courses
+                        .run
+                        .as_ref()
+                        .is_some_and(|x| x.region == r.region && x.course == z.course && x.started && tick > x.start_tick);
                     if matches {
                         let run = self.state.courses.run.take().unwrap();
                         let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
@@ -376,11 +389,18 @@ impl Sim {
             self.respawn_player(events);
         }
     }
+
+    /// Mark zones the player stands in as entered without triggering them (after teleports).
+    pub fn settle_zones(&mut self) {
+        if let Some((_, feet, _)) = self.player_feet() {
+            self.state.courses.inside = self.state.statics.zones_at(feet + Vec3::Y * 0.1).map(|(r, _)| r).collect();
+        }
+    }
 }
 
 /// Axis-lock parameters name layout axes; a room turned by a quarter swaps x and z.
 pub fn rotate_axis_params(values: &mut BTreeMap<String, ParamValue>, quarters: u8) {
-    if quarters % 2 == 0 {
+    if quarters.is_multiple_of(2) {
         return;
     }
     if let Some(ParamValue::Text(t)) = values.get_mut("movement.lock_axis") {

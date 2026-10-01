@@ -428,7 +428,11 @@ impl Sim {
                 .filter_map(|e| e.character.as_ref().map(|c| Target { id: e.id, feet: e.pos - Vec3::Y * c.height() * 0.5, height: c.height() }))
                 .collect();
             let physics = &self.state.physics;
-            let out = self.state.projectiles.step(dt, &targets, |from, dir, len| crate::projectile::static_blocked(physics, from, dir, len));
+            let entities = &self.state.entities;
+            let out = self.state.projectiles.step(dt, &targets, |from, dir, len, owner| {
+                let ignore = owner.and_then(|id| entities.get(id)).and_then(|e| e.body);
+                crate::projectile::static_blocked(physics, from, dir, len, ignore)
+            });
             for (id, at, dir, kb) in out.hits {
                 self.hit_character(id, at, dir, kb, false, &mut events);
             }
@@ -440,7 +444,7 @@ impl Sim {
         self.update_zones(&mut events);
         self.measure_feel(input);
         self.update_room_tracking(&mut events);
-        if self.state.tick % 15 == 0 {
+        if self.state.tick.is_multiple_of(15) {
             self.update_streaming(2);
         }
         self.state.tick += 1;

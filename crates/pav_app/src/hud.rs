@@ -271,7 +271,7 @@ impl FeelOverlay {
                                     .strong(),
                             )
                             .on_hover_text(format!(
-                                "Key press → simulation tick {tick:.1} ms, → frame submitted {:.1} ms.\nThe display adds its own scan-out time on top.",
+                                "Key press to simulation tick: {tick:.1} ms, then to frame submitted: {:.1} ms.\nThe display adds its own scan-out time on top.",
                                 avg - tick
                             ));
                         }

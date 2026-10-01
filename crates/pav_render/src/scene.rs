@@ -236,6 +236,9 @@ pub struct Cutaway {
     /// Dither out geometry between the camera and the focus.
     pub fade: bool,
     pub fade_radius: f32,
+    /// Remove everything closer to the camera than this distance in front of the focus
+    /// (side views, where walls between camera and player hide everything). 0 = off.
+    pub front_cut: f32,
 }
 
 #[derive(Clone, Debug)]

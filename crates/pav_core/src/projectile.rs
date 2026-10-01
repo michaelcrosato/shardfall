@@ -61,7 +61,12 @@ impl Projectiles {
 
     /// Moves every projectile; removes the ones that hit geometry, characters or expire.
     /// `blocked(from, dir, len)` casts against static geometry.
-    pub fn step(&mut self, dt: f32, targets: &[Target], mut blocked: impl FnMut(Vec3, Vec3, f32) -> bool) -> ProjectileStep {
+    pub fn step(
+        &mut self,
+        dt: f32,
+        targets: &[Target],
+        mut blocked: impl FnMut(Vec3, Vec3, f32, Option<EntityId>) -> bool,
+    ) -> ProjectileStep {
         let mut out = ProjectileStep::default();
         self.list.retain_mut(|p| {
             p.life -= dt;
@@ -85,7 +90,7 @@ impl Projectiles {
                     return false;
                 }
             }
-            if len > 1e-6 && blocked(p.pos, step / len, len + p.radius * 0.5) {
+            if len > 1e-6 && blocked(p.pos, step / len, len + p.radius * 0.5, p.owner) {
                 out.impacts += 1;
                 return false;
             }
@@ -96,9 +101,19 @@ impl Projectiles {
     }
 }
 
-/// Ray test against fixed geometry (static blocks, terrain, fixed bodies) only.
-pub fn static_blocked(physics: &crate::physics::PhysicsState, from: Vec3, dir: Vec3, len: f32) -> bool {
-    let filter = QueryFilter::only_fixed().exclude_sensors();
+/// Ray test against fixed geometry (static blocks, terrain, fixed bodies) only, ignoring the
+/// shooter's own body (a turret).
+pub fn static_blocked(
+    physics: &crate::physics::PhysicsState,
+    from: Vec3,
+    dir: Vec3,
+    len: f32,
+    ignore: Option<RigidBodyHandle>,
+) -> bool {
+    let mut filter = QueryFilter::only_fixed().exclude_sensors();
+    if let Some(b) = ignore {
+        filter = filter.exclude_rigid_body(b);
+    }
     let qp = physics.query_filtered(filter);
     let ray = Ray::new(from, dir);
     qp.cast_ray(&ray, len as Real, true).is_some()
