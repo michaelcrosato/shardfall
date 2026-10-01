@@ -219,6 +219,12 @@ pub static TOOLS: &[Tool] = &[
         run: t_camera_bench,
     },
     Tool {
+        name: "signal",
+        help: "Send a pad signal (spawners listening for it fire on the next tick), then step 1 tick.",
+        args: &[arg("name", "string", "signal name, e.g. drop or clear")],
+        run: t_signal,
+    },
+    Tool {
         name: "course",
         help: "Course state: current run (timer, gates, hits, falls), last result, best times, checkpoint.",
         args: &[],
@@ -892,4 +898,11 @@ fn t_camera_bench(s: &mut Session, a: &Args) -> Result<Output> {
     let names: Vec<&str> = list.iter().map(|(n, _)| n.as_str()).collect();
     let meta = json!({ "path": path, "tiles": names, "size": [tw, th] });
     Ok(Output::Image { png, path: Some(path), meta })
+}
+
+fn t_signal(s: &mut Session, a: &Args) -> Result<Output> {
+    let name = get_str(a, "name").context("give name=<signal>")?.to_string();
+    s.sim.state.signals.push(name.clone());
+    s.step(1);
+    Ok(Output::Json(json!({ "sent": name, "entities": s.sim.state.entities.len() })))
 }

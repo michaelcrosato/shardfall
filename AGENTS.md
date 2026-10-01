@@ -89,6 +89,7 @@ room_reset room_check room_reload stream filmstrip camera_bench course feel audi
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
+- `signal name=drop` fires spawners listening for a pad signal (no need to walk onto the pad).
 - `filmstrip` tiles N frames (optionally while driving the player) into one PNG: the cheapest
   way to check motion and animation. `audio_capture` renders a session's sounds to .wav.
 - `stream point=[x,y,z]` adds a streaming interest point (agents exploring the world).
