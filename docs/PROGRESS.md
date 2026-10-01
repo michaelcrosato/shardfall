@@ -1,8 +1,10 @@
 # Progress log
 
-All engine milestones M1–M10 are complete. **Current goal: Shardfall**, the showcase
-hack-and-slash built on the engine (design: `docs/GAME.md`; progress: *Shardfall* section at
-the end of this file).
+All engine milestones M1–M10 and all Shardfall milestones G1–G6 are complete (Shardfall is
+the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progress: the
+*Shardfall* sections at the end of this file). Next work, if any, is new content or polish:
+add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
+tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
 ## Status by milestone
 | Milestone | State |
