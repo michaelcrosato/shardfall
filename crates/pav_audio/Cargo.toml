@@ -11,5 +11,9 @@ cpal.workspace = true
 anyhow.workspace = true
 log.workspace = true
 
+# Web Audio in the browser build.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+cpal = { workspace = true, features = ["wasm-bindgen"] }
+
 [lints]
 workspace = true

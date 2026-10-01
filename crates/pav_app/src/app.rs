@@ -1,7 +1,8 @@
 //! The game window: owns graphics, UI, input, the simulation thread and the camera.
 
 use std::sync::Arc;
-use std::time::Instant;
+
+use web_time::Instant;
 
 use anyhow::{Result, anyhow};
 use glam::{Mat4, Quat, Vec2, Vec3};
@@ -26,7 +27,9 @@ use crate::rooms::{RoomEntry, RoomHud, RoomWatcher, TeleportTarget};
 use crate::settings::Settings;
 use crate::simhost::SimHost;
 use crate::ui::{self, MenuAction};
+use crate::uiinput::UiInput;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run(settings: Settings) -> Result<()> {
     let event_loop = stage("event loop", || Ok((EventLoop::new()?, String::new())))?;
     event_loop.set_control_flow(ControlFlow::Poll);
@@ -36,6 +39,16 @@ pub fn run(settings: Settings) -> Result<()> {
         Some(e) => Err(anyhow!(e)),
         None => Ok(()),
     }
+}
+
+/// In the browser the event loop runs from the page's animation frames; this returns at once.
+#[cfg(target_arch = "wasm32")]
+pub fn run(settings: Settings) -> Result<()> {
+    use winit::platform::web::EventLoopExtWebSys;
+    let event_loop = stage("event loop", || Ok((EventLoop::new()?, String::new())))?;
+    event_loop.set_control_flow(ControlFlow::Poll);
+    event_loop.spawn_app(App::new(settings));
+    Ok(())
 }
 
 /// App-level tunables (the "app" group in the panel).
@@ -109,7 +122,7 @@ pub struct App {
     settings: Settings,
     gfx: Option<Gfx>,
     egui_ctx: egui::Context,
-    egui_state: Option<egui_winit::State>,
+    egui_state: Option<UiInput>,
     host: Option<SimHost>,
     rig: CameraRig,
     view: ViewSettings,
@@ -145,7 +158,13 @@ pub struct App {
     feel: FeelOverlay,
     physics: PhysicsOverlay,
     quit: bool,
+    #[cfg(not(target_arch = "wasm32"))]
     bridge: Option<crate::bridge::Bridge>,
+    #[cfg(target_arch = "wasm32")]
+    pending_gfx: Option<std::rc::Rc<std::cell::RefCell<Option<Result<Gfx>>>>>,
+    #[cfg(target_arch = "wasm32")]
+    audio_resumed: bool,
+    init_started: bool,
     pub fatal: Option<String>,
 }
 
@@ -194,7 +213,13 @@ impl App {
             feel: FeelOverlay::default(),
             physics: PhysicsOverlay::default(),
             quit: false,
+            #[cfg(not(target_arch = "wasm32"))]
             bridge: None,
+            #[cfg(target_arch = "wasm32")]
+            pending_gfx: None,
+            #[cfg(target_arch = "wasm32")]
+            audio_resumed: false,
+            init_started: false,
             fatal: None,
             settings,
         }
@@ -203,9 +228,17 @@ impl App {
     fn init(&mut self, el: &ActiveEventLoop) -> Result<()> {
         let s = self.settings.clone();
         let window = stage("window", || {
-            let mut attrs = Window::default_attributes()
-                .with_title("Pavilion")
-                .with_inner_size(winit::dpi::LogicalSize::new(s.width, s.height));
+            let mut attrs = Window::default_attributes().with_title("Pavilion");
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                attrs = attrs.with_inner_size(winit::dpi::LogicalSize::new(s.width, s.height));
+            }
+            // In the browser the window is a canvas filling the page (sized by the page's CSS).
+            #[cfg(target_arch = "wasm32")]
+            {
+                use winit::platform::web::WindowAttributesExtWebSys;
+                attrs = attrs.with_append(true);
+            }
             if s.fullscreen {
                 attrs = attrs.with_fullscreen(Some(Fullscreen::Borderless(None)));
             }
@@ -216,16 +249,30 @@ impl App {
         })?;
         let backend = BackendChoice::parse(&s.backend)
             .ok_or_else(|| anyhow!("unknown backend '{}' in settings (use vulkan or dx12)", s.backend))?;
-        let gfx = Gfx::new(window.clone(), backend, s.vsync)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let gfx = Gfx::new(window, backend, s.vsync)?;
+            self.finish_init(gfx)
+        }
+        // The browser hands out the GPU asynchronously: `about_to_wait` finishes the start.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let slot = std::rc::Rc::new(std::cell::RefCell::new(None));
+            let fill = slot.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                *fill.borrow_mut() = Some(Gfx::create(window, backend, s.vsync).await);
+            });
+            self.pending_gfx = Some(slot);
+            Ok(())
+        }
+    }
+
+    /// The rest of the start, once graphics exist.
+    fn finish_init(&mut self, gfx: Gfx) -> Result<()> {
+        let s = self.settings.clone();
+        let window = gfx.window.clone();
         let egui_state = stage("ui", || {
-            let st = egui_winit::State::new(
-                self.egui_ctx.clone(),
-                egui::ViewportId::ROOT,
-                &window,
-                Some(window.scale_factor() as f32),
-                None,
-                Some(gfx.device.limits().max_texture_dimension_2d as usize),
-            );
+            let st = UiInput::new(&self.egui_ctx, &window, gfx.device.limits().max_texture_dimension_2d as usize);
             Ok((st, String::new()))
         })?;
         self.audio = stage("audio", || match pav_audio::AudioOut::start() {
@@ -251,6 +298,7 @@ impl App {
         self.hud.entries = room_entries(&sim);
         self.hud.errors = sim.state.world.errors.clone();
         self.watcher = RoomWatcher::start();
+        #[cfg(not(target_arch = "wasm32"))]
         if !s.bridge.is_empty() {
             self.bridge = stage("agent bridge", || match crate::bridge::Bridge::start(&s.bridge) {
                 Ok(b) => {
@@ -492,6 +540,8 @@ impl App {
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 
         let host = self.host.as_ref().unwrap();
+        host.pump();
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(b) = &self.bridge {
             // Agent tools run on the simulation thread and can change the camera and view.
             b.poll(host, &mut self.rig, &mut self.view);
@@ -688,7 +738,7 @@ impl App {
         let guide_visible = self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
         let state = self.egui_state.as_mut().unwrap();
-        let raw = state.take_egui_input(&gfx.window);
+        let raw = state.take(&gfx.window);
         let mut show_boot = self.show_boot;
         let menu_open = self.menu_open;
         let scene_name = self.scene_name.clone();
@@ -784,18 +834,25 @@ impl App {
                 a.set_master(self.audio_settings.master);
             }
         }
-        state.handle_platform_output(&gfx.window, out.platform_output);
+        state.platform_output(&gfx.window, out.platform_output);
         let ppp = out.pixels_per_point;
         let prims = self.egui_ctx.tessellate(out.shapes, ppp);
         let mut textures = out.textures_delta;
 
+        #[cfg(target_arch = "wasm32")]
+        if self.screenshot_requested {
+            // Reading pixels back waits on the GPU, which the browser does not allow here.
+            self.screenshot_requested = false;
+            self.toast = Some(("screenshots are not available in the browser".into(), Instant::now()));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         if self.screenshot_requested {
             self.screenshot_requested = false;
             let (w, h) = gfx.size();
             let dir = boot::exe_dir().join("screenshots");
             let path = dir.join(format!(
                 "pavilion-{}.png",
-                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+                web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
             ));
             let r = pav_render::capture::render_to_rgba(&mut gfx.renderer, &scene, w, h)
                 .and_then(|px| pav_render::capture::save_png(&path, w, h, &px));
@@ -953,20 +1010,42 @@ impl App {
     }
 }
 
+impl App {
+    /// The browser only allows sound after the first click or key press.
+    #[cfg(target_arch = "wasm32")]
+    fn resume_audio(&mut self) {
+        if !self.audio_resumed {
+            self.audio_resumed = true;
+            if let Some(a) = &self.audio {
+                a.resume();
+            }
+        }
+    }
+
+    /// A start-up failure: stop, and show why (the browser has no exit to report it).
+    fn fail(&mut self, el: &ActiveEventLoop, e: anyhow::Error) {
+        let msg = format!("{e:#}");
+        #[cfg(target_arch = "wasm32")]
+        crate::platform::error_box("Pavilion could not start", &msg);
+        self.fatal = Some(msg);
+        el.exit();
+    }
+}
+
 impl ApplicationHandler for App {
     fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.gfx.is_some() || self.fatal.is_some() {
+        if self.init_started || self.fatal.is_some() {
             return;
         }
+        self.init_started = true;
         if let Err(e) = self.init(el) {
-            self.fatal = Some(format!("{e:#}"));
-            el.exit();
+            self.fail(el, e);
         }
     }
 
     fn window_event(&mut self, el: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let consumed = match (&mut self.egui_state, &self.gfx) {
-            (Some(st), Some(g)) => st.on_window_event(&g.window, &event).consumed,
+            (Some(st), Some(g)) => st.on_window_event(&g.window, &event),
             _ => false,
         };
         match event {
@@ -984,6 +1063,8 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                #[cfg(target_arch = "wasm32")]
+                self.resume_audio();
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let system = matches!(
                         code,
@@ -1020,6 +1101,8 @@ impl ApplicationHandler for App {
                 self.rig.params.distance = (self.rig.params.distance * 0.9f32.powf(lines)).clamp(2.0, 120.0);
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                #[cfg(target_arch = "wasm32")]
+                self.resume_audio();
                 if state == ElementState::Pressed && button == MouseButton::Left && !consumed {
                     self.latency.press();
                 }
@@ -1046,7 +1129,16 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn about_to_wait(&mut self, _el: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, el: &ActiveEventLoop) {
+        #[cfg(target_arch = "wasm32")]
+        if let Some(r) = self.pending_gfx.as_ref().and_then(|slot| slot.borrow_mut().take()) {
+            self.pending_gfx = None;
+            if let Err(e) = r.and_then(|gfx| self.finish_init(gfx)) {
+                self.fail(el, e);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = el;
         if let Some(g) = &self.gfx {
             g.window.request_redraw();
         }

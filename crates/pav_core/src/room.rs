@@ -190,6 +190,10 @@ fn gray() -> String {
 fn dynamic() -> BodyKind {
     BodyKind::Dynamic
 }
+fn room_height() -> f32 {
+    8.0
+}
+
 fn misc() -> String {
     "misc".into()
 }
@@ -238,6 +242,10 @@ pub struct RoomDef {
     /// HUD overlays opened while inside: "feel" (feel metrics).
     #[serde(default)]
     pub overlays: Vec<String>,
+    /// Height of the room's volume (m): above it (plus a margin) you count as outside, which
+    /// cancels its courses. Raise it for rooms you fly in.
+    #[serde(default = "room_height")]
+    pub height: f32,
     pub entrance: Entrance,
     pub layout: Layout,
     /// Free-placed text (positions in layout space).

@@ -63,6 +63,21 @@ fn the_car_drives_turns_and_drifts() {
 }
 
 #[test]
+fn the_car_turns_toward_the_stick() {
+    for east in [true, false] {
+        let mut sim = room();
+        get_in(&mut sim, "car");
+        // Facing north (-Z): get moving, then push the stick east (or west).
+        sim.run(60, &hold(Vec2::new(0.0, -1.0), 0));
+        let x = if east { 1.0 } else { -1.0 };
+        sim.run(60, &hold(Vec2::new(x, 0.0), 0));
+        let e = sim.state.entities.find("car").unwrap();
+        let vel = sim.state.physics.bodies[e.body.unwrap()].linvel();
+        assert!(vel.x * x > 3.0, "stick {} turned the car that way: velocity {vel}", if east { "east" } else { "west" });
+    }
+}
+
+#[test]
 fn the_helicopter_takes_off_and_flies() {
     let mut sim = room();
     get_in(&mut sim, "heli");

@@ -3,6 +3,7 @@
 
 mod app;
 mod boot;
+#[cfg(not(target_arch = "wasm32"))]
 mod bridge;
 mod edit;
 mod gfx;
@@ -14,6 +15,7 @@ mod rooms;
 mod settings;
 mod simhost;
 mod ui;
+mod uiinput;
 
 fn fatal(msg: &str) -> ! {
     let path = boot::diag().log_path.display().to_string();
@@ -38,7 +40,7 @@ fn main() {
     log::info!(
         "Pavilion {} ({} {}, {} build) — log file: {}",
         env!("CARGO_PKG_VERSION"),
-        std::env::consts::OS,
+        if cfg!(target_arch = "wasm32") { "browser" } else { std::env::consts::OS },
         std::env::consts::ARCH,
         if cfg!(debug_assertions) { "debug" } else { "release" },
         d.log_path.display()
@@ -50,6 +52,12 @@ fn main() {
         Ok(s) => s,
         Err(e) => fatal(&format!("{e:#}")),
     };
+    // The browser's event loop runs on after `run` returns; errors show on the page.
+    #[cfg(target_arch = "wasm32")]
+    if let Err(e) = app::run(settings) {
+        fatal(&format!("{e:#}"));
+    }
+    #[cfg(not(target_arch = "wasm32"))]
     match std::panic::catch_unwind(|| app::run(settings)) {
         Ok(Ok(())) => log::info!("clean exit"),
         Ok(Err(e)) => fatal(&format!("{e:#}")),

@@ -265,7 +265,10 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             let v = (strength / 8.0).clamp(0.4, 1.2);
             vec![
                 (Patch { decay: 0.09, volume: 0.3 * v, cutoff: 2500.0, cutoff_end: 300.0, ..Patch::new(Noise, 1.0) }, 0.0),
-                (Patch { freq_end: 90.0, glide: 0.12, decay: 0.16, volume: 0.3 * v, duty: 0.4, ..Patch::new(Square, 220.0) }, 0.0),
+                (
+                    Patch { freq_end: 90.0, glide: 0.12, decay: 0.16, volume: 0.3 * v, duty: 0.4, ..Patch::new(Square, 220.0) },
+                    0.0,
+                ),
             ]
         }
         SimEvent::Respawn { .. } => vec![
@@ -277,7 +280,10 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             if *ok {
                 vec![(Patch { decay: 0.1, volume: 0.12, ..Patch::new(Triangle, 1046.5) }, 0.0)]
             } else {
-                vec![(Patch { freq_end: 160.0, glide: 0.2, decay: 0.25, volume: 0.14, duty: 0.3, ..Patch::new(Square, 330.0) }, 0.0)]
+                vec![(
+                    Patch { freq_end: 160.0, glide: 0.2, decay: 0.25, volume: 0.14, duty: 0.3, ..Patch::new(Square, 330.0) },
+                    0.0,
+                )]
             }
         }
         SimEvent::CourseFinish { new_best, .. } => {
@@ -299,17 +305,22 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             Patch { attack: 0.01, decay: 0.35, volume: 0.25, cutoff: 3000.0, cutoff_end: 400.0, ..Patch::new(Noise, 1.0) },
             0.0,
         )],
-        SimEvent::Pad { .. } => vec![(Patch { freq_end: 1200.0, glide: 0.08, decay: 0.12, volume: 0.1, ..Patch::new(Sine, 600.0) }, 0.0)],
-        SimEvent::Grab { .. } => vec![(Patch { decay: 0.05, volume: 0.12, cutoff: 1500.0, cutoff_end: 600.0, ..Patch::new(Noise, 1.0) }, 0.0)],
+        SimEvent::Pad { .. } => {
+            vec![(Patch { freq_end: 1200.0, glide: 0.08, decay: 0.12, volume: 0.1, ..Patch::new(Sine, 600.0) }, 0.0)]
+        }
+        SimEvent::Grab { .. } => {
+            vec![(Patch { decay: 0.05, volume: 0.12, cutoff: 1500.0, cutoff_end: 600.0, ..Patch::new(Noise, 1.0) }, 0.0)]
+        }
         SimEvent::Break { .. } => vec![
             (Patch { decay: 0.18, volume: 0.3, cutoff: 6000.0, cutoff_end: 900.0, ..Patch::new(Noise, 1.0) }, 0.0),
             (Patch { freq_end: 70.0, glide: 0.15, decay: 0.2, volume: 0.25, ..Patch::new(Sine, 160.0) }, 0.0),
         ],
-        SimEvent::Crack { .. } => vec![(Patch { decay: 0.04, volume: 0.12, cutoff: 5000.0, cutoff_end: 2000.0, ..Patch::new(Noise, 1.0) }, 0.0)],
-        SimEvent::Bounce { .. } => vec![(
-            Patch { freq_end: 900.0, glide: 0.18, decay: 0.22, volume: 0.16, ..Patch::new(Sine, 180.0) },
-            0.0,
-        )],
+        SimEvent::Crack { .. } => {
+            vec![(Patch { decay: 0.04, volume: 0.12, cutoff: 5000.0, cutoff_end: 2000.0, ..Patch::new(Noise, 1.0) }, 0.0)]
+        }
+        SimEvent::Bounce { .. } => {
+            vec![(Patch { freq_end: 900.0, glide: 0.18, decay: 0.22, volume: 0.16, ..Patch::new(Sine, 180.0) }, 0.0)]
+        }
         SimEvent::Roll { .. } => vec![(
             Patch { attack: 0.02, decay: 0.2, volume: 0.1, cutoff: 600.0, cutoff_end: 2400.0, ..Patch::new(Noise, 1.0) },
             0.0,
@@ -318,12 +329,26 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             (Patch { decay: 0.18, volume: 0.16, ..Patch::new(Square, 990.0) }, 0.0),
             (Patch { decay: 0.25, volume: 0.16, ..Patch::new(Square, 660.0) }, 0.16),
         ],
-        SimEvent::Shot { .. } => vec![(Patch { freq_end: 420.0, glide: 0.06, decay: 0.06, volume: 0.05, ..Patch::new(Square, 1500.0) }, 0.0)],
-        SimEvent::Damage { .. } => vec![(Patch { decay: 0.03, volume: 0.08, cutoff: 3500.0, cutoff_end: 1200.0, ..Patch::new(Noise, 1.0) }, 0.0)],
+        SimEvent::Shot { .. } => {
+            vec![(Patch { freq_end: 420.0, glide: 0.06, decay: 0.06, volume: 0.05, ..Patch::new(Square, 1500.0) }, 0.0)]
+        }
+        SimEvent::Damage { .. } => {
+            vec![(Patch { decay: 0.03, volume: 0.08, cutoff: 3500.0, cutoff_end: 1200.0, ..Patch::new(Noise, 1.0) }, 0.0)]
+        }
         SimEvent::Destroyed { size, .. } => {
             let v = size.clamp(0.4, 2.0);
             vec![
-                (Patch { attack: 0.003, decay: 0.3, volume: 0.35 * v, cutoff: 5000.0, cutoff_end: 200.0, ..Patch::new(Noise, 1.0) }, 0.0),
+                (
+                    Patch {
+                        attack: 0.003,
+                        decay: 0.3,
+                        volume: 0.35 * v,
+                        cutoff: 5000.0,
+                        cutoff_end: 200.0,
+                        ..Patch::new(Noise, 1.0)
+                    },
+                    0.0,
+                ),
                 (Patch { freq_end: 40.0, glide: 0.35, decay: 0.4, volume: 0.4 * v, ..Patch::new(Sine, 140.0) }, 0.0),
             ]
         }
@@ -468,6 +493,13 @@ impl AudioOut {
 
     pub fn set_master(&self, v: f32) {
         let _ = self.tx.send(Cmd::Master(v));
+    }
+
+    /// Starts output again. Browsers keep sound off until the page gets a click or key press,
+    /// so the browser build calls this on the first input.
+    pub fn resume(&self) {
+        use cpal::traits::StreamTrait;
+        let _ = self._stream.play();
     }
 }
 

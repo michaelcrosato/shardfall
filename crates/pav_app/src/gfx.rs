@@ -8,7 +8,7 @@ use pav_render::wgpu;
 use pav_render::{Renderer, Scene};
 use winit::window::Window;
 
-use crate::boot::stage;
+use crate::boot::{stage, stage_async};
 
 pub struct Gfx {
     pub window: Arc<Window>,
@@ -25,33 +25,47 @@ pub struct Gfx {
 }
 
 impl Gfx {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(window: Arc<Window>, backend: BackendChoice, vsync: bool) -> Result<Self> {
-        let instance =
-            stage("graphics instance", || Ok((gpu::create_instance(backend), format!("backend: {}", backend.name()))))?;
+        pollster_block(Self::create(window, backend, vsync))
+    }
+
+    /// Creates everything; only the adapter and device requests wait (in the browser).
+    pub async fn create(window: Arc<Window>, backend: BackendChoice, vsync: bool) -> Result<Self> {
+        let web = cfg!(target_arch = "wasm32");
+        let instance = stage("graphics instance", || {
+            Ok((gpu::create_instance(backend), format!("backend: {}", if web { "webgpu" } else { backend.name() })))
+        })?;
         let surface = stage("window surface", || {
             let s = instance.create_surface(window.clone()).context("could not create a drawing surface for the window")?;
             Ok((s, String::new()))
         })?;
-        let adapter = stage("graphics adapter", || {
-            let all = gpu::list_adapters(&instance, backend);
-            for a in &all {
-                log::info!("  found adapter: {}", gpu::describe(a));
+        let adapter = stage_async("graphics adapter", async {
+            if !web {
+                let all = gpu::list_adapters(&instance, backend);
+                for a in &all {
+                    log::info!("  found adapter: {}", gpu::describe(a));
+                }
+                if all.is_empty() {
+                    return Err(anyhow!(
+                        "no {} adapter found. Update your graphics driver{}",
+                        backend.name(),
+                        if backend == BackendChoice::Vulkan { ", or try backend = \"dx12\" in pavilion.toml" } else { "" }
+                    ));
+                }
             }
-            if all.is_empty() {
-                return Err(anyhow!(
-                    "no {} adapter found. Update your graphics driver{}",
-                    backend.name(),
-                    if backend == BackendChoice::Vulkan { ", or try backend = \"dx12\" in pavilion.toml" } else { "" }
-                ));
-            }
-            let a = gpu::request_adapter(&instance, Some(&surface))?;
+            let a = gpu::request_adapter_async(&instance, Some(&surface)).await.map_err(|e| {
+                if web { anyhow!("{e:#}. This page needs a browser with WebGPU (a recent Chrome or Edge)") } else { e }
+            })?;
             let d = gpu::describe(&a.get_info());
             Ok((a, d))
-        })?;
-        let (device, queue) = stage("graphics device", || {
-            let (d, q) = gpu::request_device(&adapter)?;
+        })
+        .await?;
+        let (device, queue) = stage_async("graphics device", async {
+            let (d, q) = gpu::request_device_async(&adapter).await?;
             Ok(((d, q), String::new()))
-        })?;
+        })
+        .await?;
         let gpu_errors = Arc::new(std::sync::atomic::AtomicU32::new(0));
         {
             let errs = gpu_errors.clone();
@@ -73,14 +87,11 @@ impl Gfx {
             surface.configure(&device, &c);
             Ok((c.clone(), format!("{:?}, {:?}, {}x{}", c.format, c.present_mode, c.width, c.height)))
         })?;
-        let renderer = stage("renderer & shaders", || {
-            let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
-            let r = Renderer::new(&device, &queue);
-            if let Some(e) = pollster_block(scope.pop()) {
-                return Err(anyhow!("shader/pipeline creation failed: {e}"));
-            }
-            Ok((r, String::new()))
-        })?;
+        let scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
+        let renderer = stage("renderer & shaders", || Ok((Renderer::new(&device, &queue), String::new())))?;
+        if let Some(e) = scope.pop().await {
+            return Err(anyhow!("shader/pipeline creation failed: {e}"));
+        }
         let egui = stage("ui renderer", || {
             Ok((egui_wgpu::Renderer::new(&device, config.format, egui_wgpu::RendererOptions::default()), String::new()))
         })?;
@@ -183,6 +194,7 @@ fn present_mode(caps: &wgpu::SurfaceCapabilities, vsync: bool) -> wgpu::PresentM
     want.iter().copied().find(|m| caps.present_modes.contains(m)).unwrap_or(caps.present_modes[0])
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn pollster_block<F: std::future::Future>(f: F) -> F::Output {
     // Minimal executor (the futures here resolve immediately on native).
     use std::task::{Context as Cx, Poll, RawWaker, RawWakerVTable, Waker};

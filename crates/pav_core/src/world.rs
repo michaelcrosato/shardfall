@@ -144,7 +144,7 @@ pub fn layout_pavilion(defs: &[(String, RoomDef)]) -> World {
         let at = |cur: f32| {
             let origin = d * (PLAZA_HALF + cur - min_d) + n * (CORRIDOR_HALF - min_n);
             let place = Placement::new(origin, q);
-            let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+            let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, def.height.max(2.0), rows as f32));
             (place, wmin, wmax)
         };
         // Rooms of neighbouring wings reach into the same corners near the plaza: slide this one

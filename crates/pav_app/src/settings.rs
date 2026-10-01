@@ -33,10 +33,34 @@ impl Default for Settings {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 const HEADER: &str = "# Pavilion startup settings. Delete this file to restore defaults.\n# backend = \"vulkan\" or \"dx12\"\n";
 
 impl Settings {
+    /// In the browser: defaults, plus `?room=NAME&seed=N` from the page address.
+    #[cfg(target_arch = "wasm32")]
+    pub fn load(_args: &[String]) -> (Self, String) {
+        let mut s = Settings::default();
+        let query = web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default();
+        if let Ok(p) = web_sys::UrlSearchParams::new_with_str(&query) {
+            if let Some(r) = p.get("room").filter(|r| !r.is_empty()) {
+                s.scene = format!("world/{r}");
+            }
+            if let Some(r) = p.get("scene").filter(|r| !r.is_empty()) {
+                s.scene = r;
+            }
+            if let Some(v) = p.get("seed").and_then(|v| v.parse().ok()) {
+                s.seed = v;
+            }
+        }
+        if s.scene.is_empty() {
+            s.scene = "world".into();
+        }
+        (s, "page address (?room=NAME&seed=N)".into())
+    }
+
     /// Loads settings (creating the file with defaults on first run), then applies CLI flags.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load(args: &[String]) -> (Self, String) {
         let path = crate::boot::exe_dir().join("pavilion.toml");
         let mut note = String::new();
@@ -88,6 +112,7 @@ impl Settings {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn toml_from_str(t: &str) -> Result<Settings, String> {
     // Tiny key = value parser (the file is flat), so the app does not need a TOML dependency.
     let mut s = Settings::default();
@@ -110,6 +135,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
     Ok(s)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn toml_to_string(s: &Settings) -> String {
     format!(
         "backend = \"{}\"\nvsync = {}\nwidth = {}\nheight = {}\nfullscreen = {}\n# start_room = \"playground\"\nseed = {}\n# Live agent bridge (pav live / pav mcp --live), e.g. \"127.0.0.1:7878\"\nbridge = \"{}\"\n",

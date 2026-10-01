@@ -214,6 +214,9 @@ pub struct BombParams {
     /// Fixed shooting direction (degrees, 180 = north/-Z), or < 0 to shoot where you aim/face.
     #[serde(default = "shoot_angle")]
     pub shoot_angle: f32,
+    /// How far blaster shots fly (m).
+    #[serde(default = "shot_range")]
+    pub shot_range: f32,
 }
 
 fn hitbox() -> f32 {
@@ -228,6 +231,9 @@ fn bullet_speed() -> f32 {
 }
 fn shoot_angle() -> f32 {
     -1.0
+}
+fn shot_range() -> f32 {
+    35.0
 }
 
 choice_enum! {
@@ -252,6 +258,7 @@ impl Default for BombParams {
             fire_interval: fire_interval(),
             bullet_speed: bullet_speed(),
             shoot_angle: shoot_angle(),
+            shot_range: shot_range(),
         }
     }
 }
@@ -268,6 +275,7 @@ impl Tunable for BombParams {
         v.float("fire_interval", &mut self.fire_interval, 0.03, 1.0, "Blaster: seconds between shots");
         v.float("bullet_speed", &mut self.bullet_speed, 2.0, 60.0, "Blaster: bullet speed (m/s)");
         v.float("shoot_angle", &mut self.shoot_angle, -1.0, 360.0, "Blaster: fixed direction (deg, 180 = north), -1 = aim");
+        v.float("shot_range", &mut self.shot_range, 1.0, 120.0, "Blaster: how far shots fly (m)");
     }
 }
 

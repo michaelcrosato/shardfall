@@ -32,7 +32,7 @@ pub fn names() -> Vec<String> {
 pub fn build_standalone_room(sim: &mut Sim, key: &str, def: RoomDef) {
     let place = Placement::new(def.layout.origin, 0);
     let (cols, rows) = def.layout.extent();
-    let (min, max) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+    let (min, max) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, def.height.max(2.0), rows as f32));
     let start = def.local_start();
     let inward = -def.entrance.facing.dir();
     let def = Arc::new(def);

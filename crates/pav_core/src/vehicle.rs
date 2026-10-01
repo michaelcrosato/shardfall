@@ -44,6 +44,8 @@ pub struct VehicleDef {
     pub steer: f32,
     /// Helicopter: climb speed (m/s).
     pub climb: f32,
+    /// Helicopter: highest flying height above the ground it was placed on (m).
+    pub ceiling: f32,
 }
 
 #[derive(Deserialize)]
@@ -60,6 +62,7 @@ struct VehicleDefRaw {
     drift_grip: Option<f32>,
     steer: Option<f32>,
     climb: Option<f32>,
+    ceiling: Option<f32>,
 }
 
 impl<'de> Deserialize<'de> for VehicleDef {
@@ -69,7 +72,7 @@ impl<'de> Deserialize<'de> for VehicleDef {
         macro_rules! set {
             ($($f:ident),*) => { $( if let Some(x) = r.$f { v.$f = x; } )* };
         }
-        set!(color, accent, size, mass, power, max_speed, grip, drift_grip, steer, climb);
+        set!(color, accent, size, mass, power, max_speed, grip, drift_grip, steer, climb, ceiling);
         Ok(v)
     }
 }
@@ -95,6 +98,7 @@ impl VehicleDef {
                 drift_grip: 0.6,
                 steer: 32.0,
                 climb: 0.0,
+                ceiling: 0.0,
             },
             VehicleKind::Helicopter => Self {
                 kind,
@@ -108,6 +112,7 @@ impl VehicleDef {
                 drift_grip: 0.0,
                 steer: 0.0,
                 climb: 5.0,
+                ceiling: 14.0,
             },
         }
     }
@@ -121,6 +126,7 @@ impl Tunable for VehicleDef {
         v.float("drift_grip", &mut self.drift_grip, 0.05, 5.0, "Rear grip with the handbrake (drift)");
         v.float("steer", &mut self.steer, 5.0, 60.0, "Steering lock (degrees)");
         v.float("climb", &mut self.climb, 0.5, 15.0, "Helicopter climb speed (m/s)");
+        v.float("ceiling", &mut self.ceiling, 1.0, 200.0, "Helicopter: highest flying height (m)");
     }
 }
 
@@ -130,6 +136,9 @@ pub struct Vehicle {
     pub def: VehicleDef,
     /// Height of the body centre above the ground it was placed on.
     pub base: f32,
+    /// Height of that ground.
+    #[serde(default)]
+    pub ground: f32,
     pub car: Option<DynamicRayCastVehicleController>,
     pub driver: Option<EntityId>,
     pub steer: f32,
@@ -238,6 +247,7 @@ impl Sim {
         if let Some(e) = self.state.entities.get_mut(id) {
             e.vehicle = Some(Box::new(Vehicle {
                 base: center.y - pos.y,
+                ground: pos.y,
                 def,
                 car,
                 driver: None,
@@ -411,7 +421,7 @@ impl Sim {
                         let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
                         for (i, w) in c.wheels_mut().iter_mut().enumerate() {
                             let front = i < 2;
-                            w.steering = if front { (-v.steer * lock) as Real } else { 0.0 };
+                            w.steering = if front { (v.steer * lock) as Real } else { 0.0 };
                             w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power) as Real };
                             w.brake = if brake {
                                 40.0
@@ -448,8 +458,10 @@ impl Sim {
                         let vel = b.linvel();
                         let wish = Vec3::new(inp.move_dir.x, 0.0, inp.move_dir.y).clamp_length_max(1.0) * v.def.max_speed;
                         let dvh = (wish - Vec3::new(vel.x, 0.0, vel.z)).clamp_length_max(v.def.power * dt);
+                        // Climbing eases off toward the ceiling.
+                        let room = v.ground + v.def.ceiling - (b.translation().y - v.base);
                         let climb = if inp.down(buttons::JUMP) {
-                            v.def.climb
+                            v.def.climb * room.clamp(0.0, 1.0)
                         } else if inp.down(buttons::CROUCH) {
                             -v.def.climb
                         } else {

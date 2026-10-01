@@ -1,0 +1,446 @@
+# Drift Circuit: a closed time-trial circuit for the drift car, with a drift pad and a skid pad.
+# The map is 60 x 45 (south = bottom row, entrance gap at columns 16-17, you arrive in the pit apron
+# between the two cars). Layout, counter-clockwise lap:
+#   SOUTH  the start straight (x 12..44): FINISH (checkered) and START (green) at x 26..28, the pit apron
+#          with the two cars (GRIPPY and DRIFTY) just south of it, off the racing line.
+#   EAST   SE sweeper, fast leg north, NE corner (R7), a short straight west, a hairpin (R5.5), an S-bend
+#          (two R5 corners) and the long return leg west to a U-turn (R5.5) back onto the start straight.
+#   NW     the paddock behind a barrier with two pit gaps: the DRIFT PAD (open 14 x 14 square, painted 5 m
+#          ring, a post) and the SKID PAD lane (cones, a crate pyramid, CRATE SHOWER and CLEAR pads).
+# Course "drift": leaving START starts the clock, 10 gates in order (a missed gate = +2 s), FINISH stops it.
+# FINISH lies BEFORE START in the driving direction on purpose: crossing the line again ends the lap and
+# the START strip right after it begins the next one (entering START restarts the run of its course, so
+# a START in front of the FINISH would reset the timer on the way in). Blue CHECKPOINTs and the START strip
+# respawn the car (with you in it) on the track; the sand-coloured GRAVEL outside the outer corners is a
+# kill zone that does the same. Barriers are 0.9 m: too tall for the car, so there are no shortcuts.
+# Generated from a centreline by a script; hand edits are fine.
+name = "Drift Circuit"
+about = "A closed time-trial circuit for the drift car: a fast start straight, sweepers, a hairpin and an S-bend with checkpoints and gravel traps, two cars on the grid (GRIPPY and DRIFTY), a drift pad for donuts and a skid pad with cones and crates to knock over."
+try = [
+  "Walk to a car and press E to get in: the car steers toward the direction you push (pull back to reverse), Space is the handbrake (drift), C brakes, E gets out again",
+  "Drive over the checkered FINISH and out of the green START strip to start the clock; crossing the line again stops it and the next lap starts by itself (par: gold 12.5 s, silver 14.5 s, bronze 17 s)",
+  "Compare GRIPPY (grip 4, drift grip 1.2) with DRIFTY (grip 2.5, drift grip 0.4): the first holds its line, the second swings its tail out under the handbrake",
+  "Pass the 10 gold gates in order (a missed gate adds 2 s) and the blue checkpoints; the sand-coloured gravel outside the outer corners sends you back to the last checkpoint",
+  "Tap the handbrake going into the hairpin and the S-bend to rotate the car, then straighten and power out; stuck against a barrier? pull back to reverse out",
+  "Drive through a pit gap into the paddock and do donuts around the post on the DRIFT PAD (the painted ring is 5 m)",
+  "Slalom the cones on the SKID PAD and bowl through the crate pyramid; CRATE SHOWER rains more crates, CLEAR removes them",
+  "Press E to get out and walk around; the car stays where you left it (F5 resets the room)",
+]
+wing = "genre"
+order = 3
+primary_device = "keyboard_mouse"
+entrance = { at = [16, 44], facing = "south" }
+
+[camera]
+tilt = 60.0
+distance = 22.0
+
+[layout]
+origin = [-30.0, 0.0, -22.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+############################################################
+#;;;;;;;;;;;;;;;;;;;;;;;;..................................#
+#;yyyyyyyyyyyyyy;ppppppppppp...............................#
+#;yDDDDDddDDDDDy;pPPPPPPPPPp........rrrrRRrrrRRRr..........#
+#;yDDDddddddDDDy;pPPPPPPPPPp......RRrll44,M,,,,lkrgg.......#
+#;yDDdDDDDDDdDDy;pPPPPPPPPPp.....gRk,,,44,M,,,,,,,lgg......#
+#;yDdDDDDDDDDdDy;pPPPPPPPPPp....gl,,,,,44,M,,,,,,,,,kg.....#
+#;yDdDDDDDDDDdDy;pPPPPPPPPPp...gg,,,,,,44,M,,,,,,,,,,kg....#
+#;yddDDDDDDDDddy;pPPPPPPPPPp...gk,,,,,,44,M,,,,,,,,,,,gg...#
+#;yddDDDDDDDDddy;pPPPPPPPPPp..gg,,,,,,,44,M,,,l,,,,,,,lg...#
+#;yDdDDDDDDDDdDy;pPPPPPPPPPp..gl,,,,,lRrRRrrrRRrl,,,,,,g...#
+#;yDdDDDDDDDDdDy;pPPPPPPPPPp..gl,,,,,r..........Rl,,,,,kg..#
+#;yDDdDDDDDDdDDy;pPPPPPPPPPp..gk,,,,kR...........r,,,,,lR..#
+#;yDDDddddddDDDy;pPPPPPPPPPp..gk,,,55r...........Rl,,,,,R..#
+#;yDDDDDddDDDDDy;pPPPPPPPPPp..gl,5555lrRRRR......r333333r..#
+#;yyyyyyyyyyyyyy;pPPPPPPPPPp..gg555,,,,,kllrr....r333333r..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp...g5,,,,,,,,,,,kr...r,,,,,,r..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp...gg,,,,,,,,,,,,kr..R,,,,,,R..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp....gl,,,,,,,,,,,,lR.R,,,,,,R..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp.....gRk,,,,,,,,,,,R.r,,,,,,r..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp......Rrrll,l,,,,,,kRr,,,,,,r..#
+#;;;;;;;;;;;;;;;;pPPPPPPPPPp........rrrRRk,,,,,krrLLLLLLr..#
+#;;;;;;;;;;;;;;;;pCCCPPPXXXp.............R666666rR,,,,,,R..#
+#;;;;;;;;;;;;;;;;pCCCPPPXXXp.............r666666rR,,,,,,R..#
+#........,,,,,RRr,,,,,,,,,,,rRRrrrRRrrrRrk,,,,,krr,,,,,,r..#
+#......RRRkl,,,,,,8,,,,,,,,M,,,,77,,,,,,k,,,,,,krr,,,,,,r..#
+#.....rRl,,,,,,,,,8,,,,,,,,M,,,,77,,,,,,,,,,,,,R.r,,,,,,r..#
+#....rk,,,,,,,,,,,8,,,,,,,,M,,,,77,,,,,,,,,,,,lR.R,,,,,,R..#
+#...rr,,,,,,,,,,,,8,,,,,,,,M,,,,77,,,,,,,,,,,kR..R222222R..#
+#...rl,,,,,,,,,,,,8,,,,,,,,M,,,,77,,,,,,,,,,kr...r222222r..#
+#..RR,,,,,,,,,,,,,8,,,,,,,,M,,,,77,,,,,,kklrr....rl,,,,,r..#
+#..Rk,,,,,kRrrRRrrrRRrrrRRrrrRRrrrRRrrrRRRr......R,,,,,lr..#
+#..R99999,r.....................................rl,,,,,kr..#
+#..R999999R.....................................rk,,,,,RR..#
+#..Rk,,,,,r...................................rRl,,,,,,R...#
+#..Rk,,,,,kRrrRRrrrRRrrrRRrrrRRrrrRRrrrRRrrrRRlk,,,,,,lR...#
+#..RR,,,,,,,K,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,11,,,,,,,,kg....#
+#...rl,,,,,,K,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,11,,,,,,,,gg....#
+#...rr,,,,,,K,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,11,,,,,,,gg.....#
+#....rk,,,,,K,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,11,,,,,kgg......#
+#.....rRl,,,K,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,,1,,,,lRg.......#
+#......RRRklK,,,,aa,,,,,,,FFS,,,,,,,,,,,,,,,1lkrrr.........#
+#........RqqqqqqqqqqqqqqqqqRrRRrrrRRrrrRRrrrRRRr...........#
+#........RqqqqqqqqqqqqqqqqqR...............................#
+################,,##########################################
+'''
+
+# Tiles: wall (3 m), grass, asphalt, barriers (0.9 m, red / white), kerbs, paddock tarmac,
+# drift pad (D, painted ring d, border y), skid pad (P, lines p), gravel (g = kill zone).
+# Zone tiles: F finish, S start, K L M N checkpoints (facing east / north / west / south),
+# digits and a gate 1..10, C crate shower pad, X clear pad, q pit apron.
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9db98a" }, { y0 = 0, y1 = 3.0, color = "#aab4c0" }]
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9db98a" }]
+
+[layout.legend.',']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+
+[layout.legend.';']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#8c929c" }]
+
+[layout.legend.'q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#555b66" }]
+
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }, { y0 = 0, y1 = 0.9, color = "#d9483e" }]
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }, { y0 = 0, y1 = 0.9, color = "#f1f1ec" }]
+
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9483e" }]
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f1f1ec" }]
+
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#a9afb9" }]
+
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f2c14e" }]
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f2f2f2" }]
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#737984" }]
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e9e9e4" }]
+
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#dcc48f" }]
+zone = { kind = "kill" }
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "finish", course = "drift", color = "#f2f2f2" }
+
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "start", course = "drift", facing = "east", label = "START" }
+
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "checkpoint", facing = "east" }
+
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "checkpoint", facing = "north" }
+
+[layout.legend.'M']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "checkpoint", facing = "west" }
+
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "checkpoint", facing = "south" }
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 1, color = "#e9c46a" }
+
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 2, color = "#e9c46a" }
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 3, color = "#e9c46a" }
+
+[layout.legend.'4']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 4, color = "#e9c46a" }
+
+[layout.legend.'5']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 5, color = "#e9c46a" }
+
+[layout.legend.'6']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 6, color = "#e9c46a" }
+
+[layout.legend.'7']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 7, color = "#e9c46a" }
+
+[layout.legend.'8']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 8, color = "#e9c46a" }
+
+[layout.legend.'9']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 9, color = "#e9c46a" }
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424b" }]
+zone = { kind = "gate", course = "drift", index = 10, color = "#e9c46a" }
+
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#737984" }]
+zone = { kind = "pad", label = "CRATE SHOWER", color = "#3bb273", signal = "shower" }
+
+[layout.legend.'X']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#737984" }]
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+
+# Floor text.
+[[label]]
+text = "GRIPPY"
+pos = [14.2, 0.03, 39.2]
+size = 0.8
+color = "#f6f3ea"
+
+[[label]]
+text = "grip 4 / drift 1.2"
+pos = [14.2, 0.03, 40.05]
+size = 0.42
+color = "#f6f3ea"
+
+[[label]]
+text = "DRIFTY"
+pos = [20.0, 0.03, 39.2]
+size = 0.8
+color = "#f6f3ea"
+
+[[label]]
+text = "grip 2.5 / drift 0.4"
+pos = [20.0, 0.03, 40.05]
+size = 0.42
+color = "#f6f3ea"
+
+[[label]]
+text = "DRIFT PAD"
+pos = [9.0, 0.03, 3.6]
+size = 0.9
+color = "#f6f3ea"
+
+[[label]]
+text = "donuts: ring = 5 m"
+pos = [9.0, 0.03, 14.6]
+size = 0.45
+color = "#f6f3ea"
+
+[[label]]
+text = "SKID PAD"
+pos = [22.0, 0.03, 21.6]
+size = 0.7
+color = "#f6f3ea"
+
+[[label]]
+text = "PAR  gold 12.5 s   silver 14.5 s   bronze 17.0 s"
+pos = [29.0, 0.03, 33.5]
+size = 0.62
+color = "#2b2d35"
+
+[[label]]
+text = "START / FINISH  >>>"
+pos = [35.5, 0.03, 37.6]
+size = 0.7
+color = "#f6f3ea"
+
+# Cars on the grid, then the pads' props. Pavilion convention: yaw 90 = facing east (+X).
+[[object]]
+name = "grippy"
+pos = [14.2, 0.0, 42.0]
+yaw = 90
+vehicle = { kind = "car", color = "#3a7be0", accent = "#f2c14e", power = 2600, max_speed = 22, grip = 4.0, drift_grip = 1.2, steer = 40 }
+
+[[object]]
+name = "drifty"
+pos = [20.0, 0.0, 42.0]
+yaw = 90
+vehicle = { kind = "car", color = "#e8443a", accent = "#2b2f3a", power = 2600, max_speed = 22, grip = 2.5, drift_grip = 0.4, steer = 44 }
+
+[[object]]
+name = "donut_post"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.35 }
+pos = [9.0, 0.5, 9.0]
+color = "#f2c14e"
+body = "fixed"
+
+[[object]]
+name = "cone1"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [20.0, 0.36, 19.5]
+color = "#ff7a2f"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone2"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [24.0, 0.36, 16.5]
+color = "#ff7a2f"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone3"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [20.0, 0.36, 13.5]
+color = "#ff7a2f"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone4"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [24.0, 0.36, 10.5]
+color = "#ff7a2f"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone5"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [20.0, 0.36, 7.5]
+color = "#ff7a2f"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone6"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [18.8, 0.36, 5.0]
+color = "#f2f2ee"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "cone7"
+shape = { type = "cylinder", half_height = 0.35, radius = 0.2 }
+pos = [25.2, 0.36, 5.0]
+color = "#f2f2ee"
+body = "dynamic"
+density = 12
+friction = 0.5
+
+[[object]]
+name = "crate1"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [20.77, 0.41, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate2"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [21.59, 0.41, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate3"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [22.41, 0.41, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate4"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [23.23, 0.41, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate5"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [21.18, 1.23, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate6"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [22.0, 1.23, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate7"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [22.82, 1.23, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate8"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [21.59, 2.05, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate9"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [22.41, 2.05, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "crate10"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [22.0, 2.87, 3.4]
+color = "#c9a27a"
+body = "dynamic"
+density = 25
+friction = 0.5
+
+[[object]]
+name = "shower"
+shape = { type = "sphere", radius = 0.1 }
+pos = [22.0, 6.0, 12.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "", count = 12, area = [4.0, 0.5, 6.0], max = 60, signal = "shower", clear = "clear", density = 20, friction = 0.5, restitution = 0.1, tumble = true }

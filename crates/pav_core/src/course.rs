@@ -460,8 +460,15 @@ impl Sim {
     }
 }
 
-/// Axis-lock parameters name layout axes; a room turned by a quarter swaps x and z.
+/// Axis-lock parameters name layout axes (a room turned by a quarter swaps x and z), and a fixed
+/// blaster direction is an angle in the room's frame.
 pub fn rotate_axis_params(values: &mut BTreeMap<String, ParamValue>, quarters: u8) {
+    // A fixed blaster direction turns with the room (-1 = aim, unchanged).
+    if let Some(a) = values.get("bombs.shoot_angle").and_then(|v| v.as_f64()) {
+        if a >= 0.0 && !quarters.is_multiple_of(4) {
+            values.insert("bombs.shoot_angle".into(), ParamValue::Float((a - 90.0 * quarters as f64).rem_euclid(360.0)));
+        }
+    }
     if quarters.is_multiple_of(2) {
         return;
     }

@@ -500,7 +500,7 @@ impl Sim {
                         pos: from,
                         vel,
                         radius: 0.09,
-                        life: 1.6,
+                        life: self.config.bombs.shot_range / vel.length().max(0.1),
                         color: Color::hex("#9ef0ff"),
                         knockback: 0.0,
                         gravity: 0.0,

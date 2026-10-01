@@ -7,7 +7,8 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
-use std::time::Instant;
+
+use web_time::Instant;
 
 use anyhow::Result;
 
@@ -48,11 +49,18 @@ pub fn exe_dir() -> PathBuf {
 
 /// Sets up the log file (next to the executable, else the temp dir) and the logger.
 pub fn init() -> &'static Diagnostics {
-    let mut log_path = exe_dir().join("pavilion.log");
-    let file = File::create(&log_path).ok().or_else(|| {
-        log_path = std::env::temp_dir().join("pavilion.log");
-        File::create(&log_path).ok()
-    });
+    #[cfg(not(target_arch = "wasm32"))]
+    let (log_path, file) = {
+        let mut log_path = exe_dir().join("pavilion.log");
+        let file = File::create(&log_path).ok().or_else(|| {
+            log_path = std::env::temp_dir().join("pavilion.log");
+            File::create(&log_path).ok()
+        });
+        (log_path, file)
+    };
+    // In the browser the log goes to the developer console.
+    #[cfg(target_arch = "wasm32")]
+    let (log_path, file) = (PathBuf::from("the browser console"), None::<File>);
     let level = match std::env::var("PAV_LOG").ok().as_deref() {
         Some("trace") => log::LevelFilter::Trace,
         Some("debug") => log::LevelFilter::Debug,
@@ -91,7 +99,17 @@ impl log::Log for Logger {
         }
         let d = diag();
         let line = format!("[{:>8.3}s] {:<5} {}", d.start.elapsed().as_secs_f64(), r.level(), r.args());
+        #[cfg(not(target_arch = "wasm32"))]
         eprintln!("{line}");
+        #[cfg(target_arch = "wasm32")]
+        {
+            let js = wasm_bindgen::JsValue::from_str(&line);
+            match r.level() {
+                log::Level::Error => web_sys::console::error_1(&js),
+                log::Level::Warn => web_sys::console::warn_1(&js),
+                _ => web_sys::console::log_1(&js),
+            }
+        }
         if let Ok(mut f) = d.file.lock() {
             if let Some(f) = f.as_mut() {
                 let _ = writeln!(f, "{line}");
@@ -111,10 +129,21 @@ impl log::Log for Logger {
 
 /// Runs one numbered boot stage, recording its duration and outcome.
 pub fn stage<T>(name: &str, f: impl FnOnce() -> Result<(T, String)>) -> Result<T> {
-    let d = diag();
-    let num = d.stages.lock().map(|s| s.len() as u32 + 1).unwrap_or(0);
     let t = Instant::now();
     let r = f();
+    record(name, t, r)
+}
+
+/// `stage` for a step that has to wait (GPU setup in the browser).
+pub async fn stage_async<T>(name: &str, f: impl std::future::Future<Output = Result<(T, String)>>) -> Result<T> {
+    let t = Instant::now();
+    let r = f.await;
+    record(name, t, r)
+}
+
+fn record<T>(name: &str, t: Instant, r: Result<(T, String)>) -> Result<T> {
+    let d = diag();
+    let num = d.stages.lock().map(|s| s.len() as u32 + 1).unwrap_or(0);
     let ms = t.elapsed().as_secs_f64() * 1000.0;
     let (status, detail, out) = match r {
         Ok((v, detail)) => (StageStatus::Ok, detail, Ok(v)),
@@ -149,6 +178,9 @@ pub fn install_panic_hook() {
         if let Ok(mut c) = LAST_CRASH.lock() {
             *c = Some(format!("{msg}\n  at {loc} (thread '{thread}')"));
         }
+        // The browser stops the game on a panic: say so on the page.
+        #[cfg(target_arch = "wasm32")]
+        crate::platform::error_box("Pavilion crashed", &format!("{msg}\n  at {loc}\n\nReload the page to start again."));
     }));
 }
 

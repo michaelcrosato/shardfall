@@ -1,8 +1,11 @@
 //! Room framework on the app side: info card + control guide on entering a room, room camera
 //! defaults, the teleport menu, and hot reload of room files.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc::{Receiver, channel};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use web_time::Instant;
 
 use egui::RichText;
 use pav_core::frame::RoomInfo;
@@ -209,6 +212,7 @@ impl RoomHud {
 }
 
 /// Watches the rooms directory; `poll` returns true once changes have settled.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct RoomWatcher {
     _watcher: notify::RecommendedWatcher,
     rx: Receiver<()>,
@@ -216,6 +220,24 @@ pub struct RoomWatcher {
     pub dir: std::path::PathBuf,
 }
 
+/// No files to watch in the browser (rooms are built in).
+#[cfg(target_arch = "wasm32")]
+pub struct RoomWatcher {
+    pub dir: std::path::PathBuf,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl RoomWatcher {
+    pub fn start() -> Option<Self> {
+        None
+    }
+
+    pub fn poll(&mut self) -> bool {
+        false
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl RoomWatcher {
     pub fn start() -> Option<Self> {
         use notify::Watcher;
