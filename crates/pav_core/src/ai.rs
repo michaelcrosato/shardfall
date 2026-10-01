@@ -185,7 +185,8 @@ impl Ai {
                         self.index = (self.index + 1) % self.points.len();
                         self.wait = *pause;
                         self.stuck = 0.0;
-                        self.look = d.x.atan2(d.y);
+                        // A single point on the spot keeps the start facing (atan2(0, 0) = south).
+                        self.look = if d.length() > 0.05 { d.x.atan2(d.y) } else { self.facing };
                     } else {
                         dir = d.normalize();
                     }

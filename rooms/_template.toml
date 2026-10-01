@@ -205,8 +205,10 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #      circle (radius, clockwise) | follow (distance: follows the player) |
 #      guard (points, pause, range = 7, angle = 70): a stealth guard with a vision cone; it spots
 #      you in plain sight within range/angle (crouching: 60% range); a full alert meter sends you
-#      back to the last checkpoint ("SPOTTED!"). It looks around while paused.
-# speed = 0.5 (fraction of full speed), hop = 0 (seconds between jumps), yaw = facing degrees.
+#      back to the last checkpoint ("SPOTTED!"). It looks around while paused. A single point
+#      on its own spot makes a stationary sentry that keeps its `yaw`.
+# speed = 0.5 (fraction of full speed; in grid rooms, how fast it steps), hop = 0 (seconds
+# between jumps), yaw = facing degrees.
 # look = any puppet setting over the kind's preset: colours (skin, shirt, pants, shoes, eyes,
 # accent), proportions (scale, leg_length, torso_radius, head_radius, body_length, legs,
 # tail_length, antenna_length), animation (stride, step_height, step_time, squash, lean, wobble,

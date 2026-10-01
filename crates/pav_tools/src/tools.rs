@@ -953,6 +953,9 @@ fn t_npcs(s: &mut Session, a: &Args) -> Result<Output> {
                 "ai": e.ai.as_ref().map(|a| serde_json::to_value(&a.def).unwrap_or_default()),
                 "steps": ch.rig.as_ref().map(|r| r.steps),
                 "flinch": r(ch.anim.hit_side.abs() + ch.anim.hit_fwd.abs()),
+                // Guards: alert meter (1 = spotted) and whether they see the player this tick.
+                "alert": e.ai.as_ref().filter(|a| matches!(a.def, pav_core::ai::AiDef::Guard { .. })).map(|a| r(a.alert)),
+                "sees_player": e.ai.as_ref().filter(|a| matches!(a.def, pav_core::ai::AiDef::Guard { .. })).map(|a| a.sees),
             }))
         })
         .collect();

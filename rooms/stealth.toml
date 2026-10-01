@@ -18,9 +18,8 @@
 # crouching player; a guard that is paused (or a camera) stops looking around the moment it sees
 # you, so glimpses are not forgiven; the alert meter fills in 0.4 s and drains at 0.6/s. A
 # stationary guard faces the direction of its single patrol point (a point 0.25 m away from
-# where it stands). Guards walk with the room's grid model, i.e. at your own running speed.
-# Keep the lobby and the corridor on the same floor tile ('l'): with two different tiles there
-# the player is stuck for the first 1.5 s after the room loads (an engine quirk).
+# where it stands). Guards walk with the room's grid model; `speed = 1` steps at your own
+# running pace (lower = slower steps).
 name = "Grid Stealth"
 about = "A cell-by-cell night heist: sneak from the lobby to the VAULT past patrolling guards and sweeping cameras whose vision cones are painted on the floor, using alcoves, pillars, crates and crouching. Being seen fills an alert meter; when it is full you are sent back to the last checkpoint."
 try = [
@@ -220,6 +219,7 @@ color = "#bfe3e0"
 name = "guard1"
 pos = [12.5, 0, 27.5]
 yaw = 270
+speed = 1.0
 ai = { type = "guard", points = [[11.5, 27.5], [33.5, 27.5]], pause = 3, range = 6.5, angle = 140 }
 look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
 
@@ -234,6 +234,7 @@ look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
 name = "guard2b"
 pos = [17.5, 0, 11.5]
 yaw = 0
+speed = 1.0
 ai = { type = "guard", points = [[17.5, 12.5], [17.5, 18.5]], pause = 2.5, range = 8, angle = 90 }
 look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
 

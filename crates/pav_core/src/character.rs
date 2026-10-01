@@ -55,6 +55,10 @@ choice_enum! {
 
 /// Capsule radius of characters (m).
 pub const RADIUS: f32 = 0.32;
+/// Characters placed by their feet start this far above the floor: just outside the controller's
+/// skin (0.02 m). Placed exactly on it, they sink in a little on the first tick and stay stuck
+/// against neighbouring floor blocks until they work their way out.
+pub const PLACE_LIFT: f32 = 0.025;
 /// Feet below the ledge top while hanging (m).
 const HANG_DROP: f32 = 1.62;
 
@@ -323,6 +327,9 @@ pub struct Character {
     pub grid_target: Option<Vec3>,
     #[serde(default)]
     pub grid_blocked: u32,
+    /// Grid: pace of the current step (how far the stick was pushed when it began).
+    #[serde(default)]
+    pub grid_pace: f32,
     /// Water depth at the feet (0 = dry) and whether swimming.
     #[serde(default)]
     pub water_depth: f32,
@@ -805,15 +812,17 @@ pub fn tick(
                     let tile = |p: Vec3| Vec3::new(p.x.floor() + 0.5, 0.0, p.z.floor() + 0.5);
                     let mut target = ch.grid_target.unwrap_or(tile(feet));
                     let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
-                    let speed = mult / mp.grid_step_time.max(0.02);
                     if d.length() < 0.03 {
                         let w = Vec2::new(wish.x, wish.z);
-                        if w.length() > 0.4 {
+                        if w.length() > 0.15 {
                             let step = if w.x.abs() > w.y.abs() { Vec3::X * w.x.signum() } else { Vec3::Z * w.y.signum() };
                             target = tile(feet) + step;
                             ch.facing = yaw_of(step);
+                            // A half-pushed stick (or a slow NPC) takes slower steps.
+                            ch.grid_pace = w.length().min(1.0);
                         }
                     }
+                    let speed = mult * ch.grid_pace.clamp(0.15, 1.0) / mp.grid_step_time.max(0.02);
                     let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
                     let dist = d.length();
                     vh = if dist > 1e-4 { d / dist * speed.min(dist / dt) } else { Vec3::ZERO };

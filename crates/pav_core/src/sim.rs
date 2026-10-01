@@ -289,7 +289,7 @@ impl Sim {
     pub fn spawn_character(&mut self, name: &str, feet: Vec3) -> EntityId {
         let id = self.state.entities.alloc_id();
         let ch = Character::new();
-        let center = feet + Vec3::Y * (ch.height() * 0.5);
+        let center = feet + Vec3::Y * (ch.height() * 0.5 + character::PLACE_LIFT);
         let b = self.character_body(id, center, ch.posture);
         self.state.entities.map.insert(
             id,
@@ -390,7 +390,7 @@ impl Sim {
                 ch.hang = None;
                 ch.grid_target = None;
                 ch.climbing = None;
-                pos + Vec3::Y * (ch.height() * 0.5)
+                pos + Vec3::Y * (ch.height() * 0.5 + character::PLACE_LIFT)
             }
             None => pos,
         };
