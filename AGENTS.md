@@ -108,14 +108,16 @@ tools; they act on what is on screen (captures render the game's camera on a sec
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
-Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd`
+Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
+tree_map`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
   `game_cmd do=sell id=12` does any menu action exactly as the player would (it rides in the
-  input frame, so replays include it). Game data lives in `game/*.toml` (`game_reload` re-reads
-  it live).
+  input frame, so replays include it). `tree find=fire`, `tree take=Unbowed` (allocates the
+  path), `tree_map` (PNG of the generated passive tree). Game data lives in `game/*.toml`
+  (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`).
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
@@ -161,7 +163,8 @@ presets. Gamepad: left stick move, right stick aim, A jump,
 B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
 
 Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
-G use (vendor, stash, portal), I/Tab inventory, C character, K skills, T town portal; gamepad
+G use (vendor, stash, portal), I/Tab inventory, P passive tree, C character, K skills, T town
+portal; gamepad
 X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use.
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
@@ -179,7 +182,8 @@ ledge grab, swimming, pits, grid/committed models, projectiles, moving platforms
 spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a compact example
 of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
-rewind across travel, unique powers).
+rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
+passive tree through commands, keystones, the bot spending points).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

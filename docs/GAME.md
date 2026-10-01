@@ -53,7 +53,7 @@ small generators, and every system has an agent tool to build and inspect it.
 - **G2 Loot:** items, affixes, rarity, drops, pickup, inventory and equipment, tooltips, stats
   from gear, vendor and stash, weapon visuals. *(done: see "Items" below)*
 - **G3 Builds:** passive tree (data + layout + UI), all 16 skills, masteries, keystones,
-  respec.
+  respec. *(done: see "Builds" below)*
 - **G4 Monsters:** genome, parts rendering, palettes, archetype brains, monster affixes, boss
   phases, creature lab.
 - **G5 World:** town hub with animated NPCs, layout generator and themes, twelve mechanics,
@@ -86,3 +86,15 @@ small generators, and every system has an agent tool to build and inspect it.
   random stream, carrying the `Game` (hero, bags, settings).
 - **Looks**: the hero's puppet wears the gear: weapon kind/colour/glow, shield or focus, helmet
   shapes (cap, helm, great helm, crown, horned, halo), shoulder plates, cape, gloves, buckle.
+
+## Builds (G3)
+- **Skills**: 16 for the hero, from quick attacks to channelled spins, war cries, meteors and
+  blizzards; every behaviour is data (`behavior` in skills.toml), and monsters can use any skill.
+- **Tweaks** change one skill (more projectiles, bigger area, an element...). They come from the
+  tree's skill branches today and can come from items and monster affixes next.
+- **Passive tree**: six sectors - Might, Fury, Precision, Arcana, Elements, Bulwark - each a
+  road with notables, three wheels around masteries (pick one of four options), up to three
+  skill branches and a keystone; bridges between neighbours carry hybrid stats and six more
+  keystones (Echoing Blades, Wind Dancer, Glass Edge, Avatar of Storm, Pyre, Avatar of Flame).
+  Beyond: the Astral rings, endless, stronger ring by ring. One point per level; refund and
+  respec cost gold.

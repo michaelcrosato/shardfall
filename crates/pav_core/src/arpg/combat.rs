@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::brain::Brain;
 use super::data::Element;
-use super::stats::{Mods, Sheet};
+use super::stats::{Base, Mods, Sheet};
 use crate::entity::EntityId;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -156,6 +156,11 @@ pub struct Cast {
     pub side: f32,
     /// Already hit by this cast (dashes and charges hit each thing once).
     pub hits: Vec<EntityId>,
+    /// Channels: pulses so far, and the button that keeps it going (the hero's).
+    #[serde(default)]
+    pub pulses: u32,
+    #[serde(default)]
+    pub button: u32,
 }
 
 /// Anything with life.
@@ -203,6 +208,14 @@ pub struct Actor {
     /// Rule-bending effects (unique items, keystones, monster affixes).
     #[serde(default)]
     pub powers: Vec<super::powers::Power>,
+    /// Skill-specific changes (passive tree, affixes): more projectiles, bigger radius...
+    #[serde(default)]
+    pub tweaks: Vec<super::skills::Tweak>,
+    /// Monsters: base values and lasting mods (affixes); buffs are added on top.
+    #[serde(default)]
+    pub base: Base,
+    #[serde(default)]
+    pub mods: Mods,
 }
 
 impl Actor {
@@ -239,6 +252,9 @@ impl Actor {
             immovable: false,
             last_hit: None,
             powers: Vec::new(),
+            tweaks: Vec::new(),
+            base: Base::default(),
+            mods: Mods::default(),
         }
     }
 
@@ -259,6 +275,17 @@ impl Actor {
 
     pub fn alive(&self) -> bool {
         !self.dead
+    }
+
+    /// Recomputes a monster's sheet from its base, lasting mods and buffs (keeps life %).
+    pub fn recompute(&mut self) {
+        let mut m = self.mods.clone();
+        for b in &self.buffs {
+            m.merge(&b.mods);
+        }
+        let frac = if self.sheet.life_max > 0.0 { self.life / self.sheet.life_max } else { 1.0 };
+        self.sheet = Sheet::compute(self.base, &m);
+        self.life = frac * self.sheet.life_max;
     }
 }
 
@@ -294,6 +321,8 @@ pub enum EffectKind {
     Delayed,
     /// Ground that hurts while it lasts (burning trails, poison pools): `dmg` every 0.25 s.
     Field,
+    /// Like `Delayed`, but something falls from the sky onto it.
+    Meteor,
 }
 
 /// Something happening on the ground.

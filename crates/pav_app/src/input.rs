@@ -170,7 +170,7 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Potion", "1"),
             ("Attack in place", "hold Shift"),
             ("Use (trade, stash, portal)", "G"),
-            ("Inventory · character · skills", "I · C · K"),
+            ("Inventory · passives · character · skills", "I · P · C · K"),
             ("Town portal", "T"),
             ("Pick up", "walk over it, or click its name"),
             ("Camera", "middle-drag rotate · wheel zoom"),

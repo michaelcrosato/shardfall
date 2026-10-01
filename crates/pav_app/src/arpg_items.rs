@@ -21,6 +21,7 @@ pub struct GameUi {
     pub skills: bool,
     /// The vendor, stash or portal window (opened by interacting).
     pub panel: Option<SpotKind>,
+    pub tree: crate::arpg_tree::TreeUi,
 }
 
 pub fn rarity_color(r: Rarity) -> Color32 {
@@ -311,11 +312,15 @@ const DOLL: [(EquipSlot, f32, f32); 10] = [
 
 impl GameUi {
     pub fn any_open(&self) -> bool {
-        self.inventory || self.character || self.skills || self.panel.is_some()
+        self.inventory || self.character || self.skills || self.panel.is_some() || self.tree.open
     }
 
     pub fn close_all(&mut self) {
-        *self = GameUi::default();
+        self.inventory = false;
+        self.character = false;
+        self.skills = false;
+        self.panel = None;
+        self.tree.open = false;
     }
 
     /// Interact pressed: open whatever the hero stands at.
@@ -348,6 +353,20 @@ impl GameUi {
         }
         if self.skills {
             skills_window(ctx, &mut self.skills, &d, &inv, &mut out);
+        }
+        self.tree.ui(ctx, &inv, &mut out);
+        if inv.points > 0 && !self.tree.open {
+            // A nudge above the experience bar.
+            let screen = ctx.content_rect();
+            let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("points_hint")));
+            let at = Pos2::new(screen.center().x, screen.bottom() - 28.0);
+            p.text(
+                at,
+                Align2::CENTER_BOTTOM,
+                format!("+{} passive point{}  (P)", inv.points, if inv.points == 1 { "" } else { "s" }),
+                FontId::proportional(14.0),
+                Color32::from_rgb(255, 215, 120),
+            );
         }
         match self.panel {
             Some(SpotKind::Vendor) => self.vendor_window(ctx, &d, &inv, &mut out),
@@ -622,14 +641,7 @@ impl GameUi {
 
 /// An item that beats what's worn in its slot (by value of its stats: a rough guide).
 fn is_upgrade(d: &Data, inv: &InvView, it: &Item) -> bool {
-    let score = |i: &Item| {
-        let s = i.stats(d);
-        let dps = (s.phys[0] + s.phys[1]) * 0.5 * s.aps;
-        s.mods.0.values().map(|v| v.abs()).sum::<f32>() * 0.4
-            + dps * 2.0
-            + s.armor * 0.5
-            + if s.power.is_some() { 50.0 } else { 0.0 }
-    };
+    let score = |i: &Item| i.score(d);
     match worn_for(inv, d, it) {
         Some(w) => score(it) > score(w) * 1.08,
         None => true,
@@ -735,6 +747,14 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
                     ui.end_row();
                 }
             });
+            if !inv.tweaks.is_empty() {
+                ui.separator();
+                ui.label(RichText::new("Upgrades from the passive tree").strong());
+                for t in &inv.tweaks {
+                    let name = d.skill_id(&t.skill).map(|i| d.skill(i).name.clone()).unwrap_or_default();
+                    ui.label(RichText::new(t.describe(&name)).color(Color32::from_rgb(140, 200, 255)));
+                }
+            }
         });
 }
 

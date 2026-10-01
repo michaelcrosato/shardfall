@@ -3,6 +3,7 @@
 //! Hero skills and monster attacks run through the same code.
 
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
 
 use super::combat::*;
 use super::data::{Behavior, SkillDef, data};
@@ -19,10 +20,151 @@ fn yaw_dir(y: f32) -> Vec3 {
     Vec3::new(y.sin(), 0.0, y.cos())
 }
 
+/// What a tweak changes about a skill.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TweakField {
+    /// Percent more damage.
+    Damage,
+    /// More projectiles, drops, wave segments (+n).
+    Count,
+    /// Percent larger area (and explosions).
+    Radius,
+    /// Percent shorter cooldown; percent cheaper.
+    Cooldown,
+    Cost,
+    /// Projectiles pierce / chain to +n more enemies.
+    Pierce,
+    Chain,
+    /// Percentage points more ailment chance.
+    Ailment,
+    /// Percent longer duration (fields, buffs, channels).
+    Duration,
+    /// Percent faster to use.
+    Speed,
+    /// Percent more range.
+    Range,
+    /// More knockback (+n).
+    Knockback,
+    /// Becomes this element (1 fire, 2 cold, 3 lightning, 4 poison).
+    Element,
+}
+
+impl TweakField {
+    pub const ALL: [TweakField; 13] = [
+        TweakField::Damage,
+        TweakField::Count,
+        TweakField::Radius,
+        TweakField::Cooldown,
+        TweakField::Cost,
+        TweakField::Pierce,
+        TweakField::Chain,
+        TweakField::Ailment,
+        TweakField::Duration,
+        TweakField::Speed,
+        TweakField::Range,
+        TweakField::Knockback,
+        TweakField::Element,
+    ];
+    pub fn key(self) -> &'static str {
+        [
+            "damage",
+            "count",
+            "radius",
+            "cooldown",
+            "cost",
+            "pierce",
+            "chain",
+            "ailment",
+            "duration",
+            "speed",
+            "range",
+            "knockback",
+            "element",
+        ][self as usize]
+    }
+    pub fn from_key(k: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|f| f.key() == k)
+    }
+}
+
+/// A change to one skill (passive tree nodes, item affixes, monster affixes).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Tweak {
+    pub skill: String,
+    pub field: TweakField,
+    pub value: f32,
+}
+
+impl Tweak {
+    /// How it reads ("Fireball: +1 projectile").
+    pub fn describe(&self, skill_name: &str) -> String {
+        let v = self.value;
+        let n = if (v - v.round()).abs() < 0.05 { format!("{}", v.round() as i64) } else { format!("{v:.1}") };
+        let what = match self.field {
+            TweakField::Damage => format!("{n}% more damage"),
+            TweakField::Count => format!("+{n} projectiles / strikes"),
+            TweakField::Radius => format!("{n}% larger area"),
+            TweakField::Cooldown => format!("{n}% shorter cooldown"),
+            TweakField::Cost => format!("costs {n}% less"),
+            TweakField::Pierce => format!("pierces {n} more enemies"),
+            TweakField::Chain => format!("chains {n} more times"),
+            TweakField::Ailment => format!("+{n}% chance to inflict its ailment"),
+            TweakField::Duration => format!("lasts {n}% longer"),
+            TweakField::Speed => format!("{n}% faster"),
+            TweakField::Range => format!("{n}% more range"),
+            TweakField::Knockback => format!("knocks back {n} more"),
+            TweakField::Element => format!("becomes {}", super::data::Element::ALL[(v.max(0.0) as usize).min(4)].name()),
+        };
+        format!("{skill_name}: {what}")
+    }
+}
+
+/// A skill as this actor uses it: the data plus the actor's tweaks for it.
+pub fn tuned(def: &SkillDef, tweaks: &[Tweak]) -> SkillDef {
+    let mut d = def.clone();
+    for t in tweaks.iter().filter(|t| t.skill == def.key) {
+        let v = t.value;
+        let pct = 1.0 + v / 100.0;
+        match t.field {
+            TweakField::Damage => {
+                d.effect *= pct;
+                d.base = [d.base[0] * pct, d.base[1] * pct];
+            }
+            TweakField::Count => d.count = (d.count as f32 + v).max(1.0) as u32,
+            TweakField::Radius => {
+                d.radius *= pct;
+                d.explode *= pct;
+                d.scatter *= pct.sqrt();
+            }
+            TweakField::Cooldown => d.cooldown *= (1.0 - v / 100.0).max(0.0),
+            TweakField::Cost => d.cost *= (1.0 - v / 100.0).max(0.0),
+            TweakField::Pierce => d.pierce += v.max(0.0) as u32,
+            TweakField::Chain => d.chain += v.max(0.0) as u32,
+            TweakField::Ailment => d.ailment += v / 100.0,
+            TweakField::Duration => d.duration *= pct,
+            TweakField::Speed => d.time /= pct.max(0.1),
+            TweakField::Range => d.range *= pct,
+            TweakField::Knockback => d.knockback += v,
+            TweakField::Element => {
+                d.element = super::data::Element::ALL[(v.max(0.0) as usize).min(4)];
+                d.color = "#ffffff".into();
+            }
+        }
+    }
+    d
+}
+
+/// Skill `id` as actor `a` uses it.
+pub fn skill_of(a: &Actor, id: u16) -> SkillDef {
+    let d = data();
+    tuned(d.skill(id), &a.tweaks)
+}
+
 /// Starts `skill` toward `target` if the actor can (alive, off cooldown, enough mana).
 pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: Vec3) -> bool {
-    let d = data();
-    let def = d.skill(skill);
+    let Some(def) = g.actors.get(&id).map(|a| skill_of(a, skill)) else { return false };
+    let def = &def;
     let Some((feet, _)) = feet_of(sim, id) else { return false };
     let facing = sim.state.entities.get(id).and_then(|e| e.character.as_ref()).map(|c| c.facing).unwrap_or(0.0);
     let enemy_speed = sim.config.difficulty.enemy_speed;
@@ -32,7 +174,8 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
     if a.dead || a.frozen() || a.cooldown(skill) > 0.0 {
         return false;
     }
-    let cost = def.cost * a.sheet.mana_cost;
+    // Channels pay per second as they go; the first pulse up front.
+    let cost = def.cost * a.sheet.mana_cost * if def.behavior == Behavior::Channel { def.interval.max(0.05) } else { 1.0 };
     let blood = a.has_power(super::powers::PowerKind::BloodMagic);
     let pool = if blood { a.life - 1.0 } else { a.mana };
     if pool < cost {
@@ -52,7 +195,12 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
     let speed =
         if def.is_attack() { a.sheet.attack_speed * if is_hero { weapon_aps / 1.4 } else { 1.0 } } else { a.sheet.cast_speed }
             * if a.team == Team::Monster { enemy_speed } else { 1.0 };
-    let dur = def.time / speed.max(0.1);
+    let mut dur = def.time / speed.max(0.1);
+    let hit_at = dur * def.hit;
+    if def.behavior == Behavior::Channel {
+        // Until the button is let go (the hero) or for its duration (monsters).
+        dur = if is_hero { 1.0e6 } else { def.duration.max(def.time) };
+    }
     let combo = if def.combo > 1 && a.combo_timer > 0.0 { (a.combo + 1) % def.combo } else { 0 };
     a.combo = combo;
     a.combo_timer = 0.6;
@@ -62,14 +210,16 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
     }
     let dir = to.normalize();
     let mut target = Vec3::new(target.x, feet.y, target.z);
-    if def.behavior == Behavior::Leap && to.length() > def.range {
+    if matches!(def.behavior, Behavior::Leap | Behavior::Blink | Behavior::Meteor | Behavior::Field | Behavior::Rain)
+        && to.length() > def.range
+    {
         target = feet + dir * def.range;
     }
     a.cast = Some(Cast {
         skill,
         t: 0.0,
         dur,
-        hit_at: dur * def.hit,
+        hit_at,
         dir,
         target,
         origin: feet,
@@ -77,16 +227,17 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
         combo,
         side: if combo % 2 == 0 { 1.0 } else { -1.0 },
         hits: Vec::new(),
+        pulses: 0,
+        button: 0,
     });
     true
 }
 
 /// Moves actors whose skill carries them (each tick before characters move).
 pub fn steer_cast(g: &mut Game, sim: &mut Sim, id: EntityId) {
-    let d = data();
     let Some(a) = g.actors.get(&id) else { return };
     let Some(c) = &a.cast else { return };
-    let def = d.skill(c.skill);
+    let def = &skill_of(a, c.skill);
     let Some(ch) = sim.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) else { return };
     match def.behavior {
         Behavior::Leap => {
@@ -116,7 +267,6 @@ pub fn steer_cast(g: &mut Game, sim: &mut Sim, id: EntityId) {
 
 /// Advances an actor's cast; lands its hit at the right moment and starts the buffered one.
 pub fn advance_cast(g: &mut Game, sim: &mut Sim, id: EntityId, dt: f32, events: &mut Vec<SimEvent>) {
-    let d = data();
     let Some(a) = g.actors.get_mut(&id) else { return };
     if a.dead {
         return;
@@ -124,9 +274,14 @@ pub fn advance_cast(g: &mut Game, sim: &mut Sim, id: EntityId, dt: f32, events: 
     if a.frozen() {
         return;
     }
+    let Some(skill) = a.cast.as_ref().map(|c| c.skill) else { return };
+    let def = skill_of(a, skill);
     let Some(c) = &mut a.cast else { return };
     c.t += dt;
-    let def = d.skill(c.skill).clone();
+    if def.behavior == Behavior::Channel {
+        channel(g, sim, id, &def, events);
+        return;
+    }
     let fire = !c.fired && c.t >= c.hit_at;
     if fire {
         c.fired = true;
@@ -201,6 +356,15 @@ pub fn roll_damage(g: &Game, sim: &mut Sim, id: EntityId, def: &SkillDef, mult: 
         };
         amt[el] = v;
         crit_base = 6.0;
+    }
+    // Avatar keystones: everything becomes one element.
+    let mut el = el;
+    if let Some(p) = a.power(super::powers::PowerKind::Convert) {
+        let to = (p.a.max(0.0) as usize).min(4);
+        let total: f32 = amt.iter().sum();
+        amt = [0.0; 5];
+        amt[to] = total;
+        el = to;
     }
     let tags = def.tag_refs();
     for (i, x) in amt.iter_mut().enumerate() {
@@ -401,7 +565,7 @@ pub(crate) fn fire_cast(
                     life: def.range / speed.max(1.0),
                     dmg,
                     pierce: def.pierce + if is_hero { sheet.pierce } else { 0 },
-                    chain: if is_hero { sheet.chain } else { 0 },
+                    chain: def.chain + if is_hero { sheet.chain } else { 0 },
                     explode: def.explode * area.sqrt(),
                     hit: Vec::new(),
                     color: if def.color == "#ffffff" { el_color } else { color },
@@ -414,8 +578,238 @@ pub(crate) fn fire_cast(
         Behavior::Dash | Behavior::Charge => {
             events.push(SimEvent::Swing { pos: feet, heavy: def.behavior == Behavior::Charge });
         }
+        // Channels pulse in `channel`.
+        Behavior::Channel => {}
+        Behavior::Wave => {
+            let r = def.radius * area.sqrt();
+            let n = def.count.max(1);
+            for i in 0..n {
+                let at = feet + c.dir * (1.2 + i as f32 * r * 1.45);
+                let dmg = roll_damage(g, sim, id, def, mult);
+                g.effects.push(Effect {
+                    kind: EffectKind::Delayed,
+                    pos: at,
+                    radius: r,
+                    t: 0.0,
+                    dur: 0.03 + i as f32 * 0.055,
+                    color,
+                    team,
+                    dmg: Some(dmg),
+                    dir: c.dir,
+                    angle: -1.0,
+                });
+            }
+            center = feet + c.dir * (1.2 + n as f32 * r * 0.7);
+            g.shake = (g.shake + def.shake * sim.config.difficulty.shake).min(1.5);
+            events.push(SimEvent::Slam { pos: feet + c.dir * 1.2, radius: r });
+        }
+        Behavior::Buff => {
+            let r = def.radius * area.sqrt();
+            let time = def.duration * sheet.duration;
+            // The user and its allies near it.
+            let allies: Vec<EntityId> = g
+                .actors
+                .iter()
+                .filter(|(_, o)| !o.dead && o.team == team)
+                .filter_map(|(oid, _)| feet_of(sim, *oid).map(|f| (*oid, f.0)))
+                .filter(|(_, f)| flat(*f - feet).length() <= r)
+                .map(|x| x.0)
+                .collect();
+            for oid in allies {
+                if let Some(o) = g.actors.get_mut(&oid) {
+                    o.buffs.retain(|b| b.name != def.name);
+                    o.buffs.push(Buff { kind: BuffKind::Fury, name: def.name.clone(), time, mods: def.buff_mods.clone() });
+                    if Some(oid) != g.hero_id {
+                        o.recompute();
+                    }
+                }
+            }
+            if Some(id) == g.hero_id {
+                super::refresh_hero(sim, g, false);
+            }
+            // Taunt and shove whatever is close.
+            let foes = targets(g, sim, team, |f, rr| flat(f - feet).length() <= r + rr);
+            for (t, _) in &foes {
+                if let Some(b) = g.actors.get_mut(t).and_then(|a| a.brain.as_mut()) {
+                    b.aggro = true;
+                }
+                if def.effect > 0.0 {
+                    let dmg = roll_damage(g, sim, id, def, mult);
+                    g.hit(sim, *t, &dmg, feet, events);
+                }
+            }
+            g.effects.push(Effect {
+                kind: EffectKind::Ring,
+                pos: feet,
+                radius: r,
+                t: 0.0,
+                dur: 0.6,
+                color,
+                team,
+                dmg: None,
+                dir: c.dir,
+                angle: 360.0,
+            });
+            g.shake = (g.shake + def.shake * sim.config.difficulty.shake).min(1.5);
+            events.push(SimEvent::Spell { pos: feet, element: 0 });
+        }
+        Behavior::Meteor => {
+            let r = def.radius * area.sqrt();
+            let dmg = roll_damage(g, sim, id, def, mult);
+            g.effects.push(Effect {
+                kind: EffectKind::Meteor,
+                pos: c.target,
+                radius: r,
+                t: 0.0,
+                dur: def.delay.max(0.1),
+                color: el_color,
+                team,
+                dmg: Some(dmg),
+                dir: c.dir,
+                angle: 360.0,
+            });
+            center = c.target;
+            events.push(SimEvent::Spell { pos: feet, element: def.element as u8 });
+        }
+        Behavior::Field => {
+            let r = def.radius * area.sqrt();
+            // Damage per pulse (four pulses a second).
+            let dmg = roll_damage(g, sim, id, def, mult * 0.25);
+            g.effects.push(Effect {
+                kind: EffectKind::Field,
+                pos: c.target,
+                radius: r,
+                t: 0.0,
+                dur: def.duration.max(0.5) * sheet.duration,
+                color: if def.color == "#ffffff" { el_color } else { color },
+                team,
+                dmg: Some(dmg),
+                dir: c.dir,
+                angle: 360.0,
+            });
+            center = c.target;
+            events.push(SimEvent::Spell { pos: c.target, element: def.element as u8 });
+        }
+        Behavior::Rain => {
+            let r = def.radius * area.sqrt();
+            let spread = def.scatter.max(0.5) * area.sqrt();
+            for i in 0..def.count.max(1) {
+                let rng = &mut sim.state.rng;
+                let a = rng.range(0.0, std::f32::consts::TAU);
+                let dist = spread * rng.f32().sqrt();
+                let at = c.target + Vec3::new(a.cos(), 0.0, a.sin()) * dist;
+                let delay = 0.25 + i as f32 * 0.07 + rng.range(0.0, 0.12);
+                let dmg = roll_damage(g, sim, id, def, mult);
+                g.effects.push(Effect {
+                    kind: EffectKind::Delayed,
+                    pos: at,
+                    radius: r,
+                    t: 0.0,
+                    dur: delay,
+                    color: if def.color == "#ffffff" { el_color } else { color },
+                    team,
+                    dmg: Some(dmg),
+                    dir: c.dir,
+                    angle: -1.0,
+                });
+            }
+            center = c.target;
+            events.push(SimEvent::Spell { pos: feet, element: def.element as u8 });
+        }
+        Behavior::Blink => {
+            let to = flat(c.target - feet);
+            let len = to.length().min(def.range);
+            let dir = to.normalize_or(c.dir);
+            // Stop short of walls.
+            let ignore = sim.state.entities.get(id).and_then(|e| e.body);
+            let clear = crate::projectile::static_hit(&sim.state.physics, feet + Vec3::Y * 0.8, dir, len + 0.6, ignore)
+                .map(|t| (t - 0.6).max(0.0))
+                .unwrap_or(len);
+            let dest = feet + dir * clear.min(len);
+            for p in [feet, dest] {
+                g.effects.push(Effect {
+                    kind: EffectKind::Burst,
+                    pos: p,
+                    radius: 2.0,
+                    t: 0.0,
+                    dur: 0.3,
+                    color: el_color,
+                    team,
+                    dmg: None,
+                    dir,
+                    angle: 0.0,
+                });
+            }
+            sim.set_position(id, dest + Vec3::Y * (height * 0.5 + 0.02));
+            if let Some(a) = g.actors.get_mut(&id) {
+                a.iframes = a.iframes.max(0.25);
+            }
+            // Arriving hurts whatever stands there.
+            if def.effect > 0.0 || def.base[1] > 0.0 {
+                circle_hit(g, sim, id, def, dest, def.radius.max(1.5) * area.sqrt(), mult, events);
+            }
+            center = dest;
+            events.push(SimEvent::Spell { pos: dest, element: def.element as u8 });
+        }
     }
     g.power_on_fire(sim, id, def, c, center, echo, events);
+}
+
+/// A channelled skill: pulses around the user every `interval` while held, paying as it goes.
+fn channel(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events: &mut Vec<SimEvent>) {
+    let Some((feet, height)) = feet_of(sim, id) else { return };
+    let Some(a) = g.actors.get(&id) else { return };
+    let Some(c) = a.cast.clone() else { return };
+    let speed = if def.is_attack() {
+        a.sheet.attack_speed * if Some(id) == g.hero_id { g.hero.weapon.aps / 1.4 } else { 1.0 }
+    } else {
+        a.sheet.cast_speed
+    };
+    let interval = def.interval.max(0.05) / speed.max(0.2);
+    let due = if c.t < c.hit_at { 0 } else { 1 + ((c.t - c.hit_at) / interval) as u32 };
+    if c.t >= c.dur {
+        if let Some(a) = g.actors.get_mut(&id) {
+            a.cast = None;
+        }
+        return;
+    }
+    if due <= c.pulses {
+        return;
+    }
+    // Pay for the pulse (the first was paid up front).
+    let blood = a.has_power(super::powers::PowerKind::BloodMagic);
+    let cost = def.cost * a.sheet.mana_cost * def.interval.max(0.05);
+    let a = g.actors.get_mut(&id).unwrap();
+    if c.pulses > 0 {
+        let pool = if blood { &mut a.life } else { &mut a.mana };
+        if *pool < cost + if blood { 1.0 } else { 0.0 } {
+            a.cast = None;
+            return;
+        }
+        *pool -= cost;
+    }
+    if let Some(c) = a.cast.as_mut() {
+        c.pulses = due;
+        c.fired = true;
+    }
+    let team = a.team;
+    let area = a.sheet.area.max(0.1).sqrt();
+    let r = def.radius * area;
+    circle_hit(g, sim, id, def, feet, r, 1.0, events);
+    g.effects.push(Effect {
+        kind: EffectKind::Ring,
+        pos: feet + Vec3::Y * (height * 0.5),
+        radius: r,
+        t: 0.0,
+        dur: 0.2,
+        color: def.rgb(),
+        team,
+        dmg: None,
+        dir: c.dir,
+        angle: 360.0,
+    });
+    events.push(SimEvent::Swing { pos: feet, heavy: false });
+    g.power_on_fire(sim, id, def, &c, feet, true, events);
 }
 
 /// Dashes and charges: everything along the way, once each.
@@ -607,7 +1001,7 @@ pub fn update_effects(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<Sim
                 }
             }
         }
-        if e.kind == EffectKind::Delayed && before < e.dur && e.t >= e.dur {
+        if matches!(e.kind, EffectKind::Delayed | EffectKind::Meteor) && before < e.dur && e.t >= e.dur {
             if let Some(dmg) = e.dmg.clone() {
                 let hit = targets(g, sim, e.team, |f, r| flat(f - e.pos).length() <= e.radius + r);
                 for (t, _) in hit {
@@ -617,14 +1011,14 @@ pub fn update_effects(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<Sim
             }
         }
     }
-    effects.retain(|e| e.t < e.dur + if e.kind == EffectKind::Delayed { 0.35 } else { 0.0 });
+    effects.retain(|e| e.t < e.dur + if matches!(e.kind, EffectKind::Delayed | EffectKind::Meteor) { 0.35 } else { 0.0 });
     effects.append(&mut g.effects);
     g.effects = effects;
 }
 
 /// Where a monster's wind-up will land.
 pub fn telegraph(a: &Actor, c: &Cast, feet: Vec3) -> Option<Telegraph> {
-    let def = data().skill(c.skill).clone();
+    let def = skill_of(a, c.skill);
     if !def.telegraph || c.fired || a.team != Team::Monster {
         return None;
     }
@@ -640,6 +1034,16 @@ pub fn telegraph(a: &Actor, c: &Cast, feet: Vec3) -> Option<Telegraph> {
         }
         Behavior::Projectile => TeleShape::Line { from: feet, dir: c.dir, length: def.range.min(8.0), width: 0.35 },
         Behavior::Leap => TeleShape::Circle { center: c.target, radius: def.radius },
+        Behavior::Meteor | Behavior::Field => TeleShape::Circle { center: c.target, radius: def.radius },
+        Behavior::Rain => TeleShape::Circle { center: c.target, radius: def.scatter.max(def.radius) },
+        Behavior::Channel | Behavior::Buff => TeleShape::Circle { center: feet, radius: def.radius },
+        Behavior::Wave => TeleShape::Line {
+            from: feet,
+            dir: c.dir,
+            length: 1.2 + def.count.max(1) as f32 * def.radius * 1.45,
+            width: def.radius * 2.0,
+        },
+        Behavior::Blink => return None,
     };
     Some(Telegraph { shape, progress, color: if def.color == "#ffffff" { [1.0, 0.25, 0.15] } else { def.rgb() } })
 }

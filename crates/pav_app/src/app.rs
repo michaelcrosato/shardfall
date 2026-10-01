@@ -477,6 +477,10 @@ impl App {
                     ui.skills = !ui.skills;
                     return;
                 }
+                KeyCode::KeyP => {
+                    ui.tree.open = !ui.tree.open;
+                    return;
+                }
                 KeyCode::KeyT => {
                     // Town portal: home from anywhere.
                     if self.game_frame.as_ref().is_some_and(|g| g.place != pav_core::arpg::Place::Town) {
@@ -914,7 +918,9 @@ impl App {
                 &ctx,
                 match (device, game_frame.is_some()) {
                     (Device::Gamepad, _) => "Start: menu",
-                    (_, true) => "Esc menu · I inventory · C character · K skills · T town · G use · Space dodge · 1 potion",
+                    (_, true) => {
+                        "Esc menu · I inventory · P passives · C character · K skills · T town · G use · Space dodge · 1 potion"
+                    }
                     _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
                 },
             );

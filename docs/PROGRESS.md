@@ -401,8 +401,8 @@ Windows build.
 |---|---|
 | G1 Combat core | ✅ done (3423ab6) |
 | G2 Loot, items, inventory | ✅ done |
-| G3 Passive tree, all skills | ⏳ next |
-| G4 Monster genome, bosses | ⏳ |
+| G3 Passive tree, all skills | ✅ done |
+| G4 Monster genome, bosses | ⏳ next |
 | G5 Town, levels, mechanics, endless | ⏳ |
 | G6 Polish, agent tools, final build | ⏳ |
 
@@ -463,6 +463,38 @@ Windows build.
 - Known gaps (later milestones): no saving yet (G5), gamepad cannot drive the menus yet (G6),
   vendor only has the smith (more NPCs in G5), item level requirements are not used.
 
+## G3 Passive tree and all skills — done
+- 16 hero skills (game/skills.toml): slash, cleave, leap_slam, blade_dash, fireball, frost_nova,
+  rend, ice_shards, war_cry, chain_lightning, whirlwind, blizzard, earthsplitter, blink, meteor,
+  toxic_rain (unlocks 1-24). New behaviours: channel (held, pulses, pays per second; cast
+  `button`/`pulses`), wave (rolling fissure of quick blasts), buff (war cry: buff mods to user +
+  allies, taunt, shove), meteor (`EffectKind::Meteor`, falling rock), field (blizzard, cold
+  shards fall), blink (stops short of walls), rain (scattered drops). Skill fields: duration,
+  interval, chain, delay, scatter, buff.
+- Tweaks (`skills::Tweak`, `TweakField`: damage count radius cooldown cost pierce chain ailment
+  duration speed range knockback element) live on actors; `skills::skill_of(actor, id)` gives
+  the tuned skill used everywhere (cast, fire, telegraph, HUD cost/cooldown).
+- Passive tree (`arpg/tree.rs`, `game/tree.toml`): generated from sectors (road of 8 with
+  notables, two lanes with 3 wheels around masteries and 3 skill branches, keystone at the end),
+  bridges across gutters between sectors (inner + outer with a keystone), then 30 endless Astral
+  rings (stats grow per ring). 265 main nodes (30 notables, 12 keystones, 18 masteries x 4
+  options, 48 skill upgrades) + ~4500 Astral nodes. Ids are FNV hashes of layout keys. A light
+  relaxation keeps nodes apart. Rules: adjacency to allocated/start, refund keeps connectivity
+  (gold), respec (gold), mastery options once per sector. One point per level.
+- New powers: `Convert` (Avatar keystones). Stat lines read naturally when negative.
+- Monsters keep `base`/`mods` and `Actor::recompute` (buffs work for them too).
+- UI: tree window (P): pan/zoom canvas, hover details, click / shift-click path / right-click
+  refund, mastery picker, search, reset; "+N passive points (P)" nudge; skills window shows
+  tree upgrades; icons for the new behaviours. View: meteors, fields (fire embers / falling ice),
+  quick blasts.
+- Tools: `tree` (find/take/refund/respec/mastery, what the tree gives), `tree_map` (software
+  rasterised PNG of the tree; `Canvas` helper for diagrams). Bot spends points (notables,
+  upgrades for its bar skills, no keystones), picks masteries, holds channels.
+- Tests: tests/skills.rs (all 16 skills hurt monsters, Twin Flames doubles fireballs, channel
+  lasts while held, war cry buff, blink distance, tree rules through commands incl. masteries
+  and refund/respec, Avatar of Flame converts, bot spends points and keeps winning); tree unit
+  tests (size, connectivity, no overlaps, path/refund rules).
+
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
   it, including rewind mid-fight and the live bridge.
@@ -480,3 +512,7 @@ Windows build.
 - Travel rebuilds the whole SimState in place (not a second Sim): history snapshots hold the
   entire state, so rewinding across a portal just works.
 - Powers are on actors, fed by items now and by keystones/monster affixes later.
+- The passive tree is generated from a small data file (cluster grammar + lanes/gutters layout)
+  rather than hand-placed: one design language, easy to extend, and infinite (Astral rings).
+- Skill upgrades are tweaks on the actor applied to the skill definition at use, so monsters
+  can carry them too (G4 affixes like "extra projectiles").

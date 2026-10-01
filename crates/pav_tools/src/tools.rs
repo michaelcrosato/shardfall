@@ -364,6 +364,30 @@ pub static TOOLS: &[Tool] = &[
         ],
         run: crate::game_tools::t_game_cmd,
     },
+    Tool {
+        name: "tree_map",
+        help: "Draw the passive tree (and the first Astral rings) to a PNG: sectors coloured, notables/keystones/masteries ringed, skill nodes blue-ringed, the hero's allocation highlighted.",
+        args: &[
+            arg("size", "integer", "image size in pixels (default 1200)"),
+            arg("rings", "integer", "Astral rings to include (default 2)"),
+            arg("out", "string", "PNG path (default out/tree.png)"),
+        ],
+        run: crate::game_tools::t_tree_map,
+    },
+    Tool {
+        name: "tree",
+        help: "The hero's passive tree: points, what the allocation gives; find nodes (find=fire or find=keystone), take=NAME allocates the shortest path to a node, refund=, respec=true, mastery=NAME option=N.",
+        args: &[
+            arg("find", "string", "search node names and effects ('keystone' lists keystones)"),
+            arg("take", "string", "node name or id: allocate the path to it"),
+            arg("refund", "string", "node name or id to refund (gold)"),
+            arg("respec", "boolean", "reset the whole tree (gold)"),
+            arg("mastery", "string", "allocated mastery node name or id"),
+            arg("option", "integer", "mastery option index"),
+            arg("astral", "boolean", "include the endless rings in find"),
+        ],
+        run: crate::game_tools::t_tree,
+    },
 ];
 
 pub fn find(name: &str) -> Option<&'static Tool> {

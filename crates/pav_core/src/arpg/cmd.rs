@@ -40,6 +40,12 @@ pub enum GameCmd {
     AutoLoot(u8),
     /// Sort the bag (slot, then rarity).
     Sort,
+    /// Passive tree: take a node, give one back (costs gold), reset everything (costs more),
+    /// pick a mastery's option.
+    Allocate(u32),
+    Refund(u32),
+    Respec,
+    Mastery(u32, u8),
 }
 
 /// Where the hero can be. Codes: 0 town, 1 arena (levels come in G5).
@@ -258,6 +264,62 @@ impl Game {
                     _ => Rarity::Unique,
                 };
                 self.auto_loot_off = r >= 4;
+            }
+            GameCmd::Allocate(id) => {
+                let t = &d.tree;
+                if self.hero.points() == 0 {
+                    return Err("No passive points left".into());
+                }
+                if !t.can_allocate(&self.hero.tree, id) {
+                    return Err("Not connected to your tree".into());
+                }
+                self.hero.tree.insert(id);
+                gear = true;
+            }
+            GameCmd::Refund(id) => {
+                if !d.tree.can_refund(&self.hero.tree, id) {
+                    return Err("That would cut off other nodes".into());
+                }
+                let cost = self.hero.refund_cost();
+                if self.hero.gold < cost {
+                    return Err(format!("Refunding costs {cost} gold"));
+                }
+                self.hero.gold -= cost;
+                self.hero.tree.remove(&id);
+                self.hero.masteries.remove(&id);
+                gear = true;
+            }
+            GameCmd::Respec => {
+                let cost = self.hero.respec_cost();
+                if self.hero.gold < cost {
+                    return Err(format!("A full reset costs {cost} gold"));
+                }
+                self.hero.gold -= cost;
+                self.hero.tree.clear();
+                self.hero.masteries.clear();
+                gear = true;
+            }
+            GameCmd::Mastery(id, option) => {
+                let t = &d.tree;
+                let n = t.node(id).ok_or("no such node")?;
+                if !self.hero.tree.contains(&id) || n.mastery.is_empty() {
+                    return Err("Allocate the mastery first".into());
+                }
+                let m = t.masteries.get(&n.mastery).ok_or("unknown mastery")?;
+                if option as usize >= m.options.len() {
+                    return Err("no such option".into());
+                }
+                // Each option once per mastery family.
+                let taken = self
+                    .hero
+                    .masteries
+                    .iter()
+                    .any(|(nid, o)| *nid != id && *o == option && t.node(*nid).is_some_and(|x| x.mastery == n.mastery));
+                if taken {
+                    return Err(format!("{} is already chosen elsewhere", m.options[option as usize].0));
+                }
+                self.hero.masteries.insert(id, option);
+                gear = true;
             }
             GameCmd::Sort => {
                 let key =
