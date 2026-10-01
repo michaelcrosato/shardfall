@@ -118,11 +118,8 @@ fn kegs_blow_up_monsters_and_each_other() {
     let mut sim = level_sim(2, 8);
     // Find a keg with a monster near it.
     let lv = level(&sim);
-    let kegs: Vec<(pav_core::EntityId, Vec3)> = lv
-        .features
-        .iter()
-        .filter_map(|f| matches!(f.kind, FeatureKind::Keg { .. }).then(|| (f.entity.unwrap(), f.pos)))
-        .collect();
+    let kegs: Vec<(pav_core::EntityId, Vec3)> =
+        lv.features.iter().filter(|f| matches!(f.kind, FeatureKind::Keg { .. })).map(|f| (f.entity.unwrap(), f.pos)).collect();
     assert!(kegs.len() >= 4, "kegs: {}", kegs.len());
     let (keg, at) = kegs[0];
     let mut gm = sim.state.game.take().unwrap();
@@ -147,7 +144,7 @@ fn kegs_blow_up_monsters_and_each_other() {
     sim.state.game = Some(g);
     sim.run(20, &InputFrame::default());
     let g = game(&sim);
-    assert!(g.actors.get(&keg).is_none(), "the keg is gone");
+    assert!(!g.actors.contains_key(&keg), "the keg is gone");
     let hurt = g.actors.get(&id).is_none_or(|a| a.dead || a.life < life0 * 0.5);
     assert!(hurt, "the monster next to it took the blast");
 }

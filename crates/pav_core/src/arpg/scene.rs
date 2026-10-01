@@ -842,7 +842,7 @@ fn gamble_table(sim: &mut Sim, at: Vec3) {
             Block::new(at + Vec3::new(x - 0.2, 0.0, 0.75), at + Vec3::new(x + 0.2, 0.45, 1.1), wood.scale(0.8)),
         );
     }
-    lamp(sim, at + Vec3::new(1.5, 0.0, -0.6));
+    lamp(sim, at + Vec3::new(2.3, 0.0, 0.7));
 }
 
 /// The alchemist's cauldron over a fire, green and bubbling, and her shelf of bottles.

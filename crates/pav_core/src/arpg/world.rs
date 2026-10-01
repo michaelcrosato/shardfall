@@ -915,7 +915,7 @@ impl<'a> Builder<'a> {
                     let mut v = Visual::new(Shape::Cylinder { half_height: 0.5, radius: 0.4 }, Color::hex(&t.pillar).scale(0.9));
                     v.look = Look::Lit;
                     let mut s = Spawn::new("column piece", at + Vec3::new(0.9, 0.4, 0.3)).visual(v);
-                    s.rot = Quat::from_rotation_z(1.5708) * rot(self.rng.range(0.0, 3.0));
+                    s.rot = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2) * rot(self.rng.range(0.0, 3.0));
                     self.sim.spawn(s);
                 }
             }
@@ -948,7 +948,7 @@ impl<'a> Builder<'a> {
                     v.look = Look::Lit;
                     let o = Vec3::new(self.rng.range(-0.5, 0.5), 0.05, self.rng.range(-0.5, 0.5));
                     let mut s = Spawn::new("bone", at + o).visual(v);
-                    s.rot = rot(self.rng.range(0.0, 3.1)) * Quat::from_rotation_z(1.5708);
+                    s.rot = rot(self.rng.range(0.0, 3.1)) * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
                     self.sim.spawn(s);
                 }
                 let mut v = Visual::new(Shape::Sphere { radius: 0.16 }, bone);
@@ -1547,9 +1547,9 @@ impl<'a> Builder<'a> {
             }
             for p in 0..packs.min(4) {
                 let Some(at) = self.spot(room, 3.0, 3.0) else { continue };
-                let rarity = if is_exit && plan.boss.is_none() && p == 0 {
-                    Rarity::Rare
-                } else if self.chance(rare) {
+                // The exit room of a boss-less level is guarded by a rare pack.
+                let guard = is_exit && plan.boss.is_none() && p == 0;
+                let rarity = if guard || self.chance(rare) {
                     Rarity::Rare
                 } else if self.chance(magic) {
                     Rarity::Magic

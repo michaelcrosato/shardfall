@@ -9,6 +9,7 @@ fn path() -> std::path::PathBuf {
     crate::boot::exe_dir().join("shardfall_save.json")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SaveFile {
     version: u32,
@@ -63,9 +64,7 @@ pub fn save_from(sim: &pav_core::Sim) {
 
 /// Puts the saved hero into a freshly built game scene.
 pub fn restore_into(sim: &mut pav_core::Sim) -> Option<u32> {
-    if sim.state.game.is_none() {
-        return None;
-    }
+    sim.state.game.as_ref()?;
     let hero = load()?;
     let level = hero.level;
     sim.load_hero(hero).then_some(level)

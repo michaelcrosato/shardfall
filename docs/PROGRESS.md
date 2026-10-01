@@ -403,8 +403,8 @@ Windows build.
 | G2 Loot, items, inventory | ✅ done |
 | G3 Passive tree, all skills | ✅ done |
 | G4 Monster genome, bosses | ✅ done |
-| G5 Town, levels, mechanics, endless | ⏳ next |
-| G6 Polish, agent tools, final build | ⏳ |
+| G5 Town, levels, mechanics, endless | ✅ done |
+| G6 Polish, agent tools, final build | ⏳ next |
 
 ## G1 Combat core — done
 - `pav_core::arpg` lives in `SimState::game` (Option<Box<Game>>): `game_pre` (hero input ->
