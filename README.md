@@ -9,9 +9,30 @@ through the same tools a person uses.
 - Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state and decisions:
   [`docs/PROGRESS.md`](docs/PROGRESS.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).
 
+## Shardfall (the showcase game)
+A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `pavilion.exe`
+starts in **Emberwatch**, the town: trade with Hilda the smith, keep loot in the stash, and
+take the portal to the Proving Grounds (waves of monsters, loot, levels). The pavilion of
+engine rooms is still there: Esc menu → Load scene → `world` (or `pavilion.exe --scene world`).
+
+| Key | Action |
+|---|---|
+| W A S D · mouse | move · aim |
+| Left / right mouse, Q E R F | skills (hold to repeat) · Shift: attack in place |
+| Space | dodge roll |
+| 1 | potion |
+| G | use: trade, stash, portal |
+| I (Tab) · C · K | inventory · character · skill bar |
+| T | town portal |
+| Esc | menu (difficulty sliders for play-testing) |
+
+Items drop as you fight (walk over magic+ items or click their names); hover an item to compare
+it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use.
+
 ## Playing
 Windows: run `pavilion.exe`. It writes `pavilion.toml` next to itself on first start (Vulkan by
-default; `backend = "dx12"` switches). `pavilion.exe --room drift` starts in a room.
+default; `backend = "dx12"` switches). `pavilion.exe --room drift` starts in a room of the
+pavilion (`--scene world` for the pavilion itself).
 Browser: serve the web build (below) and open it in a recent Chrome or Edge; add `?room=drift`
 to the address to start in a room.
 
