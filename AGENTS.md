@@ -109,7 +109,7 @@ Tools: `scenes load step status entities params set camera capture bench gpu pla
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
-tree_map genome bestiary boss turntable animsheet`
+tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
@@ -119,8 +119,14 @@ tree_map genome bestiary boss turntable animsheet`
   path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
   (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
   `animsheet` (its attack frame by frame), `bestiary count=500` (generator variety), `boss`
-  (spawn a designed or generated boss). Game data lives in `game/*.toml`
-  (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`).
+  (spawn a designed or generated boss). Levels: `level depth=17` (what a depth is: name,
+  palette, mechanics, boss; `to=` for a range), `level` (the live one: every feature with its
+  position and state), `levelmap depth=7 seed=3` (top-down PNG of a freshly built level, no
+  GPU), `go place=level depth=9` (travel there, waypoint unlocked), `goto_feature kind=keg`
+  (stand next to one), `game_cmd do=use spot=N` (the way down, a cursed chest);
+  `autoplay` walks levels to their exits by itself. Game data lives in `game/*.toml`
+  (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`; levels from
+  `themes.toml` and `levels.toml`).
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
@@ -154,7 +160,8 @@ entity fields); keep rooms as data wherever possible.
 ### Scenes
 `world` (pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
 `<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` (the game
-starts here by default), `arena` and `lab` (the Menagerie of creatures).
+starts here by default; the saved hero is loaded into any game scene), `arena`, `lab` (the
+Menagerie of creatures) and `level/<n>` (depth n: 1-12 designed, then the endless Depths).
 Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 
 ## Game controls (current)
@@ -166,8 +173,8 @@ presets. Gamepad: left stick move, right stick aim, A jump,
 B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
 
 Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
-G use (vendor, stash, portal), I/Tab inventory, P passive tree, C character, K skills, T town
-portal; gamepad
+G use (vendor, stash, portal, gambler, alchemist, the way down, cursed chests), I/Tab
+inventory, P passive tree, C character, K skills, M map, T town portal; gamepad
 X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use.
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
@@ -187,7 +194,10 @@ of every physics feature) and `tests/rooms.rs` (every room file builds; courses 
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`
-(archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie).
+(archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie),
+`tests/levels.rs` (every designed level has its mechanics, each mechanic works, endless
+depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
+brewing, saves).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

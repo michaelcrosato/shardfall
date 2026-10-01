@@ -525,6 +525,57 @@ Windows build.
   every boss through all phases incl. a generated one, wave 10 boss, Menagerie release/reroll,
   rewind exact) + genome variety/determinism unit test.
 
+## G5 World — done
+- Layout generator (`arpg/levelgen.rs`): rooms on a 32 m grid (random walk for the main path,
+  side branches), sizes snapped to 4 m, five room shapes (plain, pillars, ring, split, cross),
+  straight corridors with door gaps; `route()` plans a walk through doors and corridors;
+  `place_of()`. Unit test: 200 seeds connect, never overlap, routes reach the exit.
+- Themes (`game/themes.toml`, 8) and designed levels (`game/levels.toml`, 12, each one
+  mechanic + earlier ones mixed in; bosses on 4, 7, 10, 12). `world::plan(depth)` says what a
+  depth is; past 12 the endless Depths are a fixed combination per depth: a theme hue-shifted
+  and blended with another's lights, 2-4 mechanics, favoured genome archetypes, monster level
+  +2 per depth, a boss every third depth (unused designed ones, then generated).
+- Builder (`arpg/world.rs`): floor tiles (2 m and player-only crumbling in crumbling rooms, ice
+  colours on ice), walls with door gaps and a darker top course, room furniture by shape, wall
+  sconces (theme light), props (rocks, crates, columns, crystals, bones, mushrooms), drifting
+  particles per room, the exit gate (sealed by red runes while the boss lives), packs by room
+  size (theme families or genomes by the theme's element weights), the boss waiting at the
+  exit (not aggro until you arrive).
+- The twelve mechanics (`arpg/mechanics.rs`, `Feature`s + a rule per tick):
+  shrines (six boons, 15 s, stacking time), powder kegs (Neutral actors; blast hurts monsters
+  by a share of their life, the hero a little; chain reactions on a fuse), spike plates (on a
+  beat with a telegraph), rift gates (paired, shortcut from near the start to near the exit),
+  windways (engine conveyor zones + scrolling chevrons), ward totems (monster actors; -60%
+  damage taken to monsters near them), lava (burns everyone; monsters walk into it), ice
+  (characters slide via the new `Character::slide`; frozen monsters on ice shatter), crumbling
+  floors (engine crumble tiles, new `PLAYER_CRUMBLE` flag; falling monsters die, the hero
+  climbs back out hurt), darkness (dark mood, the hero's lantern, wells that flare, burn
+  monsters and Kindle the hero), cursed chests (G: three waves of keepers, then rare/unique
+  loot), time bubbles (monsters, their casts, cooldowns and projectiles slowed; the hero
+  Quickened). Hazards credit the hero for kills.
+- `Place::Level(n)` (code 100+n, scene `level/<n>`), the way down (`SpotKind::Exit`,
+  `GameCmd::Use`), waypoints (`Hero::max_depth`; the portal lists every depth reached), +1
+  passive point for each boss level conquered. HUD: level card, intro banner, minimap turned
+  with the camera (fog of war, marks), big map on M; level mood (sky, sun, ambient, fog).
+- Town: Odo the gambler (mystery items by slot), Mother Wren the alchemist (more and stronger
+  potions), Captain Brannoc at the portal, two villagers walking rounds, Biscuit the dog
+  following the hero; greetings, coin flips, stirring, hammering. Hood helm kind.
+- New body plan **Quadruped** (hounds, wolves, boars; the dog): legs under a raised body with
+  backward joints, chest, neck, snout, ears, tail carried high; in the genome with fitting
+  archetypes and parts. All creature bodies now coil and lunge when they attack.
+- Bot: fights what is near in levels, otherwise walks the route to the exit (fat-ray steering
+  around furniture, unsticking), takes the way down. From level 1 it reached level 4 in five
+  game-minutes (hero level 7, 111 kills, no deaths).
+- Saving: the hero as JSON next to the executable (every travel, every minute, on quit, before
+  scene loads/resets), loaded when a game scene starts; "New hero" in the pause menu.
+- Tools: `level` (what a depth is, or the live level: features with positions/state),
+  `levelmap` (software-rendered top-down map with every piece), `go` (travel anywhere,
+  unlocking waypoints), `goto_feature` (stand next to a shrine, keg, gate...), `game_cmd`
+  travel to levels and `use`.
+- Tests: tests/levels.rs (all 12 designed levels have their mechanics; endless depths
+  combine and stay stable; each mechanic works; boss seals the exit; waypoints; rewind exact),
+  tests/town.rs (townsfolk alive, gambling, brewing, portal, save round-trip).
+
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
   it, including rewind mid-fight and the live bridge.
@@ -549,3 +600,11 @@ Windows build.
 - Everything that fights is a genome: designed families and bosses are specs/overrides of the
   same pieces the generator uses, so new content is data and endless content is the same
   language. Parts attach to anchors, not to specific skeletons.
+- Levels reuse engine features instead of new systems where they fit: conveyors are the wind,
+  crumble tiles are the crumbling floor, Neutral actors are kegs. New engine knobs were small
+  and general (`Character::slide`, `PLAYER_CRUMBLE`, prop actors with no character).
+- An endless depth's *identity* (name, palette, mechanics, boss) is fixed by its number, its
+  *layout* is new each visit: players learn what Depth 20 is, but never memorise it.
+- Hazards take a share of a monster's life (paying back resistances) rather than flat damage,
+  so exploiting mechanics stays worthwhile at any depth.
+- The save holds only the hero; places are rebuilt. Travel is the save point.

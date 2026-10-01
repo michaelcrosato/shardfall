@@ -11,9 +11,14 @@ through the same tools a person uses.
 
 ## Shardfall (the showcase game)
 A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `pavilion.exe`
-starts in **Emberwatch**, the town: trade with Hilda the smith, keep loot in the stash, and
-take the portal to the Proving Grounds (waves of monsters, loot, levels). The pavilion of
-engine rooms is still there: Esc menu → Load scene → `world` (or `pavilion.exe --scene world`).
+starts in **Emberwatch**, the town: trade with Hilda the smith, gamble with Odo, buy stronger
+potions from Mother Wren, keep loot in the stash, and take the portal down. Twelve designed
+levels each introduce one mechanic (shrines, powder kegs, spike plates, rift gates, wind,
+totems, lava, ice, crumbling floors, darkness, cursed chests, time bubbles) and mix in the
+ones before; after level 12 the Depths generate new combinations forever. The portal also
+leads to the Proving Grounds (wave arena) and the Menagerie (generated creatures). Your hero
+is saved next to the executable on every trip and on quit. The pavilion of engine rooms is
+still there: Esc menu → Load scene → `world` (or `pavilion.exe --scene world`).
 
 | Key | Action |
 |---|---|
@@ -21,10 +26,10 @@ engine rooms is still there: Esc menu → Load scene → `world` (or `pavilion.e
 | Left / right mouse, Q E R F | skills (hold to repeat) · Shift: attack in place |
 | Space | dodge roll |
 | 1 | potion |
-| G | use: trade, stash, portal |
-| I (Tab) · P · C · K | inventory · passive tree · character · skill bar |
+| G | use: trade, stash, portal, gamble, brew, the way down, cursed chests |
+| I (Tab) · P · C · K · M | inventory · passive tree · character · skill bar · map |
 | T | town portal |
-| Esc | menu (difficulty sliders for play-testing) |
+| Esc | menu (difficulty sliders for play-testing, new hero) |
 
 Items drop as you fight (walk over magic+ items or click their names); hover an item to compare
 it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use.
