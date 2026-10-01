@@ -1,0 +1,1233 @@
+# Stacking & Toppling: stable stacks you can push, bomb and watch fall. Everything is a plain
+# dynamic [[object]] (no scripts): boxes touch exactly (centre height = sum of heights below +
+# half height) so the stacks stand on their own, and the room only needs rapier's friction.
+#   NORTH  box tower, Jenga tower, pyramid, mixed-shape stack
+#   MIDDLE a curving domino line (push the first one)
+#   SOUTH  light vs heavy walls (west), a crate pile with DROP / CLEAR pads (east)
+# Densities: 20 = very light, 50-100 = crates you can push, 400 = wood, so the heavy wall
+# (400) shrugs off a 70 kg player while the light one (20) goes flying.
+name = "Stacking & Toppling"
+about = "Stable stacks and satisfying collapses with plain dynamic objects: a 10-box tower, a pyramid, a Jenga tower, a stack of mixed shapes, a curving domino line, light vs heavy walls, and a pad that rains crates into a pile. Push, bomb and rebuild."
+try = [
+  "Run into the box tower or the Jenga tower and watch it fall",
+  "Throw bombs (F or left click at the cursor) at the pyramid and the mixed stack",
+  "Push the first domino (the red one) and follow the chain reaction",
+  "Compare the LIGHT wall (density 20) with the HEAVY wall (density 400): push, then bomb both",
+  "Step on DROP CRATES for a shower of 20 crates; stack up to 120, then bomb the pile",
+  "Step on CLEAR to remove all the dropped crates",
+  "Reset the room with F5 to rebuild every stack",
+]
+wing = "physics"
+order = 1
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["physics"]
+entrance = { at = [16, 27], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 24.0
+
+[layout]
+origin = [-17.0, 0.0, -14.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+##################################
+#................................#
+#................................#
+#..ttttt..ttttt..ttttttt..ttttt..#
+#..ttttt..ttttt..ttttttt..ttttt..#
+#..ttttt..ttttt..ttttttt..ttttt..#
+#..ttttt..ttttt..ttttttt..ttttt..#
+#..ttttt..ttttt..ttttttt..ttttt..#
+#................................#
+#................................#
+#................................#
+#................................#
+#................................#
+#................................#
+#................................#
+#.........................DDD..CC#
+#.........................DDD..CC#
+#................................#
+#................................#
+#........................ffffffff#
+#.tttttt.tttttt..........fppppppp#
+#.tttttt.tttttt..........fppppppp#
+#.tttttt.tttttt..........fppppppp#
+#.tttttt.tttttt..........fppppppp#
+#.tttttt.tttttt..........fppppppp#
+#.tttttt.tttttt..........fppppppp#
+#........................fppppppp#
+################..################
+'''
+
+# Floor, wall (3 m), exhibit plates, the crate pen and its low fence, and the two pads.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+[layout.legend.'t']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c3ccd6" }]
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#bfae92" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#bfae92" }, { y0 = 0, y1 = 1.6, color = "#8f9fae" }]
+
+# Pads: stepping on one sends its signal once. The spawner below listens to both.
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "DROP CRATES", color = "#3bb273", signal = "crates" }
+
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+
+
+# Exhibit names (floor text, layout space: x = column, z = row).
+
+[[label]]
+text = "BOX TOWER"
+pos = [5.0, 0.03, 8.6]
+size = 0.55
+
+[[label]]
+text = "JENGA"
+pos = [12.0, 0.03, 8.6]
+size = 0.55
+
+[[label]]
+text = "PYRAMID"
+pos = [20.0, 0.03, 8.6]
+size = 0.55
+
+[[label]]
+text = "MIXED SHAPES"
+pos = [28.0, 0.03, 8.6]
+size = 0.5
+
+[[label]]
+text = "DOMINOES"
+pos = [3.4, 0.03, 9.8]
+size = 0.5
+
+[[label]]
+text = "PUSH THE RED ONE"
+pos = [4.0, 0.03, 10.6]
+size = 0.35
+
+[[label]]
+text = "LIGHT 20"
+pos = [4.5, 0.03, 19.3]
+size = 0.5
+
+[[label]]
+text = "HEAVY 400"
+pos = [11.5, 0.03, 19.3]
+size = 0.5
+
+[[label]]
+text = "CRATE PILE"
+pos = [29.0, 0.03, 18.1]
+size = 0.5
+
+# ---- objects (keep at the end of the file) ----
+
+# Box tower: ten 0.7 m cubes, each centred 0.7 m above the one below and turned 3 degrees.
+[[object]]
+name = "tower_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 0.35, 4.8]
+color = "#e8704a"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 1.05, 4.8]
+yaw = 3
+color = "#f2c14e"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 1.75, 4.8]
+yaw = 6
+color = "#5b8def"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_3"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 2.45, 4.8]
+yaw = 9
+color = "#3bb273"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_4"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 3.15, 4.8]
+yaw = 12
+color = "#9b5de5"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_5"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 3.85, 4.8]
+yaw = 15
+color = "#e8704a"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_6"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 4.55, 4.8]
+yaw = 18
+color = "#f2c14e"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_7"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 5.25, 4.8]
+yaw = 21
+color = "#5b8def"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_8"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 5.95, 4.8]
+yaw = 24
+color = "#3bb273"
+density = 50
+friction = 0.6
+[[object]]
+name = "tower_9"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5, 6.65, 4.8]
+yaw = 27
+color = "#9b5de5"
+density = 50
+friction = 0.6
+
+# Jenga tower: 14 layers of three 1.2 x 0.2 x 0.4 m planks, crossed every layer (a few middle planks pulled).
+[[object]]
+name = "jenga_0_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.1, 4.4]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_0_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.1, 4.8]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_0_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.1, 5.2]
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_1_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 0.3, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_1_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.3, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_1_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 0.3, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_2_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.5, 4.4]
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_2_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.5, 4.8]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_2_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.5, 5.2]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_3_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 0.7, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_3_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.7, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_3_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 0.7, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_4_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.9, 4.4]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_4_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 0.9, 5.2]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_5_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 1.1, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_5_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.1, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_5_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 1.1, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_6_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.3, 4.4]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_6_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.3, 4.8]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_6_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.3, 5.2]
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_7_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 1.5, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_7_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 1.5, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_8_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.7, 4.4]
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_8_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.7, 4.8]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_8_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.7, 5.2]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_9_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 1.9, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_9_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 1.9, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_9_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 1.9, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_10_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.1, 4.4]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_10_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.1, 5.2]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_11_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 2.3, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_11_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.3, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_11_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 2.3, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_12_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.5, 4.4]
+color = "#c9a06a"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_12_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.5, 4.8]
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_12_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.5, 5.2]
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_13_0"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [11.6, 2.7, 4.8]
+yaw = 90
+color = "#b88a52"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_13_1"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12, 2.7, 4.8]
+yaw = 90
+color = "#d2ad78"
+density = 80
+friction = 0.8
+[[object]]
+name = "jenga_13_2"
+shape = { type = "box", half = [0.6, 0.1, 0.2] }
+pos = [12.4, 2.7, 4.8]
+yaw = 90
+color = "#c9a06a"
+density = 80
+friction = 0.8
+
+# Pyramid: rows of 5-4-3-2-1 boxes (0.7 x 0.7 x 1.0 m), each row centred on the one below.
+[[object]]
+name = "pyramid_0_0"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [18.6, 0.35, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_0_1"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [19.3, 0.35, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_0_2"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20, 0.35, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_0_3"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20.7, 0.35, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_0_4"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [21.4, 0.35, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_1_0"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [18.95, 1.05, 4.8]
+color = "#ea844b"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_1_1"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [19.65, 1.05, 4.8]
+color = "#ea844b"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_1_2"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20.35, 1.05, 4.8]
+color = "#ea844b"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_1_3"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [21.05, 1.05, 4.8]
+color = "#ea844b"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_2_0"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [19.3, 1.75, 4.8]
+color = "#ed984c"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_2_1"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20, 1.75, 4.8]
+color = "#ed984c"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_2_2"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20.7, 1.75, 4.8]
+color = "#ed984c"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_3_0"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [19.65, 2.45, 4.8]
+color = "#efac4d"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_3_1"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20.35, 2.45, 4.8]
+color = "#efac4d"
+density = 60
+friction = 0.6
+[[object]]
+name = "pyramid_4_0"
+shape = { type = "box", half = [0.35, 0.35, 0.5] }
+pos = [20, 3.15, 4.8]
+color = "#f2c14e"
+density = 60
+friction = 0.6
+
+# Mixed shapes: cylinder, box, rounded box, cylinder, standing capsule and a sphere on top.
+[[object]]
+name = "mixed_cylinder_base"
+shape = { type = "cylinder", half_height = 0.25, radius = 0.65 }
+pos = [28, 0.25, 4.8]
+color = "#5b8def"
+density = 60
+friction = 0.6
+[[object]]
+name = "mixed_box"
+shape = { type = "box", half = [0.5, 0.25, 0.5] }
+pos = [28, 0.75, 4.8]
+color = "#f2c14e"
+density = 60
+friction = 0.6
+[[object]]
+name = "mixed_rounded_box"
+shape = { type = "rounded_box", half = [0.45, 0.25, 0.45], radius = 0.12 }
+pos = [28, 1.25, 4.8]
+color = "#e8704a"
+density = 60
+friction = 0.6
+[[object]]
+name = "mixed_cylinder"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.4 }
+pos = [28, 1.8, 4.8]
+color = "#3bb273"
+density = 60
+friction = 0.6
+[[object]]
+name = "mixed_capsule"
+shape = { type = "capsule", half_height = 0.3, radius = 0.25 }
+pos = [28, 2.65, 4.8]
+color = "#9b5de5"
+density = 60
+friction = 0.6
+[[object]]
+name = "mixed_sphere"
+shape = { type = "sphere", radius = 0.3 }
+pos = [28, 3.5, 4.8]
+color = "#f15bb5"
+density = 60
+friction = 0.9
+
+# Dominoes: 0.1 x 0.8 x 0.4 m, one every 0.45 m along a curve; the thin side faces along the path.
+[[object]]
+name = "domino_0"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [3, 0.4, 13.6]
+yaw = -35.7066
+color = "#e8404a"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_1"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [3.366, 0.4, 13.8625]
+yaw = -35.524
+color = "#efc051"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_2"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [3.734, 0.4, 14.1229]
+yaw = -34.9793
+color = "#ecbf54"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_3"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [4.104, 0.4, 14.3779]
+yaw = -34.0594
+color = "#e9be57"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_4"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [4.48, 0.4, 14.6262]
+yaw = -32.7303
+color = "#e6bd5a"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_5"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [4.862, 0.4, 14.8641]
+yaw = -30.9574
+color = "#e3bc5d"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_6"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [5.252, 0.4, 15.0883]
+yaw = -28.6902
+color = "#e0bb60"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_7"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [5.652, 0.4, 15.2953]
+yaw = -25.8688
+color = "#ddba63"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_8"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [6.062, 0.4, 15.48]
+yaw = -22.4473
+color = "#dab966"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_9"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [6.484, 0.4, 15.6379]
+yaw = -18.3771
+color = "#d7b869"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_10"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [6.916, 0.4, 15.7629]
+yaw = -13.6801
+color = "#d4b76c"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_11"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [7.356, 0.4, 15.8497]
+yaw = -8.4418
+color = "#d2b670"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_12"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [7.804, 0.4, 15.8944]
+yaw = -2.7953
+color = "#cfb573"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_13"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [8.254, 0.4, 15.8942]
+yaw = 2.9861
+color = "#ccb476"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_14"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [8.702, 0.4, 15.849]
+yaw = 8.6253
+color = "#c9b379"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_15"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [9.142, 0.4, 15.7617]
+yaw = 13.8502
+color = "#c6b27c"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_16"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [9.574, 0.4, 15.6363]
+yaw = 18.53
+color = "#c3b17f"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_17"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [9.996, 0.4, 15.478]
+yaw = 22.581
+color = "#c0b082"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_18"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [10.406, 0.4, 15.2929]
+yaw = 25.9831
+color = "#bdaf85"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_19"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [10.806, 0.4, 15.0856]
+yaw = 28.7856
+color = "#baae88"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_20"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [11.196, 0.4, 14.8611]
+yaw = 31.0348
+color = "#b7ad8b"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_21"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [11.578, 0.4, 14.6231]
+yaw = 32.7907
+color = "#b5ac8f"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_22"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [11.954, 0.4, 14.3745]
+yaw = 34.1038
+color = "#b2ab92"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_23"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [12.324, 0.4, 14.1195]
+yaw = 35.0084
+color = "#afaa95"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_24"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [12.69, 0.4, 13.8604]
+yaw = 35.5365
+color = "#aca998"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_25"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [13.056, 0.4, 13.5979]
+yaw = 35.7066
+color = "#a9a89b"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_26"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [13.422, 0.4, 13.3354]
+yaw = 35.5211
+color = "#a6a79e"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_27"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [13.79, 0.4, 13.075]
+yaw = 34.9735
+color = "#a3a6a1"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_28"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [14.16, 0.4, 12.8202]
+yaw = 34.0506
+color = "#a0a5a4"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_29"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [14.536, 0.4, 12.5719]
+yaw = 32.7185
+color = "#9da4a7"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_30"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [14.918, 0.4, 12.3342]
+yaw = 30.9423
+color = "#9aa3aa"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_31"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [15.308, 0.4, 12.1101]
+yaw = 28.6716
+color = "#97a2ad"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_32"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [15.708, 0.4, 11.9033]
+yaw = 25.8464
+color = "#95a1b1"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_33"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [16.118, 0.4, 11.7188]
+yaw = 22.4212
+color = "#92a0b4"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_34"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [16.54, 0.4, 11.5611]
+yaw = 18.3473
+color = "#8f9fb7"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_35"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [16.972, 0.4, 11.4364]
+yaw = 13.6469
+color = "#8c9eba"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_36"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [17.412, 0.4, 11.3499]
+yaw = 8.406
+color = "#899dbd"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_37"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [17.86, 0.4, 11.3054]
+yaw = 2.7581
+color = "#869cc0"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_38"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [18.31, 0.4, 11.306]
+yaw = -3.0233
+color = "#839bc3"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_39"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [18.758, 0.4, 11.3515]
+yaw = -8.6609
+color = "#809ac6"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_40"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [19.198, 0.4, 11.439]
+yaw = -13.8833
+color = "#7d99c9"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_41"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [19.63, 0.4, 11.5647]
+yaw = -18.5597
+color = "#7a98cc"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_42"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [20.052, 0.4, 11.7232]
+yaw = -22.607
+color = "#7897d0"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_43"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [20.462, 0.4, 11.9085]
+yaw = -26.0052
+color = "#7596d3"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_44"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [20.862, 0.4, 12.116]
+yaw = -28.8041
+color = "#7295d6"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_45"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [21.252, 0.4, 12.3406]
+yaw = -31.0498
+color = "#6f94d9"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_46"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [21.634, 0.4, 12.5788]
+yaw = -32.8024
+color = "#6c93dc"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_47"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [22.008, 0.4, 12.8261]
+yaw = -34.1064
+color = "#6992df"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_48"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [22.38, 0.4, 13.0825]
+yaw = -35.0141
+color = "#6691e2"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_49"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [22.746, 0.4, 13.3417]
+yaw = -35.5392
+color = "#6390e5"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_50"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [23.112, 0.4, 13.6042]
+yaw = -35.7065
+color = "#608fe8"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_51"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [23.478, 0.4, 13.8666]
+yaw = -35.5182
+color = "#5d8eeb"
+density = 150
+friction = 0.7
+[[object]]
+name = "domino_52"
+shape = { type = "box", half = [0.05, 0.4, 0.2] }
+pos = [23.846, 0.4, 14.127]
+yaw = -34.9677
+color = "#5b8def"
+density = 150
+friction = 0.7
+
+# Light wall (density 20): 3 x 3 cubes of 0.7 m.
+[[object]]
+name = "light_0_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [3.8, 0.35, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_0_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [4.5, 0.35, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_0_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5.2, 0.35, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_1_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [3.8, 1.05, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_1_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [4.5, 1.05, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_1_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5.2, 1.05, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_2_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [3.8, 1.75, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_2_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [4.5, 1.75, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+[[object]]
+name = "light_2_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [5.2, 1.75, 22.5]
+color = "#f4e4b8"
+density = 20
+friction = 0.6
+
+# Heavy wall (density 400): the same cubes, 20 times heavier.
+[[object]]
+name = "heavy_0_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [10.8, 0.35, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_0_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [11.5, 0.35, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_0_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [12.2, 0.35, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_1_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [10.8, 1.05, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_1_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [11.5, 1.05, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_1_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [12.2, 1.05, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_2_0"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [10.8, 1.75, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_2_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [11.5, 1.75, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+[[object]]
+name = "heavy_2_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [12.2, 1.75, 22.5]
+color = "#4a4f57"
+density = 400
+friction = 0.6
+
+# Crate shower: the DROP CRATES pad ("crates") makes 20 crates fall into the pen; CLEAR ("clear")
+# removes everything it spawned. The oldest crates vanish beyond 120. Invisible (body = "none").
+[[object]]
+name = "crate_spawner"
+shape = { type = "sphere", radius = 0.1 }
+pos = [29.5, 6.0, 23.5]
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "", count = 20, area = [2.0, 0.5, 2.0], max = 120, signal = "crates", clear = "clear", density = 60, friction = 0.6, restitution = 0.1, tumble = true }
+
