@@ -754,6 +754,14 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
                     ui.end_row();
                 }
             });
+            if !inv.tweaks.is_empty() {
+                ui.separator();
+                ui.label(RichText::new("Upgrades from the passive tree").strong());
+                for t in &inv.tweaks {
+                    let name = d.skill_id(&t.skill).map(|i| d.skill(i).name.clone()).unwrap_or_default();
+                    ui.label(RichText::new(t.describe(&name)).color(Color32::from_rgb(140, 200, 255)));
+                }
+            }
         });
 }
 

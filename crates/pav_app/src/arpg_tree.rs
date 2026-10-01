@@ -21,7 +21,7 @@ pub struct TreeUi {
 
 impl Default for TreeUi {
     fn default() -> Self {
-        Self { open: false, pan: Vec2::ZERO, zoom: 30.0, search: String::new(), mastery: None }
+        Self { open: false, pan: Vec2::ZERO, zoom: 21.0, search: String::new(), mastery: None }
     }
 }
 
@@ -74,7 +74,7 @@ impl TreeUi {
                     }
                     if ui.button("Centre").clicked() {
                         self.pan = Vec2::ZERO;
-                        self.zoom = 30.0;
+                        self.zoom = 21.0;
                     }
                     ui.label(
                         RichText::new("click: take · shift-click: take the path · right-click: refund · drag: pan · wheel: zoom · P to close")
@@ -313,7 +313,7 @@ impl TreeUi {
                 p.text(
                     legend,
                     Align2::LEFT_BOTTOM,
-                    "◆ skill upgrade   ⬢ mastery   ◎ keystone   large: notable   outer rings: Astral (endless)",
+                    "diamonds: skill upgrades · hexagons: masteries · double rings: keystones · large: notables · outer rings: the endless Astral",
                     FontId::proportional(11.0),
                     Color32::from_white_alpha(120),
                 );

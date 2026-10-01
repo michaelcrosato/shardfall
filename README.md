@@ -22,7 +22,7 @@ engine rooms is still there: Esc menu → Load scene → `world` (or `pavilion.e
 | Space | dodge roll |
 | 1 | potion |
 | G | use: trade, stash, portal |
-| I (Tab) · C · K | inventory · character · skill bar |
+| I (Tab) · P · C · K | inventory · passive tree · character · skill bar |
 | T | town portal |
 | Esc | menu (difficulty sliders for play-testing) |
 

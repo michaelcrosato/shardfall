@@ -192,32 +192,48 @@ impl ArpgView {
                     });
                 }
                 EffectKind::Field => {
-                    // Burning ground: a flickering patch with embers, fading at the end.
+                    // Hurting ground: a dim patch with a bright rim; fire smoulders upward,
+                    // cold falls as shards from above, poison bubbles.
                     let fade = ((e.dur - e.t) / 0.4).clamp(0.0, 1.0) * (e.t / 0.1).clamp(0.0, 1.0);
-                    let flick = 0.75 + 0.25 * noise(time * 9.0, e.pos.x + e.pos.z);
+                    let flick = 0.8 + 0.2 * noise(time * 9.0, e.pos.x + e.pos.z);
+                    let cold = c.z > c.x * 1.1;
                     let mut m = MeshData::default();
-                    band(&mut m, e.pos + Vec3::Y * 0.03, 0.0, e.radius * 0.9, 0.0, std::f32::consts::TAU, 0.8);
-                    decal(scene, m, c, 1.6 * fade * flick);
+                    band(&mut m, e.pos + Vec3::Y * 0.03, 0.0, e.radius * 0.95, 0.0, std::f32::consts::TAU, 0.35);
+                    decal(scene, m, c, 0.5 * fade * flick);
+                    let mut rim = MeshData::default();
+                    band(&mut rim, e.pos + Vec3::Y * 0.035, e.radius * 0.88, e.radius, 0.0, std::f32::consts::TAU, 1.0);
+                    decal(scene, rim, c, 1.1 * fade);
                     if particles {
                         let key = 0x6000_0000_0000 + ((e.pos.x * 31.0) as i64 as u64) * 977 + (e.pos.z * 17.0) as i64 as u64;
                         let carry = self.carry.entry(key).or_insert(0.0);
-                        *carry += dt * 14.0 * fade;
+                        *carry += dt * if cold { 26.0 } else { 14.0 } * fade * (e.radius / 1.5).max(1.0);
                         let n = carry.floor();
                         *carry -= n;
                         if n >= 1.0 {
-                            scene.particles.push(burst(
-                                e.pos + Vec3::Y * 0.1,
-                                n as u32,
-                                Vec4::new(1.0, 0.6, 0.2, 1.0),
-                                Vec4::new(1.0, 0.2, 0.05, 0.0),
-                                |b| {
-                                    b.area = Vec3::new(e.radius * 0.6, 0.05, e.radius * 0.6);
+                            let (from, c0, c1) = if cold {
+                                (e.pos + Vec3::Y * 4.0, Vec4::new(0.85, 0.95, 1.0, 1.0), Vec4::new(0.6, 0.85, 1.0, 0.0))
+                            } else {
+                                (
+                                    e.pos + Vec3::Y * 0.1,
+                                    Vec4::new(c.x, c.y, c.z, 1.0) * 1.2,
+                                    Vec4::new(c.x * 0.8, c.y * 0.4, c.z * 0.2, 0.0),
+                                )
+                            };
+                            scene.particles.push(burst(from, n as u32, c0, c1, |b| {
+                                b.area = Vec3::new(e.radius * 0.7, 0.05, e.radius * 0.7);
+                                if cold {
+                                    b.vel = Vec3::new(0.8, -9.0, 0.4);
+                                    b.spread = 0.1;
+                                    b.stretch = true;
+                                    b.size = (0.07, 0.03);
+                                    b.life = (0.4, 0.45);
+                                } else {
                                     b.vel = Vec3::Y * 1.8;
                                     b.spread = 0.5;
                                     b.size = (0.14, 0.0);
                                     b.life = (0.3, 0.6);
-                                },
-                            ));
+                                }
+                            }));
                         }
                     }
                 }
@@ -257,6 +273,24 @@ impl ArpgView {
                                     b.spread = 0.5;
                                 },
                             ));
+                        }
+                    }
+                }
+                // The hero's own quick blasts (fissures, rain): nothing before, a burst after.
+                EffectKind::Delayed if e.angle < 0.0 => {
+                    if e.t >= e.dur {
+                        let q = ((e.t - e.dur) / 0.35).clamp(0.0, 1.0);
+                        let mut m = MeshData::default();
+                        let r = e.radius * (0.5 + 0.6 * q.sqrt());
+                        band(&mut m, e.pos + Vec3::Y * 0.05, (r - 0.3).max(0.0), r, 0.0, std::f32::consts::TAU, 1.0);
+                        decal(scene, m, c, 2.0 * (1.0 - q));
+                        if q < 0.5 {
+                            scene.point_lights.push(rs::PointLight {
+                                position: e.pos + Vec3::Y * 0.6,
+                                color: c * 2.5 * (1.0 - q * 2.0),
+                                radius: e.radius * 2.5,
+                                shadows: false,
+                            });
                         }
                     }
                 }
