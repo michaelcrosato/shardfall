@@ -19,6 +19,8 @@ pub struct PuppetFrame {
     pub def: Option<std::sync::Arc<PuppetDef>>,
     /// Creature feet and swinging chains.
     pub rig: Option<crate::rig::RigView>,
+    /// Colour wash (hit flash, frozen, burning...) and its strength.
+    pub tint: Option<([f32; 3], f32)>,
 }
 
 #[derive(Clone, Debug)]
@@ -145,6 +147,46 @@ pub enum SimEvent {
     Bounce {
         pos: Vec3,
     },
+    /// Shardfall: a weapon swing, a hit landing (power = damage, element index), a kill, a
+    /// slam, a spell cast, an explosion, gold, a potion, a block, a level-up.
+    Swing {
+        pos: Vec3,
+        heavy: bool,
+    },
+    Strike {
+        pos: Vec3,
+        power: f32,
+        element: u8,
+        crit: bool,
+    },
+    Slain {
+        pos: Vec3,
+        size: f32,
+    },
+    Slam {
+        pos: Vec3,
+        radius: f32,
+    },
+    Spell {
+        pos: Vec3,
+        element: u8,
+    },
+    Blast {
+        pos: Vec3,
+        element: u8,
+    },
+    Coin {
+        pos: Vec3,
+    },
+    Potion {
+        pos: Vec3,
+    },
+    Block {
+        pos: Vec3,
+    },
+    LevelUp {
+        pos: Vec3,
+    },
 }
 
 /// The room the player is in, for the HUD (info card, control guide, camera defaults).
@@ -220,4 +262,6 @@ pub struct RenderFrame {
     pub events: Vec<SimEvent>,
     pub projectiles: Vec<ProjectileView>,
     pub hud: HudFrame,
+    /// Shardfall state for the view and HUD (None outside the game).
+    pub game: Option<std::sync::Arc<crate::arpg::GameFrame>>,
 }

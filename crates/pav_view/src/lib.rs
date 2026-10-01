@@ -1,5 +1,6 @@
 //! Turns simulation frames into render scenes: camera rig, interpolation, style settings.
 
+pub mod arpg;
 pub mod build;
 pub mod camera;
 pub mod fx;

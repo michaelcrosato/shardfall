@@ -1,0 +1,976 @@
+//! Shardfall, the showcase hack-and-slash (docs/GAME.md). The game lives inside the
+//! simulation (`SimState::game`), so snapshots, rewind, replays, agent tools and the live bridge
+//! all work on it. Each tick: `game_pre` turns input and monster brains into movement and skill
+//! use before characters move; `game_post` lands hits, moves projectiles, ticks ailments and
+//! hands out rewards after physics.
+
+pub mod bot;
+pub mod brain;
+pub mod combat;
+pub mod data;
+pub mod hero;
+pub mod scene;
+pub mod skills;
+pub mod stats;
+
+use std::collections::BTreeMap;
+
+use glam::{Vec2, Vec3};
+use serde::{Deserialize, Serialize};
+
+use crate::entity::EntityId;
+use crate::frame::SimEvent;
+use crate::input::{InputFrame, buttons};
+use crate::params::{ParamVisitor, Tunable};
+use crate::sim::Sim;
+use brain::{AGGRO_RANGE, Brain, PACK_RANGE, SkillOption};
+use combat::*;
+use data::{Behavior, data};
+use hero::Hero;
+use stats::{Base, Mods, Sheet};
+
+/// Difficulty multipliers for play-testing (pause menu, `difficulty.*` parameters).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Difficulty {
+    pub player_damage: f32,
+    pub player_life: f32,
+    pub enemy_damage: f32,
+    pub enemy_life: f32,
+    pub enemy_speed: f32,
+    /// Feel: hit-stop and screen shake strength.
+    pub hitstop: f32,
+    pub shake: f32,
+}
+
+impl Default for Difficulty {
+    fn default() -> Self {
+        Self {
+            player_damage: 1.0,
+            player_life: 1.0,
+            enemy_damage: 1.0,
+            enemy_life: 1.0,
+            enemy_speed: 1.0,
+            hitstop: 1.0,
+            shake: 1.0,
+        }
+    }
+}
+
+impl Tunable for Difficulty {
+    fn visit(&mut self, v: &mut dyn ParamVisitor) {
+        v.float("player_damage", &mut self.player_damage, 0.1, 10.0, "Damage the hero deals (x)");
+        v.float("player_life", &mut self.player_life, 0.1, 10.0, "Hero life (x)");
+        v.float("enemy_damage", &mut self.enemy_damage, 0.0, 10.0, "Damage monsters deal (x)");
+        v.float("enemy_life", &mut self.enemy_life, 0.1, 10.0, "Monster life (x, new spawns)");
+        v.float("enemy_speed", &mut self.enemy_speed, 0.3, 3.0, "Monster movement and attack speed (x)");
+        v.float("hitstop", &mut self.hitstop, 0.0, 3.0, "Hit-stop strength (feel)");
+        v.float("shake", &mut self.shake, 0.0, 3.0, "Screen shake strength (feel)");
+    }
+}
+
+/// Dodge: speed (m/s), duration (s) and recovery (s).
+pub const DODGE_SPEED: f32 = 17.0;
+pub const DODGE_TIME: f32 = 0.26;
+pub const DODGE_RECOVERY: f32 = 0.75;
+/// Hero base movement speed comes from `movement.speed`; monsters move at this share of it.
+pub const MONSTER_PACE: f32 = 0.78;
+
+/// The wave arena (G1 test ground; later the Proving Grounds in town).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ArenaState {
+    pub wave: u32,
+    pub next_in: f32,
+    pub center: Vec3,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Game {
+    pub hero: Hero,
+    pub hero_id: Option<EntityId>,
+    pub actors: BTreeMap<EntityId, Actor>,
+    pub shots: Vec<Shot>,
+    pub effects: Vec<Effect>,
+    pub floaters: Vec<Floater>,
+    /// Hit-stop (seconds of near-frozen time left) and screen shake (decaying strength).
+    pub hitstop: f32,
+    pub shake: f32,
+    /// Banner message and seconds left.
+    pub message: Option<(String, f32)>,
+    pub arena: Option<ArenaState>,
+    /// Hero is down: seconds until respawning at `spawn`.
+    pub respawn: f32,
+    pub spawn: Vec3,
+    pub next_pack: u32,
+    pub time: f32,
+    /// Seconds since the last level-up (HUD flash).
+    pub level_flash: f32,
+}
+
+impl Game {
+    pub fn new(hero: Hero) -> Self {
+        Self {
+            hero,
+            hero_id: None,
+            actors: BTreeMap::new(),
+            shots: Vec::new(),
+            effects: Vec::new(),
+            floaters: Vec::new(),
+            hitstop: 0.0,
+            shake: 0.0,
+            message: None,
+            arena: None,
+            respawn: 0.0,
+            spawn: Vec3::ZERO,
+            next_pack: 1,
+            time: 0.0,
+            level_flash: 10.0,
+        }
+    }
+
+    pub fn hero_actor(&self) -> Option<&Actor> {
+        self.hero_id.and_then(|id| self.actors.get(&id))
+    }
+
+    /// Time runs at this rate (hit-stop nearly freezes it).
+    pub fn time_scale(&self) -> f32 {
+        if self.hitstop > 0.0 { 0.06 } else { 1.0 }
+    }
+
+    pub fn say(&mut self, text: impl Into<String>, secs: f32) {
+        self.message = Some((text.into(), secs));
+    }
+
+    pub fn float(&mut self, pos: Vec3, value: f32, kind: FloatKind) {
+        if self.floaters.len() > 160 {
+            self.floaters.remove(0);
+        }
+        self.floaters.push(Floater { pos, value, kind, text: String::new(), age: 0.0 });
+    }
+
+    pub fn float_text(&mut self, pos: Vec3, text: impl Into<String>) {
+        self.floaters.push(Floater { pos, value: 0.0, kind: FloatKind::Text, text: text.into(), age: 0.0 });
+    }
+
+    pub fn monsters_alive(&self) -> usize {
+        self.actors.values().filter(|a| a.team == Team::Monster && !a.dead).count()
+    }
+}
+
+fn flat(v: Vec3) -> Vec3 {
+    Vec3::new(v.x, 0.0, v.z)
+}
+
+fn yaw_of(d: Vec3) -> f32 {
+    d.x.atan2(d.z)
+}
+
+/// Feet position and body height of a character entity.
+pub(crate) fn feet_of(sim: &Sim, id: EntityId) -> Option<(Vec3, f32)> {
+    let e = sim.state.entities.get(id)?;
+    let ch = e.character.as_ref()?;
+    Some((e.pos - Vec3::Y * ch.height() * 0.5, ch.height()))
+}
+
+impl Sim {
+    /// Turns the player into the hero and starts the game rules in this scene.
+    pub fn start_game(&mut self, hero: Hero) {
+        let pid = match self.state.player {
+            Some(p) => p,
+            None => self.spawn_player(),
+        };
+        let mut g = Game::new(hero);
+        g.spawn = self.state.spawn;
+        let mut a = Actor::new(Team::Hero, &g.hero.name, g.hero.level, g.hero.sheet());
+        a.radius = 0.42;
+        g.actors.insert(pid, a);
+        g.hero_id = Some(pid);
+        refresh_hero(self, &mut g, true);
+        self.state.game = Some(Box::new(g));
+    }
+
+    /// Spawns a monster of a family (game/monsters.toml) at `feet`.
+    pub fn spawn_monster(&mut self, family: &str, level: u32, rarity: Rarity, feet: Vec3, pack: u32) -> Option<EntityId> {
+        let mut g = self.state.game.take()?;
+        let id = spawn_monster_into(self, &mut g, family, level, rarity, feet, pack);
+        self.state.game = Some(g);
+        id
+    }
+
+    /// Time scale for this tick (hit-stop).
+    pub(crate) fn game_time_scale(&self) -> f32 {
+        self.state.game.as_ref().map(|g| g.time_scale()).unwrap_or(1.0)
+    }
+
+    pub(crate) fn game_pre(&mut self, input: &InputFrame, dt: f32) -> BTreeMap<EntityId, InputFrame> {
+        let Some(mut g) = self.state.game.take() else { return BTreeMap::new() };
+        let out = g.pre(self, input, dt);
+        self.state.game = Some(g);
+        out
+    }
+
+    pub(crate) fn game_post(&mut self, dt: f32, raw_dt: f32, events: &mut Vec<SimEvent>) {
+        let Some(mut g) = self.state.game.take() else { return };
+        g.post(self, dt, raw_dt, events);
+        self.state.game = Some(g);
+    }
+}
+
+/// Recomputes the hero's numbers from the profile (level, gear, passives, difficulty) and their
+/// look (weapon in hand).
+pub fn refresh_hero(sim: &mut Sim, g: &mut Game, heal: bool) {
+    let Some(hid) = g.hero_id else { return };
+    let mut mods = g.hero.mods.clone();
+    if let Some(a) = g.actors.get(&hid) {
+        for b in &a.buffs {
+            mods.merge(&b.mods);
+        }
+    }
+    let mut sheet = Sheet::compute(g.hero.base(), &mods);
+    sheet.life_max *= sim.config.difficulty.player_life;
+    if let Some(a) = g.actors.get_mut(&hid) {
+        let frac = if a.sheet.life_max > 0.0 { a.life / a.sheet.life_max } else { 1.0 };
+        let mfrac = if a.sheet.mana_max > 0.0 { a.mana / a.sheet.mana_max } else { 1.0 };
+        a.level = g.hero.level;
+        a.name = g.hero.name.clone();
+        a.sheet = sheet;
+        a.life = if heal { a.sheet.life_max } else { (frac * a.sheet.life_max).min(a.sheet.life_max) };
+        a.mana = if heal { a.sheet.mana_max } else { mfrac * a.sheet.mana_max };
+    }
+    // The weapon in hand.
+    let mut look = sim.config.puppet.clone();
+    look.weapon.kind = g.hero.weapon.kind;
+    if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
+        ch.puppet = Some(std::sync::Arc::new(look));
+    }
+}
+
+pub(crate) fn spawn_monster_into(
+    sim: &mut Sim,
+    g: &mut Game,
+    family: &str,
+    level: u32,
+    rarity: Rarity,
+    feet: Vec3,
+    pack: u32,
+) -> Option<EntityId> {
+    let d = data();
+    let fam = d.family(family)?;
+    let mut look = fam.puppet.clone();
+    if rarity >= Rarity::Rare {
+        look.scale *= 1.15;
+    }
+    let facing = sim.state.rng.range(-3.1, 3.1);
+    let id = sim.spawn_npc(&fam.name, feet, facing, look.clone(), None, None);
+    let diff = sim.config.difficulty.clone();
+    let base = Base {
+        life: monster_life(level) * fam.life * rarity.life_mult() * diff.enemy_life,
+        mana: 100.0,
+        life_regen: 0.0,
+        mana_regen: 10.0,
+        armor: level as f32 * 2.0,
+        res: 0.0,
+    };
+    let mut a = Actor::new(Team::Monster, &fam.name, level, Sheet::compute(base, &Mods::default()));
+    a.family = fam.key.clone();
+    a.rarity = rarity;
+    let body = match fam.body {
+        crate::puppet::BodyPlan::Biped => 0.42,
+        crate::puppet::BodyPlan::Blob => 0.55,
+        _ => 0.5,
+    };
+    a.radius = body * look.scale;
+    a.base_damage = monster_damage(level) * fam.damage * rarity.damage_mult();
+    a.speed = fam.speed * MONSTER_PACE;
+    a.skills = fam.skill_ids.clone();
+    a.brain = Some(Brain::new(fam.archetype, feet));
+    a.xp = monster_xp(level) * fam.xp * rarity.xp_mult();
+    a.pack = pack;
+    g.actors.insert(id, a);
+    Some(id)
+}
+
+impl Game {
+    // ------------------------------------------------------------------ before movement
+    fn pre(&mut self, sim: &mut Sim, input: &InputFrame, dt: f32) -> BTreeMap<EntityId, InputFrame> {
+        let d = data();
+        let mut out = BTreeMap::new();
+        if let Some(hid) = self.hero_id {
+            self.hero_input(sim, hid, input, &mut out);
+        }
+        let hero = self.hero_id.and_then(|h| {
+            let a = self.actors.get(&h)?;
+            if a.dead {
+                return None;
+            }
+            Some((feet_of(sim, h)?.0, a.radius))
+        });
+        let speed_k = sim.config.difficulty.enemy_speed;
+        let ids: Vec<EntityId> = self.actors.iter().filter(|(_, a)| a.brain.is_some()).map(|(id, _)| *id).collect();
+        // Waking up: packs aggro together.
+        let mut woke = Vec::new();
+        for id in &ids {
+            let (Some((feet, _)), Some((hf, _))) = (feet_of(sim, *id), hero) else { continue };
+            let a = &self.actors[id];
+            if !a.dead && !a.brain.as_ref().unwrap().aggro && flat(hf - feet).length() < AGGRO_RANGE {
+                woke.push((a.pack, feet));
+            }
+        }
+        for (pack, at) in woke {
+            for id in &ids {
+                let Some((feet, _)) = feet_of(sim, *id) else { continue };
+                let a = self.actors.get_mut(id).unwrap();
+                if a.pack == pack && flat(feet - at).length() < PACK_RANGE.max(AGGRO_RANGE) {
+                    a.brain.as_mut().unwrap().aggro = true;
+                }
+            }
+        }
+        for id in ids {
+            let Some((feet, _)) = feet_of(sim, id) else { continue };
+            let a = self.actors.get_mut(&id).unwrap();
+            let mut inp = InputFrame::default();
+            if !a.dead && !a.frozen() && a.cast.is_none() {
+                let options: Vec<SkillOption> =
+                    a.skills.iter().map(|s| SkillOption { id: *s, def: d.skill(*s), ready: a.cooldown(*s) <= 0.0 }).collect();
+                let reach = a.radius + hero.map(|h| h.1).unwrap_or(0.4);
+                let dec = a.brain.as_mut().unwrap().think(feet, hero.map(|h| h.0), reach, &options, &mut sim.state.rng, dt);
+                inp.move_dir = dec.move_dir;
+                if let Some((skill, target)) = dec.cast {
+                    skills::try_cast(self, sim, id, skill, target);
+                }
+            }
+            let a = &self.actors[&id];
+            let chill = a.ailments.chill.0;
+            if let Some(ch) = sim.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) {
+                ch.haste = a.speed * speed_k * (1.0 - chill) - 1.0;
+                ch.slow = if a.dead || a.frozen() || a.cast.is_some() { 1.0 } else { 0.0 };
+                ch.face = a.cast.as_ref().map(|c| yaw_of(c.dir));
+            }
+            out.insert(id, inp);
+        }
+        // Skills that move their user (leaps, dashes, charges).
+        let casting: Vec<EntityId> = self.actors.iter().filter(|(_, a)| a.cast.is_some()).map(|(id, _)| *id).collect();
+        for id in casting {
+            skills::steer_cast(self, sim, id);
+        }
+        out
+    }
+
+    fn hero_input(&mut self, sim: &mut Sim, hid: EntityId, input: &InputFrame, out: &mut BTreeMap<EntityId, InputFrame>) {
+        let d = data();
+        let Some((feet, _)) = feet_of(sim, hid) else { return };
+        let facing = sim.state.entities.get(hid).and_then(|e| e.character.as_ref()).map(|c| c.facing).unwrap_or(0.0);
+        let Some(a) = self.actors.get(&hid) else { return };
+        if a.dead {
+            out.insert(hid, InputFrame::default());
+            if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
+                ch.slow = 1.0;
+            }
+            return;
+        }
+        let frozen = a.frozen();
+        let aim = input.aim.map(flat).unwrap_or(feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0);
+        let aim = Vec3::new(aim.x, feet.y, aim.z);
+        // Dodge: cancels whatever you were doing.
+        if input.just(buttons::DODGE) && a.dodge_cd <= 0.0 && !frozen {
+            let mv = Vec3::new(input.move_dir.x, 0.0, input.move_dir.y);
+            let dir = if mv.length() > 0.2 { mv.normalize() } else { Vec3::new(facing.sin(), 0.0, facing.cos()) };
+            let recovery = DODGE_RECOVERY / a.sheet.dodge_recovery.max(0.2);
+            let a = self.actors.get_mut(&hid).unwrap();
+            a.cast = None;
+            a.queued = None;
+            a.iframes = DODGE_TIME + 0.06;
+            a.dodge_cd = recovery;
+            if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
+                ch.dash_vel = dir * DODGE_SPEED;
+                ch.dash_time = DODGE_TIME;
+                ch.dash_roll = true;
+                ch.face = Some(yaw_of(dir));
+            }
+            sim.events.push(SimEvent::Roll { pos: feet });
+        }
+        // Potion: a big heal over a moment.
+        if input.just(buttons::POTION) && self.hero.potions > 0 {
+            let a = self.actors.get_mut(&hid).unwrap();
+            if a.life < a.sheet.life_max {
+                self.hero.potions -= 1;
+                let heal = a.sheet.life_max * 0.45 * a.sheet.potion;
+                a.life = (a.life + heal).min(a.sheet.life_max);
+                self.float(feet + Vec3::Y * 2.0, heal, FloatKind::Heal);
+                sim.events.push(SimEvent::Potion { pos: feet });
+            }
+        }
+        // Skills: a fresh press wins over a held button; held buttons keep repeating.
+        let slots = [buttons::PRIMARY, buttons::SECONDARY, buttons::SKILL3, buttons::SKILL4, buttons::SKILL5, buttons::SKILL6];
+        let want = slots.iter().position(|b| input.just(*b)).or_else(|| slots.iter().position(|b| input.down(*b)));
+        if let Some(slot) = want.filter(|_| !frozen) {
+            if let Some(skill) = d.skill_id(&self.hero.bar[slot]) {
+                let a = &self.actors[&hid];
+                let dodging = sim
+                    .state
+                    .entities
+                    .get(hid)
+                    .and_then(|e| e.character.as_ref())
+                    .is_some_and(|c| c.dash_time > 0.0 && c.dash_roll);
+                match &a.cast {
+                    None if !dodging => {
+                        skills::try_cast(self, sim, hid, skill, aim);
+                    }
+                    Some(c) if c.fired && c.dur - c.t < c.dur * 0.45 && input.just(slots[slot]) => {
+                        self.actors.get_mut(&hid).unwrap().queued = Some((skill, aim));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let a = &self.actors[&hid];
+        let def = a.cast.as_ref().map(|c| d.skill(c.skill));
+        let stand = input.down(buttons::FOCUS);
+        if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
+            ch.haste = a.sheet.move_speed * (1.0 - a.ailments.chill.0) - 1.0;
+            ch.slow = match (def, &a.cast) {
+                _ if frozen => 1.0,
+                (Some(def), Some(c)) => match def.behavior {
+                    Behavior::Dash | Behavior::Leap | Behavior::Charge => 0.0,
+                    _ if stand => 1.0,
+                    _ if !c.fired => 0.72,
+                    _ => 0.35,
+                },
+                _ => 0.0,
+            };
+            if !(ch.dash_time > 0.0 && ch.dash_roll) {
+                ch.face = a.cast.as_ref().map(|c| yaw_of(c.dir));
+            }
+        }
+        out.insert(hid, if frozen { InputFrame::default() } else { *input });
+    }
+
+    // ------------------------------------------------------------------ after physics
+    fn post(&mut self, sim: &mut Sim, dt: f32, raw_dt: f32, events: &mut Vec<SimEvent>) {
+        let d = data();
+        self.time += dt;
+        // Casts: land hits, finish, start the buffered one.
+        let ids: Vec<EntityId> = self.actors.keys().copied().collect();
+        for id in &ids {
+            skills::advance_cast(self, sim, *id, dt, events);
+        }
+        skills::update_shots(self, sim, dt, events);
+        skills::update_effects(self, sim, dt, events);
+        // Ailments, regeneration, timers.
+        for id in &ids {
+            self.tick_actor(sim, *id, dt, events);
+        }
+        // Deaths: topple, sink, vanish; the hero gets back up in a moment.
+        let mut gone = Vec::new();
+        for (id, a) in self.actors.iter_mut() {
+            if a.dead {
+                a.death_t += dt;
+                if a.team != Team::Hero && a.death_t > 1.7 {
+                    gone.push(*id);
+                }
+            }
+        }
+        for id in gone {
+            self.actors.remove(&id);
+            sim.despawn(id);
+        }
+        if let Some(hid) = self.hero_id {
+            if self.actors.get(&hid).is_some_and(|a| a.dead) {
+                self.respawn -= dt;
+                if self.respawn <= 0.0 {
+                    let spawn = self.spawn;
+                    sim.set_position(hid, spawn);
+                    let a = self.actors.get_mut(&hid).unwrap();
+                    a.dead = false;
+                    a.death_t = 0.0;
+                    a.ailments = Ailments::default();
+                    a.iframes = 2.0;
+                    refresh_hero(sim, self, true);
+                    self.hero.potions = self.hero.potion_max;
+                }
+            }
+        }
+        // Animation state for every actor.
+        for (id, a) in &self.actors {
+            let Some(ch) = sim.state.entities.get_mut(*id).and_then(|e| e.character.as_mut()) else { continue };
+            match &a.cast {
+                Some(c) => {
+                    let def = d.skill(c.skill);
+                    ch.anim.act_kind = def.anim.index();
+                    ch.anim.act = (c.t / c.dur.max(1e-3)).clamp(0.0, 1.0);
+                    ch.anim.act_hit = def.hit;
+                    ch.anim.act_side = c.side;
+                    ch.anim.lift = if def.behavior == Behavior::Leap {
+                        let start = c.dur * 0.15;
+                        let p = ((c.t - start) / (c.hit_at - start).max(1e-3)).clamp(0.0, 1.0);
+                        (p * std::f32::consts::PI).sin() * 1.5
+                    } else {
+                        0.0
+                    };
+                }
+                None => {
+                    ch.anim.act_kind = 0;
+                    ch.anim.act = 0.0;
+                    ch.anim.lift = 0.0;
+                }
+            }
+            ch.anim.down = if a.dead { (a.death_t / 0.9).min(1.0) } else { 0.0 };
+        }
+        // Floating numbers and banners run on real time.
+        for f in &mut self.floaters {
+            f.age += raw_dt;
+            f.pos.y += raw_dt * (1.4 - f.age).max(0.2);
+        }
+        self.floaters.retain(|f| f.age < 1.1);
+        if let Some((_, t)) = &mut self.message {
+            *t -= raw_dt;
+            if *t <= 0.0 {
+                self.message = None;
+            }
+        }
+        self.hitstop = (self.hitstop - raw_dt).max(0.0);
+        self.shake *= (-9.0 * raw_dt).exp();
+        self.level_flash += raw_dt;
+        scene::update_arena(self, sim, dt);
+    }
+
+    fn tick_actor(&mut self, sim: &mut Sim, id: EntityId, dt: f32, events: &mut Vec<SimEvent>) {
+        let Some(a) = self.actors.get_mut(&id) else { return };
+        a.flash = (a.flash - dt).max(0.0);
+        a.iframes = (a.iframes - dt).max(0.0);
+        a.dodge_cd = (a.dodge_cd - dt).max(0.0);
+        for c in &mut a.cooldowns {
+            c.1 = (c.1 - dt).max(0.0);
+        }
+        if a.cast.is_none() {
+            a.combo_timer = (a.combo_timer - dt).max(0.0);
+        }
+        let mut buffs_changed = false;
+        for b in &mut a.buffs {
+            b.time -= dt;
+        }
+        a.buffs.retain(|b| {
+            let keep = b.time > 0.0;
+            buffs_changed |= !keep;
+            keep
+        });
+        if a.dead {
+            return;
+        }
+        let ail = &mut a.ailments;
+        ail.freeze = (ail.freeze - dt).max(0.0);
+        ail.chill.1 = (ail.chill.1 - dt).max(0.0);
+        if ail.chill.1 <= 0.0 {
+            ail.chill.0 = 0.0;
+        }
+        ail.shock.1 = (ail.shock.1 - dt).max(0.0);
+        if ail.shock.1 <= 0.0 {
+            ail.shock.0 = 0.0;
+        }
+        let mut dot = 0.0;
+        for x in [&mut ail.bleed, &mut ail.ignite] {
+            if x.time > 0.0 {
+                dot += x.dps * dt;
+                x.time -= dt;
+            }
+        }
+        for p in &mut ail.poison {
+            dot += p.dps * dt;
+            p.time -= dt;
+        }
+        ail.poison.retain(|p| p.time > 0.0);
+        let killer = ail.ignite.source.or(ail.bleed.source).or(ail.poison.first().and_then(|p| p.source));
+        a.life -= dot * a.sheet.taken;
+        a.life = (a.life + a.sheet.life_regen * dt).min(a.sheet.life_max);
+        a.mana = (a.mana + a.sheet.mana_regen * dt).min(a.sheet.mana_max);
+        if a.life <= 0.0 {
+            if a.last_hit.is_none() {
+                a.last_hit = killer;
+            }
+            self.kill(sim, id, events);
+        }
+        if buffs_changed && Some(id) == self.hero_id {
+            refresh_hero(sim, self, false);
+        }
+    }
+
+    /// Lands a hit on `target` from `from` (for knockback). Returns the damage dealt.
+    pub(crate) fn hit(&mut self, sim: &mut Sim, target: EntityId, dmg: &Damage, from: Vec3, events: &mut Vec<SimEvent>) -> f32 {
+        let diff = sim.config.difficulty.clone();
+        let Some((feet, height)) = feet_of(sim, target) else { return 0.0 };
+        let Some(t) = self.actors.get_mut(&target) else { return 0.0 };
+        if t.dead || t.iframes > 0.0 {
+            return 0.0;
+        }
+        let head = feet + Vec3::Y * (height + 0.3);
+        if t.team == Team::Hero && dmg.attack {
+            let rng = &mut sim.state.rng;
+            if rng.f32() * 100.0 < t.sheet.evasion {
+                self.float_text(head, "Evade");
+                return 0.0;
+            }
+            if rng.f32() * 100.0 < t.sheet.block {
+                self.float_text(head, "Block");
+                events.push(SimEvent::Block { pos: feet });
+                return 0.0;
+            }
+        }
+        let parts = mitigate(dmg, t);
+        let total: f32 = parts.iter().sum();
+        t.life -= total;
+        t.flash = 0.12;
+        t.last_hit = dmg.source;
+        if let Some(b) = &mut t.brain {
+            b.aggro = true;
+        }
+        let life_max = t.sheet.life_max.max(1.0);
+        let boss = t.rarity == Rarity::Unique;
+        // Ailments.
+        let rng = &mut sim.state.rng;
+        let am = dmg.ailment_mult.max(0.1);
+        if parts[0] > 0.0 && rng.f32() < dmg.ailment[0] {
+            let dps = parts[0] * 0.7 / 4.0 * am;
+            if dps > t.ailments.bleed.dps || t.ailments.bleed.time <= 0.0 {
+                t.ailments.bleed = Dot { dps, time: 4.0, source: dmg.source };
+            }
+        }
+        if parts[1] > 0.0 && rng.f32() < dmg.ailment[1] {
+            let dps = parts[1] * 0.9 / 4.0 * am;
+            if dps > t.ailments.ignite.dps || t.ailments.ignite.time <= 0.0 {
+                t.ailments.ignite = Dot { dps, time: 4.0, source: dmg.source };
+            }
+        }
+        if parts[2] > 0.0 {
+            let amount = (parts[2] / life_max * 3.0).clamp(0.12, 0.5);
+            t.ailments.chill = (t.ailments.chill.0.max(amount), 2.0);
+            if rng.f32() < dmg.ailment[2] || parts[2] >= 0.2 * life_max {
+                let time = (0.5 + parts[2] / life_max * 2.0).min(1.8) * if boss { 0.35 } else { 1.0 };
+                t.ailments.freeze = t.ailments.freeze.max(time);
+                if let Some(c) = &t.cast {
+                    if !c.fired {
+                        t.cast = None;
+                    }
+                }
+            }
+        }
+        if parts[3] > 0.0 && rng.f32() < dmg.ailment[3] {
+            let amount = (parts[3] / life_max * 2.0).clamp(0.1, 0.5);
+            t.ailments.shock = (t.ailments.shock.0.max(amount), 4.0);
+        }
+        if parts[4] > 0.0 && rng.f32() < dmg.ailment[4] && t.ailments.poison.len() < 25 {
+            t.ailments.poison.push(Dot { dps: parts[4] * 0.3 / 2.0 * am, time: 2.0, source: dmg.source });
+        }
+        let team = t.team;
+        let immovable = t.immovable || boss;
+        let killed = t.life <= 0.0;
+        let kind = if dmg.crit { FloatKind::Crit(dmg.main_element() as u8) } else { FloatKind::Damage(dmg.main_element() as u8) };
+        self.float(head, total, kind);
+        // Knockback and flinch.
+        let dir = flat(feet - from).normalize_or(Vec3::X);
+        if let Some(ch) = sim.state.entities.get_mut(target).and_then(|e| e.character.as_mut()) {
+            if !immovable && dmg.knockback > 0.0 {
+                ch.impulse += dir * dmg.knockback * if team == Team::Hero { 0.6 } else { 1.0 };
+                if dmg.knockback >= 2.0 && team != Team::Hero {
+                    ch.stun = ch.stun.max(0.18);
+                }
+            }
+            ch.anim.hit(dir, 0.5 + 0.25 * dmg.knockback.min(4.0) + if dmg.crit { 0.5 } else { 0.0 });
+        }
+        // The attacker: leech and on-hit gains; the hero's hits stop time a little.
+        if let Some(src) = dmg.source {
+            let gain = data().skill(dmg.skill).mana_gain;
+            if let Some(s) = self.actors.get_mut(&src) {
+                if !s.dead {
+                    s.life = (s.life + s.sheet.life_on_hit + total * s.sheet.life_leech).min(s.sheet.life_max);
+                    s.mana = (s.mana + s.sheet.mana_on_hit + gain).min(s.sheet.mana_max);
+                }
+                if s.team == Team::Hero {
+                    let d = data();
+                    let def = d.skill(dmg.skill);
+                    let stop = def.hitstop * if dmg.crit { 1.7 } else { 1.0 } * diff.hitstop;
+                    self.hitstop = self.hitstop.max(stop);
+                    self.shake = (self.shake + def.shake * 0.5 * diff.shake).min(1.5);
+                }
+            }
+        }
+        if team == Team::Hero {
+            self.shake = (self.shake + (total / life_max * 2.0).min(0.6) * diff.shake).min(1.5);
+        }
+        events.push(SimEvent::Strike {
+            pos: feet + Vec3::Y * height * 0.6,
+            power: total,
+            element: dmg.main_element() as u8,
+            crit: dmg.crit,
+        });
+        if killed {
+            self.kill(sim, target, events);
+        }
+        total
+    }
+
+    /// Something died: rewards for the hero, or the hero is down.
+    pub(crate) fn kill(&mut self, sim: &mut Sim, id: EntityId, events: &mut Vec<SimEvent>) {
+        let Some((feet, _)) = feet_of(sim, id) else { return };
+        let Some(a) = self.actors.get_mut(&id) else { return };
+        if a.dead {
+            return;
+        }
+        a.dead = true;
+        a.death_t = 0.0;
+        a.life = 0.0;
+        a.cast = None;
+        a.ailments = Ailments::default();
+        let (team, xp, level, rarity, radius) = (a.team, a.xp, a.level, a.rarity, a.radius);
+        events.push(SimEvent::Slain { pos: feet, size: radius });
+        if team == Team::Hero {
+            self.hero.deaths += 1;
+            self.respawn = 3.0;
+            self.say("You fell. Rising again...", 3.0);
+            return;
+        }
+        if team != Team::Monster {
+            return;
+        }
+        // Rewards.
+        self.hero.kills += 1;
+        let Some(hid) = self.hero_id else { return };
+        let (xp_gain, gold_find, on_kill) = match self.actors.get(&hid) {
+            Some(h) => (h.sheet.xp_gain, h.sheet.gold_find, h.sheet.life_on_kill),
+            None => (1.0, 0.0, 0.0),
+        };
+        let ups = self.hero.gain_xp((xp * xp_gain) as f64);
+        if let Some(h) = self.actors.get_mut(&hid) {
+            h.life = (h.life + on_kill).min(h.sheet.life_max);
+        }
+        let rng = &mut sim.state.rng;
+        let gold_chance = [0.35, 0.7, 1.0, 1.0][rarity as usize];
+        if rng.f32() < gold_chance {
+            let gold = ((2.0 + level as f32 * 1.3)
+                * rng.range(0.6, 1.4)
+                * [1.0, 2.0, 4.0, 15.0][rarity as usize]
+                * (1.0 + gold_find / 100.0))
+                .round()
+                .max(1.0) as u64;
+            self.hero.gold += gold;
+            self.float(feet + Vec3::Y * 1.2, gold as f32, FloatKind::Gold);
+            events.push(SimEvent::Coin { pos: feet });
+        }
+        if self.hero.potions < self.hero.potion_max && rng.f32() < [0.06, 0.2, 0.6, 1.0][rarity as usize] {
+            self.hero.potions += 1;
+            self.float_text(feet + Vec3::Y * 1.6, "+ Potion");
+        }
+        if ups > 0 {
+            let hf = feet_of(sim, hid).map(|f| f.0).unwrap_or(feet);
+            refresh_hero(sim, self, true);
+            self.level_flash = 0.0;
+            self.say(format!("Level {}", self.hero.level), 2.5);
+            events.push(SimEvent::LevelUp { pos: hf });
+        }
+    }
+}
+
+// ---------------------------------------------------------------------- what the view needs
+
+/// A skill slot on the HUD.
+#[derive(Clone, Debug, Default)]
+pub struct SlotHud {
+    pub key: String,
+    pub name: String,
+    pub cooldown: f32,
+    pub cooldown_max: f32,
+    pub cost: f32,
+    pub affordable: bool,
+    pub element: u8,
+    pub spell: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct HeroHud {
+    pub name: String,
+    pub level: u32,
+    pub xp: f64,
+    pub xp_next: f64,
+    pub life: f32,
+    pub life_max: f32,
+    pub mana: f32,
+    pub mana_max: f32,
+    pub gold: u64,
+    pub potions: u32,
+    pub potion_max: u32,
+    pub slots: Vec<SlotHud>,
+    pub dead: bool,
+    pub respawn: f32,
+    pub dodge_cd: f32,
+    pub level_flash: f32,
+    pub kills: u64,
+}
+
+/// A monster (or the hero) as the HUD sees it.
+#[derive(Clone, Debug)]
+pub struct ActorView {
+    pub id: EntityId,
+    pub feet: Vec3,
+    pub height: f32,
+    pub radius: f32,
+    pub team: Team,
+    pub name: String,
+    pub level: u32,
+    pub rarity: Rarity,
+    pub life: f32,
+    pub dead: bool,
+    pub aggro: bool,
+    /// Bleed, ignite, chill, freeze, shock, poison.
+    pub ailments: [bool; 6],
+    pub affixes: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TeleShape {
+    Arc { center: Vec3, dir: Vec3, range: f32, angle: f32 },
+    Circle { center: Vec3, radius: f32 },
+    Line { from: Vec3, dir: Vec3, length: f32, width: f32 },
+}
+
+/// A monster attack winding up: where it will land and how close it is (0..1).
+#[derive(Clone, Copy, Debug)]
+pub struct Telegraph {
+    pub shape: TeleShape,
+    pub progress: f32,
+    pub color: [f32; 3],
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct GameFrame {
+    pub hero: Option<HeroHud>,
+    pub actors: Vec<ActorView>,
+    pub shots: Vec<Shot>,
+    pub effects: Vec<Effect>,
+    pub floaters: Vec<Floater>,
+    pub telegraphs: Vec<Telegraph>,
+    pub shake: f32,
+    pub message: Option<String>,
+    pub wave: u32,
+    pub monsters: usize,
+}
+
+impl Game {
+    /// Puppet tint for an entity: hit flash, frozen, burning, shocked.
+    pub fn tint(&self, id: EntityId) -> Option<([f32; 3], f32)> {
+        let a = self.actors.get(&id)?;
+        if a.flash > 0.0 {
+            return Some(([1.0, 1.0, 1.0], (a.flash / 0.12).min(1.0) * 0.8));
+        }
+        if a.dead {
+            return None;
+        }
+        let ail = &a.ailments;
+        if ail.freeze > 0.0 {
+            return Some(([0.55, 0.85, 1.0], 0.55));
+        }
+        if ail.ignite.time > 0.0 {
+            let f = 0.25 + 0.15 * (self.time * 18.0 + id.0 as f32).sin();
+            return Some(([1.0, 0.45, 0.1], f));
+        }
+        if ail.shock.1 > 0.0 {
+            return Some(([1.0, 0.95, 0.4], 0.25 + 0.2 * (self.time * 30.0).sin().abs()));
+        }
+        if ail.chill.1 > 0.0 {
+            return Some(([0.6, 0.85, 1.0], 0.25));
+        }
+        if !ail.poison.is_empty() {
+            return Some(([0.5, 0.95, 0.3], 0.25));
+        }
+        None
+    }
+
+    pub fn frame(&self, sim: &Sim) -> GameFrame {
+        let d = data();
+        let hero = self.hero_id.and_then(|h| self.actors.get(&h)).map(|a| HeroHud {
+            name: self.hero.name.clone(),
+            level: self.hero.level,
+            xp: self.hero.xp,
+            xp_next: hero::xp_to_next(self.hero.level),
+            life: a.life,
+            life_max: a.sheet.life_max,
+            mana: a.mana,
+            mana_max: a.sheet.mana_max,
+            gold: self.hero.gold,
+            potions: self.hero.potions,
+            potion_max: self.hero.potion_max,
+            slots: self
+                .hero
+                .bar
+                .iter()
+                .map(|k| match d.skill_id(k) {
+                    Some(id) => {
+                        let s = d.skill(id);
+                        let cost = s.cost * a.sheet.mana_cost;
+                        SlotHud {
+                            key: k.clone(),
+                            name: s.name.clone(),
+                            cooldown: a.cooldown(id),
+                            cooldown_max: s.cooldown / a.sheet.cooldown.max(0.1),
+                            cost,
+                            affordable: a.mana >= cost,
+                            element: s.element as u8,
+                            spell: s.has("spell"),
+                        }
+                    }
+                    None => SlotHud::default(),
+                })
+                .collect(),
+            dead: a.dead,
+            respawn: self.respawn,
+            dodge_cd: a.dodge_cd,
+            level_flash: self.level_flash,
+            kills: self.hero.kills,
+        });
+        let mut actors = Vec::new();
+        let mut telegraphs = Vec::new();
+        for (id, a) in &self.actors {
+            let Some((feet, height)) = feet_of(sim, *id) else { continue };
+            actors.push(ActorView {
+                id: *id,
+                feet,
+                height,
+                radius: a.radius,
+                team: a.team,
+                name: a.name.clone(),
+                level: a.level,
+                rarity: a.rarity,
+                life: (a.life / a.sheet.life_max.max(1.0)).clamp(0.0, 1.0),
+                dead: a.dead,
+                aggro: a.brain.as_ref().is_some_and(|b| b.aggro),
+                ailments: [
+                    a.ailments.bleed.time > 0.0,
+                    a.ailments.ignite.time > 0.0,
+                    a.ailments.chill.1 > 0.0,
+                    a.ailments.freeze > 0.0,
+                    a.ailments.shock.1 > 0.0,
+                    !a.ailments.poison.is_empty(),
+                ],
+                affixes: a.affixes.clone(),
+            });
+            if let Some(t) = a.cast.as_ref().and_then(|c| skills::telegraph(a, c, feet)) {
+                telegraphs.push(t);
+            }
+        }
+        GameFrame {
+            hero,
+            actors,
+            shots: self.shots.clone(),
+            effects: self.effects.clone(),
+            floaters: self.floaters.clone(),
+            telegraphs,
+            shake: self.shake,
+            message: self.message.as_ref().map(|m| m.0.clone()),
+            wave: self.arena.as_ref().map(|a| a.wave).unwrap_or(0),
+            monsters: self.monsters_alive(),
+        }
+    }
+}
+
+/// Unused-move helper kept for brains that steer by a 2D direction.
+pub fn dir2(v: Vec3) -> Vec2 {
+    Vec2::new(v.x, v.z).normalize_or_zero()
+}

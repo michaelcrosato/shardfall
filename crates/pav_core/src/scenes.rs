@@ -18,6 +18,7 @@ pub const SCENES: &[(&str, &str)] = &[
     ("world", "The pavilion with every room, surrounded by streaming wilderness. 'world/<room>' starts in a room."),
     ("test", "Lit test scene: a small plaza, every primitive and style, props raining onto a pyramid."),
     ("empty", "A single floor slab with a player."),
+    ("arena", "Shardfall: the wave arena (combat test ground)."),
 ];
 
 /// All scene names, including standalone rooms (any room key builds just that room).
@@ -104,6 +105,7 @@ pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
             }
         }
         "test" => test_scene(sim),
+        "arena" => crate::arpg::scene::build_arena(sim),
         "empty" => {
             floor(sim, 20);
             sim.state.spawn = Vec3::new(0.5, 0.0, 0.5);

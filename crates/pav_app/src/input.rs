@@ -104,6 +104,28 @@ impl Default for Bindings {
 }
 
 impl Bindings {
+    /// Shardfall: WASD to move, mouse buttons and Q E R F for the six skill slots, Space to
+    /// dodge, 1 for a potion, Shift to attack in place.
+    pub fn game() -> Self {
+        use KeyCode::*;
+        Self {
+            up: vec![KeyW, ArrowUp],
+            down: vec![KeyS, ArrowDown],
+            left: vec![KeyA, ArrowLeft],
+            right: vec![KeyD, ArrowRight],
+            buttons: vec![
+                (buttons::SKILL3, vec![KeyQ]),
+                (buttons::SKILL4, vec![KeyE]),
+                (buttons::SKILL5, vec![KeyR]),
+                (buttons::SKILL6, vec![KeyF]),
+                (buttons::DODGE, vec![Space]),
+                (buttons::POTION, vec![Digit1]),
+                (buttons::FOCUS, vec![ShiftLeft]),
+                (buttons::INTERACT, vec![KeyG]),
+            ],
+        }
+    }
+
     /// Defaults with a room's `[keys]` overrides applied. Returns problems found.
     pub fn with_overrides(map: &std::collections::BTreeMap<String, Vec<String>>) -> (Self, Vec<String>) {
         let mut b = Self::default();
@@ -134,6 +156,30 @@ impl Bindings {
             }
         }
         (b, errs)
+    }
+}
+
+/// Shardfall's controls.
+pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
+    match device {
+        Device::KeyboardMouse => &[
+            ("Move", "W A S D"),
+            ("Aim", "mouse"),
+            ("Skills", "LMB · RMB · Q · E · R · F (hold to repeat)"),
+            ("Dodge roll", "Space (cancels any attack)"),
+            ("Potion", "1"),
+            ("Attack in place", "hold Shift"),
+            ("Camera", "middle-drag rotate · wheel zoom"),
+            ("Rewind", "hold Backspace"),
+            ("Menu / tuning", "Esc / F1"),
+        ],
+        Device::Gamepad => &[
+            ("Move / aim", "left stick / right stick"),
+            ("Skills", "X · Y · B · RB · LB · RT"),
+            ("Dodge roll", "A"),
+            ("Potion", "D-pad up"),
+            ("Menu", "Start"),
+        ],
     }
 }
 
@@ -201,6 +247,8 @@ pub struct Input {
     key_taps: HashSet<KeyCode>,
     pub mouse_taps: HashSet<MouseButton>,
     pub bindings: Bindings,
+    /// Game mode: the right mouse button is a skill and the gamepad uses the game layout.
+    pub game: bool,
 }
 
 fn deadzone(v: Vec2, dz: f32) -> Vec2 {
@@ -234,6 +282,7 @@ impl Input {
             key_taps: HashSet::new(),
             mouse_taps: HashSet::new(),
             bindings: Bindings::default(),
+            game: false,
         }
     }
 
@@ -294,25 +343,43 @@ impl Input {
             pad.right = deadzone(Vec2::new(gp.value(Axis::RightStickX), gp.value(Axis::RightStickY)), 0.25);
             let trig = |b: Button| gp.button_data(b).map(|d| d.value()).unwrap_or(0.0) > 0.35;
             let mut held = 0;
-            for (btn, action) in [
-                (Button::South, buttons::JUMP),
-                (Button::East, buttons::CROUCH),
-                (Button::North, buttons::CRAWL),
-                (Button::West, buttons::USE),
-                (Button::DPadRight, buttons::INTERACT),
-            ] {
-                if gp.is_pressed(btn) {
+            let layout: &[(Button, u32)] = if self.game {
+                &[
+                    (Button::West, buttons::PRIMARY),
+                    (Button::North, buttons::SECONDARY),
+                    (Button::East, buttons::SKILL3),
+                    (Button::RightTrigger, buttons::SKILL4),
+                    (Button::LeftTrigger, buttons::SKILL5),
+                    (Button::South, buttons::DODGE),
+                    (Button::DPadUp, buttons::POTION),
+                    (Button::DPadRight, buttons::INTERACT),
+                ]
+            } else {
+                &[
+                    (Button::South, buttons::JUMP),
+                    (Button::East, buttons::CROUCH),
+                    (Button::North, buttons::CRAWL),
+                    (Button::West, buttons::USE),
+                    (Button::DPadRight, buttons::INTERACT),
+                ]
+            };
+            for (btn, action) in layout {
+                if gp.is_pressed(*btn) {
                     held |= action;
                 }
             }
             if trig(Button::RightTrigger2) {
-                held |= buttons::USE;
+                held |= if self.game { buttons::SKILL6 } else { buttons::USE };
             }
             if trig(Button::LeftTrigger2) {
                 held |= buttons::FOCUS;
             }
             pad.held = held;
-            pad.rotate = (gp.is_pressed(Button::RightTrigger) as i32 - gp.is_pressed(Button::LeftTrigger) as i32) as f32;
+            pad.rotate = if self.game {
+                0.0
+            } else {
+                (gp.is_pressed(Button::RightTrigger) as i32 - gp.is_pressed(Button::LeftTrigger) as i32) as f32
+            };
             pad.zoom = (gp.is_pressed(Button::DPadDown) as i32 - gp.is_pressed(Button::DPadUp) as i32) as f32;
             pad.back_held = gp.is_pressed(Button::Select);
             if pad.left.length() > 0.3 || pad.right.length() > 0.3 || held != 0 {
@@ -345,6 +412,9 @@ impl Input {
         if self.mouse.contains(&MouseButton::Left) {
             b |= buttons::PRIMARY;
         }
+        if self.game && self.mouse.contains(&MouseButton::Right) {
+            b |= buttons::SECONDARY;
+        }
         b
     }
 
@@ -359,6 +429,9 @@ impl Input {
         }
         if self.mouse_taps.contains(&MouseButton::Left) {
             pressed |= buttons::PRIMARY;
+        }
+        if self.game && self.mouse_taps.contains(&MouseButton::Right) {
+            pressed |= buttons::SECONDARY;
         }
         self.key_taps.clear();
         self.mouse_taps.clear();

@@ -1,0 +1,74 @@
+# Shardfall monster families: the hand-made base of the monster vocabulary. The genome
+# generator (endless levels) mixes these body plans, looks, archetypes and skills.
+#
+# body       biped | spider | lizard | beetle | blob (the puppet skeleton)
+# archetype  melee (close in and hit) | ranged (keep distance, strafe, shoot) | charger
+#            (close in, then charge through)
+# skills     keys from skills.toml; the brain picks whichever is ready and in range
+# life / damage / speed / xp   multipliers on the level's base values
+# look       any puppet setting over the body plan's preset (colours, proportions, weapon)
+
+[ghoul]
+name = "Ghoul"
+body = "biped"
+archetype = "melee"
+skills = ["claw"]
+speed = 1.05
+look = { skin = "#9aa883", shirt = "#3e4a33", pants = "#2a3024", shoes = "#1d211a", eyes = "#ffe066", lean = 1.6, arm_swing = 1.2, head_radius = 0.19 }
+
+[bonecrusher]
+name = "Bonecrusher"
+body = "biped"
+archetype = "melee"
+skills = ["smash", "claw"]
+scale = 1.45
+life = 2.8
+damage = 1.7
+speed = 0.75
+xp = 2.5
+look = { skin = "#c9b79a", shirt = "#5a3a2a", pants = "#3a2a20", eyes = "#ff5a3a", torso_radius = 0.26, shoulder_width = 0.3, weapon = { kind = "maul", color = "#6a6a72", grip = "#3a2a1a" } }
+
+[skitterer]
+name = "Skitterer"
+body = "spider"
+archetype = "melee"
+skills = ["bite"]
+scale = 0.75
+life = 0.45
+damage = 0.6
+speed = 1.4
+xp = 0.45
+look = { skin = "#3b3540", shirt = "#4a4252", accent = "#d0473b", eyes = "#ffcf5a" }
+
+[spitter]
+name = "Spitter"
+body = "beetle"
+archetype = "ranged"
+skills = ["spit"]
+life = 0.8
+damage = 0.9
+speed = 0.85
+look = { skin = "#2a3326", shirt = "#5f7d2e", accent = "#c8f25a", eyes = "#f2ffcf" }
+
+[ashdrake]
+name = "Ashdrake"
+body = "lizard"
+archetype = "charger"
+skills = ["gore", "bite"]
+scale = 1.25
+life = 1.5
+damage = 1.3
+xp = 1.6
+look = { skin = "#b4502e", shirt = "#8e3a20", accent = "#ffb347", eyes = "#fff1a8", tail_length = 1.3 }
+
+[bile_ooze]
+name = "Bile Ooze"
+body = "blob"
+archetype = "melee"
+skills = ["stomp"]
+scale = 1.1
+life = 1.9
+damage = 0.9
+speed = 0.6
+xp = 1.4
+look = { skin = "#7fbf4a", shirt = "#7fbf4a", eyes = "#1c2a12" }

@@ -361,6 +361,21 @@ pub struct Character {
     /// The vehicle this character is driving (seated, hidden, not colliding).
     #[serde(default)]
     pub riding: Option<EntityId>,
+    /// Game control (Shardfall): how much the character's own movement is held back (0 = free,
+    /// 1 = rooted, e.g. while swinging), extra speed (0.2 = 20% faster), a facing to hold, and a
+    /// dash (velocity and seconds left; `dash_roll` tumbles like a dodge roll).
+    #[serde(default)]
+    pub slow: f32,
+    #[serde(default)]
+    pub haste: f32,
+    #[serde(default)]
+    pub face: Option<f32>,
+    #[serde(default)]
+    pub dash_vel: Vec3,
+    #[serde(default)]
+    pub dash_time: f32,
+    #[serde(default)]
+    pub dash_roll: bool,
 }
 
 impl Character {
@@ -582,6 +597,7 @@ pub fn tick(
     let was_swimming = ch.swimming;
     ch.swimming = ch.water_depth > if was_swimming { 1.05 } else { 1.25 } && ch.climbing.is_none() && ch.hang.is_none();
     let rolling = ch.roll > 0.0;
+    let dashing = ch.dash_time > 0.0 && ch.stun <= 0.0;
     // Creatures (spiders, lizards, ...) keep a low capsule and move at full speed.
     let creature = puppet.body != BodyPlan::Biped;
 
@@ -751,8 +767,11 @@ pub fn tick(
             Posture::Crouch => mp.crouch_mult,
             Posture::Crawl => mp.crawl_mult,
         } * if ch.water_depth > 0.3 && !ch.swimming { mp.wade_mult } else { 1.0 };
+        let mult = mult * (1.0 + ch.haste).max(0.0) * (1.0 - ch.slow).clamp(0.0, 1.0);
         let mut vh = Vec3::new(ch.vel.x, 0.0, ch.vel.z);
-        if stunned {
+        if dashing {
+            vh = Vec3::new(ch.dash_vel.x, 0.0, ch.dash_vel.z);
+        } else if stunned {
             // Knocked back: slide to a stop, no control.
             vh *= (-3.0 * dt).exp();
         } else if ch.swimming {
@@ -1035,7 +1054,10 @@ pub fn tick(
     }
 
     // --- facing
-    if !climbing && !hanging && !stunned && matches!(mp.model, MovementModel::Instant | MovementModel::Momentum) {
+    ch.dash_time = (ch.dash_time - dt).max(0.0);
+    if let Some(f) = ch.face {
+        ch.facing = f;
+    } else if !climbing && !hanging && !stunned && matches!(mp.model, MovementModel::Instant | MovementModel::Momentum) {
         if mp.face_aim {
             if let Some(a) = input.aim {
                 let d = a - new_center;
@@ -1107,7 +1129,7 @@ pub fn tick(
             landed,
             jumped,
             swimming: ch.swimming,
-            rolling,
+            rolling: rolling || (dashing && ch.dash_roll),
         },
         dt,
     );

@@ -12,6 +12,179 @@ use crate::rig::RigView;
 use crate::shape::Look;
 
 choice_enum! {
+    /// What a character holds (Shardfall weapons).
+    #[derive(Default)]
+    pub enum WeaponKind {
+        #[default]
+        None => "none",
+        Sword => "sword",
+        Axe => "axe",
+        Mace => "mace",
+        Dagger => "dagger",
+        Spear => "spear",
+        Staff => "staff",
+        Greatsword => "greatsword",
+        Maul => "maul",
+        Wand => "wand",
+        Claw => "claw",
+    }
+}
+
+choice_enum! {
+    /// What the off hand holds.
+    #[derive(Default)]
+    pub enum OffhandKind {
+        #[default]
+        None => "none",
+        Shield => "shield",
+        Focus => "focus",
+    }
+}
+
+/// A held weapon's look: drawn from the hand along the arm, swinging with attacks.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WeaponLook {
+    pub kind: WeaponKind,
+    /// Blade / head colour and grip / haft colour.
+    pub color: String,
+    pub grip: String,
+    /// Glow of the blade (enchanted and unique weapons).
+    pub glow: f32,
+    /// Length multiplier.
+    pub size: f32,
+    pub offhand: OffhandKind,
+    pub offhand_color: String,
+}
+
+impl Default for WeaponLook {
+    fn default() -> Self {
+        Self {
+            kind: WeaponKind::None,
+            color: "#c9ced8".into(),
+            grip: "#5a3b26".into(),
+            glow: 0.0,
+            size: 1.0,
+            offhand: OffhandKind::None,
+            offhand_color: "#8a6a3a".into(),
+        }
+    }
+}
+
+choice_enum! {
+    /// Action animations (attacks, casts, ...), played by `PuppetState::act`.
+    #[derive(Default)]
+    pub enum ActKind {
+        #[default]
+        None => "none",
+        Slash => "slash",
+        Overhead => "overhead",
+        Thrust => "thrust",
+        Spin => "spin",
+        Cast => "cast",
+        Throw => "throw",
+        Roar => "roar",
+        Leap => "leap",
+        Lunge => "lunge",
+    }
+}
+
+impl ActKind {
+    pub fn index(self) -> u8 {
+        self as u8
+    }
+    pub fn from_u8(i: u8) -> Self {
+        <Self as ChoiceParam>::from_index(i as usize)
+    }
+}
+
+fn smooth(a: f32, b: f32, x: f32) -> f32 {
+    let t = ((x - a) / (b - a).max(1e-4)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// An action's pose at progress `t`: hand targets relative to the shoulders (in arm lengths,
+/// character space), torso twist and lean, extra crouch, and how much it overrides the walk.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ActPose {
+    pub w: f32,
+    pub right: Option<Vec3>,
+    pub left: Option<Vec3>,
+    pub twist: f32,
+    pub lean: f32,
+    pub crouch: f32,
+    /// Forward lunge (creatures) 0..1.
+    pub lunge: f32,
+}
+
+/// Wind-up until `hit`, a fast strike just after it, then recovery to the walk pose.
+pub fn act_pose(kind: ActKind, t: f32, hit: f32, side: f32) -> ActPose {
+    let hit = hit.clamp(0.05, 0.95);
+    let wind = smooth(0.0, hit, t);
+    let strike = smooth(hit - 0.03, hit + 0.1, t);
+    let rec = smooth(hit + 0.12, 1.0, t);
+    let w = wind * (1.0 - rec);
+    let key = |a: Vec3, b: Vec3| a.lerp(b, strike);
+    let s = if side < 0.0 { -1.0 } else { 1.0 };
+    let mut p = ActPose { w, ..Default::default() };
+    match kind {
+        ActKind::None => p.w = 0.0,
+        ActKind::Slash => {
+            if s > 0.0 {
+                p.right = Some(key(Vec3::new(0.7, 0.42, -0.3), Vec3::new(-0.55, -0.12, 0.62)));
+                p.twist = 0.6 + (-0.7 - 0.6) * strike;
+            } else {
+                p.right = Some(key(Vec3::new(-0.45, 0.38, 0.35), Vec3::new(0.78, 0.02, 0.38)));
+                p.twist = -0.5 + (0.6 + 0.5) * strike;
+            }
+            p.lean = 0.12 * strike;
+        }
+        ActKind::Overhead | ActKind::Leap => {
+            let r = key(Vec3::new(0.1, 1.0, -0.12), Vec3::new(0.06, -0.55, 0.85));
+            p.right = Some(r);
+            p.left = Some(Vec3::new(-r.x, r.y, r.z) + Vec3::new(0.12, -0.05, 0.0));
+            p.lean = -0.25 * wind * (1.0 - strike) + 0.45 * strike;
+            p.crouch =
+                if kind == ActKind::Leap { 0.55 * (1.0 - wind) * smooth(0.0, 0.1, t) + 0.5 * strike } else { 0.45 * strike };
+        }
+        ActKind::Thrust => {
+            p.right = Some(key(Vec3::new(0.35, 0.05, -0.35), Vec3::new(0.1, 0.05, 1.05)));
+            p.twist = 0.4 + (-0.3 - 0.4) * strike;
+            p.lean = -0.1 + 0.4 * strike;
+        }
+        ActKind::Spin => {
+            p.w = smooth(0.0, 0.08, t) * (1.0 - smooth(0.92, 1.0, t));
+            p.right = Some(Vec3::new(0.95, 0.05, 0.2));
+            p.left = Some(Vec3::new(-0.95, 0.05, 0.2));
+            p.lean = 0.1;
+        }
+        ActKind::Cast => {
+            p.right = Some(key(Vec3::new(0.15, -0.25, 0.35), Vec3::new(0.3, 0.15, 0.95)));
+            p.left = Some(key(Vec3::new(-0.15, -0.25, 0.35), Vec3::new(-0.3, 0.15, 0.95)));
+            p.lean = 0.15 * strike;
+        }
+        ActKind::Throw => {
+            p.right = Some(key(Vec3::new(0.5, 0.65, -0.45), Vec3::new(0.05, 0.05, 0.95)));
+            p.twist = 0.7 + (-0.5 - 0.7) * strike;
+            p.lean = 0.2 * strike;
+        }
+        ActKind::Roar => {
+            p.right = Some(Vec3::new(0.85, 0.55, 0.05));
+            p.left = Some(Vec3::new(-0.85, 0.55, 0.05));
+            p.lean = -0.3;
+            p.w = wind * (1.0 - rec);
+        }
+        ActKind::Lunge => {
+            p.lunge = strike * (1.0 - rec);
+            p.right = Some(key(Vec3::new(0.4, 0.3, 0.1), Vec3::new(0.2, 0.0, 0.9)));
+            p.left = Some(key(Vec3::new(-0.4, 0.3, 0.1), Vec3::new(-0.2, 0.0, 0.9)));
+            p.lean = -0.15 * wind + 0.5 * strike;
+        }
+    }
+    p
+}
+
+choice_enum! {
     /// Body plan: the skeleton the puppet is built on.
     #[derive(Default)]
     pub enum BodyPlan {
@@ -72,6 +245,8 @@ pub struct PuppetDef {
     pub wobble: f32,
     /// Second colour (shells, stripes, tail tips).
     pub accent: String,
+    /// Held weapon and off hand.
+    pub weapon: WeaponLook,
 }
 
 impl Default for PuppetDef {
@@ -109,6 +284,7 @@ impl Default for PuppetDef {
             step_time: 0.15,
             wobble: 1.0,
             accent: "#3a3f4b".into(),
+            weapon: WeaponLook::default(),
         }
     }
 }
@@ -266,6 +442,24 @@ pub struct PuppetState {
     pub foot_l: f32,
     #[serde(default)]
     pub foot_r: f32,
+    /// Action animation: kind (`ActKind` index), progress 0..1, side (alternating swings, ±1)
+    /// and where the strike lands within the action (0..1).
+    #[serde(default)]
+    pub act_kind: u8,
+    #[serde(default)]
+    pub act: f32,
+    #[serde(default)]
+    pub act_side: f32,
+    #[serde(default)]
+    pub act_hit: f32,
+    /// Extra height (leaps, m), spin about the vertical (whirlwind, radians) and dying (0..1:
+    /// topples over and sinks).
+    #[serde(default)]
+    pub lift: f32,
+    #[serde(default)]
+    pub spin: f32,
+    #[serde(default)]
+    pub down: f32,
 }
 
 /// What the character is doing this tick (input to the animator).
@@ -398,6 +592,14 @@ impl PuppetState {
             hit_vf: o.hit_vf,
             foot_l: l(self.foot_l, o.foot_l),
             foot_r: l(self.foot_r, o.foot_r),
+            // A new action starts from its beginning (no sweep backwards).
+            act_kind: o.act_kind,
+            act: if o.act_kind == self.act_kind && o.act >= self.act { l(self.act, o.act) } else { o.act },
+            act_side: o.act_side,
+            act_hit: o.act_hit,
+            lift: l(self.lift, o.lift),
+            spin: l(self.spin, o.spin),
+            down: l(self.down, o.down),
         }
     }
 }
@@ -410,6 +612,8 @@ pub struct PuppetPart {
     pub ra: f32,
     pub rb: f32,
     pub color: Color,
+    /// Glow (emissive), for enchanted blades, orbs and eyes.
+    pub glow: f32,
 }
 
 /// Two-bone IK: returns the joint (knee/elbow) position.
@@ -436,15 +640,66 @@ pub(crate) fn ik(root: Vec3, target: Vec3, l1: f32, l2: f32, bend: Vec3) -> (Vec
 /// the camera's forward vector (for camera-aware tweaks), `rig` the simulated feet and chains
 /// (creatures, tails, antennae).
 pub fn pose(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
-    let mut parts = match def.body {
-        BodyPlan::Biped => biped(def, st, feet, cam_fwd),
-        _ => crate::rig::creature_parts(def, st, rig, feet, cam_fwd),
+    pose_ex(def, st, rig, feet, cam_fwd).0
+}
+
+/// `pose`, plus the held weapon's span (hand, tip) in world space when there is one (for swing
+/// trails).
+pub fn pose_ex(
+    def: &PuppetDef,
+    st: &PuppetState,
+    rig: Option<&RigView>,
+    feet: Vec3,
+    cam_fwd: Vec3,
+) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
+    let (mut parts, span) = match def.body {
+        BodyPlan::Biped => biped_ex(def, st, feet, cam_fwd),
+        _ => (crate::rig::creature_parts(def, st, rig, feet, cam_fwd), None),
     };
     if let Some(r) = rig {
         crate::rig::chain_parts(def, r, &mut parts);
     }
+    // The span rides along through the whole-body motion as an extra part.
+    let n = parts.len();
+    if let Some((a, b)) = span {
+        parts.push(PuppetPart { a, b, ra: 0.0, rb: 0.0, color: Color::WHITE, glow: 0.0 });
+    }
+    motion(def, st, feet, &mut parts);
     camera_rules(def, st.facing, feet, cam_fwd, &mut parts);
-    parts
+    let span = (parts.len() > n).then(|| {
+        let p = parts.pop().unwrap();
+        (p.a, p.b)
+    });
+    (parts, span)
+}
+
+/// Whole-body motion on top of any body plan: lunges, whirlwind spins, leap height and dying
+/// (topple over backwards, then sink into the ground).
+fn motion(def: &PuppetDef, st: &PuppetState, feet: Vec3, parts: &mut [PuppetPart]) {
+    let k = def.scale;
+    let fwd = Quat::from_rotation_y(st.facing) * Vec3::Z;
+    let right = Quat::from_rotation_y(st.facing) * Vec3::X;
+    let kind = ActKind::from_u8(st.act_kind);
+    let mut shift = Vec3::Y * st.lift;
+    if kind == ActKind::Lunge && def.body != BodyPlan::Biped {
+        shift += fwd * act_pose(kind, st.act, st.act_hit, st.act_side).lunge * 0.45 * k;
+    }
+    let spin = (st.spin.abs() > 1e-4).then(|| Quat::from_rotation_y(st.spin));
+    let down = st.down.clamp(0.0, 1.0);
+    let topple = (down > 0.0).then(|| Quat::from_axis_angle(right, -1.45 * smooth(0.0, 0.45, down)));
+    let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down));
+    for p in parts.iter_mut() {
+        for v in [&mut p.a, &mut p.b] {
+            let mut x = *v - feet;
+            if let Some(q) = spin {
+                x = q * x;
+            }
+            if let Some(q) = topple {
+                x = q * x;
+            }
+            *v = feet + x + shift + sink;
+        }
+    }
 }
 
 /// Camera-aware cheats applied to the finished parts: lean toward the camera, and the cutout
@@ -490,7 +745,7 @@ fn camera_rules(def: &PuppetDef, facing: f32, feet: Vec3, cam_fwd: Vec3, parts: 
     }
 }
 
-fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<PuppetPart> {
+fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
     let mut st = *st;
     if def.anim_fps > 0.5 {
         // Stepped animation: hold poses between discrete animation frames.
@@ -527,7 +782,8 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
         feet + w
     };
 
-    let crouch = st.crouch.max(st.roll);
+    let act = act_pose(ActKind::from_u8(st.act_kind), st.act, st.act_hit, st.act_side);
+    let crouch = st.crouch.max(st.roll).max(act.crouch * act.w.max(0.6));
     let crawl = st.crawl;
     let climb = st.climb;
     let swim = st.swim;
@@ -541,7 +797,7 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
     // Pelvis height: standing -> crouch -> crawl.
     let stand_pelvis = leg * 0.97 + bob - drop;
     let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl) * (1.0 - 0.05 * swim);
-    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd;
+    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd + act.lean * act.w;
     let pelvis = Vec3::new(0.0, pelvis_h, -0.05 * crawl * leg);
     // Torso direction: upright, leaning, or horizontal when crawling.
     let torso_dir = Vec3::new(st.lean_side + st.hit_side, 1.0, lean_f)
@@ -557,7 +813,7 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
 
     let mut parts = Vec::with_capacity(20);
     let mut push = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color| {
-        parts.push(PuppetPart { a: local(a), b: local(b), ra: ra * sxz.max(0.8), rb: rb * sxz.max(0.8), color });
+        parts.push(PuppetPart { a: local(a), b: local(b), ra: ra * sxz.max(0.8), rb: rb * sxz.max(0.8), color, glow: 0.0 });
     };
 
     // Torso and head.
@@ -595,9 +851,15 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
         push(foot + Vec3::new(0.0, 0.02, -0.02), foot + Vec3::new(0.0, 0.02, 0.12 * k), lr * 0.95, lr * 0.85, shoes);
     }
 
-    // Arms.
+    // Arms (the right hand holds the weapon). Actions twist the shoulders and steer the hands.
+    let tw = Quat::from_rotation_y(act.twist * act.w);
+    let mut held_parts = Vec::new();
+    let mut span: Option<(Vec3, Vec3)> = None;
+    let mut held = (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
+    let mut off_hand = Vec3::ZERO;
     for s in [-1.0f32, 1.0] {
         let shoulder = chest + Vec3::new(s * def.shoulder_width * k, -0.05 * k, 0.0);
+        let shoulder = pelvis + tw * (shoulder - pelvis);
         let ph = cyc + if s > 0.0 { std::f32::consts::PI } else { 0.0 };
         let swing = ph.sin() * def.arm_swing * walk;
         let mut hand = shoulder + Vec3::new(s * 0.08 * k, -arm * 0.88, swing * arm * 0.45);
@@ -620,11 +882,34 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
         // Arms fling out on a hit.
         let fling = (st.hit_side.abs() + st.hit_fwd.abs()).min(0.8);
         hand += Vec3::new(s * 0.5, 0.6, 0.0) * fling * arm;
+        if let Some(t) = if s > 0.0 { act.right } else { act.left } {
+            hand = hand.lerp(shoulder + tw * (t * arm), act.w);
+        }
         let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
         let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
         push(shoulder, elbow, lr * 1.05, lr * 0.95, shirt);
         push(elbow, hand, lr * 0.95, lr * 0.85, skin);
         push(hand, hand, lr * 1.1, lr * 1.1, skin);
+        if s > 0.0 {
+            held = (shoulder, elbow, hand);
+        } else {
+            off_hand = hand;
+        }
+    }
+    // Weapon: along the arm while acting, held forward and down otherwise.
+    if def.weapon.kind != WeaponKind::None || def.weapon.offhand != OffhandKind::None {
+        let (shoulder, _, hand) = held;
+        let rest = Vec3::new(0.12, -0.35, 1.0).normalize();
+        let along = (hand - shoulder).normalize_or(rest);
+        let dir = rest.lerp(along, act.w).normalize_or(rest);
+        weapon_parts(&def.weapon, k, hand, dir, off_hand, &mut held_parts);
+        for p in held_parts.iter_mut() {
+            p.a = local(p.a);
+            p.b = local(p.b);
+        }
+        if def.weapon.kind != WeaponKind::None {
+            span = Some((local(hand), local(hand + dir * weapon_length(def.weapon.kind) * def.weapon.size.max(0.3) * k)));
+        }
     }
 
     // Eyes: on the face, pushed toward the camera so they read from high angles.
@@ -637,6 +922,7 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
         let e = head + (face_dir * hr * 0.93 + side).normalize() * hr * 0.9;
         push(e, e, hr * 0.17, hr * 0.17, eyes);
     }
+    parts.extend(held_parts);
     if st.roll > 0.01 || st.roll_angle.rem_euclid(std::f32::consts::TAU) > 0.01 {
         // Dodge roll: tumble forward about the side axis through the curled-up body.
         let q = Quat::from_axis_angle(right, st.roll_angle);
@@ -645,8 +931,100 @@ fn biped(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec<Pu
             p.a = pivot + q * (p.a - pivot);
             p.b = pivot + q * (p.b - pivot);
         }
+        span = span.map(|(a, b)| (pivot + q * (a - pivot), pivot + q * (b - pivot)));
     }
-    parts
+    (parts, span)
+}
+
+/// Reach of a weapon from the hand to its tip (before size and scale).
+pub fn weapon_length(k: WeaponKind) -> f32 {
+    match k {
+        WeaponKind::None => 0.0,
+        WeaponKind::Sword => 0.88,
+        WeaponKind::Greatsword => 1.35,
+        WeaponKind::Dagger => 0.43,
+        WeaponKind::Axe => 0.75,
+        WeaponKind::Maul => 1.0,
+        WeaponKind::Mace => 0.66,
+        WeaponKind::Spear => 1.25,
+        WeaponKind::Staff => 1.1,
+        WeaponKind::Wand => 0.38,
+        WeaponKind::Claw => 0.3,
+    }
+}
+
+/// A held weapon (and off-hand) as parts in character space: `h` is the hand, `d` the
+/// direction the weapon points.
+pub fn weapon_parts(w: &WeaponLook, k: f32, h: Vec3, d: Vec3, off: Vec3, out: &mut Vec<PuppetPart>) {
+    let c = Color::try_hex(&w.color).unwrap_or(Color::hex("#c9ced8"));
+    let g = Color::try_hex(&w.grip).unwrap_or(Color::hex("#5a3b26"));
+    let sz = w.size.max(0.3) * k;
+    let p = d.cross(Vec3::Y).normalize_or(Vec3::X);
+    let glow = w.glow;
+    let mut seg = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color, glow: f32| {
+        out.push(PuppetPart { a, b, ra: ra * k, rb: rb * k, color, glow });
+    };
+    match w.kind {
+        WeaponKind::None => {}
+        WeaponKind::Sword | WeaponKind::Greatsword => {
+            let big = w.kind == WeaponKind::Greatsword;
+            let (len, r, grip) = if big { (1.25, 0.06, 0.18) } else { (0.78, 0.045, 0.07) };
+            seg(h - d * grip, h + d * 0.07, 0.028, 0.028, g, 0.0);
+            seg(h + d * 0.08 - p * 0.12 * k, h + d * 0.08 + p * 0.12 * k, 0.024, 0.024, c, 0.0);
+            seg(h + d * 0.1, h + d * (0.1 + len * sz), r, r * 0.4, c, glow);
+        }
+        WeaponKind::Dagger => {
+            seg(h - d * 0.05, h + d * 0.05, 0.025, 0.025, g, 0.0);
+            seg(h + d * 0.07, h + d * (0.07 + 0.36 * sz), 0.035, 0.012, c, glow);
+        }
+        WeaponKind::Axe => {
+            let top = h + d * 0.55 * sz;
+            seg(h - d * 0.12, h + d * 0.62 * sz, 0.028, 0.028, g, 0.0);
+            seg(top - p * 0.04 * k, top + p * 0.2 * sz, 0.1, 0.05, c, glow);
+        }
+        WeaponKind::Maul => {
+            let top = h + d * 0.85 * sz;
+            seg(h - d * 0.25, top, 0.035, 0.035, g, 0.0);
+            seg(top - p * 0.17 * sz, top + p * 0.17 * sz, 0.14, 0.14, c, glow);
+        }
+        WeaponKind::Mace => {
+            seg(h - d * 0.08, h + d * 0.5 * sz, 0.03, 0.03, g, 0.0);
+            let top = h + d * 0.55 * sz;
+            seg(top, top, 0.11, 0.11, c, glow);
+        }
+        WeaponKind::Spear => {
+            seg(h - d * 0.7 * sz, h + d * 1.0 * sz, 0.03, 0.03, g, 0.0);
+            seg(h + d * 1.0 * sz, h + d * 1.25 * sz, 0.05, 0.005, c, glow);
+        }
+        WeaponKind::Staff => {
+            seg(h - d * 0.6 * sz, h + d * 0.95 * sz, 0.035, 0.035, g, 0.0);
+            let top = h + d * 1.03 * sz;
+            seg(top, top, 0.085, 0.085, c, 1.5 + glow);
+        }
+        WeaponKind::Wand => {
+            seg(h - d * 0.04, h + d * 0.32 * sz, 0.025, 0.015, g, 0.0);
+            let top = h + d * 0.35 * sz;
+            seg(top, top, 0.04, 0.04, c, 1.2 + glow);
+        }
+        WeaponKind::Claw => {
+            for i in [-1.0f32, 0.0, 1.0] {
+                seg(h + p * 0.04 * i * k, h + d * 0.3 * sz + p * 0.06 * i * k, 0.016, 0.006, c, glow);
+            }
+        }
+    }
+    let oc = Color::try_hex(&w.offhand_color).unwrap_or(Color::hex("#8a6a3a"));
+    match w.offhand {
+        OffhandKind::None => {}
+        OffhandKind::Shield => {
+            let at = off + Vec3::new(-0.06, 0.05, 0.1) * k;
+            seg(at, at, 0.24, 0.24, oc, 0.0);
+            seg(at + Vec3::new(-0.05, 0.0, 0.06) * k, at + Vec3::new(-0.05, 0.0, 0.06) * k, 0.07, 0.07, c, 0.0);
+        }
+        OffhandKind::Focus => {
+            let at = off + Vec3::new(0.0, 0.18, 0.08) * k;
+            seg(at, at, 0.08, 0.08, oc, 1.6);
+        }
+    }
 }
 
 #[cfg(test)]

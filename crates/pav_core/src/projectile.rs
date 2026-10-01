@@ -159,3 +159,19 @@ pub fn static_blocked(
     let ray = Ray::new(from, dir);
     qp.cast_ray(&ray, len as Real, true).is_some()
 }
+
+/// Distance along `dir` to fixed geometry within `len`, if any.
+pub fn static_hit(
+    physics: &crate::physics::PhysicsState,
+    from: Vec3,
+    dir: Vec3,
+    len: f32,
+    ignore: Option<RigidBodyHandle>,
+) -> Option<f32> {
+    let mut filter = QueryFilter::only_fixed().exclude_sensors();
+    if let Some(b) = ignore {
+        filter = filter.exclude_rigid_body(b);
+    }
+    let qp = physics.query_filtered(filter);
+    qp.cast_ray(&Ray::new(from, dir), len as Real, true).map(|(_, t)| t as f32)
+}

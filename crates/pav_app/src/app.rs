@@ -158,6 +158,8 @@ pub struct App {
     feel: FeelOverlay,
     physics: PhysicsOverlay,
     quit: bool,
+    /// Camera and look from before the game started (restored when leaving it).
+    game_saved: Option<(CameraParams, ViewSettings)>,
     #[cfg(not(target_arch = "wasm32"))]
     bridge: Option<crate::bridge::Bridge>,
     #[cfg(target_arch = "wasm32")]
@@ -213,6 +215,7 @@ impl App {
             feel: FeelOverlay::default(),
             physics: PhysicsOverlay::default(),
             quit: false,
+            game_saved: None,
             #[cfg(not(target_arch = "wasm32"))]
             bridge: None,
             #[cfg(target_arch = "wasm32")]
@@ -598,6 +601,7 @@ impl App {
             // Input switching: the room's key overrides apply while inside.
             let (b, errs) = match &self.hud.current {
                 Some(r) => crate::input::Bindings::with_overrides(&r.def.keys),
+                None if curr.game.is_some() => (crate::input::Bindings::game(), Vec::new()),
                 None => (crate::input::Bindings::default(), Vec::new()),
             };
             self.input.bindings = b;
@@ -608,6 +612,38 @@ impl App {
         if *curr.config != self.sim_config && curr.tick > self.config_push_tick + 3 {
             // The simulation changed its configuration (room overrides): adopt it.
             self.sim_config = (*curr.config).clone();
+        }
+        // Entering or leaving Shardfall: its controls, camera and look.
+        let game_mode = curr.game.is_some();
+        if game_mode != self.input.game {
+            self.input.game = game_mode;
+            self.input.bindings = if game_mode { crate::input::Bindings::game() } else { crate::input::Bindings::default() };
+            self.rig.blend_from_current(0.5);
+            if game_mode {
+                self.game_saved = Some((self.rig.params.clone(), self.view.clone()));
+                self.rig.params = CameraParams {
+                    tilt: 56.0,
+                    yaw: 0.0,
+                    distance: 15.5,
+                    fov: 40.0,
+                    ortho: false,
+                    follow_lag: 0.06,
+                    height_offset: 0.8,
+                };
+                let v = &mut self.view;
+                v.bloom = 0.55;
+                v.bloom_threshold = 1.0;
+                v.sky = "#14161c".into();
+                v.light.sun_elevation = 52.0;
+                v.light.sun_azimuth = 35.0;
+                v.light.sun_intensity = 0.95;
+                v.light.ambient = 0.5;
+                v.saturation = 1.08;
+                v.fog = false;
+            } else if let Some((cam, view)) = self.game_saved.take() {
+                self.rig.params = cam;
+                self.view = view;
+            }
         }
         let alpha =
             if self.app_settings.smoothing { ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0) } else { 1.0 };
@@ -681,7 +717,7 @@ impl App {
         }
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &self.view, focus);
         self.editor.draw_preview(&mut scene);
-        if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on {
+        if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on && curr.game.is_none() {
             if let Some(a) = aim {
                 let d = Vec2::new(a.x - feet.x, a.z - feet.z);
                 let a = if d.length() > self.sim_config.bombs.throw_range {
@@ -753,6 +789,7 @@ impl App {
         let app_before = self.app_settings.clone();
         let panel = &mut self.panel;
         let master_before = self.audio_settings.master;
+        let view_proj = self.rig.view_proj(w as f32 / h.max(1) as f32);
         let mut root = Root {
             sim: &mut self.sim_config,
             camera: &mut self.rig.params,
@@ -765,6 +802,7 @@ impl App {
         let physics = &mut self.physics;
         let latency = &self.latency;
         let hud_ctx = HudCtx { hud: &curr.hud, tick: curr.tick, dt: curr.dt };
+        let game_frame = curr.game.clone();
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
@@ -777,7 +815,11 @@ impl App {
                 ui::stats_panel(&ctx, &info, free);
             }
             if guide_visible && !menu_open {
-                ui::guide_panel(&ctx, device);
+                ui::guide_panel(&ctx, device, game_frame.is_some());
+            }
+            if let Some(g) = &game_frame {
+                let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
+                crate::arpg_ui::hud(&ctx, g, &proj, device);
             }
             if card_visible && !menu_open {
                 hud.card(&ctx, device);
@@ -800,14 +842,18 @@ impl App {
             hud.error_panel(&ctx);
             save_room = editor.ui(&ctx, room_name.as_deref());
             if menu_open {
-                menu_action = ui::pause_menu(&ctx, device, &scene_name);
+                menu_action = ui::pause_menu(&ctx, device, &scene_name, game_frame.is_some().then_some(&mut root.sim.difficulty));
             }
             if let Some(t) = &toast {
                 ui::toast(&ctx, t);
             }
             ui::hint_bar(
                 &ctx,
-                if device == Device::Gamepad { "Start: menu" } else { "Esc menu · F1 tuning · F2 rooms · F12 screenshot" },
+                match (device, game_frame.is_some()) {
+                    (Device::Gamepad, _) => "Start: menu",
+                    (_, true) => "Esc menu (difficulty) · F1 tuning · Space dodge · 1 potion",
+                    _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
+                },
             );
         });
         self.show_boot = show_boot;
@@ -1109,7 +1155,9 @@ impl ApplicationHandler for App {
                 if state == ElementState::Pressed && button == MouseButton::Left && !consumed {
                     self.latency.press();
                 }
-                if button == MouseButton::Right {
+                // In the game the right button is a skill; the middle button turns the camera.
+                let turn = if self.input.game { MouseButton::Middle } else { MouseButton::Right };
+                if button == turn {
                     self.mouse.right_down = state == ElementState::Pressed && !consumed;
                 } else if !consumed || state == ElementState::Released {
                     self.input.mouse_button(button, state);
