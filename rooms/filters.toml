@@ -1,0 +1,535 @@
+# Style vs Filters: one colourful diorama in the middle, a ring of pads around it. Every filter pad turns on
+# `view.filter.split = 0.5` plus ONLY its own filter (the others are reset to neutral, so pads never
+# stack): the LEFT half of the screen stays the pure style, the RIGHT half is filtered, and a white
+# divider line marks the seam. The camera glides round the ring (each pad has a yaw cue that makes the
+# camera look at the diorama), so the diorama always sits across the divider.
+#   CENTRE  diorama: house, striped tower, trees, pond, a checker plaza, a spinning carousel, a rainbow row
+#           and a grey ramp (banding / dither / palette), two lamps and a lit window, two walking NPCs
+#   RING    PURE, SCANLINES, CRT CURVE, DITHER, PICO-8, PIXELATE, WARM GRADE, COOL GRADE, NOIR, VHS, FULL SCREEN
+name = "Style vs Filters"
+about = "A screen filter is a post-process on the finished picture; a style is how surfaces are shaded. A colourful diorama sits in the middle and every pad on the ring splits the screen: pure style on the left, one filter on the right."
+try = [
+  "Step on SCANLINES, then CRT CURVE: the left half stays clean, the right half gets the tube look",
+  "DITHER (4 colour levels) and PICO-8 (pixelate 3 + 16-colour palette): watch the rainbow row and the grey ramp band and dither",
+  "PIXELATE: look at the carousel, the tower stripes and the walkers on the right half",
+  "WARM GRADE vs COOL GRADE: the same scene, two moods; the lamps keep their glow",
+  "NOIR (no colour, contrast, grain, vignette; saturation is a whole-screen view setting, so both halves go grey) and VHS (colour fringes, grain, scanlines, tint)",
+  "FULL SCREEN puts the last filter over the whole picture (no divider); PURE resets everything",
+  "Walk into the diorama: follow the NPCs, run round the carousel and watch the filter on moving things",
+  "Step on any pad: filters never stack, each pad sets all of them",
+]
+wing = "aesthetic"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [14, 26], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 32.0
+yaw = 0.0
+height_offset = 3.0
+
+# Soft late-afternoon light so the colours read; the lamps and the window glow a little.
+[view]
+"light.sun_elevation" = 36
+"light.sun_intensity" = 0.55
+"light.ambient" = 0.95
+sky = "#7f98c8"
+bloom = 0.35
+
+[layout]
+origin = [-14.5, 0.0, -13.5]
+
+[[layout.layer]]
+y = 0
+map = '''
+#############################
+#...........................#
+#...........................#
+#............FFF............#
+#........EEE.FFF..GGG.......#
+#........EEE.FFF..GGG.......#
+#........EEE......GGG.......#
+#...........................#
+#....DDD....ggggg....HHH....#
+#....DDD...ggggggg...HHH....#
+#....DDD..ggggggggg..HHH....#
+#........ggggxyxgggg........#
+#...CCC..gggxyxyxggg..III...#
+#...CCC..gggyxyxyggg..III...#
+#...CCC..gggxyxyxggg..III...#
+#........gwwgxyxgggg........#
+#.........wwggggggg.........#
+#....BBB...ggggggg...JJJ....#
+#....BBB....ggggg....JJJ....#
+#....BBB.............JJJ....#
+#........AAA......KKK.......#
+#........AAA......KKK.......#
+#........AAA......KKK.......#
+#...........................#
+#...........................#
+#...........................#
+#############...#############
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5b627a" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5b627a" }, { y0 = 0, y1 = 3.0, color = "#2f3550" }]
+
+# Diorama ground: grass, checker plaza (two tones) and a pond.
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#6dbb5a" }]
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f3e6c4" }]
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3b4fa0" }]
+
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3fa7d6" }]
+
+# Pads. Every filter pad = neutral set + its filters, split 0.5. Camera cue: look at the diorama.
+
+# A: PURE at (10.5, 21.5) yaw 26.6
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "PURE", color = "#e9edf5", label_size = 0.7, camera = { set = { yaw = 26.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0 } }
+
+# B: SCANLINES at (6.5, 18.5) yaw 58.0
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "SCANLINES", color = "#3c6fd8", camera = { set = { yaw = 58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# C: CRT CURVE at (5.5, 13.5) yaw 90.0
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "CRT CURVE", color = "#2f9e8f", camera = { set = { yaw = 90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.15, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.4, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.5, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# D: DITHER at (6.5, 9.5) yaw 116.6
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "DITHER", color = "#8a52d6", camera = { set = { yaw = 116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 4.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# E: PICO-8 at (10.5, 5.5) yaw 153.4
+[layout.legend.'E']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "PICO-8", color = "#d63a6a", camera = { set = { yaw = 153.4, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 3.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.6, "view.filter.levels" = 0.0, "view.filter.palette" = "pico8", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# F: PIXELATE at (14.5, 4.5) yaw 180.0
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "PIXELATE", color = "#e0892a", camera = { set = { yaw = 180.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 5.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# G: WARM GRADE at (19.5, 5.5) yaw -148.0
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "WARM GRADE", color = "#d9622b", camera = { set = { yaw = -148.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.15, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# H: COOL GRADE at (22.5, 9.5) yaw -116.6
+[layout.legend.'H']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "COOL GRADE", color = "#3a9ad9", camera = { set = { yaw = -116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = -0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# I: NOIR at (23.5, 13.5) yaw -90.0
+[layout.legend.'I']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "NOIR", color = "#4a4f5c", camera = { set = { yaw = -90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.4, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.6, "view.filter.grain" = 0.5, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.0, "view.filter.split" = 0.5 } }
+
+# J: VHS at (22.5, 18.5) yaw -58.0
+[layout.legend.'J']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "VHS", color = "#b03aa8", camera = { set = { yaw = -58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.3, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.2, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.4, "view.filter.chroma" = 1.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+
+# K: FULL SCREEN at (19.5, 21.5) yaw -32.0
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
+zone = { kind = "pad", label = "FULL SCREEN", color = "#2f8a52", camera = { set = { yaw = -32.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.split" = 0.0 } }
+
+# ---- exhibits (labels, then objects: keep at the end of the file) ----
+
+[[label]]
+text = "STYLE VS FILTERS"
+pos = [14.50, 0.03, 23.70]
+size = 0.55
+color = "#f1f4fb"
+
+[[label]]
+text = "LEFT PURE  |  RIGHT FILTERED"
+pos = [14.50, 0.03, 24.40]
+size = 0.3
+color = "#aab4d0"
+
+[[label]]
+text = "DIORAMA"
+pos = [14.50, 0.03, 20.00]
+size = 0.45
+color = "#f1f4fb"
+
+[[object]]
+name = "house"
+shape = { type = "box", half = [1.0, 0.7, 0.8] }
+pos = [10.9, 0.7, 10.5]
+color = "#f2a65a"
+body = "fixed"
+
+[[object]]
+name = "roof"
+shape = { type = "box", half = [0.72, 0.72, 0.95] }
+pos = [10.9, 1.4, 10.5]
+roll = 45.0
+color = "#8a3a2e"
+body = "fixed"
+
+[[object]]
+name = "chimney"
+shape = { type = "box", half = [0.15, 0.4, 0.15] }
+pos = [11.45, 2.2, 10.3]
+color = "#6b4a3c"
+body = "fixed"
+
+[[object]]
+name = "door"
+shape = { type = "box", half = [0.25, 0.45, 0.04] }
+pos = [10.5, 0.45, 11.32]
+color = "#5a2e1e"
+body = "fixed"
+
+[[object]]
+name = "window"
+shape = { type = "box", half = [0.22, 0.22, 0.04] }
+pos = [11.45, 0.9, 11.32]
+color = "#ffd070"
+body = "fixed"
+emissive = 2.5
+light = { color = "#ffc060", radius = 3.5, intensity = 1.2, offset = [0, 0, 0.8] }
+
+[[object]]
+name = "tower"
+shape = { type = "cylinder", half_height = 1.4, radius = 0.65 }
+pos = [17.8, 1.4, 10.2]
+color = "#d9363e"
+body = "fixed"
+
+[[object]]
+name = "tower_band_0"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.675 }
+pos = [17.8, 0.55, 10.2]
+color = "#f5f0e6"
+body = "fixed"
+
+[[object]]
+name = "tower_band_1"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.675 }
+pos = [17.8, 1.35, 10.2]
+color = "#f5f0e6"
+body = "fixed"
+
+[[object]]
+name = "tower_band_2"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.675 }
+pos = [17.8, 2.15, 10.2]
+color = "#f5f0e6"
+body = "fixed"
+
+[[object]]
+name = "tower_dome"
+shape = { type = "sphere", radius = 0.78 }
+pos = [17.8, 2.95, 10.2]
+color = "#f2c230"
+body = "fixed"
+
+[[object]]
+name = "tower_pole"
+shape = { type = "cylinder", half_height = 0.45, radius = 0.03 }
+pos = [17.8, 4.0, 10.2]
+color = "#d8d8e0"
+body = "fixed"
+
+[[object]]
+name = "tower_flag"
+shape = { type = "box", half = [0.35, 0.2, 0.02] }
+pos = [18.15, 4.2, 10.2]
+color = "#ff5c8a"
+body = "fixed"
+
+[[object]]
+name = "lamp_warm_post"
+shape = { type = "cylinder", half_height = 0.7, radius = 0.05 }
+pos = [12.2, 0.7, 9.6]
+color = "#2a2d36"
+body = "fixed"
+
+[[object]]
+name = "lamp_warm"
+shape = { type = "sphere", radius = 0.22 }
+pos = [12.2, 1.55, 9.6]
+color = "#ffd48a"
+body = "fixed"
+emissive = 2.6
+light = { color = "#ffb060", radius = 4, intensity = 1.0, flicker = 0.1, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "lamp_cool_post"
+shape = { type = "cylinder", half_height = 0.7, radius = 0.05 }
+pos = [16.8, 0.7, 9.6]
+color = "#2a2d36"
+body = "fixed"
+
+[[object]]
+name = "lamp_cool"
+shape = { type = "sphere", radius = 0.22 }
+pos = [16.8, 1.55, 9.6]
+color = "#9ae6ff"
+body = "fixed"
+emissive = 2.4
+light = { color = "#60c8ff", radius = 4, intensity = 1.0, flicker = 0.1, offset = [0, 0.1, 0] }
+
+[[object]]
+name = "tree_0_trunk"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.16 }
+pos = [19.2, 0.5, 13.8]
+color = "#7a4a2a"
+body = "fixed"
+
+[[object]]
+name = "tree_0_crown"
+shape = { type = "sphere", radius = 0.9 }
+pos = [19.2, 1.6, 13.8]
+color = "#2fa04a"
+body = "fixed"
+
+[[object]]
+name = "tree_0_top"
+shape = { type = "sphere", radius = 0.55 }
+pos = [19.35, 2.35, 13.8]
+color = "#6fcf5a"
+body = "fixed"
+
+[[object]]
+name = "tree_1_trunk"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.16 }
+pos = [9.7, 0.5, 13.1]
+color = "#7a4a2a"
+body = "fixed"
+
+[[object]]
+name = "tree_1_crown"
+shape = { type = "sphere", radius = 0.9 }
+pos = [9.7, 1.6, 13.1]
+color = "#e8a82a"
+body = "fixed"
+
+[[object]]
+name = "tree_1_top"
+shape = { type = "sphere", radius = 0.55 }
+pos = [9.85, 2.35, 13.1]
+color = "#f5d04a"
+body = "fixed"
+
+[[object]]
+name = "tree_2_trunk"
+shape = { type = "cylinder", half_height = 0.5, radius = 0.16 }
+pos = [18.5, 0.5, 15.9]
+color = "#7a4a2a"
+body = "fixed"
+
+[[object]]
+name = "tree_2_crown"
+shape = { type = "sphere", radius = 0.9 }
+pos = [18.5, 1.6, 15.9]
+color = "#e0609a"
+body = "fixed"
+
+[[object]]
+name = "tree_2_top"
+shape = { type = "sphere", radius = 0.55 }
+pos = [18.65, 2.35, 15.9]
+color = "#f59ac0"
+body = "fixed"
+
+[[object]]
+name = "rainbow_0"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [11.35, 0.25, 17.9]
+color = "#ff3030"
+body = "fixed"
+
+[[object]]
+name = "rainbow_1"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [12.15, 0.25, 17.9]
+color = "#ff9a1f"
+body = "fixed"
+
+[[object]]
+name = "rainbow_2"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [12.95, 0.25, 17.9]
+color = "#ffe033"
+body = "fixed"
+
+[[object]]
+name = "rainbow_3"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [13.75, 0.25, 17.9]
+color = "#9ae83a"
+body = "fixed"
+
+[[object]]
+name = "rainbow_4"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [15.25, 0.25, 17.9]
+color = "#3ddc5a"
+body = "fixed"
+
+[[object]]
+name = "rainbow_5"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [16.05, 0.25, 17.9]
+color = "#2fd6e0"
+body = "fixed"
+
+[[object]]
+name = "rainbow_6"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [16.85, 0.25, 17.9]
+color = "#3a6fe8"
+body = "fixed"
+
+[[object]]
+name = "rainbow_7"
+shape = { type = "rounded_box", half = [0.32, 0.25, 0.32], radius = 0.06 }
+pos = [17.65, 0.25, 17.9]
+color = "#9a45e0"
+body = "fixed"
+
+[[object]]
+name = "grey_0"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [11.65, 0.14, 17.05]
+color = "#101010"
+body = "fixed"
+
+[[object]]
+name = "grey_1"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [12.35, 0.14, 17.05]
+color = "#303030"
+body = "fixed"
+
+[[object]]
+name = "grey_2"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [13.05, 0.14, 17.05]
+color = "#505050"
+body = "fixed"
+
+[[object]]
+name = "grey_3"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [13.75, 0.14, 17.05]
+color = "#707070"
+body = "fixed"
+
+[[object]]
+name = "grey_4"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [15.25, 0.14, 17.05]
+color = "#909090"
+body = "fixed"
+
+[[object]]
+name = "grey_5"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [15.95, 0.14, 17.05]
+color = "#b0b0b0"
+body = "fixed"
+
+[[object]]
+name = "grey_6"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [16.65, 0.14, 17.05]
+color = "#d0d0d0"
+body = "fixed"
+
+[[object]]
+name = "grey_7"
+shape = { type = "box", half = [0.28, 0.14, 0.28] }
+pos = [17.35, 0.14, 17.05]
+color = "#f0f0f0"
+body = "fixed"
+
+[[object]]
+name = "carousel_base"
+shape = { type = "cylinder", half_height = 0.1, radius = 0.95 }
+pos = [14.5, 0.1, 8.9]
+color = "#c9b27a"
+body = "fixed"
+
+[[object]]
+name = "carousel_pole"
+shape = { type = "cylinder", half_height = 0.9, radius = 0.09 }
+pos = [14.5, 0.9, 8.9]
+color = "#d0d4e0"
+body = "fixed"
+
+[[object]]
+name = "carousel_canopy"
+shape = { type = "box", half = [1.1, 0.06, 1.1] }
+pos = [14.5, 1.95, 8.9]
+color = "#ff5c8a"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 40 }
+
+[[object]]
+name = "carousel_seat_0"
+shape = { type = "rounded_box", half = [0.2, 0.2, 0.2], radius = 0.05 }
+pos = [15.2, 0.6, 8.9]
+color = "#ffe033"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 40, pivot = [-0.7, 0.0, -0.0] }
+
+[[object]]
+name = "carousel_seat_1"
+shape = { type = "rounded_box", half = [0.2, 0.2, 0.2], radius = 0.05 }
+pos = [14.5, 0.6, 9.6]
+color = "#3a6fe8"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 40, pivot = [-0.0, 0.0, -0.7] }
+
+[[object]]
+name = "carousel_seat_2"
+shape = { type = "rounded_box", half = [0.2, 0.2, 0.2], radius = 0.05 }
+pos = [13.8, 0.6, 8.9]
+color = "#3ddc5a"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 40, pivot = [0.7, 0.0, -0.0] }
+
+[[object]]
+name = "carousel_seat_3"
+shape = { type = "rounded_box", half = [0.2, 0.2, 0.2], radius = 0.05 }
+pos = [14.5, 0.6, 8.2]
+color = "#ff7a2a"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 40, pivot = [0.0, 0.0, 0.7] }
+
+[[npc]]
+name = "walker"
+kind = "biped"
+pos = [15.4, 0, 13.8]
+ai = { type = "circle", radius = 2.6, clockwise = true }
+speed = 0.5
+look = { shirt = "#ff4d4d", pants = "#2b2d6e", skin = "#f1c27d", shoes = "#222222" }
+
+[[npc]]
+name = "scuttler"
+kind = "blob"
+pos = [13.9, 0, 13.1]
+ai = { type = "circle", radius = 1.8, clockwise = false }
+speed = 0.4
+look = { accent = "#ffe033" }
+

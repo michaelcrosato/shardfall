@@ -117,6 +117,7 @@ pub struct FilterSettings {
     pub vignette: f32,
     pub grain: f32,
     pub chroma: f32,
+    pub saturation: f32,
 }
 
 impl Default for FilterSettings {
@@ -137,6 +138,7 @@ impl Default for FilterSettings {
             vignette: 0.0,
             grain: 0.0,
             chroma: 0.0,
+            saturation: 1.0,
         }
     }
 }
@@ -158,6 +160,7 @@ impl Tunable for FilterSettings {
         v.float("vignette", &mut self.vignette, 0.0, 1.0, "Darkened corners");
         v.float("grain", &mut self.grain, 0.0, 1.0, "Film grain");
         v.float("chroma", &mut self.chroma, 0.0, 1.0, "Chromatic aberration");
+        v.float("saturation", &mut self.saturation, 0.0, 2.0, "Saturation of the filtered image (0 = grey)");
     }
 }
 
@@ -222,6 +225,22 @@ impl Default for ViewSettings {
             filter: FilterSettings::default(),
         }
     }
+}
+
+/// A room's view settings as authored (room layout space) turned into world space: the sun's
+/// azimuth turns with the room's placement (like its camera yaw).
+pub fn room_view_map(
+    map: &std::collections::BTreeMap<String, pav_core::params::ParamValue>,
+    quarters: u8,
+) -> std::collections::BTreeMap<String, pav_core::params::ParamValue> {
+    let mut out = map.clone();
+    if let Some(az) = map.get("light.sun_azimuth").and_then(|v| v.as_f64()) {
+        let a = (az as f32).to_radians();
+        let d = pav_core::level::Placement::new(Vec3::ZERO, quarters).rotate(Vec3::new(a.sin(), 0.0, -a.cos()));
+        let w = d.x.atan2(-d.z).to_degrees().rem_euclid(360.0);
+        out.insert("light.sun_azimuth".into(), pav_core::params::ParamValue::Float(w as f64));
+    }
+    out
 }
 
 impl ViewSettings {
@@ -520,6 +539,7 @@ impl ViewBuilder {
             vignette: f.vignette,
             grain: f.grain,
             chroma: f.chroma,
+            saturation: f.saturation,
         };
         if settings.particles {
             scene.particles = std::mem::take(&mut self.pending_particles);

@@ -46,6 +46,9 @@ pub struct EmitterDef {
     /// Spawn box half-extents (zero = the preset's).
     pub area: Vec3,
     pub offset: Vec3,
+    /// Height of the ground below the object (e.g. -5 for an emitter 5 m up): particles land
+    /// there. None = falling presets land at the object's own height.
+    pub ground: Option<f32>,
 }
 
 impl Default for EmitterDef {
@@ -59,6 +62,7 @@ impl Default for EmitterDef {
             life: 1.0,
             area: Vec3::ZERO,
             offset: Vec3::ZERO,
+            ground: None,
         }
     }
 }
@@ -70,7 +74,7 @@ pub struct DistortDef {
     /// haze | lens | ripple | ring (a repeating shockwave)
     pub kind: String,
     pub radius: f32,
-    /// Offset as a fraction of the disc's screen size (0.05-0.3).
+    /// Offset as a fraction of the disc's screen size (0.3-0.6 reads well).
     pub strength: f32,
     /// Seconds between rings.
     pub period: f32,
@@ -79,6 +83,6 @@ pub struct DistortDef {
 
 impl Default for DistortDef {
     fn default() -> Self {
-        Self { kind: "haze".into(), radius: 1.5, strength: 0.15, period: 1.5, offset: Vec3::ZERO }
+        Self { kind: "haze".into(), radius: 1.5, strength: 0.4, period: 1.5, offset: Vec3::ZERO }
     }
 }

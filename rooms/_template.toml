@@ -135,8 +135,10 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #   particles = { preset = "fire", rate = 0, color = "", size = 1, speed = 1, life = 1,
 #                 area = [0, 0, 0], offset = [0, 0.5, 0] }
 #     presets: fire smoke sparks embers fountain snow rain fireflies magic steam dust bubbles
-#     confetti (rate 0 = the preset's; area = spawn box half-size; snow/rain: put it up high)
-#   distortion = { kind = "haze", radius = 1.5, strength = 0.15, period = 1.5, offset = [0, 1, 0] }
+#     confetti (rate 0 = the preset's; area = spawn box half-size; snow/rain: put it up high and
+#     set ground = -height so drops land on the floor)
+#   distortion = { kind = "haze", radius = 1.5, strength = 0.4, period = 1.5, offset = [0, 1, 0] }
+#     (strength 0.3-0.6 reads at the default camera; 1+ melts the picture)
 #     kinds: haze (heat shimmer) | lens (magnify; negative strength shrinks) | ripple | ring
 #     (a shockwave every `period` s). Bombs make shockwaves, sparks and smoke by themselves.
 #   emissive = 2..8 makes an object glow (bloom) and light its surroundings.

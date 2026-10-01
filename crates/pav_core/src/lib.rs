@@ -29,6 +29,7 @@ pub mod softbody;
 pub mod sim;
 pub mod statics;
 pub mod terrain;
+pub mod vehicle;
 pub mod world;
 pub mod zones;
 

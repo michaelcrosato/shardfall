@@ -27,16 +27,20 @@ crates/
               cutout look and camera cheats), rig.rs (creature feet that plant and step,
               follow-the-leader spines, verlet tails/antennae), ai.rs (NPC brains: idle,
               wander, patrol, circle, follow; they drive characters through InputFrames),
+              fxdef.rs (object lights / particle emitters / distortion, view-only),
+              vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
               spawners), projectile.rs (lightweight bullets), feel.rs (feel metrics),
               softbody.rs (rapier soft bodies: jelly, balls, cloth, ropes), joints.rs (joints
               owned by entities, recreated on wake), destruct.rs (crumbling/breakable tiles,
               conveyors and bounce pads for props), history, params
-  pav_render  wgpu renderer (Vulkan/DX12): Scene description -> shadow pass -> MSAA scene
-              pass -> composite (outlines, tonemap). Procedural meshes + analytic SDF
-              spheres/capsules/rounded cones, SDF-font text in the world (text.rs).
-              Offscreen capture -> PNG.
+  pav_render  wgpu renderer (Vulkan/DX12): Scene description -> particles (compute) -> sun +
+              point-light shadow passes (shadows.rs) -> MSAA scene pass (+ GPU particles) ->
+              bloom chain and distortion (fx.rs) -> composite (outlines, screen-space GI,
+              tonemap, filter stack: pixelate/CRT/scanlines/dither/palettes/grading, split).
+              Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
+              the world (text.rs). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,

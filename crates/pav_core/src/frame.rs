@@ -32,6 +32,8 @@ pub struct RenderObject {
     pub pulse: f32,
     /// Deformable body: particle positions and how to draw them.
     pub soft: Option<SoftView>,
+    /// Car / helicopter parts (wheels, rotors).
+    pub vehicle: Option<crate::vehicle::VehicleView>,
 }
 
 #[derive(Clone, Debug)]

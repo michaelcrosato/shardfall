@@ -2,23 +2,28 @@
 #   NORTH-WEST  TORCH HALL: pillars and crates lit by three flickering, shadow-casting torches
 #   NORTH       COLOUR MIXING: red, green and blue lights add up on a white plate and sphere
 #   NORTH-EAST  SUN DIAL: pads change the sun (dawn, noon, dusk, night, reset); an obelisk and an
-#               arch swing their sun shadows; below the dial two ground-lights show the sun's colour
+#               arch swing their sun shadows; the SHADOW SWITCH area below has more shadow casters
 #   SOUTH-WEST  PULSE & FLICKER: five lamps with different flicker and pulse settings
-#   SOUTH       MOVING LIGHT: a lantern rides a rail past a row of posts and sweeps their shadows
+#   SOUTH       MOVING LIGHT: a lantern glides along a track past a row of posts and sweeps their shadows
 #   SOUTH-EAST  SHADOW SWITCH: sun shadows on/off pads beside a little stone garden
 # Only the 4 shadow lights nearest the player get shadow maps: this room has exactly 4 (three
 # torches and the lantern), so every one of them always casts. Sun settings set by pads last until
 # you leave the room.
+# Sun azimuths are WORLD compass values (the sun does not turn with the room): this room sits on the
+# west side of the vfx corridor with its entrance facing east, so world azimuth = layout azimuth + 270.
+# Low suns are chosen so the 3 m walls do not shade the dial: dawn and dusk come from the south and
+# west of the layout. Sun light on the floor is sun_intensity * sin(elevation), so low suns need a
+# high intensity to show shadows at all. The sky colour only shows beyond the walls.
 name = "Lights & Shadows"
 about = "A dusk room for lighting: flickering shadow-casting torches, red/green/blue lights that add up, pulsing lamps, a lantern sweeping shadows across the floor, and pads that turn the sun from dawn to night."
 try = [
   "Walk through the TORCH HALL and watch the pillars and your own shadow swing around the torches",
   "Stand in the COLOUR MIXING plate: where red, green and blue overlap you get yellow, cyan, magenta and white",
   "Compare the five lamps in PULSE & FLICKER: flicker 0 / 0.5 / 1 and pulse 0.5 / 2",
-  "Follow the lantern on the MOVING LIGHT rail and watch the post shadows sweep across the floor",
+  "Follow the lantern gliding along the MOVING LIGHT track and watch the post shadows sweep across the floor",
   "Step on NOON, then DAWN and DUSK, and watch the obelisk and arch shadows swing around",
   "Step on NIGHT for a nearly dark room where only the lamps and torches light things",
-  "Press SHADOWS OFF and SHADOWS ON to compare the sun with and without shadows",
+  "Step on DAWN or DUSK, then SHADOWS OFF and SHADOWS ON, to compare the sun with and without shadows",
   "Step on RESET to go back to the room's own dusk (all sun settings last until you leave)",
 ]
 wing = "vfx"
@@ -29,18 +34,19 @@ entrance = { at = [19, 29], facing = "south" }
 
 [camera]
 tilt = 55.0
-distance = 15.0
+distance = 16.0
 
 # Dusk: a low, dim sun, little ambient light, a dark sky and a touch of bloom. The RESET pad
 # repeats these values.
 [view]
-"light.sun_elevation" = 18.0
-"light.sun_azimuth" = 215.0
-"light.sun_intensity" = 0.08
-"light.ambient" = 0.3
+"light.sun_elevation" = 22.0
+"light.sun_azimuth" = 235
+"light.sun_intensity" = 0.12
+"light.ambient" = 0.32
 "light.shadows" = true
 sky = "#141a30"
-bloom = 0.6
+style = "lit"
+bloom = 0.5
 
 [layout]
 origin = [-20.0, 0.0, -15.0]
@@ -91,7 +97,7 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#8d909b" }, { y0 = 0, y1 = 3.0, color = 
 blocks = [{ y0 = -0.5, y1 = 0, color = "#8a837a" }]
 
 [layout.legend.'w']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#f4f4f4" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c4c4c8" }]
 
 [layout.legend.'s']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
@@ -99,23 +105,23 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
 # Sun pads (view settings last until you leave the room).
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
-zone = { kind = "pad", label = "DAWN", label_size = 0.4, color = "#f0a050", params = { "view.light.sun_elevation" = 8.0, "view.light.sun_azimuth" = 90.0, "view.light.sun_intensity" = 0.4, "view.light.ambient" = 0.6, "view.sky" = "#f2a35a" } }
+zone = { kind = "pad", label = "DAWN", label_size = 0.4, color = "#d9822f", params = { "view.light.sun_elevation" = 18.0, "view.light.sun_azimuth" = 160, "view.light.sun_intensity" = 1.4, "view.light.ambient" = 0.5, "view.sky" = "#f2a35a" } }
 
 [layout.legend.'n']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
-zone = { kind = "pad", label = "NOON", label_size = 0.4, color = "#7cc6f0", params = { "view.light.sun_elevation" = 80.0, "view.light.sun_azimuth" = 180.0, "view.light.sun_intensity" = 0.9, "view.light.ambient" = 1.0, "view.sky" = "#8ec8ee" } }
+zone = { kind = "pad", label = "NOON", label_size = 0.4, color = "#3f8fc8", params = { "view.light.sun_elevation" = 80.0, "view.light.sun_azimuth" = 180, "view.light.sun_intensity" = 0.9, "view.light.ambient" = 0.7, "view.sky" = "#8ec8ee" } }
 
 [layout.legend.'u']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
-zone = { kind = "pad", label = "DUSK", label_size = 0.4, color = "#c0607a", params = { "view.light.sun_elevation" = 10.0, "view.light.sun_azimuth" = 270.0, "view.light.sun_intensity" = 0.3, "view.light.ambient" = 0.5, "view.sky" = "#7a3f6e" } }
+zone = { kind = "pad", label = "DUSK", label_size = 0.4, color = "#c0607a", params = { "view.light.sun_elevation" = 12.0, "view.light.sun_azimuth" = 250, "view.light.sun_intensity" = 1.3, "view.light.ambient" = 0.4, "view.sky" = "#7a3f6e" } }
 
 [layout.legend.'g']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
-zone = { kind = "pad", label = "NIGHT", label_size = 0.4, color = "#3d4a8a", params = { "view.light.sun_elevation" = 30.0, "view.light.sun_intensity" = 0.05, "view.light.ambient" = 0.2, "view.sky" = "#05070f" } }
+zone = { kind = "pad", label = "NIGHT", label_size = 0.4, color = "#3d4a8a", params = { "view.light.sun_elevation" = 30.0, "view.light.sun_azimuth" = 235, "view.light.sun_intensity" = 0.03, "view.light.ambient" = 0.14, "view.sky" = "#05070f" } }
 
 [layout.legend.'r']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#bdb59f" }]
-zone = { kind = "pad", label = "RESET", label_size = 0.4, color = "#9aa0aa", params = { "view.light.sun_elevation" = 18.0, "view.light.sun_azimuth" = 215.0, "view.light.sun_intensity" = 0.08, "view.light.ambient" = 0.3, "view.light.shadows" = true, "view.sky" = "#141a30" } }
+zone = { kind = "pad", label = "RESET", label_size = 0.4, color = "#9aa0aa", params = { "view.light.sun_elevation" = 22.0, "view.light.sun_azimuth" = 235, "view.light.sun_intensity" = 0.12, "view.light.ambient" = 0.32, "view.light.shadows" = true, "view.sky" = "#141a30" } }
 
 # Shadow switch pads.
 [layout.legend.'e']
@@ -194,7 +200,7 @@ size = 0.5
 color = "#e9e4d2"
 
 [[label]]
-text = "TRY THEM AFTER NOON"
+text = "BEST AT DAWN OR DUSK"
 pos = [32.5, 0.03, 27.4]
 size = 0.35
 color = "#e9e4d2"
@@ -209,16 +215,9 @@ shape = { type = "cylinder", half_height = 0.6, radius = 0.1 }
 pos = [3.0, 0.6, 6.5]
 color = "#4a3a2a"
 body = "fixed"
-light = { color = "#ffb060", radius = 6.5, intensity = 2.6, flicker = 0.9, shadows = true, offset = [0, 0.9, 0] }
-particles = { preset = "fire", offset = [0, 0.65, 0] }
+light = { color = "#ffb060", radius = 7, intensity = 4.2, flicker = 0.9, shadows = true, offset = [0, 1.1, 0] }
+particles = { preset = "fire", size = 0.8, offset = [0, 0.65, 0] }
 distortion = { kind = "haze", radius = 0.7, strength = 0.1, offset = [0, 1.5, 0] }
-
-[[object]]
-name = "bowl_1"
-shape = { type = "cylinder", half_height = 0.07, radius = 0.28 }
-pos = [3.0, 1.27, 6.5]
-color = "#2f2a26"
-body = "fixed"
 
 [[object]]
 name = "torch_2"
@@ -226,16 +225,9 @@ shape = { type = "cylinder", half_height = 0.6, radius = 0.1 }
 pos = [6.0, 0.6, 6.5]
 color = "#4a3a2a"
 body = "fixed"
-light = { color = "#ffb060", radius = 6.5, intensity = 2.6, flicker = 0.9, shadows = true, offset = [0, 0.9, 0] }
-particles = { preset = "fire", offset = [0, 0.65, 0] }
+light = { color = "#ffb060", radius = 7, intensity = 4.2, flicker = 0.9, shadows = true, offset = [0, 1.1, 0] }
+particles = { preset = "fire", size = 0.8, offset = [0, 0.65, 0] }
 distortion = { kind = "haze", radius = 0.7, strength = 0.1, offset = [0, 1.5, 0] }
-
-[[object]]
-name = "bowl_2"
-shape = { type = "cylinder", half_height = 0.07, radius = 0.28 }
-pos = [6.0, 1.27, 6.5]
-color = "#2f2a26"
-body = "fixed"
 
 [[object]]
 name = "torch_3"
@@ -243,16 +235,9 @@ shape = { type = "cylinder", half_height = 0.6, radius = 0.1 }
 pos = [9.0, 0.6, 6.5]
 color = "#4a3a2a"
 body = "fixed"
-light = { color = "#ffb060", radius = 6.5, intensity = 2.6, flicker = 0.9, shadows = true, offset = [0, 0.9, 0] }
-particles = { preset = "fire", offset = [0, 0.65, 0] }
+light = { color = "#ffb060", radius = 7, intensity = 4.2, flicker = 0.9, shadows = true, offset = [0, 1.1, 0] }
+particles = { preset = "fire", size = 0.8, offset = [0, 0.65, 0] }
 distortion = { kind = "haze", radius = 0.7, strength = 0.1, offset = [0, 1.5, 0] }
-
-[[object]]
-name = "bowl_3"
-shape = { type = "cylinder", half_height = 0.07, radius = 0.28 }
-pos = [9.0, 1.27, 6.5]
-color = "#2f2a26"
-body = "fixed"
 
 [[object]]
 name = "pillar_n1"
@@ -348,58 +333,61 @@ density = 60
 
 [[object]]
 name = "mix_ball"
-shape = { type = "sphere", radius = 0.75 }
-pos = [20.0, 0.75, 6.0]
-color = "#ffffff"
+shape = { type = "sphere", radius = 0.6 }
+pos = [20.0, 0.6, 6.0]
+color = "#e8e8ea"
 body = "fixed"
 
 [[object]]
 name = "red_pole"
 shape = { type = "cylinder", half_height = 0.85, radius = 0.05 }
-pos = [18.61, 0.85, 5.2]
+pos = [18.35, 0.85, 5.05]
 color = "#2f3340"
 body = "fixed"
 
 [[object]]
 name = "red_lamp"
 shape = { type = "sphere", radius = 0.15 }
-pos = [18.61, 1.85, 5.2]
+pos = [18.35, 1.85, 5.05]
 color = "#ff3030"
 body = "fixed"
 look = "unlit"
-light = { color = "#ff2a2a", radius = 3.4, intensity = 2.2 }
+emissive = 0.5
+light = { color = "#ff0000", radius = 4.4, intensity = 4.0 }
 
 [[object]]
 name = "green_pole"
 shape = { type = "cylinder", half_height = 0.85, radius = 0.05 }
-pos = [21.39, 0.85, 5.2]
+pos = [21.65, 0.85, 5.05]
 color = "#2f3340"
 body = "fixed"
 
 [[object]]
 name = "green_lamp"
 shape = { type = "sphere", radius = 0.15 }
-pos = [21.39, 1.85, 5.2]
+pos = [21.65, 1.85, 5.05]
 color = "#30ff30"
 body = "fixed"
 look = "unlit"
-light = { color = "#2aff2a", radius = 3.4, intensity = 2.2 }
+emissive = 0.5
+light = { color = "#00ff00", radius = 4.4, intensity = 4.0 }
 
 [[object]]
 name = "blue_pole"
 shape = { type = "cylinder", half_height = 0.85, radius = 0.05 }
-pos = [20.0, 0.85, 7.6]
+pos = [20.0, 0.85, 7.9]
 color = "#2f3340"
 body = "fixed"
 
 [[object]]
 name = "blue_lamp"
 shape = { type = "sphere", radius = 0.15 }
-pos = [20.0, 1.85, 7.6]
+pos = [20.0, 1.85, 7.9]
 color = "#4040ff"
 body = "fixed"
 look = "unlit"
-light = { color = "#2a2aff", radius = 3.4, intensity = 2.2 }
+emissive = 0.5
+light = { color = "#0000ff", radius = 4.4, intensity = 4.0 }
 
 # ---- PULSE & FLICKER: flicker 0 / 0.5 / 1 (warm) and pulse 0.5 / 2 (cool)
 
@@ -417,7 +405,8 @@ pos = [2.5, 1.2, 18.3]
 color = "#ffb35c"
 body = "fixed"
 look = "unlit"
-light = { color = "#ffb35c", radius = 3.4, intensity = 2.4, flicker = 0.0 }
+emissive = 0.5
+light = { color = "#ffb35c", radius = 3.8, intensity = 3.4, flicker = 0.0 }
 
 [[object]]
 name = "flicker_05_post"
@@ -433,7 +422,8 @@ pos = [6.0, 1.2, 18.3]
 color = "#ffb35c"
 body = "fixed"
 look = "unlit"
-light = { color = "#ffb35c", radius = 3.4, intensity = 2.4, flicker = 0.5 }
+emissive = 0.5
+light = { color = "#ffb35c", radius = 3.8, intensity = 3.4, flicker = 0.5 }
 
 [[object]]
 name = "flicker_1_post"
@@ -449,7 +439,8 @@ pos = [9.5, 1.2, 18.3]
 color = "#ffb35c"
 body = "fixed"
 look = "unlit"
-light = { color = "#ffb35c", radius = 3.4, intensity = 2.4, flicker = 1.0 }
+emissive = 0.5
+light = { color = "#ffb35c", radius = 3.8, intensity = 3.4, flicker = 1.0 }
 
 [[object]]
 name = "pulse_05_post"
@@ -465,7 +456,8 @@ pos = [4.25, 1.2, 23.3]
 color = "#7fc8ff"
 body = "fixed"
 look = "unlit"
-light = { color = "#7fc8ff", radius = 3.4, intensity = 2.4, pulse = 0.5 }
+emissive = 0.5
+light = { color = "#7fc8ff", radius = 3.8, intensity = 3.4, pulse = 0.5 }
 
 [[object]]
 name = "pulse_2_post"
@@ -481,9 +473,10 @@ pos = [7.75, 1.2, 23.3]
 color = "#7fc8ff"
 body = "fixed"
 look = "unlit"
-light = { color = "#7fc8ff", radius = 3.4, intensity = 2.4, pulse = 2.0 }
+emissive = 0.5
+light = { color = "#7fc8ff", radius = 3.8, intensity = 3.4, pulse = 2.0 }
 
-# ---- MOVING LIGHT: a lantern on a rail (kinematic mover) past a row of posts
+# ---- MOVING LIGHT: a lantern on a track (kinematic mover) past a row of posts
 
 [[object]]
 name = "post_1"
@@ -535,21 +528,15 @@ color = "#b3a999"
 body = "fixed"
 
 [[object]]
-name = "rail"
-shape = { type = "box", half = [4.5, 0.03, 0.03] }
-pos = [19.0, 2.6, 21.5]
-color = "#2f3340"
-body = "none"
-
-[[object]]
 name = "lantern"
-shape = { type = "sphere", radius = 0.2 }
-pos = [14.5, 2.3, 21.5]
+shape = { type = "sphere", radius = 0.18 }
+pos = [14.5, 2.1, 21.5]
 color = "#ffe0a0"
 body = "kinematic"
 look = "unlit"
+emissive = 0.5
 behavior = { type = "move", offset = [9, 0, 0], period = 9, hold = 0.15, smooth = true }
-light = { color = "#ffdca0", radius = 8, intensity = 2.4, shadows = true }
+light = { color = "#ffdca0", radius = 8, intensity = 3.4, shadows = true }
 
 # ---- SUN DIAL: a big obelisk and an arch to swing sun shadows
 
@@ -577,21 +564,21 @@ body = "fixed"
 [[object]]
 name = "arch_l"
 shape = { type = "box", half = [0.3, 1.1, 0.4] }
-pos = [34.2, 1.1, 5.0]
+pos = [33.7, 1.1, 5.0]
 color = "#c8c0b0"
 body = "fixed"
 
 [[object]]
 name = "arch_r"
 shape = { type = "box", half = [0.3, 1.1, 0.4] }
-pos = [36.8, 1.1, 5.0]
+pos = [36.3, 1.1, 5.0]
 color = "#c8c0b0"
 body = "fixed"
 
 [[object]]
 name = "arch_top"
 shape = { type = "box", half = [1.6, 0.25, 0.4] }
-pos = [35.5, 2.35, 5.0]
+pos = [35.0, 2.35, 5.0]
 color = "#d4ccbc"
 body = "fixed"
 

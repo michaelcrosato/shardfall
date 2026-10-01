@@ -13,6 +13,7 @@ struct Post {
     filt1: vec4<f32>,          // dither, levels, palette, split (0 = off, else screen fraction)
     filt2: vec4<f32>,          // temperature, tint, contrast, brightness
     filt3: vec4<f32>,          // vignette, grain, chromatic aberration, time
+    filt4: vec4<f32>,          // saturation (filtered side only)
 };
 
 @group(0) @binding(0) var<uniform> post: Post;
@@ -142,10 +143,12 @@ fn to_srgb(c: vec3<f32>) -> vec3<f32> {
 // The rendered scene at screen position `p` (pixels): distortion, GI, outlines, bloom,
 // exposure, tonemap and saturation, in linear colour.
 fn scene_color(p: vec2<f32>, dims: vec2<i32>, chroma: f32) -> vec3<f32> {
-    let px = clamp(vec2<i32>(p), vec2<i32>(0), dims - vec2<i32>(1));
+    var px = clamp(vec2<i32>(p), vec2<i32>(0), dims - vec2<i32>(1));
     var uv = p / vec2<f32>(dims);
     if (post.misc.z > 0.5) {
         uv += textureLoad(distort_tex, px, 0).xy;
+        // Outlines and GI follow the warped image.
+        px = clamp(vec2<i32>(uv * vec2<f32>(dims)), vec2<i32>(0), dims - vec2<i32>(1));
     }
     var col = textureSampleLevel(hdr_tex, lin, uv, 0.0).rgb;
     if (chroma > 0.0) {
@@ -292,6 +295,8 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
         s = s * vec3<f32>(1.0 + 0.12 * temp, 1.0 + 0.08 * post.filt2.y, 1.0 - 0.12 * temp);
         s = (s - 0.5) * post.filt2.z + 0.5;
         s = s * post.filt2.w;
+        let gray = dot(s, vec3<f32>(0.2126, 0.7152, 0.0722));
+        s = mix(vec3<f32>(gray), s, post.filt4.x);
         // Scanlines follow the curved tube.
         if (post.filt0.z > 0.0) {
             let period = max(post.filt0.w, 1.0);

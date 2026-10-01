@@ -1,19 +1,22 @@
 # Bloom & Glow (vfx wing): glow around anything brighter than view.bloom_threshold, at view.bloom.
-# Generated from a small script, then hand-checked. Layout (40 x 26):
+# Layout (40 x 26, entrance in the south wall):
 #   NORTH   neon signs (thin emissive boxes) on the dark north wall
-#   MIDDLE  brightness ladder (emissive 0.5 .. 8) over the BLOOM dial and the DAY / NIGHT pads
+#   MIDDLE  brightness ladder (emissive 0.5 .. 8) above the BLOOM dial and the DAY / NIGHT pads
 #   EAST    sparkles: magic, embers, fireflies, sparks (additive, HDR-bright particles)
-# Pads set view.* values; they stay until you leave the room (RESET ALL puts them back).
+#   SOUTH   reference lamps and pushable glow balls
+# Pads set view.* values and keep them until you leave the room (RESET ALL puts them back).
+# Every emissive object above 0.5 also adds a point light (the renderer takes 64 at most), so the
+# neon tubes are single boxes and the whole room stays near 45 lights.
 name = "Bloom & Glow"
-about = "Glow around anything brighter than the bloom threshold: a brightness ladder, neon signs, sparkling particles, and pads that turn the bloom strength, threshold and time of day up and down."
+about = "Glow around anything brighter than the bloom threshold: a brightness ladder, neon signs, sparkling particles and glow balls, plus pads that turn the bloom strength, the threshold and the time of day."
 try = [
-  "Walk along the BRIGHTNESS LADDER: emissive 0.5 and 1 stay plain, 2 starts to glow, 4 and 8 bloom big",
-  "Stand on each BLOOM pad (OFF, SUBTLE, STRONG, DREAMY) and watch the neon and the ladder change",
-  "Step on THRESHOLD LOW: even dim things (and the 0.5 and 1 spheres) start to glow; HIGH: only the 8 does",
-  "Step on DAYLIGHT, then NIGHT: the same glow is almost invisible in the sun and strongest in the dark",
-  "Admire the neon signs on the north wall in each bloom setting, then switch bloom OFF to see the bare tubes",
-  "Visit the sparkles: magic, embers, fireflies and a sparks grinder glow because their particles are HDR-bright",
-  "Throw a bomb (F or click) at the ladder: the explosion flash and sparks bloom too",
+  "Walk along the BRIGHTNESS LADDER: emissive 0.5 stays plain, 1 is borderline, 2 starts to glow, 4 and 8 bloom big",
+  "Stand on each BLOOM pad (OFF, SUBTLE, STRONG, DREAMY) and watch the ladder, the neon and the lamps change",
+  "Step on THRESHOLD LOW: the 1 sphere and even the bright pads start to glow; on HIGH mostly the 4 and 8 spheres do",
+  "Step on DAYLIGHT, then DUSK and NIGHT: the same glow is washed out in the sun and strongest in the dark",
+  "Walk up to the neon signs on the north wall, then switch BLOOM OFF to see the bare tubes",
+  "Visit the sparkles: magic, embers, fireflies and the sparks grinder glow because their particles are HDR-bright",
+  "Push the three glow balls around: their light travels with them; throw a bomb (F or click) at the ladder",
   "RESET ALL brings the room back to its starting look",
 ]
 wing = "vfx"
@@ -27,7 +30,7 @@ distance = 17.0
 
 [view]
 "light.sun_intensity" = 0.06
-"light.ambient" = 0.25
+"light.ambient" = 0.32
 "light.sun_elevation" = 20.0
 sky = "#0e1424"
 bloom = 0.8
@@ -53,13 +56,13 @@ map = '''
 #......................................#
 #......................................#
 #......................................#
-#..aaabbbcccddd.eeeegggg...............#
-#..aaabbbcccddd.eeeegggg...............#
-#......................................#
-#......................................#
-#..hhhhhiiiijjjj.kkkkkk................#
-#..hhhhhiiiijjjj.kkkkkk................#
-#......................................#
+#..aaabbbcccddd.eeeeeggggg.............#
+#..aaabbbcccddd.eeeeeggggg.............#
+#.........................mmmmmmm......#
+#.........................mmmmmmm......#
+#..hhhhhiiiijjjj.kkkkkk...mmmmmmm......#
+#..hhhhhiiiijjjj.kkkkkk...mmmmmmm......#
+#.........................mmmmmmm......#
 #......................................#
 #......................................#
 #......................................#
@@ -68,104 +71,107 @@ map = '''
 '''
 
 [layout.legend.'.']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#262a36" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#434b66" }]
 
 [layout.legend.'#']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#262a36" }, { y0 = 0, y1 = 3.0, color = "#191b26" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#434b66" }, { y0 = 0, y1 = 3.0, color = "#2c3148" }]
+
+[layout.legend.'m']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#1d3a2a" }]
 
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "BLOOM OFF", color = "#9aa3b8", params = { "view.bloom" = 0.0 } }
+zone = { kind = "pad", label = "BLOOM OFF", color = "#3b4054", params = { "view.bloom" = 0.0 } }
 
 [layout.legend.'b']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "SUBTLE", color = "#7fc8ff", params = { "view.bloom" = 0.35 } }
+zone = { kind = "pad", label = "SUBTLE", color = "#2f6fa8", params = { "view.bloom" = 0.35 } }
 
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "STRONG", color = "#c58bff", params = { "view.bloom" = 1.0 } }
+zone = { kind = "pad", label = "STRONG", color = "#7a45c8", params = { "view.bloom" = 1.0 } }
 
 [layout.legend.'d']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DREAMY", color = "#ff8bd0", params = { "view.bloom" = 2.0 } }
+zone = { kind = "pad", label = "DREAMY", color = "#c03d96", params = { "view.bloom" = 2.0 } }
 
 [layout.legend.'e']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "THRESHOLD LOW", color = "#ffd166", label_size = 0.3, params = { "view.bloom_threshold" = 0.6 } }
+zone = { kind = "pad", label = "THRESHOLD LOW", color = "#9a7a1c", label_size = 0.36, params = { "view.bloom_threshold" = 0.6 } }
 
 [layout.legend.'g']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "THRESHOLD HIGH", color = "#ff9f5a", label_size = 0.28, params = { "view.bloom_threshold" = 2.0 } }
+zone = { kind = "pad", label = "THRESHOLD HIGH", color = "#a8541c", label_size = 0.36, params = { "view.bloom_threshold" = 2.0 } }
 
 [layout.legend.'h']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DAYLIGHT", color = "#ffe08a", params = { "view.light.sun_intensity" = 0.9, "view.light.ambient" = 1.0, "view.sky" = "#8fb8d8", "view.light.sun_elevation" = 58.0 } }
+zone = { kind = "pad", label = "DAYLIGHT", color = "#b08a1c", params = { "view.light.sun_intensity" = 0.7, "view.light.ambient" = 1.0, "view.sky" = "#8fb8d8", "view.light.sun_elevation" = 58.0 } }
 
 [layout.legend.'i']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DUSK", color = "#ff9a6b", params = { "view.light.sun_intensity" = 0.25, "view.light.ambient" = 0.55, "view.sky" = "#3a2a4e", "view.light.sun_elevation" = 9.0 } }
+zone = { kind = "pad", label = "DUSK", color = "#b0502e", params = { "view.light.sun_intensity" = 0.25, "view.light.ambient" = 0.55, "view.sky" = "#3a2a4e", "view.light.sun_elevation" = 9.0 } }
 
 [layout.legend.'j']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "NIGHT", color = "#7b8cff", params = { "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.25, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
+zone = { kind = "pad", label = "NIGHT", color = "#3a46a8", params = { "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
 
 [layout.legend.'k']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "RESET ALL", color = "#8de0a5", label_size = 0.4, params = { "view.bloom" = 0.8, "view.bloom_threshold" = 1.2, "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.25, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
+zone = { kind = "pad", label = "RESET ALL", color = "#2f8a52", label_size = 0.4, params = { "view.bloom" = 0.8, "view.bloom_threshold" = 1.2, "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
 
 # ---- exhibits (labels, then objects: keep at the end of the file) ----
 
 [[label]]
 text = "0.5"
-pos = [5, 0.03, 12.4]
+pos = [5, 0.03, 11.4]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "1"
-pos = [8.2, 0.03, 12.4]
+pos = [8.2, 0.03, 11.4]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "2"
-pos = [11.4, 0.03, 12.4]
+pos = [11.4, 0.03, 11.4]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "4"
-pos = [14.6, 0.03, 12.4]
+pos = [14.6, 0.03, 11.4]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "8"
-pos = [17.8, 0.03, 12.4]
+pos = [17.8, 0.03, 11.4]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "BRIGHTNESS LADDER"
-pos = [11.4, 0.03, 7.8]
+pos = [11.4, 0.03, 7]
 size = 0.55
 color = "#c9d4ff"
 
 [[label]]
 text = "EMISSIVE"
-pos = [2.3, 0.03, 12.4]
-size = 0.3
+pos = [2.6, 0.03, 11.4]
+size = 0.35
 color = "#c9d4ff"
 
 [[label]]
 text = "NEON SIGNS"
-pos = [19.5, 0.03, 6]
+pos = [19.5, 0.03, 3.6]
 size = 0.6
 color = "#c9d4ff"
 
 [[label]]
 text = "BLOOM DIAL"
-pos = [11.5, 0.03, 13]
+pos = [11.5, 0.03, 12.9]
 size = 0.5
 color = "#c9d4ff"
 
@@ -176,6 +182,48 @@ size = 0.5
 color = "#c9d4ff"
 
 [[label]]
+text = "SPARKLES"
+pos = [32, 0.03, 8.6]
+size = 0.6
+color = "#c9d4ff"
+
+[[label]]
+text = "MAGIC"
+pos = [28.5, 0.03, 13]
+size = 0.5
+color = "#c9d4ff"
+
+[[label]]
+text = "EMBERS"
+pos = [34.5, 0.03, 13]
+size = 0.5
+color = "#c9d4ff"
+
+[[label]]
+text = "FIREFLIES"
+pos = [29.5, 0.03, 21.1]
+size = 0.5
+color = "#c9d4ff"
+
+[[label]]
+text = "SPARKS"
+pos = [35.5, 0.03, 20]
+size = 0.5
+color = "#c9d4ff"
+
+[[label]]
+text = "LAMPS: EMISSIVE 3"
+pos = [10, 0.03, 22.8]
+size = 0.4
+color = "#c9d4ff"
+
+[[label]]
+text = "GLOW BALLS: PUSH THEM"
+pos = [29, 0.03, 24]
+size = 0.4
+color = "#c9d4ff"
+
+[[label]]
 text = "BLOOM & GLOW"
 pos = [19.5, 0.03, 22]
 size = 0.65
@@ -183,15 +231,17 @@ color = "#c9d4ff"
 
 [[label]]
 text = "STEP ON THE PADS"
-pos = [19.5, 0.03, 23.2]
-size = 0.35
+pos = [19.5, 0.03, 23.3]
+size = 0.4
 color = "#c9d4ff"
+
+# ---- neon signs on the north wall: thin emissive boxes (emissive 2.6, unlit), one per tube ----
 
 [[object]]
 name = "glow_G0_0_0"
-shape = { type = "box", half = [0.381, 0.045, 0.035] }
-pos = [4.94, 2.515, 1.06]
-roll = 165.349
+shape = { type = "box", half = [0.464, 0.045, 0.035] }
+pos = [4.019, 2.16, 1.06]
+roll = 180
 color = "#ff3fa4"
 body = "none"
 look = "unlit"
@@ -199,18 +249,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_G0_0_1"
-shape = { type = "box", half = [0.265, 0.045, 0.035] }
-pos = [4.557, 2.387, 1.06]
-roll = -105.11
-color = "#ff3fa4"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_G0_0_2"
-shape = { type = "box", half = [0.47, 0.045, 0.035] }
-pos = [4.5, 1.75, 1.06]
+shape = { type = "box", half = [0.975, 0.045, 0.035] }
+pos = [3.6, 1.23, 1.06]
 roll = -90
 color = "#ff3fa4"
 body = "none"
@@ -218,29 +258,18 @@ look = "unlit"
 emissive = 2.6
 
 [[object]]
+name = "glow_G0_0_2"
+shape = { type = "box", half = [0.464, 0.045, 0.035] }
+pos = [4.019, 0.3, 1.06]
+color = "#ff3fa4"
+body = "none"
+look = "unlit"
+emissive = 2.6
+
+[[object]]
 name = "glow_G0_0_3"
-shape = { type = "box", half = [0.265, 0.045, 0.035] }
-pos = [4.557, 1.113, 1.06]
-roll = -74.89
-color = "#ff3fa4"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_G0_0_4"
-shape = { type = "box", half = [0.381, 0.045, 0.035] }
-pos = [4.94, 0.985, 1.06]
-roll = 14.651
-color = "#ff3fa4"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_G0_0_5"
-shape = { type = "box", half = [0.385, 0.045, 0.035] }
-pos = [5.265, 1.41, 1.06]
+shape = { type = "box", half = [0.51, 0.045, 0.035] }
+pos = [4.437, 0.765, 1.06]
 roll = 90
 color = "#ff3fa4"
 body = "none"
@@ -248,9 +277,9 @@ look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "glow_G0_0_6"
-shape = { type = "box", half = [0.217, 0.045, 0.035] }
-pos = [5.093, 1.75, 1.06]
+name = "glow_G0_0_4"
+shape = { type = "box", half = [0.254, 0.045, 0.035] }
+pos = [4.228, 1.23, 1.06]
 roll = 180
 color = "#ff3fa4"
 body = "none"
@@ -259,8 +288,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_L1_0_0"
-shape = { type = "box", half = [0.895, 0.045, 0.035] }
-pos = [5.647, 1.75, 1.06]
+shape = { type = "box", half = [0.975, 0.045, 0.035] }
+pos = [4.856, 1.23, 1.06]
 roll = -90
 color = "#ff9a2e"
 body = "none"
@@ -269,8 +298,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_L1_0_1"
-shape = { type = "box", half = [0.428, 0.045, 0.035] }
-pos = [6.03, 0.9, 1.06]
+shape = { type = "box", half = [0.464, 0.045, 0.035] }
+pos = [5.274, 0.3, 1.06]
 color = "#ff9a2e"
 body = "none"
 look = "unlit"
@@ -278,8 +307,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_O2_0_0"
-shape = { type = "box", half = [0.313, 0.045, 0.035] }
-pos = [7.178, 0.9, 1.06]
+shape = { type = "box", half = [0.464, 0.045, 0.035] }
+pos = [6.53, 0.3, 1.06]
 color = "#3fe0ff"
 body = "none"
 look = "unlit"
@@ -287,18 +316,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_O2_0_1"
-shape = { type = "box", half = [0.148, 0.045, 0.035] }
-pos = [7.503, 0.985, 1.06]
-roll = 55.981
-color = "#3fe0ff"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_O2_0_2"
-shape = { type = "box", half = [0.725, 0.045, 0.035] }
-pos = [7.56, 1.75, 1.06]
+shape = { type = "box", half = [0.975, 0.045, 0.035] }
+pos = [6.948, 1.23, 1.06]
 roll = 90
 color = "#3fe0ff"
 body = "none"
@@ -306,19 +325,9 @@ look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "glow_O2_0_3"
-shape = { type = "box", half = [0.148, 0.045, 0.035] }
-pos = [7.503, 2.515, 1.06]
-roll = 124.019
-color = "#3fe0ff"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_O2_0_4"
-shape = { type = "box", half = [0.313, 0.045, 0.035] }
-pos = [7.178, 2.6, 1.06]
+name = "glow_O2_0_2"
+shape = { type = "box", half = [0.464, 0.045, 0.035] }
+pos = [6.53, 2.16, 1.06]
 roll = 180
 color = "#3fe0ff"
 body = "none"
@@ -326,19 +335,9 @@ look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "glow_O2_0_5"
-shape = { type = "box", half = [0.148, 0.045, 0.035] }
-pos = [6.852, 2.515, 1.06]
-roll = -124.019
-color = "#3fe0ff"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "glow_O2_0_6"
-shape = { type = "box", half = [0.725, 0.045, 0.035] }
-pos = [6.795, 1.75, 1.06]
+name = "glow_O2_0_3"
+shape = { type = "box", half = [0.975, 0.045, 0.035] }
+pos = [6.111, 1.23, 1.06]
 roll = -90
 color = "#3fe0ff"
 body = "none"
@@ -346,19 +345,9 @@ look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "glow_O2_0_7"
-shape = { type = "box", half = [0.148, 0.045, 0.035] }
-pos = [6.852, 0.985, 1.06]
-roll = -55.981
-color = "#3fe0ff"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
 name = "glow_W3_0_0"
-shape = { type = "box", half = [0.9, 0.045, 0.035] }
-pos = [8.038, 1.75, 1.06]
+shape = { type = "box", half = [0.981, 0.045, 0.035] }
+pos = [7.471, 1.23, 1.06]
 roll = -83.581
 color = "#9dff4a"
 body = "none"
@@ -367,8 +356,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_W3_0_1"
-shape = { type = "box", half = [0.522, 0.045, 0.035] }
-pos = [8.229, 1.368, 1.06]
+shape = { type = "box", half = [0.567, 0.045, 0.035] }
+pos = [7.68, 0.812, 1.06]
 roll = 78.44
 color = "#9dff4a"
 body = "none"
@@ -377,8 +366,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_W3_0_2"
-shape = { type = "box", half = [0.522, 0.045, 0.035] }
-pos = [8.421, 1.368, 1.06]
+shape = { type = "box", half = [0.567, 0.045, 0.035] }
+pos = [7.89, 0.812, 1.06]
 roll = -78.44
 color = "#9dff4a"
 body = "none"
@@ -387,8 +376,8 @@ emissive = 2.6
 
 [[object]]
 name = "glow_W3_0_3"
-shape = { type = "box", half = [0.9, 0.045, 0.035] }
-pos = [8.612, 1.75, 1.06]
+shape = { type = "box", half = [0.981, 0.045, 0.035] }
+pos = [8.099, 1.23, 1.06]
 roll = 83.581
 color = "#9dff4a"
 body = "none"
@@ -397,8 +386,8 @@ emissive = 2.6
 
 [[object]]
 name = "star_0"
-shape = { type = "box", half = [0.901, 0.045, 0.035] }
-pos = [15.765, 2.386, 1.06]
+shape = { type = "box", half = [0.949, 0.045, 0.035] }
+pos = [14.779, 1.341, 1.06]
 roll = -72
 color = "#ffe14a"
 body = "none"
@@ -407,8 +396,8 @@ emissive = 2.6
 
 [[object]]
 name = "star_1"
-shape = { type = "box", half = [0.901, 0.045, 0.035] }
-pos = [15.337, 2.075, 1.06]
+shape = { type = "box", half = [0.949, 0.045, 0.035] }
+pos = [14.327, 1.012, 1.06]
 roll = 144
 color = "#ffe14a"
 body = "none"
@@ -417,8 +406,8 @@ emissive = 2.6
 
 [[object]]
 name = "star_2"
-shape = { type = "box", half = [0.901, 0.045, 0.035] }
-pos = [15.5, 2.578, 1.06]
+shape = { type = "box", half = [0.949, 0.045, 0.035] }
+pos = [14.5, 1.544, 1.06]
 roll = 0
 color = "#ffe14a"
 body = "none"
@@ -427,8 +416,8 @@ emissive = 2.6
 
 [[object]]
 name = "star_3"
-shape = { type = "box", half = [0.901, 0.045, 0.035] }
-pos = [15.663, 2.075, 1.06]
+shape = { type = "box", half = [0.949, 0.045, 0.035] }
+pos = [14.673, 1.012, 1.06]
 roll = -144
 color = "#ffe14a"
 body = "none"
@@ -437,8 +426,8 @@ emissive = 2.6
 
 [[object]]
 name = "star_4"
-shape = { type = "box", half = [0.901, 0.045, 0.035] }
-pos = [15.235, 2.386, 1.06]
+shape = { type = "box", half = [0.949, 0.045, 0.035] }
+pos = [14.221, 1.341, 1.06]
 roll = 72
 color = "#ffe14a"
 body = "none"
@@ -447,9 +436,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_0"
-shape = { type = "box", half = [0.558, 0.045, 0.035] }
-pos = [21.65, 1.275, 1.06]
-roll = 133.025
+shape = { type = "box", half = [0.718, 0.045, 0.035] }
+pos = [20.05, 0.9, 1.06]
+roll = 131.987
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -457,9 +446,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_1"
-shape = { type = "box", half = [0.321, 0.045, 0.035] }
-pos = [21.275, 1.925, 1.06]
-roll = 95.194
+shape = { type = "box", half = [0.426, 0.045, 0.035] }
+pos = [19.75, 1.75, 1.06]
+roll = 66.801
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -467,9 +456,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_2"
-shape = { type = "box", half = [0.275, 0.045, 0.035] }
-pos = [21.4, 2.375, 1.06]
-roll = 49.399
+shape = { type = "box", half = [0.392, 0.045, 0.035] }
+pos = [20.2, 1.925, 1.06]
+roll = -30.256
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -477,9 +466,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_3"
-shape = { type = "box", half = [0.315, 0.045, 0.035] }
-pos = [21.775, 2.4, 1.06]
-roll = -33.69
+shape = { type = "box", half = [0.392, 0.045, 0.035] }
+pos = [20.8, 1.925, 1.06]
+roll = 30.256
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -487,9 +476,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_4"
-shape = { type = "box", half = [0.315, 0.045, 0.035] }
-pos = [22.225, 2.4, 1.06]
-roll = 33.69
+shape = { type = "box", half = [0.426, 0.045, 0.035] }
+pos = [21.25, 1.75, 1.06]
+roll = -66.801
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -497,29 +486,9 @@ emissive = 2.6
 
 [[object]]
 name = "heart_5"
-shape = { type = "box", half = [0.275, 0.045, 0.035] }
-pos = [22.6, 2.375, 1.06]
-roll = -49.399
-color = "#ff3b57"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "heart_6"
-shape = { type = "box", half = [0.321, 0.045, 0.035] }
-pos = [22.725, 1.925, 1.06]
-roll = -95.194
-color = "#ff3b57"
-body = "none"
-look = "unlit"
-emissive = 2.6
-
-[[object]]
-name = "heart_7"
-shape = { type = "box", half = [0.558, 0.045, 0.035] }
-pos = [22.35, 1.275, 1.06]
-roll = -133.025
+shape = { type = "box", half = [0.718, 0.045, 0.035] }
+pos = [20.95, 0.9, 1.06]
+roll = -131.987
 color = "#ff3b57"
 body = "none"
 look = "unlit"
@@ -527,9 +496,9 @@ emissive = 2.6
 
 [[object]]
 name = "bolt_0"
-shape = { type = "box", half = [0.604, 0.045, 0.035] }
-pos = [26.75, 2.4, 1.06]
-roll = -116.565
+shape = { type = "box", half = [0.594, 0.045, 0.035] }
+pos = [26.275, 1.725, 1.06]
+roll = -120.069
 color = "#ffb020"
 body = "none"
 look = "unlit"
@@ -537,8 +506,8 @@ emissive = 2.6
 
 [[object]]
 name = "bolt_1"
-shape = { type = "box", half = [0.27, 0.045, 0.035] }
-pos = [26.725, 1.9, 1.06]
+shape = { type = "box", half = [0.295, 0.045, 0.035] }
+pos = [26.25, 1.25, 1.06]
 color = "#ffb020"
 body = "none"
 look = "unlit"
@@ -546,124 +515,268 @@ emissive = 2.6
 
 [[object]]
 name = "bolt_2"
-shape = { type = "box", half = [0.575, 0.045, 0.035] }
-pos = [26.775, 1.4, 1.06]
-roll = -109.29
+shape = { type = "box", half = [0.571, 0.045, 0.035] }
+pos = [26.275, 0.775, 1.06]
+roll = -115.346
 color = "#ffb020"
 body = "none"
 look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "frame_0"
+name = "arrow_shaft_0"
 shape = { type = "box", half = [1.445, 0.045, 0.035] }
-pos = [31.9, 1, 1.06]
-color = "#5a8bff"
+pos = [32.2, 1.25, 1.06]
+color = "#7ff0ff"
 body = "none"
 look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "frame_1"
-shape = { type = "box", half = [0.945, 0.045, 0.035] }
-pos = [33.3, 1.9, 1.06]
-roll = 90
-color = "#5a8bff"
+name = "arrow_head_0"
+shape = { type = "box", half = [0.664, 0.045, 0.035] }
+pos = [33.15, 1.675, 1.06]
+roll = -43.363
+color = "#7ff0ff"
 body = "none"
 look = "unlit"
 emissive = 2.6
 
 [[object]]
-name = "frame_2"
-shape = { type = "box", half = [1.445, 0.045, 0.035] }
-pos = [31.9, 2.8, 1.06]
-roll = 180
-color = "#5a8bff"
+name = "arrow_head_1"
+shape = { type = "box", half = [0.664, 0.045, 0.035] }
+pos = [33.15, 0.825, 1.06]
+roll = -136.637
+color = "#7ff0ff"
 body = "none"
 look = "unlit"
 emissive = 2.6
 
-[[object]]
-name = "frame_3"
-shape = { type = "box", half = [0.945, 0.045, 0.035] }
-pos = [30.5, 1.9, 1.06]
-roll = -90
-color = "#5a8bff"
-body = "none"
-look = "unlit"
-emissive = 2.6
+# ---- brightness ladder: identical spheres, emissive 0.5 / 1 / 2 / 4 / 8 (threshold 1.2) ----
 
 [[object]]
 name = "ped_0p5"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
-pos = [5, 0.3, 10.5]
-color = "#3a3f50"
+pos = [5, 0.3, 9.6]
+color = "#59607a"
 body = "fixed"
 
 [[object]]
 name = "lad_0p5"
 shape = { type = "sphere", radius = 0.5 }
-pos = [5, 1.15, 10.5]
-color = "#ffe2b0"
+pos = [5, 1.15, 9.6]
+color = "#ffa850"
 body = "fixed"
 emissive = 0.5
 
 [[object]]
 name = "ped_1"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
-pos = [8.2, 0.3, 10.5]
-color = "#3a3f50"
+pos = [8.2, 0.3, 9.6]
+color = "#59607a"
 body = "fixed"
 
 [[object]]
 name = "lad_1"
 shape = { type = "sphere", radius = 0.5 }
-pos = [8.2, 1.15, 10.5]
-color = "#ffe2b0"
+pos = [8.2, 1.15, 9.6]
+color = "#ffa850"
 body = "fixed"
 emissive = 1
 
 [[object]]
 name = "ped_2"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
-pos = [11.4, 0.3, 10.5]
-color = "#3a3f50"
+pos = [11.4, 0.3, 9.6]
+color = "#59607a"
 body = "fixed"
 
 [[object]]
 name = "lad_2"
 shape = { type = "sphere", radius = 0.5 }
-pos = [11.4, 1.15, 10.5]
-color = "#ffe2b0"
+pos = [11.4, 1.15, 9.6]
+color = "#ffa850"
 body = "fixed"
 emissive = 2
 
 [[object]]
 name = "ped_4"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
-pos = [14.6, 0.3, 10.5]
-color = "#3a3f50"
+pos = [14.6, 0.3, 9.6]
+color = "#59607a"
 body = "fixed"
 
 [[object]]
 name = "lad_4"
 shape = { type = "sphere", radius = 0.5 }
-pos = [14.6, 1.15, 10.5]
-color = "#ffe2b0"
+pos = [14.6, 1.15, 9.6]
+color = "#ffa850"
 body = "fixed"
 emissive = 4
 
 [[object]]
 name = "ped_8"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
-pos = [17.8, 0.3, 10.5]
-color = "#3a3f50"
+pos = [17.8, 0.3, 9.6]
+color = "#59607a"
 body = "fixed"
 
 [[object]]
 name = "lad_8"
 shape = { type = "sphere", radius = 0.5 }
-pos = [17.8, 1.15, 10.5]
-color = "#ffe2b0"
+pos = [17.8, 1.15, 9.6]
+color = "#ffa850"
 body = "fixed"
 emissive = 8
+
+# ---- magic well: HDR magic particles + a pulsing blue light ----
+
+[[object]]
+name = "well"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.5 }
+pos = [28.5, 0.4, 11.5]
+color = "#3a4270"
+body = "fixed"
+light = { color = "#6a8cff", radius = 7, intensity = 2.2, pulse = 0.4, offset = [0, 1.3, 0] }
+particles = { preset = "magic", rate = 55, size = 1.3, offset = [0, 0.9, 0] }
+
+[[object]]
+name = "well_rim"
+shape = { type = "cylinder", half_height = 0.05, radius = 0.62 }
+pos = [28.5, 0.8, 11.5]
+color = "#7a86d0"
+body = "fixed"
+emissive = 0.5
+
+# ---- brazier: emissive coals, a little fire, rising embers and a flickering light ----
+
+[[object]]
+name = "brazier"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.55 }
+pos = [34.5, 0.3, 11.5]
+color = "#45403f"
+body = "fixed"
+light = { color = "#ff9a40", radius = 8, intensity = 2.4, flicker = 0.8, offset = [0, 1.1, 0] }
+particles = { preset = "embers", rate = 30, size = 1.3, offset = [0, 0.8, 0] }
+
+[[object]]
+name = "coals"
+shape = { type = "sphere", radius = 0.3 }
+pos = [34.5, 0.62, 11.5]
+color = "#ff5a18"
+body = "fixed"
+emissive = 2.2
+
+[[object]]
+name = "flame"
+shape = { type = "sphere", radius = 0.05 }
+pos = [34.5, 0.9, 11.5]
+color = "#000000"
+body = "none"
+particles = { preset = "fire", rate = 30, size = 0.55, offset = [0, 0.0, 0] }
+
+# ---- fireflies over the meadow: two emitters (yellow-green and pink) ----
+
+[[object]]
+name = "fireflies_a"
+shape = { type = "sphere", radius = 0.02 }
+pos = [29.5, 1, 18]
+color = "#000000"
+body = "none"
+particles = { preset = "fireflies", rate = 12, area = [3.0, 0.7, 1.9], size = 1.5 }
+
+[[object]]
+name = "fireflies_b"
+shape = { type = "sphere", radius = 0.02 }
+pos = [29.5, 1.2, 18]
+color = "#000000"
+body = "none"
+particles = { preset = "fireflies", rate = 5, color = "#ff8ad8", area = [3.0, 0.7, 1.9], size = 1.5 }
+
+# ---- sparks grinder: a hot plate (emissive 3) and sparks ----
+
+[[object]]
+name = "grinder"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [35.5, 0.4, 18]
+color = "#3a3f47"
+body = "fixed"
+particles = { preset = "sparks", rate = 45, offset = [0, 0.5, 0] }
+
+[[object]]
+name = "grinder_hot"
+shape = { type = "box", half = [0.25, 0.04, 0.25] }
+pos = [35.5, 0.82, 18]
+color = "#ff7a30"
+body = "fixed"
+emissive = 3
+
+# ---- reference lamps (emissive 3) south of the day / night pads ----
+
+[[object]]
+name = "post_a"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.06 }
+pos = [6, 0.8, 22.8]
+color = "#59607a"
+body = "fixed"
+
+[[object]]
+name = "lamp_a"
+shape = { type = "sphere", radius = 0.28 }
+pos = [6, 1.8, 22.8]
+color = "#ffd9a0"
+body = "fixed"
+emissive = 3
+
+[[object]]
+name = "post_b"
+shape = { type = "cylinder", half_height = 0.8, radius = 0.06 }
+pos = [14, 0.8, 22.8]
+color = "#59607a"
+body = "fixed"
+
+[[object]]
+name = "lamp_b"
+shape = { type = "sphere", radius = 0.28 }
+pos = [14, 1.8, 22.8]
+color = "#60e0ff"
+body = "fixed"
+emissive = 3
+
+# ---- pushable glow balls (dynamic, emissive 3): their light travels with them ----
+
+[[object]]
+name = "ball_a"
+shape = { type = "sphere", radius = 0.3 }
+pos = [27.5, 0.4, 22.2]
+color = "#ff6ad0"
+body = "dynamic"
+emissive = 3
+density = 8
+restitution = 0.45
+friction = 0.4
+damping = 0.4
+
+[[object]]
+name = "ball_b"
+shape = { type = "sphere", radius = 0.3 }
+pos = [29, 0.4, 22.6]
+color = "#6aff9a"
+body = "dynamic"
+emissive = 3
+density = 8
+restitution = 0.45
+friction = 0.4
+damping = 0.4
+
+[[object]]
+name = "ball_c"
+shape = { type = "sphere", radius = 0.3 }
+pos = [30.5, 0.4, 22.2]
+color = "#6ab0ff"
+body = "dynamic"
+emissive = 3
+density = 8
+restitution = 0.45
+friction = 0.4
+damping = 0.4

@@ -337,6 +337,8 @@ pub struct FilterSettings {
     pub grain: f32,
     /// Chromatic aberration.
     pub chroma: f32,
+    /// Saturation of the filtered side (1 = unchanged, 0 = grey).
+    pub saturation: f32,
 }
 
 impl Default for FilterSettings {
@@ -357,6 +359,7 @@ impl Default for FilterSettings {
             vignette: 0.0,
             grain: 0.0,
             chroma: 0.0,
+            saturation: 1.0,
         }
     }
 }

@@ -307,11 +307,12 @@ fn t_load(s: &mut Session, a: &Args) -> Result<Output> {
     let scene = get_str(a, "scene").unwrap_or("test");
     let seed = get_u64(a, "seed", 1)?;
     let gpu = s.gpu.take();
-    let (camera, view) = (s.camera.params.clone(), s.view.clone());
+    // Keep the caller's camera and view settings, minus any room's own view table.
+    let (camera, view) = (s.camera_base_or_current(), s.view_base_or_current());
     *s = Session::new(scene, seed)?;
     s.gpu = gpu;
-    s.camera.params = camera;
-    s.view = view;
+    s.reset_view(view);
+    s.reset_camera(camera);
     t_status(s, a)
 }
 

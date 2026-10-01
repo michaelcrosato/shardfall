@@ -1,7 +1,7 @@
 # Heat & Shockwaves: screen distortion (heat haze, lenses, ripples, repeating shockwaves, bomb
 # blasts) over patterned floors, since a warp only shows where the picture behind it has detail.
 #   NORTH-WEST  lava strip (emissive floor objects, fire and embers, haze) and a forge
-#   NORTH-EAST  glass orbs with lens distortion +0.15 / +0.3 / -0.2 over a checker floor
+#   NORTH-EAST  five glass orbs with lens distortion +0.15 / +0.3 / +0.6 / -0.2 / -0.5 over a checker
 #   MIDDLE      ripple pool + fountain, shockwave pads (period 1 / 2 / 3 s), bomb range
 #   SOUTH       DISTORTION ON / OFF pads (view.distortion) next to a ring demo
 name = "Heat & Shockwaves"
@@ -9,11 +9,11 @@ about = "Screen distortion warps the rendered image around a source: heat haze o
 try = [
   "Walk up to the lava strip and the forge: the bricks behind the rising heat shimmer",
   "Step on DISTORTION OFF (south), look at the ring demo, then step on DISTORTION ON",
-  "Walk behind the glass orbs: +0.15 and +0.3 magnify the checker, -0.2 shrinks it",
+  "Walk between the glass orbs: +0.15, +0.3 and +0.6 magnify the checker, -0.2 and -0.5 shrink it",
   "Stand next to the fountain pool and watch the water ripples distort the tiles",
   "Compare the 1 s, 2 s and 3 s shockwave pads over the stripes",
   "Throw bombs (F or left click) on the bomb range: each blast makes its own shockwave",
-  "Bomb the crates next to the glass orbs' checker to see a blast ring cross the pattern",
+  "Bomb the crate stacks and barrels: the blast ring sweeps across the checker and shoves them",
   "Press F5 to reset the room and put the crates back",
 ]
 wing = "vfx"
@@ -131,19 +131,31 @@ color = "#f2e8c9"
 
 [[label]]
 text = "+0.15"
-pos = [25.0, 0.03, 9.5]
+pos = [23.6, 0.03, 9.5]
 size = 0.5
 color = "#f2e8c9"
 
 [[label]]
-text = "+0.30"
+text = "+0.3"
+pos = [26.8, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "+0.6"
 pos = [30.0, 0.03, 9.5]
 size = 0.5
 color = "#f2e8c9"
 
 [[label]]
-text = "-0.20"
-pos = [35.0, 0.03, 9.5]
+text = "-0.2"
+pos = [33.2, 0.03, 9.5]
+size = 0.5
+color = "#f2e8c9"
+
+[[label]]
+text = "-0.5"
+pos = [36.4, 0.03, 9.5]
 size = 0.5
 color = "#f2e8c9"
 
@@ -179,14 +191,26 @@ color = "#f2e8c9"
 
 [[label]]
 text = "HEAT & SHOCKWAVES"
-pos = [20.0, 0.03, 20.6]
+pos = [20.0, 0.03, 20.2]
 size = 0.6
 color = "#f2e8c9"
 
 [[label]]
 text = "RING DEMO"
-pos = [20.0, 0.03, 27.3]
-size = 0.45
+pos = [20.0, 0.03, 21.5]
+size = 0.4
+color = "#f2e8c9"
+
+[[label]]
+text = "STAYS UNTIL YOU LEAVE"
+pos = [14.5, 0.03, 26.6]
+size = 0.3
+color = "#f2e8c9"
+
+[[label]]
+text = "STAYS UNTIL YOU LEAVE"
+pos = [25.5, 0.03, 26.6]
+size = 0.3
 color = "#f2e8c9"
 
 # ---- objects (keep at the end of the file) ----
@@ -197,7 +221,7 @@ shape = { type = "box", half = [2.45, 0.02, 0.95] }
 pos = [4.5, 0.46, 4]
 color = "#e4521a"
 body = "none"
-emissive = 2.4
+emissive = 1.7
 
 [[object]]
 name = "lava_1"
@@ -205,7 +229,7 @@ shape = { type = "box", half = [2.45, 0.02, 0.95] }
 pos = [10.5, 0.46, 4]
 color = "#e4521a"
 body = "none"
-emissive = 2.4
+emissive = 1.7
 
 [[object]]
 name = "crust_0"
@@ -261,7 +285,7 @@ shape = { type = "box", half = [0.9, 0.015, 0.05] }
 pos = [3.8, 0.505, 3.9]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = 10
 
 [[object]]
@@ -270,7 +294,7 @@ shape = { type = "box", half = [0.6, 0.015, 0.05] }
 pos = [4.9, 0.505, 4.2]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = -35
 
 [[object]]
@@ -279,7 +303,7 @@ shape = { type = "box", half = [0.5, 0.015, 0.05] }
 pos = [2.9, 0.505, 4.4]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = 60
 
 [[object]]
@@ -288,7 +312,7 @@ shape = { type = "box", half = [0.5, 0.015, 0.05] }
 pos = [5.8, 0.505, 3.4]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = 25
 
 [[object]]
@@ -297,7 +321,7 @@ shape = { type = "box", half = [0.9, 0.015, 0.05] }
 pos = [9.7, 0.505, 3.7]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = -10
 
 [[object]]
@@ -306,7 +330,7 @@ shape = { type = "box", half = [0.7, 0.015, 0.05] }
 pos = [10.9, 0.505, 4.1]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = 40
 
 [[object]]
@@ -315,7 +339,7 @@ shape = { type = "box", half = [0.4, 0.015, 0.05] }
 pos = [8.8, 0.505, 4.4]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = -50
 
 [[object]]
@@ -324,44 +348,26 @@ shape = { type = "box", half = [0.5, 0.015, 0.05] }
 pos = [11.8, 0.505, 3.5]
 color = "#ffc43d"
 body = "none"
-emissive = 4.0
+emissive = 2.8
 yaw = 20
 
 [[object]]
 name = "lava_fire_0"
 shape = { type = "sphere", radius = 0.01 }
-pos = [3.5, 0.5, 4]
+pos = [4.5, 0.5, 4]
 color = "#000000"
 body = "none"
-particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
-light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+particles = { preset = "fire", size = 0.6, rate = 14, area = [1.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6.5, intensity = 1.1, flicker = 0.7, offset = [0, 0.8, 0] }
 
 [[object]]
 name = "lava_fire_1"
 shape = { type = "sphere", radius = 0.01 }
-pos = [5.5, 0.5, 4]
+pos = [10.5, 0.5, 4]
 color = "#000000"
 body = "none"
-particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
-light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
-
-[[object]]
-name = "lava_fire_2"
-shape = { type = "sphere", radius = 0.01 }
-pos = [9.5, 0.5, 4]
-color = "#000000"
-body = "none"
-particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
-light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
-
-[[object]]
-name = "lava_fire_3"
-shape = { type = "sphere", radius = 0.01 }
-pos = [11.5, 0.5, 4]
-color = "#000000"
-body = "none"
-particles = { preset = "fire", size = 0.7, area = [0.6, 0, 0.5], offset = [0, 0.1, 0] }
-light = { color = "#ff6a24", radius = 6, intensity = 1.4, flicker = 0.7, offset = [0, 0.8, 0] }
+particles = { preset = "fire", size = 0.6, rate = 14, area = [1.6, 0, 0.5], offset = [0, 0.1, 0] }
+light = { color = "#ff6a24", radius = 6.5, intensity = 1.1, flicker = 0.7, offset = [0, 0.8, 0] }
 
 [[object]]
 name = "lava_embers_0"
@@ -385,7 +391,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [2.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "lava_haze_1"
@@ -393,7 +399,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [4.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "lava_haze_2"
@@ -401,7 +407,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [6.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "lava_haze_3"
@@ -409,7 +415,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [8.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "lava_haze_4"
@@ -417,7 +423,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [10.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "lava_haze_5"
@@ -425,7 +431,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [12.5, 0.5, 4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 2.2, strength = 1, offset = [0, 1.3, 0] }
+distortion = { kind = "haze", radius = 1.9, strength = 0.5, offset = [0, 1.3, 0] }
 
 [[object]]
 name = "forge_base"
@@ -438,7 +444,7 @@ body = "fixed"
 name = "forge_hood"
 shape = { type = "box", half = [0.9, 1.2, 0.2] }
 pos = [16.5, 1.2, 4]
-color = "#463c37"
+color = "#7b6c63"
 body = "fixed"
 
 [[object]]
@@ -456,8 +462,8 @@ pos = [16.5, 1, 4.85]
 color = "#000000"
 body = "none"
 particles = { preset = "fire", size = 0.8, area = [0.4, 0, 0.2], offset = [0, 0.05, 0] }
-light = { color = "#ff8a3a", radius = 8, intensity = 2.4, flicker = 0.8, shadows = true, offset = [0, 0.8, 0] }
-distortion = { kind = "haze", radius = 2, strength = 1.2, offset = [0, 1.9, 0] }
+light = { color = "#ff8a3a", radius = 6.5, intensity = 1.8, flicker = 0.8, shadows = true, offset = [0, 0.8, 0] }
+distortion = { kind = "haze", radius = 1.8, strength = 0.6, offset = [0, 1.9, 0] }
 
 [[object]]
 name = "forge_smoke"
@@ -473,7 +479,7 @@ shape = { type = "sphere", radius = 0.01 }
 pos = [16.5, 2.4, 4.4]
 color = "#000000"
 body = "none"
-distortion = { kind = "haze", radius = 1.6, strength = 0.9, offset = [0, 1, 0] }
+distortion = { kind = "haze", radius = 1.5, strength = 0.5, offset = [0, 1, 0] }
 
 [[object]]
 name = "anvil_base"
@@ -509,47 +515,77 @@ yaw = 20
 [[object]]
 name = "stand_0"
 shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
-pos = [25, 0.4, 4.5]
+pos = [23.6, 0.4, 4.5]
 color = "#8c93a3"
 body = "fixed"
 
 [[object]]
 name = "orb_0"
 shape = { type = "sphere", radius = 0.5 }
-pos = [25, 1.35, 4.5]
+pos = [23.6, 1.35, 4.5]
 color = "#cfeaff"
 body = "none"
-distortion = { kind = "lens", radius = 2, strength = 0.15, offset = [0, 0, 0] }
+distortion = { kind = "lens", radius = 1.8, strength = 0.15, offset = [0, 0, 0] }
 
 [[object]]
 name = "stand_1"
 shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
-pos = [30, 0.4, 4.5]
+pos = [26.8, 0.4, 4.5]
 color = "#8c93a3"
 body = "fixed"
 
 [[object]]
 name = "orb_1"
 shape = { type = "sphere", radius = 0.5 }
-pos = [30, 1.35, 4.5]
+pos = [26.8, 1.35, 4.5]
 color = "#cfeaff"
 body = "none"
-distortion = { kind = "lens", radius = 2, strength = 0.3, offset = [0, 0, 0] }
+distortion = { kind = "lens", radius = 1.8, strength = 0.3, offset = [0, 0, 0] }
 
 [[object]]
 name = "stand_2"
 shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
-pos = [35, 0.4, 4.5]
+pos = [30, 0.4, 4.5]
 color = "#8c93a3"
 body = "fixed"
 
 [[object]]
 name = "orb_2"
 shape = { type = "sphere", radius = 0.5 }
-pos = [35, 1.35, 4.5]
+pos = [30, 1.35, 4.5]
 color = "#cfeaff"
 body = "none"
-distortion = { kind = "lens", radius = 2, strength = -0.2, offset = [0, 0, 0] }
+distortion = { kind = "lens", radius = 1.8, strength = 0.6, offset = [0, 0, 0] }
+
+[[object]]
+name = "stand_3"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
+pos = [33.2, 0.4, 4.5]
+color = "#8c93a3"
+body = "fixed"
+
+[[object]]
+name = "orb_3"
+shape = { type = "sphere", radius = 0.5 }
+pos = [33.2, 1.35, 4.5]
+color = "#cfeaff"
+body = "none"
+distortion = { kind = "lens", radius = 1.8, strength = -0.2, offset = [0, 0, 0] }
+
+[[object]]
+name = "stand_4"
+shape = { type = "cylinder", half_height = 0.4, radius = 0.28 }
+pos = [36.4, 0.4, 4.5]
+color = "#8c93a3"
+body = "fixed"
+
+[[object]]
+name = "orb_4"
+shape = { type = "sphere", radius = 0.5 }
+pos = [36.4, 1.35, 4.5]
+color = "#cfeaff"
+body = "none"
+distortion = { kind = "lens", radius = 1.8, strength = -0.5, offset = [0, 0, 0] }
 
 [[object]]
 name = "fountain_basin"
@@ -565,7 +601,7 @@ pos = [6.5, 0.55, 14]
 color = "#aab4c0"
 body = "fixed"
 particles = { preset = "fountain", offset = [0, 0.45, 0] }
-distortion = { kind = "ripple", radius = 3, strength = 1.2, offset = [0, 0.2, 0] }
+distortion = { kind = "ripple", radius = 3, strength = 0.7, offset = [0, 0.2, 0] }
 
 [[object]]
 name = "lily_0"
@@ -573,7 +609,7 @@ shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
 pos = [2.5, 0.03, 12.5]
 color = "#4fb36a"
 body = "none"
-distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+distortion = { kind = "ripple", radius = 1.8, strength = 0.5, offset = [0, 0.1, 0] }
 
 [[object]]
 name = "lily_1"
@@ -581,7 +617,7 @@ shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
 pos = [10.5, 0.03, 12.5]
 color = "#4fb36a"
 body = "none"
-distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+distortion = { kind = "ripple", radius = 1.8, strength = 0.5, offset = [0, 0.1, 0] }
 
 [[object]]
 name = "lily_2"
@@ -589,7 +625,7 @@ shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
 pos = [2.5, 0.03, 16]
 color = "#4fb36a"
 body = "none"
-distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+distortion = { kind = "ripple", radius = 1.8, strength = 0.5, offset = [0, 0.1, 0] }
 
 [[object]]
 name = "lily_3"
@@ -597,7 +633,7 @@ shape = { type = "cylinder", half_height = 0.02, radius = 0.35 }
 pos = [10.5, 0.03, 16]
 color = "#4fb36a"
 body = "none"
-distortion = { kind = "ripple", radius = 1.8, strength = 0.8, offset = [0, 0.1, 0] }
+distortion = { kind = "ripple", radius = 1.8, strength = 0.5, offset = [0, 0.1, 0] }
 
 [[object]]
 name = "ring_pad_0"
@@ -606,7 +642,7 @@ pos = [16.5, 0.1, 14]
 color = "#ff5a3c"
 body = "fixed"
 emissive = 1.8
-distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 1, offset = [0, 0.3, 0] }
+distortion = { kind = "ring", radius = 2.8, strength = 0.5, period = 1, offset = [0, 0.3, 0] }
 
 [[object]]
 name = "ring_pad_1"
@@ -615,7 +651,7 @@ pos = [20.5, 0.1, 14]
 color = "#ffb020"
 body = "fixed"
 emissive = 1.8
-distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 2, offset = [0, 0.3, 0] }
+distortion = { kind = "ring", radius = 2.8, strength = 0.5, period = 2, offset = [0, 0.3, 0] }
 
 [[object]]
 name = "ring_pad_2"
@@ -624,7 +660,7 @@ pos = [24.5, 0.1, 14]
 color = "#3ccf9a"
 body = "fixed"
 emissive = 1.8
-distortion = { kind = "ring", radius = 2.8, strength = 1.6, period = 3, offset = [0, 0.3, 0] }
+distortion = { kind = "ring", radius = 2.8, strength = 0.5, period = 3, offset = [0, 0.3, 0] }
 
 [[object]]
 name = "crate_0"
@@ -721,5 +757,5 @@ pos = [20, 0.1, 24]
 color = "#8ad0ff"
 body = "fixed"
 emissive = 1.8
-distortion = { kind = "ring", radius = 3, strength = 1.6, period = 1.5, offset = [0, 0.3, 0] }
+distortion = { kind = "ring", radius = 3, strength = 0.5, period = 1.5, offset = [0, 0.3, 0] }
 

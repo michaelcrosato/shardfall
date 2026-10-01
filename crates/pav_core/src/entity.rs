@@ -329,6 +329,9 @@ pub struct Entity {
     /// Brain of a non-player character.
     #[serde(default)]
     pub ai: Option<Box<crate::ai::Ai>>,
+    /// A drivable vehicle (car, helicopter).
+    #[serde(default)]
+    pub vehicle: Option<Box<crate::vehicle::Vehicle>>,
 }
 
 /// Everything needed to create an entity.

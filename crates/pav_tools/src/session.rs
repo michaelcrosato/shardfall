@@ -153,6 +153,33 @@ impl Session {
         self.sync_view();
     }
 
+    /// Takes `params` as the base camera and applies the current room's `[camera]` on top.
+    pub fn reset_camera(&mut self, params: CameraParams) {
+        self.camera.params = params;
+        self.room_cam = None;
+        self.cue_base = None;
+        self.sync_camera();
+    }
+
+    /// The camera without the current room's defaults.
+    pub fn camera_base_or_current(&self) -> CameraParams {
+        self.room_cam.as_ref().map(|(_, c)| c.clone()).unwrap_or_else(|| self.camera.params.clone())
+    }
+
+    /// The view settings without the current room's / pads' overrides.
+    pub fn view_base_or_current(&self) -> ViewSettings {
+        self.view_base.clone().unwrap_or_else(|| self.view.clone())
+    }
+
+    /// Takes `view` as the base settings and applies the current room's `[view]` table on top.
+    pub fn reset_view(&mut self, view: ViewSettings) {
+        self.view = view;
+        self.view_base = None;
+        self.view_room = None;
+        self.view_serial = u64::MAX;
+        self.sync_view();
+    }
+
     /// Room `[view]` tables and pad `view.*` overrides, like the game applies them.
     fn sync_view(&mut self) {
         let w = &self.sim.state.world;
@@ -166,8 +193,9 @@ impl Session {
         }
         self.view_room = now;
         self.view_serial = serial;
-        let room = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.def.view.clone()).unwrap_or_default();
-        let pads = self.sim.state.courses.view.clone();
+        let q = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.place.quarters).unwrap_or(0);
+        let room = now.and_then(|i| w.rooms.get(i as usize)).map(|r| pav_view::build::room_view_map(&r.def.view, q)).unwrap_or_default();
+        let pads = pav_view::build::room_view_map(&self.sim.state.courses.view, q);
         if room.is_empty() && pads.is_empty() {
             return;
         }

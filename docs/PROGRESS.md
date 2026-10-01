@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M7 Visual Effects Wing** (M1–M6 complete; M4–M10 run as one goal).
+Current milestone: **M9 Genre Wing** (M1–M8 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -11,8 +11,10 @@ Current milestone: **M7 Visual Effects Wing** (M1–M6 complete; M4–M10 run as
 | M4 Movement & Feel Lab | ✅ complete (2026-10-01) |
 | M5 Physics Lab | ✅ complete (2026-10-01) |
 | M6 Procedural Animation Lab | ✅ complete (2026-10-01) |
-| M7 Visual Effects Wing | 🔨 in progress |
-| M8–M10 | ⏳ next |
+| M7 Visual Effects Wing | ✅ complete (2026-10-01) |
+| M8 Aesthetic & Filter Wing | ✅ complete (2026-10-01) |
+| M9 Genre Wing | 🔨 in progress |
+| M10 | ⏳ next |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -268,3 +270,47 @@ Tests: tests/animation.rs (5).
 - Text glyphs are drawn without screen-space outlines (they speckled light text).
 - Idle NPCs walk back to their spot and face their start direction after a knock.
 
+
+## M7 Visual Effects Wing — done
+Five rooms in the south corridor (wing `vfx`), built by helper agents and reviewed:
+- **Lights & Shadows** (`lights`): shadow-casting flickering torches, RGB colour mixing, flicker
+  and pulse lamps, a lantern sweeping shadows, a sun dial (dawn/noon/dusk/night), shadow switch.
+- **Particle Garden** (`particles`): every preset on a plinth, snow / rain / fireflies, campfire,
+  tuning overrides, bomb range, particles on/off.
+- **Bloom & Glow** (`bloom`): brightness ladder, neon, bloom dial and threshold, sparkles, day vs
+  night, glow balls.
+- **Heat & Shockwaves** (`distortion`): lava haze, forge, lenses over checkers, ripple pool,
+  repeating shockwaves, bomb range, distortion switch.
+- **Global Illumination** (`gi`): Cornell box, contact shadows, colour spill, GI dial (labelled
+  as a screen-space approximation, the stretch goal).
+Engine: GPU particles (CPU birth, compute integration, premultiplied sprites; presets and
+pre-warm), HDR bloom mip chain, distortion buffer (ring/haze/lens/ripple), point-light shadows (4
+lights x 6 faces in a depth array), screen-space GI (bounce + AO), object `light` / `particles` /
+`distortion`, explosions add sparks/fire/smoke/shockwave, room `[view]` tables and pad `view.*`
+params, nearest-64 point lights. Tests: tests/fx.rs.
+
+## M8 Aesthetic & Filter Wing — done
+Three rooms in the east corridor (wing `aesthetic`):
+- **Pure Styles** (`styles`): the same diorama in flat / cel / lit / unlit, style override pads,
+  outline / cel band / rim / tonemap pads.
+- **Style vs Filters** (`filters`): split screen (left pure, right filtered) with a pad per filter
+  (scanlines, CRT, dither, PICO-8, pixelate, warm, cool, noir, VHS), camera cues aim at the diorama.
+- **Filter Stack Bench** (`filter_bench`): rows of stackable filter pads, presets (Game Boy,
+  arcade, VHS, noir, PICO-8, 1-bit, amber terminal, sepia), split on/off, reset; F1 has sliders.
+Engine: filter stack in the composite (`view.filter.*`: pixelate, curvature, scanlines, dither +
+levels or palette gameboy/pico8/cga/1bit/amber, temperature, tint, contrast, brightness, vignette,
+grain, chroma, saturation, split).
+
+## Decisions (M7, M8)
+- Effects are view-only: lights, emitters and distortion ride on `Visual`, so they survive
+  dormancy and edit-mode saves, and never touch determinism.
+- Particles: no GPU spawn shader; the CPU writes new particles into a ring buffer (simple, works
+  on WebGPU), a compute pass integrates them. New emitters pre-warm so captures and freshly woken
+  rooms show them.
+- Point shadows sample their six faces with the same matrices used to render them (2D array),
+  avoiding cube-map orientation conventions.
+- Rooms on neighbouring corridors are placed greedily so they never overlap (they slide along
+  their corridor).
+- Room `[view]` sun azimuth turns with the room's placement (like camera yaw).
+- `view.filter.saturation` (split-aware) for grading; `view.saturation` is the global one.
+- Agent `load` re-applies the room's `[camera]` / `[view]`.

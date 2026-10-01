@@ -499,10 +499,12 @@ impl App {
             if let Some(b) = self.view_base.take() {
                 self.view = b;
             }
-            let room = curr.room.as_ref().map(|r| r.def.view.clone()).unwrap_or_default();
-            if !room.is_empty() || !curr.hud.view.is_empty() {
+            let q = curr.room.as_ref().map(|r| r.quarters).unwrap_or(0);
+            let room = curr.room.as_ref().map(|r| pav_view::build::room_view_map(&r.def.view, q)).unwrap_or_default();
+            let pads = pav_view::build::room_view_map(&curr.hud.view, q);
+            if !room.is_empty() || !pads.is_empty() {
                 self.view_base = Some(self.view.clone());
-                for u in self.view.apply(&room).into_iter().chain(self.view.apply(&curr.hud.view)) {
+                for u in self.view.apply(&room).into_iter().chain(self.view.apply(&pads)) {
                     log::warn!("unknown view setting '{u}'");
                 }
             }

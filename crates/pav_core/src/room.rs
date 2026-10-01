@@ -84,6 +84,10 @@ pub struct ObjectDef {
     pub particles: Option<crate::fxdef::EmitterDef>,
     #[serde(default)]
     pub distortion: Option<crate::fxdef::DistortDef>,
+    /// A drivable vehicle (`shape`, `body` and colour come from the vehicle instead); `pos` is
+    /// where its wheels / skids stand.
+    #[serde(default)]
+    pub vehicle: Option<crate::vehicle::VehicleDef>,
 }
 
 impl ObjectDef {

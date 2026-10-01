@@ -290,6 +290,9 @@ pub struct Character {
     /// Mass (kg) of the props being pushed, smoothed: heavy things slow the character down.
     #[serde(default)]
     pub push_load: f32,
+    /// The vehicle this character is driving (seated, hidden, not colliding).
+    #[serde(default)]
+    pub riding: Option<EntityId>,
 }
 
 impl Character {
@@ -381,6 +384,25 @@ pub fn tick(
         return;
     };
     let mut center = st.physics.bodies[body_h].translation();
+    if let Some(vid) = ch.riding {
+        // Seated: follow the vehicle (feet at its bottom), no movement of our own.
+        match st.entities.get(vid).map(|v| (v.pos, v.vehicle.as_ref().map(|x| x.def.size.y).unwrap_or(0.5), v.body)) {
+            Some((vpos, half_y, vbody)) => {
+                let seat = vpos + Vec3::Y * (ch.height() * 0.5 - half_y);
+                ch.vel = vbody.and_then(|h| st.physics.bodies.get(h)).map(|b| b.linvel()).unwrap_or(Vec3::ZERO);
+                ch.grounded = true;
+                if let Some(b) = st.physics.bodies.get_mut(body_h) {
+                    b.set_next_kinematic_translation(seat);
+                }
+                if let Some(e) = st.entities.map.get_mut(&id) {
+                    e.pos = seat;
+                    e.character = Some(ch);
+                }
+                return;
+            }
+            None => ch.riding = None,
+        }
+    }
     let last_vel = ch.vel;
     let was_grounded = ch.grounded;
     let filter = QueryFilter::default().exclude_rigid_body(body_h).exclude_sensors();

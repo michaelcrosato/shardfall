@@ -3,21 +3,21 @@
 # things come out of it: colour bleeding (a bright coloured surface tints its neighbours) and
 # ambient occlusion (corners and contacts darken). `view.gi` = 0 off, 1 normal, 2 strong.
 #   NORTH-WEST  Cornell box: red and green walls bleed onto white blocks, floor and back wall,
-#               lit by a glowing ceiling lamp
+#               lit by a hanging lamp
 #   NORTH-EAST  contact shadows: spheres, crates, drums and a stair resting on / against things
-#   SOUTH       colour spill: a bright orange floor beside a white wall, an emissive strip beside another
-#   MIDDLE      GI DIAL: three pads (OFF / ON / STRONG) you can stand on while looking at the rest
+#   SOUTH       colour spill: a bright orange floor beside a white wall, a glowing strip beside another
+#   MIDDLE      GI DIAL: three pads (OFF / ON / STRONG); the setting sticks until another pad or you leave
 name = "Global Illumination"
-about = "A screen-space approximation of bounced light: a Cornell box whose red and green walls tint the white blocks inside, contact shadows under everything that rests on something, and bright surfaces that spill their colour onto white walls. Not ray traced (it only sees what is on screen), but it grounds the scene; the pads switch it off, normal or strong."
+about = "A screen-space approximation of bounced light: a Cornell box whose red and green walls tint the white blocks inside, contact shadows under everything that rests on something, and bright surfaces that spill their colour onto white walls. Not ray traced (it only sees what is on screen), but it grounds the scene; three pads switch it off, normal or strong."
 try = [
-  "Walk into the Cornell box and look at the white blocks: red tint on the west side, green on the east",
-  "Stand on GI OFF, then GI ON, then GI STRONG and compare the box, the contacts and the spill",
-  "Look under the spheres and crates in CONTACT SHADOWS: the dark rim is occlusion, not a light",
-  "Push the crates (they are light) and watch their contact shadow follow them",
-  "Climb the stair: each step darkens where it meets the next",
-  "Stand next to the white wall at the ORANGE FLOOR: the orange spills onto its base",
-  "Compare the glowing strip's cyan wash with the orange one; the glow is real emissive light",
-  "Throw a bomb (F) into the Cornell box: the lamp keeps its bounce light while the walls hold",
+  "Step on GI OFF, GI ON and GI STRONG in the middle: the setting sticks until you step on another pad or leave",
+  "Walk into the Cornell box: with GI on, the floor and white balls get a faint pink wash next to the red wall and a green one next to the green wall",
+  "Compare CONTACT SHADOWS at GI OFF and GI STRONG: the soft dark rings under spheres, crates and stair steps are occlusion",
+  "Push the light crates and watch their dark ring follow them; climb the stair along the north wall",
+  "Stand beside the white wall at the ORANGE FLOOR: its base and the white ball warm up when GI is on",
+  "Check the GLOW STRIP: the white ball and wall pick up its cyan wash (the strip is not a light, only GI carries it)",
+  "Right-drag to turn the camera: bleed shows best when you look along the coloured walls",
+  "Throw a bomb (F) into the Cornell box and watch the flash and the shading react",
 ]
 wing = "vfx"
 order = 5
@@ -29,14 +29,14 @@ entrance = { at = [17, 27], facing = "south" }
 tilt = 55.0
 distance = 22.0
 
-# A calm daylight-ish room so the bounce light is what you notice. Lit style shows the
-# smooth shading that GI adds to; gi = 1 here, the pads below change it while you stand on them.
+# A dim room so the bounce light is what you notice. Lit style shows the smooth shading that GI
+# adds to. gi = 1 here; the pads below set it (OFF 0, ON 1, STRONG 2) until you leave the room.
 [view]
 style = "lit"
 gi = 1.0
 bloom = 0.45
-"light.sun_intensity" = 0.12
-"light.ambient" = 0.4
+"light.sun_intensity" = 0.3
+"light.ambient" = 0.5
 
 [layout]
 origin = [-18.0, 0.0, -14.0]
@@ -47,44 +47,48 @@ map = '''
 ####################################
 #.............................12345#
 #..WWWWWWWWWW...pppppppppppppp12345#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...pppppppppphhhhhhhhp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
-#..RwwwwwwwwG...ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..pppppppppphhhhhhhhp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
+#.wwwwwwwwwwww..ppppppppppppppppppp#
 #...............ppppppppppppppppppp#
 #..................................#
 #...........aaa.bbb.ccc............#
 #...........aaa.bbb.ccc............#
 #..................................#
-#..WWWWWWWWWWWW.......WWWWWWWWWWWW.#
-#...ooooooooooW.......ffffffffffff.#
-#...ooooooooooW.......ffffffffffff.#
-#...ooooooooooW.......ffffffffffff.#
-#...ooooooooooW.......ffffffffffff.#
-#...ooooooooooW.......ffffffffffff.#
+#..................................#
+#..VVVVVVVVVVVV.......VVVVVVVVVVVV.#
+#...ooooooooooV.......ffffffffffff.#
+#...ooooooooooV.......ffffffffffff.#
+#...ooooooooooV.......ffffffffffff.#
+#...ooooooooooV.......ffffffffffff.#
 #..................................#
 #..................................#
 #..................................#
 #..................................#
 #################..#################
 '''
+
 # Floor, outer wall (3 m), then the Cornell box pieces, plates, wall pieces, stair steps and pads.
 [layout.legend.'.']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#d8d4ca", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
 
 [layout.legend.'#']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#d8d4ca", look = "lit" }, { y0 = 0, y1 = 3.0, color = "#9aa3ad", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }, { y0 = 0, y1 = 3.0, color = "#9aa3ad", look = "lit" }]
 
 [layout.legend.'w']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }]
 
 [layout.legend.'W']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }, { y0 = 0, y1 = 3.0, color = "#d6d3cb", look = "lit" }]
+
+[layout.legend.'V']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }, { y0 = 0, y1 = 1.8, color = "#d6d3cb", look = "lit" }]
 
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }, { y0 = 0, y1 = 3.0, color = "#d8281e", look = "lit" }]
@@ -93,10 +97,10 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }, { y0 = 0, y1 =
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d6d3cb", look = "lit" }, { y0 = 0, y1 = 3.0, color = "#1fa83a", look = "lit" }]
 
 [layout.legend.'p']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }]
 
 [layout.legend.'h']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 1.3, color = "#d6d3cb", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 1.3, color = "#d6d3cb", look = "lit" }]
 
 [layout.legend.'o']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#ff7a12", look = "lit" }]
@@ -105,30 +109,30 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#ff7a12", look = "lit" }]
 blocks = [{ y0 = -0.5, y1 = 0, color = "#e9e6de", look = "lit" }]
 
 [layout.legend.'1']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 0.35, color = "#e6e1d6", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 0.3, color = "#e6e1d6", look = "lit" }]
 
 [layout.legend.'2']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 0.7, color = "#e6e1d6", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 0.6, color = "#e6e1d6", look = "lit" }]
 
 [layout.legend.'3']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 1.05, color = "#e6e1d6", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 0.9, color = "#e6e1d6", look = "lit" }]
 
 [layout.legend.'4']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 1.4, color = "#e6e1d6", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 1.2, color = "#e6e1d6", look = "lit" }]
 
 [layout.legend.'5']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cfcabd", look = "lit" }, { y0 = 0, y1 = 1.75, color = "#e6e1d6", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 = 1.5, color = "#e6e1d6", look = "lit" }]
 
 [layout.legend.'a']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#d8d4ca", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
 zone = { kind = "pad", label = "GI OFF", color = "#8d939c", params = { "view.gi" = 0.0 } }
 
 [layout.legend.'b']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#d8d4ca", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
 zone = { kind = "pad", label = "GI ON", color = "#3bb273", params = { "view.gi" = 1.0 } }
 
 [layout.legend.'c']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#d8d4ca", look = "lit" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
 zone = { kind = "pad", label = "GI STRONG", color = "#f2b134", params = { "view.gi" = 2.0 } }
 
 # Exhibit names (floor text).
@@ -147,54 +151,91 @@ color = "#4a4f57"
 
 [[label]]
 text = "ORANGE FLOOR"
-pos = [9.0, 0.03, 24.2]
+pos = [9.0, 0.03, 24.5]
 size = 0.5
 color = "#4a4f57"
 
 [[label]]
 text = "GLOW STRIP"
-pos = [27.5, 0.03, 24.2]
+pos = [27.5, 0.03, 24.5]
 size = 0.5
 color = "#4a4f57"
 
 [[label]]
 text = "GI DIAL"
-pos = [17.5, 0.03, 12.9]
+pos = [17.5, 0.03, 13.4]
 size = 0.4
 color = "#4a4f57"
 
 [[label]]
 text = "SCREEN-SPACE APPROXIMATION"
-pos = [17.5, 0.03, 25.8]
-size = 0.35
+pos = [17.5, 0.03, 16.7]
+size = 0.3
 color = "#6a707a"
 
 # Free-placed objects. All fixed unless noted; lit look so shading is smooth.
 
 # --- Cornell box (interior x 4..12, z 3..12): a bright lamp, white blocks ---
+# The red and green walls are objects so they can carry a little emissive (< 0.5 = no real light).
+[[object]]
+name = "cornell_red"
+shape = { type = "box", half = [0.25, 1.5, 3.3] }
+pos = [2.38, 1.5, 5.89]
+color = "#d8281e"
+body = "fixed"
+look = "lit"
+yaw = -25
+emissive = 0.5
+
+[[object]]
+name = "cornell_green"
+shape = { type = "box", half = [0.25, 1.5, 3.3] }
+pos = [13.62, 1.5, 5.89]
+color = "#1fa83a"
+body = "fixed"
+look = "lit"
+yaw = 25
+emissive = 0.5
+
 [[object]]
 name = "cornell_lamp"
 shape = { type = "sphere", radius = 0.3 }
-pos = [8.0, 2.45, 6.5]
+pos = [8.0, 2.0, 6.5]
 color = "#fff6e6"
 body = "none"
-look = "lit"
-emissive = 3.0
-light = { color = "#fff0d8", radius = 11, intensity = 0.45, shadows = true }
+look = "unlit"
+emissive = 0.5
+light = { color = "#fff0d8", radius = 11, intensity = 2.2, shadows = true }
 
 [[object]]
 name = "cornell_tall"
 shape = { type = "box", half = [0.8, 1.3, 0.8] }
-pos = [9.9, 1.3, 5.4]
+pos = [9.4, 1.3, 5.6]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
 yaw = 18
 
 [[object]]
+name = "cornell_ball_w"
+shape = { type = "sphere", radius = 0.6 }
+pos = [4.3, 0.6, 9.0]
+color = "#d6d3cb"
+body = "fixed"
+look = "lit"
+
+[[object]]
+name = "cornell_ball_e"
+shape = { type = "sphere", radius = 0.6 }
+pos = [11.9, 0.6, 9.0]
+color = "#d6d3cb"
+body = "fixed"
+look = "lit"
+
+[[object]]
 name = "cornell_short"
 shape = { type = "box", half = [0.7, 0.7, 0.7] }
-pos = [6.2, 0.7, 8.4]
+pos = [6.6, 0.7, 7.4]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
@@ -202,8 +243,8 @@ yaw = -22
 
 [[object]]
 name = "cornell_ball"
-shape = { type = "sphere", radius = 0.6 }
-pos = [9.2, 0.6, 9.6]
+shape = { type = "sphere", radius = 0.5 }
+pos = [8.4, 0.5, 10.0]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
@@ -366,7 +407,7 @@ friction = 0.8
 [[object]]
 name = "s_ball"
 shape = { type = "sphere", radius = 0.7 }
-pos = [8.5, 0.7, 20.6]
+pos = [8.5, 0.7, 21.2]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
@@ -374,7 +415,7 @@ look = "lit"
 [[object]]
 name = "s_box"
 shape = { type = "box", half = [0.6, 0.6, 0.6] }
-pos = [11.5, 0.6, 19.6]
+pos = [11.5, 0.6, 20.6]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
@@ -383,24 +424,33 @@ yaw = 20
 [[object]]
 name = "s_pillar"
 shape = { type = "box", half = [0.4, 1.2, 0.4] }
-pos = [5.6, 1.2, 19.6]
+pos = [5.6, 1.2, 20.6]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
 
 [[object]]
 name = "g_strip"
-shape = { type = "box", half = [5.0, 0.04, 1.4] }
-pos = [27.5, 0.04, 20.4]
+shape = { type = "box", half = [5.0, 0.03, 1.4] }
+pos = [27.5, 0.03, 20.5]
 color = "#30f0d0"
 body = "none"
 look = "lit"
-emissive = 1.6
+emissive = 0.5
+
+[[object]]
+name = "s_glow"
+shape = { type = "box", half = [4.9, 0.03, 1.9] }
+pos = [9.0, 0.03, 21.0]
+color = "#ff7a12"
+body = "none"
+look = "lit"
+emissive = 0.5
 
 [[object]]
 name = "g_ball"
 shape = { type = "sphere", radius = 0.7 }
-pos = [24.5, 0.7, 20.4]
+pos = [24.5, 0.7, 20.8]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"
@@ -408,7 +458,7 @@ look = "lit"
 [[object]]
 name = "g_box"
 shape = { type = "box", half = [0.6, 0.6, 0.6] }
-pos = [30.8, 0.6, 19.4]
+pos = [30.8, 0.6, 20.2]
 color = "#d6d3cb"
 body = "fixed"
 look = "lit"

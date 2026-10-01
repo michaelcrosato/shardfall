@@ -147,7 +147,13 @@ impl Sim {
                 None => (self.state.spawn, 0.0),
             },
         };
-        self.set_position(pid, pos);
+        match self.state.entities.get(pid).and_then(|e| e.character.as_ref()).and_then(|c| c.riding) {
+            // Driving: the vehicle goes back to the checkpoint with you in it.
+            Some(vid) => self.place_vehicle(vid, pos, yaw),
+            None => {
+                self.set_position(pid, pos);
+            }
+        }
         if let Some(ch) = self.state.entities.get_mut(pid).and_then(|e| e.character.as_mut()) {
             ch.facing = yaw;
             ch.anim.facing = yaw;

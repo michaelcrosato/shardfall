@@ -138,13 +138,25 @@ pub fn layout_pavilion(defs: &[(String, RoomDef)]) -> World {
         let span_d = (hi - lo).dot(d.abs());
         // The door should sit at the room's edge facing the corridor, roughly centred is not
         // required: we align the room's near edge with the corridor wall.
-        let start = PLAZA_HALF + cursor[di][side];
         let corners = [lo, hi, Vec3::new(lo.x, 0.0, hi.z), Vec3::new(hi.x, 0.0, lo.z)];
         let min_d = corners.iter().map(|c| c.dot(d)).fold(f32::MAX, f32::min);
         let min_n = corners.iter().map(|c| c.dot(n)).fold(f32::MAX, f32::min);
-        let origin = d * (start - min_d) + n * (CORRIDOR_HALF + 0.0 - min_n);
-        let place = Placement::new(origin, q);
-        let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+        let at = |cur: f32| {
+            let origin = d * (PLAZA_HALF + cur - min_d) + n * (CORRIDOR_HALF - min_n);
+            let place = Placement::new(origin, q);
+            let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+            (place, wmin, wmax)
+        };
+        // Rooms of neighbouring wings reach into the same corners near the plaza: slide this one
+        // along its corridor until it overlaps nothing already placed.
+        let clash = |a: Vec3, b: Vec3, w: &World| {
+            w.rooms.iter().any(|r| a.x < r.max.x + 1.0 && b.x > r.min.x - 1.0 && a.z < r.max.z + 1.0 && b.z > r.min.z - 1.0)
+        };
+        let (mut place, mut wmin, mut wmax) = at(cursor[di][side]);
+        while clash(wmin, wmax, &w) {
+            cursor[di][side] += 2.0;
+            (place, wmin, wmax) = at(cursor[di][side]);
+        }
         let [ec, er] = def.entrance.at;
         let door = place.point(Vec3::new(ec as f32 + 0.5, 0.0, er as f32 + 0.5));
         let inward = n;
@@ -353,6 +365,14 @@ impl Sim {
         }
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
+            if let Some(vd) = &o.vehicle {
+                let name = if o.name.is_empty() { "vehicle" } else { &o.name };
+                let id = self.spawn_vehicle(name, vd.clone(), slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region));
+                if !o.name.is_empty() {
+                    named.entry(o.name.clone()).or_insert(id);
+                }
+                continue;
+            }
             let mut v = Visual::new(o.shape, Color::hex(&o.color));
             v.look = o.look;
             v.emissive = o.emissive;
@@ -819,6 +839,8 @@ impl Sim {
             .entities
             .iter()
             .filter(|e| Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none())
+            // A vehicle someone is driving goes where its driver goes.
+            .filter(|e| e.vehicle.as_ref().is_none_or(|v| v.driver.is_none()))
             .filter(|e| match area {
                 Some((lo, hi)) => {
                     let p = e.pos;
@@ -918,6 +940,18 @@ impl Sim {
                     .user_data(entity_tag(e.id.0));
                 let (b, _) = self.state.physics.insert(builder, collider);
                 e.body = Some(b);
+                if let Some(v) = &mut e.vehicle {
+                    // Same handling as when it was made, and the wheels' new chassis.
+                    if let Some(rb) = self.state.physics.bodies.get_mut(b) {
+                        let heli = v.def.kind == crate::vehicle::VehicleKind::Helicopter;
+                        rb.set_enabled_rotations(false, !heli, false, true);
+                        rb.set_angular_damping(2.0);
+                        rb.set_linear_damping(0.05);
+                    }
+                    if let Some(c) = &mut v.car {
+                        c.chassis = b;
+                    }
+                }
             }
             self.state.entities.map.insert(e.id, e);
         }
@@ -1041,6 +1075,8 @@ impl Sim {
                 let (pos, rot0) = match &e.behavior {
                     crate::entity::Behavior::Move(m) => m.origin.unwrap_or((e.pos, e.rot)),
                     crate::entity::Behavior::Rotate(r) => r.origin.unwrap_or((e.pos, e.rot)),
+                    // Vehicles are placed by where they stand.
+                    _ if e.vehicle.is_some() => (e.pos - Vec3::Y * e.vehicle.as_ref().map(|v| v.base).unwrap_or(0.0), e.rot),
                     _ => (e.pos, e.rot),
                 };
                 let local = inv * (pos - slot.place.origin);
@@ -1067,6 +1103,7 @@ impl Sim {
                     light: v.light.as_deref().cloned(),
                     particles: v.particles.as_deref().cloned(),
                     distortion: v.distortion.as_deref().cloned(),
+                    vehicle: e.vehicle.as_ref().map(|x| x.def.clone()),
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1192,6 +1229,7 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         ("light", o.light.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("particles", o.particles.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("distortion", o.distortion.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+        ("vehicle", o.vehicle.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
     ];
     for (k, v) in fx {
         if let Some(v) = v {

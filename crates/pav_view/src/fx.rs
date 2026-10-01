@@ -247,8 +247,10 @@ pub fn emitter_burst(def: &EmitterDef, pos: Vec3, count: u32) -> ParticleBurst {
         b.color0 = rgba(c * k0, b.color0.w);
         b.color1 = rgba(c * k1 * 0.6, b.color1.w);
     }
-    // Bouncy presets land on the emitter's own height.
-    if b.stretch || b.bounce > 0.0 && b.gravity > 0.0 {
+    // Falling presets land on the given ground, else on the emitter's own height.
+    if let Some(g) = def.ground {
+        b.floor = Some(pos.y + g);
+    } else if b.stretch || b.bounce > 0.0 && b.gravity > 0.0 {
         b.floor = Some(pos.y);
     }
     b
@@ -264,7 +266,7 @@ pub fn light(def: &LightDef, pos: Vec3, t: f32, seed: f32) -> rs::PointLight {
     let mut k = def.intensity;
     if def.flicker > 0.0 {
         let n = (t * 13.0 + seed).sin() * 0.5 + (t * 7.3 + seed * 1.7).sin() * 0.3 + (t * 23.0 + seed * 0.3).sin() * 0.2;
-        k *= 1.0 - def.flicker * 0.35 * (n * 0.5 + 0.5);
+        k *= 1.0 - def.flicker * 0.7 * (n * 0.5 + 0.5);
     }
     if def.pulse > 0.0 {
         k *= 0.55 + 0.45 * (t * def.pulse * std::f32::consts::TAU + seed).sin();

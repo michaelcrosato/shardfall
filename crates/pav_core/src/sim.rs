@@ -133,7 +133,7 @@ pub struct Sim {
     /// Inputs since the scene was built (for replays and crash reports).
     pub recording: Replay,
     pipeline: PhysicsPipeline,
-    events: Vec<SimEvent>,
+    pub(crate) events: Vec<SimEvent>,
     /// True while re-simulating (rewind): no events, no recording.
     replaying: bool,
     /// Shared copy of `config` for frames (refreshed when it changes).
@@ -270,6 +270,7 @@ impl Sim {
                 soft,
                 joints: Vec::new(),
                 ai: None,
+                vehicle: None,
             },
         );
         if !self.replaying {
@@ -304,6 +305,7 @@ impl Sim {
                 soft: None,
                 joints: Vec::new(),
                 ai: None,
+                vehicle: None,
             },
         );
         id
@@ -421,6 +423,9 @@ impl Sim {
         // advances everything together.
         self.run_behaviors(dt);
 
+        // Getting in and out of vehicles.
+        self.vehicle_interact(input);
+
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
         let mut actions = Vec::new();
@@ -485,10 +490,12 @@ impl Sim {
                 Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
             }
         }
+        self.drive_vehicles(input, dt);
         self.zone_props(dt);
         let collector = EventCollector::default();
         self.state.physics.step(&mut self.pipeline, &collector);
         self.sync_from_physics();
+        self.seat_riders();
         let contacts = collector.contacts.into_inner().unwrap_or_default();
         if !contacts.is_empty() {
             self.break_blocks(contacts, &mut events);
@@ -807,7 +814,7 @@ impl Sim {
                 .entities
                 .iter()
                 .filter_map(|e| {
-                    let puppet = e.character.as_ref().map(|c| PuppetFrame {
+                    let puppet = e.character.as_ref().filter(|c| c.riding.is_none()).map(|c| PuppetFrame {
                         state: c.anim,
                         feet_offset: c.height() * 0.5,
                         def: c.puppet.clone(),
@@ -832,7 +839,8 @@ impl Sim {
                             two_sided: matches!(s.def.shape, crate::softbody::SoftShape::Cloth { .. }),
                         })
                     });
-                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft })
+                    let vehicle = e.vehicle.as_ref().map(|v| v.view());
+                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle })
                 })
                 .collect(),
             statics: self.state.statics.clone(),
