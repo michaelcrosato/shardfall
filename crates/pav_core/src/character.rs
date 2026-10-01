@@ -467,6 +467,7 @@ pub fn tick(
 
     // --- animation
     let accel = (ch.vel - last_vel) / dt.max(1e-4);
+    let phase_before = ch.anim.phase;
     ch.anim.update(
         puppet,
         &AnimInput {
@@ -482,6 +483,14 @@ pub fn tick(
         },
         dt,
     );
+    // Footsteps when the walk cycle passes a contact point.
+    if ch.grounded && !climbing && Vec2::new(ch.vel.x, ch.vel.z).length() > 0.5 {
+        let (a, b) = (phase_before, ch.anim.phase);
+        let crossed = |x: f32| if b >= a { a < x && b >= x } else { a < x || b >= x };
+        if crossed(0.25) || crossed(0.75) {
+            events.push(SimEvent::Step { pos: new_center - Vec3::Y * height * 0.5 });
+        }
+    }
 
     if let Some(e) = st.entities.map.get_mut(&id) {
         e.character = Some(ch);

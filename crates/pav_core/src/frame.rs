@@ -38,9 +38,20 @@ pub enum SimEvent {
     Land { pos: Vec3, speed: f32 },
     Explosion { pos: Vec3, radius: f32 },
     Step { pos: Vec3 },
+    Throw { pos: Vec3 },
+    EnterRoom { room: u16 },
+    ExitRoom { room: u16 },
 }
 
-#[derive(Clone, Debug, Default)]
+/// The room the player is in, for the HUD (info card, control guide, camera defaults).
+#[derive(Clone, Debug)]
+pub struct RoomInfo {
+    pub id: u16,
+    pub key: String,
+    pub def: std::sync::Arc<crate::room::RoomDef>,
+}
+
+#[derive(Clone, Debug)]
 pub struct RenderFrame {
     pub tick: u64,
     pub time: f64,
@@ -53,5 +64,8 @@ pub struct RenderFrame {
     pub focus_is_player: bool,
     pub player: Option<EntityId>,
     pub puppet_def: PuppetDef,
+    pub room: Option<RoomInfo>,
+    /// The simulation's configuration (shared; changes when rooms override parameters).
+    pub config: std::sync::Arc<crate::sim::SimConfig>,
     pub events: Vec<SimEvent>,
 }

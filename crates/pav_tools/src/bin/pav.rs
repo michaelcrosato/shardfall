@@ -25,11 +25,11 @@ fn parse_args(words: &[String]) -> Args {
 fn print(out: Result<Output>) -> bool {
     match out {
         Ok(Output::Json(v)) => {
-            println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+            println!("{}", serde_json::to_string(&v).unwrap_or_default());
             true
         }
         Ok(Output::Image { meta, .. }) => {
-            println!("{}", serde_json::to_string_pretty(&meta).unwrap_or_default());
+            println!("{}", serde_json::to_string(&meta).unwrap_or_default());
             true
         }
         Err(e) => {

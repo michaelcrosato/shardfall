@@ -77,7 +77,7 @@ pub struct SimHost {
 }
 
 impl SimHost {
-    pub fn start(sim: Sim) -> Self {
+    pub fn start(mut sim: Sim) -> Self {
         let f = Arc::new(sim.frame());
         let shared = Arc::new(Shared {
             frames: Mutex::new(FramePair { prev: f.clone(), curr: f, curr_at: Instant::now(), tick_wall: sim.dt() }),

@@ -34,6 +34,8 @@ struct Globals {
     params: [f32; 4],
     style: [f32; 4],
     viewport: [f32; 4],
+    fog: [f32; 4],
+    fog2: [f32; 4],
 }
 
 #[repr(C)]
@@ -75,6 +77,8 @@ struct GpuMesh {
     vbuf: wgpu::Buffer,
     ibuf: wgpu::Buffer,
     index_count: u32,
+    /// Frame counter when last used (custom meshes are evicted when unused).
+    last_used: u64,
 }
 
 struct FrameTargets {
@@ -153,11 +157,13 @@ pub struct Renderer {
     targets: Option<FrameTargets>,
     mesh_instances: DynBuffer,
     sdf_instances: DynBuffer,
+    frame: u64,
     pub stats: RenderStats,
 }
 
 fn vertex_layouts() -> [wgpu::VertexBufferLayout<'static>; 2] {
-    const VERT: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
+    const VERT: [wgpu::VertexAttribute; 4] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 9 => Float32x4];
     const INST: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
         3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Uint32x4
     ];
@@ -483,6 +489,7 @@ impl Renderer {
             targets: None,
             mesh_instances,
             sdf_instances,
+            frame: 0,
             stats: RenderStats::default(),
         }
     }
@@ -527,7 +534,7 @@ impl Renderer {
             contents: bytemuck::cast_slice(&data.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-        self.meshes.insert(key, GpuMesh { vbuf, ibuf, index_count: data.indices.len() as u32 });
+        self.meshes.insert(key, GpuMesh { vbuf, ibuf, index_count: data.indices.len() as u32, last_used: self.frame });
     }
 
     pub fn has_mesh(&self, key: MeshKey) -> bool {
@@ -631,6 +638,17 @@ impl Renderer {
         size: (u32, u32),
     ) {
         self.ensure_targets(size);
+        self.frame += 1;
+
+        // Custom meshes: upload missing ones, evict ones unused for a while.
+        for (key, data) in &scene.custom_meshes {
+            match self.meshes.get_mut(key) {
+                Some(m) => m.last_used = self.frame,
+                None => self.upsert_mesh(*key, data),
+            }
+        }
+        let frame = self.frame;
+        self.meshes.retain(|k, m| !matches!(k, MeshKey::Custom(_)) || frame - m.last_used < 300);
 
         // Make sure every referenced mesh exists.
         for inst in &scene.meshes {
@@ -663,6 +681,8 @@ impl Renderer {
             params: [scene.time, n_lights as f32, texel, 0.0],
             style: [scene.style.flat_shadow, scene.style.cel_bands, scene.style.rim, scene.style.specular],
             viewport: [size.0 as f32, size.1 as f32, 1.0 / size.0.max(1) as f32, 1.0 / size.1.max(1) as f32],
+            fog: scene.fog.color.extend(if scene.fog.enabled { 1.0 } else { 0.0 }).to_array(),
+            fog2: [scene.fog.center.x, scene.fog.center.z, scene.fog.start, scene.fog.end.max(scene.fog.start + 0.01)],
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
         globals.view_proj = mat(light_vp);

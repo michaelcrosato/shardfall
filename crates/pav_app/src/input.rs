@@ -39,6 +39,104 @@ pub const KEYS: KeyBinds = KeyBinds {
     ],
 };
 
+/// Physical key names usable in room files (`[keys]`).
+pub fn key_from_name(n: &str) -> Option<KeyCode> {
+    use KeyCode::*;
+    let letters = [
+        KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ, KeyK, KeyL, KeyM, KeyN, KeyO, KeyP, KeyQ, KeyR, KeyS, KeyT,
+        KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ,
+    ];
+    if let Some(c) = n.strip_prefix("Key").and_then(|l| l.chars().next()).filter(|c| c.is_ascii_uppercase() && n.len() == 4) {
+        return Some(letters[(c as u8 - b'A') as usize]);
+    }
+    let digits = [Digit0, Digit1, Digit2, Digit3, Digit4, Digit5, Digit6, Digit7, Digit8, Digit9];
+    if let Some(d) = n.strip_prefix("Digit").and_then(|d| d.parse::<usize>().ok()).filter(|d| *d < 10) {
+        return Some(digits[d]);
+    }
+    Some(match n {
+        "Space" => Space,
+        "Enter" => Enter,
+        "Tab" => Tab,
+        "ShiftLeft" => ShiftLeft,
+        "ShiftRight" => ShiftRight,
+        "ControlLeft" => ControlLeft,
+        "ControlRight" => ControlRight,
+        "AltLeft" => AltLeft,
+        "AltRight" => AltRight,
+        "ArrowUp" => ArrowUp,
+        "ArrowDown" => ArrowDown,
+        "ArrowLeft" => ArrowLeft,
+        "ArrowRight" => ArrowRight,
+        "Comma" => Comma,
+        "Period" => Period,
+        "Slash" => Slash,
+        "Semicolon" => Semicolon,
+        "Quote" => Quote,
+        "BracketLeft" => BracketLeft,
+        "BracketRight" => BracketRight,
+        "Minus" => Minus,
+        "Equal" => Equal,
+        "CapsLock" => CapsLock,
+        _ => return None,
+    })
+}
+
+/// Current keyboard bindings: defaults, optionally overridden by the room.
+#[derive(Clone)]
+pub struct Bindings {
+    pub up: Vec<KeyCode>,
+    pub down: Vec<KeyCode>,
+    pub left: Vec<KeyCode>,
+    pub right: Vec<KeyCode>,
+    pub buttons: Vec<(u32, Vec<KeyCode>)>,
+}
+
+impl Default for Bindings {
+    fn default() -> Self {
+        Self {
+            up: KEYS.up.to_vec(),
+            down: KEYS.down.to_vec(),
+            left: KEYS.left.to_vec(),
+            right: KEYS.right.to_vec(),
+            buttons: KEYS.buttons.iter().map(|(b, k)| (*b, k.to_vec())).collect(),
+        }
+    }
+}
+
+impl Bindings {
+    /// Defaults with a room's `[keys]` overrides applied. Returns problems found.
+    pub fn with_overrides(map: &std::collections::BTreeMap<String, Vec<String>>) -> (Self, Vec<String>) {
+        let mut b = Self::default();
+        let mut errs = Vec::new();
+        for (action, names) in map {
+            let keys: Vec<KeyCode> = names
+                .iter()
+                .filter_map(|n| {
+                    let k = key_from_name(n);
+                    if k.is_none() {
+                        errs.push(format!("unknown key '{n}'"));
+                    }
+                    k
+                })
+                .collect();
+            match action.as_str() {
+                "move_up" => b.up = keys,
+                "move_down" => b.down = keys,
+                "move_left" => b.left = keys,
+                "move_right" => b.right = keys,
+                other => match pav_core::input::buttons::from_name(other) {
+                    Some(bit) => match b.buttons.iter_mut().find(|(x, _)| *x == bit) {
+                        Some(e) => e.1 = keys,
+                        None => b.buttons.push((bit, keys)),
+                    },
+                    None => errs.push(format!("unknown action '{other}'")),
+                },
+            }
+        }
+        (b, errs)
+    }
+}
+
 /// Human-readable control guide per device.
 pub fn guide(device: Device) -> &'static [(&'static str, &'static str)] {
     match device {
@@ -90,6 +188,10 @@ pub struct Input {
     pub pad: Pad,
     pub last_device: Device,
     prev_held: u32,
+    /// Keys / mouse buttons pressed since the last `buttons()` call (short taps are never lost).
+    key_taps: HashSet<KeyCode>,
+    pub mouse_taps: HashSet<MouseButton>,
+    pub bindings: Bindings,
 }
 
 fn deadzone(v: Vec2, dz: f32) -> Vec2 {
@@ -120,6 +222,9 @@ impl Input {
             pad: Pad::default(),
             last_device: Device::KeyboardMouse,
             prev_held: 0,
+            key_taps: HashSet::new(),
+            mouse_taps: HashSet::new(),
+            bindings: Bindings::default(),
         }
     }
 
@@ -128,6 +233,7 @@ impl Input {
         match state {
             ElementState::Pressed => {
                 self.keys.insert(code);
+                self.key_taps.insert(code);
             }
             ElementState::Released => {
                 self.keys.remove(&code);
@@ -141,6 +247,7 @@ impl Input {
         match state {
             ElementState::Pressed => {
                 self.mouse.insert(b);
+                self.mouse_taps.insert(b);
             }
             ElementState::Released => {
                 self.mouse.remove(&b);
@@ -211,7 +318,8 @@ impl Input {
     /// Screen-space movement (x right, y up) from keys and stick, length <= 1.
     pub fn move_axis(&self) -> Vec2 {
         let k = |codes: &[KeyCode]| codes.iter().any(|c| self.keys.contains(c)) as i32 as f32;
-        let kb = Vec2::new(k(KEYS.right) - k(KEYS.left), k(KEYS.up) - k(KEYS.down));
+        let b = &self.bindings;
+        let kb = Vec2::new(k(&b.right) - k(&b.left), k(&b.up) - k(&b.down));
         let v = if kb != Vec2::ZERO { kb.normalize() } else { self.pad.left };
         v.clamp_length_max(1.0)
     }
@@ -219,7 +327,7 @@ impl Input {
     /// Held game buttons from all devices.
     pub fn held(&self) -> u32 {
         let mut b = self.pad.held;
-        for (bit, codes) in KEYS.buttons {
+        for (bit, codes) in &self.bindings.buttons {
             if codes.iter().any(|c| self.keys.contains(c)) {
                 b |= bit;
             }
@@ -233,9 +341,25 @@ impl Input {
     /// Returns (held, newly pressed since the last call).
     pub fn buttons(&mut self) -> (u32, u32) {
         let held = self.held();
-        let pressed = held & !self.prev_held;
+        let mut pressed = held & !self.prev_held;
+        for (bit, codes) in &self.bindings.buttons {
+            if codes.iter().any(|c| self.key_taps.contains(c)) {
+                pressed |= bit;
+            }
+        }
+        if self.mouse_taps.contains(&MouseButton::Left) {
+            pressed |= buttons::PRIMARY;
+        }
+        self.key_taps.clear();
+        self.mouse_taps.clear();
         self.prev_held = held;
-        (held, pressed)
+        // A tap shorter than a frame still counts as held for that frame.
+        (held | pressed, pressed)
+    }
+
+    /// True if `b` was pressed since the last call (consumes the tap).
+    pub fn take_mouse_tap(&mut self, b: MouseButton) -> bool {
+        self.mouse_taps.remove(&b)
     }
 
     pub fn rewind_held(&self) -> bool {

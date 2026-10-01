@@ -39,6 +39,8 @@ pub mod flags {
     pub const NO_SHADOW: u32 = 2;
     /// Does not receive shadows.
     pub const NO_RECEIVE_SHADOW: u32 = 4;
+    /// Cutaway lowers individual vertices near the player (for big meshes like terrain).
+    pub const CUT_VERTEX: u32 = 8;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -204,6 +206,24 @@ impl Default for PostSettings {
     }
 }
 
+/// Distance fog around a centre point (usually the camera target), blending into `color`.
+#[derive(Clone, Copy, Debug)]
+pub struct Fog {
+    pub enabled: bool,
+    pub center: Vec3,
+    /// Horizontal distance where fog starts / is complete (m).
+    pub start: f32,
+    pub end: f32,
+    /// Linear RGB (usually the sky colour).
+    pub color: Vec3,
+}
+
+impl Default for Fog {
+    fn default() -> Self {
+        Self { enabled: false, center: Vec3::ZERO, start: 60.0, end: 90.0, color: Vec3::ONE }
+    }
+}
+
 /// Camera helpers that remove geometry hiding the player.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Cutaway {
@@ -231,6 +251,9 @@ pub struct Scene {
     pub style: StyleSettings,
     pub post: PostSettings,
     pub cutaway: Cutaway,
+    pub fog: Fog,
+    /// Data for every `MeshKey::Custom` referenced this frame (uploaded when missing).
+    pub custom_meshes: Vec<(MeshKey, std::sync::Arc<crate::mesh::MeshData>)>,
     pub time: f32,
 }
 
@@ -247,6 +270,8 @@ impl Default for Scene {
             style: StyleSettings::default(),
             post: PostSettings::default(),
             cutaway: Cutaway::default(),
+            fog: Fog::default(),
+            custom_meshes: Vec::new(),
             time: 0.0,
         }
     }

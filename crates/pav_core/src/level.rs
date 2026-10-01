@@ -21,7 +21,42 @@ use crate::color::Color;
 use crate::entity::{BodyKind, Spawn};
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
-use crate::statics::{Block, Facing, Ladder, block_flags};
+use crate::statics::{Block, Facing, Ladder, RegionKey, block_flags};
+
+/// Where a layout goes in the world: translation plus quarter turns (clockwise from above).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Placement {
+    pub origin: Vec3,
+    pub quarters: u8,
+}
+
+impl Placement {
+    pub fn new(origin: Vec3, quarters: u8) -> Self {
+        Self { origin, quarters: quarters % 4 }
+    }
+    /// Rotates a layout-space offset (x = column, z = row).
+    pub fn rotate(&self, v: Vec3) -> Vec3 {
+        let mut v = v;
+        for _ in 0..self.quarters {
+            v = Vec3::new(-v.z, v.y, v.x);
+        }
+        v
+    }
+    pub fn point(&self, local: Vec3) -> Vec3 {
+        self.origin + self.rotate(local)
+    }
+    /// Transforms a layout-space box to a world-space axis-aligned box.
+    pub fn aabb(&self, min: Vec3, max: Vec3) -> (Vec3, Vec3) {
+        let (a, b) = (self.point(min), self.point(max));
+        (a.min(b), a.max(b))
+    }
+    pub fn facing(&self, f: Facing) -> Facing {
+        f.rotated(self.quarters)
+    }
+    pub fn quat(&self) -> Quat {
+        Quat::from_rotation_y(-(self.quarters as f32) * std::f32::consts::FRAC_PI_2)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Piece {
@@ -166,11 +201,27 @@ fn rows(map: &str) -> Vec<&str> {
 }
 
 impl Layout {
-    /// Builds all layers into the simulation (blocks, ladders, props, markers).
+    /// Size in cells (columns, rows) over all layers.
+    pub fn extent(&self) -> (i32, i32) {
+        let (mut w, mut h) = (0, 0);
+        for l in &self.layers {
+            let r = rows(&l.map);
+            h = h.max(l.at[1] + r.len() as i32);
+            w = w.max(l.at[0] + r.iter().map(|r| r.chars().count() as i32).max().unwrap_or(0));
+        }
+        (w, h)
+    }
+
+    /// Builds all layers at the layout's own origin, unrotated, into terrain chunks.
     pub fn build(&self, sim: &mut Sim) -> BuiltLayout {
+        self.build_at(sim, &Placement::new(self.origin, 0), None)
+    }
+
+    /// Builds all layers with a placement. Blocks go into `region` (or the chunk under them).
+    pub fn build_at(&self, sim: &mut Sim, place: &Placement, region: Option<RegionKey>) -> BuiltLayout {
         let mut out = BuiltLayout::default();
         for layer in &self.layers {
-            let base = self.origin + Vec3::new(layer.at[0] as f32, layer.y, layer.at[1] as f32);
+            let base = Vec3::new(layer.at[0] as f32, layer.y, layer.at[1] as f32);
             for (r, row) in rows(&layer.map).iter().enumerate() {
                 // Collect (column, piece) runs so identical neighbours merge into one block.
                 let mut runs: Vec<(usize, usize, &Piece)> = Vec::new();
@@ -184,7 +235,7 @@ impl Layout {
                         }
                         continue;
                     };
-                    let cell = base + Vec3::new(c as f32, 0.0, r as f32);
+                    let cell = base + Vec3::new(c as f32, 0.0, r as f32); // layout space
                     for p in &def.blocks {
                         match runs.iter_mut().rev().find(|(_, end, rp)| *end == c && *rp == p && !p.destructible) {
                             Some(run) => run.1 = c + 1,
@@ -199,12 +250,12 @@ impl Layout {
                             Facing::East => (Vec3::new(x + 0.7, 0.0, z + 0.2), Vec3::new(x + 1.0, 0.0, z + 0.8)),
                             Facing::West => (Vec3::new(x, 0.0, z + 0.2), Vec3::new(x + 0.3, 0.0, z + 0.8)),
                         };
-                        sim.state.statics.add_ladder(Ladder {
-                            min: Vec3::new(min.x, cell.y, min.z),
-                            max: Vec3::new(max.x, cell.y + l.height, max.z),
-                            facing: l.facing,
-                            color: Color::hex(&l.color),
-                        });
+                        let (min, max) = place.aabb(Vec3::new(min.x, cell.y, min.z), Vec3::new(max.x, cell.y + l.height, max.z));
+                        let ladder = Ladder { min, max, facing: place.facing(l.facing), color: Color::hex(&l.color) };
+                        match region {
+                            Some(k) => sim.state.statics.add_ladder_to(k, ladder),
+                            None => sim.state.statics.add_ladder(ladder),
+                        }
                     }
                     if let Some(p) = &def.prop {
                         let half = p.shape.half_extents();
@@ -212,22 +263,26 @@ impl Layout {
                         let mut v = Visual::new(p.shape, Color::hex(&p.color));
                         v.look = p.look;
                         let name = if p.name.is_empty() { "prop".to_string() } else { p.name.clone() };
-                        sim.spawn(Spawn::new(&name, cell + Vec3::new(0.5, y, 0.5)).visual(v).body(p.body).rot(Quat::IDENTITY));
+                        let mut sp = Spawn::new(&name, place.point(cell + Vec3::new(0.5, y, 0.5)))
+                            .visual(v)
+                            .body(p.body)
+                            .rot(place.quat());
+                        sp.region = region;
+                        sim.spawn(sp);
                         out.props += 1;
                     }
                     if let Some(m) = &def.marker {
-                        out.markers.push((m.clone(), cell + Vec3::new(0.5, 0.0, 0.5)));
+                        out.markers.push((m.clone(), place.point(cell + Vec3::new(0.5, 0.0, 0.5))));
                     }
                 }
                 let z = base.z + r as f32;
                 for (c0, c1, p) in runs {
                     let i = p.inset;
-                    let mut b = Block::new(
+                    let (min, max) = place.aabb(
                         Vec3::new(base.x + c0 as f32 + i, base.y + p.y0, z + i),
                         Vec3::new(base.x + c1 as f32 - i, base.y + p.y1, z + 1.0 - i),
-                        Color::hex(&p.color),
-                    )
-                    .with_look(p.look);
+                    );
+                    let mut b = Block::new(min, max, Color::hex(&p.color)).with_look(p.look);
                     if p.destructible {
                         b = b.with_flags(block_flags::DESTRUCTIBLE);
                     }
@@ -238,7 +293,10 @@ impl Layout {
                         b = b.with_flags(block_flags::GHOST);
                     }
                     let st = &mut sim.state;
-                    st.statics.add(&mut st.physics, b);
+                    match region {
+                        Some(k) => st.statics.add_to(&mut st.physics, k, b),
+                        None => st.statics.add(&mut st.physics, b),
+                    };
                     out.blocks += 1;
                 }
             }

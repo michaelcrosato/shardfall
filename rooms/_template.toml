@@ -1,0 +1,68 @@
+# ROOM TEMPLATE (files starting with "_" are ignored). Copy to rooms/<key>.toml.
+# A room is placed automatically along its wing's corridor and rotated so its entrance
+# faces the corridor. Coordinates: column = x (east), row = z (south), 1 cell = 1 m.
+
+name = "My Room"
+about = "One sentence: what this room demonstrates."
+try = ["Something to try", "Something else"]
+wing = "misc"                 # movement | physics | animation | vfx | aesthetic | genre | misc
+order = 10                    # position within the wing
+primary_device = "keyboard_mouse"   # or "gamepad"
+# movement_model = "momentum" # instant | momentum (applied while inside)
+entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, and the way out
+
+# Optional: camera defaults while inside (camera parameter names).
+[camera]
+# tilt = 70.0
+# ortho = false
+
+# Optional: simulation parameter overrides while inside (full paths, see `pav params`).
+[params]
+# "movement.jump_height" = 2.0
+
+# Optional: keyboard remapping while inside (action = [physical key names]).
+[keys]
+# jump = ["KeyW", "Space"]
+# move_up = ["ArrowUp"]
+
+[layout]
+# origin is only used when the room is loaded on its own (`pav load scene=<key>`).
+origin = [-5.0, 0.0, -5.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+###########
+#.........#
+#....B....#
+#.........#
+#.........#
+#.........#
+#.........#
+#.........#
+#.........#
+#####..####
+'''
+
+# Each map character: blocks (y0/y1 relative to the layer), ladder, prop or marker.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 2.0, color = "#9aa5b1" }]
+
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = "#c9a27a", rounded = true }]
+# Other options: destructible = true, ghost = true (no collision), inset = 0.3 (thinner),
+# look = "flat" | "cel" | "lit" | "unlit",
+# ladder = { facing = "north", height = 3.0 },
+# prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a" },
+# marker = "player"
+
+# Free-placed objects (keep them at the end of the file; edit mode rewrites this part).
+[[object]]
+name = "ball"
+shape = { type = "sphere", radius = 0.4 }
+pos = [3.5, 1.0, 3.5]           # x = column, y = height, z = row
+color = "#5b8def"
+body = "dynamic"                # dynamic | fixed | kinematic | none

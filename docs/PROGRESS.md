@@ -1,14 +1,14 @@
 # Progress log
 
-Current milestone: **M3 World & rooms** (M1, M2 complete).
+Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as a separate goal).
 
 ## Status by milestone
 | Milestone | State |
 |---|---|
 | M1 Foundation | ✅ complete (2026-09-30) |
 | M2 Core gameplay | ✅ complete (2026-09-30) |
-| M3 World & rooms | ⏳ next |
-| M4–M10 | pending (separate goal) |
+| M3 World & rooms | ✅ complete (2026-10-01) |
+| M4–M10 | ⏳ next (separate goal) |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -91,13 +91,48 @@ Current milestone: **M3 World & rooms** (M1, M2 complete).
 - Deliverables are sent zipped (chat upload limit is 30 MB; the .exe is ~40 MB).
 - Deferred: live shader editing (M7/M8); per-room key rebinding (M3 room framework).
 
-## Next (M3 World & rooms)
-1. Room framework: room files in `rooms/` (+ built-in copies), metadata (name, about/info card,
-   primary device, movement model, camera defaults, controls), enter/exit, reset, teleport
-   menu, `--room` launch, control guide on entry.
-2. Hot reload of room files (notify) with validation errors shown in-game and via a tool.
-3. Chunk streaming around interest points; pavilion hub at the centre with doors to rooms;
-   procedural wilderness terrain regenerated from the seed; changed objects persist.
-4. Sandbox editing: spawn, drag, delete, save room to a file.
-5. Synth sound v1 (cpal output + offline .wav rendering), events -> sounds.
-6. Filmstrip capture tool.
+## M3 World & rooms — done
+- **World** (`world.rs`): pavilion hub (plaza with fountain, four corridors with lamps, door gaps)
+  at the centre; rooms are auto-placed along their wing's corridor and rotated so the entrance
+  faces it; wings: movement/aesthetic → east, physics/genre → north, animation → west,
+  vfx/misc → south.
+- **Wilderness** (`terrain.rs`): terraced tile terrain from fbm noise (0.3 m steps, water, sand,
+  grass, rock, snow), one mesh + one triangle-mesh collider per 32 m chunk, trees, rocks, loose
+  props; flattened around the pavilion.
+- **Streaming**: regions (terrain chunks, rooms, hub) load around interest points (player +
+  agent points), never the camera; far regions go dormant with their entities (positions and
+  velocities kept); untouched terrain is dropped and regenerated from the seed; modified regions
+  and moved props persist. Budget: 2 region loads per 15 ticks.
+- **Room framework**: room files (`room.rs`) with info card (about + try list), wing, primary
+  device, movement model, camera defaults, parameter overrides and key remapping applied while
+  inside; enter/exit tracking with events; F2 teleport menu, F4 leave, F5 reset room,
+  `--room NAME` launch; control guide follows the room's primary device.
+- **Room files**: embedded into the exe by `pav_core/build.rs`, overridden by `rooms/` (repo,
+  cwd, next to the exe, or `PAV_ROOMS`) and hot-reloaded (notify); errors stay on screen until
+  fixed and the broken room keeps its last good version. `rooms/_template.toml` documents it.
+- **Sandbox editing** (F10): place / move / delete with the mouse, palette (shape, size, colour,
+  physics), ghost preview, "save objects into room" rewrites only the `[[object]]` part of the
+  room file (maps and comments kept). New room: `rooms/sandbox.toml`.
+- **Synth sound v1** (`pav_audio`): oscillators, noise, ADSR, pitch glide, filter sweep; sounds
+  for jump, footsteps, landing (by speed), throw, explosion, room entry; stereo panning and
+  distance falloff; runs silently without a device; `audio` tunables (master, sfx, footsteps).
+- **Tools**: `rooms room goto room_reset room_check room_reload stream filmstrip audio_capture`;
+  CLI output is compact JSON.
+- **Renderer**: per-vertex colours, custom meshes uploaded from the scene and evicted when
+  unused, distance fog, per-vertex cutaway for large meshes (terrain).
+
+## Decisions (M3)
+- Static content is grouped into regions (`RegionKey::Chunk/Room/Hub`) instead of only spatial
+  chunks: the region is the unit of streaming and of room resets.
+- Rooms are units of streaming (active within 40 m of an interest point); terrain chunks
+  within 2 chunks (dormant beyond 3).
+- Terrain is one trimesh collider per chunk (shared shape → cheap snapshots/rewind).
+- Default start scene is `world`; standalone room scenes stay available for fast agent work.
+- Input taps shorter than a frame are never lost (keys and mouse).
+- Deferred to later milestones: gamepad remapping per room (keyboard only now), impact
+  sounds from physics contacts, signage/in-world text.
+
+## Next: M4–M10 (separate goal)
+See docs/DESIGN.md §15. Start with M4 Movement & Feel Lab: build each course as a room file in
+`rooms/` (wing = "movement"), adding mechanics in Rust only where needed (timing gates, moving
+hazards, projectile system, feel metrics overlay, camera bench automation).

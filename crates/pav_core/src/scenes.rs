@@ -1,56 +1,128 @@
-//! Built-in scenes (code-defined worlds). Rooms from data files arrive in M3.
+//! Scenes: the full world, small code-defined test scenes, and single rooms on their own.
 
-use anyhow::{Result, bail};
+use std::sync::Arc;
+
+use anyhow::{Result, anyhow, bail};
 use glam::{Quat, Vec3};
 
 use crate::color::Color;
 use crate::entity::{Behavior, BodyKind, Spawn};
-use crate::level::Layout;
+use crate::level::Placement;
+use crate::room::{self, RoomDef};
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
 use crate::statics::Block;
+use crate::world::{RoomSlot, World};
 
 pub const SCENES: &[(&str, &str)] = &[
-    ("playground", "Core movement test: crates, stairs, gap, crawl tunnel, ladder, destructible upper floor."),
+    ("world", "The pavilion with every room, surrounded by streaming wilderness. 'world/<room>' starts in a room."),
     ("test", "Lit test scene: a small plaza, every primitive and style, props raining onto a pyramid."),
     ("empty", "A single floor slab with a player."),
 ];
 
-/// A room description (M2 subset of the M3 room format).
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct RoomFile {
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub about: String,
-    pub layout: Layout,
+/// All scene names, including standalone rooms (any room key builds just that room).
+pub fn names() -> Vec<String> {
+    let mut v: Vec<String> = SCENES.iter().map(|s| s.0.to_string()).collect();
+    let (rooms, _) = room::parse_all(&room::load_sources(room::rooms_dir().as_deref()));
+    v.extend(rooms.into_iter().map(|(k, _)| k));
+    v
 }
 
-pub const PLAYGROUND: &str = include_str!("../../../rooms/playground.toml");
-
-/// Builds a room from TOML text and spawns the player at its "player" marker.
-pub fn build_room_text(sim: &mut Sim, text: &str) -> Result<()> {
-    let room: RoomFile = toml::from_str(text).map_err(|e| anyhow::anyhow!("room file: {e}"))?;
-    let built = room.layout.build(sim);
-    for w in &built.warnings {
-        log::warn!("{w}");
-    }
-    sim.state.spawn = built.marker("player").unwrap_or(Vec3::new(0.0, 0.0, 0.0));
+/// Builds one room on its own at its layout origin (fast; used by tests and agents).
+pub fn build_standalone_room(sim: &mut Sim, key: &str, def: RoomDef) {
+    let place = Placement::new(def.layout.origin, 0);
+    let (cols, rows) = def.layout.extent();
+    let (min, max) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+    let start = def.local_start();
+    let inward = -def.entrance.facing.dir();
+    let def = Arc::new(def);
+    sim.state.world = World {
+        enabled: false,
+        rooms: vec![RoomSlot {
+            id: 0,
+            key: key.to_string(),
+            def: def.clone(),
+            place,
+            min,
+            max,
+            inside: place.point(start),
+            outside: place.point(start) - inward * 4.0,
+            inward,
+            built: false,
+        }],
+        current_room: Some(0),
+        ..Default::default()
+    };
+    sim.build_room(0);
+    // Player at the "player" marker if the layout has one, else inside the entrance.
+    let marker = def
+        .layout
+        .layers
+        .iter()
+        .any(|l| def.layout.legend.iter().any(|(k, t)| t.marker.as_deref() == Some("player") && l.map.contains(k.as_str())));
+    sim.state.spawn = if marker { find_marker(&def, &place, "player").unwrap_or(place.point(start)) } else { place.point(start) };
     sim.spawn_player();
     sim.state.focus = sim.state.spawn;
-    Ok(())
+    sim.state.world.saved_params = crate::world::enter_overrides(&mut sim.config, &def);
+}
+
+fn find_marker(def: &RoomDef, place: &Placement, name: &str) -> Option<Vec3> {
+    for l in &def.layout.layers {
+        let mut lines: Vec<&str> = l.map.lines().collect();
+        if lines.first().is_some_and(|x| x.trim().is_empty()) {
+            lines.remove(0);
+        }
+        for (r, row) in lines.iter().enumerate() {
+            for (c, ch) in row.chars().enumerate() {
+                if def.layout.legend.get(&ch.to_string()).and_then(|t| t.marker.as_deref()) == Some(name) {
+                    let local = Vec3::new(l.at[0] as f32 + c as f32 + 0.5, l.y, l.at[1] as f32 + r as f32 + 0.5);
+                    return Some(place.point(local));
+                }
+            }
+        }
+    }
+    None
 }
 
 pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
-    match name {
-        "playground" => build_room_text(sim, PLAYGROUND)?,
+    let (base, start_room) = match name.split_once('/') {
+        Some((b, r)) => (b, Some(r)),
+        None => (name, None),
+    };
+    match base {
+        "world" => {
+            let sources = room::load_sources(room::rooms_dir().as_deref());
+            let (defs, errors) = room::parse_all(&sources);
+            for (k, e) in &errors {
+                log::error!("room file '{k}': {e}");
+            }
+            sim.build_world(defs, errors);
+            if let Some(r) = start_room {
+                if !sim.teleport_to_room(r) {
+                    bail!(
+                        "unknown room '{r}' (known: {})",
+                        sim.state.world.rooms.iter().map(|r| r.key.as_str()).collect::<Vec<_>>().join(", ")
+                    );
+                }
+            }
+        }
         "test" => test_scene(sim),
         "empty" => {
             floor(sim, 20);
             sim.state.spawn = Vec3::new(0.5, 0.0, 0.5);
             sim.spawn_player();
         }
-        _ => bail!("unknown scene '{name}' (known: {})", SCENES.iter().map(|s| s.0).collect::<Vec<_>>().join(", ")),
+        key => {
+            let sources = room::load_sources(room::rooms_dir().as_deref());
+            let Some(src) = sources.iter().find(|s| s.key == key) else {
+                bail!(
+                    "unknown scene or room '{key}' (scenes: world, test, empty; rooms: {})",
+                    sources.iter().map(|s| s.key.as_str()).collect::<Vec<_>>().join(", ")
+                );
+            };
+            let def = RoomDef::parse(&src.text).map_err(|e| anyhow!("room '{key}': {e}"))?;
+            build_standalone_room(sim, key, def);
+        }
     }
     Ok(())
 }

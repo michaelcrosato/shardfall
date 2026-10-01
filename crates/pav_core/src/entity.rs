@@ -9,12 +9,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::character::Character;
 use crate::shape::Visual;
+use crate::statics::RegionKey;
+
+/// Physical surface properties (kept so sleeping entities can be recreated).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Material {
+    pub density: f32,
+    pub friction: f32,
+    pub restitution: f32,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Self { density: 1.0, friction: 0.5, restitution: 0.0 }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct EntityId(pub u32);
 
 /// Simple scripted behaviours usable from scenes and room files.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Behavior {
     #[default]
@@ -73,6 +88,11 @@ pub struct Entity {
     /// Ticks until the entity despawns by itself (debris).
     #[serde(default)]
     pub lifetime: Option<u32>,
+    /// The region (room / terrain chunk) the entity belongs to, for streaming and resets.
+    #[serde(default)]
+    pub region: Option<RegionKey>,
+    #[serde(default)]
+    pub material: Material,
 }
 
 /// Everything needed to create an entity.
@@ -95,6 +115,8 @@ pub struct Spawn {
     pub restitution: f32,
     #[serde(default)]
     pub behavior: Behavior,
+    #[serde(default)]
+    pub region: Option<RegionKey>,
 }
 
 fn quat_identity() -> Quat {
@@ -119,6 +141,7 @@ impl Spawn {
             friction: 0.5,
             restitution: 0.0,
             behavior: Behavior::None,
+            region: None,
         }
     }
     pub fn visual(mut self, v: Visual) -> Self {

@@ -32,3 +32,13 @@ impl Color {
         Color([0, 1, 2].map(|i| self.0[i] + (o.0[i] - self.0[i]) * t))
     }
 }
+
+fn l2s(c: f32) -> f32 {
+    if c <= 0.0031308 { c * 12.92 } else { 1.055 * c.powf(1.0 / 2.4) - 0.055 }
+}
+
+/// Linear colour back to "#rrggbb".
+pub fn to_hex(c: Color) -> String {
+    let b = |x: f32| (l2s(x.clamp(0.0, 1.0)) * 255.0).round() as u8;
+    format!("#{:02x}{:02x}{:02x}", b(c.0[0]), b(c.0[1]), b(c.0[2]))
+}

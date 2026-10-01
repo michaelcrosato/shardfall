@@ -13,10 +13,13 @@ pub mod params;
 pub mod physics;
 pub mod puppet;
 pub mod rng;
+pub mod room;
 pub mod scenes;
 pub mod shape;
 pub mod sim;
 pub mod statics;
+pub mod terrain;
+pub mod world;
 
 pub use color::Color;
 pub use entity::{Behavior, BodyKind, Entity, EntityId, Spawn};

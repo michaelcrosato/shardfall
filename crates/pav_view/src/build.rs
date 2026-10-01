@@ -1,6 +1,7 @@
 //! Scene building: interpolates between two simulation frames and emits render instances.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
 use pav_core::frame::{PuppetFrame, SimEvent};
@@ -9,6 +10,7 @@ use pav_core::puppet::PuppetDef;
 use pav_core::statics::Ladder;
 use pav_core::statics::{ChunkKey, block_flags};
 use pav_core::{Color, Look, RenderFrame, RenderObject, Shape, choice_enum};
+use pav_render::mesh::{MeshData, Vertex};
 use pav_render::scene::{self as rs, MeshInstance, MeshKey, Scene, SdfInstance, Style, Tonemap};
 use serde::{Deserialize, Serialize};
 
@@ -95,6 +97,9 @@ pub struct ViewSettings {
     pub tonemap: TonemapChoice,
     pub saturation: f32,
     pub sky: String,
+    pub fog: bool,
+    pub fog_start: f32,
+    pub fog_end: f32,
     pub light: LightSettings,
     pub cutaway: CutawaySettings,
 }
@@ -114,6 +119,9 @@ impl Default for ViewSettings {
             tonemap: TonemapChoice::SoftKnee,
             saturation: 1.0,
             sky: "#8fb8d8".into(),
+            fog: true,
+            fog_start: 48.0,
+            fog_end: 80.0,
             light: LightSettings::default(),
             cutaway: CutawaySettings::default(),
         }
@@ -133,6 +141,9 @@ impl Tunable for ViewSettings {
         v.float("exposure", &mut self.exposure, 0.2, 3.0, "Exposure");
         self.tonemap.visit_choice(v, "tonemap", "HDR to screen mapping");
         v.float("saturation", &mut self.saturation, 0.0, 2.0, "Color saturation");
+        v.bool("fog", &mut self.fog, "Distance fog (hides streaming edges)");
+        v.float("fog_start", &mut self.fog_start, 5.0, 300.0, "Fog starts at this distance from the camera target (m)");
+        v.float("fog_end", &mut self.fog_end, 10.0, 400.0, "Fog is complete at this distance (m)");
         nested(v, "light", &mut self.light);
         nested(v, "cutaway", &mut self.cutaway);
     }
@@ -170,10 +181,20 @@ struct Effect {
     start: f64,
 }
 
-/// Keeps per-chunk instance caches and short-lived visual effects between frames.
+/// Cached render data for one static region.
+struct RegionCache {
+    version: u64,
+    style: StyleOverride,
+    meshes: Vec<MeshInstance>,
+    sdfs: Vec<SdfInstance>,
+    lights: Vec<rs::PointLight>,
+    terrain: Option<(MeshKey, Arc<MeshData>)>,
+}
+
+/// Keeps per-region instance caches and short-lived visual effects between frames.
 #[derive(Default)]
 pub struct ViewBuilder {
-    static_cache: HashMap<ChunkKey, (u64, StyleOverride, Vec<MeshInstance>)>,
+    static_cache: HashMap<ChunkKey, RegionCache>,
     effects: Vec<Effect>,
     /// Wall-clock seconds, drives effects.
     pub now: f64,
@@ -339,11 +360,13 @@ impl ViewBuilder {
             fade_radius: c.fade_radius,
         };
 
-        // Static geometry (cached per chunk version).
+        // Static geometry (cached per region version).
         self.static_cache.retain(|k, _| curr.statics.chunks.contains_key(k));
         for (key, chunk) in &curr.statics.chunks {
-            let fresh = self.static_cache.get(key).is_some_and(|(v, s, _)| *v == chunk.version && *s == settings.style);
+            let fresh = self.static_cache.get(key).is_some_and(|c| c.version == chunk.version && c.style == settings.style);
             if !fresh {
+                let mut sdfs = Vec::new();
+                let mut lights = Vec::new();
                 let mut list = Vec::with_capacity(chunk.blocks.len());
                 for b in chunk.blocks.iter().filter(|b| b.alive) {
                     let size = b.max - b.min;
@@ -365,10 +388,46 @@ impl ViewBuilder {
                 for l in &chunk.ladders {
                     emit_ladder(&mut list, l, style_of(Look::Cel, settings.style));
                 }
-                self.static_cache.insert(*key, (chunk.version, settings.style, list));
+                for d in &chunk.decor {
+                    let style = style_of(d.look, settings.style);
+                    emit_shape(&mut list, &mut sdfs, &mut lights, &d.shape, d.pos, d.rot, v3(d.color), d.emissive, style, 1, 0);
+                }
+                let terrain = chunk.terrain.as_ref().map(|t| {
+                    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+                    for x in [t.cx as i64 as u64, t.cz as i64 as u64, chunk.version] {
+                        h = (h ^ x).wrapping_mul(0x0100_0000_01b3);
+                    }
+                    (MeshKey::Custom(h), Arc::new(terrain_mesh(t)))
+                });
+                self.static_cache.insert(
+                    *key,
+                    RegionCache { version: chunk.version, style: settings.style, meshes: list, sdfs, lights, terrain },
+                );
             }
-            scene.meshes.extend_from_slice(&self.static_cache[key].2);
+            let c = &self.static_cache[key];
+            scene.meshes.extend_from_slice(&c.meshes);
+            scene.sdfs.extend_from_slice(&c.sdfs);
+            scene.point_lights.extend_from_slice(&c.lights);
+            if let Some((mk, data)) = &c.terrain {
+                scene.custom_meshes.push((*mk, data.clone()));
+                scene.meshes.push(MeshInstance {
+                    mesh: *mk,
+                    transform: Mat4::IDENTITY,
+                    color: Vec3::ONE,
+                    emissive: 0.0,
+                    style: style_of(Look::Cel, settings.style),
+                    flags: rs::flags::CUT_VERTEX,
+                    group: 1,
+                });
+            }
         }
+        scene.fog = rs::Fog {
+            enabled: settings.fog,
+            center: rig.target,
+            start: settings.fog_start,
+            end: settings.fog_end,
+            color: scene.clear_color,
+        };
 
         // Dynamic objects.
         let cam_fwd = scene.camera.forward;
@@ -466,48 +525,64 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
         }
     }
     let v = &v;
+    let mut lights = Vec::new();
+    emit_shape(&mut scene.meshes, &mut scene.sdfs, &mut lights, &v.shape, o.pos, o.rot, color, v.emissive, style, group, 0);
+    scene.point_lights.extend(lights);
+}
+
+/// Instances for one shape (meshes for boxes/cylinders, SDF impostors for spheres/capsules).
+#[allow(clippy::too_many_arguments)]
+pub fn emit_shape(
+    meshes: &mut Vec<MeshInstance>,
+    sdfs: &mut Vec<SdfInstance>,
+    lights: &mut Vec<rs::PointLight>,
+    shape: &Shape,
+    pos: Vec3,
+    rot: Quat,
+    color: Vec3,
+    emissive: f32,
+    style: Style,
+    group: u32,
+    flags: u32,
+) {
     let mesh = |mesh, scale: Vec3| MeshInstance {
         mesh,
-        transform: Mat4::from_scale_rotation_translation(scale, o.rot, o.pos),
+        transform: Mat4::from_scale_rotation_translation(scale, rot, pos),
         color,
-        emissive: v.emissive,
+        emissive,
         style,
-        flags: 0,
+        flags,
         group,
     };
-    match v.shape {
-        Shape::Box { half } => scene.meshes.push(mesh(MeshKey::Cube, half * 2.0)),
-        Shape::RoundedBox { half, radius } => scene.meshes.push(mesh(MeshKey::rounded_box(half, radius), Vec3::ONE)),
+    match *shape {
+        Shape::Box { half } => meshes.push(mesh(MeshKey::Cube, half * 2.0)),
+        Shape::RoundedBox { half, radius } => meshes.push(mesh(MeshKey::rounded_box(half, radius), Vec3::ONE)),
         Shape::Cylinder { half_height, radius } => {
-            scene.meshes.push(mesh(MeshKey::Cylinder, Vec3::new(radius * 2.0, half_height * 2.0, radius * 2.0)))
+            meshes.push(mesh(MeshKey::Cylinder, Vec3::new(radius * 2.0, half_height * 2.0, radius * 2.0)))
         }
-        Shape::Sphere { radius } => scene.sdfs.push(SdfInstance {
-            a: o.pos,
-            b: o.pos,
-            ra: radius,
-            rb: radius,
-            color,
-            emissive: v.emissive,
-            style,
-            flags: 0,
-            group,
-        }),
+        Shape::Sphere { radius } => {
+            sdfs.push(SdfInstance { a: pos, b: pos, ra: radius, rb: radius, color, emissive, style, flags, group })
+        }
         Shape::Capsule { half_height, radius } => {
-            let axis = o.rot * Vec3::Y * half_height;
-            scene.sdfs.push(SdfInstance {
-                a: o.pos - axis,
-                b: o.pos + axis,
-                ra: radius,
-                rb: radius,
-                color,
-                emissive: v.emissive,
-                style,
-                flags: 0,
-                group,
-            })
+            let axis = rot * Vec3::Y * half_height;
+            sdfs.push(SdfInstance { a: pos - axis, b: pos + axis, ra: radius, rb: radius, color, emissive, style, flags, group })
         }
     }
-    if v.emissive > 0.5 {
-        scene.point_lights.push(rs::PointLight { position: o.pos, color: color * v.emissive, radius: 4.0 + v.emissive * 2.0 });
+    if emissive > 0.5 {
+        lights.push(rs::PointLight { position: pos, color: color * emissive, radius: 4.0 + emissive * 2.0 });
+    }
+}
+
+/// Render mesh for a terrain patch (positions are in world space).
+fn terrain_mesh(t: &pav_core::terrain::TerrainPatch) -> MeshData {
+    MeshData {
+        vertices: t
+            .positions
+            .iter()
+            .zip(&t.normals)
+            .zip(&t.colors)
+            .map(|((p, n), c)| Vertex { pos: *p, normal: *n, uv: [0.0, 0.0], color: [c[0], c[1], c[2], 1.0] })
+            .collect(),
+        indices: t.indices.clone(),
     }
 }

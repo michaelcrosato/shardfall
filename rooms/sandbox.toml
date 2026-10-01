@@ -1,0 +1,46 @@
+# Sandbox: an empty room to build in. Press F10 for edit mode, place things, then
+# "Save objects into room" writes them below as [[object]] tables.
+name = "Sandbox"
+about = "An empty room for building. Edit mode (F10) places, drags and deletes objects; saving writes them into this file, which reloads live."
+try = [
+  "F10, pick a shape, left click to place",
+  "Switch to Move and drag things around",
+  "Save, then edit rooms/sandbox.toml by hand and watch it reload",
+]
+wing = "misc"
+order = 0
+entrance = { at = [10, 15], facing = "south" }
+
+[layout]
+[[layout.layer]]
+y = 0
+map = '''
+#####################
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+#...................#
+##########..#########
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b9c4c9" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b9c4c9" }, { y0 = 0, y1 = 1.0, color = "#8fa3ad" }]
+
+[[object]]
+name = "crate"
+shape = { type = "box", half = [0.4, 0.4, 0.4] }
+pos = [5.5, 0.4, 5.5]
+color = "#e8704a"

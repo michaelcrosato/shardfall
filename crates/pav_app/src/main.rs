@@ -3,10 +3,12 @@
 
 mod app;
 mod boot;
+mod edit;
 mod gfx;
 mod input;
 mod panel;
 mod platform;
+mod rooms;
 mod settings;
 mod simhost;
 mod ui;
@@ -25,7 +27,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "pavilion [--scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen]\n\
+            "pavilion [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen]\n\
              Startup settings live in pavilion.toml next to the executable."
         );
         return;

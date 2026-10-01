@@ -1,18 +1,20 @@
-//! Static level geometry: axis-aligned blocks stored per chunk. Blocks are the "tiles with
-//! heights" of the engine: floors, walls, stairs, slabs of upper floors, crates that never move.
+//! Static geometry, grouped into regions: terrain chunks, rooms and the pavilion hub. A region
+//! is the unit of streaming: it can be active (colliders in the physics world) or dormant
+//! (kept in memory with all changes, colliders removed).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use glam::{IVec2, Vec3};
+use glam::{IVec2, Quat, Vec3};
 use rapier::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::physics::{PhysicsState, TAG_BLOCK};
-use crate::shape::Look;
+use crate::shape::{Look, Shape};
+use crate::terrain::TerrainPatch;
 
-/// Chunk edge length in metres.
+/// Terrain chunk edge length in metres.
 pub const CHUNK_SIZE: f32 = 32.0;
 
 pub mod block_flags {
@@ -26,19 +28,47 @@ pub mod block_flags {
     pub const ROUNDED: u32 = 8;
 }
 
+/// Which region static content belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct ChunkKey(pub i32, pub i32);
+pub enum RegionKey {
+    /// Procedural terrain chunk at chunk coordinates.
+    Chunk(i32, i32),
+    /// A showcase room (index into the world's room list).
+    Room(u16),
+    /// The pavilion hub: plaza and corridors.
+    Hub,
+}
 
-impl ChunkKey {
-    pub fn of(p: Vec3) -> Self {
-        ChunkKey((p.x / CHUNK_SIZE).floor() as i32, (p.z / CHUNK_SIZE).floor() as i32)
+impl RegionKey {
+    pub fn chunk_of(p: Vec3) -> Self {
+        RegionKey::Chunk((p.x / CHUNK_SIZE).floor() as i32, (p.z / CHUNK_SIZE).floor() as i32)
     }
-    pub fn origin(self) -> Vec3 {
-        Vec3::new(self.0 as f32 * CHUNK_SIZE, 0.0, self.1 as f32 * CHUNK_SIZE)
+    fn pack(self) -> (u128, u128, u128) {
+        match self {
+            RegionKey::Chunk(x, z) => (0, x as u32 as u128, z as u32 as u128),
+            RegionKey::Room(id) => (1, id as u128, 0),
+            RegionKey::Hub => (2, 0, 0),
+        }
     }
-    pub fn ivec(self) -> IVec2 {
-        IVec2::new(self.0, self.1)
+    fn unpack(kind: u128, a: u128, b: u128) -> Option<Self> {
+        match kind {
+            0 => Some(RegionKey::Chunk(a as u32 as i32, b as u32 as i32)),
+            1 => Some(RegionKey::Room(a as u16)),
+            2 => Some(RegionKey::Hub),
+            _ => None,
+        }
     }
+}
+
+/// Compatibility alias: terrain chunk coordinates.
+pub type ChunkKey = RegionKey;
+
+pub fn chunk_origin(x: i32, z: i32) -> Vec3 {
+    Vec3::new(x as f32 * CHUNK_SIZE, 0.0, z as f32 * CHUNK_SIZE)
+}
+
+pub fn chunk_ivec(p: Vec3) -> IVec2 {
+    IVec2::new((p.x / CHUNK_SIZE).floor() as i32, (p.z / CHUNK_SIZE).floor() as i32)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -104,6 +134,15 @@ impl Facing {
             Facing::West => Vec3::NEG_X,
         }
     }
+    /// Rotated clockwise (seen from above) by `quarters` quarter turns.
+    pub fn rotated(self, quarters: u8) -> Facing {
+        const ORDER: [Facing; 4] = [Facing::North, Facing::East, Facing::South, Facing::West];
+        let i = ORDER.iter().position(|f| *f == self).unwrap_or(0);
+        ORDER[(i + quarters as usize) % 4]
+    }
+    pub fn opposite(self) -> Facing {
+        self.rotated(2)
+    }
 }
 
 /// A climbable zone. `facing` points from the climber toward the wall.
@@ -135,106 +174,180 @@ impl Ladder {
     }
 }
 
+/// A static decorative shape (trees, rocks, lamps), optionally solid.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Decor {
+    pub shape: Shape,
+    pub pos: Vec3,
+    #[serde(default = "quat_id")]
+    pub rot: Quat,
+    pub color: Color,
+    #[serde(default)]
+    pub look: Look,
+    #[serde(default)]
+    pub emissive: f32,
+    #[serde(default)]
+    pub solid: bool,
+    #[serde(default)]
+    pub collider: Option<ColliderHandle>,
+}
+
+fn quat_id() -> Quat {
+    Quat::IDENTITY
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StaticChunk {
     pub blocks: Vec<Block>,
     #[serde(default)]
     pub ladders: Vec<Ladder>,
-    /// Bumped on every change; the renderer caches per (chunk, version).
+    #[serde(default)]
+    pub decor: Vec<Decor>,
+    #[serde(default)]
+    pub terrain: Option<Arc<TerrainPatch>>,
+    #[serde(default)]
+    pub terrain_collider: Option<ColliderHandle>,
+    /// Bounding box of everything in the region (for spatial queries).
+    pub min: Vec3,
+    pub max: Vec3,
+    /// Bumped on every change; the renderer caches per (region, version).
     pub version: u64,
+    /// Changed since generation (terrain chunks that are unmodified can be dropped and
+    /// regenerated from the seed instead of being kept).
+    #[serde(default)]
+    pub modified: bool,
 }
 
-/// Where a block lives: chunk + index inside the chunk.
+impl StaticChunk {
+    fn grow(&mut self, min: Vec3, max: Vec3) {
+        if self.blocks.is_empty() && self.decor.is_empty() && self.ladders.is_empty() && self.terrain.is_none() {
+            self.min = min;
+            self.max = max;
+        } else {
+            self.min = self.min.min(min);
+            self.max = self.max.max(max);
+        }
+    }
+    pub fn intersects(&self, min: Vec3, max: Vec3) -> bool {
+        self.min.x <= max.x
+            && self.max.x >= min.x
+            && self.min.y <= max.y
+            && self.max.y >= min.y
+            && self.min.z <= max.z
+            && self.max.z >= min.z
+    }
+}
+
+/// Where a block lives: region + index inside the region.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlockRef {
-    pub chunk: ChunkKey,
+    pub region: RegionKey,
     pub index: u32,
 }
 
 impl BlockRef {
-    /// Collider user data: tag in the top 16 bits, then chunk x, chunk z, index (32 bits each).
+    /// Collider user data: tag (16 bits) | region kind (8) | a (32) | b (32) | index (32).
     pub fn tag(self) -> u128 {
-        TAG_BLOCK | (self.chunk.0 as u32 as u128) << 64 | (self.chunk.1 as u32 as u128) << 32 | self.index as u128
+        let (k, a, b) = self.region.pack();
+        TAG_BLOCK | k << 104 | a << 72 | b << 40 | self.index as u128
     }
     pub fn from_tag(tag: u128) -> Option<Self> {
         if tag & crate::physics::TAG_MASK != TAG_BLOCK {
             return None;
         }
-        let index = tag as u32;
-        let cz = (tag >> 32) as u32 as i32;
-        let cx = (tag >> 64) as u32 as i32;
-        Some(BlockRef { chunk: ChunkKey(cx, cz), index })
+        let region = RegionKey::unpack((tag >> 104) & 0xFF, (tag >> 72) & 0xFFFF_FFFF, (tag >> 40) & 0xFFFF_FFFF)?;
+        Some(BlockRef { region, index: tag as u32 })
     }
+}
+
+fn block_collider(b: &Block, tag: u128) -> ColliderBuilder {
+    let h = b.half();
+    let c = b.center();
+    ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
+        .translation(Vector::new(c.x as Real, c.y as Real, c.z as Real))
+        .friction(0.8)
+        .user_data(tag)
+}
+
+fn decor_collider(d: &Decor) -> ColliderBuilder {
+    d.shape.collider().position(Pose::from_parts(d.pos, d.rot)).friction(0.8)
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StaticWorld {
-    pub chunks: BTreeMap<ChunkKey, Arc<StaticChunk>>,
+    /// Active regions (colliders present).
+    pub chunks: BTreeMap<RegionKey, Arc<StaticChunk>>,
+    /// Dormant regions (no colliders), kept with their changes.
+    #[serde(default)]
+    pub dormant: BTreeMap<RegionKey, Arc<StaticChunk>>,
 }
 
 impl StaticWorld {
-    /// Adds a block (creating its collider) and returns where it went.
-    pub fn add(&mut self, physics: &mut PhysicsState, mut block: Block) -> BlockRef {
-        let key = ChunkKey::of(block.center());
-        let chunk = Arc::make_mut(self.chunks.entry(key).or_default());
+    fn chunk_mut(&mut self, key: RegionKey) -> &mut StaticChunk {
+        Arc::make_mut(self.chunks.entry(key).or_default())
+    }
+
+    /// Adds a block to an active region (creating its collider) and returns where it went.
+    pub fn add_to(&mut self, physics: &mut PhysicsState, key: RegionKey, mut block: Block) -> BlockRef {
+        let chunk = self.chunk_mut(key);
         let index = chunk.blocks.len() as u32;
-        let r = BlockRef { chunk: key, index };
+        let r = BlockRef { region: key, index };
         if !block.has(block_flags::GHOST) {
-            let h = block.half();
-            let c = block.center();
-            let col = ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
-                .translation(Vector::new(c.x as Real, c.y as Real, c.z as Real))
-                .friction(0.8)
-                .user_data(r.tag());
-            block.collider = Some(physics.insert_static(col));
+            block.collider = Some(physics.insert_static(block_collider(&block, r.tag())));
         }
+        chunk.grow(block.min, block.max);
         chunk.blocks.push(block);
         chunk.version += 1;
         r
     }
 
-    pub fn add_ladder(&mut self, ladder: Ladder) {
-        let key = ChunkKey::of(ladder.center());
-        let chunk = Arc::make_mut(self.chunks.entry(key).or_default());
+    /// Adds a block to the terrain chunk containing its centre (scenes and tests).
+    pub fn add(&mut self, physics: &mut PhysicsState, block: Block) -> BlockRef {
+        let key = RegionKey::chunk_of(block.center());
+        self.add_to(physics, key, block)
+    }
+
+    pub fn add_ladder_to(&mut self, key: RegionKey, ladder: Ladder) {
+        let chunk = self.chunk_mut(key);
+        chunk.grow(ladder.min, ladder.max);
         chunk.ladders.push(ladder);
         chunk.version += 1;
     }
 
-    /// Ladders in the 3x3 chunks around `p`.
-    pub fn ladders_near(&self, p: Vec3) -> impl Iterator<Item = &Ladder> {
-        let c = ChunkKey::of(p);
-        (-1..=1)
-            .flat_map(move |dx| (-1..=1).map(move |dz| ChunkKey(c.0 + dx, c.1 + dz)))
-            .filter_map(|k| self.chunks.get(&k))
-            .flat_map(|ch| ch.ladders.iter())
+    pub fn add_ladder(&mut self, ladder: Ladder) {
+        let key = RegionKey::chunk_of(ladder.center());
+        self.add_ladder_to(key, ladder);
     }
 
-    /// Alive blocks intersecting a sphere, in the chunks it can touch.
-    pub fn blocks_in_sphere(&self, center: Vec3, radius: f32) -> Vec<BlockRef> {
-        let lo = ChunkKey::of(center - Vec3::splat(radius + CHUNK_SIZE * 0.5));
-        let hi = ChunkKey::of(center + Vec3::splat(radius + CHUNK_SIZE * 0.5));
-        let mut out = Vec::new();
-        for cx in lo.0..=hi.0 {
-            for cz in lo.1..=hi.1 {
-                let key = ChunkKey(cx, cz);
-                let Some(chunk) = self.chunks.get(&key) else { continue };
-                for (i, b) in chunk.blocks.iter().enumerate() {
-                    if b.alive && center.clamp(b.min, b.max).distance_squared(center) < radius * radius {
-                        out.push(BlockRef { chunk: key, index: i as u32 });
-                    }
-                }
-            }
+    pub fn add_decor(&mut self, physics: &mut PhysicsState, key: RegionKey, mut d: Decor) {
+        if d.solid {
+            d.collider = Some(physics.insert_static(decor_collider(&d)));
         }
-        out
+        let chunk = self.chunk_mut(key);
+        let h = d.shape.half_extents().length();
+        chunk.grow(d.pos - Vec3::splat(h), d.pos + Vec3::splat(h));
+        chunk.decor.push(d);
+        chunk.version += 1;
+    }
+
+    pub fn set_terrain(&mut self, physics: &mut PhysicsState, key: RegionKey, patch: Arc<TerrainPatch>) {
+        let col = physics.insert_static(patch.collider());
+        let chunk = self.chunk_mut(key);
+        if let Some(old) = chunk.terrain_collider.replace(col) {
+            physics.remove_collider(old);
+        }
+        chunk.grow(patch.min, patch.max);
+        chunk.terrain = Some(patch);
+        chunk.version += 1;
     }
 
     pub fn get(&self, r: BlockRef) -> Option<&Block> {
-        self.chunks.get(&r.chunk)?.blocks.get(r.index as usize)
+        self.chunks.get(&r.region)?.blocks.get(r.index as usize)
     }
 
     /// Removes a block's collider and marks it dead. Returns the block if it was alive.
     pub fn destroy(&mut self, physics: &mut PhysicsState, r: BlockRef) -> Option<Block> {
-        let chunk = Arc::make_mut(self.chunks.get_mut(&r.chunk)?);
+        let chunk = Arc::make_mut(self.chunks.get_mut(&r.region)?);
         let b = chunk.blocks.get_mut(r.index as usize)?;
         if !b.alive {
             return None;
@@ -244,23 +357,99 @@ impl StaticWorld {
             physics.remove_collider(h);
         }
         chunk.version += 1;
+        chunk.modified = true;
         Some(b.clone())
     }
 
-    /// Removes a whole chunk and its colliders.
-    pub fn remove_chunk(&mut self, physics: &mut PhysicsState, key: ChunkKey) {
-        if let Some(chunk) = self.chunks.remove(&key) {
-            for b in &chunk.blocks {
-                if let Some(h) = b.collider {
-                    physics.remove_collider(h);
+    fn remove_colliders(physics: &mut PhysicsState, chunk: &mut StaticChunk) {
+        for b in &mut chunk.blocks {
+            if let Some(h) = b.collider.take() {
+                physics.remove_collider(h);
+            }
+        }
+        for d in &mut chunk.decor {
+            if let Some(h) = d.collider.take() {
+                physics.remove_collider(h);
+            }
+        }
+        if let Some(h) = chunk.terrain_collider.take() {
+            physics.remove_collider(h);
+        }
+    }
+
+    /// Makes a region dormant: colliders are removed, content is kept.
+    pub fn deactivate(&mut self, physics: &mut PhysicsState, key: RegionKey) -> bool {
+        let Some(mut arc) = self.chunks.remove(&key) else { return false };
+        let chunk = Arc::make_mut(&mut arc);
+        Self::remove_colliders(physics, chunk);
+        chunk.version += 1;
+        self.dormant.insert(key, arc);
+        true
+    }
+
+    /// Wakes a dormant region (recreates its colliders). False if there is none.
+    pub fn activate(&mut self, physics: &mut PhysicsState, key: RegionKey) -> bool {
+        let Some(mut arc) = self.dormant.remove(&key) else { return false };
+        let chunk = Arc::make_mut(&mut arc);
+        for (i, b) in chunk.blocks.iter_mut().enumerate() {
+            if b.alive && !b.has(block_flags::GHOST) {
+                let tag = BlockRef { region: key, index: i as u32 }.tag();
+                b.collider = Some(physics.insert_static(block_collider(b, tag)));
+            }
+        }
+        for d in &mut chunk.decor {
+            if d.solid {
+                d.collider = Some(physics.insert_static(decor_collider(d)));
+            }
+        }
+        if let Some(t) = &chunk.terrain {
+            chunk.terrain_collider = Some(physics.insert_static(t.collider()));
+        }
+        chunk.version += 1;
+        self.chunks.insert(key, arc);
+        true
+    }
+
+    /// Removes a region entirely (active or dormant).
+    pub fn remove_region(&mut self, physics: &mut PhysicsState, key: RegionKey) {
+        if let Some(mut arc) = self.chunks.remove(&key) {
+            Self::remove_colliders(physics, Arc::make_mut(&mut arc));
+        }
+        self.dormant.remove(&key);
+    }
+
+    pub fn is_active(&self, key: RegionKey) -> bool {
+        self.chunks.contains_key(&key)
+    }
+
+    /// Active regions whose bounds intersect a box.
+    pub fn regions_in(&self, min: Vec3, max: Vec3) -> impl Iterator<Item = (&RegionKey, &Arc<StaticChunk>)> {
+        self.chunks.iter().filter(move |(_, c)| c.intersects(min, max))
+    }
+
+    /// Ladders near `p`.
+    pub fn ladders_near(&self, p: Vec3) -> impl Iterator<Item = &Ladder> {
+        let r = Vec3::splat(2.0);
+        self.regions_in(p - r, p + r).flat_map(|(_, c)| c.ladders.iter())
+    }
+
+    /// Alive blocks intersecting a sphere.
+    pub fn blocks_in_sphere(&self, center: Vec3, radius: f32) -> Vec<BlockRef> {
+        let r = Vec3::splat(radius);
+        let mut out = Vec::new();
+        for (key, chunk) in self.regions_in(center - r, center + r) {
+            for (i, b) in chunk.blocks.iter().enumerate() {
+                if b.alive && center.clamp(b.min, b.max).distance_squared(center) < radius * radius {
+                    out.push(BlockRef { region: *key, index: i as u32 });
                 }
             }
         }
+        out
     }
 
     pub fn iter_alive(&self) -> impl Iterator<Item = (BlockRef, &Block)> {
         self.chunks.iter().flat_map(|(k, c)| {
-            c.blocks.iter().enumerate().filter(|(_, b)| b.alive).map(move |(i, b)| (BlockRef { chunk: *k, index: i as u32 }, b))
+            c.blocks.iter().enumerate().filter(|(_, b)| b.alive).map(move |(i, b)| (BlockRef { region: *k, index: i as u32 }, b))
         })
     }
 

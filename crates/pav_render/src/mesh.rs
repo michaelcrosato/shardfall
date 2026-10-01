@@ -10,6 +10,8 @@ pub struct Vertex {
     pub pos: [f32; 3],
     pub normal: [f32; 3],
     pub uv: [f32; 2],
+    /// Multiplied with the instance colour (white for built-in meshes).
+    pub color: [f32; 4],
 }
 
 #[derive(Clone, Debug, Default)]
@@ -68,7 +70,7 @@ const FACES: [Vec3; 6] = [Vec3::X, Vec3::NEG_X, Vec3::Y, Vec3::NEG_Y, Vec3::Z, V
 
 impl MeshData {
     fn push(&mut self, pos: Vec3, normal: Vec3, uv: [f32; 2]) -> u32 {
-        self.vertices.push(Vertex { pos: pos.to_array(), normal: normal.to_array(), uv });
+        self.vertices.push(Vertex { pos: pos.to_array(), normal: normal.to_array(), uv, color: [1.0; 4] });
         (self.vertices.len() - 1) as u32
     }
 

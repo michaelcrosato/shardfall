@@ -23,6 +23,8 @@ pub struct OverlayInfo<'a> {
 pub enum MenuAction {
     Resume,
     Reset,
+    Rooms,
+    RoomCard,
     LoadScene(String),
     Tuning,
     Screenshot,
@@ -128,7 +130,13 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                 if ui.button("Resume (Esc)").clicked() {
                     action = Some(MenuAction::Resume);
                 }
-                if ui.button("Reset room (F5)").clicked() {
+                if ui.button("Rooms (F2)").clicked() {
+                    action = Some(MenuAction::Rooms);
+                }
+                if ui.button("Room info").clicked() {
+                    action = Some(MenuAction::RoomCard);
+                }
+                if ui.button("Reset scene").clicked() {
                     action = Some(MenuAction::Reset);
                 }
                 if ui.button("Tuning (F1)").clicked() {
@@ -142,7 +150,7 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                 }
             });
             ui.separator();
-            ui.label(RichText::new("Go to").strong());
+            ui.label(RichText::new("Load scene").strong());
             for (name, about) in pav_core::scenes::SCENES {
                 ui.horizontal(|ui| {
                     if ui.button(*name).clicked() {
@@ -160,7 +168,7 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                     ui.end_row();
                 }
             });
-            ui.label(RichText::new("System keys: F1 tuning · F3 diagnostics · F5 reset · F6 pause · F7 step · F8/F9 speed · F11 fullscreen · F12 screenshot · hold Backspace rewind").small().weak());
+            ui.label(RichText::new("System keys: F1 tuning · F2 rooms · F3 diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 speed · F10 edit mode · F11 fullscreen · F12 screenshot · hold Backspace rewind").small().weak());
         });
     action
 }

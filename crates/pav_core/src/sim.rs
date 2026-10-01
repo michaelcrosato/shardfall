@@ -20,6 +20,8 @@ use crate::puppet::PuppetDef;
 use crate::rng::Rng;
 use crate::shape::{Look, Shape, Visual};
 use crate::statics::{StaticWorld, block_flags};
+use crate::terrain::TerrainParams;
+use crate::world::World;
 
 choice_enum! {
     pub enum TickRate { Hz60 => "60", Hz120 => "120", Hz240 => "240" }
@@ -45,6 +47,7 @@ pub struct SimConfig {
     pub movement: MovementParams,
     pub bombs: BombParams,
     pub puppet: PuppetDef,
+    pub terrain: TerrainParams,
 }
 
 impl Default for SimConfig {
@@ -56,6 +59,7 @@ impl Default for SimConfig {
             movement: MovementParams::default(),
             bombs: BombParams::default(),
             puppet: PuppetDef::default(),
+            terrain: TerrainParams::default(),
         }
     }
 }
@@ -76,6 +80,7 @@ impl SimConfig {
         nested(v, "movement", &mut self.movement);
         nested(v, "bombs", &mut self.bombs);
         nested(v, "puppet", &mut self.puppet);
+        nested(v, "world", &mut self.terrain);
     }
 }
 
@@ -92,6 +97,7 @@ pub struct SimState {
     pub focus: Vec3,
     pub player: Option<EntityId>,
     pub spawn: Vec3,
+    pub world: World,
 }
 
 impl SimState {
@@ -111,6 +117,8 @@ pub struct Sim {
     events: Vec<SimEvent>,
     /// True while re-simulating (rewind): no events, no recording.
     replaying: bool,
+    /// Shared copy of `config` for frames (refreshed when it changes).
+    config_arc: std::sync::Arc<SimConfig>,
 }
 
 const MAX_RECORDING_TICKS: u64 = 60 * 60 * 60;
@@ -132,6 +140,7 @@ impl Sim {
                 focus: Vec3::ZERO,
                 player: None,
                 spawn: Vec3::ZERO,
+                world: World::default(),
             },
             config,
             history: History::default(),
@@ -139,6 +148,7 @@ impl Sim {
             pipeline: PhysicsPipeline::new(),
             events: Vec::new(),
             replaying: false,
+            config_arc: std::sync::Arc::new(SimConfig::default()),
         }
     }
 
@@ -212,6 +222,8 @@ impl Sim {
                 character: None,
                 bomb: None,
                 lifetime: None,
+                region: s.region,
+                material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution },
             },
         );
         if !self.replaying {
@@ -244,6 +256,8 @@ impl Sim {
                 character: Some(Box::new(ch)),
                 bomb: None,
                 lifetime: None,
+                region: None,
+                material: Default::default(),
             },
         );
         id
@@ -338,7 +352,10 @@ impl Sim {
         }
         for a in actions {
             match a {
-                Action::ThrowBomb { from, vel, owner } => self.throw_bomb(from, vel, owner),
+                Action::ThrowBomb { from, vel, owner } => {
+                    self.throw_bomb(from, vel, owner);
+                    events.push(SimEvent::Throw { pos: from });
+                }
             }
         }
 
@@ -380,6 +397,10 @@ impl Sim {
         self.sync_from_physics();
         if let Some(p) = self.player() {
             self.state.focus = p.pos;
+        }
+        self.update_room_tracking(&mut events);
+        if self.state.tick % 15 == 0 {
+            self.update_streaming(2);
         }
         self.state.tick += 1;
         if !self.replaying {
@@ -587,7 +608,16 @@ impl Sim {
         }
     }
 
-    pub fn frame(&self) -> RenderFrame {
+    pub fn frame(&mut self) -> RenderFrame {
+        if *self.config_arc != self.config {
+            self.config_arc = std::sync::Arc::new(self.config.clone());
+        }
+        let room = self
+            .state
+            .world
+            .current_room
+            .and_then(|i| self.state.world.rooms.get(i as usize))
+            .map(|r| crate::frame::RoomInfo { id: r.id, key: r.key.clone(), def: r.def.clone() });
         RenderFrame {
             tick: self.state.tick,
             time: self.time(),
@@ -611,6 +641,8 @@ impl Sim {
             focus_is_player: self.state.player.is_some(),
             player: self.state.player,
             puppet_def: self.config.puppet.clone(),
+            room,
+            config: self.config_arc.clone(),
             events: self.events.clone(),
         }
     }

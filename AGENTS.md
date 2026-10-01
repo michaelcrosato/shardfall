@@ -17,7 +17,9 @@ before starting; update `docs/PROGRESS.md` when you finish something.
 ```
 crates/
   pav_core    simulation, no window/GPU/audio deps: Sim, entities, physics (rapier3d),
-              static blocks + ladders in 32 m chunks, tile levels (level.rs), characters
+              static regions (statics.rs: terrain chunks, rooms, hub; active or dormant),
+              world.rs (pavilion layout, streaming, room tracking), room.rs (room files),
+              terrain.rs (procedural wilderness), tile levels (level.rs), characters
               (character.rs: movement models, jump, crouch/crawl, ladders, bombs), puppet
               (puppet.rs: skeleton + procedural animation), history (rewind, replays), params
   pav_render  wgpu renderer (Vulkan/DX12): Scene description -> shadow pass -> MSAA scene
@@ -25,10 +27,15 @@ crates/
               spheres/capsules/rounded cones. Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               interpolation between ticks, visual settings (ViewSettings)
+  pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
+              cpal output (optional), offline .wav rendering
   pav_tools   agent layer: tool registry + `pav` CLI (one-shot, REPL) + MCP stdio server
   pav_app     the game (`pavilion` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
-rooms/        room data files (TOML, ASCII tile layers + legend); built into the exe
+rooms/        room data files (TOML: info card, wing, primary device, movement model, camera,
+              params, keys, entrance, ASCII tile layers + legend, [[object]]s). Every file
+              here is embedded in the exe at build time AND hot-reloaded at runtime.
+              `_template.toml` documents every field.
 ```
 Data flow: `Sim::step(InputFrame)` (fixed tick, own thread) -> `Sim::frame()` -> `RenderFrame`
 -> `pav_view::ViewBuilder::build` (interpolates prev/curr) -> `pav_render::Scene` -> `Renderer`.
@@ -68,7 +75,11 @@ printf 'step ticks=200\ncamera preset=top\ncapture out=out/b.png\n' | pav repl
 printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\n' | pav repl
 ```
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
-despawn teleport rewind snapshot_save snapshot_load record_save replay` (`pav help` for args).
+despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
+room_reset room_check room_reload stream filmstrip audio_capture` (`pav help` for args).
+- `filmstrip` tiles N frames (optionally while driving the player) into one PNG: the cheapest
+  way to check motion and animation. `audio_capture` renders a session's sounds to .wav.
+- `stream point=[x,y,z]` adds a streaming interest point (agents exploring the world).
 - `input` drives the player: `move=[x,z]` world direction (x = east, z = south), `hold=`/`press=`
   buttons (jump, crouch, crawl, use, focus, interact, primary), `aim=[x,y,z]`, `ticks=N`.
 - `record_save` + `replay` reproduce a session exactly (same machine/build) and check the hash:
@@ -81,9 +92,17 @@ despawn teleport rewind snapshot_save snapshot_load record_save replay` (`pav he
 Write `fn t_name(s: &mut Session, a: &Args) -> Result<Output>` in `crates/pav_tools/src/tools.rs`
 and add a `Tool { .. }` entry to `TOOLS`. It is automatically in the CLI, REPL and MCP.
 
-### Adding a scene
-Add a builder to `crates/pav_core/src/scenes.rs` and list it in `SCENES`. (Rooms as data
-files with hot reload arrive in M3; then prefer data files for rooms built from existing parts.)
+### Adding a room (preferred: data only, no rebuild)
+Copy `rooms/_template.toml` to `rooms/<key>.toml` and edit. It appears in the pavilion on its
+wing's corridor (auto-placed and rotated so its entrance faces the corridor). Check it with
+`pav room_check path=rooms/<key>.toml`, look at it with `pav capture scene=<key>` (the room
+alone, fast) or `printf 'load scene=world\ngoto room=<key>\ncapture\n' | pav repl`. The running
+game hot-reloads room files. New *mechanics* are Rust (character.rs / sim.rs behaviours /
+entity fields); keep rooms as data wherever possible.
+
+### Scenes
+`world` (default: pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
+`<room key>` (that room alone, no terrain), `test`, `empty`. Code scenes live in `scenes.rs`.
 
 ## Game controls (current)
 Keyboard+mouse: WASD move, Space jump (hold = higher), C/Ctrl crouch, Z crawl toggle, F or left
@@ -91,13 +110,16 @@ click throw bomb at the cursor, Shift walk slowly, walk into ladders to climb; r
 camera, wheel zoom, 1–8 camera presets. Gamepad: left stick move, right stick aim, A jump,
 B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
 
-Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 go-to menu · F3 boot
-diagnostics · F4 leave room (M3) · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
-hold Backspace rewind · F11 fullscreen · F12 screenshot (saved next to the exe).
+Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
+F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
+F10 edit mode (sandbox) · hold Backspace rewind · F11 fullscreen · F12 screenshot.
+Rooms may remap game keys while you are inside (`[keys]` in the room file); system keys never change.
 
 ## Tests
-`cargo test` includes `crates/pav_core/tests/gameplay.rs`: walk, jump onto a crate, climb the
-ladder, bomb the floor and drop through, crawl the tunnel, rewind repeatability, snapshot files.
+`cargo test` includes `crates/pav_core/tests/gameplay.rs` (walk, jump onto a crate, climb the
+ladder, bomb the floor and drop through, crawl the tunnel, rewind repeatability, snapshot files)
+and `tests/world.rs` (pavilion layout, streaming, props persisting while dormant, room
+enter/exit/reset, overrides, saved-object round trip).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Conventions

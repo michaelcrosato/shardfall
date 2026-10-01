@@ -153,6 +153,72 @@ pub static TOOLS: &[Tool] = &[
         args: &[arg("path", "string", "file path")],
         run: t_record_save,
     },
+    Tool { name: "rooms", help: "List rooms in the world (key, name, wing, bounds, entrance).", args: &[], run: t_rooms },
+    Tool {
+        name: "room",
+        help: "Info card of a room (default: the one the player is in).",
+        args: &[arg("key", "string", "room key")],
+        run: t_room,
+    },
+    Tool {
+        name: "goto",
+        help: "Teleport the player into a room (room=key), to the plaza (room=hub) or to a position.",
+        args: &[arg("room", "string", "room key or 'hub'"), arg("pos", "array", "[x, y, z] feet position")],
+        run: t_goto,
+    },
+    Tool {
+        name: "room_reset",
+        help: "Rebuild a room from its definition (default: current room).",
+        args: &[arg("key", "string", "room key")],
+        run: t_room_reset,
+    },
+    Tool {
+        name: "room_check",
+        help: "Validate a room file without loading it. Returns errors with line/column.",
+        args: &[arg("path", "string", "path to a .toml room file")],
+        run: t_room_check,
+    },
+    Tool {
+        name: "room_reload",
+        help: "Re-read room files from the rooms directory and rebuild changed rooms (hot reload).",
+        args: &[],
+        run: t_room_reload,
+    },
+    Tool {
+        name: "stream",
+        help: "Streaming state: active/dormant regions. point=[x,y,z] adds an interest point, clear=true removes them.",
+        args: &[arg("point", "array", "[x, y, z] extra interest point"), arg("clear", "boolean", "remove extra points")],
+        run: t_stream,
+    },
+    Tool {
+        name: "filmstrip",
+        help: "Capture N frames, `every` ticks apart (optionally driving the player), tiled into one PNG.",
+        args: &[
+            arg("frames", "integer", "number of frames (default 8)"),
+            arg("every", "integer", "ticks between frames (default 10)"),
+            arg("columns", "integer", "tiles per row (default 4)"),
+            arg("width", "integer", "frame width (default 320)"),
+            arg("height", "integer", "frame height (default 180)"),
+            arg("move", "array", "[x, z] move direction while recording"),
+            arg("hold", "string", "held buttons while recording"),
+            arg("press", "string", "buttons pressed at the start"),
+            arg("out", "string", "output path"),
+        ],
+        run: t_filmstrip,
+    },
+    Tool {
+        name: "audio_capture",
+        help: "Run N ticks (optionally driving the player) and render the game's sounds to a .wav file.",
+        args: &[
+            arg("ticks", "integer", "ticks to run (default 180)"),
+            arg("move", "array", "[x, z] move direction"),
+            arg("hold", "string", "held buttons"),
+            arg("press", "string", "buttons pressed on the first tick"),
+            arg("aim", "array", "[x, y, z] aim point"),
+            arg("out", "string", "output .wav path"),
+        ],
+        run: t_audio_capture,
+    },
     Tool {
         name: "replay",
         help: "Rebuild the scene from a replay file, run all its inputs and verify the final state hash.",
@@ -195,7 +261,10 @@ fn get_str<'a>(a: &'a Args, k: &str) -> Option<&'a str> {
 }
 
 fn t_scenes(_: &mut Session, _: &Args) -> Result<Output> {
-    Ok(Output::Json(json!(pav_core::scenes::SCENES.iter().map(|(n, d)| json!({"name": n, "about": d})).collect::<Vec<_>>())))
+    Ok(Output::Json(json!({
+        "scenes": pav_core::scenes::SCENES.iter().map(|(n, d)| json!({"name": n, "about": d})).collect::<Vec<_>>(),
+        "standalone_rooms": pav_core::scenes::names().into_iter().filter(|n| !pav_core::scenes::SCENES.iter().any(|s| s.0 == n)).collect::<Vec<_>>(),
+    })))
 }
 
 fn t_load(s: &mut Session, a: &Args) -> Result<Output> {
@@ -500,4 +569,220 @@ fn t_replay(s: &mut Session, a: &Args) -> Result<Output> {
         "matches": r.final_hash.as_deref().map(|h| h == hash),
         "unknown_params": unknown,
     })))
+}
+
+fn slot_json(r: &pav_core::world::RoomSlot) -> Value {
+    json!({
+        "key": r.key,
+        "name": r.def.name,
+        "wing": r.def.wing,
+        "built": r.built,
+        "min": [round3(r.min.x), round3(r.min.z)],
+        "max": [round3(r.max.x), round3(r.max.z)],
+        "inside": [round3(r.inside.x), round3(r.inside.y), round3(r.inside.z)],
+        "primary_device": r.def.primary_device,
+        "movement_model": r.def.movement_model,
+    })
+}
+
+fn t_rooms(s: &mut Session, _: &Args) -> Result<Output> {
+    let w = &s.sim.state.world;
+    Ok(Output::Json(json!({
+        "rooms": w.rooms.iter().map(slot_json).collect::<Vec<_>>(),
+        "current": w.current_room.and_then(|i| w.rooms.get(i as usize)).map(|r| r.key.clone()),
+        "errors": w.errors,
+    })))
+}
+
+fn t_room(s: &mut Session, a: &Args) -> Result<Output> {
+    let w = &s.sim.state.world;
+    let slot = match get_str(a, "key") {
+        Some(k) => w.room(k).with_context(|| format!("no room '{k}'"))?,
+        None => w.current_room.and_then(|i| w.rooms.get(i as usize)).context("the player is not in a room")?,
+    };
+    let mut v = slot_json(slot);
+    v["about"] = json!(slot.def.about);
+    v["try"] = json!(slot.def.try_list);
+    v["params"] = serde_json::to_value(&slot.def.params)?;
+    v["camera"] = serde_json::to_value(&slot.def.camera)?;
+    Ok(Output::Json(v))
+}
+
+fn t_goto(s: &mut Session, a: &Args) -> Result<Output> {
+    if let Some(r) = get_str(a, "room") {
+        if r == "hub" {
+            let pid = s.sim.state.player.context("no player")?;
+            s.sim.set_position(pid, glam::Vec3::new(0.0, 0.0, 6.0));
+        } else if !s.sim.teleport_to_room(r) {
+            bail!("unknown room '{r}' (or not a world scene; use `load scene=world`)");
+        }
+    } else if let Some(p) = vec_arg(a, "pos")?.filter(|v| v.len() == 3) {
+        let pid = s.sim.state.player.context("no player")?;
+        s.sim.state.world.interest.push(glam::Vec3::new(p[0], p[1], p[2]));
+        s.sim.update_streaming(usize::MAX);
+        s.sim.state.world.interest.pop();
+        s.sim.set_position(pid, glam::Vec3::new(p[0], p[1], p[2]));
+    } else {
+        bail!("give room=<key> or pos=[x,y,z]");
+    }
+    s.step(2);
+    Ok(Output::Json(player_json(s)))
+}
+
+fn t_room_reset(s: &mut Session, a: &Args) -> Result<Output> {
+    let w = &s.sim.state.world;
+    let id = match get_str(a, "key") {
+        Some(k) => w.room(k).with_context(|| format!("no room '{k}'"))?.id,
+        None => w.current_room.context("the player is not in a room")?,
+    };
+    s.sim.reset_room(id);
+    Ok(Output::Json(json!({ "reset": id })))
+}
+
+fn t_room_check(_: &mut Session, a: &Args) -> Result<Output> {
+    let path = get_str(a, "path").context("missing path")?;
+    let text = std::fs::read_to_string(path)?;
+    Ok(Output::Json(match pav_core::room::RoomDef::parse(&text) {
+        Ok(d) => json!({ "ok": true, "name": d.name, "size": d.layout.extent(), "objects": d.objects.len() }),
+        Err(e) => json!({ "ok": false, "error": e }),
+    }))
+}
+
+fn t_room_reload(s: &mut Session, _: &Args) -> Result<Output> {
+    let dir = pav_core::room::rooms_dir();
+    let (defs, errors) = pav_core::room::parse_all(&pav_core::room::load_sources(dir.as_deref()));
+    let n = reload_rooms(&mut s.sim, defs);
+    Ok(Output::Json(json!({ "dir": dir, "reloaded": n, "errors": errors })))
+}
+
+/// Applies freshly parsed room definitions: changed rooms are rebuilt, new/removed rooms
+/// trigger a pavilion re-layout. Returns how many rooms changed.
+pub fn reload_rooms(sim: &mut pav_core::Sim, defs: Vec<(String, pav_core::room::RoomDef)>) -> usize {
+    if !sim.state.world.enabled {
+        // Standalone room scene: rebuild it if it changed.
+        let Some(slot) = sim.state.world.rooms.first().cloned() else { return 0 };
+        if let Some((_, d)) = defs.into_iter().find(|(k, _)| *k == slot.key) {
+            if serde_json::to_string(&d).ok() != serde_json::to_string(&*slot.def).ok() {
+                let mut fresh = pav_core::Sim::empty(sim.state.seed);
+                fresh.config = sim.config.clone();
+                pav_core::scenes::build_standalone_room(&mut fresh, &slot.key, d);
+                fresh.state.scene = sim.state.scene.clone();
+                *sim = fresh;
+                return 1;
+            }
+        }
+        return 0;
+    }
+    let same_set = defs.len() == sim.state.world.rooms.len() && defs.iter().all(|(k, _)| sim.state.world.room(k).is_some());
+    if !same_set {
+        sim.rebuild_pavilion(defs);
+        return 1;
+    }
+    let mut n = 0;
+    for (k, d) in defs {
+        let old = sim.state.world.room(&k).map(|r| r.def.clone());
+        if let Some(old) = old {
+            if serde_json::to_string(&d).ok() != serde_json::to_string(&*old).ok() {
+                sim.replace_room(&k, d);
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+fn t_stream(s: &mut Session, a: &Args) -> Result<Output> {
+    if a.get("clear").and_then(|v| v.as_bool()).unwrap_or(false) {
+        s.sim.state.world.interest.clear();
+    }
+    if let Some(p) = vec_arg(a, "point")?.filter(|v| v.len() == 3) {
+        s.sim.state.world.interest.push(glam::Vec3::new(p[0], p[1], p[2]));
+        s.sim.update_streaming(usize::MAX);
+    }
+    let st = &s.sim.state.statics;
+    let fmt = |k: &pav_core::statics::RegionKey| format!("{k:?}");
+    Ok(Output::Json(json!({
+        "active": st.chunks.keys().map(fmt).collect::<Vec<_>>(),
+        "dormant": st.dormant.keys().map(fmt).collect::<Vec<_>>(),
+        "dormant_entities": s.sim.state.world.dormant_entities.values().map(|v| v.len()).sum::<usize>(),
+        "interest": s.sim.state.world.interest.iter().map(|p| [p.x, p.y, p.z]).collect::<Vec<_>>(),
+    })))
+}
+
+fn t_filmstrip(s: &mut Session, a: &Args) -> Result<Output> {
+    let frames = get_u64(a, "frames", 8)?.clamp(1, 64) as usize;
+    let every = get_u64(a, "every", 10)?.max(1);
+    let cols = get_u64(a, "columns", 4)? as u32;
+    let w = get_u64(a, "width", 320)? as u32;
+    let h = get_u64(a, "height", 180)? as u32;
+    let mv = vec_arg(a, "move")?.unwrap_or_default();
+    let dir = glam::Vec2::new(mv.first().copied().unwrap_or(0.0), mv.get(1).copied().unwrap_or(0.0));
+    let held = buttons_arg(a, "hold")?;
+    let press = buttons_arg(a, "press")?;
+    let mut shots = Vec::with_capacity(frames);
+    for i in 0..frames {
+        shots.push(s.render(w, h)?);
+        if i + 1 < frames {
+            for t in 0..every {
+                let first = i == 0 && t == 0;
+                let f = pav_core::InputFrame {
+                    move_dir: dir.clamp_length_max(1.0),
+                    held: held | if first { press } else { 0 },
+                    pressed: if first { press } else { 0 },
+                    ..Default::default()
+                };
+                s.sim.step(&f);
+            }
+            s.sim.drain_events();
+        }
+    }
+    let (tw, th, px) = pav_render::capture::tile_frames(&shots, w, h, cols);
+    let png = pav_render::capture::encode_png(tw, th, &px)?;
+    let path = PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/filmstrip-{}.png", s.sim.state.tick)));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    let meta = json!({ "path": path, "frames": frames, "every_ticks": every, "size": [tw, th], "tick": s.sim.state.tick });
+    Ok(Output::Image { png, path: Some(path), meta })
+}
+
+fn t_audio_capture(s: &mut Session, a: &Args) -> Result<Output> {
+    let n = get_u64(a, "ticks", 180)?.max(1);
+    let mv = vec_arg(a, "move")?.unwrap_or_default();
+    let dir = glam::Vec2::new(mv.first().copied().unwrap_or(0.0), mv.get(1).copied().unwrap_or(0.0));
+    let held = buttons_arg(a, "hold")?;
+    let press = buttons_arg(a, "press")?;
+    let aim = vec_arg(a, "aim")?.filter(|v| v.len() == 3).map(|v| glam::Vec3::new(v[0], v[1], v[2]));
+    s.sim.drain_events();
+    let dt = s.sim.dt();
+    let mut events = Vec::new();
+    for i in 0..n {
+        let f = pav_core::InputFrame {
+            move_dir: dir.clamp_length_max(1.0),
+            aim,
+            held: held | if i == 0 { press } else { 0 },
+            pressed: if i == 0 { press } else { 0 },
+            ..Default::default()
+        };
+        s.sim.step(&f);
+        for e in s.sim.drain_events() {
+            events.push((i as f32 * dt, e));
+        }
+    }
+    let listener = pav_audio::Listener { pos: s.sim.state.focus, right: glam::Vec3::X };
+    let duration = n as f32 * dt + 1.5;
+    let samples = pav_audio::render_events(&events, duration, 44100.0, &listener);
+    let path = PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/audio-{}.wav", s.sim.state.tick)));
+    pav_audio::write_wav(&path, &samples, 44100)?;
+    let peak = samples.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+    let kinds: std::collections::BTreeMap<String, usize> = events.iter().fold(Default::default(), |mut m, (_, e)| {
+        let k = serde_json::to_value(e)
+            .ok()
+            .and_then(|v| v.get("type").and_then(|t| t.as_str()).map(String::from))
+            .unwrap_or_default();
+        *m.entry(k).or_default() += 1;
+        m
+    });
+    Ok(Output::Json(json!({ "path": path, "seconds": duration, "events": kinds, "peak": (peak * 1000.0).round() / 1000.0 })))
 }

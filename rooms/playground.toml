@@ -3,6 +3,18 @@
 # the tunnel; jump the gap between the plateaus.
 name = "Playground"
 about = "Core movement test: crates, stairs, plateaus with a gap, a crawl tunnel, and a two-storey building with a ladder and a destructible upper floor."
+try = [
+  "Jump onto the 0.5 / 1 / 1.5 m crates (Space; hold for a higher jump)",
+  "Walk into the ladder on the building's south wall to climb it",
+  "On the upper floor, throw a bomb (F / left click) at the tiles and drop through the hole",
+  "Crawl (Z) through the low tunnel; try standing up inside it",
+  "Jump the gap between the two plateaus",
+  "Hold Backspace to rewind, then do something different",
+]
+wing = "movement"
+order = 0
+primary_device = "keyboard_mouse"
+entrance = { at = [13, 19], facing = "south" }
 
 [layout]
 origin = [-14.0, 0.0, -10.0]
@@ -29,7 +41,7 @@ map = '''
 #..........................#
 #..........................#
 #..........................#
-############################
+#############..#############
 '''
 
 # Upper floor of the building, 3 m up. 'x' tiles can be blown away.

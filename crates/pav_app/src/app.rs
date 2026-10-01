@@ -17,9 +17,11 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::boot::{self, stage};
+use crate::edit::Editor;
 use crate::gfx::Gfx;
 use crate::input::{Device, Input};
 use crate::panel::{Panel, PanelAction};
+use crate::rooms::{RoomEntry, RoomHud, RoomWatcher, TeleportTarget};
 use crate::settings::Settings;
 use crate::simhost::SimHost;
 use crate::ui::{self, MenuAction};
@@ -55,11 +57,28 @@ impl Tunable for AppSettings {
     }
 }
 
+/// Sound settings (the "audio" group).
+#[derive(Clone, Debug, PartialEq)]
+pub struct AudioSettings {
+    pub master: f32,
+    pub sfx: f32,
+    pub footsteps: bool,
+}
+
+impl Tunable for AudioSettings {
+    fn visit(&mut self, v: &mut dyn ParamVisitor) {
+        v.float("master", &mut self.master, 0.0, 2.0, "Master volume");
+        v.float("sfx", &mut self.sfx, 0.0, 2.0, "Sound effects volume");
+        v.bool("footsteps", &mut self.footsteps, "Footstep sounds");
+    }
+}
+
 struct Root<'a> {
     sim: &'a mut SimConfig,
     camera: &'a mut CameraParams,
     view: &'a mut ViewSettings,
     app: &'a mut AppSettings,
+    audio: &'a mut AudioSettings,
 }
 
 impl Tunable for Root<'_> {
@@ -67,6 +86,7 @@ impl Tunable for Root<'_> {
         self.sim.visit_groups(v);
         nested(v, "camera", self.camera);
         nested(v, "view", self.view);
+        nested(v, "audio", self.audio);
         nested(v, "app", self.app);
     }
 }
@@ -108,6 +128,13 @@ pub struct App {
     screenshot_requested: bool,
     scene_name: String,
     toast: Option<(String, Instant)>,
+    hud: RoomHud,
+    watcher: Option<RoomWatcher>,
+    editor: Editor,
+    audio: Option<pav_audio::AudioOut>,
+    audio_settings: AudioSettings,
+    /// Tick at which the app last pushed its config (the sim's copy is adopted after that).
+    config_push_tick: u64,
     quit: bool,
     pub fatal: Option<String>,
 }
@@ -144,6 +171,12 @@ impl App {
             screenshot_requested: false,
             scene_name,
             toast: None,
+            hud: RoomHud::default(),
+            watcher: None,
+            editor: Editor::default(),
+            audio: None,
+            audio_settings: AudioSettings { master: 0.8, sfx: 1.0, footsteps: true },
+            config_push_tick: 0,
             quit: false,
             fatal: None,
             settings,
@@ -178,6 +211,13 @@ impl App {
             );
             Ok((st, String::new()))
         })?;
+        self.audio = stage("audio", || match pav_audio::AudioOut::start() {
+            Ok(a) => {
+                let d = format!("{} @ {} Hz", a.device, a.sample_rate);
+                Ok((Some(a), d))
+            }
+            Err(e) => Ok((None, format!("no sound ({e}); continuing silently"))),
+        })?;
         let sim = stage("simulation", || {
             let sim = Sim::new(&s.scene, s.seed)?;
             let d = format!(
@@ -191,6 +231,9 @@ impl App {
         })?;
         self.sim_config = sim.config.clone();
         self.rig.snap(sim.state.focus);
+        self.hud.entries = room_entries(&sim);
+        self.hud.errors = sim.state.world.errors.clone();
+        self.watcher = RoomWatcher::start();
         self.host = Some(SimHost::start(sim));
         self.gfx = Some(gfx);
         self.egui_state = Some(egui_state);
@@ -219,6 +262,7 @@ impl App {
         self.toast(format!("loaded {}", self.scene_name));
     }
 
+    /// Resets the whole scene (menu).
     fn reset(&mut self) {
         if let Some(host) = &self.host {
             let cfg = self.sim_config.clone();
@@ -229,7 +273,91 @@ impl App {
                 }
             });
         }
-        self.toast("room reset");
+        self.toast("scene reset");
+    }
+
+    /// Resets the room the player is in (F5).
+    fn reset_room(&mut self) {
+        let Some(host) = &self.host else { return };
+        match &self.hud.current {
+            Some(r) => {
+                let id = r.id;
+                host.exec(move |sim| sim.reset_room(id));
+                let name = r.def.name.clone();
+                self.toast(format!("reset {name}"));
+            }
+            None => self.toast("Not in a room (Esc → Reset scene resets everything)"),
+        }
+    }
+
+    fn teleport(&mut self, t: TeleportTarget) {
+        let Some(host) = &self.host else { return };
+        let msg = match t {
+            TeleportTarget::Room(key) => {
+                let k = key.clone();
+                let ok = host.query(move |sim| sim.teleport_to_room(&k)).unwrap_or(false);
+                if ok { format!("→ {key}") } else { format!("could not go to {key}") }
+            }
+            TeleportTarget::Hub => {
+                host.exec(|sim| {
+                    if let Some(pid) = sim.state.player {
+                        sim.set_position(pid, Vec3::new(0.0, 0.0, 6.0));
+                    }
+                });
+                "→ plaza".into()
+            }
+            TeleportTarget::Wilderness => {
+                let a = self.started.elapsed().as_secs_f32() * 7.3;
+                let p = Vec3::new(a.cos(), 0.0, a.sin()) * 220.0 + Vec3::Y * 25.0;
+                host.exec(move |sim| {
+                    sim.state.world.interest.push(p);
+                    sim.update_streaming(usize::MAX);
+                    sim.state.world.interest.pop();
+                    if let Some(pid) = sim.state.player {
+                        sim.set_position(pid, p);
+                    }
+                });
+                "→ wilderness".into()
+            }
+        };
+        self.toast(msg);
+    }
+
+    fn open_teleport(&mut self) {
+        if let Some(host) = &self.host {
+            if let Some(e) = host.query(|sim| room_entries(sim)) {
+                self.hud.entries = e;
+            }
+        }
+        self.hud.teleport_open = true;
+    }
+
+    /// Hot reload: re-read room files and rebuild what changed.
+    fn reload_rooms(&mut self) {
+        let Some(host) = &self.host else { return };
+        let dir = self.watcher.as_ref().map(|w| w.dir.clone());
+        let sources = pav_core::room::load_sources(dir.as_deref());
+        let (defs, errors) = pav_core::room::parse_all(&sources);
+        self.hud.errors = errors.iter().map(|(k, e)| format!("{k}: {e}")).collect();
+        for e in &self.hud.errors {
+            log::error!("room file: {e}");
+        }
+        let bad: Vec<String> = errors.into_iter().map(|(k, _)| k).collect();
+        let changed = host
+            .query(move |sim| {
+                // Rooms whose file is broken keep their current definition.
+                let mut defs = defs;
+                for k in &bad {
+                    if let Some(r) = sim.state.world.room(k) {
+                        defs.push((k.clone(), (*r.def).clone()));
+                    }
+                }
+                pav_tools::tools::reload_rooms(sim, defs)
+            })
+            .unwrap_or(0);
+        if self.hud.errors.is_empty() {
+            self.toast(format!("rooms reloaded ({changed} changed)"));
+        }
     }
 
     fn set_menu(&mut self, open: bool) {
@@ -254,10 +382,21 @@ impl App {
                 self.set_menu(open);
             }
             KeyCode::F1 => self.panel.open = !self.panel.open,
-            KeyCode::F2 => self.set_menu(true),
+            KeyCode::F2 => {
+                if self.hud.teleport_open {
+                    self.hud.teleport_open = false;
+                } else {
+                    self.open_teleport();
+                }
+            }
             KeyCode::F3 => self.show_boot = !self.show_boot,
-            KeyCode::F4 => self.toast("Leaving rooms arrives with the room framework (M3)"),
-            KeyCode::F5 => self.reset(),
+            KeyCode::F4 => {
+                host.exec(|sim| {
+                    sim.leave_room();
+                });
+                self.toast("left the room");
+            }
+            KeyCode::F5 => self.reset_room(),
             KeyCode::F6 => host.set_control(|c| c.paused = !c.paused),
             KeyCode::F7 => host.set_control(|c| {
                 c.paused = true;
@@ -265,6 +404,12 @@ impl App {
             }),
             KeyCode::F8 => host.set_control(|c| c.speed = (c.speed * 0.5).max(0.0625)),
             KeyCode::F9 => host.set_control(|c| c.speed = (c.speed * 2.0).min(8.0)),
+            KeyCode::F10 => {
+                self.editor.on = !self.editor.on;
+                self.editor.dragging = None;
+                let on = self.editor.on;
+                self.toast(if on { "edit mode on" } else { "edit mode off" });
+            }
             KeyCode::F11 => {
                 if let Some(g) = &self.gfx {
                     let fs = g.window.fullscreen().is_some();
@@ -327,6 +472,23 @@ impl App {
         host.set_control(|c| c.rewinding = rewinding);
 
         let (prev, curr, curr_at, tick_wall) = host.frames();
+        let room_before = self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def)));
+        self.hud.update(&curr.room, &mut self.rig.params);
+        if self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def))) != room_before {
+            // Input switching: the room's key overrides apply while inside.
+            let (b, errs) = match &self.hud.current {
+                Some(r) => crate::input::Bindings::with_overrides(&r.def.keys),
+                None => (crate::input::Bindings::default(), Vec::new()),
+            };
+            self.input.bindings = b;
+            for e in errs {
+                log::warn!("room keys: {e}");
+            }
+        }
+        if *curr.config != self.sim_config && curr.tick > self.config_push_tick + 3 {
+            // The simulation changed its configuration (room overrides): adopt it.
+            self.sim_config = (*curr.config).clone();
+        }
         let alpha =
             if self.app_settings.smoothing { ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0) } else { 1.0 };
         let focus = prev.focus.lerp(curr.focus, alpha);
@@ -337,7 +499,21 @@ impl App {
         // Game input -> the simulation thread.
         let (w, h) = self.gfx.as_ref().unwrap().size();
         let size = Vec2::new(w as f32, h as f32);
-        let (held, pressed) = self.input.buttons();
+        let over_ui = self.egui_ctx.egui_wants_pointer_input();
+        let left_tap = self.input.take_mouse_tap(MouseButton::Left) && !over_ui;
+        if over_ui {
+            self.input.mouse_taps.clear();
+        }
+        let (mut held, mut pressed) = self.input.buttons();
+        let room_id = self.hud.current.as_ref().map(|r| r.id);
+        let left = self.input.mouse.contains(&MouseButton::Left) && !over_ui;
+        if left_tap && !self.editor.on && game_input {
+            pressed |= pav_core::input::buttons::PRIMARY;
+        }
+        if self.editor.update(host, &self.rig, self.input.cursor, size, left, left_tap, room_id) {
+            held &= !pav_core::input::buttons::PRIMARY;
+            pressed &= !pav_core::input::buttons::PRIMARY;
+        }
         let aim = match self.input.last_device {
             Device::KeyboardMouse => self.rig.ground_point(self.input.cursor, size, feet.y),
             Device::Gamepad => {
@@ -366,8 +542,19 @@ impl App {
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
         self.builder.add_events(&events);
+        if let Some(a) = &self.audio {
+            let (_, right) = self.rig.ground_axes();
+            let l = pav_audio::Listener { pos: self.rig.target, right };
+            for e in &events {
+                if matches!(e, pav_core::SimEvent::Step { .. }) && !self.audio_settings.footsteps {
+                    continue;
+                }
+                a.play_event(e, &l, self.audio_settings.sfx);
+            }
+        }
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &self.view, focus);
-        if self.app_settings.aim_marker && game_input && curr.player.is_some() {
+        self.editor.draw_preview(&mut scene);
+        if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on {
             if let Some(a) = aim {
                 let d = Vec2::new(a.x - feet.x, a.z - feet.z);
                 let a = if d.length() > self.sim_config.bombs.throw_range {
@@ -420,7 +607,8 @@ impl App {
             }
         }
         let toast = self.toast.as_ref().filter(|(_, t)| t.elapsed().as_secs_f32() < 3.0).map(|(m, _)| m.clone());
-        let guide_visible = self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0;
+        let card_visible = self.hud.card_visible();
+        let guide_visible = self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
         let state = self.egui_state.as_mut().unwrap();
         let raw = state.take_egui_input(&gfx.window);
@@ -429,11 +617,22 @@ impl App {
         let scene_name = self.scene_name.clone();
         let mut menu_action = None;
         let mut panel_actions = Vec::new();
+        let mut teleport = None;
+        let mut save_room = false;
+        let room_name = self.hud.current.as_ref().map(|r| r.key.clone());
+        let editor = &mut self.editor;
+        let hud = &mut self.hud;
         let config_before = self.sim_config.clone();
         let app_before = self.app_settings.clone();
         let panel = &mut self.panel;
-        let mut root =
-            Root { sim: &mut self.sim_config, camera: &mut self.rig.params, view: &mut self.view, app: &mut self.app_settings };
+        let master_before = self.audio_settings.master;
+        let mut root = Root {
+            sim: &mut self.sim_config,
+            camera: &mut self.rig.params,
+            view: &mut self.view,
+            app: &mut self.app_settings,
+            audio: &mut self.audio_settings,
+        };
         let show_stats = root.app.show_stats;
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
@@ -449,6 +648,12 @@ impl App {
             if guide_visible && !menu_open {
                 ui::guide_panel(&ctx, device);
             }
+            if card_visible && !menu_open {
+                hud.card(&ctx, device);
+            }
+            teleport = hud.teleport_menu(&ctx);
+            hud.error_panel(&ctx);
+            save_room = editor.ui(&ctx, room_name.as_deref());
             if menu_open {
                 menu_action = ui::pause_menu(&ctx, device, &scene_name);
             }
@@ -474,9 +679,15 @@ impl App {
         if self.sim_config != config_before {
             let cfg = self.sim_config.clone();
             host.exec(move |sim| sim.config = cfg);
+            self.config_push_tick = stats.tick.max(curr.tick);
         }
         if self.app_settings.vsync != app_before.vsync {
             gfx.set_vsync(self.app_settings.vsync);
+        }
+        if self.audio_settings.master != master_before {
+            if let Some(a) = &self.audio {
+                a.set_master(self.audio_settings.master);
+            }
         }
         state.handle_platform_output(&gfx.window, out.platform_output);
         let ppp = out.pixels_per_point;
@@ -517,6 +728,25 @@ impl App {
 
         for a in panel_actions {
             self.panel_action(a);
+        }
+        if let Some(t) = teleport {
+            self.teleport(t);
+        }
+        if save_room {
+            if let (Some(host), Some(id)) = (&self.host, room_id) {
+                let msg = match crate::edit::save_room(host, id) {
+                    Ok(p) => format!("saved {}", p.display()),
+                    Err(e) => format!("save failed: {e:#}"),
+                };
+                self.editor.status = msg.clone();
+                self.toast(msg);
+                if self.watcher.is_none() {
+                    self.watcher = RoomWatcher::start();
+                }
+            }
+        }
+        if self.watcher.as_mut().is_some_and(|w| w.poll()) {
+            self.reload_rooms();
         }
         if let Some(a) = menu_action {
             self.menu_action(a);
@@ -587,6 +817,14 @@ impl App {
                 self.set_menu(false);
                 self.panel.open = true;
             }
+            MenuAction::Rooms => {
+                self.set_menu(false);
+                self.open_teleport();
+            }
+            MenuAction::RoomCard => {
+                self.set_menu(false);
+                self.hud.show_card();
+            }
             MenuAction::Screenshot => {
                 self.set_menu(false);
                 self.screenshot_requested = true;
@@ -640,6 +878,7 @@ impl ApplicationHandler for App {
                             | KeyCode::F7
                             | KeyCode::F8
                             | KeyCode::F9
+                            | KeyCode::F10
                             | KeyCode::F11
                             | KeyCode::F12
                     );
@@ -687,4 +926,21 @@ impl ApplicationHandler for App {
             g.window.request_redraw();
         }
     }
+}
+
+fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
+    let mut v: Vec<RoomEntry> = sim
+        .state
+        .world
+        .rooms
+        .iter()
+        .map(|r| RoomEntry {
+            key: r.key.clone(),
+            name: if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() },
+            wing: r.def.wing.clone(),
+            about: r.def.about.clone(),
+        })
+        .collect();
+    v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
+    v
 }

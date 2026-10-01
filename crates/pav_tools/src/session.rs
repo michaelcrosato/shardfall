@@ -38,7 +38,7 @@ impl Tunable for ParamsRoot<'_> {
 
 impl Session {
     pub fn new(scene: &str, seed: u64) -> Result<Self> {
-        let sim = Sim::new(scene, seed)?;
+        let mut sim = Sim::new(scene, seed)?;
         let mut camera = CameraRig::default();
         camera.snap(sim.state.focus);
         let prev_frame = sim.frame();

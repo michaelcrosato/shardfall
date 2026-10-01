@@ -51,7 +51,8 @@ impl Settings {
         while let Some(a) = it.next() {
             match a.as_str() {
                 "--backend" => s.backend = it.next().cloned().unwrap_or(s.backend),
-                "--scene" | "--room" => s.scene = it.next().cloned().unwrap_or(s.scene),
+                "--scene" => s.scene = it.next().cloned().unwrap_or(s.scene),
+                "--room" => s.scene = it.next().map(|r| format!("world/{r}")).unwrap_or(s.scene),
                 "--seed" => s.seed = it.next().and_then(|v| v.parse().ok()).unwrap_or(s.seed),
                 "--no-vsync" => s.vsync = false,
                 "--vsync" => s.vsync = true,
@@ -64,7 +65,7 @@ impl Settings {
             s.backend = b;
         }
         if s.scene.is_empty() {
-            s.scene = "playground".into();
+            s.scene = "world".into();
         }
         (s, note)
     }
@@ -83,7 +84,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
             "width" => s.width = v.parse().map_err(|_| "bad width")?,
             "height" => s.height = v.parse().map_err(|_| "bad height")?,
             "fullscreen" => s.fullscreen = v == "true",
-            "start_room" => s.scene = v.into(),
+            "start_room" if !v.is_empty() => s.scene = format!("world/{v}"),
             "seed" => s.seed = v.parse().map_err(|_| "bad seed")?,
             _ => {}
         }

@@ -15,6 +15,8 @@ struct Globals {
     params: vec4<f32>,       // x time, y point light count, z shadow texel (world), w unused
     style: vec4<f32>,        // x flat shadow, y cel bands, z rim, w specular
     viewport: vec4<f32>,     // w, h, 1/w, 1/h
+    fog: vec4<f32>,          // rgb colour, w = enabled
+    fog2: vec4<f32>,         // x,y centre (xz), z start, w end
 };
 
 struct PointLight {
@@ -29,6 +31,7 @@ struct PointLight {
 
 const FLAG_NO_CUT: u32 = 1u;
 const FLAG_NO_RECEIVE_SHADOW: u32 = 4u;
+const FLAG_CUT_VERTEX: u32 = 8u;
 
 struct FsOut {
     @location(0) color: vec4<f32>,
@@ -118,7 +121,7 @@ fn quantize(x: f32, bands: f32) -> f32 {
 
 fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u32, flags: u32) -> vec3<f32> {
     if (style == 3u) {
-        return albedo * max(1.0, 1.0 + emissive);
+        return apply_fog(p, albedo * max(1.0, 1.0 + emissive));
     }
     var sh = 1.0;
     if ((flags & FLAG_NO_RECEIVE_SHADOW) == 0u) {
@@ -161,7 +164,16 @@ fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u3
             col += albedo * pl.color.rgb * k;
         }
     }
-    return col + albedo * emissive;
+    col = col + albedo * emissive;
+    return apply_fog(p, col);
+}
+
+fn apply_fog(p: vec3<f32>, col: vec3<f32>) -> vec3<f32> {
+    if (g.fog.w < 0.5) {
+        return col;
+    }
+    let d = length(p.xz - g.fog2.xy);
+    return mix(col, g.fog.rgb, smoothstep(g.fog2.z, g.fog2.w, d));
 }
 
 fn group_out(n: vec3<f32>, group: u32) -> vec4<f32> {
@@ -174,6 +186,7 @@ struct MeshIn {
     @location(0) pos: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
+    @location(9) color: vec4<f32>,
 };
 
 struct InstIn {
@@ -207,7 +220,12 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
     }
     var o: MeshOut;
     var world = wp.xyz;
-    if (g.cut2.y > 0.5 && (i.params.y & FLAG_NO_CUT) == 0u) {
+    if (g.cut2.y > 0.5 && (i.params.y & FLAG_CUT_VERTEX) != 0u) {
+        // Large meshes (terrain): lower each vertex near the player instead of the whole mesh.
+        if (length(world.xz - g.cut.xz) < g.cut2.x) {
+            world.y = min(world.y, g.cut.w);
+        }
+    } else if (g.cut2.y > 0.5 && (i.params.y & FLAG_NO_CUT) == 0u) {
         // "Walls down": instances whose footprint touches the cut circle are lowered to the
         // cut height; instances entirely above it are hidden.
         let ext = 0.5 * (abs(c0) + abs(c1) + abs(c2));
@@ -224,7 +242,7 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
     o.clip = g.view_proj * vec4<f32>(world, 1.0);
     o.world = world;
     o.normal = normalize(n);
-    o.color = i.color;
+    o.color = vec4<f32>(i.color.rgb * v.color.rgb, i.color.a);
     o.params = i.params;
     return o;
 }
