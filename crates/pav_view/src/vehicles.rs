@@ -24,7 +24,12 @@ pub fn emit_cone(scene: &mut Scene, c: &pav_core::stealth::ConeView, group: u32)
     let alarm = Vec3::new(1.0, 0.18, 0.12);
     let color = calm.lerp(alarm, c.alert.clamp(0.0, 1.0));
     let mut data = pav_render::MeshData::default();
-    let v = |p: Vec3, a: f32| pav_render::mesh::Vertex { pos: p.to_array(), normal: [0.0, 1.0, 0.0], uv: [0.0, 0.0], color: [a, a, a, 1.0] };
+    let v = |p: Vec3, a: f32| pav_render::mesh::Vertex {
+        pos: p.to_array(),
+        normal: [0.0, 1.0, 0.0],
+        uv: [0.0, 0.0],
+        color: [a, a, a, 1.0],
+    };
     data.vertices.push(v(c.origin, 1.0));
     for p in &c.points {
         data.vertices.push(v(*p, 0.75));
@@ -58,11 +63,21 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
         VehicleKind::Car => {
             // Cabin with dark glass, set back a little.
             let cabin = o.pos + up * (h.y * 1.55) - fwd * (h.z * 0.12);
-            part(scene, Shape::RoundedBox { half: Vec3::new(h.x * 0.82, h.y * 0.7, h.z * 0.46), radius: h.y * 0.35 }, cabin, rot, accent, 0.0);
+            part(
+                scene,
+                Shape::RoundedBox { half: Vec3::new(h.x * 0.82, h.y * 0.7, h.z * 0.46), radius: h.y * 0.35 },
+                cabin,
+                rot,
+                accent,
+                0.0,
+            );
             // Wheels: cylinders turned onto the axle, spinning, front ones steering.
             let wr = (h.y * 1.1).max(0.25);
             for (i, (c, spin, steer)) in v.wheels.iter().enumerate() {
-                let q = rot * Quat::from_rotation_y(-steer) * Quat::from_rotation_x(*spin) * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
+                let q = rot
+                    * Quat::from_rotation_y(-steer)
+                    * Quat::from_rotation_x(*spin)
+                    * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
                 part(scene, Shape::Cylinder { half_height: 0.13, radius: wr }, *c, q, Vec3::splat(0.08), 0.0);
                 let hub = *c + right * if i % 2 == 0 { -0.14 } else { 0.14 };
                 part(scene, Shape::Sphere { radius: wr * 0.35 }, hub, rot, Vec3::splat(0.75), 0.0);
@@ -105,10 +120,27 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
             // Tail boom, fin and tail rotor.
             let boom_a = o.pos - fwd * (h.z * 0.7) + up * (h.y * 0.2);
             let boom_b = o.pos - fwd * (h.z * 2.7) + up * (h.y * 0.45);
-            scene.sdfs.push(rs::SdfInstance { a: boom_a, b: boom_b, ra: 0.16, rb: 0.09, color: body, emissive: 0.0, style, flags: 0, group });
+            scene.sdfs.push(rs::SdfInstance {
+                a: boom_a,
+                b: boom_b,
+                ra: 0.16,
+                rb: 0.09,
+                color: body,
+                emissive: 0.0,
+                style,
+                flags: 0,
+                group,
+            });
             part(scene, Shape::Box { half: Vec3::new(0.04, 0.38, 0.22) }, boom_b + up * 0.3, rot, accent, 0.0);
             let tail_rot = rot * Quat::from_rotation_x(v.rotor * 1.7);
-            part(scene, Shape::Box { half: Vec3::new(0.02, 0.45, 0.05) }, boom_b + right * 0.12 + up * 0.15, tail_rot, Vec3::splat(0.2), 0.0);
+            part(
+                scene,
+                Shape::Box { half: Vec3::new(0.02, 0.45, 0.05) },
+                boom_b + right * 0.12 + up * 0.15,
+                tail_rot,
+                Vec3::splat(0.2),
+                0.0,
+            );
             // Mast and main rotor (two crossed blades).
             let mast = o.pos + up * (h.y + 0.25);
             scene.sdfs.push(rs::SdfInstance {

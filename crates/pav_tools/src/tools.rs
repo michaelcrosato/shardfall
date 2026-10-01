@@ -309,8 +309,14 @@ fn t_load(s: &mut Session, a: &Args) -> Result<Output> {
     let gpu = s.gpu.take();
     // Keep the caller's camera and view settings, minus any room's own view table.
     let (camera, view) = (s.camera_base_or_current(), s.view_base_or_current());
+    let live = s.live.then(|| s.sim.config.clone());
     *s = Session::new(scene, seed)?;
     s.gpu = gpu;
+    if let Some(config) = live {
+        // Inside the game: keep its tuning, and leave room cameras and views to it.
+        s.sim.config = config;
+        s.live = true;
+    }
     s.reset_view(view);
     s.reset_camera(camera);
     t_status(s, a)

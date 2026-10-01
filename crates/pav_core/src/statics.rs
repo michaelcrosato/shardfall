@@ -381,7 +381,11 @@ impl StaticWorld {
     /// Zones containing `p` (active regions only), with their region and index.
     pub fn zones_at(&self, p: Vec3) -> impl Iterator<Item = (ZoneRef, &Zone)> {
         self.regions_in(p, p).flat_map(move |(k, c)| {
-            c.zones.iter().enumerate().filter(move |(_, z)| z.contains(p)).map(move |(i, z)| (ZoneRef { region: *k, index: i as u32 }, z))
+            c.zones
+                .iter()
+                .enumerate()
+                .filter(move |(_, z)| z.contains(p))
+                .map(move |(i, z)| (ZoneRef { region: *k, index: i as u32 }, z))
         })
     }
 

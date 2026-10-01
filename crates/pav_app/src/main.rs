@@ -3,6 +3,7 @@
 
 mod app;
 mod boot;
+mod bridge;
 mod edit;
 mod gfx;
 mod hud;
@@ -28,7 +29,8 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "pavilion [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen]\n\
+            "pavilion [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen] [--bridge [ADDR]]\n\
+             --bridge opens the live agent bridge (default 127.0.0.1:7878; drive it with `pav live`).\n\
              Startup settings live in pavilion.toml next to the executable."
         );
         return;

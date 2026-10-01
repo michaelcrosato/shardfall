@@ -13,9 +13,9 @@ use crate::choice_enum;
 use crate::entity::{Behavior, BodyKind, Hazard};
 use crate::joints::JointKind;
 use crate::level::{LabelDef, Layout};
-use crate::softbody::SoftDef;
 use crate::params::ParamValue;
 use crate::shape::{Look, Shape};
+use crate::softbody::SoftDef;
 use crate::statics::Facing;
 
 mod embedded {

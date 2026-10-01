@@ -157,7 +157,9 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                             ui.label(format!("falls {}", c.falls));
                         }
                         if c.score > 0 {
-                            ui.label(RichText::new(format!("score {}", c.score)).color(Color32::from_rgb(140, 220, 255)).strong());
+                            ui.label(
+                                RichText::new(format!("score {}", c.score)).color(Color32::from_rgb(140, 220, 255)).strong(),
+                            );
                         }
                         if let Some(b) = c.best {
                             ui.label(RichText::new(format!("best {b:.2} s")).weak());
@@ -394,7 +396,11 @@ impl PhysicsOverlay {
                 painter.rect_filled(rect, 3.0, Color32::from_black_alpha(60));
                 let max = self.tick_ms.iter().copied().fold(budget, f32::max) * 1.1;
                 let y = |v: f32| rect.bottom() - rect.height() * v / max;
-                painter.hline(rect.x_range(), y(budget), egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 120, 100, 120)));
+                painter.hline(
+                    rect.x_range(),
+                    y(budget),
+                    egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 120, 100, 120)),
+                );
                 let n = self.tick_ms.len().max(2);
                 let pts: Vec<egui::Pos2> = self
                     .tick_ms
@@ -403,7 +409,13 @@ impl PhysicsOverlay {
                     .map(|(i, v)| egui::pos2(rect.left() + rect.width() * i as f32 / (n - 1) as f32, y(*v)))
                     .collect();
                 painter.add(egui::Shape::line(pts, egui::Stroke::new(1.5, Color32::from_rgb(120, 200, 255))));
-                painter.text(rect.left_top() + egui::vec2(4.0, 2.0), egui::Align2::LEFT_TOP, "ms per tick (red line = budget)", egui::FontId::proportional(10.0), Color32::from_white_alpha(150));
+                painter.text(
+                    rect.left_top() + egui::vec2(4.0, 2.0),
+                    egui::Align2::LEFT_TOP,
+                    "ms per tick (red line = budget)",
+                    egui::FontId::proportional(10.0),
+                    Color32::from_white_alpha(150),
+                );
             });
         if !open {
             self.open = false;

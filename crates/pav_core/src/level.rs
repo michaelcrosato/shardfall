@@ -413,8 +413,8 @@ impl Layout {
                 }
                 for (c0, c1, p) in runs {
                     // Merge with the same run on the row above (not for destructible tiles).
-                        let single = p.destructible || p.crumble > 0.0 || p.strength > 0.0;
-                match brects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == p && !single) {
+                    let single = p.destructible || p.crumble > 0.0 || p.strength > 0.0;
+                    match brects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == p && !single) {
                         Some(q) => q.3 = r + 1,
                         None => brects.push((c0, c1, r, r + 1, p)),
                     }

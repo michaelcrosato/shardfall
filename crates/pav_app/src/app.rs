@@ -145,6 +145,7 @@ pub struct App {
     feel: FeelOverlay,
     physics: PhysicsOverlay,
     quit: bool,
+    bridge: Option<crate::bridge::Bridge>,
     pub fatal: Option<String>,
 }
 
@@ -193,6 +194,7 @@ impl App {
             feel: FeelOverlay::default(),
             physics: PhysicsOverlay::default(),
             quit: false,
+            bridge: None,
             fatal: None,
             settings,
         }
@@ -249,6 +251,15 @@ impl App {
         self.hud.entries = room_entries(&sim);
         self.hud.errors = sim.state.world.errors.clone();
         self.watcher = RoomWatcher::start();
+        if !s.bridge.is_empty() {
+            self.bridge = stage("agent bridge", || match crate::bridge::Bridge::start(&s.bridge) {
+                Ok(b) => {
+                    let d = format!("listening on {}", b.addr);
+                    Ok((Some(b), d))
+                }
+                Err(e) => Ok((None, format!("could not listen on {} ({e}); continuing without it", s.bridge))),
+            })?;
+        }
         self.host = Some(SimHost::start(sim));
         self.gfx = Some(gfx);
         self.egui_state = Some(egui_state);
@@ -481,6 +492,10 @@ impl App {
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 
         let host = self.host.as_ref().unwrap();
+        if let Some(b) = &self.bridge {
+            // Agent tools run on the simulation thread and can change the camera and view.
+            b.poll(host, &mut self.rig, &mut self.view);
+        }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
         let game_input = !self.menu_open && !ui_wants_keys;
         let rewinding = game_input && self.input.rewind_held();

@@ -2,13 +2,16 @@
 //!
 //!   pav <tool> [key=value ...]      run one tool on a fresh session (scene=... seed=... ticks=... apply first)
 //!   pav repl                        read tool lines from stdin, one session for all of them
+//!   pav live [addr]                 the same, but inside a running game (started with --bridge)
+//!   pav mcp [scene]                 MCP server on a headless session
+//!   pav mcp --live [addr]           MCP server forwarding to a running game
 //!   pav help                        list tools
 
 use std::io::BufRead;
 
 use anyhow::Result;
 use pav_tools::tools::{self, Args, Output};
-use pav_tools::{Session, TOOLS};
+use pav_tools::{Session, TOOLS, bridge};
 use serde_json::Value;
 
 fn parse_args(words: &[String]) -> Args {
@@ -40,7 +43,9 @@ fn print(out: Result<Output>) -> bool {
 }
 
 fn help() {
-    println!("pav — Pavilion agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav mcp [scene] | pav help\n\nTools:");
+    println!(
+        "pav — Pavilion agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav live [addr] | pav mcp [scene] | pav mcp --live [addr] | pav help\n\nTools:"
+    );
     for t in TOOLS {
         let args: Vec<String> = t.args.iter().map(|a| format!("{}=<{}>", a.name, a.kind)).collect();
         println!("  {:<10} {}  {}", t.name, t.help, args.join(" "));
@@ -56,9 +61,25 @@ fn main() -> Result<()> {
     };
     match cmd.as_str() {
         "help" | "--help" | "-h" => help(),
+        "mcp" if argv.get(1).is_some_and(|a| a == "--live") => {
+            pav_tools::mcp::serve_live(argv.get(2).map(String::as_str).unwrap_or(bridge::DEFAULT_ADDR))?;
+        }
         "mcp" => {
             let scene = argv.get(1).cloned().unwrap_or_else(|| "playground".into());
             pav_tools::mcp::serve(Session::new(&scene, 1)?)?;
+        }
+        "live" => {
+            let addr = argv.get(1).map(String::as_str).unwrap_or(bridge::DEFAULT_ADDR);
+            let mut client = bridge::Client::connect(addr)?;
+            for line in std::io::stdin().lock().lines() {
+                let line = line?;
+                let words: Vec<String> = line.split_whitespace().map(String::from).collect();
+                let Some(name) = words.first() else { continue };
+                if name.starts_with('#') {
+                    continue;
+                }
+                print(client.call(name, &parse_args(&words[1..])).map(Output::Json));
+            }
         }
         "repl" => {
             let mut session = Session::new("playground", 1)?;

@@ -13,12 +13,12 @@ use crate::color::Color;
 use crate::course::Courses;
 use crate::entity::{Behavior, BodyKind, Bomb, Entities, Entity, EntityId, Spawn};
 use crate::feel::FeelMeter;
-use crate::projectile::{Projectiles, Target};
 use crate::frame::{PuppetFrame, RenderFrame, RenderObject, SimEvent};
 use crate::history::{History, Replay};
 use crate::input::InputFrame;
 use crate::params::{ChoiceParam, ParamVisitor, Tunable, nested};
 use crate::physics::{EventCollector, PhysicsState, entity_tag};
+use crate::projectile::{Projectiles, Target};
 use crate::puppet::PuppetDef;
 use crate::rng::Rng;
 use crate::shape::{Look, Shape, Visual};
@@ -265,7 +265,12 @@ impl Sim {
                 bomb: None,
                 lifetime: None,
                 region: s.region,
-                material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution, damping: s.damping },
+                material: crate::entity::Material {
+                    density: s.density,
+                    friction: s.friction,
+                    restitution: s.restitution,
+                    damping: s.damping,
+                },
                 hazard: s.hazard,
                 soft,
                 joints: Vec::new(),
@@ -339,7 +344,8 @@ impl Sim {
     /// A character's kinematic capsule (when it is created or wakes up).
     pub(crate) fn character_body(&mut self, id: EntityId, center: Vec3, posture: character::Posture) -> RigidBodyHandle {
         let body = RigidBodyBuilder::kinematic_position_based().translation(center);
-        let collider = ColliderBuilder::capsule_y(posture.half_height() as Real, RADIUS as Real).friction(0.0).user_data(entity_tag(id.0));
+        let collider =
+            ColliderBuilder::capsule_y(posture.half_height() as Real, RADIUS as Real).friction(0.0).user_data(entity_tag(id.0));
         self.state.physics.insert(body, collider).0
     }
 
@@ -434,12 +440,8 @@ impl Sim {
         let mut events = Vec::new();
         let idle = InputFrame::default();
         let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
-        let all_feet: Vec<Vec3> = self
-            .state
-            .entities
-            .iter()
-            .filter_map(|e| Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5))
-            .collect();
+        let all_feet: Vec<Vec3> =
+            self.state.entities.iter().filter_map(|e| Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5)).collect();
         let mut fallen = Vec::new();
         for id in ids {
             let npc_input: InputFrame;
@@ -490,7 +492,9 @@ impl Sim {
                     self.throw_bomb(from, vel, owner);
                     events.push(SimEvent::Throw { pos: from });
                 }
-                Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
+                Action::Hit { id, at, dir, knockback, respawn } => {
+                    self.hit_character(id, at, dir, knockback, respawn, &mut events)
+                }
                 Action::Shoot { from, vel, owner } => {
                     self.state.projectiles.spawn(crate::projectile::Projectile {
                         pos: from,
@@ -613,7 +617,8 @@ impl Sim {
     fn measure_feel(&mut self, input: &InputFrame) {
         let Some(e) = self.player() else { return };
         let Some(ch) = e.character.as_ref() else { return };
-        let (vel, grounded, feet) = (ch.vel, ch.grounded || ch.climbing.is_some() || ch.hang.is_some(), e.pos - Vec3::Y * ch.height() * 0.5);
+        let (vel, grounded, feet) =
+            (ch.vel, ch.grounded || ch.climbing.is_some() || ch.hang.is_some(), e.pos - Vec3::Y * ch.height() * 0.5);
         let dt = self.dt();
         let tick = self.state.tick;
         self.state.feel.update(tick, dt, input.move_dir, vel, feet, grounded);

@@ -35,7 +35,11 @@ fn npcs_walk_and_creatures_plant_their_feet() {
     assert!(rig.steps > 10, "spider stepped {} times", rig.steps);
     let feet = npc_pos(&sim, "spider");
     for f in &rig.feet {
-        assert!(f.pos.is_finite() && Vec2::new(f.pos.x - feet.x, f.pos.z - feet.z).length() < 1.5, "foot {:?} body {feet}", f.pos);
+        assert!(
+            f.pos.is_finite() && Vec2::new(f.pos.x - feet.x, f.pos.z - feet.z).length() < 1.5,
+            "foot {:?} body {feet}",
+            f.pos
+        );
     }
     // The cutout critter keeps its tail and antennae chains.
     let critter = sim.state.entities.find("critter").unwrap().character.as_ref().unwrap();

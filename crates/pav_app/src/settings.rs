@@ -14,11 +14,22 @@ pub struct Settings {
     /// Room to start in (empty = the default room). Command line: --room NAME.
     pub scene: String,
     pub seed: u64,
+    /// Live agent bridge address ("" = off). Command line: --bridge [ADDR].
+    pub bridge: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { backend: "vulkan".into(), vsync: true, width: 1600, height: 900, fullscreen: false, scene: String::new(), seed: 1 }
+        Self {
+            backend: "vulkan".into(),
+            vsync: true,
+            width: 1600,
+            height: 900,
+            fullscreen: false,
+            scene: String::new(),
+            seed: 1,
+            bridge: String::new(),
+        }
     }
 }
 
@@ -47,9 +58,15 @@ impl Settings {
                 s
             }
         };
-        let mut it = args.iter();
+        let mut it = args.iter().peekable();
         while let Some(a) = it.next() {
             match a.as_str() {
+                "--bridge" => {
+                    s.bridge = match it.peek() {
+                        Some(v) if !v.starts_with("--") => it.next().cloned().unwrap_or_default(),
+                        _ => pav_tools::bridge::DEFAULT_ADDR.into(),
+                    }
+                }
                 "--backend" => s.backend = it.next().cloned().unwrap_or(s.backend),
                 "--scene" => s.scene = it.next().cloned().unwrap_or(s.scene),
                 "--room" => s.scene = it.next().map(|r| format!("world/{r}")).unwrap_or(s.scene),
@@ -86,6 +103,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
             "fullscreen" => s.fullscreen = v == "true",
             "start_room" if !v.is_empty() => s.scene = format!("world/{v}"),
             "seed" => s.seed = v.parse().map_err(|_| "bad seed")?,
+            "bridge" => s.bridge = v.into(),
             _ => {}
         }
     }
@@ -94,7 +112,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
 
 fn toml_to_string(s: &Settings) -> String {
     format!(
-        "backend = \"{}\"\nvsync = {}\nwidth = {}\nheight = {}\nfullscreen = {}\n# start_room = \"playground\"\nseed = {}\n",
-        s.backend, s.vsync, s.width, s.height, s.fullscreen, s.seed
+        "backend = \"{}\"\nvsync = {}\nwidth = {}\nheight = {}\nfullscreen = {}\n# start_room = \"playground\"\nseed = {}\n# Live agent bridge (pav live / pav mcp --live), e.g. \"127.0.0.1:7878\"\nbridge = \"{}\"\n",
+        s.backend, s.vsync, s.width, s.height, s.fullscreen, s.seed, s.bridge
     )
 }

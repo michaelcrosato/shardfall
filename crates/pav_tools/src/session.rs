@@ -29,6 +29,8 @@ pub struct Session {
     view_base: Option<ViewSettings>,
     view_room: Option<u16>,
     view_serial: u64,
+    /// Running inside the game (live bridge): the game applies room cameras and views itself.
+    pub(crate) live: bool,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -66,9 +68,40 @@ impl Session {
             view_base: None,
             view_room: None,
             view_serial: 0,
+            live: false,
         };
         s.sync_camera();
         Ok(s)
+    }
+
+    /// Wraps the game's running simulation, camera and view for one live-bridge request.
+    pub fn from_live(mut sim: Sim, camera: CameraRig, view: ViewSettings, gpu: Option<Gpu>) -> Self {
+        let prev_frame = sim.frame();
+        Self {
+            sim,
+            camera,
+            view,
+            input: InputFrame::default(),
+            gpu,
+            prev_frame,
+            room_cam: None,
+            cue_serial: 0,
+            cue_base: None,
+            events: Vec::new(),
+            view_base: None,
+            view_room: None,
+            view_serial: 0,
+            live: true,
+        }
+    }
+
+    /// Hands everything back to the game after a live-bridge request.
+    pub fn into_live(self) -> (Sim, CameraRig, ViewSettings, Option<Gpu>) {
+        (self.sim, self.camera, self.view, self.gpu)
+    }
+
+    pub fn is_live(&self) -> bool {
+        self.live
     }
 
     pub fn params(&mut self) -> ParamsRoot<'_> {
@@ -107,6 +140,9 @@ impl Session {
     /// cues, the way the game does (without blending). Called after every step.
     pub fn sync_camera(&mut self) {
         use pav_core::params::{ParamValue, apply_map};
+        if self.live {
+            return;
+        }
         let w = &self.sim.state.world;
         let now = w.current_room;
         let rot = |yaw: f64, q: u8| ParamValue::Float((yaw + q as f64 * 90.0 + 540.0).rem_euclid(360.0) - 180.0);
@@ -194,7 +230,8 @@ impl Session {
         self.view_room = now;
         self.view_serial = serial;
         let q = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.place.quarters).unwrap_or(0);
-        let room = now.and_then(|i| w.rooms.get(i as usize)).map(|r| pav_view::build::room_view_map(&r.def.view, q)).unwrap_or_default();
+        let room =
+            now.and_then(|i| w.rooms.get(i as usize)).map(|r| pav_view::build::room_view_map(&r.def.view, q)).unwrap_or_default();
         let pads = pav_view::build::room_view_map(&self.sim.state.courses.view, q);
         if room.is_empty() && pads.is_empty() {
             return;

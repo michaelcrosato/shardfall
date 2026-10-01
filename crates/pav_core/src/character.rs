@@ -359,11 +359,25 @@ impl Character {
 
 /// Requests the simulation carries out after a character update.
 pub enum Action {
-    ThrowBomb { from: Vec3, vel: Vec3, owner: EntityId },
+    ThrowBomb {
+        from: Vec3,
+        vel: Vec3,
+        owner: EntityId,
+    },
     /// A blaster shot.
-    Shoot { from: Vec3, vel: Vec3, owner: EntityId },
+    Shoot {
+        from: Vec3,
+        vel: Vec3,
+        owner: EntityId,
+    },
     /// Touched a hazard or got crushed.
-    Hit { id: EntityId, at: Vec3, dir: Vec3, knockback: f32, respawn: bool },
+    Hit {
+        id: EntityId,
+        at: Vec3,
+        dir: Vec3,
+        knockback: f32,
+        respawn: bool,
+    },
 }
 
 fn yaw_of(d: Vec3) -> f32 {
@@ -695,7 +709,8 @@ pub fn tick(
             let mut target = rest;
             if side.abs() > 0.3 {
                 let probe = feet + tangent * side.signum() * 0.25;
-                if let Some((wall, n, top)) = find_ledge(st, filter, Vec3::new(probe.x, hg.top - HANG_DROP, probe.z), -hg.normal) {
+                if let Some((wall, n, top)) = find_ledge(st, filter, Vec3::new(probe.x, hg.top - HANG_DROP, probe.z), -hg.normal)
+                {
                     if (top - hg.top).abs() < 0.3 && n.dot(hg.normal) > 0.9 {
                         let step = tangent * side.signum() * (1.6 * dt).min(0.25);
                         hg.wall = Vec3::new(hg.wall.x, wall.y, hg.wall.z) + step;
@@ -835,8 +850,10 @@ pub fn tick(
                 jumped = true;
             }
         } else {
-            let can_jump =
-                (ch.grounded || ch.air_time < mp.coyote_time) && (ch.posture != Posture::Crawl || creature) && mp.allow_jump && !rolling;
+            let can_jump = (ch.grounded || ch.air_time < mp.coyote_time)
+                && (ch.posture != Posture::Crawl || creature)
+                && mp.allow_jump
+                && !rolling;
             if ch.since_jump_press <= mp.jump_buffer && can_jump && !ch.jumping {
                 ch.vel.y = (2.0 * mp.gravity * mp.jump_height).sqrt();
                 ch.jumping = true;
@@ -1033,7 +1050,12 @@ pub fn tick(
         }
     }
     // --- bombs
-    else if (pressed(buttons::USE) || pressed(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !ch.swimming {
+    else if (pressed(buttons::USE) || pressed(buttons::PRIMARY))
+        && ch.bomb_cooldown <= 0.0
+        && !climbing
+        && !hanging
+        && !ch.swimming
+    {
         ch.bomb_cooldown = bp.cooldown;
         let from = new_center + Vec3::Y * 0.35;
         let dir3 = dir_of(ch.facing);
@@ -1081,7 +1103,8 @@ pub fn tick(
         let feet_now = new_center - Vec3::Y * height * 0.5;
         let qp = st.physics.query_filtered(filter);
         let ground = |p: Vec3| -> Option<f32> {
-            qp.cast_ray(&Ray::new(Vec3::new(p.x, feet_now.y + 0.6, p.z), Vec3::NEG_Y), 1.4, true).map(|(_, t)| feet_now.y + 0.6 - t as f32)
+            qp.cast_ray(&Ray::new(Vec3::new(p.x, feet_now.y + 0.6, p.z), Vec3::NEG_Y), 1.4, true)
+                .map(|(_, t)| feet_now.y + 0.6 - t as f32)
         };
         if crate::rig::needs_rig(puppet) {
             let rig = ch.rig.get_or_insert_with(|| Box::new(crate::rig::Rig::at_rest(puppet, feet_now, ch.anim.facing)));
@@ -1094,7 +1117,11 @@ pub fn tick(
             ch.rig = None;
         }
         if !creature {
-            let (l, r) = if ch.grounded && !climbing && !hanging { crate::rig::biped_feet(puppet, &ch.anim, feet_now, &ground) } else { (0.0, 0.0) };
+            let (l, r) = if ch.grounded && !climbing && !hanging {
+                crate::rig::biped_feet(puppet, &ch.anim, feet_now, &ground)
+            } else {
+                (0.0, 0.0)
+            };
             let k = 1.0 - (-20.0 * dt).exp();
             ch.anim.foot_l += (l - ch.anim.foot_l) * k;
             ch.anim.foot_r += (r - ch.anim.foot_r) * k;

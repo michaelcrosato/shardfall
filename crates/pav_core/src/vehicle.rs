@@ -181,15 +181,22 @@ fn wrap(a: f32) -> f32 {
     (a + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
-
 impl Sim {
     /// Creates a vehicle at `pos` (bottom centre of the body) facing `rot`.
-    pub fn spawn_vehicle(&mut self, name: &str, def: VehicleDef, pos: Vec3, rot: Quat, region: Option<crate::statics::RegionKey>) -> EntityId {
+    pub fn spawn_vehicle(
+        &mut self,
+        name: &str,
+        def: VehicleDef,
+        pos: Vec3,
+        rot: Quat,
+        region: Option<crate::statics::RegionKey>,
+    ) -> EntityId {
         let half = def.size;
         let wheel_r = (half.y * 1.1).max(0.25);
         let center = pos + Vec3::Y * (half.y + if def.kind == VehicleKind::Car { wheel_r * 0.9 } else { 0.0 });
         let volume = 8.0 * half.x * half.y * half.z;
-        let mut v = Visual::new(Shape::RoundedBox { half, radius: half.y.min(half.x) * 0.45 }, crate::color::Color::hex(&def.color));
+        let mut v =
+            Visual::new(Shape::RoundedBox { half, radius: half.y.min(half.x) * 0.45 }, crate::color::Color::hex(&def.color));
         v.look = crate::shape::Look::Cel;
         let mut sp = Spawn::new(name, center).visual(v).body(BodyKind::Dynamic).rot(rot).density(def.mass / volume).friction(0.4);
         sp.region = region;
@@ -418,7 +425,12 @@ impl Sim {
                             w.side_friction_stiffness = if handbrake && !front { v.def.drift_grip } else { v.def.grip } as Real;
                         }
                         let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
-                        let qpm = ph.broad_phase.as_query_pipeline_mut(ph.narrow_phase.query_dispatcher(), &mut ph.bodies, &mut ph.colliders, filter);
+                        let qpm = ph.broad_phase.as_query_pipeline_mut(
+                            ph.narrow_phase.query_dispatcher(),
+                            &mut ph.bodies,
+                            &mut ph.colliders,
+                            filter,
+                        );
                         c.update_vehicle(dt as Real, qpm);
                     }
                     v.drift += (lat.abs() - v.drift) * (1.0 - (-8.0 * dt).exp());

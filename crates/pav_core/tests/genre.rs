@@ -114,4 +114,3 @@ fn guards_spot_you_in_plain_sight_but_not_behind_walls_or_low() {
     sim.run(240, &InputFrame::default());
     assert!(sim.state.courses.message.is_some(), "standing there is seen");
 }
-

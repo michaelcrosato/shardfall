@@ -32,13 +32,17 @@ impl Sim {
         for _ in 0..pieces {
             let rng = &mut self.state.rng;
             let off = Vec3::new(rng.range(-half.x, half.x), rng.range(-half.y, half.y), rng.range(-half.z, half.z));
-            let size = Vec3::new(rng.range(0.08, 0.2), rng.range(0.06, 0.14), rng.range(0.08, 0.2)).min(half.max(Vec3::splat(0.05)));
+            let size =
+                Vec3::new(rng.range(0.08, 0.2), rng.range(0.06, 0.14), rng.range(0.08, 0.2)).min(half.max(Vec3::splat(0.05)));
             let out = (c + off - from).normalize_or(Vec3::Y);
             let vel = out * rng.range(1.5, 5.0) + Vec3::Y * rng.range(0.5, 3.0);
             let life = (rng.range(2.5, 4.0) * self.config.tick_rate.hz() as f32) as u32;
             let rot = Quat::from_euler(glam::EulerRot::XYZ, rng.range(0.0, 3.0), rng.range(0.0, 3.0), 0.0);
             let id = self.spawn(
-                Spawn::new("~debris", c + off).visual(Visual::new(Shape::Box { half: size }, color)).body(BodyKind::Dynamic).rot(rot),
+                Spawn::new("~debris", c + off)
+                    .visual(Visual::new(Shape::Box { half: size }, color))
+                    .body(BodyKind::Dynamic)
+                    .rot(rot),
             );
             if let Some(e) = self.state.entities.get_mut(id) {
                 e.lifetime = Some(life);
@@ -65,7 +69,8 @@ impl Sim {
                 let qp = self.state.physics.query_filtered(filter);
                 qp.cast_ray(&Ray::new(f + Vec3::Y * 0.05, Vec3::NEG_Y), 0.25, true).map(|(h, _)| h)
             };
-            let Some(r) = hit.and_then(|h| self.state.physics.colliders.get(h)).and_then(|c| BlockRef::from_tag(c.user_data)) else {
+            let Some(r) = hit.and_then(|h| self.state.physics.colliders.get(h)).and_then(|c| BlockRef::from_tag(c.user_data))
+            else {
                 continue;
             };
             let Some(b) = self.state.statics.get(r) else { continue };
@@ -108,7 +113,9 @@ impl Sim {
             // Regrow, unless something is in the way.
             let blocked = self.state.statics.get(c.block).is_some_and(|b| {
                 let (lo, hi) = (b.min, b.max);
-                self.state.entities.iter().any(|e| e.character.is_some() && e.pos.cmpge(lo - Vec3::splat(0.4)).all() && e.pos.cmple(hi + Vec3::splat(1.0)).all())
+                self.state.entities.iter().any(|e| {
+                    e.character.is_some() && e.pos.cmpge(lo - Vec3::splat(0.4)).all() && e.pos.cmple(hi + Vec3::splat(1.0)).all()
+                })
             });
             if blocked {
                 c.timer = 0.5;

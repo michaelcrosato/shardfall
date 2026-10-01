@@ -65,7 +65,9 @@ impl Sim {
                 let dir = to / dist.max(1e-4);
                 let start = 0.45;
                 let qp = self.state.physics.query_filtered(filter);
-                if dist > start && qp.cast_ray(&Ray::new(eye + dir * start, dir), (dist - start - 0.2).max(0.0) as Real, true).is_some() {
+                if dist > start
+                    && qp.cast_ray(&Ray::new(eye + dir * start, dir), (dist - start - 0.2).max(0.0) as Real, true).is_some()
+                {
                     seen = false;
                 }
             }

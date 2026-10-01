@@ -104,4 +104,3 @@ fn rewind_with_vehicles_is_repeatable() {
     assert!(sim.rewind_to(t2));
     assert_eq!(sim.state_hash(), h2, "re-simulation with a car matches");
 }
-

@@ -24,7 +24,15 @@ pub struct LightDef {
 
 impl Default for LightDef {
     fn default() -> Self {
-        Self { color: "#ffd9a0".into(), radius: 6.0, intensity: 1.5, flicker: 0.0, pulse: 0.0, shadows: false, offset: Vec3::ZERO }
+        Self {
+            color: "#ffd9a0".into(),
+            radius: 6.0,
+            intensity: 1.5,
+            flicker: 0.0,
+            pulse: 0.0,
+            shadows: false,
+            offset: Vec3::ZERO,
+        }
     }
 }
 

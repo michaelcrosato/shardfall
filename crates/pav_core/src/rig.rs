@@ -102,7 +102,12 @@ impl RigView {
         }
         RigView {
             feet: self.feet.iter().zip(&o.feet).map(|(a, b)| a.lerp(*b, t)).collect(),
-            chains: self.chains.iter().zip(&o.chains).map(|(a, b)| (b.0, a.1.iter().zip(&b.1).map(|(p, q)| p.lerp(*q, t)).collect())).collect(),
+            chains: self
+                .chains
+                .iter()
+                .zip(&o.chains)
+                .map(|(a, b)| (b.0, a.1.iter().zip(&b.1).map(|(p, q)| p.lerp(*q, t)).collect()))
+                .collect(),
             body: self.body.lerp(o.body, t),
             tilt: self.tilt.lerp(o.tilt, t),
         }
@@ -133,7 +138,10 @@ fn layout(def: &PuppetDef) -> Layout {
             for p in 0..n {
                 let z = rb * 0.5 * (1.0 - 2.0 * t(p));
                 for s in [-1.0f32, 1.0] {
-                    legs.push((Vec3::new(s * rb * 0.7, h, z), Vec3::new(s * (rb + leg * 0.55), 0.0, z + (0.5 - t(p)) * leg * 0.9)));
+                    legs.push((
+                        Vec3::new(s * rb * 0.7, h, z),
+                        Vec3::new(s * (rb + leg * 0.55), 0.0, z + (0.5 - t(p)) * leg * 0.9),
+                    ));
                 }
             }
             (h, leg * 0.5, leg * 0.6)
@@ -143,7 +151,10 @@ fn layout(def: &PuppetDef) -> Layout {
             for p in 0..n {
                 let z = bl * 0.3 * (1.0 - 2.0 * t(p));
                 for s in [-1.0f32, 1.0] {
-                    legs.push((Vec3::new(s * rb * 0.75, h, z), Vec3::new(s * (rb + leg * 0.5), 0.0, z * 1.4 + (0.5 - t(p)) * leg * 0.5)));
+                    legs.push((
+                        Vec3::new(s * rb * 0.75, h, z),
+                        Vec3::new(s * (rb + leg * 0.5), 0.0, z * 1.4 + (0.5 - t(p)) * leg * 0.5),
+                    ));
                 }
             }
             (h, leg * 0.5, leg * 0.55)
@@ -177,13 +188,23 @@ fn chain_specs(def: &PuppetDef, crouch: f32) -> Vec<(ChainKind, Vec3, Vec3, f32,
             let s = 1.0 - 0.35 * crouch;
             let pelvis = lay.body_h * s;
             let head = pelvis + (def.torso_length + def.head_radius * 1.5) * k * s;
-            (Vec3::new(0.0, pelvis, -rb * 0.9), Vec3::new(0.0, head + def.head_radius * k * 0.8, def.head_radius * k * 0.2), def.head_radius * k)
+            (
+                Vec3::new(0.0, pelvis, -rb * 0.9),
+                Vec3::new(0.0, head + def.head_radius * k * 0.8, def.head_radius * k * 0.2),
+                def.head_radius * k,
+            )
         }
-        BodyPlan::Spider => (Vec3::new(0.0, lay.body_h, -rb * 0.7), Vec3::new(0.0, lay.body_h + rb * 0.4, rb * 1.1), def.head_radius * k),
-        BodyPlan::Beetle => {
-            (Vec3::new(0.0, lay.body_h, -bl * 0.35), Vec3::new(0.0, lay.body_h + rb * 0.2, bl * 0.25 + rb * 1.1), def.head_radius * k)
+        BodyPlan::Spider => {
+            (Vec3::new(0.0, lay.body_h, -rb * 0.7), Vec3::new(0.0, lay.body_h + rb * 0.4, rb * 1.1), def.head_radius * k)
         }
-        BodyPlan::Lizard => (Vec3::new(0.0, lay.body_h, -bl * 0.5), Vec3::new(0.0, lay.body_h + rb * 0.6, bl * 0.5 + rb), def.head_radius * k),
+        BodyPlan::Beetle => (
+            Vec3::new(0.0, lay.body_h, -bl * 0.35),
+            Vec3::new(0.0, lay.body_h + rb * 0.2, bl * 0.25 + rb * 1.1),
+            def.head_radius * k,
+        ),
+        BodyPlan::Lizard => {
+            (Vec3::new(0.0, lay.body_h, -bl * 0.5), Vec3::new(0.0, lay.body_h + rb * 0.6, bl * 0.5 + rb), def.head_radius * k)
+        }
         BodyPlan::Blob => (Vec3::new(0.0, rb * 0.5, -rb), Vec3::new(0.0, rb * 1.9, rb * 0.2), rb * 0.6),
     };
     if def.body == BodyPlan::Lizard {
@@ -259,7 +280,11 @@ impl Rig {
         let rebuild = self.plan != def.body
             || self.feet.len() != lay.legs.len()
             || self.chains.len() != specs.len()
-            || self.chains.iter().zip(&specs).any(|(c, s)| c.kind != s.0 || c.pts.len() != s.4 || (c.seg * (s.4 - 1) as f32 - s.3).abs() > 1e-3)
+            || self
+                .chains
+                .iter()
+                .zip(&specs)
+                .any(|(c, s)| c.kind != s.0 || c.pts.len() != s.4 || (c.seg * (s.4 - 1) as f32 - s.3).abs() > 1e-3)
             || self.body.distance(feet + Vec3::Y * lay.body_h) > 3.0;
         if rebuild {
             let steps = self.steps;
@@ -315,9 +340,7 @@ impl Rig {
                 let lifted = |j: usize| self.feet.get(j).is_some_and(|f| f.t >= 0.0);
                 let (pair, side) = (i / 2, i % 2);
                 let partner = pair * 2 + (1 - side);
-                let blocked = lifted(partner)
-                    || (pair > 0 && lifted((pair - 1) * 2 + side))
-                    || lifted((pair + 1) * 2 + side);
+                let blocked = lifted(partner) || (pair > 0 && lifted((pair - 1) * 2 + side)) || lifted((pair + 1) * 2 + side);
                 if blocked && d < reach * 0.9 {
                     continue;
                 }

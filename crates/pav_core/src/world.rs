@@ -367,7 +367,13 @@ impl Sim {
         for o in &slot.def.objects {
             if let Some(vd) = &o.vehicle {
                 let name = if o.name.is_empty() { "vehicle" } else { &o.name };
-                let id = self.spawn_vehicle(name, vd.clone(), slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region));
+                let id = self.spawn_vehicle(
+                    name,
+                    vd.clone(),
+                    slot.place.point(o.pos),
+                    slot.place.quat() * o.local_rot(),
+                    Some(region),
+                );
                 if !o.name.is_empty() {
                     named.entry(o.name.clone()).or_insert(id);
                 }
@@ -490,7 +496,13 @@ impl Sim {
     }
 
     /// A chain of capsule links, or a rope bridge of hinged planks, between two points.
-    fn build_chain(&mut self, c: &crate::room::ChainDef, place: &Placement, region: RegionKey, named: &BTreeMap<String, EntityId>) {
+    fn build_chain(
+        &mut self,
+        c: &crate::room::ChainDef,
+        place: &Placement,
+        region: RegionKey,
+        named: &BTreeMap<String, EntityId>,
+    ) {
         use crate::joints::{JointKind, JointLink};
         use crate::room::ChainStyle;
         let (from, to) = (place.point(c.from), place.point(c.to));
@@ -511,15 +523,23 @@ impl Sim {
             let len = (b - a).length();
             let mid = (a + b) * 0.5;
             let (shape, rot, name) = if bridge {
-                let rot = Quat::from_mat3(&glam::Mat3::from_cols(dir, dir.cross(side.normalize()).normalize() * -1.0, side.normalize()))
-                    .normalize();
+                let rot = Quat::from_mat3(&glam::Mat3::from_cols(
+                    dir,
+                    dir.cross(side.normalize()).normalize() * -1.0,
+                    side.normalize(),
+                ))
+                .normalize();
                 (Shape::Box { half: Vec3::new(len * 0.46, c.radius * 0.5, c.width * 0.5) }, rot, "~plank")
             } else {
                 let rot = Quat::from_rotation_arc(Vec3::Y, dir);
                 (Shape::Capsule { half_height: (len * 0.5 - c.radius).max(0.01), radius: c.radius }, rot, "~link")
             };
-            let mut sp =
-                Spawn::new(name, mid).visual(Visual::new(shape, color)).body(BodyKind::Dynamic).rot(rot).density(c.density).damping(c.damping);
+            let mut sp = Spawn::new(name, mid)
+                .visual(Visual::new(shape, color))
+                .body(BodyKind::Dynamic)
+                .rot(rot)
+                .density(c.density)
+                .damping(c.damping);
             sp.region = Some(region);
             ids.push(self.spawn(sp));
         }
@@ -844,7 +864,9 @@ impl Sim {
             .state
             .entities
             .iter()
-            .filter(|e| Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none())
+            .filter(|e| {
+                Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none()
+            })
             // A vehicle someone is driving goes where its driver goes.
             .filter(|e| e.vehicle.as_ref().is_none_or(|v| v.driver.is_none()))
             .filter(|e| match area {
@@ -1124,15 +1146,10 @@ fn fresh_behavior(b: &crate::entity::Behavior) -> crate::entity::Behavior {
     match b {
         Behavior::Move(m) => Behavior::Move(crate::entity::MoverDef { origin: None, ..m.clone() }),
         Behavior::Rotate(r) => Behavior::Rotate(crate::entity::RotatorDef { origin: None, ..r.clone() }),
-        Behavior::Emitter(e) => {
-            Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() })
+        Behavior::Emitter(e) => Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() }),
+        Behavior::Spawner(s) => {
+            Behavior::Spawner(crate::entity::SpawnerDef { timer: 0.0, pending: 0, spawned: Default::default(), ..s.clone() })
         }
-        Behavior::Spawner(s) => Behavior::Spawner(crate::entity::SpawnerDef {
-            timer: 0.0,
-            pending: 0,
-            spawned: Default::default(),
-            ..s.clone()
-        }),
         Behavior::Rain { interval, max, area, height, .. } => {
             Behavior::Rain { interval: *interval, max: *max, area: *area, height: *height, timer: 0, spawned: Default::default() }
         }
@@ -1222,7 +1239,12 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
             t.push_str(&format!("hazard = {}\n", inline(&v)));
         }
     }
-    for (k, v, d) in [("density", o.density, 1.0), ("friction", o.friction, 0.5), ("restitution", o.restitution, 0.0), ("damping", o.damping, 0.0)] {
+    for (k, v, d) in [
+        ("density", o.density, 1.0),
+        ("friction", o.friction, 0.5),
+        ("restitution", o.restitution, 0.0),
+        ("damping", o.damping, 0.0),
+    ] {
         if (v - d).abs() > 1e-4 {
             t.push_str(&format!("{k} = {}\n", num(v)));
         }
