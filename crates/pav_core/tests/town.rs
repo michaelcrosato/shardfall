@@ -96,3 +96,40 @@ fn the_portal_goes_down_to_the_levels() {
     assert_eq!(game(&sim).npcs.len(), 7);
     assert!(game(&sim).level.is_none());
 }
+
+#[test]
+fn a_saved_hero_comes_back_whole() {
+    use pav_core::arpg::items::{RollSpec, Slot, roll_item};
+    let mut sim = Sim::new("level/3", 5).unwrap();
+    {
+        let g = sim.state.game.as_mut().unwrap();
+        g.hero.level = 20;
+        g.hero.gold = 1234;
+        g.hero.max_depth = 7;
+        g.hero.potion_max = 5;
+        let d = pav_core::arpg::data::data();
+        let mut rng = pav_core::rng::Rng::new(9);
+        for slot in [Slot::Weapon, Slot::Body, Slot::Ring] {
+            let id = g.hero.new_id();
+            let it =
+                roll_item(&d, &mut rng, RollSpec { level: 20, rarity: None, slot: Some(slot), rarity_bonus: 0.0 }, id).unwrap();
+            g.hero.inventory.push(it);
+        }
+    }
+    let ids: Vec<u32> = game(&sim).hero.inventory.iter().map(|i| i.id).collect();
+    for id in &ids {
+        sim.step(&InputFrame { cmd: Some(GameCmd::Equip(*id)), ..Default::default() });
+    }
+    let before = game(&sim).hero_actor().unwrap().sheet.clone();
+    let json = serde_json::to_string(&game(&sim).hero).unwrap();
+    let hero: pav_core::arpg::hero::Hero = serde_json::from_str(&json).unwrap();
+    let mut town = Sim::new("town", 6).unwrap();
+    assert!(town.load_hero(hero));
+    let g = game(&town);
+    assert_eq!(g.hero.level, 20);
+    assert_eq!(g.hero.max_depth, 7);
+    assert_eq!(g.hero.potions, 5);
+    assert_eq!(g.hero.equipment.iter().flatten().count(), 3);
+    let after = &g.hero_actor().unwrap().sheet;
+    assert!((after.life_max - before.life_max).abs() < 0.01, "same hero: {} vs {}", after.life_max, before.life_max);
+}

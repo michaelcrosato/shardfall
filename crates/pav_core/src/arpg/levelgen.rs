@@ -208,6 +208,76 @@ impl Layout {
         Rect { min, max }
     }
 
+    /// The room a point is in, or for a point in a corridor the corridor's nearer room.
+    pub fn place_of(&self, p: Vec2) -> Option<usize> {
+        if let Some(i) = self.rooms.iter().position(|r| r.rect.shrink(-0.6).contains(p)) {
+            return Some(i);
+        }
+        let c = self.corridors.iter().find(|c| c.rect.shrink(-0.6).contains(p))?;
+        let (a, b) = c.rooms;
+        let da = (self.rooms[a].rect.center() - p).length();
+        let db = (self.rooms[b].rect.center() - p).length();
+        Some(if da <= db { a } else { b })
+    }
+
+    /// A walkable route from `from` to the middle of room `to`: through the doors and down
+    /// the middle of each corridor on the way (rooms are open; furniture is the walker's
+    /// problem). Empty if `from` is nowhere.
+    pub fn route(&self, from: Vec2, to: usize) -> Vec<Vec2> {
+        let Some(start) = self.place_of(from) else { return Vec::new() };
+        // Breadth-first over rooms.
+        let n = self.rooms.len();
+        let mut prev: Vec<Option<(usize, usize)>> = vec![None; n];
+        let mut seen = vec![false; n];
+        let mut queue = std::collections::VecDeque::from([start]);
+        seen[start] = true;
+        while let Some(r) = queue.pop_front() {
+            if r == to {
+                break;
+            }
+            for (ci, c) in self.corridors.iter().enumerate() {
+                let next = if c.rooms.0 == r {
+                    c.rooms.1
+                } else if c.rooms.1 == r {
+                    c.rooms.0
+                } else {
+                    continue;
+                };
+                if !seen[next] {
+                    seen[next] = true;
+                    prev[next] = Some((r, ci));
+                    queue.push_back(next);
+                }
+            }
+        }
+        if !seen[to] {
+            return Vec::new();
+        }
+        let mut steps = Vec::new();
+        let mut at = to;
+        while let Some((p, ci)) = prev[at] {
+            steps.push((p, ci, at));
+            at = p;
+        }
+        steps.reverse();
+        let mut out = Vec::new();
+        for (a, ci, _) in steps {
+            let c = &self.corridors[ci];
+            let mid = c.rect.center();
+            let (ea, eb) = if c.along_x {
+                (Vec2::new(c.rect.min.x - 2.0, mid.y), Vec2::new(c.rect.max.x + 2.0, mid.y))
+            } else {
+                (Vec2::new(mid.x, c.rect.min.y - 2.0), Vec2::new(mid.x, c.rect.max.y + 2.0))
+            };
+            // Order the two ends: the one in room `a` first.
+            let (first, second) = if self.rooms[a].rect.shrink(-0.6).contains(ea) { (ea, eb) } else { (eb, ea) };
+            out.push(first);
+            out.push(second);
+        }
+        out.push(self.rooms[to].rect.center());
+        out
+    }
+
     /// Door gaps on a room's sides: (side 0 +x, 1 +z, 2 -x, 3 -z; from, to along the side).
     pub fn doors(&self, room: usize) -> Vec<(usize, f32, f32)> {
         let r = &self.rooms[room].rect;
@@ -263,6 +333,13 @@ mod tests {
                 }
             }
             assert!(seen.iter().all(|s| *s), "seed {seed}");
+            // A route from the start reaches the exit through every door on the way.
+            let r = l.route(l.rooms[l.start].rect.center(), l.exit);
+            assert!(r.len() >= 3, "seed {seed}: route {r:?}");
+            assert!((r.last().unwrap() - l.rooms[l.exit].rect.center()).length() < 0.01);
+            for p in &r {
+                assert!(l.place_of(*p).is_some(), "seed {seed}: route point {p} is in a room or corridor");
+            }
         }
     }
 }

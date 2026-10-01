@@ -29,8 +29,13 @@ pub struct BotStats {
 pub struct Bot {
     last_life: f32,
     pub stats: BotStats,
-    /// Where to walk when nothing is around (level exits; set by the caller).
+    /// Where to walk when nothing is around (set by the caller; levels find their own way).
     pub goal: Option<Vec3>,
+    /// Levels: the way to the exit room (waypoints), when it was planned, and where the hero
+    /// was a moment ago (to notice being stuck).
+    route: Vec<Vec3>,
+    route_at: u64,
+    stuck: (Vec3, u64),
 }
 
 const SLOT_BUTTONS: [u32; 6] =
@@ -111,14 +116,24 @@ impl Bot {
                 return f;
             }
         }
-        // Target: the nearest living monster.
+        // Target: the nearest living monster (in levels: one close by, or one already fighting).
+        let lv = g.level.as_deref();
         let target = g
             .actors
             .iter()
             .filter(|(_, a)| a.team == Team::Monster && !a.dead)
-            .filter_map(|(id, a)| feet_of(sim, *id).map(|(p, h)| (p, h, a.radius)))
+            .filter_map(|(id, a)| {
+                let (p, h) = feet_of(sim, *id)?;
+                let dist = flat(p - me).length();
+                let aggro = a.brain.as_ref().is_some_and(|b| b.aggro);
+                let near = lv.is_none() || dist < 9.0 || (aggro && dist < 15.0);
+                near.then_some((p, h, a.radius))
+            })
             .min_by(|a, b| flat(a.0 - me).length().total_cmp(&flat(b.0 - me).length()));
         let Some((t, h, r)) = target else {
+            if let Some(lv) = lv {
+                return self.walk_level(sim, g, lv, me, f);
+            }
             if let Some(goal) = self.goal {
                 let d = flat(goal - me);
                 if d.length() > 0.6 {
@@ -175,6 +190,64 @@ impl Bot {
                 f.move_dir = Vec2::new(n.x, n.z);
             }
         }
+        f
+    }
+
+    /// Nothing to fight: head for the exit room along the doors and corridors, take the way
+    /// down when it's open (the boss waits there), and shake loose when stuck on furniture.
+    fn walk_level(
+        &mut self,
+        sim: &Sim,
+        g: &super::Game,
+        lv: &super::mechanics::LevelState,
+        me: Vec3,
+        mut f: InputFrame,
+    ) -> InputFrame {
+        let me2 = Vec2::new(me.x, me.z);
+        let exit = g.spots.get(lv.exit_spot).map(|s| s.pos);
+        let in_exit = lv.layout.place_of(me2) == Some(lv.layout.exit);
+        if let Some(at) = exit.filter(|_| in_exit) {
+            if lv.exit_open && flat(at - me).length() < 2.5 {
+                f.cmd = Some(super::GameCmd::Use(lv.exit_spot as u32));
+                return f;
+            }
+            self.route = vec![at];
+        } else if self.route.is_empty() || self.stats.ticks > self.route_at + 300 {
+            self.route = lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect();
+            self.route_at = self.stats.ticks;
+        }
+        while self.route.len() > 1 && flat(self.route[0] - me).length() < 1.2 {
+            self.route.remove(0);
+        }
+        let Some(next) = self.route.first().copied() else { return f };
+        let want = flat(next - me).normalize_or_zero();
+        // Steer around furniture: the first free heading closest to the one wanted.
+        let look = flat(next - me).length().min(1.8);
+        // Three rays a body's width apart: thin gaps between stones don't count as free.
+        let free = |d: Vec3| {
+            let side = Vec3::new(-d.z, 0.0, d.x) * 0.45;
+            [Vec3::ZERO, side, -side].iter().all(|o| sim.raycast(me + Vec3::Y * 0.45 + *o, d, look, None).is_none())
+        };
+        let mut dir = want;
+        for k in [0.0f32, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8] {
+            let d = glam::Quat::from_rotation_y(k) * want;
+            if free(d) {
+                dir = d;
+                break;
+            }
+        }
+        // Still stuck: sidestep for a moment and plan again.
+        if self.stats.ticks.is_multiple_of(60) {
+            if flat(self.stuck.0 - me).length() < 0.5 {
+                self.stuck.1 = self.stats.ticks + 45;
+                self.route.clear();
+            }
+            self.stuck.0 = me;
+        }
+        if self.stats.ticks < self.stuck.1 {
+            dir = Vec3::new(-dir.z, 0.0, dir.x);
+        }
+        f.move_dir = Vec2::new(dir.x, dir.z);
         f
     }
 

@@ -15,6 +15,7 @@ mod input;
 mod panel;
 mod platform;
 mod rooms;
+mod save;
 mod settings;
 mod simhost;
 mod ui;

@@ -314,6 +314,21 @@ impl Sim {
         self.state.game = Some(Box::new(g));
     }
 
+    /// Puts a saved hero into the running game: gear, bags, passives, potions and waypoints,
+    /// recomputed and healed; the vendor restocks for their level.
+    pub fn load_hero(&mut self, hero: Hero) -> bool {
+        let Some(mut g) = self.state.game.take() else { return false };
+        g.hero = hero;
+        g.hero.potions = g.hero.potion_max;
+        refresh_hero(self, &mut g, true);
+        if g.place == Place::Town {
+            g.restock(self);
+        }
+        g.inv_changed();
+        self.state.game = Some(g);
+        true
+    }
+
     /// Spawns a monster of a family (game/monsters.toml) at `feet`.
     pub fn spawn_monster(&mut self, family: &str, level: u32, rarity: Rarity, feet: Vec3, pack: u32) -> Option<EntityId> {
         let mut g = self.state.game.take()?;
