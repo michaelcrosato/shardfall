@@ -601,6 +601,9 @@ impl App {
             let open = !self.menu_open;
             self.set_menu(open);
         }
+        if self.input.pad.map_pressed {
+            self.game_ui.map = !self.game_ui.map;
+        }
         self.rig.params.yaw = (self.rig.params.yaw + self.input.pad.rotate * 90.0 * dt + 540.0).rem_euclid(360.0) - 180.0;
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 

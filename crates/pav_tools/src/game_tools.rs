@@ -1193,6 +1193,36 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
             _ => {}
         }
     }
+    // The navigation grid as the AI sees it, and the way from the hero to the exit.
+    let mut route_len = None;
+    if a.get("nav").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let mut lv2 = (**lv).clone();
+        let grid = lv2.nav_grid(sim, &g.actors);
+        for (i, b) in grid.blocked.iter().enumerate() {
+            let p = grid.center(i);
+            if *b && b_contains(&lv.layout, p) {
+                let (x, y) = at(p.x - grid.cell * 0.5, p.z - grid.cell * 0.5);
+                let (x2, y2) = at(p.x + grid.cell * 0.5, p.z + grid.cell * 0.5);
+                c.rect((x, y), (x2, y2), [200, 40, 40], 0.45);
+            }
+        }
+        let exit = g.spots.iter().find(|s| s.kind == pav_core::arpg::SpotKind::Exit).map(|s| s.pos);
+        if let (Some(h), Some(e)) = (g.hero_id.and_then(|h| sim.state.entities.get(h)), exit) {
+            if let Some(p) = grid.path(h.pos, e) {
+                let mut prev = at(h.pos.x, h.pos.z);
+                let mut len = 0.0;
+                let mut last = h.pos;
+                for q in &p {
+                    let n = at(q.x, q.z);
+                    c.line(prev, n, 2.5, [120, 255, 140]);
+                    len += (glam::Vec2::new(q.x - last.x, q.z - last.z)).length();
+                    prev = n;
+                    last = *q;
+                }
+                route_len = Some(round3(len));
+            }
+        }
+    }
     if let Some(h) = g.hero_id.and_then(|h| sim.state.entities.get(h)) {
         let (x, y) = at(h.pos.x, h.pos.z);
         c.disc(x, y, (k * 0.9).max(3.0), [255, 255, 255]);
@@ -1216,7 +1246,8 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
         "features": counts,
         "monsters": g.monsters_alive(),
         "boss": if lv.boss_name.is_empty() { None } else { Some(&lv.boss_name) },
-        "legend": "blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests",
+        "route_to_exit_m": route_len,
+        "legend": "red cells = not walkable (nav=true), green line = the planned way from the hero to the exit; blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests",
     });
     Ok(Output::Image { png, path: Some(path), meta })
 }
@@ -1224,4 +1255,10 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
 /// The authored overrides, echoed back so a design session can be replayed.
 fn look_json(a: &Args) -> Value {
     a.get("def").cloned().unwrap_or(Value::Null)
+}
+
+/// Whether a point is inside a room or corridor of the layout (the map only shades those).
+fn b_contains(l: &pav_core::arpg::levelgen::Layout, p: Vec3) -> bool {
+    let q = glam::Vec2::new(p.x, p.z);
+    l.rooms.iter().any(|r| r.rect.contains(q)) || l.corridors.iter().any(|c| c.rect.contains(q))
 }

@@ -235,11 +235,10 @@ pub fn designed(d: &Data) -> u32 {
     d.levels.len() as u32
 }
 
-/// Monster level at a depth: 1, 4, 7 ... through the designed levels, then +2 per depth.
+/// Monster level at a depth: 1, 3, 5 ... (23 at the last designed level), then +2 per depth.
 pub fn monster_level(d: &Data, depth: u32) -> u32 {
-    let n = designed(d).max(1);
-    let depth = depth.max(1);
-    if depth <= n { 1 + (depth - 1) * 3 } else { 1 + (n - 1) * 3 + 2 * (depth - n) }
+    let _ = d;
+    1 + (depth.max(1) - 1) * 2
 }
 
 /// What depth `depth` is. Designed levels come from game/levels.toml; past them, a depth is a
@@ -708,8 +707,11 @@ impl<'a> Builder<'a> {
     fn sconce(&mut self, at: Vec3, out: Vec3) {
         let t = &self.plan.theme;
         let iron = Color::hex("#2a2624");
-        let b0 = at - Vec3::splat(0.12) + out * 0.0;
-        self.block(b0 - Vec3::Y * 0.1, b0 + Vec3::splat(0.24), iron);
+        // Decoration only: a bracket at head height must never catch anyone.
+        let b0 = at - Vec3::splat(0.12);
+        let st = &mut self.sim.state;
+        st.statics
+            .add(&mut st.physics, Block::new(b0 - Vec3::Y * 0.1, b0 + Vec3::splat(0.24), iron).with_flags(block_flags::GHOST));
         let mut v = Visual::new(Shape::Sphere { radius: 0.11 }, Color::hex(&t.light));
         v.look = Look::Unlit;
         v.emissive = 2.4;
@@ -1593,7 +1595,7 @@ impl<'a> Builder<'a> {
             let c = self.layout.rooms[self.layout.exit].rect.center();
             let at = Vec3::new(c.x, 0.1, c.y - 5.0);
             let g = self.game.as_mut().unwrap();
-            if let Some(id) = g.spawn_boss(self.sim, key, level + 2, at) {
+            if let Some(id) = g.spawn_boss(self.sim, key, level + 1, at) {
                 if let Some(b) = g.actors.get_mut(&id).and_then(|a| a.brain.as_mut()) {
                     b.aggro = false;
                 }

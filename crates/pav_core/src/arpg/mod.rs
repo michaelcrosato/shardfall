@@ -597,6 +597,11 @@ impl Game {
             Some((feet_of(sim, h)?.0, a.radius))
         });
         let speed_k = sim.config.difficulty.enemy_speed;
+        // Levels: monsters chase the hero around walls along a flow field.
+        let flow = match (self.level.as_mut(), hero) {
+            (Some(lv), Some((hf, _))) => lv.hero_flow(sim, &self.actors, hf).zip(lv.nav.clone()),
+            _ => None,
+        };
         let ids: Vec<EntityId> = self.actors.iter().filter(|(_, a)| a.brain.is_some()).map(|(id, _)| *id).collect();
         // Waking up: packs aggro together.
         let mut woke = Vec::new();
@@ -627,6 +632,16 @@ impl Game {
                 let reach = a.radius + hero.map(|h| h.1).unwrap_or(0.4);
                 let dec = a.brain.as_mut().unwrap().think(feet, hero.map(|h| h.0), reach, &options, &mut sim.state.rng, dt);
                 inp.move_dir = dec.move_dir;
+                if let (Some((field, grid)), Some((hf, _))) = (&flow, hero) {
+                    let to = flat(hf - feet);
+                    let mv = Vec3::new(inp.move_dir.x, 0.0, inp.move_dir.y);
+                    let chasing = mv.length() > 0.1 && to.length() > 1.6 && mv.normalize().dot(to.normalize()) > 0.3;
+                    if chasing && !grid.clear(feet, hf) {
+                        if let Some(d) = field.dir(grid, feet) {
+                            inp.move_dir = glam::Vec2::new(d.x, d.z) * mv.length().min(1.0);
+                        }
+                    }
+                }
                 if let Some((skill, target)) = dec.cast {
                     skills::try_cast(self, sim, id, skill, target);
                 }

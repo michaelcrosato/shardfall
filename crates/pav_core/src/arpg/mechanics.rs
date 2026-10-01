@@ -185,6 +185,12 @@ pub struct LevelState {
     pub lantern: Option<EntityId>,
     pub time: f32,
     pub pulse: f32,
+    /// Where one can walk (built on first use from the level's blocks), and the way to the
+    /// hero from everywhere near them (rebuilt when the hero moves to another cell).
+    #[serde(skip)]
+    pub nav: Option<std::sync::Arc<crate::nav::NavGrid>>,
+    #[serde(skip)]
+    pub flow: Option<std::sync::Arc<crate::nav::FlowField>>,
 }
 
 impl LevelState {
@@ -215,7 +221,44 @@ impl LevelState {
             lantern: None,
             time: 0.0,
             pulse: 0.0,
+            nav: None,
+            flow: None,
         }
+    }
+
+    /// The level's navigation grid (built once from its blocks and props).
+    pub fn nav_grid(
+        &mut self,
+        sim: &Sim,
+        actors: &std::collections::BTreeMap<EntityId, super::combat::Actor>,
+    ) -> std::sync::Arc<crate::nav::NavGrid> {
+        if let Some(n) = &self.nav {
+            return n.clone();
+        }
+        let b = self.layout.bounds();
+        let grid = crate::nav::NavGrid::build(sim, b.min - Vec2::splat(3.0), b.max + Vec2::splat(3.0), 0.5, 0.45, &|id| {
+            actors.contains_key(&id)
+        });
+        let grid = std::sync::Arc::new(grid);
+        self.nav = Some(grid.clone());
+        grid
+    }
+
+    /// The way to the hero from everywhere within 40 m (cached per hero cell).
+    pub fn hero_flow(
+        &mut self,
+        sim: &Sim,
+        actors: &std::collections::BTreeMap<EntityId, super::combat::Actor>,
+        hero: Vec3,
+    ) -> Option<std::sync::Arc<crate::nav::FlowField>> {
+        let grid = self.nav_grid(sim, actors);
+        let cell = grid.nearest_open(hero)?;
+        if let Some(f) = self.flow.as_ref().filter(|f| f.goal == cell) {
+            return Some(f.clone());
+        }
+        let f = std::sync::Arc::new(grid.flow(hero, 40.0)?);
+        self.flow = Some(f.clone());
+        Some(f)
     }
 
     fn inside(min: Vec2, max: Vec2, p: Vec3) -> bool {

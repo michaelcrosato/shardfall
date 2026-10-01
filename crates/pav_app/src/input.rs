@@ -183,6 +183,7 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Dodge roll", "A"),
             ("Potion", "D-pad up"),
             ("Use (trade, portal, way down, chests)", "D-pad right"),
+            ("Map", "D-pad left"),
             ("Menu", "Start"),
         ],
     }
@@ -235,6 +236,8 @@ pub struct Pad {
     pub rotate: f32,
     pub zoom: f32,
     pub start_pressed: bool,
+    /// D-pad left (the game's map).
+    pub map_pressed: bool,
     pub back_held: bool,
     pub any_activity: bool,
 }
@@ -328,10 +331,15 @@ impl Input {
         let Some(g) = &mut self.gilrs else { return };
         let mut activity = false;
         let mut start = false;
+        let mut map = false;
         while let Some(ev) = g.next_event() {
             match ev.event {
                 gilrs::EventType::ButtonPressed(gilrs::Button::Start, _) => {
                     start = true;
+                    activity = true;
+                }
+                gilrs::EventType::ButtonPressed(gilrs::Button::DPadLeft, _) => {
+                    map = true;
                     activity = true;
                 }
                 gilrs::EventType::ButtonPressed(..) => activity = true,
@@ -341,7 +349,7 @@ impl Input {
                 _ => {}
             }
         }
-        let mut pad = Pad { start_pressed: start, any_activity: activity, ..Default::default() };
+        let mut pad = Pad { start_pressed: start, map_pressed: map, any_activity: activity, ..Default::default() };
         if let Some((_, gp)) = g.gamepads().next() {
             use gilrs::{Axis, Button};
             pad.left = deadzone(Vec2::new(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY)), 0.18);

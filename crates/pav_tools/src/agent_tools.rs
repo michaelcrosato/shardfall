@@ -259,7 +259,11 @@ pub fn t_campaign(s: &mut Session, a: &Args) -> Result<Output> {
     let mut rows = Vec::new();
     let t0 = std::time::Instant::now();
     let total = (secs * hz) as u64;
-    for _ in 0..total {
+    let wall = a.get("wall").and_then(|v| v.as_f64()).unwrap_or(300.0);
+    for i in 0..total {
+        if i % 600 == 0 && t0.elapsed().as_secs_f64() > wall {
+            break;
+        }
         let f = bot.input(&s.sim);
         s.sim.step(&f);
         let now = snapshot(s);
