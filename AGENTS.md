@@ -109,14 +109,17 @@ Tools: `scenes load step status entities params set camera capture bench gpu pla
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
-tree_map`
+tree_map genome bestiary boss turntable animsheet`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
   `game_cmd do=sell id=12` does any menu action exactly as the player would (it rides in the
   input frame, so replays include it). `tree find=fire`, `tree take=Unbowed` (allocates the
-  path), `tree_map` (PNG of the generated passive tree). Game data lives in `game/*.toml`
+  path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
+  (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
+  `animsheet` (its attack frame by frame), `bestiary count=500` (generator variety), `boss`
+  (spawn a designed or generated boss). Game data lives in `game/*.toml`
   (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`).
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
@@ -151,7 +154,7 @@ entity fields); keep rooms as data wherever possible.
 ### Scenes
 `world` (pavilion + rooms + streaming wilderness), `world/<room>` (start in a room),
 `<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` (the game
-starts here by default) and `arena`.
+starts here by default), `arena` and `lab` (the Menagerie of creatures).
 Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 
 ## Game controls (current)
@@ -183,7 +186,8 @@ spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a 
 of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
-passive tree through commands, keystones, the bot spending points).
+passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`
+(archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

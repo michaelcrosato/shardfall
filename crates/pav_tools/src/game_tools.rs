@@ -598,3 +598,270 @@ pub fn t_tree(s: &mut Session, a: &Args) -> Result<Output> {
         "nodes": t.nodes.iter().filter(|n| n.ring == 0).count(),
     })))
 }
+
+// ------------------------------------------------------------------------------ creatures
+
+fn genome_opts(a: &Args) -> Result<pav_core::arpg::genome::GenomeOpts> {
+    use pav_core::params::ChoiceParam;
+    let body = match get_str(a, "body") {
+        None => None,
+        Some(b) => Some(
+            pav_core::puppet::BodyPlan::NAMES
+                .iter()
+                .position(|n| *n == b)
+                .map(pav_core::puppet::BodyPlan::from_index)
+                .ok_or_else(|| anyhow!("unknown body '{b}' (biped spider lizard beetle blob)"))?,
+        ),
+    };
+    let element = match get_str(a, "element") {
+        None => None,
+        Some(e) => Some(
+            pav_core::arpg::data::Element::ALL
+                .iter()
+                .copied()
+                .find(|x| x.name().eq_ignore_ascii_case(e))
+                .ok_or_else(|| anyhow!("unknown element '{e}'"))?,
+        ),
+    };
+    let parts = match get_str(a, "parts") {
+        None => None,
+        Some(list) => Some(
+            list.split(',')
+                .map(|p| {
+                    pav_core::parts::AttachKind::NAMES
+                        .iter()
+                        .position(|n| *n == p.trim())
+                        .map(pav_core::parts::AttachKind::from_index)
+                        .ok_or_else(|| anyhow!("unknown part '{p}' ({})", pav_core::parts::AttachKind::NAMES.join(" ")))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        ),
+    };
+    Ok(pav_core::arpg::genome::GenomeOpts { body, archetype: get_str(a, "archetype").map(String::from), element, parts })
+}
+
+fn genome_json(g: &pav_core::arpg::genome::Genome) -> Value {
+    json!({
+        "seed": g.seed,
+        "name": g.name,
+        "body": format!("{:?}", g.body).to_lowercase(),
+        "archetype": g.archetype,
+        "brain": format!("{:?}", g.brain).to_lowercase(),
+        "element": g.element.name(),
+        "size": round3(g.puppet.scale),
+        "parts": g.puppet.parts.iter().map(|p| format!("{:?} x{:.1}{}", p.kind, p.size, if p.count > 0 { format!(" ({})", p.count) } else { String::new() }).to_lowercase()).collect::<Vec<_>>(),
+        "skills": g.skills,
+        "life": round3(g.life),
+        "damage": round3(g.damage),
+        "speed": round3(g.speed),
+        "powers": g.powers.iter().map(|p| p.describe()).collect::<Vec<_>>(),
+        "colors": [g.puppet.skin.clone(), g.puppet.shirt.clone(), g.puppet.accent.clone()],
+    })
+}
+
+pub fn t_genome(s: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    let seed = get_u64(a, "seed", 1)?;
+    let level = get_u64(a, "level", 10)? as u32;
+    let g = pav_core::arpg::genome::Genome::generate(&d, seed, level, &genome_opts(a)?).map_err(|e| anyhow!(e))?;
+    let mut out = genome_json(&g);
+    if a.get("spawn").and_then(|v| v.as_bool()).unwrap_or(false) {
+        game(s)?;
+        let feet = s.sim.player().map(|p| p.pos - Vec3::Y * p.character.as_ref().unwrap().height() * 0.5).unwrap_or_default();
+        let spec = g.spec(&d);
+        let mut gm = s.sim.state.game.take().unwrap();
+        let pack = gm.next_pack;
+        gm.next_pack += 1;
+        let id = pav_core::arpg::spawn_spec_into(
+            &mut s.sim,
+            &mut gm,
+            &spec,
+            level,
+            Rarity::Normal,
+            feet + Vec3::new(0.0, 0.0, -6.0),
+            pack,
+        );
+        s.sim.state.game = Some(gm);
+        out["spawned"] = json!(id.map(|i| i.0));
+    }
+    Ok(Output::Json(out))
+}
+
+pub fn t_bestiary(_: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    let count = get_u64(a, "count", 20)?.clamp(1, 5000);
+    let level = get_u64(a, "level", 10)? as u32;
+    let start = get_u64(a, "seed", 1)?;
+    let opts = genome_opts(a)?;
+    let mut list = Vec::new();
+    let mut by: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
+    let mut names = std::collections::BTreeSet::new();
+    for i in 0..count {
+        let g = pav_core::arpg::genome::Genome::generate(&d, start + i, level, &opts).map_err(|e| anyhow!(e))?;
+        for (k, v) in [
+            ("body", format!("{:?}", g.body).to_lowercase()),
+            ("archetype", g.archetype.clone()),
+            ("element", g.element.name().to_string()),
+            ("parts", g.puppet.parts.len().to_string()),
+        ] {
+            *by.entry(k.into()).or_default().entry(v).or_default() += 1;
+        }
+        for p in &g.puppet.parts {
+            *by.entry("part kinds".into()).or_default().entry(format!("{:?}", p.kind).to_lowercase()).or_default() += 1;
+        }
+        names.insert(g.name.clone());
+        if list.len() < 30 {
+            list.push(json!(format!(
+                "#{} {} — {} {} ({}), {}",
+                g.seed,
+                g.name,
+                g.element.name(),
+                format!("{:?}", g.body).to_lowercase(),
+                g.archetype,
+                g.skills.join("/")
+            )));
+        }
+    }
+    Ok(Output::Json(json!({ "count": count, "distinct_names": names.len(), "spread": by, "examples": list })))
+}
+
+pub fn t_boss(s: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    let Some(key) =
+        get_str(a, "key").map(String::from).or_else(|| a.get("seed").and_then(|v| v.as_u64()).map(|x| format!("gen:{x}")))
+    else {
+        let list: Vec<Value> = d
+            .bosses
+            .iter()
+            .map(|b| json!({ "key": b.key, "name": b.name, "title": b.title, "phases": b.phases.iter().map(|p| json!({ "at": p.at, "say": p.say })).collect::<Vec<_>>() }))
+            .collect();
+        return Ok(Output::Json(json!({ "bosses": list, "generated": "seed=N spawns a generated boss" })));
+    };
+    game(s)?;
+    let level = get_u64(a, "level", game(s)?.hero.level as u64)? as u32;
+    let feet = s.sim.player().map(|p| p.pos - Vec3::Y * p.character.as_ref().unwrap().height() * 0.5).unwrap_or_default();
+    let mut gm = s.sim.state.game.take().unwrap();
+    let id = gm.spawn_boss(&mut s.sim, &key, level, feet + Vec3::new(0.0, 0.0, -9.0));
+    s.sim.state.game = Some(gm);
+    let id = id.ok_or_else(|| anyhow!("unknown boss '{key}'"))?;
+    let g = game(s)?;
+    let b = &g.actors[&id];
+    Ok(Output::Json(
+        json!({ "spawned": id.0, "name": b.name, "life": round3(b.sheet.life_max), "level": level, "skills": b.skills.iter().map(|k| d.skill(*k).key.clone()).collect::<Vec<_>>() }),
+    ))
+}
+
+/// The creature a tool should show: seed=, family=, boss=, or the hero.
+fn creature_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::PuppetDef, Option<pav_core::arpg::data::SkillDef>)> {
+    let d = data();
+    let level = get_u64(a, "level", 20)? as u32;
+    let first_skill = |skills: &[u16]| skills.first().map(|k| d.skill(*k).clone());
+    if let Some(k) = get_str(a, "boss") {
+        let def = pav_core::arpg::boss::boss_def(&d, k, level).ok_or_else(|| anyhow!("unknown boss '{k}'"))?;
+        let spec = pav_core::arpg::boss::boss_spec(&d, &def, level).map_err(|e| anyhow!(e))?;
+        return Ok((spec.name.clone(), spec.puppet.clone(), first_skill(&spec.skills)));
+    }
+    if let Some(k) = get_str(a, "family") {
+        let f = d.family(k).ok_or_else(|| anyhow!("unknown family '{k}'"))?;
+        return Ok((f.name.clone(), f.puppet.clone(), first_skill(&f.skill_ids)));
+    }
+    if a.contains_key("seed") || a.contains_key("body") || a.contains_key("archetype") || a.contains_key("parts") {
+        let g = pav_core::arpg::genome::Genome::generate(&d, get_u64(a, "seed", 1)?, level, &genome_opts(a)?)
+            .map_err(|e| anyhow!(e))?;
+        let spec = g.spec(&d);
+        return Ok((g.name.clone(), g.puppet.clone(), first_skill(&spec.skills)));
+    }
+    let p = s.sim.player().and_then(|p| p.character.as_ref()?.puppet.clone()).map(|p| (*p).clone()).unwrap_or_default();
+    Ok(("the hero".into(), p, d.skill_id("slash").map(|i| d.skill(i).clone())))
+}
+
+/// Renders a creature alone on a small floor: from several angles, or through an action.
+fn creature_frames(
+    s: &mut Session,
+    look: pav_core::puppet::PuppetDef,
+    frames: usize,
+    size: u32,
+    act: Option<&pav_core::arpg::data::SkillDef>,
+) -> Result<Vec<Vec<u8>>> {
+    s.gpu()?;
+    let mut tmp = Session::new("empty", 1)?;
+    tmp.gpu = s.gpu.take();
+    if let Some(p) = tmp.sim.state.player.take() {
+        tmp.sim.despawn(p);
+    }
+    let scale = look.scale;
+    let id = tmp.sim.spawn_npc("subject", Vec3::new(0.5, 0.0, 0.5), 0.0, look, None, None);
+    tmp.sim.run(20, &pav_core::InputFrame::default());
+    let feet = tmp.sim.state.entities.get(id).map(|e| e.pos).unwrap_or_default();
+    tmp.sim.state.focus = feet;
+    tmp.camera.params.tilt = 22.0;
+    tmp.camera.params.distance = 2.2 + scale * 2.6;
+    tmp.camera.params.fov = 38.0;
+    tmp.camera.params.height_offset = 0.0;
+    tmp.camera.params.follow_lag = 0.0;
+    let mut shots = Vec::with_capacity(frames);
+    let r = (|| -> Result<()> {
+        for i in 0..frames {
+            match act {
+                None => tmp.camera.params.yaw = 30.0 + i as f32 * 360.0 / frames as f32,
+                Some(def) => {
+                    tmp.camera.params.yaw = 60.0;
+                    if let Some(ch) = tmp.sim.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) {
+                        ch.anim.act_kind = def.anim.index();
+                        ch.anim.act = i as f32 / (frames - 1).max(1) as f32;
+                        ch.anim.act_hit = def.hit;
+                        ch.anim.act_side = 1.0;
+                        ch.anim.time += 0.05;
+                    }
+                }
+            }
+            shots.push(tmp.render(size, size)?);
+        }
+        Ok(())
+    })();
+    s.gpu = tmp.gpu.take();
+    r?;
+    Ok(shots)
+}
+
+fn save_png(a: &Args, default: &str, png: &[u8]) -> Result<std::path::PathBuf> {
+    let path = std::path::PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(default.into()));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, png)?;
+    Ok(path)
+}
+
+pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
+    let (name, look, _) = creature_look(s, a)?;
+    let angles = get_u64(a, "angles", 8)?.clamp(1, 16) as usize;
+    let size = get_u64(a, "size", 256)?.clamp(64, 1024) as u32;
+    let shots = creature_frames(s, look, angles, size, None)?;
+    let cols = get_u64(a, "columns", 4)? as u32;
+    let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
+    let png = pav_render::capture::encode_png(tw, th, &px)?;
+    let path = save_png(a, "out/turntable.png", &png)?;
+    Ok(Output::Image { png, path: Some(path.clone()), meta: json!({ "creature": name, "angles": angles, "path": path }) })
+}
+
+pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
+    let d = data();
+    let (name, look, first) = creature_look(s, a)?;
+    let def = match get_str(a, "skill") {
+        Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
+        None => first.ok_or_else(|| anyhow!("no skill to show"))?,
+    };
+    let frames = get_u64(a, "frames", 8)?.clamp(2, 24) as usize;
+    let size = get_u64(a, "size", 220)?.clamp(64, 1024) as u32;
+    let shots = creature_frames(s, look, frames, size, Some(&def))?;
+    let cols = get_u64(a, "columns", 8)? as u32;
+    let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
+    let png = pav_render::capture::encode_png(tw, th, &px)?;
+    let path = save_png(a, "out/animsheet.png", &png)?;
+    Ok(Output::Image {
+        png,
+        path: Some(path.clone()),
+        meta: json!({ "creature": name, "skill": def.key, "anim": format!("{:?}", def.anim).to_lowercase(), "frames": frames, "path": path }),
+    })
+}

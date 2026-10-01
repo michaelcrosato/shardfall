@@ -260,9 +260,42 @@ fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device
 pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device) {
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("arpg_hud")));
     let screen = ctx.content_rect();
+    // The boss bar.
+    if let Some(b) = &g.boss {
+        let w = 640.0f32.min(screen.width() * 0.6);
+        let r = Rect::from_center_size(screen.center_top() + EVec2::new(0.0, 64.0), EVec2::new(w, 14.0));
+        p.rect_filled(r.expand(3.0), 4.0, Color32::from_black_alpha(220));
+        let mut fill = r;
+        fill.set_width(w * b.life);
+        p.rect_filled(fill, 3.0, Color32::from_rgb(190, 60, 20));
+        for m in &b.marks {
+            let x = r.left() + w * m;
+            p.line_segment(
+                [Pos2::new(x, r.top() - 2.0), Pos2::new(x, r.bottom() + 2.0)],
+                Stroke::new(2.0, Color32::from_rgb(255, 210, 120)),
+            );
+        }
+        p.rect_stroke(r, 3.0, Stroke::new(1.5, Color32::from_rgb(200, 150, 80)), egui::StrokeKind::Outside);
+        p.text(
+            r.center_top() - EVec2::new(0.0, 6.0),
+            Align2::CENTER_BOTTOM,
+            &b.name,
+            FontId::proportional(20.0),
+            Color32::from_rgb(255, 160, 70),
+        );
+        if !b.title.is_empty() {
+            p.text(
+                r.center_bottom() + EVec2::new(0.0, 5.0),
+                Align2::CENTER_TOP,
+                &b.title,
+                FontId::proportional(12.0),
+                Color32::from_white_alpha(170),
+            );
+        }
+    }
     // Monster health bars and names.
     for a in &g.actors {
-        if a.dead || a.team != Team::Monster || (!a.aggro && a.life >= 1.0) {
+        if a.dead || a.team != Team::Monster || (!a.aggro && a.life >= 1.0) || (a.rarity == Rarity::Unique && g.boss.is_some()) {
             continue;
         }
         let Some(s) = proj.to_screen(a.feet + Vec3::Y * (a.height + 0.45)) else { continue };

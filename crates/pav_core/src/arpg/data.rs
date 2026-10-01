@@ -227,6 +227,16 @@ pub enum Archetype {
     Melee,
     Ranged,
     Charger,
+    /// Keeps well back and casts (big spells from afar).
+    Caster,
+    /// Darts in, strikes, darts out.
+    Skirmisher,
+    /// Straight at you, fast, in crowds.
+    Swarm,
+    /// Runs at you and bursts.
+    Bomber,
+    /// Hangs back and calls its brood.
+    Summoner,
 }
 
 /// A monster family (game/monsters.toml).
@@ -299,6 +309,11 @@ pub struct Data {
     pub uniques: Vec<UniqueDef>,
     /// The passive tree, generated from game/tree.toml.
     pub tree: super::tree::Tree,
+    /// The monster genome's pieces (game/genome.toml) and monster affixes.
+    pub genome: super::genome::GenomeData,
+    pub monster_affixes: Vec<super::genome::MonsterAffix>,
+    /// Designed bosses (game/bosses.toml).
+    pub bosses: Vec<super::boss::BossDef>,
 }
 
 impl Data {
@@ -354,6 +369,9 @@ pub fn load() -> Result<Data, String> {
         affixes: Vec::new(),
         uniques: Vec::new(),
         tree: Default::default(),
+        genome: Default::default(),
+        monster_affixes: Vec::new(),
+        bosses: Vec::new(),
     };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
@@ -413,6 +431,40 @@ pub fn load() -> Result<Data, String> {
     let file: super::tree::TreeFile = toml::from_str(&text).map_err(|e| format!("game/tree.toml: {e}"))?;
     let names = |k: &str| d.skill_id(k).filter(|i| !d.skill(*i).monster).map(|i| d.skill(i).name.clone());
     d.tree = super::tree::Tree::build(&file, &names)?;
+    let text = source("genome").ok_or("game/genome.toml is missing")?;
+    d.genome = toml::from_str(&text).map_err(|e| format!("game/genome.toml: {e}"))?;
+    for (k, mut a) in table::<super::genome::MonsterAffix>("monster_affixes")? {
+        a.key = k.clone();
+        for (s, v) in &a.mods {
+            a.stats.push((Stat::from_key(s).ok_or_else(|| format!("monster affix '{k}': unknown stat '{s}'"))?, *v));
+        }
+        for s in &a.skills {
+            d.skill_id(s).ok_or_else(|| format!("monster affix '{k}': unknown skill '{s}'"))?;
+        }
+        d.monster_affixes.push(a);
+    }
+    for (k, mut b) in table::<super::boss::BossDef>("bosses")? {
+        b.key = k.clone();
+        for p in &b.phases {
+            for s in p.mods.keys() {
+                Stat::from_key(s).ok_or_else(|| format!("boss '{k}': unknown stat '{s}'"))?;
+            }
+            if let Some(sm) = &p.summon {
+                if sm.family != "brood" && d.family(&sm.family).is_none() {
+                    return Err(format!("boss '{k}': unknown family '{}'", sm.family));
+                }
+            }
+        }
+        d.bosses.push(b);
+    }
+    for b in &d.bosses {
+        super::boss::boss_spec(&d, b, 10)?;
+    }
+    // Every archetype must be able to make a creature.
+    for k in d.genome.archetype.keys() {
+        let opts = super::genome::GenomeOpts { archetype: Some(k.clone()), ..Default::default() };
+        super::genome::Genome::generate(&d, 1, 1, &opts)?;
+    }
     Ok(d)
 }
 

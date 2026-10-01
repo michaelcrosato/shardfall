@@ -55,7 +55,7 @@ small generators, and every system has an agent tool to build and inspect it.
 - **G3 Builds:** passive tree (data + layout + UI), all 16 skills, masteries, keystones,
   respec. *(done: see "Builds" below)*
 - **G4 Monsters:** genome, parts rendering, palettes, archetype brains, monster affixes, boss
-  phases, creature lab.
+  phases, creature lab. *(done: see "Monsters" below)*
 - **G5 World:** town hub with animated NPCs, layout generator and themes, twelve mechanics,
   designed levels 1-12, endless Depths, waypoints, saving.
 - **G6 Showcase:** juice pass, the agent tools, bot balance pass, browser build, docs and the
@@ -98,3 +98,15 @@ small generators, and every system has an agent tool to build and inspect it.
   keystones (Echoing Blades, Wind Dancer, Glass Edge, Avatar of Storm, Pyre, Avatar of Flame).
   Beyond: the Astral rings, endless, stronger ring by ring. One point per level; refund and
   respec cost gold.
+
+## Monsters (G4)
+- **Genome**: body plan × proportions × parts × palette (element) × archetype (brain, skill
+  pools, stat shape) → a named creature, the same from the same seed. Five body plans, ten
+  part kinds that fit any plan, five elements, nine archetypes (brute, stalker, spitter,
+  charger, caster, swarm, bomber, summoner, tank).
+- **Affixes** make magic and rare monsters (Fast, Molten, Frost-Touched, Multishot,
+  Teleporting, Warlord, Brood, Enraging...); rares get names of their own.
+- **Bosses** grow from genome seeds with forced looks and scripted phases; beyond the five
+  designed ones they are generated (summon a brood, change tactics, enrage).
+- **The Menagerie** shows twenty creatures at a time with their genome cards; let any of them
+  out to fight it, or grow a new set.

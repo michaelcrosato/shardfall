@@ -39,10 +39,12 @@ pub struct SkillOption<'a> {
     pub ready: bool,
 }
 
-/// A decision: where to move (world XZ, length <= 1) and maybe a skill to use at a point.
+/// A decision: where to move (world XZ, length <= 1) and maybe a skill to use at a point (or
+/// bursting, for bombers).
 pub struct Decision {
     pub move_dir: Vec2,
     pub cast: Option<(u16, Vec3)>,
+    pub detonate: bool,
 }
 
 fn flat(v: Vec3) -> Vec2 {
@@ -67,6 +69,22 @@ impl Brain {
         let d = flat(t - me);
         let dist = d.length();
         let dir = d.normalize_or_zero();
+        // Bombers burst when they reach you.
+        if self.arch == Archetype::Bomber && dist <= reach + 0.7 {
+            return Decision { move_dir: Vec2::ZERO, cast: None, detonate: true };
+        }
+        // Skirmishers back off after striking.
+        if self.arch == Archetype::Skirmisher && self.wait > 0.0 {
+            self.wait -= dt;
+            self.strafe_t -= dt;
+            if self.strafe_t <= 0.0 {
+                self.strafe = if rng.f32() < 0.5 { -1.0 } else { 1.0 };
+                self.strafe_t = rng.range(0.8, 1.6);
+            }
+            let side = Vec2::new(-dir.y, dir.x) * self.strafe;
+            let away = if dist < 6.0 { -dir } else { Vec2::ZERO };
+            return Decision { move_dir: (away + side * 0.6).normalize_or_zero(), cast: None, detonate: false };
+        }
         // Attack: a ready skill whose range reaches the target (the special ones first).
         if self.think <= 0.0 {
             let mut best: Option<&SkillOption> = None;
@@ -78,25 +96,33 @@ impl Brain {
                 }
             }
             if let Some(s) = best {
-                self.think = rng.range(0.25, 0.7);
-                return Decision { move_dir: Vec2::ZERO, cast: Some((s.id, t)) };
+                self.think = match self.arch {
+                    Archetype::Swarm => rng.range(0.1, 0.35),
+                    Archetype::Caster | Archetype::Summoner => rng.range(0.6, 1.2),
+                    _ => rng.range(0.25, 0.7),
+                };
+                if self.arch == Archetype::Skirmisher {
+                    self.wait = rng.range(0.9, 1.6);
+                }
+                return Decision { move_dir: Vec2::ZERO, cast: Some((s.id, t)), detonate: false };
             }
         }
         let move_dir = match self.arch {
-            Archetype::Melee | Archetype::Charger => {
-                if dist > reach * 0.9 + 0.3 {
-                    dir
-                } else {
-                    Vec2::ZERO
-                }
+            Archetype::Melee | Archetype::Charger | Archetype::Swarm | Archetype::Bomber | Archetype::Skirmisher => {
+                if dist > reach * 0.9 + 0.3 { dir } else { Vec2::ZERO }
             }
-            Archetype::Ranged => {
+            Archetype::Ranged | Archetype::Caster | Archetype::Summoner => {
                 self.strafe_t -= dt;
                 if self.strafe_t <= 0.0 {
                     self.strafe = if rng.f32() < 0.5 { -1.0 } else { 1.0 };
                     self.strafe_t = rng.range(1.2, 2.8);
                 }
-                let range = skills.iter().map(|s| s.def.range).fold(6.0, f32::max);
+                let range = skills.iter().map(|s| s.def.range).fold(6.0, f32::max)
+                    * match self.arch {
+                        Archetype::Caster => 0.8,
+                        Archetype::Summoner => 0.9,
+                        _ => 1.0,
+                    };
                 let side = Vec2::new(-dir.y, dir.x) * self.strafe;
                 if dist < range * 0.45 {
                     (-dir + side * 0.4).normalize_or_zero()
@@ -107,13 +133,13 @@ impl Brain {
                 }
             }
         };
-        Decision { move_dir, cast: None }
+        Decision { move_dir, cast: None, detonate: false }
     }
 
     fn idle(&mut self, me: Vec3, rng: &mut Rng, dt: f32) -> Decision {
         if self.wait > 0.0 {
             self.wait -= dt;
-            return Decision { move_dir: Vec2::ZERO, cast: None };
+            return Decision { move_dir: Vec2::ZERO, cast: None, detonate: false };
         }
         let goal = *self.wander.get_or_insert_with(|| {
             let a = rng.range(0.0, std::f32::consts::TAU);
@@ -123,8 +149,8 @@ impl Brain {
         if d.length() < 0.4 {
             self.wander = None;
             self.wait = rng.range(1.0, 3.5);
-            return Decision { move_dir: Vec2::ZERO, cast: None };
+            return Decision { move_dir: Vec2::ZERO, cast: None, detonate: false };
         }
-        Decision { move_dir: d.normalize_or_zero() * 0.35, cast: None }
+        Decision { move_dir: d.normalize_or_zero() * 0.35, cast: None, detonate: false }
     }
 }

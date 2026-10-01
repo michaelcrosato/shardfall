@@ -388,6 +388,78 @@ pub static TOOLS: &[Tool] = &[
         ],
         run: crate::game_tools::t_tree,
     },
+    Tool {
+        name: "genome",
+        help: "Grow a creature from a seed (Spore-style genome: body, parts, palette, archetype, skills, name); body=/archetype=/element= fix those; spawn=true puts it in the game.",
+        args: &[
+            arg("seed", "integer", "genome seed"),
+            arg("level", "integer", "monster level (default 10)"),
+            arg("body", "string", "biped | spider | lizard | beetle | blob"),
+            arg("archetype", "string", "brute stalker spitter charger caster swarm bomber summoner tank"),
+            arg("element", "string", "physical | fire | cold | lightning | poison"),
+            arg(
+                "parts",
+                "string",
+                "parts instead of rolled ones: horns antlers spikes crest tusks mandibles plates eyes orbs wings",
+            ),
+            arg("spawn", "boolean", "spawn it near the hero"),
+        ],
+        run: crate::game_tools::t_genome,
+    },
+    Tool {
+        name: "bestiary",
+        help: "Generate many genomes and summarise the spread (bodies, archetypes, elements, parts, distinct names) with examples: checks the generator's variety.",
+        args: &[
+            arg("count", "integer", "how many (default 20)"),
+            arg("seed", "integer", "first seed"),
+            arg("level", "integer", "level"),
+            arg("body", "string", "fix the body"),
+            arg("archetype", "string", "fix the archetype"),
+            arg("element", "string", "fix the element"),
+        ],
+        run: crate::game_tools::t_bestiary,
+    },
+    Tool {
+        name: "boss",
+        help: "List the designed bosses, or spawn one (key=hollow_king) or a generated one (seed=N) near the hero.",
+        args: &[
+            arg("key", "string", "boss key"),
+            arg("seed", "integer", "generated boss seed"),
+            arg("level", "integer", "level"),
+        ],
+        run: crate::game_tools::t_boss,
+    },
+    Tool {
+        name: "turntable",
+        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, or the hero.",
+        args: &[
+            arg("seed", "integer", "genome seed"),
+            arg("family", "string", "designed family"),
+            arg("boss", "string", "boss key or gen:N"),
+            arg("body", "string", "genome body"),
+            arg("archetype", "string", "genome archetype"),
+            arg("element", "string", "genome element"),
+            arg("parts", "string", "genome parts, comma separated (horns,wings,...)"),
+            arg("angles", "integer", "views (default 8)"),
+            arg("size", "integer", "pixels per view (default 256)"),
+            arg("out", "string", "PNG path"),
+        ],
+        run: crate::game_tools::t_turntable,
+    },
+    Tool {
+        name: "animsheet",
+        help: "Render a creature through one of its actions frame by frame (skill= or its first skill) into one PNG: check attack poses.",
+        args: &[
+            arg("seed", "integer", "genome seed"),
+            arg("family", "string", "designed family"),
+            arg("boss", "string", "boss key"),
+            arg("skill", "string", "skill to perform"),
+            arg("frames", "integer", "frames (default 8)"),
+            arg("size", "integer", "pixels per frame"),
+            arg("out", "string", "PNG path"),
+        ],
+        run: crate::game_tools::t_animsheet,
+    },
 ];
 
 pub fn find(name: &str) -> Option<&'static Tool> {

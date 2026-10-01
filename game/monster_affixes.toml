@@ -1,0 +1,109 @@
+# Monster affixes: what makes a magic or rare monster special. Magic monsters get one, rares
+# two or three (and a name of their own). Any affix can use any stat, power, skill tweak
+# ("*" = all its skills) or extra skill, so new ones are just data.
+#
+# name / weight / level (lowest monster level)   mods: stats   power: kind, a, b
+# tweaks: applied to every skill it has   skills: extra skills   life / scale / speed: multipliers
+# tint: accent colour (glowing bits)
+
+[fast]
+name = "Fast"
+mods = { attack_speed = 25, cast_speed = 25 }
+speed = 1.35
+
+[extra_strong]
+name = "Extra Strong"
+mods = { damage_more = 45 }
+
+[vampiric]
+name = "Vampiric"
+mods = { life_leech = 20 }
+level = 3
+
+[molten]
+name = "Molten"
+power = { kind = "death_burst", a = 35, b = 2.6 }
+tint = "#ff7a2a"
+level = 2
+
+[burning]
+name = "Burning"
+power = { kind = "ignite_aura", a = 3, b = 1.2 }
+tint = "#ff5a1a"
+level = 8
+
+[frost_touched]
+name = "Frost-Touched"
+tweaks = { element = 2 }
+mods = { freeze_chance = 12 }
+tint = "#9ae4ff"
+level = 4
+
+[storm_touched]
+name = "Storm-Touched"
+tweaks = { element = 3 }
+mods = { shock_chance = 25 }
+tint = "#ffe85a"
+level = 4
+
+[venomous]
+name = "Venomous"
+tweaks = { element = 4 }
+mods = { poison_chance = 40 }
+tint = "#9be05a"
+level = 3
+
+[stoneskin]
+name = "Stoneskin"
+mods = { armor_inc = 150, all_res = 25, damage_taken = 15 }
+tint = "#a0a0a8"
+
+[multishot]
+name = "Multishot"
+tweaks = { count = 2 }
+level = 5
+
+[teleporting]
+name = "Teleporting"
+skills = ["blink"]
+level = 6
+
+[warlord]
+name = "Warlord"
+skills = ["war_cry"]
+level = 10
+
+[giant]
+name = "Giant"
+life = 1.6
+scale = 1.3
+speed = 0.85
+mods = { damage_more = 20 }
+
+[enraging]
+name = "Enraging"
+power = { kind = "enrage", a = 40, b = 50 }
+level = 4
+
+[arcane_shield]
+name = "Arcane Shield"
+power = { kind = "mana_shield", a = 60 }
+mods = { mana = 200 }
+tint = "#9a6aff"
+level = 12
+
+[quickcast]
+name = "Quickcast"
+mods = { cast_speed = 40, cooldown_recovery = 50 }
+level = 6
+
+[brood]
+name = "Brood"
+power = { kind = "summon", a = 2, b = 9 }
+level = 12
+weight = 60
+
+[echoing]
+name = "Echoing"
+power = { kind = "echo_strike", a = 50 }
+level = 10

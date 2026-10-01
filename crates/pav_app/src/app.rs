@@ -1297,6 +1297,15 @@ fn place_look(place: pav_core::arpg::Place, v: &mut ViewSettings) {
             v.bloom = 0.7;
             v.saturation = 1.12;
         }
+        pav_core::arpg::Place::Lab => {
+            v.sky = "#0e0d14".into();
+            v.light.sun_elevation = 70.0;
+            v.light.sun_azimuth = 120.0;
+            v.light.sun_intensity = 0.45;
+            v.light.ambient = 0.42;
+            v.bloom = 0.65;
+            v.saturation = 1.1;
+        }
         pav_core::arpg::Place::Arena => {
             v.sky = "#14161c".into();
             v.light.sun_elevation = 52.0;

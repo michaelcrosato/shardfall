@@ -216,6 +216,16 @@ pub struct Actor {
     pub base: Base,
     #[serde(default)]
     pub mods: Mods,
+    /// Generated monsters: their genome's seed (broods are born from it).
+    #[serde(default)]
+    pub genome: Option<u64>,
+    /// Power timers (summons), the summoner of a brood creature, boss state.
+    #[serde(default)]
+    pub power_t: f32,
+    #[serde(default)]
+    pub master: Option<EntityId>,
+    #[serde(default)]
+    pub boss: Option<super::boss::BossState>,
 }
 
 impl Actor {
@@ -255,6 +265,10 @@ impl Actor {
             tweaks: Vec::new(),
             base: Base::default(),
             mods: Mods::default(),
+            genome: None,
+            power_t: 0.0,
+            master: None,
+            boss: None,
         }
     }
 

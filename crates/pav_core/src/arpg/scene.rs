@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 use super::cmd::{Place, Spot, SpotKind};
 use super::combat::Rarity;
 use super::hero::Hero;
-use super::{ArenaState, Game, feet_of, flat, spawn_monster_into};
+use super::{ArenaState, Game, feet_of, flat};
 use crate::color::Color;
 use crate::entity::{BodyKind, EntityId, Spawn};
 use crate::frame::SimEvent;
 use crate::fxdef::{DistortDef, EmitterDef, LightDef};
+use crate::params::ChoiceParam;
 use crate::puppet::{ActKind, PuppetDef, WeaponKind};
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
@@ -23,7 +24,178 @@ pub fn build_place(sim: &mut Sim, place: Place, g: Game) {
     match place {
         Place::Town => build_town(sim, Some(g)),
         Place::Arena => build_arena_with(sim, Some(g)),
+        Place::Lab => build_lab(sim, Some(g)),
     }
+}
+
+/// A creature on show in the Menagerie.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Exhibit {
+    pub entity: EntityId,
+    /// "family:<key>" or "genome:<seed>".
+    pub source: String,
+    pub level: u32,
+    pub spot: usize,
+}
+
+const LAB_COLS: usize = 5;
+const LAB_ROWS: usize = 4;
+const LAB_LEVEL: u32 = 20;
+
+fn pedestal_pos(i: usize) -> Vec3 {
+    let (c, r) = (i % LAB_COLS, i / LAB_COLS);
+    Vec3::new((c as f32 - (LAB_COLS - 1) as f32 * 0.5) * 6.0, 0.35, -4.0 - r as f32 * 6.5)
+}
+
+/// The Menagerie: a long hall of pedestals with creatures on show, a portal home.
+pub fn build_lab(sim: &mut Sim, game: Option<Game>) {
+    game_movement(sim);
+    let st = &mut sim.state;
+    let (w, front, back) = (17.0f32, 6.0f32, -30.0f32);
+    let tiles = ["#3a3842", "#34323c"];
+    let mut x = -w;
+    let mut i = 0;
+    while x < w {
+        let mut z = back;
+        while z < front {
+            st.statics.add(
+                &mut st.physics,
+                Block::new(Vec3::new(x, -0.5, z), Vec3::new(x + 2.0, 0.0, z + 2.0), Color::hex(tiles[i % 2])),
+            );
+            z += 2.0;
+            i += 1;
+        }
+        x += 2.0;
+        i += 1;
+    }
+    let wall = Color::hex("#4a4654");
+    for (min, max) in [
+        (Vec3::new(-w - 1.0, 0.0, back - 1.0), Vec3::new(w + 1.0, 3.5, back)),
+        (Vec3::new(-w - 1.0, 0.0, front), Vec3::new(w + 1.0, 1.2, front + 1.0)),
+        (Vec3::new(-w - 1.0, 0.0, back), Vec3::new(-w, 3.5, front)),
+        (Vec3::new(w, 0.0, back), Vec3::new(w + 1.0, 3.5, front)),
+    ] {
+        st.statics.add(&mut st.physics, Block::new(min, max, wall));
+    }
+    // Pedestals with lights between them.
+    for i in 0..LAB_COLS * LAB_ROWS {
+        let p = pedestal_pos(i);
+        let st = &mut sim.state;
+        st.statics.add(
+            &mut st.physics,
+            Block::new(p + Vec3::new(-1.2, -0.35, -1.2), p + Vec3::new(1.2, 0.0, 1.2), Color::hex("#6a6474"))
+                .with_flags(crate::statics::block_flags::ROUNDED),
+        );
+        if i % 2 == 0 {
+            let mut v = Visual::new(Shape::Sphere { radius: 0.12 }, Color::hex("#bfe0ff"));
+            v.look = Look::Unlit;
+            v.emissive = 2.0;
+            v.light = Some(Box::new(LightDef { color: "#bfd8ff".into(), radius: 8.0, intensity: 1.4, ..Default::default() }));
+            sim.spawn(Spawn::new("lab light", p + Vec3::new(3.0, 3.2, 0.0)).visual(v));
+        }
+    }
+    portal(sim, Vec3::new(0.0, 0.0, 3.5));
+    sim.state.spawn = Vec3::new(0.0, 0.05, 1.0);
+    sim.spawn_player();
+    if let Some(p) = sim.state.player {
+        if let Some(ch) = sim.state.entities.get_mut(p).and_then(|e| e.character.as_mut()) {
+            ch.facing = std::f32::consts::PI;
+            ch.anim.facing = ch.facing;
+        }
+    }
+    match game {
+        Some(g) => sim.resume_game(g),
+        None => sim.start_game(Hero::default()),
+    }
+    let mut g = sim.state.game.take().unwrap();
+    g.place = Place::Lab;
+    g.spots.push(Spot {
+        kind: SpotKind::Portal,
+        name: "Portal".into(),
+        pos: Vec3::new(0.0, 0.0, 3.5),
+        reach: 2.8,
+        info: Vec::new(),
+    });
+    stock_lab(&mut g, sim, false);
+    g.say("The Menagerie: every creature here was grown from a seed", 3.5);
+    sim.state.game = Some(g);
+}
+
+/// Fills the pedestals: the designed families first, then creatures grown from seeds.
+pub fn stock_lab(g: &mut Game, sim: &mut Sim, reroll: bool) {
+    let d = super::data::data();
+    for ex in std::mem::take(&mut g.exhibits) {
+        sim.despawn(ex.entity);
+    }
+    g.spots.retain(|s| s.kind != SpotKind::Exhibit);
+    if reroll || g.lab_seed == 0 {
+        g.lab_seed = g.lab_seed.wrapping_add(sim.state.rng.next_u32() as u64 + 1);
+    }
+    let families: Vec<String> = if reroll { Vec::new() } else { d.families.iter().map(|f| f.key.clone()).collect() };
+    for i in 0..LAB_COLS * LAB_ROWS {
+        let (source, spec, card) = match families.get(i) {
+            Some(k) => {
+                let f = d.family(k).unwrap();
+                let card = vec![
+                    format!("Designed family '{}'", f.key),
+                    format!("{} body · {:?} brain", f.body.name(), f.archetype),
+                    format!("Skills: {}", f.skills.join(", ")),
+                ];
+                (format!("family:{k}"), f.spec(), card)
+            }
+            None => {
+                let seed = g.lab_seed.wrapping_mul(1000).wrapping_add(i as u64);
+                let Ok(gn) = super::genome::Genome::generate(&d, seed, LAB_LEVEL, &Default::default()) else { continue };
+                let parts: Vec<&str> = gn.puppet.parts.iter().map(|p| p.kind.name()).collect();
+                let card = vec![
+                    format!("Genome seed {seed}"),
+                    format!("{} body · {} ({:?} brain) · {}", gn.body.name(), gn.archetype, gn.brain, gn.element.name()),
+                    format!(
+                        "Size {:.2} · life x{:.2} · damage x{:.2} · speed x{:.2}",
+                        gn.puppet.scale, gn.life, gn.damage, gn.speed
+                    ),
+                    format!("Parts: {}", if parts.is_empty() { "none".to_string() } else { parts.join(", ") }),
+                    format!("Skills: {}", gn.skills.join(", ")),
+                ];
+                (format!("genome:{seed}"), gn.spec(&d), card)
+            }
+        };
+        let at = pedestal_pos(i);
+        let id = sim.spawn_npc(&spec.name, at, 0.0, spec.puppet.clone(), None, None);
+        let spot = g.spots.len();
+        g.spots.push(Spot { kind: SpotKind::Exhibit, name: spec.name.clone(), pos: at, reach: 2.6, info: card });
+        g.exhibits.push(Exhibit { entity: id, source, level: LAB_LEVEL, spot });
+    }
+    g.inv_changed();
+}
+
+/// Lets an exhibit off its pedestal: it becomes a real monster, hunting the hero.
+pub fn release_exhibit(g: &mut Game, sim: &mut Sim, spot: usize) -> Result<(), String> {
+    let d = super::data::data();
+    let i = g.exhibits.iter().position(|e| e.spot == spot).ok_or("nothing there")?;
+    let ex = g.exhibits.remove(i);
+    let spec = if let Some(k) = ex.source.strip_prefix("family:") {
+        d.family(k).ok_or("unknown family")?.spec()
+    } else {
+        let seed: u64 = ex.source.strip_prefix("genome:").and_then(|s| s.parse().ok()).ok_or("bad exhibit")?;
+        super::genome::Genome::generate(&d, seed, ex.level, &Default::default())?.spec(&d)
+    };
+    let at = sim.state.entities.get(ex.entity).map(|e| e.pos).unwrap_or(pedestal_pos(spot));
+    sim.despawn(ex.entity);
+    if let Some(s) = g.spots.get_mut(spot) {
+        s.reach = 0.0;
+        s.name = String::new();
+    }
+    let level = g.hero.level.max(1);
+    let pack = g.next_pack;
+    g.next_pack += 1;
+    let id = super::spawn_spec_into(sim, g, &spec, level, Rarity::Normal, Vec3::new(at.x, 0.4, at.z), pack)
+        .ok_or("could not spawn")?;
+    if let Some(b) = g.actors.get_mut(&id).and_then(|a| a.brain.as_mut()) {
+        b.aggro = true;
+    }
+    g.say(format!("{} is loose!", spec.name), 2.0);
+    Ok(())
 }
 
 /// Movement settings for the game: run fast, no jumping (Space dodges).
@@ -111,6 +283,7 @@ fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
             name: "Portal to Emberwatch".into(),
             pos: Vec3::new(0.0, 0.0, -17.5),
             reach: 2.6,
+            info: Vec::new(),
         });
         g.say("The Proving Grounds: survive the waves", 3.0);
     }
@@ -132,11 +305,11 @@ fn portal(sim: &mut Sim, at: Vec3) {
     }
     let mut v = Visual::new(Shape::Cylinder { half_height: 0.03, radius: 1.45 }, Color::hex("#7fd8ff"));
     v.look = Look::Unlit;
-    v.emissive = 2.2;
+    v.emissive = 0.9;
     v.light = Some(Box::new(LightDef {
         color: "#6ac8ff".into(),
         radius: 8.0,
-        intensity: 2.6,
+        intensity: 1.8,
         pulse: 0.6,
         offset: Vec3::Y * 1.2,
         ..Default::default()
@@ -360,9 +533,9 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
     }
     let mut g = sim.state.game.take().unwrap();
     g.place = Place::Town;
-    g.spots.push(Spot { kind: SpotKind::Vendor, name: "Hilda the Smith".into(), pos: smith_feet, reach: 3.2 });
-    g.spots.push(Spot { kind: SpotKind::Stash, name: "Stash".into(), pos: chest, reach: 2.6 });
-    g.spots.push(Spot { kind: SpotKind::Portal, name: "Portal".into(), pos: portal_at, reach: 2.8 });
+    g.spots.push(Spot { kind: SpotKind::Vendor, name: "Hilda the Smith".into(), pos: smith_feet, reach: 3.2, info: Vec::new() });
+    g.spots.push(Spot { kind: SpotKind::Stash, name: "Stash".into(), pos: chest, reach: 2.6, info: Vec::new() });
+    g.spots.push(Spot { kind: SpotKind::Portal, name: "Portal".into(), pos: portal_at, reach: 2.8, info: Vec::new() });
     g.npcs.push(Npc {
         id: smith,
         role: NpcRole::Smith,
@@ -443,24 +616,25 @@ pub fn update_arena(g: &mut Game, sim: &mut Sim, dt: f32) {
 }
 
 fn spawn_wave(g: &mut Game, sim: &mut Sim, ar: &ArenaState) {
+    let d = super::data::data();
     let wave = ar.wave;
     let level = 1 + (wave - 1) / 2;
+    // Every tenth wave: a boss (the designed ones in order, then generated ones forever).
+    if wave.is_multiple_of(10) {
+        let n = wave / 10 - 1;
+        let key = match d.bosses.get(n as usize) {
+            Some(b) => b.key.clone(),
+            None => format!("gen:{}", sim.state.seed.wrapping_mul(7919).wrapping_add(wave as u64)),
+        };
+        g.spawn_boss(sim, &key, level + 1, ar.center + Vec3::new(0.0, 0.0, -9.0));
+        return;
+    }
     let packs = (1 + wave / 2).min(6);
     let total: u32 = FAMILIES.iter().map(|f| f.1).sum();
     for p in 0..packs {
         let rng = &mut sim.state.rng;
         let ang = rng.range(0.0, std::f32::consts::TAU);
         let center = ar.center + Vec3::new(ang.cos(), 0.0, ang.sin()) * rng.range(12.0, 17.0);
-        let mut pick = rng.below(total);
-        let fam = FAMILIES.iter().find(|f| {
-            if pick < f.1 {
-                true
-            } else {
-                pick -= f.1;
-                false
-            }
-        });
-        let fam = fam.map(|f| f.0).unwrap_or("ghoul");
         let rarity = if wave.is_multiple_of(5) && p == 0 {
             Rarity::Rare
         } else if wave >= 3 && rng.f32() < 0.25 {
@@ -468,19 +642,45 @@ fn spawn_wave(g: &mut Game, sim: &mut Sim, ar: &ArenaState) {
         } else {
             Rarity::Normal
         };
-        let count = match (fam, rarity) {
-            ("bonecrusher", _) => 1,
-            (_, Rarity::Rare) => 1,
-            ("skitterer", _) => 4 + wave.min(6),
-            _ => 2 + (wave / 2).min(4),
+        // From wave 4 on, some packs are newly generated creatures.
+        let generated = wave >= 4 && rng.f32() < 0.35;
+        let (spec, pack_k, big) = if generated {
+            let seed = sim.state.rng.next_u32() as u64 | ((wave as u64) << 32);
+            match super::genome::Genome::generate(&d, seed, level, &Default::default()) {
+                Ok(gn) => {
+                    let big = gn.puppet.scale > 1.3 || gn.archetype == "tank";
+                    (gn.spec(&d), gn.pack, big)
+                }
+                Err(_) => continue,
+            }
+        } else {
+            let rng = &mut sim.state.rng;
+            let mut pick = rng.below(total);
+            let fam = FAMILIES
+                .iter()
+                .find(|f| {
+                    if pick < f.1 {
+                        true
+                    } else {
+                        pick -= f.1;
+                        false
+                    }
+                })
+                .map(|f| f.0)
+                .unwrap_or("ghoul");
+            let Some(spec) = d.family(fam).map(|f| f.spec()) else { continue };
+            let k = if fam == "skitterer" { 2.0 } else { 1.0 };
+            (spec, k, fam == "bonecrusher")
         };
+        let count =
+            if big || rarity == Rarity::Rare { 1 } else { (((2 + (wave / 2).min(4)) as f32) * pack_k).round().max(1.0) as u32 };
         let pack = g.next_pack;
         g.next_pack += 1;
         for i in 0..count {
             let a = i as f32 * 2.4;
             let at = center + Vec3::new(a.cos(), 0.0, a.sin()) * (0.8 + i as f32 * 0.35);
             let at = Vec3::new(at.x.clamp(-18.5, 18.5), 0.0, at.z.clamp(-18.5, 18.5));
-            if let Some(id) = spawn_monster_into(sim, g, fam, level, rarity, at, pack) {
+            if let Some(id) = super::spawn_spec_into(sim, g, &spec, level, rarity, at, pack) {
                 if let Some(b) = g.actors.get_mut(&id).and_then(|a| a.brain.as_mut()) {
                     b.aggro = true;
                 }

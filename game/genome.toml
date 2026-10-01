@@ -1,0 +1,245 @@
+# The monster genome: how endless monsters are put together, Spore-style. A genome picks a
+# body plan, stretches its proportions, bolts on parts, paints it with an element's palette,
+# gives it an archetype (how it fights) and skills from that archetype's pools, then names it.
+# Designed families (monsters.toml) and bosses (bosses.toml) use the same pieces, so
+# everything hand-made can also be made by the generator, and the other way round.
+
+# ------------------------------------------------------------------------------ body plans
+# scale: overall size; torso/head/legs/arms/limbs: multipliers on the preset's proportions;
+# legs_pairs (creatures), tail/antenna lengths (m) and the chance of having one.
+[body.biped]
+weight = 4
+scale = [0.85, 1.45]
+torso = [0.85, 1.35]
+head = [0.75, 1.35]
+legs = [0.8, 1.2]
+arms = [0.85, 1.35]
+limbs = [0.8, 1.6]
+tail = [0.5, 1.1]
+tail_chance = 0.25
+weapons = ["none", "none", "claw", "axe", "mace", "sword", "spear", "maul", "dagger"]
+radius = 0.42
+
+[body.spider]
+weight = 2
+scale = [0.6, 1.5]
+torso = [0.8, 1.4]
+head = [0.8, 1.3]
+legs = [0.8, 1.3]
+limbs = [0.8, 1.5]
+leg_pairs = [2, 5]
+radius = 0.5
+
+[body.lizard]
+weight = 2
+scale = [0.8, 1.6]
+torso = [0.8, 1.3]
+head = [0.8, 1.4]
+legs = [0.8, 1.3]
+limbs = [0.8, 1.4]
+leg_pairs = [1, 3]
+body_length = [0.7, 1.4]
+tail = [0.6, 1.6]
+tail_chance = 0.9
+radius = 0.5
+
+[body.beetle]
+weight = 2
+scale = [0.7, 1.5]
+torso = [0.85, 1.35]
+head = [0.8, 1.3]
+legs = [0.8, 1.2]
+limbs = [0.8, 1.4]
+leg_pairs = [2, 4]
+body_length = [0.6, 1.1]
+antenna = [0.2, 0.7]
+antenna_chance = 0.7
+radius = 0.5
+
+[body.blob]
+weight = 1
+scale = [0.7, 1.6]
+torso = [0.8, 1.3]
+radius = 0.55
+
+# ------------------------------------------------------------------------------ parts
+# Which parts can grow on which bodies, how often, how big; a genome gets 0-3 parts.
+[part.horns]
+weight = 3
+bodies = ["biped", "lizard", "beetle", "blob"]
+size = [0.7, 1.7]
+[part.antlers]
+weight = 1
+bodies = ["biped", "lizard"]
+size = [0.7, 1.3]
+[part.spikes]
+weight = 3
+bodies = ["biped", "spider", "lizard", "beetle", "blob"]
+size = [0.7, 1.6]
+count = [3, 8]
+[part.crest]
+weight = 2
+bodies = ["biped", "lizard"]
+size = [0.8, 1.5]
+[part.tusks]
+weight = 2
+bodies = ["biped", "lizard", "beetle"]
+size = [0.7, 1.4]
+[part.mandibles]
+weight = 2
+bodies = ["spider", "beetle", "lizard"]
+size = [0.8, 1.5]
+[part.plates]
+weight = 2
+bodies = ["biped", "lizard", "beetle", "spider"]
+size = [0.8, 1.3]
+count = [2, 6]
+[part.eyes]
+weight = 2
+bodies = ["biped", "spider", "beetle", "blob", "lizard"]
+size = [0.8, 1.4]
+count = [2, 6]
+[part.orbs]
+weight = 1
+bodies = ["biped", "blob", "spider", "beetle"]
+size = [0.8, 1.4]
+count = [2, 5]
+[part.wings]
+weight = 1
+bodies = ["biped", "lizard", "beetle"]
+size = [0.8, 1.4]
+
+# ------------------------------------------------------------------------------ palettes
+# Per element: skin, body and accent colours to pick from, eye colours, glow on parts.
+[palette.physical]
+skin = ["#9aa883", "#c9b79a", "#8a7a6a", "#6a5a50", "#b0a090"]
+body = ["#3e4a33", "#5a3a2a", "#4a4040", "#6a5a48", "#2e2a26"]
+accent = ["#e8e0c8", "#c9a26a", "#a06a4a", "#d0c0a0"]
+eyes = ["#ffe066", "#ff5a3a", "#f2e6c9"]
+glow = 0.0
+[palette.fire]
+skin = ["#b4502e", "#8a3a22", "#5a2a1a", "#c0603a"]
+body = ["#8e3a20", "#4a1a10", "#6a2a18", "#2a1a14"]
+accent = ["#ffb347", "#ff7a2a", "#ffd27a"]
+eyes = ["#fff1a8", "#ffd27a"]
+glow = 0.8
+[palette.cold]
+skin = ["#9ad8ff", "#c8e8f8", "#6a9ab8", "#e0f0ff"]
+body = ["#2e5a7e", "#3a6a8e", "#1e3a5a", "#5a8aae"]
+accent = ["#e0f6ff", "#9ae4ff", "#ffffff"]
+eyes = ["#a8f0ff", "#ffffff"]
+glow = 0.6
+[palette.lightning]
+skin = ["#4a4a6a", "#5a5a7a", "#3a3a5a", "#6a6a8a"]
+body = ["#2a2a4a", "#3a3a6a", "#4a3a6a"]
+accent = ["#ffe85a", "#fff2a0", "#a0d8ff"]
+eyes = ["#ffe85a", "#ffffff"]
+glow = 1.0
+[palette.poison]
+skin = ["#7fbf4a", "#5f7d2e", "#3b5a2a", "#9ad85a"]
+body = ["#2a3326", "#3a4a26", "#4a5a2a", "#5a3a5a"]
+accent = ["#c8f25a", "#9be05a", "#d0ff7a"]
+eyes = ["#f2ffcf", "#d0ff7a", "#ff7aff"]
+glow = 0.5
+
+# ------------------------------------------------------------------------------ archetypes
+# brain: melee | ranged | charger | caster | skirmisher | swarm | bomber | summoner
+# skills: pools to draw from (one from each pool, if the pool has anything); elements
+# re-colour every skill to the genome's element. life / damage / speed / xp / size multiply.
+[archetype.brute]
+brain = "melee"
+weight = 4
+skills = [["claw", "smash", "bite"], ["stomp", "rend", "cleave"]]
+life = 1.3
+damage = 1.15
+speed = 0.9
+size = 1.1
+[archetype.stalker]
+brain = "skirmisher"
+weight = 3
+skills = [["claw", "bite", "rend"], ["blade_dash"]]
+life = 0.8
+damage = 1.1
+speed = 1.3
+[archetype.spitter]
+brain = "ranged"
+weight = 3
+skills = [["spit", "fireball", "ice_shards", "chain_lightning"]]
+life = 0.8
+damage = 0.95
+speed = 0.9
+[archetype.charger]
+brain = "charger"
+weight = 2
+skills = [["gore"], ["bite", "smash", "claw"]]
+life = 1.3
+damage = 1.25
+speed = 1.0
+size = 1.15
+[archetype.caster]
+brain = "caster"
+weight = 2
+skills = [["fireball", "ice_shards", "chain_lightning", "spit"], ["meteor", "blizzard", "toxic_rain", "frost_nova"]]
+life = 0.75
+damage = 1.0
+speed = 0.85
+[archetype.swarm]
+brain = "swarm"
+weight = 3
+skills = [["bite", "claw"]]
+life = 0.35
+damage = 0.55
+speed = 1.45
+size = 0.65
+xp = 0.4
+pack = 2.0
+[archetype.bomber]
+brain = "bomber"
+weight = 1
+skills = [["bite"]]
+life = 0.6
+damage = 1.0
+speed = 1.35
+size = 0.85
+power = { kind = "death_burst", a = 45, b = 2.8 }
+[archetype.summoner]
+brain = "summoner"
+weight = 1
+skills = [["spit", "fireball", "chain_lightning"]]
+life = 1.0
+damage = 0.8
+speed = 0.8
+xp = 1.6
+power = { kind = "summon", a = 3, b = 7 }
+[archetype.tank]
+brain = "melee"
+weight = 2
+skills = [["smash", "stomp"], ["earthsplitter", "leap_slam", "war_cry"]]
+life = 2.4
+damage = 1.4
+speed = 0.7
+size = 1.45
+xp = 2.2
+
+# ------------------------------------------------------------------------------ names
+# "<element word> <body word>", with an archetype word sometimes.
+[names]
+physical = ["Bone", "Grave", "Iron", "Gore", "Hollow", "Grim", "Rust", "Stone", "Ash"]
+fire = ["Ember", "Cinder", "Pyre", "Scorch", "Magma", "Brimstone", "Flame"]
+cold = ["Frost", "Rime", "Hoar", "Glacial", "Winter", "Sleet", "Ice"]
+lightning = ["Storm", "Static", "Thunder", "Volt", "Spark", "Tempest"]
+poison = ["Bile", "Blight", "Rot", "Venom", "Plague", "Fester", "Mire"]
+biped = ["Ghoul", "Brute", "Fiend", "Wretch", "Husk", "Ravager", "Ogre", "Imp"]
+spider = ["Skitterer", "Weaver", "Crawler", "Lurker", "Broodmother", "Creeper"]
+lizard = ["Drake", "Wyrm", "Basilisk", "Salamander", "Monitor", "Serpent"]
+beetle = ["Scarab", "Shellback", "Carapace", "Borer", "Crawler", "Beetle"]
+blob = ["Ooze", "Slime", "Bloat", "Jelly", "Sludge", "Mass"]
+brute = ["", "", "Bruiser"]
+stalker = ["Stalker", "Prowler", ""]
+spitter = ["Spitter", "", "Lobber"]
+charger = ["Charger", "Rammer", ""]
+caster = ["Shaman", "Mage", "Seer"]
+swarm = ["ling", "", "Mite"]
+bomber = ["Bomber", "Burster", "Popper"]
+summoner = ["Mother", "Caller", "Hive"]
+tank = ["Colossus", "Behemoth", "Juggernaut"]
