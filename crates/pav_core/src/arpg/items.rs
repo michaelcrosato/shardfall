@@ -479,6 +479,17 @@ impl Item {
         t
     }
 
+    /// A rough worth for comparing items in the same slot (bots and the "upgrade" frame):
+    /// weapon damage counts most, then stats, armour and powers.
+    pub fn score(&self, d: &super::data::Data) -> f32 {
+        let s = self.stats(d);
+        let dps = (s.phys[0] + s.phys[1]) * 0.5 * s.aps;
+        s.mods.0.iter().map(|(k, v)| if *k == Stat::Armor { 0.0 } else { *v }).sum::<f32>() * 0.4
+            + dps * 2.0
+            + s.armor * 0.5
+            + if s.power.is_some() { 50.0 } else { 0.0 }
+    }
+
     /// Gold value (what vendors pay; they charge more).
     pub fn value(&self) -> u64 {
         let r = [1.0, 2.5, 6.0, 18.0][self.rarity as usize];

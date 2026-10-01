@@ -641,14 +641,7 @@ impl GameUi {
 
 /// An item that beats what's worn in its slot (by value of its stats: a rough guide).
 fn is_upgrade(d: &Data, inv: &InvView, it: &Item) -> bool {
-    let score = |i: &Item| {
-        let s = i.stats(d);
-        let dps = (s.phys[0] + s.phys[1]) * 0.5 * s.aps;
-        s.mods.0.values().map(|v| v.abs()).sum::<f32>() * 0.4
-            + dps * 2.0
-            + s.armor * 0.5
-            + if s.power.is_some() { 50.0 } else { 0.0 }
-    };
+    let score = |i: &Item| i.score(d);
     match worn_for(inv, d, it) {
         Some(w) => score(it) > score(w) * 1.08,
         None => true,

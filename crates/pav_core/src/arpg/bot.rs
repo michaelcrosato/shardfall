@@ -76,6 +76,10 @@ impl Bot {
                 }
             }
         }
+        // Wear upgrades now and then.
+        if f.cmd.is_none() && self.stats.ticks % 90 == 45 {
+            f.cmd = self.pick_upgrade(g);
+        }
         // Low life: drink.
         if hero.life < hero.sheet.life_max * 0.35 && g.hero.potions > 0 {
             f.pressed |= buttons::POTION;
@@ -214,6 +218,31 @@ impl Bot {
             }
         }
         best.map(|b| super::GameCmd::Allocate(b.1))
+    }
+
+    /// The best bag item that beats what is worn in its slot.
+    fn pick_upgrade(&self, g: &super::Game) -> Option<super::GameCmd> {
+        let d = data();
+        let mut best: Option<(f32, u32)> = None;
+        for it in &g.hero.inventory {
+            let slot = it.slot(&d);
+            let worn = super::items::EquipSlot::ALL
+                .iter()
+                .filter(|e| e.slot() == slot)
+                .map(|e| g.hero.worn(*e).map(|w| w.score(&d)).unwrap_or(0.0))
+                .fold(f32::MAX, f32::min);
+            // Two-handers cost the off-hand too.
+            let off = if it.base_def(&d).is_some_and(|b| b.two_hand) {
+                g.hero.worn(super::items::EquipSlot::Offhand).map(|w| w.score(&d)).unwrap_or(0.0)
+            } else {
+                0.0
+            };
+            let gain = it.score(&d) - worn - off;
+            if gain > 1.0 && best.is_none_or(|b| gain > b.0) {
+                best = Some((gain, it.id));
+            }
+        }
+        best.map(|b| super::GameCmd::Equip(b.1))
     }
 
     /// Runs the bot for `ticks` and returns what happened.
