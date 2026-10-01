@@ -313,6 +313,11 @@ impl Sim {
         let center = match &mut e.character {
             Some(ch) => {
                 ch.vel = Vec3::ZERO;
+                ch.impulse = Vec3::ZERO;
+                ch.stun = 0.0;
+                ch.roll = 0.0;
+                ch.hang = None;
+                ch.grid_target = None;
                 ch.climbing = None;
                 pos + Vec3::Y * (ch.height() * 0.5)
             }

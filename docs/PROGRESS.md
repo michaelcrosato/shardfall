@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as one goal).
+Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -8,7 +8,7 @@ Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as
 | M1 Foundation | ✅ complete (2026-09-30) |
 | M2 Core gameplay | ✅ complete (2026-09-30) |
 | M3 World & rooms | ✅ complete (2026-10-01) |
-| M4 Movement & Feel Lab | 🔨 in progress |
+| M4 Movement & Feel Lab | ✅ complete (2026-10-01) |
 | M5–M10 | ⏳ next |
 
 ## M1 Foundation — done
@@ -133,8 +133,7 @@ Current milestone: **M4 Movement & Feel Lab** (M1–M3 complete; M4–M10 run as
 - Deferred to later milestones: gamepad remapping per room (keyboard only now), impact
   sounds from physics contacts, signage/in-world text.
 
-## M4 Movement & Feel Lab — in progress
-Done so far (all committed):
+## M4 Movement & Feel Lab — done
 - **Zones** (`zones.rs`, legend `zone = {...}`): start/finish/gate/checkpoint/kill/water/pad/camera,
   merged into rectangles; floor markings (checkered finish, flags on checkpoints, water surface).
 - **Courses** (`course.rs`): leaving START starts the timer, gates in order (missed = +2 s),
@@ -163,10 +162,21 @@ Done so far (all committed):
   to stay readable for the current camera.
 - **Tools**: `course`, `feel`, `camera_bench`; `player` shows hang/swim/roll/stun/model; agent
   sessions apply room camera defaults and cues like the game.
-- **Rooms**: `feel_lab` (pads, sprint lane, jump poles, gaps, ledge wall, pool), `tower`
-  (3-floor verticality: stairs, ladders, lift, ledge, crawl vent, duck corridor, bombable floor).
-  Helper agents are building `tightrope`, `slalom`, `timing_gates`, `gauntlet`, `camera_bench`.
-- Tests: `crates/pav_core/tests/movement.rs` (10 checks).
+- **Rooms** (movement wing, east corridor):
+  - `feel_lab` (model pads, sprint lane with distance marks, jump poles, gaps, ledge wall, pool),
+  - `tightrope` (beams 0.6 → 0.15 m over a pit, zig-zag, sliding beam, turning plank, checkpoints),
+  - `slalom` (10-gate and 6-gate courses, momentum by default, ICE / NORMAL / GRIP surface pads),
+  - `timing_gates` (doors, crushers, sweepers, moving platforms over a pit, pendulums),
+  - `gauntlet` (jump / duck / crawl / aimed / bullet-garden turret lanes; ROLL pad),
+  - `camera_bench` (one loop course + 9 camera pads incl. auto sweep; camera zone in the tunnel),
+  - `tower` (3-floor verticality: stairs, ladders, lift, ledge, crawl vent, duck corridor,
+    bombable floor).
+  Five of the rooms were built by helper agents (Sonnet) from briefs and reviewed: each was
+  verified by driving a full run headlessly; their reports led to engine fixes (walking on
+  kinematic objects, zone edges, START handling, label fitting, turret bullets, side views).
+- Room names are written on the corridor floor in front of each door.
+- Tests: `crates/pav_core/tests/movement.rs` (11 checks) and `tests/rooms.rs` (every room file
+  builds standalone; every course has a START and a FINISH).
 
 ## Decisions (M4)
 - Simulation order: behaviours (set mover velocities) → characters → physics step → bombs →
@@ -187,5 +197,11 @@ Done so far (all committed):
 - Dev builds use line-table debug info and no incremental cache (disk allowance in the cloud).
 - Map rows: only a truly empty first line is dropped (a leading row of spaces is a real row).
 
-## Next
-Finish M4: review helper rooms, docs, Windows build, merge, send. Then M5 Physics Lab.
+## Next: M5 Physics Lab
+Rooms (wing = "physics", north corridor): stacking & toppling, springs & soft bodies (rapier 0.36
+soft bodies: cuboid/sphere/cloth/rope), chains & rope bridges (joints in room data + chain/bridge
+generators), conveyors, bounce & friction gallery (spawners, tilted ramps), destructible floors
+(crumbling and impact-breakable tiles), stress test with a physics stats overlay and spawn pads
+(signals from pads to spawners). Renderer: per-frame dynamic meshes for soft bodies.
+Helper-agent tips: give each helper its own scratch subdirectory; keep briefs explicit about
+coordinates, tools and what to verify.

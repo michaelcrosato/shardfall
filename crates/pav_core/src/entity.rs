@@ -65,7 +65,8 @@ pub struct MoverDef {
     pub period: f32,
     /// 0..1 offset into the cycle (desynchronise neighbours).
     pub phase: f32,
-    /// Share of the cycle spent waiting at each end (0..0.9): doors and crushers.
+    /// Share of the cycle spent waiting at the ends (0..0.9, split between both ends): doors and
+    /// crushers. E.g. 0.3 on a 6 s cycle waits 0.9 s at each end.
     pub hold: f32,
     /// Ease in/out (false = constant speed).
     pub smooth: bool,

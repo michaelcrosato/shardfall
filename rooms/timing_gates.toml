@@ -1,21 +1,25 @@
 # Timing Gates: a timed obstacle course through five sections of moving obstacles. Every mover
-# is a kinematic object whose motion is a pure function of time, so the rhythm is the same on
-# every run and you can learn it.
+# is a kinematic object whose motion is a pure function of the simulation time, so the rhythm is
+# the same on every run: watch it once, then run it. The course snakes through five 4-7 m wide
+# corridors (east, west, east, west, east); START is by the entrance, FINISH at the far corner,
+# and a CHECKPOINT sits in the opening between two sections (a hit that sends you back, or a
+# fall into the pit, respawns you at the last one).
 name = "Timing Gates"
 about = "A timed obstacle course from START to FINISH through five sections of moving obstacles: sliding doors, crushers, sweepers, platforms over a pit and pendulums. Read the rhythm, pick your moment, and use the checkpoints between the sections."
 try = [
-  "Walk out of the green START pad to start the clock, and run the course to the checkered FINISH",
-  "Sliding doors: wait in the bays between the doors; each one opens on its own beat",
-  "Crushers: sneak under while the block is up (touching one sends you back to the checkpoint); some are split in two lanes that take turns",
+  "Walk out of the green START pad to start the clock, then run the course to the checkered FINISH",
+  "Sliding doors: wait in the bays between the doors; each one opens on its own beat (don't linger under one)",
+  "Crushers: slip under while the block is up; touching one sends you back to the checkpoint. Some are split in two lanes that take turns",
   "Sweepers: the bars are knee high, so jump over them (a hit knocks you back)",
-  "Moving platforms: step onto a platform when it docks, ride it over the pit and step off on the pier (falling respawns you at the last checkpoint)",
-  "Pendulums: cross the swing when the bob is at the far side of the corridor",
+  "Platforms: board a docked platform, ride it over the pit and step off onto the pier (a fall respawns you at the last checkpoint)",
+  "Pendulums: cross the swing while the bob is on the far side of the corridor",
   "Beat your best time: the course HUD shows the timer, hits and falls",
 ]
 wing = "movement"
 order = 4
 primary_device = "keyboard_mouse"
 movement_model = "instant"
+# A gap in the south wall (row 29), right in front of the START pad.
 entrance = { at = [3, 29], facing = "south" }
 
 [camera]
@@ -25,6 +29,14 @@ distance = 18.0
 [layout]
 origin = [-18.0, 0.0, -15.0]
 
+# The map (36 x 30). Sections from south to north:
+#   rows 25-28  1. doors       (a, START pad S)      flows east
+#   rows 20-23  2. crushers    (b)                   flows west
+#   rows 15-18  3. sweepers    (c)                   flows east
+#   rows  9-13  4. platforms   (L ledges, _ pit, k pier)   flows west
+#   rows  1-7   5. pendulums   (e, checkered FINISH F/f)   flows east
+# The rows between them are partitions (%), open only at the checkpoints (K flows on to the
+# west, J to the east, k is the pier in the pit).
 [[layout.layer]]
 y = 0
 map = '''
@@ -60,7 +72,6 @@ map = '''
 ###..###############################
 '''
 
-
 # --- tiles ------------------------------------------------------------------------------
 # Floors are tinted per section so you always know where you are.
 [layout.legend.'.']
@@ -75,7 +86,7 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#cde0e6" }]
 [layout.legend.'e']          # 5 pendulums
 blocks = [{ y0 = -0.5, y1 = 0, color = "#dcd3e8" }]
 
-# Outer wall (2.8 m) and the taller partitions between the sections (too high to ledge-grab).
+# Outer wall (2.8 m) and the taller partitions between the sections (so nobody skips one).
 [layout.legend.'#']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d5d9cf" }, { y0 = 0, y1 = 2.8, color = "#b9c3cf" }]
 [layout.legend.'%']
@@ -114,8 +125,6 @@ zone = { kind = "finish", course = "timing", color = "none" }
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2b2d35", look = "flat" }]
 zone = { kind = "finish", course = "timing", color = "none" }
 
-
-
 # --- signs: one per section, on the floor where the section begins; the arrows show the way ----
 [[label]]
 text = "1  DOORS  >>>"
@@ -147,9 +156,14 @@ text = "FINISH"
 pos = [29.9, 0.03, 4.5]
 size = 0.7
 
+# --- the course objects (all kinematic, positions in layout space: x = column, z = row) ---------
+# Vectors are in the object's own frame. A `move` goes from `pos` (amount 0) to `pos + offset`
+# (amount 1); `hold` is the share of the cycle spent waiting at the ends.
 
-# 1. SLIDING DOORS: wall-to-wall slabs that slide up out of the way and drop back down.
-# Every door has its own phase, so you stop in the bays and wait for the next opening.
+# 1. SLIDING DOORS: four wall-to-wall slabs (0.8 x 2.5 m) that slide up 2.6 m, clear of the 1.7 m
+# player, and drop back down. Period 3 s with hold 0.4: a door is open for about 1.1 s of every 3 s.
+# The phases make a wave through doors 1-2, a stop at door 3 and another wave through door 4.
+# A door that comes down on you crushes you (back to the checkpoint), so do not linger under one.
 [[object]]
 name = "door_1"
 shape = { type = "box", half = [0.4, 1.25, 1.97] }
@@ -182,8 +196,9 @@ color = "#e0a458"
 body = "kinematic"
 behavior = { type = "move", offset = [0.0, 2.6, 0.0], period = 3.0, phase = 0.9, hold = 0.4 }
 
-# 2. CRUSHERS: heavy blocks that stamp down onto the path and rise again (touching one sends you back
-# to the checkpoint). Two of them are split in two lanes that take turns: use whichever lane is open.
+# 2. CRUSHERS: 2 m blocks resting 2.6 m up that stamp down to the floor and rise again (hazard with
+# respawn = true: touching one sends you back to the last checkpoint). Crushers 2 and 4 are split in two
+# lanes half a cycle apart, so one lane is always about to open. Crusher 3 trails crusher 1 by half a cycle.
 [[object]]
 name = "crusher_1"
 shape = { type = "box", half = [1.0, 0.7, 1.97] }
@@ -238,8 +253,9 @@ body = "kinematic"
 behavior = { type = "move", offset = [0.0, -2.6, 0.0], period = 3.0, phase = 0.75, hold = 0.4 }
 hazard = { knockback = 4, respawn = true }
 
-# 3. SWEEPERS: knee-high bars turning about a hub. Jump over them (the hit knocks you back).
-# The middle one turns the other way.
+# 3. SWEEPERS: 3.8 m bars at knee height (y 0.15 .. 0.45) turning about a hub, wall to wall: jump over
+# them (hazard knockback 8). 90, -75 and 105 deg/s; the middle one turns the other way. The hubs are
+# visual only (body none).
 [[object]]
 name = "sweeper_1_hub"
 shape = { type = "cylinder", half_height = 0.45, radius = 0.3 }
@@ -288,8 +304,10 @@ body = "kinematic"
 behavior = { type = "rotate", axis = [0.0, 1.0, 0.0], speed = 105.0 }
 hazard = { knockback = 8 }
 
-# 4. MOVING PLATFORMS: two shuttles carry you across the pit (floor y -4, kill zone above it);
-# the pier between them is a checkpoint.
+# 4. MOVING PLATFORMS: two 3.2 x 3.8 m shuttles carry you across the two 6 m gaps of the pit (pit floor
+# y -4 .. -3.5, kill zone y -3.4 .. -1). Their tops are flush with the floor and they dock 0.08 m from the
+# ledge and the pier; they wait 0.9 s at each end (hold 0.3 of a 6 s cycle) and the second one runs half a
+# cycle behind. The pier between the gaps is a checkpoint.
 [[object]]
 name = "platform_1"
 shape = { type = "box", half = [1.6, 0.25, 1.9] }
@@ -306,8 +324,9 @@ color = "#5b8def"
 body = "kinematic"
 behavior = { type = "move", offset = [-2.64, 0.0, 0.0], period = 6.0, phase = 0.5, hold = 0.3 }
 
-# 5. PENDULUMS: heavy bobs swinging across the corridor (axis X) and a bar swinging along it (axis Z).
-# The rods are visual only and swing with the bobs.
+# 5. PENDULUMS: heavy bobs hanging 3 m below their pivot (pivot = [0, 3, 0] relative to the bob's centre)
+# that swing 60 degrees about the X axis, i.e. across the corridor, every 2.2 s (hazard knockback 7).
+# Neighbours swing half a cycle apart. The thin rods are visual only (body none) and swing with the bobs.
 [[object]]
 name = "pendulum_1"
 shape = { type = "box", half = [0.7, 0.5, 0.9] }

@@ -97,6 +97,7 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 
 # Animated objects use body = "kinematic" and a behavior (vectors are in the object's own frame):
 #   behavior = { type = "move", offset = [0, 0, 4], period = 4, phase = 0, hold = 0.3, smooth = true }
+#     (hold = share of the cycle spent waiting, split between both ends)
 #   behavior = { type = "rotate", axis = [0, 1, 0], speed = 90 }                   (deg/s)
 #   behavior = { type = "rotate", axis = [1, 0, 0], swing = 60, period = 2, pivot = [0, 2, 0] }
 #   behavior = { type = "spin", speed = 1.5 }                                       (rad/s)
