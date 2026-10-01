@@ -82,7 +82,12 @@ fn sampler_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
 }
 
 fn buffer(device: &wgpu::Device, label: &str, size: u64, usage: wgpu::BufferUsages) -> wgpu::Buffer {
-    device.create_buffer(&wgpu::BufferDescriptor { label: Some(label), size, usage: usage | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false })
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some(label),
+        size,
+        usage: usage | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
 }
 
 fn shader(device: &wgpu::Device, label: &str, src: &str) -> wgpu::ShaderModule {
@@ -116,11 +121,24 @@ fn fullscreen_pipeline(
 }
 
 const ADD: wgpu::BlendState = wgpu::BlendState {
-    color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
-    alpha: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
+    alpha: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
 };
 
-fn pass<'a>(encoder: &'a mut wgpu::CommandEncoder, label: &str, view: &'a wgpu::TextureView, clear: bool) -> wgpu::RenderPass<'a> {
+fn pass<'a>(
+    encoder: &'a mut wgpu::CommandEncoder,
+    label: &str,
+    view: &'a wgpu::TextureView,
+    clear: bool,
+) -> wgpu::RenderPass<'a> {
     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some(label),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -216,7 +234,8 @@ impl Bloom {
         let texel = |s: (u32, u32)| [1.0 / s.0 as f32, 1.0 / s.1 as f32];
         let make = |src: &wgpu::TextureView, src_size: (u32, u32), dst_size: (u32, u32)| {
             let buf = buffer(device, "bloom pass", std::mem::size_of::<BloomUniform>() as u64, wgpu::BufferUsages::UNIFORM);
-            let u = BloomUniform { src_texel: texel(src_size), dst_texel: texel(dst_size), threshold: 1.0, knee: 0.5, pad: [0.0; 2] };
+            let u =
+                BloomUniform { src_texel: texel(src_size), dst_texel: texel(dst_size), threshold: 1.0, knee: 0.5, pad: [0.0; 2] };
             queue.write_buffer(&buf, 0, bytemuck::bytes_of(&u));
             let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("bloom"),
@@ -310,7 +329,12 @@ impl Distort {
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("distort"),
             layout: Some(&pl),
-            vertex: wgpu::VertexState { module: &module, entry_point: Some("vs"), compilation_options: Default::default(), buffers: &[] },
+            vertex: wgpu::VertexState {
+                module: &module,
+                entry_point: Some("vs"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
             depth_stencil: None,
             multisample: Default::default(),
@@ -318,7 +342,11 @@ impl Distort {
                 module: &module,
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState { format: DISTORT_FORMAT, blend: Some(ADD), write_mask: wgpu::ColorWrites::ALL })],
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: DISTORT_FORMAT,
+                    blend: Some(ADD),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
             }),
             multiview_mask: None,
             cache: None,
@@ -488,7 +516,12 @@ impl Particles {
                 bind_group_layouts: &[Some(&dl)],
                 immediate_size: 0,
             })),
-            vertex: wgpu::VertexState { module: &ds, entry_point: Some("vs"), compilation_options: Default::default(), buffers: &[] },
+            vertex: wgpu::VertexState {
+                module: &ds,
+                entry_point: Some("vs"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: DEPTH_FORMAT,
@@ -534,7 +567,14 @@ impl Particles {
     }
 
     /// Births this frame's particles and advances everything (records a compute pass).
-    pub fn prepare(&mut self, encoder: &mut wgpu::CommandEncoder, queue: &wgpu::Queue, cam: &CameraData, time: f32, bursts: &[ParticleBurst]) {
+    pub fn prepare(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        queue: &wgpu::Queue,
+        cam: &CameraData,
+        time: f32,
+        bursts: &[ParticleBurst],
+    ) {
         let dt = match self.last_time {
             Some(t) => (time - t).clamp(0.0, 0.1),
             None => 0.0,
@@ -592,7 +632,8 @@ impl Particles {
         queue.write_buffer(&self.sim, 0, bytemuck::bytes_of(&SimUniform { dt, time, count: self.used, pad: 0 }));
         queue.write_buffer(&self.cam, 0, bytemuck::bytes_of(&FxCam::new(cam, time)));
         if dt > 0.0 {
-            let mut cp = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("particles"), timestamp_writes: None });
+            let mut cp =
+                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("particles"), timestamp_writes: None });
             cp.set_pipeline(&self.update);
             cp.set_bind_group(0, &self.update_bg, &[]);
             cp.dispatch_workgroups(self.used.div_ceil(64), 1, 1);

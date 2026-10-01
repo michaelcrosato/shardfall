@@ -13,9 +13,9 @@ use crate::choice_enum;
 use crate::entity::{Behavior, BodyKind, Hazard};
 use crate::joints::JointKind;
 use crate::level::{LabelDef, Layout};
-use crate::softbody::SoftDef;
 use crate::params::ParamValue;
 use crate::shape::{Look, Shape};
+use crate::softbody::SoftDef;
 use crate::statics::Facing;
 
 mod embedded {
@@ -88,6 +88,9 @@ pub struct ObjectDef {
     /// where its wheels / skids stand.
     #[serde(default)]
     pub vehicle: Option<crate::vehicle::VehicleDef>,
+    /// Shootable (enemies, bosses): hp, score, signal, finish, bar, sway, phases.
+    #[serde(default)]
+    pub health: Option<crate::entity::HealthDef>,
 }
 
 impl ObjectDef {
@@ -187,6 +190,10 @@ fn gray() -> String {
 fn dynamic() -> BodyKind {
     BodyKind::Dynamic
 }
+fn room_height() -> f32 {
+    8.0
+}
+
 fn misc() -> String {
     "misc".into()
 }
@@ -235,6 +242,10 @@ pub struct RoomDef {
     /// HUD overlays opened while inside: "feel" (feel metrics).
     #[serde(default)]
     pub overlays: Vec<String>,
+    /// Height of the room's volume (m): above it (plus a margin) you count as outside, which
+    /// cancels its courses. Raise it for rooms you fly in.
+    #[serde(default = "room_height")]
+    pub height: f32,
     pub entrance: Entrance,
     pub layout: Layout,
     /// Free-placed text (positions in layout space).

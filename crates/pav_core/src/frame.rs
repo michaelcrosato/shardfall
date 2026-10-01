@@ -34,6 +34,8 @@ pub struct RenderObject {
     pub soft: Option<SoftView>,
     /// Car / helicopter parts (wheels, rotors).
     pub vehicle: Option<crate::vehicle::VehicleView>,
+    /// A guard's vision cone.
+    pub cone: Option<crate::stealth::ConeView>,
 }
 
 #[derive(Clone, Debug)]
@@ -53,29 +55,96 @@ pub struct SoftView {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SimEvent {
-    Spawned { id: EntityId, pos: Vec3 },
-    Impact { pos: Vec3, strength: f32 },
-    Jump { pos: Vec3 },
-    Land { pos: Vec3, speed: f32 },
-    Explosion { pos: Vec3, radius: f32 },
-    Step { pos: Vec3 },
-    Throw { pos: Vec3 },
-    EnterRoom { room: u16 },
-    ExitRoom { room: u16 },
-    Hit { pos: Vec3, strength: f32 },
-    Respawn { pos: Vec3 },
-    CourseStart { pos: Vec3 },
-    CourseFinish { pos: Vec3, time: f32, new_best: bool },
-    Gate { pos: Vec3, ok: bool },
-    Checkpoint { pos: Vec3 },
-    Splash { pos: Vec3 },
-    Pad { pos: Vec3 },
-    Grab { pos: Vec3 },
-    Roll { pos: Vec3 },
+    Spawned {
+        id: EntityId,
+        pos: Vec3,
+    },
+    Impact {
+        pos: Vec3,
+        strength: f32,
+    },
+    Jump {
+        pos: Vec3,
+    },
+    Land {
+        pos: Vec3,
+        speed: f32,
+    },
+    Explosion {
+        pos: Vec3,
+        radius: f32,
+    },
+    Step {
+        pos: Vec3,
+    },
+    Throw {
+        pos: Vec3,
+    },
+    EnterRoom {
+        room: u16,
+    },
+    ExitRoom {
+        room: u16,
+    },
+    Hit {
+        pos: Vec3,
+        strength: f32,
+    },
+    Respawn {
+        pos: Vec3,
+    },
+    CourseStart {
+        pos: Vec3,
+    },
+    CourseFinish {
+        pos: Vec3,
+        time: f32,
+        new_best: bool,
+    },
+    Gate {
+        pos: Vec3,
+        ok: bool,
+    },
+    Checkpoint {
+        pos: Vec3,
+    },
+    Splash {
+        pos: Vec3,
+    },
+    Pad {
+        pos: Vec3,
+    },
+    /// A blaster shot, an enemy hit, an enemy destroyed.
+    Shot {
+        pos: Vec3,
+    },
+    Damage {
+        pos: Vec3,
+    },
+    Destroyed {
+        pos: Vec3,
+        size: f32,
+    },
+    /// A guard raised the alarm.
+    Spotted {
+        pos: Vec3,
+    },
+    Grab {
+        pos: Vec3,
+    },
+    Roll {
+        pos: Vec3,
+    },
     /// A tile starts crumbling / breaks.
-    Crack { pos: Vec3 },
-    Break { pos: Vec3 },
-    Bounce { pos: Vec3 },
+    Crack {
+        pos: Vec3,
+    },
+    Break {
+        pos: Vec3,
+    },
+    Bounce {
+        pos: Vec3,
+    },
 }
 
 /// The room the player is in, for the HUD (info card, control guide, camera defaults).
@@ -115,6 +184,8 @@ pub struct HudFrame {
     /// View settings from pads (applied on top of the room's), and a counter that changes.
     pub view: std::collections::BTreeMap<String, crate::params::ParamValue>,
     pub view_serial: u64,
+    /// Boss health bar: name and remaining fraction.
+    pub boss: Option<(String, f32)>,
 }
 
 /// Physics counters for the stats overlay.

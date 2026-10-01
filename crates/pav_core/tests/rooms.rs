@@ -30,8 +30,10 @@ fn all_rooms_build_and_courses_are_complete() {
                 _ => {}
             }
         }
+        // A boss with `health.finish` ends the course when destroyed, standing in for FINISH.
+        let boss = sim.state.entities.iter().any(|e| e.health.as_ref().is_some_and(|h| h.def.finish));
         for (c, (s, f)) in courses {
-            assert!(s > 0 && f > 0, "room {key}: course '{c}' needs a START and a FINISH (has {s} / {f})");
+            assert!(s > 0 && (f > 0 || boss), "room {key}: course '{c}' needs a START and a FINISH (has {s} / {f})");
         }
         let p = sim.player().expect("player").pos;
         assert!(p.y > -5.0 && p.is_finite(), "room {key}: player fell out ({p})");

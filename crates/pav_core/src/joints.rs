@@ -114,9 +114,7 @@ fn generic(link: &JointLink) -> GenericJoint {
         JointKind::Fixed => FixedJointBuilder::new().local_anchor1(a).local_anchor2(b).build().into(),
         JointKind::Ball => SphericalJointBuilder::new().local_anchor1(a).local_anchor2(b).build().into(),
         JointKind::Hinge { limits, motor_speed, motor_force, spring, damping, .. } => {
-            let mut j = RevoluteJointBuilder::new(link.axis_a.normalize_or(Vec3::X))
-                .local_anchor1(a)
-                .local_anchor2(b);
+            let mut j = RevoluteJointBuilder::new(link.axis_a.normalize_or(Vec3::X)).local_anchor1(a).local_anchor2(b);
             if let Some([lo, hi]) = limits {
                 j = j.limits([lo.to_radians(), hi.to_radians()]);
             }
@@ -160,7 +158,12 @@ impl PhysicsState {
     }
 
     /// Creates the rapier joint for a link between `body` and `other` (None = world).
-    pub fn insert_joint(&mut self, body: RigidBodyHandle, other: Option<RigidBodyHandle>, link: &JointLink) -> ImpulseJointHandle {
+    pub fn insert_joint(
+        &mut self,
+        body: RigidBodyHandle,
+        other: Option<RigidBodyHandle>,
+        link: &JointLink,
+    ) -> ImpulseJointHandle {
         match other {
             Some(b) => self.impulse_joints.insert(body, b, generic(link), true),
             None => {

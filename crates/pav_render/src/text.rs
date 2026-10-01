@@ -101,7 +101,7 @@ impl FontAtlas {
         let scale = PxScale::from(EM_PX * height_unscaled / upem);
         let px_per_unit = EM_PX / upem;
         let pad = SPREAD.ceil() as i32 + 1;
-        let chars: Vec<char> = (32u8..127).map(|c| c as char).chain("°×→←↑↓·".chars()).collect();
+        let chars: Vec<char> = (32u8..127).map(|c| c as char).chain("°×→←↑↓·—–…±²³½éü".chars()).collect();
 
         let mut pixels = vec![0u8; (ATLAS_W * 512) as usize];
         let mut height = 512u32;

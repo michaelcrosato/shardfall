@@ -35,6 +35,9 @@ pub struct CourseRun {
     pub missed: u32,
     pub hits: u32,
     pub falls: u32,
+    /// Points for destroyed enemies.
+    #[serde(default)]
+    pub score: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -50,6 +53,8 @@ pub struct CourseResult {
     pub best: f32,
     pub new_best: bool,
     pub tick: u64,
+    #[serde(default)]
+    pub score: u32,
 }
 
 /// Course state shown by the HUD.
@@ -64,6 +69,7 @@ pub struct CourseHud {
     pub hits: u32,
     pub falls: u32,
     pub best: Option<f32>,
+    pub score: u32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -108,6 +114,7 @@ impl Courses {
             hits: r.hits,
             falls: r.falls,
             best: self.best.get(&r.key).copied(),
+            score: r.score,
         })
     }
 }
@@ -172,7 +179,15 @@ impl Sim {
 
     /// Knocks a character back (hazards, projectiles). `respawn` sends the player to the last
     /// checkpoint instead.
-    pub fn hit_character(&mut self, id: EntityId, at: Vec3, dir: Vec3, knockback: f32, respawn: bool, events: &mut Vec<SimEvent>) {
+    pub fn hit_character(
+        &mut self,
+        id: EntityId,
+        at: Vec3,
+        dir: Vec3,
+        knockback: f32,
+        respawn: bool,
+        events: &mut Vec<SimEvent>,
+    ) {
         let stun = self.config.movement.hit_stun;
         let is_player = self.state.player == Some(id);
         let Some(ch) = self.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) else { return };
@@ -210,9 +225,7 @@ impl Sim {
             c.view.clear();
             c.view_serial += 1;
         }
-        c.checkpoint = entered
-            .and_then(|i| self.state.world.rooms.get(i as usize))
-            .map(|r| (r.inside, yaw_of(r.inward)));
+        c.checkpoint = entered.and_then(|i| self.state.world.rooms.get(i as usize)).map(|r| (r.inside, yaw_of(r.inward)));
     }
 
     /// Applies a pad's parameters; values are restored when the player leaves the room.
@@ -247,6 +260,36 @@ impl Sim {
         }
     }
 
+    /// Ends the running course: final time with penalties, best times, result card.
+    pub(crate) fn finish_course(&mut self, pos: Vec3, events: &mut Vec<SimEvent>) {
+        let tick = self.state.tick;
+        let dt = self.dt();
+        let Some(run) = self.state.courses.run.take() else { return };
+        let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
+        let raw = (tick - run.start_tick) as f32 * dt;
+        let time = raw + missed as f32 * GATE_PENALTY;
+        let old = self.state.courses.best.get(&run.key).copied();
+        let new_best = old.is_none_or(|b| time < b);
+        if new_best {
+            self.state.courses.best.insert(run.key.clone(), time);
+        }
+        let best = old.map(|b| b.min(time)).unwrap_or(time);
+        self.state.courses.last = Some(CourseResult {
+            course: run.course.clone(),
+            key: run.key.clone(),
+            time,
+            raw,
+            missed,
+            hits: run.hits,
+            falls: run.falls,
+            best,
+            new_best,
+            tick,
+            score: run.score,
+        });
+        events.push(SimEvent::CourseFinish { pos, time, new_best });
+    }
+
     /// Zone enter/exit for the player: courses, checkpoints, pits, pads, camera cues.
     pub(crate) fn update_zones(&mut self, events: &mut Vec<SimEvent>) {
         let Some((_pid, feet, facing)) = self.player_feet() else { return };
@@ -259,7 +302,6 @@ impl Sim {
         let prev = std::mem::take(&mut self.state.courses.inside);
         self.state.courses.inside = now.iter().map(|(r, _)| *r).collect();
         let tick = self.state.tick;
-        let dt = self.dt();
 
         // Exits.
         for r in &prev {
@@ -270,7 +312,9 @@ impl Sim {
             match z.kind {
                 ZoneKind::Start => {
                     let c = &mut self.state.courses;
-                    if let Some(run) = c.run.as_mut().filter(|run| run.region == r.region && run.course == z.course && !run.started) {
+                    if let Some(run) =
+                        c.run.as_mut().filter(|run| run.region == r.region && run.course == z.course && !run.started)
+                    {
                         run.started = true;
                         run.start_tick = tick;
                         events.push(SimEvent::CourseStart { pos: feet });
@@ -294,7 +338,12 @@ impl Sim {
             match z.kind {
                 ZoneKind::Start => {
                     // A running timer of another course is not cancelled by clipping this start.
-                    let busy = self.state.courses.run.as_ref().is_some_and(|x| x.started && (x.region != r.region || x.course != z.course));
+                    let busy = self
+                        .state
+                        .courses
+                        .run
+                        .as_ref()
+                        .is_some_and(|x| x.started && (x.region != r.region || x.course != z.course));
                     if busy {
                         continue;
                     }
@@ -321,13 +370,16 @@ impl Sim {
                         missed: 0,
                         hits: 0,
                         falls: 0,
+                        score: 0,
                     });
                     let yaw = z.facing.map(|f| yaw_of(f.dir())).unwrap_or(facing);
                     self.state.courses.checkpoint = Some((z.floor_center(), yaw));
                 }
                 ZoneKind::Gate => {
                     let mut msg = None;
-                    if let Some(run) = self.state.courses.run.as_mut().filter(|x| x.region == r.region && x.course == z.course && x.started) {
+                    if let Some(run) =
+                        self.state.courses.run.as_mut().filter(|x| x.region == r.region && x.course == z.course && x.started)
+                    {
                         if let Some(pos) = run.gates.iter().position(|g| *g == z.index) {
                             if pos >= run.next {
                                 let skipped = (pos - run.next) as u32;
@@ -336,7 +388,11 @@ impl Sim {
                                 run.next = pos + 1;
                                 events.push(SimEvent::Gate { pos: feet, ok: skipped == 0 });
                                 if skipped > 0 {
-                                    msg = Some(format!("missed {skipped} gate{} (+{:.0} s)", if skipped > 1 { "s" } else { "" }, skipped as f32 * GATE_PENALTY));
+                                    msg = Some(format!(
+                                        "missed {skipped} gate{} (+{:.0} s)",
+                                        if skipped > 1 { "s" } else { "" },
+                                        skipped as f32 * GATE_PENALTY
+                                    ));
                                 }
                             }
                         }
@@ -353,29 +409,7 @@ impl Sim {
                         .as_ref()
                         .is_some_and(|x| x.region == r.region && x.course == z.course && x.started && tick > x.start_tick);
                     if matches {
-                        let run = self.state.courses.run.take().unwrap();
-                        let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
-                        let raw = (tick - run.start_tick) as f32 * dt;
-                        let time = raw + missed as f32 * GATE_PENALTY;
-                        let old = self.state.courses.best.get(&run.key).copied();
-                        let new_best = old.is_none_or(|b| time < b);
-                        if new_best {
-                            self.state.courses.best.insert(run.key.clone(), time);
-                        }
-                        let best = old.map(|b| b.min(time)).unwrap_or(time);
-                        self.state.courses.last = Some(CourseResult {
-                            course: run.course.clone(),
-                            key: run.key.clone(),
-                            time,
-                            raw,
-                            missed,
-                            hits: run.hits,
-                            falls: run.falls,
-                            best,
-                            new_best,
-                            tick,
-                        });
-                        events.push(SimEvent::CourseFinish { pos: feet, time, new_best });
+                        self.finish_course(feet, events);
                     }
                 }
                 ZoneKind::Checkpoint => {
@@ -426,8 +460,15 @@ impl Sim {
     }
 }
 
-/// Axis-lock parameters name layout axes; a room turned by a quarter swaps x and z.
+/// Axis-lock parameters name layout axes (a room turned by a quarter swaps x and z), and a fixed
+/// blaster direction is an angle in the room's frame.
 pub fn rotate_axis_params(values: &mut BTreeMap<String, ParamValue>, quarters: u8) {
+    // A fixed blaster direction turns with the room (-1 = aim, unchanged).
+    if let Some(a) = values.get("bombs.shoot_angle").and_then(|v| v.as_f64()) {
+        if a >= 0.0 && !quarters.is_multiple_of(4) {
+            values.insert("bombs.shoot_angle".into(), ParamValue::Float((a - 90.0 * quarters as f64).rem_euclid(360.0)));
+        }
+    }
     if quarters.is_multiple_of(2) {
         return;
     }

@@ -40,6 +40,20 @@ pub fn wing_direction(wing: &str) -> Facing {
     }
 }
 
+/// The sign name of a wing.
+pub fn wing_title(wing: &str) -> &str {
+    match wing {
+        "movement" => "Movement & Feel Lab",
+        "physics" => "Physics Lab",
+        "animation" => "Animation Lab",
+        "vfx" => "Visual Effects",
+        "aesthetic" => "Styles & Filters",
+        "genre" => "Genre Wing",
+        "misc" => "Workshop",
+        other => other,
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoomSlot {
     pub id: u16,
@@ -144,7 +158,7 @@ pub fn layout_pavilion(defs: &[(String, RoomDef)]) -> World {
         let at = |cur: f32| {
             let origin = d * (PLAZA_HALF + cur - min_d) + n * (CORRIDOR_HALF - min_n);
             let place = Placement::new(origin, q);
-            let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, 8.0, rows as f32));
+            let (wmin, wmax) = place.aabb(Vec3::new(0.0, -1.0, 0.0), Vec3::new(cols as f32, def.height.max(2.0), rows as f32));
             (place, wmin, wmax)
         };
         // Rooms of neighbouring wings reach into the same corners near the plaza: slide this one
@@ -367,7 +381,13 @@ impl Sim {
         for o in &slot.def.objects {
             if let Some(vd) = &o.vehicle {
                 let name = if o.name.is_empty() { "vehicle" } else { &o.name };
-                let id = self.spawn_vehicle(name, vd.clone(), slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region));
+                let id = self.spawn_vehicle(
+                    name,
+                    vd.clone(),
+                    slot.place.point(o.pos),
+                    slot.place.quat() * o.local_rot(),
+                    Some(region),
+                );
                 if !o.name.is_empty() {
                     named.entry(o.name.clone()).or_insert(id);
                 }
@@ -392,7 +412,11 @@ impl Sim {
             sp.region = Some(region);
             sp.hazard = o.hazard.clone();
             sp.soft = o.soft.clone();
+            let pos0 = sp.pos;
             let id = self.spawn(sp);
+            if let (Some(h), Some(e)) = (&o.health, self.state.entities.get_mut(id)) {
+                e.health = Some(Box::new(crate::entity::Health::new(h.clone(), pos0, rot * Vec3::X)));
+            }
             if !o.name.is_empty() {
                 named.entry(o.name.clone()).or_insert(id);
             }
@@ -437,7 +461,9 @@ impl Sim {
             let dir = slot.place.rotate(Vec3::new(n.yaw.to_radians().sin(), 0.0, n.yaw.to_radians().cos()));
             let facing = dir.x.atan2(dir.z);
             let points = match &n.ai {
-                crate::ai::AiDef::Patrol { points, .. } => points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect(),
+                crate::ai::AiDef::Patrol { points, .. } | crate::ai::AiDef::Guard { points, .. } => {
+                    points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect()
+                }
                 _ => Vec::new(),
             };
             let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
@@ -484,7 +510,13 @@ impl Sim {
     }
 
     /// A chain of capsule links, or a rope bridge of hinged planks, between two points.
-    fn build_chain(&mut self, c: &crate::room::ChainDef, place: &Placement, region: RegionKey, named: &BTreeMap<String, EntityId>) {
+    fn build_chain(
+        &mut self,
+        c: &crate::room::ChainDef,
+        place: &Placement,
+        region: RegionKey,
+        named: &BTreeMap<String, EntityId>,
+    ) {
         use crate::joints::{JointKind, JointLink};
         use crate::room::ChainStyle;
         let (from, to) = (place.point(c.from), place.point(c.to));
@@ -505,15 +537,23 @@ impl Sim {
             let len = (b - a).length();
             let mid = (a + b) * 0.5;
             let (shape, rot, name) = if bridge {
-                let rot = Quat::from_mat3(&glam::Mat3::from_cols(dir, dir.cross(side.normalize()).normalize() * -1.0, side.normalize()))
-                    .normalize();
+                let rot = Quat::from_mat3(&glam::Mat3::from_cols(
+                    dir,
+                    dir.cross(side.normalize()).normalize() * -1.0,
+                    side.normalize(),
+                ))
+                .normalize();
                 (Shape::Box { half: Vec3::new(len * 0.46, c.radius * 0.5, c.width * 0.5) }, rot, "~plank")
             } else {
                 let rot = Quat::from_rotation_arc(Vec3::Y, dir);
                 (Shape::Capsule { half_height: (len * 0.5 - c.radius).max(0.01), radius: c.radius }, rot, "~link")
             };
-            let mut sp =
-                Spawn::new(name, mid).visual(Visual::new(shape, color)).body(BodyKind::Dynamic).rot(rot).density(c.density).damping(c.damping);
+            let mut sp = Spawn::new(name, mid)
+                .visual(Visual::new(shape, color))
+                .body(BodyKind::Dynamic)
+                .rot(rot)
+                .density(c.density)
+                .damping(c.damping);
             sp.region = Some(region);
             ids.push(self.spawn(sp));
         }
@@ -711,6 +751,41 @@ impl Sim {
                 for d in decor {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, d);
                 }
+                // Signs over each corridor mouth naming its wings, and a welcome line.
+                for f in DIRS {
+                    let mut wings: Vec<&str> = Vec::new();
+                    for r in &st.world.rooms {
+                        if wing_direction(&r.def.wing) == f && !wings.contains(&r.def.wing.as_str()) {
+                            wings.push(&r.def.wing);
+                        }
+                    }
+                    if wings.is_empty() {
+                        continue;
+                    }
+                    let text = wings.iter().map(|w| wing_title(w)).collect::<Vec<_>>().join("  ·  ");
+                    st.statics.add_label_to(
+                        RegionKey::Hub,
+                        crate::zones::Label {
+                            text,
+                            pos: f.dir() * (PLAZA_HALF - 1.2) + Vec3::Y * 2.4,
+                            size: 0.95,
+                            color: Color::hex("#3d3226"),
+                            mode: crate::zones::LabelMode::Billboard,
+                            facing: Facing::South,
+                        },
+                    );
+                }
+                st.statics.add_label_to(
+                    RegionKey::Hub,
+                    crate::zones::Label {
+                        text: "PAVILION  ·  walk down a corridor, or press F2 for any room".into(),
+                        pos: Vec3::new(0.0, 0.03, 4.2),
+                        size: 0.6,
+                        color: Color::hex("#6b5a44"),
+                        mode: crate::zones::LabelMode::Floor,
+                        facing: Facing::South,
+                    },
+                );
                 // Room names on the corridor floor in front of each door.
                 for r in &st.world.rooms {
                     let name = if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() };
@@ -838,7 +913,9 @@ impl Sim {
             .state
             .entities
             .iter()
-            .filter(|e| Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none())
+            .filter(|e| {
+                Some(e.id) != player && (e.character.is_none() || e.ai.is_some()) && e.bomb.is_none() && e.lifetime.is_none()
+            })
             // A vehicle someone is driving goes where its driver goes.
             .filter(|e| e.vehicle.as_ref().is_none_or(|v| v.driver.is_none()))
             .filter(|e| match area {
@@ -1104,6 +1181,7 @@ impl Sim {
                     particles: v.particles.as_deref().cloned(),
                     distortion: v.distortion.as_deref().cloned(),
                     vehicle: e.vehicle.as_ref().map(|x| x.def.clone()),
+                    health: e.health.as_ref().map(|x| x.def.clone()),
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1117,15 +1195,10 @@ fn fresh_behavior(b: &crate::entity::Behavior) -> crate::entity::Behavior {
     match b {
         Behavior::Move(m) => Behavior::Move(crate::entity::MoverDef { origin: None, ..m.clone() }),
         Behavior::Rotate(r) => Behavior::Rotate(crate::entity::RotatorDef { origin: None, ..r.clone() }),
-        Behavior::Emitter(e) => {
-            Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() })
+        Behavior::Emitter(e) => Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() }),
+        Behavior::Spawner(s) => {
+            Behavior::Spawner(crate::entity::SpawnerDef { timer: 0.0, pending: 0, spawned: Default::default(), ..s.clone() })
         }
-        Behavior::Spawner(s) => Behavior::Spawner(crate::entity::SpawnerDef {
-            timer: 0.0,
-            pending: 0,
-            spawned: Default::default(),
-            ..s.clone()
-        }),
         Behavior::Rain { interval, max, area, height, .. } => {
             Behavior::Rain { interval: *interval, max: *max, area: *area, height: *height, timer: 0, spawned: Default::default() }
         }
@@ -1215,7 +1288,12 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
             t.push_str(&format!("hazard = {}\n", inline(&v)));
         }
     }
-    for (k, v, d) in [("density", o.density, 1.0), ("friction", o.friction, 0.5), ("restitution", o.restitution, 0.0), ("damping", o.damping, 0.0)] {
+    for (k, v, d) in [
+        ("density", o.density, 1.0),
+        ("friction", o.friction, 0.5),
+        ("restitution", o.restitution, 0.0),
+        ("damping", o.damping, 0.0),
+    ] {
         if (v - d).abs() > 1e-4 {
             t.push_str(&format!("{k} = {}\n", num(v)));
         }
@@ -1230,6 +1308,7 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         ("particles", o.particles.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("distortion", o.distortion.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
         ("vehicle", o.vehicle.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+        ("health", o.health.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
     ];
     for (k, v) in fx {
         if let Some(v) = v {

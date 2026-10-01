@@ -1,0 +1,1720 @@
+# Helicopter Run: a small city of 5-14 m towers, an arcade helicopter and a timed flight course.
+# Get into the helicopter on the START pad (interact = E), wait for the rotor to spin up (~1.5 s),
+# then hold Space to climb, C to descend and move with WASD (it leans into its motion and turns
+# toward where it goes; with no input it hovers). Course "flight": leave the START pad (the clock
+# starts), fly through the 9 floating rings in order (a missed ring adds 2 s) and land on the
+# checkered FINISH pad on the north-east tower roof (touching the roof stops the clock).
+#   SOUTH plaza  START helipad (centre, at the entrance); PRACTICE helipad with a slow green trainer
+#                helicopter and a LANDING TARGET (bullseye) to the west; a terminal and hangar east.
+#   COURSE       avenue north (rings 1-3), over the low teal roof (CHECKPOINT pad), west street south
+#                (rings 4-6), east along the plaza, east street north (rings 7-9), then onto the
+#                FINISH roof. Every ring faces north-south (the camera looks north).
+# Why it is built this way:
+# - Zones are boxes on the floor plane with a height range, tested against the helicopter's BOTTOM
+#   (the player's feet while seated): the rings are gate zones at y0..y1 = 3..10 m, the START zone
+#   is 0..1.5 m (leaving it, also upward, starts the clock) and the FINISH zone is the roof plus
+#   0.2 m (so you have to touch down).
+# - The pavilion only tracks the player inside a room up to ~12 m (the room volume is 8 m + 4 m), and
+#   leaving it cancels the course run. So the air above 10.4 m (heli bottom) and above the walls
+#   (9 m; the south wall is only 3 m so it never hides the plaza) is a kill volume: it puts you back
+#   on your last checkpoint. The towers taller than ~10 m (12-14 m) are obstacles, not rooftops.
+# - The entrance gap (2 cells) is narrowed to 1.2 m by two bollards so the helicopter cannot taxi
+#   out; the player fits.
+# Map key: '.' street, ',' plaza, ':' practice yard, '#' wall (9 m), '=' south wall, '_' entrance,
+# 'S' START, 'T' practice pad, 'o' 'w' 'x' '+' landing target, '1'-'9' ring zones, 'K' checkpoint,
+# 'F' finish pad, 'A'-'Q' towers (height and colour per letter, see the legend). Every tile also
+# carries the ceiling kill volume unless it has a zone of its own.
+
+name = "Helicopter Run"
+about = "A small city of towers to fly through in an arcade helicopter (E to get in): hover and land on the practice pad, then run the 9-ring course from the START pad up the avenue, down the west street and up the east street to a landing on the FINISH roof."
+try = [
+  "Walk onto the START pad and press E at the red helicopter; wait ~1.5 s for the rotor to spin up",
+  "Hold Space to climb, C to descend, WASD to fly; let go of everything and it hovers",
+  "Practice first: take the green trainer (slower, gentler) from the PRACTICE pad, hover, and land on the TOUCHDOWN bullseye",
+  "Run the course: leaving the START pad starts the clock; fly through rings 1-9 in order (a missed ring is +2 s)",
+  "Skim over the low teal roof on the way to ring 4: its CHECKPOINT pad moves your respawn point there",
+  "Rings are high and low on purpose: watch their heights against the towers",
+  "Land on the checkered FINISH pad on top of the north-east tower: touching the roof stops the clock",
+  "Fly over a wall or above ~10 m and you are sent back to your last checkpoint; press E to get out (F5 resets the room)",
+]
+wing = "genre"
+order = 4
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+height = 16                    # flying room: the volume reaches above the rooftops
+entrance = { at = [29, 43], facing = "south" }
+controls = [["Get in / out", "E (near the helicopter)"], ["Fly", "W A S D"], ["Climb", "Space (hold)"], ["Descend", "C / Ctrl (hold)"], ["Hover", "let go of everything"]]
+
+# Far, high camera: you see the streets and the next ring.
+[camera]
+tilt = 50.0
+distance = 24.0
+
+[layout]
+origin = [-30.0, 0.0, -22.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+############################################################
+#AAAAAAAAA........CCCCCCCC........DDDDDDDD........EEEEEEEE.#
+#AAAAAAAAA........CCCCCCCC........DDDDDDDD........EFFFFFFE.#
+#AAAAAAAAA........CCCCCCCC........DDDDDDDD........EFFFFFFE.#
+#AAAAAAAAA........CCCCCCCC........DDDDDDDD........EFFFFFFE.#
+#AAAAAAAAA........CCCCCCCC........DDDDDDDD........EFFFFFFE.#
+#AAAAAAAAA........CCKKKKKC........DDDDDDDD........EFFFFFFE.#
+#AAAAAAAAA........CCKKKKKC........DDDDDDDD........EFFFFFFE.#
+#BBBBBBBBB........CCKKKKKC33333333DDDDDDDD........EEEEEEEE.#
+#BBBBBBBBB........CCKKKKKC........DDDDDDDD........GGGGGGGG.#
+#BBBBBBBBB........CCKKKKKC........DDDDDDDD........GGGGGGGG.#
+#BBBBBBBBB........CCCCCCCC........DDDDDDDD........GGGGGGGG.#
+#..........................................................#
+#..........................................................#
+#.........44444444........................99999999.........#
+#..........................................................#
+#..........................................................#
+#..........................................................#
+#..........................................................#
+#..........................................................#
+#HHHHHHHHH........JJJJJJJJ........LLLLLLLL........MMMMMMMM.#
+#HHHHHHHHH55555555JJJJJJJJ22222222LLLLLLLL88888888MMMMMMMM.#
+#HHHHHHHHH........JJJJJJJJ........LLLLLLLL........MMMMMMMM.#
+#HHHHHHHHH........JJJJJJJJ........LLLLLLLL........MMMMMMMM.#
+#HHHHHHHHH........JJJJJJJJ........LLLLLLLL........MMMMMMMM.#
+#IIIIIIIII........JJJJJJJJ........LLLLLLLL........MMMMMMMM.#
+#IIIIIIIII........JJJJJJJJ........LLLLLLLL........NNNNNNNN.#
+#IIIIIIIII........JJJJJJJJ........LLLLLLLL........NNNNNNNN.#
+#IIIIIIIII66666666JJJJJJJJ11111111LLLLLLLL77777777NNNNNNNN.#
+#IIIIIIIII........JJJJJJJJ........LLLLLLLL........NNNNNNNN.#
+#..........................................................#
+#:::::::::::::::::::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#
+#:::::::::::::::::::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#
+#::::oooooooo:::::::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#
+#::::owwwwwwo::::TTTTTT:::,SSSSSS,,,,,,,,,,,,,,,,,,,,EEEEE,#
+#::::owoooowo::::TTTTTT:::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#::::owo++owo::::TTTTTT:::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#::::owo++owo::::TTTTTT:::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#::::owoooowo::::TTTTTT:::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#::::owwwwwwo::::TTTTTT:::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#::::oooooooo:::::::::::::,SSSSSS,,,,,,,PPPPPPPPPP,,,EEEEE,#
+#:::::::::::::::::::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#
+#:::::::::::::::::::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#
+=============================__=============================
+'''
+
+# --- tiles (generated) ---
+[layout.legend.'#']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#4f5866", y0 = 0, y1 = 9 }]
+zone = { color = "none", kind = "kill", y0 = 9, y1 = 400 }
+[layout.legend.'+']
+blocks = [{ color = "#f4f1ea", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "pad", label = "TOUCHDOWN", label_size = 0.3, y0 = 0, y1 = 0.5 }
+[layout.legend.',']
+blocks = [{ color = "#9ba1a9", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'.']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'1']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 1, kind = "gate", y0 = 4, y1 = 9 }
+[layout.legend.'2']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 2, kind = "gate", y0 = 5, y1 = 10 }
+[layout.legend.'3']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 3, kind = "gate", y0 = 5, y1 = 10 }
+[layout.legend.'4']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 4, kind = "gate", y0 = 4, y1 = 9 }
+[layout.legend.'5']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 5, kind = "gate", y0 = 4, y1 = 9 }
+[layout.legend.'6']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 6, kind = "gate", y0 = 3, y1 = 8 }
+[layout.legend.'7']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 7, kind = "gate", y0 = 4, y1 = 9 }
+[layout.legend.'8']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 8, kind = "gate", y0 = 5, y1 = 10 }
+[layout.legend.'9']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", course = "flight", index = 9, kind = "gate", y0 = 5, y1 = 10 }
+[layout.legend.':']
+blocks = [{ color = "#a9b4a6", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'=']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#4f5866", y0 = 0, y1 = 3 }]
+zone = { color = "none", kind = "kill", y0 = 3, y1 = 400 }
+[layout.legend.'A']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#8f9db0", y0 = 0, y1 = 12 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'B']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#c9b59a", y0 = 0, y1 = 9 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'C']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#7fb2ae", y0 = 0, y1 = 6 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'D']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#b98b78", y0 = 0, y1 = 10 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'E']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#9aa5b1", y0 = 0, y1 = 8 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'F']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#9aa5b1", y0 = 0, y1 = 8 }]
+zone = { course = "flight", kind = "finish", y0 = 8, y1 = 8.2 }
+[layout.legend.'G']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#a99bc2", y0 = 0, y1 = 5 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'H']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#b3b78a", y0 = 0, y1 = 9 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'I']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#8f9db0", y0 = 0, y1 = 11 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'J']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#c9b59a", y0 = 0, y1 = 13 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'K']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#7fb2ae", y0 = 0, y1 = 6 }]
+zone = { facing = "west", kind = "checkpoint", label = "CHECKPOINT", label_size = 0.42, y0 = 6, y1 = 9.5 }
+[layout.legend.'L']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#7fb2ae", y0 = 0, y1 = 14 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'M']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#b98b78", y0 = 0, y1 = 8 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'N']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#a99bc2", y0 = 0, y1 = 10 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'P']
+blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#8c7f6c", y0 = 0, y1 = 6 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'S']
+blocks = [{ color = "#59616f", y0 = -0.5, y1 = 0 }]
+zone = { course = "flight", facing = "north", kind = "start", label = "START", y0 = 0, y1 = 1.5 }
+[layout.legend.'T']
+blocks = [{ color = "#4f6d5c", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'_']
+blocks = [{ color = "#9ba1a9", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 3, y1 = 400 }
+[layout.legend.'o']
+blocks = [{ color = "#d9534f", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+[layout.legend.'w']
+blocks = [{ color = "#f4f1ea", y0 = -0.5, y1 = 0 }]
+zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }
+
+[[label]]
+text = "1"
+pos = [30, 12.1, 28.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "2"
+pos = [30, 13.1, 21.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "3"
+pos = [30, 13.1, 8.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "4"
+pos = [14, 12.1, 14.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "5"
+pos = [14, 12.1, 21.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "6"
+pos = [14, 11.1, 28.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "7"
+pos = [46, 12.1, 28.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "8"
+pos = [46, 13.1, 21.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "9"
+pos = [46, 13.1, 14.5]
+size = 1.8
+color = "#ffffff"
+mode = "billboard"
+
+[[label]]
+text = "H"
+pos = [30, 0.04, 35.4]
+size = 2.2
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "COURSE  GATES 1-9"
+pos = [30, 0.03, 32.6]
+size = 0.7
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "H"
+pos = [20, 0.04, 35.2]
+size = 1.8
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "PRACTICE"
+pos = [20, 0.03, 33.3]
+size = 0.6
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "LANDING TARGET"
+pos = [9, 0.03, 32]
+size = 0.6
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "FINISH"
+pos = [54, 8.04, 1.2]
+size = 0.8
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "FINISH"
+pos = [54, 8.04, 8.6]
+size = 0.8
+color = "#ffffff"
+mode = "floor"
+
+[[label]]
+text = "GATE 1"
+pos = [30, 0.03, 29.9]
+size = 0.7
+color = "#ffd35a"
+mode = "floor"
+
+[[label]]
+text = "GATE 2"
+pos = [30, 0.03, 22.9]
+size = 0.7
+color = "#7fe3ff"
+mode = "floor"
+
+[[label]]
+text = "GATE 3"
+pos = [30, 0.03, 9.9]
+size = 0.7
+color = "#ffd35a"
+mode = "floor"
+
+[[label]]
+text = "GATE 4"
+pos = [14, 0.03, 15.9]
+size = 0.7
+color = "#7fe3ff"
+mode = "floor"
+
+[[label]]
+text = "GATE 5"
+pos = [14, 0.03, 22.9]
+size = 0.7
+color = "#ffd35a"
+mode = "floor"
+
+[[label]]
+text = "GATE 6"
+pos = [14, 0.03, 29.9]
+size = 0.7
+color = "#7fe3ff"
+mode = "floor"
+
+[[label]]
+text = "GATE 7"
+pos = [46, 0.03, 29.9]
+size = 0.7
+color = "#ffd35a"
+mode = "floor"
+
+[[label]]
+text = "GATE 8"
+pos = [46, 0.03, 22.9]
+size = 0.7
+color = "#7fe3ff"
+mode = "floor"
+
+[[label]]
+text = "GATE 9"
+pos = [46, 0.03, 15.9]
+size = 0.7
+color = "#ffd35a"
+mode = "floor"
+
+[[object]]
+name = "heli"
+pos = [30, 0, 39.5]
+yaw = 180
+vehicle = { kind = "helicopter", color = "#e8643c", accent = "#fff1c2", power = 12, max_speed = 12, climb = 5 }
+
+[[object]]
+name = "trainer"
+pos = [20, 0, 37]
+yaw = 180
+vehicle = { kind = "helicopter", color = "#3fb07a", accent = "#f5e6a8", power = 7, max_speed = 7, climb = 3 }
+
+[[object]]
+name = "gate1_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 8.1, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 9.659, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 10.559, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 10.559, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 9.659, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 8.1, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 6.3, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 4.741, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 3.841, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 3.841, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 4.741, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 6.3, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate1_stand"
+shape = { type = "box", half = [0.140, 1.750, 0.140] }
+pos = [30, 1.75, 28.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate1"
+shape = { type = "sphere", radius = 0.12 }
+pos = [30, 7.2, 28.5]
+color = "#ffc233"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate2_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 9.1, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 10.659, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 11.559, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 11.559, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 10.659, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 9.1, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 7.3, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 5.741, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 4.841, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 4.841, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 5.741, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 7.3, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate2_stand"
+shape = { type = "box", half = [0.140, 2.250, 0.140] }
+pos = [30, 2.25, 21.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate2"
+shape = { type = "sphere", radius = 0.12 }
+pos = [30, 8.2, 21.5]
+color = "#38d0ff"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate3_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 9.1, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 10.659, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 11.559, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 11.559, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 10.659, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 9.1, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [26.641, 7.3, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [27.541, 5.741, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [29.1, 4.841, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [30.9, 4.841, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [32.459, 5.741, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [33.359, 7.3, 8.5]
+color = "#ffc233"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate3_stand"
+shape = { type = "box", half = [0.140, 2.250, 0.140] }
+pos = [30, 2.25, 8.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate3"
+shape = { type = "sphere", radius = 0.12 }
+pos = [30, 8.2, 8.5]
+color = "#ffc233"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate4_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 8.1, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 9.659, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 10.559, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 10.559, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 9.659, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 8.1, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 6.3, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 4.741, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 3.841, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 3.841, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 4.741, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 6.3, 14.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate4_stand"
+shape = { type = "box", half = [0.140, 1.750, 0.140] }
+pos = [14, 1.75, 14.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate4"
+shape = { type = "sphere", radius = 0.12 }
+pos = [14, 7.2, 14.5]
+color = "#38d0ff"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate5_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 8.1, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 9.659, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 10.559, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 10.559, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 9.659, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 8.1, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 6.3, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 4.741, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 3.841, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 3.841, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 4.741, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 6.3, 21.5]
+color = "#ffc233"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate5_stand"
+shape = { type = "box", half = [0.140, 1.750, 0.140] }
+pos = [14, 1.75, 21.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate5"
+shape = { type = "sphere", radius = 0.12 }
+pos = [14, 7.2, 21.5]
+color = "#ffc233"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate6_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 7.1, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 8.659, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 9.559, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 9.559, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 8.659, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 7.1, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [10.641, 5.3, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [11.541, 3.741, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [13.1, 2.841, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [14.9, 2.841, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [16.459, 3.741, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [17.359, 5.3, 28.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate6_stand"
+shape = { type = "box", half = [0.140, 1.250, 0.140] }
+pos = [14, 1.25, 28.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate6"
+shape = { type = "sphere", radius = 0.12 }
+pos = [14, 6.2, 28.5]
+color = "#38d0ff"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate7_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 8.1, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 9.659, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 10.559, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 10.559, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 9.659, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 8.1, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 6.3, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 4.741, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 3.841, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 3.841, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 4.741, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 6.3, 28.5]
+color = "#ffc233"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate7_stand"
+shape = { type = "box", half = [0.140, 1.750, 0.140] }
+pos = [46, 1.75, 28.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate7"
+shape = { type = "sphere", radius = 0.12 }
+pos = [46, 7.2, 28.5]
+color = "#ffc233"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate8_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 9.1, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 10.659, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 11.559, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 11.559, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 10.659, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 9.1, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 7.3, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 5.741, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 4.841, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 4.841, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 5.741, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 7.3, 21.5]
+color = "#38d0ff"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate8_stand"
+shape = { type = "box", half = [0.140, 2.250, 0.140] }
+pos = [46, 2.25, 21.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate8"
+shape = { type = "sphere", radius = 0.12 }
+pos = [46, 8.2, 21.5]
+color = "#38d0ff"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "gate9_ring0"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 9.1, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 105
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring1"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 10.659, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 135
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring2"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 11.559, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 165
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring3"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 11.559, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 195
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring4"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 10.659, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 225
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring5"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 9.1, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 255
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring6"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [42.641, 7.3, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 285
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring7"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [43.541, 5.741, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 315
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring8"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [45.1, 4.841, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 345
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring9"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [46.9, 4.841, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 375
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring10"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [48.459, 5.741, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 405
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_ring11"
+shape = { type = "box", half = [0.992, 0.160, 0.160] }
+pos = [49.359, 7.3, 14.5]
+color = "#ffc233"
+body = "fixed"
+roll = 435
+emissive = 0.8
+look = "flat"
+
+[[object]]
+name = "gate9_stand"
+shape = { type = "box", half = [0.140, 2.250, 0.140] }
+pos = [46, 2.25, 14.5]
+color = "#5d6877"
+body = "fixed"
+
+[[object]]
+name = "gate9"
+shape = { type = "sphere", radius = 0.12 }
+pos = [46, 8.2, 14.5]
+color = "#ffc233"
+body = "none"
+emissive = 3
+look = "flat"
+
+[[object]]
+name = "bollard0"
+shape = { type = "box", half = [0.200, 2.000, 0.350] }
+pos = [29.2, 2, 43.5]
+color = "#f2c14e"
+body = "fixed"
+
+[[object]]
+name = "bollard1"
+shape = { type = "box", half = [0.200, 2.000, 0.350] }
+pos = [30.8, 2, 43.5]
+color = "#f2c14e"
+body = "fixed"
+
+[[object]]
+name = "tank1"
+shape = { type = "cylinder", half_height = 0.9, radius = 1.1 }
+pos = [22, 13.9, 25]
+color = "#b9c0c9"
+body = "fixed"
+
+[[object]]
+name = "tank2"
+shape = { type = "cylinder", half_height = 0.9, radius = 1.1 }
+pos = [38, 14.9, 26]
+color = "#d8c9a8"
+body = "fixed"
+
+[[object]]
+name = "tank3"
+shape = { type = "cylinder", half_height = 0.9, radius = 1.1 }
+pos = [5, 9.9, 22]
+color = "#b9c0c9"
+body = "fixed"
+
+[[object]]
+name = "mast1"
+shape = { type = "box", half = [0.120, 2.000, 0.120] }
+pos = [36, 16, 22]
+color = "#4a4f5a"
+body = "fixed"
+
+[[object]]
+name = "mast1_lamp"
+shape = { type = "sphere", radius = 0.25 }
+pos = [36, 18.2, 22]
+color = "#ff3b3b"
+body = "none"
+emissive = 4
+look = "flat"
+
+[[object]]
+name = "mast3"
+shape = { type = "box", half = [0.120, 2.000, 0.120] }
+pos = [5, 14, 4]
+color = "#4a4f5a"
+body = "fixed"
+
+[[object]]
+name = "mast3_lamp"
+shape = { type = "sphere", radius = 0.25 }
+pos = [5, 16.2, 4]
+color = "#ff3b3b"
+body = "none"
+emissive = 4
+look = "flat"
+
+[[object]]
+name = "beacon"
+shape = { type = "box", half = [0.120, 1.500, 0.120] }
+pos = [57.4, 9.5, 8.5]
+color = "#4a4f5a"
+body = "fixed"
+
+[[object]]
+name = "beacon_lamp"
+shape = { type = "sphere", radius = 0.25 }
+pos = [57.4, 11.2, 8.5]
+color = "#ff3b3b"
+body = "none"
+emissive = 4
+look = "flat"
+
+[[object]]
+name = "beacon2"
+shape = { type = "box", half = [0.120, 1.500, 0.120] }
+pos = [50.6, 9.5, 1.6]
+color = "#4a4f5a"
+body = "fixed"
+
+[[object]]
+name = "beacon2_lamp"
+shape = { type = "sphere", radius = 0.25 }
+pos = [50.6, 11.2, 1.6]
+color = "#ff3b3b"
+body = "none"
+emissive = 4
+look = "flat"

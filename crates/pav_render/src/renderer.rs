@@ -354,8 +354,15 @@ impl Renderer {
         });
 
         let point_shadows = crate::shadows::PointShadows::new(device, &shadow_layout, globals_size);
-        let globals_bg =
-            Self::make_globals_bg(device, &globals_layout, &globals_buf, &lights.buf, &shadow_view, &shadow_sampler, &point_shadows);
+        let globals_bg = Self::make_globals_bg(
+            device,
+            &globals_layout,
+            &globals_buf,
+            &lights.buf,
+            &shadow_view,
+            &shadow_sampler,
+            &point_shadows,
+        );
         let shadow_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shadow globals"),
             layout: &shadow_layout,

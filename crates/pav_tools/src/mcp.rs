@@ -6,8 +6,9 @@ use std::io::{BufRead, Write};
 use anyhow::Result;
 use serde_json::{Value, json};
 
+use crate::bridge::Client;
 use crate::session::Session;
-use crate::tools::{self, Output, TOOLS};
+use crate::tools::{self, Args, Output, TOOLS};
 
 const PROTOCOL: &str = "2025-06-18";
 
@@ -33,10 +34,8 @@ fn tool_list() -> Value {
     })).collect::<Vec<_>>() })
 }
 
-fn call(session: &mut Session, params: &Value) -> Value {
-    let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let args = params.get("arguments").and_then(|v| v.as_object()).cloned().unwrap_or_default();
-    match tools::call(session, name, &args) {
+fn call(session: &mut Session, name: &str, args: &Args) -> Value {
+    match tools::call(session, name, args) {
         Ok(Output::Json(v)) => json!({ "content": [{ "type": "text", "text": v.to_string() }] }),
         Ok(Output::Image { png, meta, .. }) => json!({ "content": [
             { "type": "image", "data": base64(&png), "mimeType": "image/png" },
@@ -46,8 +45,38 @@ fn call(session: &mut Session, params: &Value) -> Value {
     }
 }
 
-/// Serves until stdin closes.
+/// Forwards a call to a running game through the live bridge.
+fn call_live(client: &mut Client, name: &str, args: &Args) -> Value {
+    match client.request(name, args) {
+        Ok(r) => {
+            if let Some(e) = r.get("error").and_then(|e| e.as_str()) {
+                return json!({ "content": [{ "type": "text", "text": e }], "isError": true });
+            }
+            let text = r.get("result").cloned().unwrap_or(Value::Null).to_string();
+            match r.get("png").and_then(|p| p.as_str()) {
+                Some(png) => json!({ "content": [
+                    { "type": "image", "data": png, "mimeType": "image/png" },
+                    { "type": "text", "text": text },
+                ] }),
+                None => json!({ "content": [{ "type": "text", "text": text }] }),
+            }
+        }
+        Err(e) => json!({ "content": [{ "type": "text", "text": format!("{e:#}") }], "isError": true }),
+    }
+}
+
+/// Serves a local headless session until stdin closes.
 pub fn serve(mut session: Session) -> Result<()> {
+    run(&mut |name, args| call(&mut session, name, args), "headless session")
+}
+
+/// Serves the running game at `addr` (live bridge) until stdin closes.
+pub fn serve_live(addr: &str) -> Result<()> {
+    let mut client = Client::connect(addr)?;
+    run(&mut |name, args| call_live(&mut client, name, args), "the running game (live bridge)")
+}
+
+fn run(call: &mut dyn FnMut(&str, &Args) -> Value, target: &str) -> Result<()> {
     let stdin = std::io::stdin();
     let mut out = std::io::stdout().lock();
     for line in stdin.lock().lines() {
@@ -71,11 +100,15 @@ pub fn serve(mut session: Session) -> Result<()> {
                 "protocolVersion": params.get("protocolVersion").and_then(|v| v.as_str()).unwrap_or(PROTOCOL),
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "pavilion", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Pavilion game engine tools. Start with `scenes` and `load`, drive the player with `input`, look with `capture`. Parameters: `params` / `set`.",
+                "instructions": format!("Pavilion game engine tools, connected to {target}. Start with `scenes` and `load` (or `rooms` and `goto`), drive the player with `input`, look with `capture`. Parameters: `params` / `set`."),
             })),
             "ping" => Ok(json!({})),
             "tools/list" => Ok(tool_list()),
-            "tools/call" => Ok(call(&mut session, &params)),
+            "tools/call" => {
+                let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                let args = params.get("arguments").and_then(|v| v.as_object()).cloned().unwrap_or_default();
+                Ok(call(name, &args))
+            }
             _ => Err(json!({ "code": -32601, "message": format!("unknown method {method}") })),
         };
         let reply = match result {

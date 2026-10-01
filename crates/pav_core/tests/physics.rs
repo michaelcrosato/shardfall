@@ -100,7 +100,12 @@ fn heavy_impact_breaks_glass() {
     let mut sim = room();
     let blocks = sim.state.statics.block_count();
     let p = cell(14.0, 2.0) + Vec3::Y * 6.0;
-    sim.spawn(Spawn::new("weight", p).visual(Visual::new(Shape::Box { half: Vec3::splat(0.4) }, Color::WHITE)).body(BodyKind::Dynamic).density(300.0));
+    sim.spawn(
+        Spawn::new("weight", p)
+            .visual(Visual::new(Shape::Box { half: Vec3::splat(0.4) }, Color::WHITE))
+            .body(BodyKind::Dynamic)
+            .density(300.0),
+    );
     go(&mut sim, Vec2::ZERO, 120);
     assert!(sim.state.statics.block_count() < blocks, "glass broke");
 }

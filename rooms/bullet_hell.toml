@@ -1,0 +1,365 @@
+# Bullet Hell: a top-down shoot-'em-up arena. You always fire north (hold the button), the
+# enemies fill the screen with bullets, and the course ends when the boss goes down.
+#   START strip (south) -> stage 1: drones (aimed shots, small rings) -> barrier A (gap in the
+#   WEST) -> stage 2: turrets (spirals, a swaying ring, swaying fans) -> barrier B (gap in the
+#   EAST) -> stage 3: the BOSS (three phases: fan, spiral, spiral storm) with two side pods.
+# The barriers are 2 m bulkheads with offset gaps: they stop bullets (yours too), so you cannot
+# snipe the boss from the entrance (a player shot flies 35 m) and have to cross each stage.
+# Everything shootable is an [[object]] with a `health` table; the enemy's emitter sits on the
+# same object (body = "none": bullets pass through enemies and you can overlap them). Enemies
+# hover at 1.1 m (the height of your own shots), their bullets fly at 0.55 m so standing,
+# crouching and crawling are all hit. Bullets are 4-6 m/s and the player hitbox is 0.12 m, so the
+# dense patterns stay dodgeable. Cover pillars (2 m) stop enemy bullets and yours.
+# The FINISH pocket behind the boss is walled off: the boss kill ends the course by itself, the
+# zone only exists so that a course always has a FINISH. The START bay sits behind a bulkhead
+# (barrier S) so a knockback can never push you back into START (entering START again restarts
+# the run: timer, score and hits).
+#
+# Map key: # wall (3 m), a/b stage-1 floor, c/d stage-2 floor, e/f boss floor (stripes every 2
+# rows), S START strip, B barrier (start bulkhead / A / B), p cover pillar, F sealed FINISH pocket.
+name = "Bullet Hell"
+about = "A top-down shoot-'em-up: hold fire (it always shoots north), weave through drone waves and spiral turrets, duck behind pillars and slip through the barrier gaps to a three-phase boss. The hitbox is tiny (0.12 m), so slipping between bullets is the game; the HUD counts score, time and hits."
+try = [
+  "Hold Space, F or the left mouse button to fire; you always shoot north, so steer to line shots up",
+  "Hold Shift to walk slowly for tight dodging through a spiral",
+  "STAGE 1: shoot the drones (10-25 points each, the centre one is worth 25) from behind the pillar comb",
+  "STAGE 2: the spiral turrets are worth 50, as are the swaying ring and fan turrets; cross to the east gap",
+  "The barriers stop bullets, yours too: line up through the gap, or fight from behind a pillar",
+  "BOSS: the bar at the top gets angrier at 66% (spiral) and 33% (spiral storm); the two pods are worth 100 each",
+  "A hit knocks you back, stuns you briefly and counts on the HUD; finish with as few hits as you can",
+  "Walking back into the START bay restarts the run (timer, score, hits); F5 resets the room so the enemies are back",
+]
+wing = "genre"
+order = 1
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [14, 39], facing = "south" }
+controls = [["Move", "W A S D"], ["Fire (hold)", "Space / F / left mouse"], ["Walk slowly", "Shift (hitbox is tiny)"]]
+
+# Straight down, orthographic: a 2D shooter view (distance 26 shows about 34 x 19 m at 16:9).
+[camera]
+tilt = 90.0
+ortho = true
+distance = 26.0
+
+[view]
+bloom = 0.9
+"cutaway.fade" = false
+"cutaway.height_cut" = false
+
+[params]
+"bombs.weapon" = "blaster"
+"bombs.shoot_angle" = 180.0
+"bombs.fire_interval" = 0.1
+"movement.hitbox" = 0.12
+"movement.allow_jump" = false
+
+# Fire with Space as well as F (jumping is off in this room).
+[keys]
+use = ["Space", "KeyF"]
+jump = []
+
+[layout]
+origin = [-15.0, 0.0, -20.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+##############################
+#eeeeeeeeeeee#FF#eeeeeeeeeeee#
+#ffffffffffff####ffffffffffff#
+#ffffffffffffffffffffffffffff#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeee#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeee#
+#ffffffffffffffffffffffffffff#
+#ffffffffffffffffffffffffffff#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeee#
+#eeeeeeeeeeeepeepeeeeeeeeeeee#
+#fffffffffffffffffffffffpffff#
+#fffffpffffffffffffffffffffff#
+#eeeeeeeeeepeeeeeepeeeeeeeeee#
+#eeeeeeeeeeeeeeeeeeeeeeeeeeee#
+#ffffffffffffffffffffffffffff#
+#BBBBBBBBBBBBBBBBBBBBBBfffffB#
+#cccccccccccccccccccccccccccc#
+#cccccccccccccccccccccccccccc#
+#dddddddddddddddddddddddddddd#
+#dddddddddddddddddddddddddddd#
+#cccccpcccccccccccccccccpcccc#
+#cccccccccccpccccpccccccccccc#
+#dddddddddddddddddddddddddddd#
+#dddddddddddddddddddddddddddd#
+#cccccccccpccccccccpccccccccc#
+#cccccccccccccccccccccccccccc#
+#BdddddBBBBBBBBBBBBBBBBBBBBBB#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#aaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#aaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#aaaaaaaaaaaaaaaaaaaaaaaaaaaa#
+#aaaaapaaapaapaapaapaaapaaaaa#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb#
+#BBBBBBBBBBBaaaaaaBBBBBBBBBBB#
+#SSSSSSSSSSSSSSSSSSSSSSSSSSSS#
+#SSSSSSSSSSSSSSSSSSSSSSSSSSSS#
+##############aa##############
+'''
+
+# Dark floors (so the bullets glow) in three tints that tell the stages apart from above.
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#171b2e" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#1c2138" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#1e1833" }]
+
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#241d3c" }]
+
+[layout.legend.'e']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2c161d" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#341b24" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#171b2e" }, { y0 = 0, y1 = 3.0, color = "#4a5472" }]
+
+# START strip: leaving it (walking north) starts the timer.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#1d3a2a" }]
+zone = { kind = "start", course = "arena", label = "START", facing = "north" }
+
+# Barriers between the stages: 2 m, stop bullets.
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#171b2e" }, { y0 = 0, y1 = 2.0, color = "#5a6690" }]
+
+# Cover pillars: 2 m, stop bullets.
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2c161d" }, { y0 = 0, y1 = 2.0, color = "#8e9bc0", rounded = true }]
+
+# FINISH pocket (sealed): the boss kill finishes the course by itself.
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2c161d" }]
+zone = { kind = "finish", course = "arena", label = "FINISH" }
+
+[[label]]
+text = "STAGE 1"
+pos = [15.0, 0.03, 35.3]
+size = 0.9
+color = "#6f7aa6"
+
+[[label]]
+text = "STAGE 2"
+pos = [15.0, 0.03, 25.3]
+size = 0.9
+color = "#7f6fb0"
+
+[[label]]
+text = "BOSS"
+pos = [15.0, 0.03, 14.3]
+size = 0.9
+color = "#b06f7f"
+
+[[label]]
+text = "DRONES"
+pos = [15.0, 0.03, 34.0]
+size = 0.5
+color = "#6f7aa6"
+
+[[label]]
+text = "TURRETS"
+pos = [15.0, 0.03, 24.0]
+size = 0.5
+color = "#7f6fb0"
+
+[[label]]
+text = "PODS + BOSS"
+pos = [15.0, 0.03, 13.0]
+size = 0.5
+color = "#b06f7f"
+
+[[label]]
+text = "GATE"
+pos = [15.0, 0.03, 36.5]
+size = 0.45
+color = "#8e9bc0"
+
+[[label]]
+text = "GATE"
+pos = [4.5, 0.03, 26.5]
+size = 0.45
+color = "#8e9bc0"
+
+[[label]]
+text = "GATE"
+pos = [25.5, 0.03, 15.5]
+size = 0.45
+color = "#8e9bc0"
+
+# ---- STAGE 1: drones (hp 3-5). Slow aimed shots, a few small rings. Delays desynchronise them.
+[[object]]
+name = "drone_w3"
+shape = { type = "sphere", radius = 0.45 }
+pos = [4.5, 1.1, 31.0]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 2.4, count = 1, spread = 0, spin = 12, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.0, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 3, score = 10 }
+
+[[object]]
+name = "drone_w2"
+shape = { type = "sphere", radius = 0.45 }
+pos = [8.5, 1.1, 30.2]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 2.2, count = 1, spread = 0, spin = 12, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.6, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 3, score = 10, sway = [1.5, 5] }
+
+[[object]]
+name = "drone_w1"
+shape = { type = "sphere", radius = 0.45 }
+pos = [12.0, 1.1, 29.4]
+color = "#ffb03c"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "ring", interval = 3.0, count = 8, spread = 0, spin = 12, speed = 4.0, radius = 0.2, height = -0.55, range = 13.0, delay = 1.0, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 4, score = 15 }
+
+[[object]]
+name = "drone_c"
+shape = { type = "sphere", radius = 0.45 }
+pos = [15.0, 1.1, 28.6]
+color = "#ff4d6d"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 2.0, count = 3, spread = 34, spin = 12, speed = 5.0, radius = 0.2, height = -0.55, range = 13.0, delay = 0.3, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 5, score = 25, sway = [2, 6] }
+
+[[object]]
+name = "drone_e1"
+shape = { type = "sphere", radius = 0.45 }
+pos = [18.0, 1.1, 29.4]
+color = "#ffb03c"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "ring", interval = 3.0, count = 8, spread = 0, spin = 12, speed = 4.0, radius = 0.2, height = -0.55, range = 13.0, delay = 2.0, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 4, score = 15 }
+
+[[object]]
+name = "drone_e2"
+shape = { type = "sphere", radius = 0.45 }
+pos = [21.5, 1.1, 30.2]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 2.2, count = 1, spread = 0, spin = 12, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 1.2, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 3, score = 10, sway = [1.5, 5] }
+
+[[object]]
+name = "drone_e3"
+shape = { type = "sphere", radius = 0.45 }
+pos = [25.5, 1.1, 31.0]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 2.4, count = 1, spread = 0, spin = 12, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 1.8, color = "#ff8a5c", knockback = 3.5, life = 6.0 }
+health = { hp = 3, score = 10 }
+
+# ---- STAGE 2: turrets (hp 10, 50 points). Spirals, a swaying ring, swaying fans.
+[[object]]
+name = "turret_sp_w"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.7 }
+pos = [7.5, 1.1, 22.0]
+color = "#b46bff"
+body = "none"
+emissive = 0.5
+behavior = { type = "emitter", pattern = "spiral", interval = 0.4, count = 3, spread = 0, spin = 13, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.0, color = "#d9a8ff", knockback = 3.5, life = 6.0 }
+health = { hp = 10, score = 50 }
+
+[[object]]
+name = "turret_sp_e"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.7 }
+pos = [22.5, 1.1, 22.0]
+color = "#b46bff"
+body = "none"
+emissive = 0.5
+behavior = { type = "emitter", pattern = "spiral", interval = 0.4, count = 3, spread = 0, spin = -13, speed = 4.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.2, color = "#d9a8ff", knockback = 3.5, life = 6.0 }
+health = { hp = 10, score = 50 }
+
+[[object]]
+name = "turret_ring"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.7 }
+pos = [15.0, 1.1, 19.0]
+color = "#ff5fa2"
+body = "none"
+emissive = 0.5
+behavior = { type = "emitter", pattern = "ring", interval = 1.6, count = 16, spread = 0, spin = 12, speed = 4.0, radius = 0.2, height = -0.55, range = 13.0, delay = 0.5, color = "#ff9ac8", knockback = 3.5, life = 6.0 }
+health = { hp = 10, score = 50, sway = [5, 8] }
+
+[[object]]
+name = "turret_fan_w"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.7 }
+pos = [4.5, 1.1, 17.5]
+color = "#4cc9f0"
+body = "none"
+emissive = 0.5
+behavior = { type = "emitter", pattern = "aimed", interval = 1.5, count = 5, spread = 50, spin = 12, speed = 5.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.2, color = "#9be8ff", knockback = 3.5, life = 6.0 }
+health = { hp = 10, score = 50, sway = [2.5, 6] }
+
+[[object]]
+name = "turret_fan_e"
+shape = { type = "cylinder", half_height = 0.3, radius = 0.7 }
+pos = [25.5, 1.1, 17.5]
+color = "#4cc9f0"
+body = "none"
+emissive = 0.5
+behavior = { type = "emitter", pattern = "aimed", interval = 1.5, count = 5, spread = 50, spin = 12, speed = 5.5, radius = 0.2, height = -0.55, range = 13.0, delay = 0.9, color = "#9be8ff", knockback = 3.5, life = 6.0 }
+health = { hp = 10, score = 50, sway = [2.5, 6] }
+
+# ---- BOSS: hp 200, sway, three phases. The two pods sway in step with it (same period).
+[[object]]
+name = "BOSS"
+shape = { type = "sphere", radius = 1.7 }
+pos = [15.0, 1.7, 6.0]
+color = "#ff4455"
+body = "none"
+emissive = 0.8
+behavior = { type = "emitter", pattern = "aimed", interval = 1.4, count = 5, spread = 50, spin = 12, speed = 5.5, radius = 0.2, height = -1.15, range = 15.0, delay = 0.5, color = "#ff9f8a", knockback = 3.5, life = 6.0 }
+health = { hp = 200, score = 500, sway = [5, 9], bar = true, finish = true, signal = "victory", phases = [{ below = 0.66, behavior = { type = "emitter", pattern = "spiral", interval = 0.28, count = 4, spread = 0, spin = 10, speed = 4.8, radius = 0.2, height = -1.15, range = 15.0, delay = 0.0, color = "#ffd24a", knockback = 3.5, life = 6.0 } }, { below = 0.33, behavior = { type = "emitter", pattern = "spiral", interval = 0.24, count = 6, spread = 0, spin = 7, speed = 5.2, radius = 0.2, height = -1.15, range = 15.0, delay = 0.0, color = "#ff6a3d", knockback = 3.5, life = 6.0 } }] }
+light = { color = "#ff4455", radius = 6, intensity = 1.5, pulse = 0.6, offset = [0, 0.5, 0] }
+
+[[object]]
+name = "pod_w"
+shape = { type = "sphere", radius = 0.7 }
+pos = [10.0, 1.1, 7.5]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 0.9, count = 1, spread = 0, spin = 12, speed = 6.0, radius = 0.2, height = -0.55, range = 15.0, delay = 0.0, color = "#ffc08a", knockback = 3.5, life = 6.0 }
+health = { hp = 30, score = 100, sway = [5, 9], phases = [{ below = 0.5, behavior = { type = "emitter", pattern = "aimed", interval = 1.0, count = 3, spread = 30, spin = 12, speed = 6.0, radius = 0.2, height = -0.55, range = 15.0, delay = 0.0, color = "#ffc08a", knockback = 3.5, life = 6.0 } }] }
+
+[[object]]
+name = "pod_e"
+shape = { type = "sphere", radius = 0.7 }
+pos = [20.0, 1.1, 7.5]
+color = "#ff7a45"
+body = "none"
+emissive = 0.6
+behavior = { type = "emitter", pattern = "aimed", interval = 0.9, count = 1, spread = 0, spin = 12, speed = 6.0, radius = 0.2, height = -0.55, range = 15.0, delay = 0.6, color = "#ffc08a", knockback = 3.5, life = 6.0 }
+health = { hp = 30, score = 100, sway = [5, 9], phases = [{ below = 0.5, behavior = { type = "emitter", pattern = "aimed", interval = 1.0, count = 3, spread = 30, spin = 12, speed = 6.0, radius = 0.2, height = -0.55, range = 15.0, delay = 0.0, color = "#ffc08a", knockback = 3.5, life = 6.0 } }] }
+
+# ---- Victory: the boss's signal makes this spawner rain confetti chips.
+[[object]]
+name = "confetti"
+shape = { type = "sphere", radius = 0.05 }
+pos = [15.0, 5.0, 8.0]
+body = "none"
+behavior = { type = "spawner", shape = { type = "box", half = [0.12, 0.04, 0.12] }, color = "", count = 40, interval = 0, max = 120, area = [9.0, 1.0, 3.0], signal = "victory", clear = "", density = 1, tumble = true }
+

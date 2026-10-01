@@ -152,7 +152,9 @@ pub fn guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Swim", "Space up · C down"),
             ("Dodge roll", "C while running (committed model)"),
             ("Camera", "right-drag rotate · wheel zoom · 1–8 presets"),
+            ("Vehicles", "E get in / out"),
             ("Rewind", "hold Backspace"),
+            ("Rooms", "F2 any room · F4 leave · F5 reset"),
             ("Menu / tuning", "Esc / F1"),
         ],
         Device::Gamepad => &[
@@ -167,6 +169,7 @@ pub fn guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Swim", "A up · B down"),
             ("Dodge roll", "B while running (committed model)"),
             ("Camera", "LB / RB rotate · D-pad zoom"),
+            ("Vehicles", "D-pad right: get in / out"),
             ("Rewind", "hold Back/View"),
             ("Menu", "Start"),
         ],
@@ -296,6 +299,7 @@ impl Input {
                 (Button::East, buttons::CROUCH),
                 (Button::North, buttons::CRAWL),
                 (Button::West, buttons::USE),
+                (Button::DPadRight, buttons::INTERACT),
             ] {
                 if gp.is_pressed(btn) {
                     held |= action;

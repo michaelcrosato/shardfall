@@ -38,6 +38,28 @@ pub enum AiDef {
         #[serde(default = "two")]
         distance: f32,
     },
+    /// A stealth guard: patrols `points`, looks around when it stops, and spots the player
+    /// within `range` (m) and `angle` (degrees, full cone) in plain sight. Crouching shortens
+    /// the range. Spotted = back to the last checkpoint.
+    Guard {
+        points: Vec<[f32; 2]>,
+        #[serde(default = "one")]
+        pause: f32,
+        #[serde(default = "seven")]
+        range: f32,
+        #[serde(default = "seventy")]
+        angle: f32,
+    },
+}
+
+fn one() -> f32 {
+    1.0
+}
+fn seven() -> f32 {
+    7.0
+}
+fn seventy() -> f32 {
+    70.0
 }
 
 fn four() -> f32 {
@@ -80,11 +102,36 @@ pub struct Ai {
     /// Seconds the jump button is still held (full-height hops).
     #[serde(default)]
     pub jump_hold: f32,
+    /// Guards: how close to raising the alarm (0..1), and whether the player is in sight.
+    #[serde(default)]
+    pub alert: f32,
+    #[serde(default)]
+    pub sees: bool,
+    /// Guards: heading when they stopped (they look around it).
+    #[serde(default)]
+    pub look: f32,
 }
 
 impl Ai {
     pub fn new(def: AiDef, home: Vec3, points: Vec<Vec3>, speed: f32, hop: f32, facing: f32) -> Self {
-        Self { def, home, points, speed, hop, facing, target: None, wait: 0.5, index: 0, hop_timer: hop, stuck: 0.0, last: home, jump_hold: 0.0 }
+        Self {
+            def,
+            home,
+            points,
+            speed,
+            hop,
+            facing,
+            target: None,
+            wait: 0.5,
+            index: 0,
+            hop_timer: hop,
+            stuck: 0.0,
+            last: home,
+            jump_hold: 0.0,
+            alert: 0.0,
+            sees: false,
+            look: facing,
+        }
     }
 
     /// Facing to turn to while standing still (idle brains face their start direction).
@@ -128,7 +175,7 @@ impl Ai {
                     }
                 }
             }
-            AiDef::Patrol { pause, .. } => {
+            AiDef::Patrol { pause, .. } | AiDef::Guard { pause, .. } => {
                 if self.wait > 0.0 {
                     self.wait -= dt;
                 } else if !self.points.is_empty() {
@@ -138,6 +185,8 @@ impl Ai {
                         self.index = (self.index + 1) % self.points.len();
                         self.wait = *pause;
                         self.stuck = 0.0;
+                        // A single point on the spot keeps the start facing (atan2(0, 0) = south).
+                        self.look = if d.length() > 0.05 { d.x.atan2(d.y) } else { self.facing };
                     } else {
                         dir = d.normalize();
                     }

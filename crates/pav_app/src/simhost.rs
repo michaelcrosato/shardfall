@@ -1,15 +1,17 @@
-//! Runs the simulation on its own thread at a fixed tick rate. The renderer never waits for
-//! it: it reads the two most recent frames and interpolates between them.
+//! Runs the simulation at a fixed tick rate: on its own thread natively, and stepped from the
+//! frame loop in the browser (no threads there). The renderer never waits for it: it reads the
+//! two most recent frames and interpolates between them.
 
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use pav_core::{InputFrame, RenderFrame, Sim, SimEvent};
+use web_time::Instant;
 
+#[cfg(not(target_arch = "wasm32"))]
 type Job = Box<dyn FnOnce(&mut Sim) + Send>;
 
+#[cfg(not(target_arch = "wasm32"))]
 enum Cmd {
     Run(Job),
     Quit,
@@ -74,26 +76,40 @@ pub struct Shared {
     pub latency_probe: Mutex<Option<(Instant, Instant, u64)>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub struct SimHost {
-    tx: Sender<Cmd>,
+    tx: std::sync::mpsc::Sender<Cmd>,
     pub shared: Arc<Shared>,
-    thread: Option<JoinHandle<()>>,
+    thread: Option<std::thread::JoinHandle<()>>,
 }
 
+/// In the browser the simulation lives on the main thread and `pump` advances it every frame.
+#[cfg(target_arch = "wasm32")]
+pub struct SimHost {
+    sim: std::cell::RefCell<Sim>,
+    clock: std::cell::RefCell<Clock>,
+    pub shared: Arc<Shared>,
+}
+
+fn shared_for(sim: &mut Sim) -> Arc<Shared> {
+    let f = Arc::new(sim.frame());
+    Arc::new(Shared {
+        frames: Mutex::new(FramePair { prev: f.clone(), curr: f, curr_at: Instant::now(), tick_wall: sim.dt() }),
+        input: Mutex::new(InputFrame::default()),
+        control: Mutex::new(TimeControl::default()),
+        stats: Mutex::new(SimStats::default()),
+        crashed: Mutex::new(None),
+        events: Mutex::new(Vec::new()),
+        input_stamp: Mutex::new(None),
+        latency_probe: Mutex::new(None),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl SimHost {
     pub fn start(mut sim: Sim) -> Self {
-        let f = Arc::new(sim.frame());
-        let shared = Arc::new(Shared {
-            frames: Mutex::new(FramePair { prev: f.clone(), curr: f, curr_at: Instant::now(), tick_wall: sim.dt() }),
-            input: Mutex::new(InputFrame::default()),
-            control: Mutex::new(TimeControl::default()),
-            stats: Mutex::new(SimStats::default()),
-            crashed: Mutex::new(None),
-            events: Mutex::new(Vec::new()),
-            input_stamp: Mutex::new(None),
-            latency_probe: Mutex::new(None),
-        });
-        let (tx, rx) = channel();
+        let shared = shared_for(&mut sim);
+        let (tx, rx) = std::sync::mpsc::channel();
         let sh = shared.clone();
         let thread = std::thread::Builder::new()
             .name("simulation".into())
@@ -120,13 +136,46 @@ impl SimHost {
 
     /// Runs `f` on the simulation thread and waits for its result.
     pub fn query<R: Send + 'static>(&self, f: impl FnOnce(&mut Sim) -> R + Send + 'static) -> Option<R> {
-        let (rtx, rrx) = channel();
+        let (rtx, rrx) = std::sync::mpsc::channel();
         self.exec(move |sim| {
             let _ = rtx.send(f(sim));
         });
         rrx.recv_timeout(Duration::from_secs(5)).ok()
     }
 
+    /// Advances the simulation (the thread does this by itself natively).
+    pub fn pump(&self) {}
+}
+
+#[cfg(target_arch = "wasm32")]
+impl SimHost {
+    pub fn start(mut sim: Sim) -> Self {
+        let shared = shared_for(&mut sim);
+        Self { sim: std::cell::RefCell::new(sim), clock: std::cell::RefCell::new(Clock::new()), shared }
+    }
+
+    pub fn exec(&self, f: impl FnOnce(&mut Sim) + 'static) {
+        let mut sim = self.sim.borrow_mut();
+        f(&mut sim);
+        let dt = sim.dt();
+        publish(&mut sim, &self.shared, dt, Instant::now());
+    }
+
+    pub fn query<R: 'static>(&self, f: impl FnOnce(&mut Sim) -> R + 'static) -> Option<R> {
+        let mut sim = self.sim.borrow_mut();
+        let r = f(&mut sim);
+        let dt = sim.dt();
+        publish(&mut sim, &self.shared, dt, Instant::now());
+        Some(r)
+    }
+
+    /// Runs the ticks that are due (called once per frame).
+    pub fn pump(&self) {
+        self.clock.borrow_mut().advance(&mut self.sim.borrow_mut(), &self.shared);
+    }
+}
+
+impl SimHost {
     pub fn frames(&self) -> (Arc<RenderFrame>, Arc<RenderFrame>, Instant, f32) {
         let f = self.shared.frames.lock().unwrap();
         (f.prev.clone(), f.curr.clone(), f.curr_at, f.tick_wall)
@@ -141,6 +190,7 @@ impl SimHost {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for SimHost {
     fn drop(&mut self) {
         let _ = self.tx.send(Cmd::Quit);
@@ -167,29 +217,25 @@ fn publish(sim: &mut Sim, sh: &Shared, tick_wall: f32, at: Instant) {
     f.tick_wall = tick_wall;
 }
 
-fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
-    let mut next = Instant::now();
-    let mut window_start = Instant::now();
-    let mut window_ticks = 0u32;
-    let mut busy = Duration::ZERO;
-    let mut rewound = false;
-    loop {
-        // Commands first.
-        loop {
-            match rx.try_recv() {
-                Ok(Cmd::Run(job)) => {
-                    job(&mut sim);
-                    let dt = sim.dt();
-                    publish(&mut sim, &sh, dt, Instant::now());
-                }
-                Ok(Cmd::Quit) => return,
-                Err(std::sync::mpsc::TryRecvError::Empty) => break,
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => return,
-            }
-        }
+/// Fixed-rate ticking with time controls (pause, single steps, speed, rewind, scrubbing).
+struct Clock {
+    next: Instant,
+    window_start: Instant,
+    window_ticks: u32,
+    busy: Duration,
+    rewound: bool,
+}
 
+impl Clock {
+    fn new() -> Self {
+        Self { next: Instant::now(), window_start: Instant::now(), window_ticks: 0, busy: Duration::ZERO, rewound: false }
+    }
+
+    /// Runs whatever is due now; returns how long until the next tick.
+    fn advance(&mut self, sim: &mut Sim, sh: &Shared) -> Duration {
         let ctl = *sh.control.lock().unwrap();
         let tick_wall = sim.dt() / ctl.speed.clamp(0.01, 16.0);
+        let (busy, window_ticks) = (&mut self.busy, &mut self.window_ticks);
         let mut tick_once = |sim: &mut Sim, at: Instant| {
             let input = {
                 let mut i = sh.input.lock().unwrap();
@@ -200,79 +246,100 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
             let stamp = sh.input_stamp.lock().unwrap().take();
             let t = Instant::now();
             sim.step(&input);
-            busy += t.elapsed();
+            *busy += t.elapsed();
             if let Some(s) = stamp {
                 *sh.latency_probe.lock().unwrap() = Some((s, Instant::now(), sim.state.tick));
             }
-            window_ticks += 1;
-            publish(sim, &sh, tick_wall, at);
+            *window_ticks += 1;
+            publish(sim, sh, tick_wall, at);
         };
 
         let now = Instant::now();
         if ctl.rewinding {
-            if now >= next {
-                next = now + Duration::from_secs_f32(sim.dt());
+            if now >= self.next {
+                self.next = now + Duration::from_secs_f32(sim.dt());
                 let oldest = sim.history.oldest_tick().unwrap_or(sim.state.tick);
                 let target = sim.state.tick.saturating_sub(ctl.rewind_speed.max(1) as u64).max(oldest);
                 if target < sim.state.tick && sim.rewind_to(target) {
-                    rewound = true;
+                    self.rewound = true;
                 }
                 let dt = sim.dt();
-                publish(&mut sim, &sh, dt, now);
+                publish(sim, sh, dt, now);
             }
         } else if let Some(t) = ctl.scrub {
             sh.control.lock().unwrap().scrub = None;
             if sim.rewind_to(t) {
-                rewound = true;
+                self.rewound = true;
             }
             let dt = sim.dt();
-            publish(&mut sim, &sh, dt, now);
-            next = now;
+            publish(sim, sh, dt, now);
+            self.next = now;
         } else if ctl.paused {
             if ctl.step_requests > 0 {
                 sh.control.lock().unwrap().step_requests -= 1;
-                if rewound {
+                if self.rewound {
                     sim.commit_rewind();
-                    rewound = false;
+                    self.rewound = false;
                 }
-                tick_once(&mut sim, now);
+                tick_once(sim, now);
             }
-            next = now;
+            self.next = now;
         } else {
-            if rewound {
+            if self.rewound {
                 // Acting after a rewind starts a new timeline.
                 sim.commit_rewind();
-                rewound = false;
-                next = now;
+                self.rewound = false;
+                self.next = now;
             }
             let mut n = 0;
-            while now >= next && n < 8 {
-                next += Duration::from_secs_f32(tick_wall);
-                tick_once(&mut sim, next);
+            while now >= self.next && n < 8 {
+                self.next += Duration::from_secs_f32(tick_wall);
+                tick_once(sim, self.next);
                 n += 1;
             }
-            if n == 8 && now > next {
-                next = now; // too far behind: drop time instead of spiralling
+            if n == 8 && now > self.next {
+                self.next = now; // too far behind: drop time instead of spiralling
             }
         }
 
-        let elapsed = window_start.elapsed();
+        let elapsed = self.window_start.elapsed();
         if elapsed >= Duration::from_millis(500) {
             let mut s = sh.stats.lock().unwrap();
-            s.tps = window_ticks as f32 / elapsed.as_secs_f32();
-            s.tick_ms = if window_ticks > 0 { busy.as_secs_f32() * 1000.0 / window_ticks as f32 } else { 0.0 };
+            s.tps = self.window_ticks as f32 / elapsed.as_secs_f32();
+            s.tick_ms = if self.window_ticks > 0 { self.busy.as_secs_f32() * 1000.0 / self.window_ticks as f32 } else { 0.0 };
             s.tick = sim.state.tick;
             s.entities = sim.state.entities.len();
             s.oldest = sim.history.oldest_tick().unwrap_or(sim.state.tick);
             s.newest = sim.history.newest_tick().unwrap_or(sim.state.tick).max(sim.state.tick);
             s.history_mb = sim.history.approx_bytes() as f32 / 1.0e6;
-            s.rewound = rewound;
-            window_start = Instant::now();
-            window_ticks = 0;
-            busy = Duration::ZERO;
+            s.rewound = self.rewound;
+            self.window_start = Instant::now();
+            self.window_ticks = 0;
+            self.busy = Duration::ZERO;
         }
+        if ctl.paused { Duration::from_millis(4) } else { self.next.saturating_duration_since(Instant::now()) }
+    }
+}
 
-        let wait = if ctl.paused { Duration::from_millis(4) } else { next.saturating_duration_since(Instant::now()) };
+#[cfg(not(target_arch = "wasm32"))]
+fn run(mut sim: Sim, rx: std::sync::mpsc::Receiver<Cmd>, sh: Arc<Shared>) {
+    use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
+    let mut clock = Clock::new();
+    loop {
+        // Commands first.
+        loop {
+            match rx.try_recv() {
+                Ok(Cmd::Run(job)) => {
+                    job(&mut sim);
+                    let dt = sim.dt();
+                    publish(&mut sim, &sh, dt, Instant::now());
+                }
+                Ok(Cmd::Quit) => return,
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => return,
+            }
+        }
+        let wait = clock.advance(&mut sim, &sh);
         match rx.recv_timeout(wait) {
             Ok(Cmd::Run(job)) => {
                 job(&mut sim);

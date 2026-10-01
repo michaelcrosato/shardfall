@@ -24,8 +24,8 @@ choice_enum! {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
+/// Unset fields come from the kind's preset (see `VehicleDef::preset`).
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct VehicleDef {
     pub kind: VehicleKind,
     pub color: String,
@@ -44,6 +44,37 @@ pub struct VehicleDef {
     pub steer: f32,
     /// Helicopter: climb speed (m/s).
     pub climb: f32,
+    /// Helicopter: highest flying height above the ground it was placed on (m).
+    pub ceiling: f32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VehicleDefRaw {
+    kind: Option<VehicleKind>,
+    color: Option<String>,
+    accent: Option<String>,
+    size: Option<Vec3>,
+    mass: Option<f32>,
+    power: Option<f32>,
+    max_speed: Option<f32>,
+    grip: Option<f32>,
+    drift_grip: Option<f32>,
+    steer: Option<f32>,
+    climb: Option<f32>,
+    ceiling: Option<f32>,
+}
+
+impl<'de> Deserialize<'de> for VehicleDef {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let r = VehicleDefRaw::deserialize(d)?;
+        let mut v = VehicleDef::preset(r.kind.unwrap_or_default());
+        macro_rules! set {
+            ($($f:ident),*) => { $( if let Some(x) = r.$f { v.$f = x; } )* };
+        }
+        set!(color, accent, size, mass, power, max_speed, grip, drift_grip, steer, climb, ceiling);
+        Ok(v)
+    }
 }
 
 impl Default for VehicleDef {
@@ -67,6 +98,7 @@ impl VehicleDef {
                 drift_grip: 0.6,
                 steer: 32.0,
                 climb: 0.0,
+                ceiling: 0.0,
             },
             VehicleKind::Helicopter => Self {
                 kind,
@@ -80,6 +112,7 @@ impl VehicleDef {
                 drift_grip: 0.0,
                 steer: 0.0,
                 climb: 5.0,
+                ceiling: 14.0,
             },
         }
     }
@@ -93,6 +126,7 @@ impl Tunable for VehicleDef {
         v.float("drift_grip", &mut self.drift_grip, 0.05, 5.0, "Rear grip with the handbrake (drift)");
         v.float("steer", &mut self.steer, 5.0, 60.0, "Steering lock (degrees)");
         v.float("climb", &mut self.climb, 0.5, 15.0, "Helicopter climb speed (m/s)");
+        v.float("ceiling", &mut self.ceiling, 1.0, 200.0, "Helicopter: highest flying height (m)");
     }
 }
 
@@ -102,6 +136,9 @@ pub struct Vehicle {
     pub def: VehicleDef,
     /// Height of the body centre above the ground it was placed on.
     pub base: f32,
+    /// Height of that ground.
+    #[serde(default)]
+    pub ground: f32,
     pub car: Option<DynamicRayCastVehicleController>,
     pub driver: Option<EntityId>,
     pub steer: f32,
@@ -153,15 +190,22 @@ fn wrap(a: f32) -> f32 {
     (a + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
-
 impl Sim {
     /// Creates a vehicle at `pos` (bottom centre of the body) facing `rot`.
-    pub fn spawn_vehicle(&mut self, name: &str, def: VehicleDef, pos: Vec3, rot: Quat, region: Option<crate::statics::RegionKey>) -> EntityId {
+    pub fn spawn_vehicle(
+        &mut self,
+        name: &str,
+        def: VehicleDef,
+        pos: Vec3,
+        rot: Quat,
+        region: Option<crate::statics::RegionKey>,
+    ) -> EntityId {
         let half = def.size;
         let wheel_r = (half.y * 1.1).max(0.25);
         let center = pos + Vec3::Y * (half.y + if def.kind == VehicleKind::Car { wheel_r * 0.9 } else { 0.0 });
         let volume = 8.0 * half.x * half.y * half.z;
-        let mut v = Visual::new(Shape::RoundedBox { half, radius: half.y.min(half.x) * 0.45 }, crate::color::Color::hex(&def.color));
+        let mut v =
+            Visual::new(Shape::RoundedBox { half, radius: half.y.min(half.x) * 0.45 }, crate::color::Color::hex(&def.color));
         v.look = crate::shape::Look::Cel;
         let mut sp = Spawn::new(name, center).visual(v).body(BodyKind::Dynamic).rot(rot).density(def.mass / volume).friction(0.4);
         sp.region = region;
@@ -203,6 +247,7 @@ impl Sim {
         if let Some(e) = self.state.entities.get_mut(id) {
             e.vehicle = Some(Box::new(Vehicle {
                 base: center.y - pos.y,
+                ground: pos.y,
                 def,
                 car,
                 driver: None,
@@ -376,7 +421,7 @@ impl Sim {
                         let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
                         for (i, w) in c.wheels_mut().iter_mut().enumerate() {
                             let front = i < 2;
-                            w.steering = if front { (-v.steer * lock) as Real } else { 0.0 };
+                            w.steering = if front { (v.steer * lock) as Real } else { 0.0 };
                             w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power) as Real };
                             w.brake = if brake {
                                 40.0
@@ -390,7 +435,12 @@ impl Sim {
                             w.side_friction_stiffness = if handbrake && !front { v.def.drift_grip } else { v.def.grip } as Real;
                         }
                         let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
-                        let qpm = ph.broad_phase.as_query_pipeline_mut(ph.narrow_phase.query_dispatcher(), &mut ph.bodies, &mut ph.colliders, filter);
+                        let qpm = ph.broad_phase.as_query_pipeline_mut(
+                            ph.narrow_phase.query_dispatcher(),
+                            &mut ph.bodies,
+                            &mut ph.colliders,
+                            filter,
+                        );
                         c.update_vehicle(dt as Real, qpm);
                     }
                     v.drift += (lat.abs() - v.drift) * (1.0 - (-8.0 * dt).exp());
@@ -408,8 +458,10 @@ impl Sim {
                         let vel = b.linvel();
                         let wish = Vec3::new(inp.move_dir.x, 0.0, inp.move_dir.y).clamp_length_max(1.0) * v.def.max_speed;
                         let dvh = (wish - Vec3::new(vel.x, 0.0, vel.z)).clamp_length_max(v.def.power * dt);
+                        // Climbing eases off toward the ceiling.
+                        let room = v.ground + v.def.ceiling - (b.translation().y - v.base);
                         let climb = if inp.down(buttons::JUMP) {
-                            v.def.climb
+                            v.def.climb * room.clamp(0.0, 1.0)
                         } else if inp.down(buttons::CROUCH) {
                             -v.def.climb
                         } else {

@@ -21,6 +21,30 @@ pub struct Projectile {
     pub gravity: f32,
     /// The emitter (or character) that fired it; it never hits its owner.
     pub owner: Option<EntityId>,
+    /// Player shots damage enemies (things with health); enemy shots hit characters.
+    #[serde(default)]
+    pub team: Team,
+    #[serde(default = "one")]
+    pub damage: f32,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Team {
+    #[default]
+    Enemy,
+    Player,
+}
+
+/// Something with health that player shots can hit: id, centre, radius.
+#[derive(Clone, Copy, Debug)]
+pub struct Enemy {
+    pub id: EntityId,
+    pub center: Vec3,
+    pub radius: f32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -37,12 +61,16 @@ pub struct Target {
     pub id: EntityId,
     pub feet: Vec3,
     pub height: f32,
+    /// Hit radius (a small hitbox makes dense bullet patterns fair).
+    pub radius: f32,
 }
 
 /// What happened to projectiles this tick.
 #[derive(Default)]
 pub struct ProjectileStep {
     pub hits: Vec<(EntityId, Vec3, Vec3, f32)>, // target, position, direction, knockback
+    /// Enemies hit by player shots: enemy, position, damage.
+    pub damage: Vec<(EntityId, Vec3, f32)>,
     pub impacts: usize,
 }
 
@@ -65,6 +93,7 @@ impl Projectiles {
         &mut self,
         dt: f32,
         targets: &[Target],
+        enemies: &[Enemy],
         mut blocked: impl FnMut(Vec3, Vec3, f32, Option<EntityId>) -> bool,
     ) -> ProjectileStep {
         let mut out = ProjectileStep::default();
@@ -77,17 +106,29 @@ impl Projectiles {
             let step = p.vel * dt;
             let len = step.length();
             let next = p.pos + step;
-            for t in targets {
-                if Some(t.id) == p.owner {
-                    continue;
+            if p.team == Team::Player {
+                for e in enemies {
+                    if Some(e.id) == p.owner {
+                        continue;
+                    }
+                    if segment_distance(e.center, p.pos, next) < e.radius + p.radius {
+                        out.damage.push((e.id, next, p.damage));
+                        return false;
+                    }
                 }
-                let a = t.feet + Vec3::Y * RADIUS;
-                let b = t.feet + Vec3::Y * (t.height - RADIUS).max(RADIUS);
-                // Test the midpoint and the end so fast bullets don't skip through.
-                let d = segment_distance(next, a, b).min(segment_distance(p.pos + step * 0.5, a, b));
-                if d < RADIUS + p.radius {
-                    out.hits.push((t.id, next, p.vel.normalize_or(Vec3::X), p.knockback));
-                    return false;
+            } else {
+                for t in targets {
+                    if Some(t.id) == p.owner {
+                        continue;
+                    }
+                    let a = t.feet + Vec3::Y * RADIUS;
+                    let b = t.feet + Vec3::Y * (t.height - RADIUS).max(RADIUS);
+                    // Test the midpoint and the end so fast bullets don't skip through.
+                    let d = segment_distance(next, a, b).min(segment_distance(p.pos + step * 0.5, a, b));
+                    if d < t.radius + p.radius {
+                        out.hits.push((t.id, next, p.vel.normalize_or(Vec3::X), p.knockback));
+                        return false;
+                    }
                 }
             }
             if len > 1e-6 && blocked(p.pos, step / len, len + p.radius * 0.5, p.owner) {

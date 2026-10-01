@@ -1,7 +1,8 @@
-//! Agent layer: one tool registry, exposed through the `pav` CLI (one-shot or REPL) and an
-//! MCP stdio server. Every tool works on a `Session` (a simulation plus camera/view state and
-//! an optional headless GPU for captures).
+//! Agent layer: one tool registry, exposed through the `pav` CLI (one-shot or REPL), an
+//! MCP stdio server, and a live bridge into the running game. Every tool works on a `Session`
+//! (a simulation plus camera/view state and an optional headless GPU for captures).
 
+pub mod bridge;
 pub mod mcp;
 pub mod session;
 pub mod tools;

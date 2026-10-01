@@ -71,7 +71,15 @@ pub struct CutawaySettings {
 
 impl Default for CutawaySettings {
     fn default() -> Self {
-        Self { height_cut: true, cut_above: 2.4, cut_radius: 9.0, fade: true, fade_radius: 1.6, front_cut: true, front_cut_below: 30.0 }
+        Self {
+            height_cut: true,
+            cut_above: 2.4,
+            cut_radius: 9.0,
+            fade: true,
+            fade_radius: 1.6,
+            front_cut: true,
+            front_cut_below: 30.0,
+        }
     }
 }
 
@@ -303,10 +311,15 @@ fn style_of(look: Look, ov: StyleOverride) -> Style {
 
 #[derive(Clone, Copy, Debug)]
 enum EffectKind {
-    Explosion { radius: f32 },
+    Explosion {
+        radius: f32,
+    },
     Dust,
     /// A burst of small spheres in a colour (hits, splashes, respawns).
-    Burst { color: [f32; 3], up: f32 },
+    Burst {
+        color: [f32; 3],
+        up: f32,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -393,6 +406,9 @@ impl ViewBuilder {
             crate::fx::event_bursts(e, &mut self.pending_particles);
             if let SimEvent::Explosion { pos, radius } = e {
                 self.shocks.push((*pos, radius * 3.5, self.last_time.unwrap_or(0.0)));
+            }
+            if let SimEvent::Destroyed { pos, size } = e {
+                self.shocks.push((*pos, size.max(0.5) * 5.0, self.last_time.unwrap_or(0.0)));
             }
             match e {
                 SimEvent::Explosion { pos, radius } => {
@@ -703,6 +719,9 @@ impl ViewBuilder {
         let mut live = Vec::new();
         for o in interpolate(prev, curr, alpha) {
             let v = &o.visual;
+            if let Some(c) = &o.cone {
+                crate::vehicles::emit_cone(&mut scene, c, 0xfff8);
+            }
             if let Some(l) = &v.light {
                 scene.point_lights.push(crate::fx::light(l, o.pos, time, o.id.0 as f32 * 1.7));
             }
@@ -736,7 +755,18 @@ impl ViewBuilder {
                     let def = p.def.as_deref().unwrap_or(&curr.puppet_def);
                     emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style)
                 }
-                None => emit_object(&mut scene, &o, settings.style, now),
+                None => {
+                    emit_object(&mut scene, &o, settings.style, now);
+                    if let Some(v) = &o.vehicle {
+                        crate::vehicles::emit_vehicle(
+                            &mut scene,
+                            &o,
+                            v,
+                            style_of(o.visual.look, settings.style),
+                            settings.particles,
+                        );
+                    }
+                }
             }
         }
         self.emit_carry.retain(|id, _| live.contains(id));
@@ -776,7 +806,12 @@ fn emit_soft(scene: &mut Scene, o: &RenderObject, s: &pav_core::frame::SoftView,
             .points
             .iter()
             .zip(&normals)
-            .map(|(p, n)| Vertex { pos: p.to_array(), normal: n.normalize_or(Vec3::Y).to_array(), uv: [0.0, 0.0], color: [1.0; 4] })
+            .map(|(p, n)| Vertex {
+                pos: p.to_array(),
+                normal: n.normalize_or(Vec3::Y).to_array(),
+                uv: [0.0, 0.0],
+                color: [1.0; 4],
+            })
             .collect();
         let indices = s.surface.iter().flat_map(|t| t.iter().copied()).filter(|i| (*i as usize) < s.points.len()).collect();
         scene.dynamic.push(rs::DynamicMesh {
@@ -792,7 +827,17 @@ fn emit_soft(scene: &mut Scene, o: &RenderObject, s: &pav_core::frame::SoftView,
     for seg in s.segments.iter() {
         let (a, b) = (seg[0] as usize, seg[1] as usize);
         if a < s.points.len() && b < s.points.len() {
-            scene.sdfs.push(SdfInstance { a: s.points[a], b: s.points[b], ra: r, rb: r, color, emissive: 0.0, style, flags: 0, group });
+            scene.sdfs.push(SdfInstance {
+                a: s.points[a],
+                b: s.points[b],
+                ra: r,
+                rb: r,
+                color,
+                emissive: 0.0,
+                style,
+                flags: 0,
+                group,
+            });
         }
     }
 }
@@ -906,14 +951,7 @@ fn emit_ladder(list: &mut Vec<MeshInstance>, l: &Ladder, style: Style) {
     }
 }
 
-fn emit_puppet(
-    scene: &mut Scene,
-    def: &PuppetDef,
-    o: &RenderObject,
-    p: &PuppetFrame,
-    cam_fwd: Vec3,
-    ov: StyleOverride,
-) {
+fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetFrame, cam_fwd: Vec3, ov: StyleOverride) {
     let feet = o.pos - Vec3::Y * p.feet_offset;
     let style = style_of(def.look, ov);
     // Characters are never sliced by the cutaway.
@@ -946,7 +984,12 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
         if (now * rate).sin() > 0.0 {
             color = Vec3::new(1.0, 0.25, 0.15);
             v.emissive = 1.2;
-            scene.point_lights.push(rs::PointLight { position: o.pos, color: Vec3::new(1.0, 0.2, 0.1) * 1.5, radius: 2.5, shadows: false });
+            scene.point_lights.push(rs::PointLight {
+                position: o.pos,
+                color: Vec3::new(1.0, 0.2, 0.1) * 1.5,
+                radius: 2.5,
+                shadows: false,
+            });
         }
     }
     let v = &v;

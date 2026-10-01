@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M9 Genre Wing** (M1–M8 complete; M4–M10 run as one goal).
+Current milestone: **M10 Browser build, live bridge, polish** (M1–M9 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -13,8 +13,8 @@ Current milestone: **M9 Genre Wing** (M1–M8 complete; M4–M10 run as one goal
 | M6 Procedural Animation Lab | ✅ complete (2026-10-01) |
 | M7 Visual Effects Wing | ✅ complete (2026-10-01) |
 | M8 Aesthetic & Filter Wing | ✅ complete (2026-10-01) |
-| M9 Genre Wing | 🔨 in progress |
-| M10 | ⏳ next |
+| M9 Genre Wing | ✅ complete (2026-10-01) |
+| M10 Browser build, live bridge, polish | 🔨 in progress (bridge + browser build done) |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -314,3 +314,59 @@ grain, chroma, saturation, split).
 - Room `[view]` sun azimuth turns with the room's placement (like camera yaw).
 - `view.filter.saturation` (split-aware) for grading; `view.saturation` is the global one.
 - Agent `load` re-applies the room's `[camera]` / `[view]`.
+
+## M9 Genre Wing — done
+Four rooms in the north corridor (wing `genre`), built by helper agents and reviewed:
+- **Bullet Hell** (`bullet_hell`): top-down blaster arena, drone and turret stages, a phased
+  boss with a health bar; score, hits, dodgeable patterns (bot-verified 0-hit run, 83 s).
+- **Grid Stealth** (`stealth`): a night heist on the grid model; guards with vision cones (cut
+  by pillars; tables hide a crouching player), an alert meter, checkpoints, sweeping cameras,
+  a crouch-only duct (bot runs reach the vault in 39-49 s with no SPOTTED).
+- **Drift Circuit** (`drift`): ~157 m lap with gates, checkpoints, gravel kill traps, a grippy
+  and a drifty car, a drift pad and a skid pad (bot laps 12.3-12.4 s).
+- **Helicopter Run** (`helicopter`): 9 rings through a small city to a rooftop landing,
+  practice pad with a touchdown target (bot run 20.9 s).
+Engine: `vehicle.rs` (rapier ray-cast car with handbrake drift, arcade helicopter with a
+ceiling; E / pad D-pad right gets in and out), `health.rs` (shootable objects: hp, score,
+signal, finish, boss bar for the current room, sway, phases), `stealth.rs` (guard AI with
+line-of-sight cones and an alert meter), blaster weapon (`bombs.weapon = "blaster"`,
+fire_interval, bullet_speed, shoot_angle, shot_range), small `movement.hitbox`, room `height`.
+Fixes from the helpers' reports: car steering sign, characters spawn just outside the
+controller skin (they stuck at floor seams for ~1 s), grid steps follow stick strength (NPC
+`speed` works in grid rooms), sentries keep their yaw, `player` shows the vehicle, `npcs` shows
+guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
+
+## Decisions (M9)
+- Cars use rapier's ray-cast vehicle controller (it serializes, so rewind stays exact); the
+  helicopter is velocity-controlled with gravity off while the rotor is up. Riders become
+  sensors and are hidden; E gets in and out.
+- `VehicleDef` fields default to the kind's preset (a helicopter with only `kind` set flies).
+- Projectiles have teams (enemy / player); player shots damage `health` objects.
+- A boss with `health.finish` ends the course and stands in for a FINISH tile.
+- A fixed `shoot_angle` is in the room's map frame and turns with the room's placement.
+- Rooms have a `height` (default 8 m): flying rooms raise it so courses are not cancelled.
+- Characters placed by their feet start 0.025 m up (outside the 0.02 m controller skin).
+- Grid steps take the stick's strength as their pace (keyboard = full pace; NPC `speed` scales).
+- The boss bar only shows for a boss in the player's current room.
+
+## M10 Browser build, live bridge, polish — in progress (started early, alongside M9)
+- **Live agent bridge** ✅ (a4fdd13): the game listens with `--bridge [ADDR]` (default
+  127.0.0.1:7878) or `bridge = "ADDR"` in pavilion.toml. JSON lines over TCP; each request runs a
+  registry tool on the simulation thread against the running game (`Session::from_live`), with the
+  game's camera and view; camera/view changes come back to the game. Captures use a separate
+  headless device. Clients: `pav live [ADDR]` (REPL) and `pav mcp --live [ADDR]` (MCP).
+- **Browser build** ✅ (f8975fb): `scripts/build-web.sh` -> `target/web/` (index.html,
+  pavilion.js, pavilion_bg.wasm ~13 MB). Same `pav_app` crate with `cfg(target_arch = "wasm32")`:
+  the sim is stepped from the frame loop (no threads), GPU setup is async (finishes in
+  `about_to_wait`), egui input via a small adapter (`uiinput.rs`; egui-winit is native-only), Web
+  Audio (resumed on first input), `web-time` Instant, room from `?room=NAME&seed=N`, no file
+  watcher / bridge / screenshots. Verified in headless Chromium (WebGPU on SwiftShader, flags
+  `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader
+  --use-angle=swiftshader`): boots, renders the world, plays sound, takes keyboard input.
+- Polish pass: ⏳.
+
+## Decisions (M10)
+- Bridge requests swap the live `Sim` into a `Session` and back on the sim thread (no copies);
+  live sessions skip the session's own room camera/view sync (the game does that).
+- Browser build reuses the app crate rather than a separate web crate; wasm-bindgen CLI must
+  match Cargo.lock's wasm-bindgen version (0.2.129).

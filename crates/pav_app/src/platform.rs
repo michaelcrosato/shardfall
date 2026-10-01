@@ -1,4 +1,5 @@
-//! Tiny platform helpers: error pop-ups and console attachment on Windows.
+//! Tiny platform helpers: error pop-ups (a message box on Windows, the page in the browser) and
+//! console attachment on Windows.
 
 #[cfg(windows)]
 pub fn error_box(title: &str, message: &str) {
@@ -10,9 +11,22 @@ pub fn error_box(title: &str, message: &str) {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
 pub fn error_box(title: &str, message: &str) {
     eprintln!("== {title} ==\n{message}");
+}
+
+/// In the browser: replaces the page with the message.
+#[cfg(target_arch = "wasm32")]
+pub fn error_box(title: &str, message: &str) {
+    let esc = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;");
+    if let Some(body) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.body()) {
+        body.set_inner_html(&format!(
+            "<div style='font:16px sans-serif;color:#eee;padding:32px;max-width:760px'><h2>{}</h2><pre style='white-space:pre-wrap'>{}</pre></div>",
+            esc(title),
+            esc(message)
+        ));
+    }
 }
 
 /// When started from a terminal, print there (the release .exe has no console of its own).

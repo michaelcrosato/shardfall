@@ -55,6 +55,10 @@ choice_enum! {
 
 /// Capsule radius of characters (m).
 pub const RADIUS: f32 = 0.32;
+/// Characters placed by their feet start this far above the floor: just outside the controller's
+/// skin (0.02 m). Placed exactly on it, they sink in a little on the first tick and stay stuck
+/// against neighbouring floor blocks until they work their way out.
+pub const PLACE_LIFT: f32 = 0.025;
 /// Feet below the ledge top while hanging (m).
 const HANG_DROP: f32 = 1.62;
 
@@ -112,6 +116,9 @@ pub struct MovementParams {
     pub lock_axis: LockAxis,
     pub face_aim: bool,
     pub push_mass: f32,
+    /// Radius bullets must come within to hit you (small = fair dense patterns).
+    #[serde(default = "hitbox")]
+    pub hitbox: f32,
 }
 
 impl Default for MovementParams {
@@ -147,6 +154,7 @@ impl Default for MovementParams {
             hit_stun: 0.35,
             weight: 70.0,
             lock_axis: LockAxis::None,
+            hitbox: hitbox(),
             face_aim: false,
             push_mass: 70.0,
         }
@@ -185,6 +193,7 @@ impl Tunable for MovementParams {
         v.float("hit_stun", &mut self.hit_stun, 0.0, 2.0, "Seconds without control after a hit");
         v.float("weight", &mut self.weight, 0.0, 500.0, "Weight pressing on movable floors (kg)");
         self.lock_axis.visit_choice(v, "lock_axis", "Lock motion along an axis (side view)");
+        v.float("hitbox", &mut self.hitbox, 0.05, 0.6, "Bullet hit radius (m)");
         v.bool("face_aim", &mut self.face_aim, "Face the aim point instead of the movement direction");
         v.float("push_mass", &mut self.push_mass, 1.0, 500.0, "How hard the character pushes props (kg)");
     }
@@ -199,11 +208,62 @@ pub struct BombParams {
     pub throw_range: f32,
     pub flight_time: f32,
     pub push: f32,
+    /// What the fire button does: throw bombs, or shoot (hold to keep firing).
+    #[serde(default)]
+    pub weapon: Weapon,
+    #[serde(default = "fire_interval")]
+    pub fire_interval: f32,
+    #[serde(default = "bullet_speed")]
+    pub bullet_speed: f32,
+    /// Fixed shooting direction (degrees, 180 = north/-Z), or < 0 to shoot where you aim/face.
+    #[serde(default = "shoot_angle")]
+    pub shoot_angle: f32,
+    /// How far blaster shots fly (m).
+    #[serde(default = "shot_range")]
+    pub shot_range: f32,
+}
+
+fn hitbox() -> f32 {
+    RADIUS
+}
+
+fn fire_interval() -> f32 {
+    0.12
+}
+fn bullet_speed() -> f32 {
+    22.0
+}
+fn shoot_angle() -> f32 {
+    -1.0
+}
+fn shot_range() -> f32 {
+    35.0
+}
+
+choice_enum! {
+    #[derive(Default)]
+    pub enum Weapon {
+        #[default]
+        Bombs => "bombs",
+        Blaster => "blaster",
+    }
 }
 
 impl Default for BombParams {
     fn default() -> Self {
-        Self { fuse: 1.4, radius: 1.35, cooldown: 0.3, throw_range: 8.0, flight_time: 0.55, push: 9.0 }
+        Self {
+            fuse: 1.4,
+            radius: 1.35,
+            cooldown: 0.3,
+            throw_range: 8.0,
+            flight_time: 0.55,
+            push: 9.0,
+            weapon: Weapon::Bombs,
+            fire_interval: fire_interval(),
+            bullet_speed: bullet_speed(),
+            shoot_angle: shoot_angle(),
+            shot_range: shot_range(),
+        }
     }
 }
 
@@ -215,6 +275,11 @@ impl Tunable for BombParams {
         v.float("throw_range", &mut self.throw_range, 0.0, 30.0, "Maximum throw distance (m)");
         v.float("flight_time", &mut self.flight_time, 0.1, 2.0, "Throw arc duration (s)");
         v.float("push", &mut self.push, 0.0, 40.0, "Blast push strength");
+        self.weapon.visit_choice(v, "weapon", "Fire button: bombs or blaster (hold to shoot)");
+        v.float("fire_interval", &mut self.fire_interval, 0.03, 1.0, "Blaster: seconds between shots");
+        v.float("bullet_speed", &mut self.bullet_speed, 2.0, 60.0, "Blaster: bullet speed (m/s)");
+        v.float("shoot_angle", &mut self.shoot_angle, -1.0, 360.0, "Blaster: fixed direction (deg, 180 = north), -1 = aim");
+        v.float("shot_range", &mut self.shot_range, 1.0, 120.0, "Blaster: how far shots fly (m)");
     }
 }
 
@@ -262,6 +327,9 @@ pub struct Character {
     pub grid_target: Option<Vec3>,
     #[serde(default)]
     pub grid_blocked: u32,
+    /// Grid: pace of the current step (how far the stick was pushed when it began).
+    #[serde(default)]
+    pub grid_pace: f32,
     /// Water depth at the feet (0 = dry) and whether swimming.
     #[serde(default)]
     pub water_depth: f32,
@@ -306,9 +374,25 @@ impl Character {
 
 /// Requests the simulation carries out after a character update.
 pub enum Action {
-    ThrowBomb { from: Vec3, vel: Vec3, owner: EntityId },
+    ThrowBomb {
+        from: Vec3,
+        vel: Vec3,
+        owner: EntityId,
+    },
+    /// A blaster shot.
+    Shoot {
+        from: Vec3,
+        vel: Vec3,
+        owner: EntityId,
+    },
     /// Touched a hazard or got crushed.
-    Hit { id: EntityId, at: Vec3, dir: Vec3, knockback: f32, respawn: bool },
+    Hit {
+        id: EntityId,
+        at: Vec3,
+        dir: Vec3,
+        knockback: f32,
+        respawn: bool,
+    },
 }
 
 fn yaw_of(d: Vec3) -> f32 {
@@ -640,7 +724,8 @@ pub fn tick(
             let mut target = rest;
             if side.abs() > 0.3 {
                 let probe = feet + tangent * side.signum() * 0.25;
-                if let Some((wall, n, top)) = find_ledge(st, filter, Vec3::new(probe.x, hg.top - HANG_DROP, probe.z), -hg.normal) {
+                if let Some((wall, n, top)) = find_ledge(st, filter, Vec3::new(probe.x, hg.top - HANG_DROP, probe.z), -hg.normal)
+                {
                     if (top - hg.top).abs() < 0.3 && n.dot(hg.normal) > 0.9 {
                         let step = tangent * side.signum() * (1.6 * dt).min(0.25);
                         hg.wall = Vec3::new(hg.wall.x, wall.y, hg.wall.z) + step;
@@ -727,15 +812,17 @@ pub fn tick(
                     let tile = |p: Vec3| Vec3::new(p.x.floor() + 0.5, 0.0, p.z.floor() + 0.5);
                     let mut target = ch.grid_target.unwrap_or(tile(feet));
                     let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
-                    let speed = mult / mp.grid_step_time.max(0.02);
                     if d.length() < 0.03 {
                         let w = Vec2::new(wish.x, wish.z);
-                        if w.length() > 0.4 {
+                        if w.length() > 0.15 {
                             let step = if w.x.abs() > w.y.abs() { Vec3::X * w.x.signum() } else { Vec3::Z * w.y.signum() };
                             target = tile(feet) + step;
                             ch.facing = yaw_of(step);
+                            // A half-pushed stick (or a slow NPC) takes slower steps.
+                            ch.grid_pace = w.length().min(1.0);
                         }
                     }
+                    let speed = mult * ch.grid_pace.clamp(0.15, 1.0) / mp.grid_step_time.max(0.02);
                     let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
                     let dist = d.length();
                     vh = if dist > 1e-4 { d / dist * speed.min(dist / dt) } else { Vec3::ZERO };
@@ -780,8 +867,10 @@ pub fn tick(
                 jumped = true;
             }
         } else {
-            let can_jump =
-                (ch.grounded || ch.air_time < mp.coyote_time) && (ch.posture != Posture::Crawl || creature) && mp.allow_jump && !rolling;
+            let can_jump = (ch.grounded || ch.air_time < mp.coyote_time)
+                && (ch.posture != Posture::Crawl || creature)
+                && mp.allow_jump
+                && !rolling;
             if ch.since_jump_press <= mp.jump_buffer && can_jump && !ch.jumping {
                 ch.vel.y = (2.0 * mp.gravity * mp.jump_height).sqrt();
                 ch.jumping = true;
@@ -959,8 +1048,31 @@ pub fn tick(
         }
     }
 
+    // --- blaster: hold fire
+    if bp.weapon == Weapon::Blaster {
+        if (held(buttons::USE) || held(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !stunned {
+            ch.bomb_cooldown = bp.fire_interval;
+            let from = new_center + Vec3::Y * 0.25;
+            let dir = if bp.shoot_angle >= 0.0 {
+                let a = bp.shoot_angle.to_radians();
+                Vec3::new(a.sin(), 0.0, a.cos())
+            } else {
+                match input.aim {
+                    Some(a) => Vec3::new(a.x - from.x, 0.0, a.z - from.z).normalize_or(dir_of(ch.facing)),
+                    None => dir_of(ch.facing),
+                }
+            };
+            actions.push(Action::Shoot { from: from + dir * 0.45, vel: dir * bp.bullet_speed, owner: id });
+            ch.anim.recoil = ch.anim.recoil.max(0.4);
+        }
+    }
     // --- bombs
-    if (pressed(buttons::USE) || pressed(buttons::PRIMARY)) && ch.bomb_cooldown <= 0.0 && !climbing && !hanging && !ch.swimming {
+    else if (pressed(buttons::USE) || pressed(buttons::PRIMARY))
+        && ch.bomb_cooldown <= 0.0
+        && !climbing
+        && !hanging
+        && !ch.swimming
+    {
         ch.bomb_cooldown = bp.cooldown;
         let from = new_center + Vec3::Y * 0.35;
         let dir3 = dir_of(ch.facing);
@@ -1008,7 +1120,8 @@ pub fn tick(
         let feet_now = new_center - Vec3::Y * height * 0.5;
         let qp = st.physics.query_filtered(filter);
         let ground = |p: Vec3| -> Option<f32> {
-            qp.cast_ray(&Ray::new(Vec3::new(p.x, feet_now.y + 0.6, p.z), Vec3::NEG_Y), 1.4, true).map(|(_, t)| feet_now.y + 0.6 - t as f32)
+            qp.cast_ray(&Ray::new(Vec3::new(p.x, feet_now.y + 0.6, p.z), Vec3::NEG_Y), 1.4, true)
+                .map(|(_, t)| feet_now.y + 0.6 - t as f32)
         };
         if crate::rig::needs_rig(puppet) {
             let rig = ch.rig.get_or_insert_with(|| Box::new(crate::rig::Rig::at_rest(puppet, feet_now, ch.anim.facing)));
@@ -1021,7 +1134,11 @@ pub fn tick(
             ch.rig = None;
         }
         if !creature {
-            let (l, r) = if ch.grounded && !climbing && !hanging { crate::rig::biped_feet(puppet, &ch.anim, feet_now, &ground) } else { (0.0, 0.0) };
+            let (l, r) = if ch.grounded && !climbing && !hanging {
+                crate::rig::biped_feet(puppet, &ch.anim, feet_now, &ground)
+            } else {
+                (0.0, 0.0)
+            };
             let k = 1.0 - (-20.0 * dt).exp();
             ch.anim.foot_l += (l - ch.anim.foot_l) * k;
             ch.anim.foot_r += (r - ch.anim.foot_r) * k;

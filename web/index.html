@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pavilion</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #15171c; }
+  /* winit appends the game canvas to <body>; it fills the page and the game follows its size. */
+  canvas { display: block; width: 100vw !important; height: 100vh !important; outline: none; }
+  #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+         font: 18px system-ui, sans-serif; color: #c9ccd4; text-align: center; padding: 24px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="msg">Loading Pavilion…</div>
+<script type="module">
+  // Pavilion in the browser. Start in a room with ?room=NAME (and ?seed=N).
+  const msg = document.getElementById('msg');
+  if (!navigator.gpu) {
+    msg.innerHTML = 'Pavilion needs WebGPU.<br>Use a recent Chrome or Edge on a computer with a GPU.';
+  } else {
+    // The game hides this message once its canvas exists, and takes keyboard focus.
+    new MutationObserver((_, obs) => {
+      const c = document.querySelector('canvas');
+      if (c) { msg.remove(); c.focus(); obs.disconnect(); }
+    }).observe(document.body, { childList: true });
+    const game = await import('./pavilion.js');
+    await game.default();
+  }
+</script>
+</body>
+</html>

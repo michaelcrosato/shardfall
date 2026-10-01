@@ -31,8 +31,10 @@ impl BackendChoice {
 }
 
 pub fn create_instance(backend: BackendChoice) -> wgpu::Instance {
+    // The browser build always uses the browser's WebGPU.
+    let backends = if cfg!(target_arch = "wasm32") { wgpu::Backends::BROWSER_WEBGPU } else { backend.backends() };
     wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: backend.backends(),
+        backends,
         flags: wgpu::InstanceFlags::from_env_or_default(),
         ..wgpu::InstanceDescriptor::new_without_display_handle()
     })
@@ -48,24 +50,36 @@ pub fn list_adapters(instance: &wgpu::Instance, backend: BackendChoice) -> Vec<w
 }
 
 pub fn request_adapter(instance: &wgpu::Instance, surface: Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter> {
-    pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        force_fallback_adapter: false,
-        compatible_surface: surface,
-        ..Default::default()
-    }))
-    .map_err(|e| anyhow!("no suitable GPU adapter: {e}"))
+    pollster::block_on(request_adapter_async(instance, surface))
+}
+
+pub async fn request_adapter_async(instance: &wgpu::Instance, surface: Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter> {
+    instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            force_fallback_adapter: false,
+            compatible_surface: surface,
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| anyhow!("no suitable GPU adapter: {e}"))
 }
 
 pub fn request_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
+    pollster::block_on(request_device_async(adapter))
+}
+
+pub async fn request_device_async(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
     let limits = wgpu::Limits::default().using_resolution(adapter.limits());
-    pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        label: Some("pavilion"),
-        required_features: wgpu::Features::empty(),
-        required_limits: limits,
-        ..Default::default()
-    }))
-    .context("GPU device creation failed")
+    adapter
+        .request_device(&wgpu::DeviceDescriptor {
+            label: Some("pavilion"),
+            required_features: wgpu::Features::empty(),
+            required_limits: limits,
+            ..Default::default()
+        })
+        .await
+        .context("GPU device creation failed")
 }
 
 /// A device without a window, for captures and tests.

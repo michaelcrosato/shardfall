@@ -13,12 +13,12 @@ use crate::color::Color;
 use crate::course::Courses;
 use crate::entity::{Behavior, BodyKind, Bomb, Entities, Entity, EntityId, Spawn};
 use crate::feel::FeelMeter;
-use crate::projectile::{Projectiles, Target};
 use crate::frame::{PuppetFrame, RenderFrame, RenderObject, SimEvent};
 use crate::history::{History, Replay};
 use crate::input::InputFrame;
 use crate::params::{ChoiceParam, ParamVisitor, Tunable, nested};
 use crate::physics::{EventCollector, PhysicsState, entity_tag};
+use crate::projectile::{Projectiles, Target};
 use crate::puppet::PuppetDef;
 use crate::rng::Rng;
 use crate::shape::{Look, Shape, Visual};
@@ -265,12 +265,18 @@ impl Sim {
                 bomb: None,
                 lifetime: None,
                 region: s.region,
-                material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution, damping: s.damping },
+                material: crate::entity::Material {
+                    density: s.density,
+                    friction: s.friction,
+                    restitution: s.restitution,
+                    damping: s.damping,
+                },
                 hazard: s.hazard,
                 soft,
                 joints: Vec::new(),
                 ai: None,
                 vehicle: None,
+                health: None,
             },
         );
         if !self.replaying {
@@ -283,7 +289,7 @@ impl Sim {
     pub fn spawn_character(&mut self, name: &str, feet: Vec3) -> EntityId {
         let id = self.state.entities.alloc_id();
         let ch = Character::new();
-        let center = feet + Vec3::Y * (ch.height() * 0.5);
+        let center = feet + Vec3::Y * (ch.height() * 0.5 + character::PLACE_LIFT);
         let b = self.character_body(id, center, ch.posture);
         self.state.entities.map.insert(
             id,
@@ -306,6 +312,7 @@ impl Sim {
                 joints: Vec::new(),
                 ai: None,
                 vehicle: None,
+                health: None,
             },
         );
         id
@@ -337,7 +344,8 @@ impl Sim {
     /// A character's kinematic capsule (when it is created or wakes up).
     pub(crate) fn character_body(&mut self, id: EntityId, center: Vec3, posture: character::Posture) -> RigidBodyHandle {
         let body = RigidBodyBuilder::kinematic_position_based().translation(center);
-        let collider = ColliderBuilder::capsule_y(posture.half_height() as Real, RADIUS as Real).friction(0.0).user_data(entity_tag(id.0));
+        let collider =
+            ColliderBuilder::capsule_y(posture.half_height() as Real, RADIUS as Real).friction(0.0).user_data(entity_tag(id.0));
         self.state.physics.insert(body, collider).0
     }
 
@@ -382,7 +390,7 @@ impl Sim {
                 ch.hang = None;
                 ch.grid_target = None;
                 ch.climbing = None;
-                pos + Vec3::Y * (ch.height() * 0.5)
+                pos + Vec3::Y * (ch.height() * 0.5 + character::PLACE_LIFT)
             }
             None => pos,
         };
@@ -432,12 +440,8 @@ impl Sim {
         let mut events = Vec::new();
         let idle = InputFrame::default();
         let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
-        let all_feet: Vec<Vec3> = self
-            .state
-            .entities
-            .iter()
-            .filter_map(|e| Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5))
-            .collect();
+        let all_feet: Vec<Vec3> =
+            self.state.entities.iter().filter_map(|e| Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5)).collect();
         let mut fallen = Vec::new();
         for id in ids {
             let npc_input: InputFrame;
@@ -481,13 +485,31 @@ impl Sim {
         for (id, home) in fallen {
             self.set_position(id, home);
         }
+        self.update_guards(dt, &mut events);
         for a in actions {
             match a {
                 Action::ThrowBomb { from, vel, owner } => {
                     self.throw_bomb(from, vel, owner);
                     events.push(SimEvent::Throw { pos: from });
                 }
-                Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
+                Action::Hit { id, at, dir, knockback, respawn } => {
+                    self.hit_character(id, at, dir, knockback, respawn, &mut events)
+                }
+                Action::Shoot { from, vel, owner } => {
+                    self.state.projectiles.spawn(crate::projectile::Projectile {
+                        pos: from,
+                        vel,
+                        radius: 0.09,
+                        life: self.config.bombs.shot_range / vel.length().max(0.1),
+                        color: Color::hex("#9ef0ff"),
+                        knockback: 0.0,
+                        gravity: 0.0,
+                        owner: Some(owner),
+                        team: crate::projectile::Team::Player,
+                        damage: 1.0,
+                    });
+                    events.push(SimEvent::Shot { pos: from });
+                }
             }
         }
         self.drive_vehicles(input, dt);
@@ -535,22 +557,45 @@ impl Sim {
             self.despawn(id);
         }
 
+        // Shootable things: sway, hit flash.
+        self.update_health(dt);
+
         // Projectiles.
         if !self.state.projectiles.list.is_empty() {
+            let hitbox = self.config.movement.hitbox;
+            let player = self.state.player;
             let targets: Vec<Target> = self
                 .state
                 .entities
                 .iter()
-                .filter_map(|e| e.character.as_ref().map(|c| Target { id: e.id, feet: e.pos - Vec3::Y * c.height() * 0.5, height: c.height() }))
+                .filter_map(|e| {
+                    let c = e.character.as_ref()?;
+                    let radius = if Some(e.id) == player { hitbox } else { RADIUS };
+                    Some(Target { id: e.id, feet: e.pos - Vec3::Y * c.height() * 0.5, height: c.height(), radius })
+                })
+                .collect();
+            let enemies: Vec<crate::projectile::Enemy> = self
+                .state
+                .entities
+                .iter()
+                .filter(|e| e.health.is_some())
+                .map(|e| crate::projectile::Enemy {
+                    id: e.id,
+                    center: e.pos,
+                    radius: e.visual.as_ref().map(|v| v.shape.half_extents().max_element()).unwrap_or(0.5),
+                })
                 .collect();
             let physics = &self.state.physics;
             let entities = &self.state.entities;
-            let out = self.state.projectiles.step(dt, &targets, |from, dir, len, owner| {
+            let out = self.state.projectiles.step(dt, &targets, &enemies, |from, dir, len, owner| {
                 let ignore = owner.and_then(|id| entities.get(id)).and_then(|e| e.body);
                 crate::projectile::static_blocked(physics, from, dir, len, ignore)
             });
             for (id, at, dir, kb) in out.hits {
                 self.hit_character(id, at, dir, kb, false, &mut events);
+            }
+            for (id, at, dmg) in out.damage {
+                self.damage(id, at, dmg, &mut events);
             }
         }
 
@@ -572,7 +617,8 @@ impl Sim {
     fn measure_feel(&mut self, input: &InputFrame) {
         let Some(e) = self.player() else { return };
         let Some(ch) = e.character.as_ref() else { return };
-        let (vel, grounded, feet) = (ch.vel, ch.grounded || ch.climbing.is_some() || ch.hang.is_some(), e.pos - Vec3::Y * ch.height() * 0.5);
+        let (vel, grounded, feet) =
+            (ch.vel, ch.grounded || ch.climbing.is_some() || ch.hang.is_some(), e.pos - Vec3::Y * ch.height() * 0.5);
         let dt = self.dt();
         let tick = self.state.tick;
         self.state.feel.update(tick, dt, input.move_dir, vel, feet, grounded);
@@ -804,6 +850,7 @@ impl Sim {
             physics: self.physics_stats(),
             view: c.view.clone(),
             view_serial: c.view_serial,
+            boss: self.boss_bar(),
         };
         RenderFrame {
             tick: self.state.tick,
@@ -823,7 +870,12 @@ impl Sim {
                     if e.visual.is_none() && puppet.is_none() {
                         return None;
                     }
-                    let visual = e.visual.clone().unwrap_or(Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE));
+                    let mut visual = e.visual.clone().unwrap_or(Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE));
+                    if e.health.as_ref().is_some_and(|h| h.flash > 0.0) {
+                        // Hit flash.
+                        visual.color = Color::WHITE;
+                        visual.emissive = visual.emissive.max(0.45);
+                    }
                     let pulse = e.bomb.as_ref().map(|b| b.fuse).unwrap_or(-1.0);
                     let soft = e.soft.as_ref().and_then(|s| {
                         let h = s.handle?;
@@ -840,7 +892,8 @@ impl Sim {
                         })
                     });
                     let vehicle = e.vehicle.as_ref().map(|v| v.view());
-                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle })
+                    let cone = self.guard_cone(e);
+                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle, cone })
                 })
                 .collect(),
             statics: self.state.statics.clone(),

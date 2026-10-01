@@ -332,6 +332,65 @@ pub struct Entity {
     /// A drivable vehicle (car, helicopter).
     #[serde(default)]
     pub vehicle: Option<Box<crate::vehicle::Vehicle>>,
+    /// Shootable: player shots wear it down (enemies, bosses, targets).
+    #[serde(default)]
+    pub health: Option<Box<Health>>,
+}
+
+/// Room data for something the player can shoot down.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HealthDef {
+    pub hp: f32,
+    /// Points added to the running course when destroyed.
+    pub score: u32,
+    /// Signal sent when destroyed (spawners and pads listen for signals).
+    pub signal: String,
+    /// Destroying it finishes the running course (boss fights).
+    pub finish: bool,
+    /// Show a health bar at the top of the screen while it lives.
+    pub bar: bool,
+    /// Drift side to side: amplitude (m, along the object's X) and period (s).
+    pub sway: [f32; 2],
+    /// Behaviour changes as health drops (attack patterns of a boss).
+    pub phases: Vec<PhaseDef>,
+}
+
+impl Default for HealthDef {
+    fn default() -> Self {
+        Self { hp: 10.0, score: 10, signal: String::new(), finish: false, bar: false, sway: [0.0, 4.0], phases: Vec::new() }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PhaseDef {
+    /// Switch when health falls below this fraction (0..1).
+    pub below: f32,
+    pub behavior: Behavior,
+}
+
+/// Running health state.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Health {
+    pub def: HealthDef,
+    pub hp: f32,
+    /// Seconds of hit flash left.
+    pub flash: f32,
+    /// Sway centre and right axis, and running time.
+    pub home: Vec3,
+    pub axis: Vec3,
+    pub time: f32,
+    /// Phases already entered.
+    pub phase: usize,
+}
+
+impl Health {
+    pub fn new(def: HealthDef, home: Vec3, axis: Vec3) -> Self {
+        Self { hp: def.hp.max(0.1), def, flash: 0.0, home, axis, time: 0.0, phase: 0 }
+    }
+    pub fn fraction(&self) -> f32 {
+        (self.hp / self.def.hp.max(0.1)).clamp(0.0, 1.0)
+    }
 }
 
 /// Everything needed to create an entity.
