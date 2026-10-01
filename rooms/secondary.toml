@@ -1,0 +1,608 @@
+# Secondary Motion: things that trail behind the body. Tails and antennae are verlet chains that
+# follow the body and bend back toward a rest direction (settings tail_length, antenna_length and
+# wobble: 0 = stiff, 2 = very floppy). Any body plan can have them, bipeds too. Spiders get a
+# jiggling abdomen and lizards drag a follow-the-leader spine.
+#   NORTH-WEST  WOBBLE DIAL: three bipeds run the same stop-and-go square at wobble 0.2 / 1.0 / 2.0
+#   NORTH-EAST  TAIL LENGTHS: three lizards on patrol, tails 0.4 / 1.2 / 2.2
+#   MIDDLE-WEST ANTENNAE: three beetles on circles, antennae 0.2 / 0.5 / 0.9
+#   MIDDLE-EAST SPIN ZONE: two railed rotating platforms; a critter and a lizard ride them (so can you)
+#   SOUTH-WEST  PETS: a lizard and a beetle follow you around a fenced yard (hop the fence)
+#   SOUTH-EAST  PLAYER PADS: grow a tail / antennae on your own puppet, floppy or stiff, reset
+# Pad changes last until you leave the room. The yard fence is 0.7 m: you can jump it, creatures cannot.
+name = "Secondary Motion"
+about = "Tails and antennae are springy chains that trail behind the body and swing back to rest. Compare stiff and floppy wobble, short and long tails, antennae, pets that follow you, and a spinning platform that flings a tail outward; then grow your own tail with the pads."
+try = [
+  "Watch the WOBBLE DIAL: same route, speed, tail and antennae, but STIFF, NORMAL and FLOPPY wobble; the difference shows at every stop and corner",
+  "Compare the three lizards: the 2.2 m tail whips at the corners of the patrol, the 0.4 m stub barely moves",
+  "Stand next to the beetles and compare antenna lengths 0.2, 0.5 and 0.9 on the circles",
+  "Step on GROW A TAIL and ANTENNAE, then run in circles and stop suddenly: the chains swing and settle",
+  "Try FLOPPY (wobble 2) and STIFF (wobble 0.1) with your tail, then RESET to clear everything",
+  "Hop the low fence into the yard: the lizard and the beetle trail after you and their tails follow their turns",
+  "Jump over the rail onto a spinning platform in the SPIN ZONE (grow a tail first): the riders' tails and your own swing outward",
+  "Throw a bomb (F or left click) near a pet in the yard: it flinches and gets nudged, then comes back to you",
+]
+wing = "animation"
+order = 5
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 24.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+# 40 x 30 room. Plates tint each exhibit: cool/green/pink = stiff/normal/floppy.
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#......................................#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#aaaaaaabbbbbbbccccccc.dddddeeeeeddddd.#
+#......................................#
+#......................................#
+#......................................#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#ggggggghhhhhhhggggggg..kkkkkkkkkkkkkk.#
+#......................................#
+#ffffffffffffffffff....................#
+#pppppppppppppppppf...GGGG.NNNN.RRRRRR.#
+#pppppppppppppppppf...GGGG.NNNN.RRRRRR.#
+#pppppppppppppppppf.............RRRRRR.#
+#pppppppppppppppppf...FFFF.SSSS.RRRRRR.#
+#pppppppppppppppppf...FFFF.SSSS.RRRRRR.#
+#pppppppppppppppppf....................#
+#pppppppppppppppppf....................#
+#pppppppppppppppppf....................#
+###################..###################
+'''
+
+# Floor, wall (3 m), exhibit plates, the pet yard fence (0.7 m) and the player pads.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+# Wobble dial plates: STIFF (cool), NORMAL (green), FLOPPY (pink).
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#bccfe2" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cddcbd" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#edc6c0" }]
+
+# Tail length lanes.
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#dad2bb" }]
+
+[layout.legend.'e']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cbc3a8" }]
+
+# Antennae plates.
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8cfe4" }]
+
+[layout.legend.'h']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e8d8c2" }]
+
+# Spin zone plates.
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd5d0" }]
+
+# Pet yard floor and fence.
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d0dcc4" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d0dcc4" }, { y0 = 0, y1 = 0.7, color = "#8f9fae" }]
+
+# Pads: the changes apply to your own puppet and last until you leave the room.
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "GROW A TAIL", color = "#3bb273", params = { "puppet.tail_length" = 1.0 } }
+
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "ANTENNAE", color = "#8a6fd8", params = { "puppet.antenna_length" = 0.4 } }
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "FLOPPY", color = "#e8a23c", params = { "puppet.wobble" = 2.0 } }
+
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "STIFF", color = "#4a86c8", params = { "puppet.wobble" = 0.1 } }
+
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "RESET", color = "#e07a5f", params = { "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.wobble" = 1.0 } }
+
+# ---- floor labels (layout space: x = column, z = row) ----
+
+[[label]]
+text = "WOBBLE DIAL"
+pos = [11.5, 0.03, 1.5]
+size = 0.6
+
+[[label]]
+text = "STIFF 0.2"
+pos = [4.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "NORMAL 1.0"
+pos = [11.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "FLOPPY 2.0"
+pos = [18.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "TAIL LENGTHS"
+pos = [30.5, 0.03, 1.5]
+size = 0.6
+
+[[label]]
+text = "TAIL 0.4"
+pos = [25.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "TAIL 1.2"
+pos = [30.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "TAIL 2.2"
+pos = [35.5, 0.03, 9.4]
+size = 0.45
+
+[[label]]
+text = "ANTENNAE"
+pos = [11.5, 0.03, 11.5]
+size = 0.6
+
+[[label]]
+text = "LENGTH 0.2"
+pos = [4.5, 0.03, 19.4]
+size = 0.4
+
+[[label]]
+text = "LENGTH 0.5"
+pos = [11.5, 0.03, 19.4]
+size = 0.4
+
+[[label]]
+text = "LENGTH 0.9"
+pos = [18.5, 0.03, 19.4]
+size = 0.4
+
+[[label]]
+text = "SPIN ZONE"
+pos = [30.5, 0.03, 11.5]
+size = 0.6
+
+[[label]]
+text = "CRITTER"
+pos = [27.5, 0.03, 19.4]
+size = 0.4
+
+[[label]]
+text = "LIZARD"
+pos = [34.5, 0.03, 19.4]
+size = 0.4
+
+[[label]]
+text = "PETS"
+pos = [9.5, 0.03, 21.7]
+size = 0.6
+
+[[label]]
+text = "HOP THE FENCE AND RUN"
+pos = [9.5, 0.03, 22.6]
+size = 0.35
+
+[[label]]
+text = "PLAYER PADS"
+pos = [29.5, 0.03, 20.5]
+size = 0.6
+
+# ---- characters and creatures (layout space) ----
+
+# WOBBLE DIAL: the same biped, tail 0.9 and antennae 0.35, running the same square (with a short stop
+# at every corner, which is what shows the difference) at the same speed.
+[[npc]]
+name = "dial_stiff"
+pos = [2.7, 0, 3.7]
+ai = { type = "patrol", points = [[2.7, 3.7], [6.3, 3.7], [6.3, 7.3], [2.7, 7.3]], pause = 0.25 }
+speed = 0.8
+look = { tail_length = 0.9, antenna_length = 0.35, wobble = 0.2, shirt = "#4a86c8" }
+
+[[npc]]
+name = "dial_normal"
+pos = [9.7, 0, 3.7]
+ai = { type = "patrol", points = [[9.7, 3.7], [13.3, 3.7], [13.3, 7.3], [9.7, 7.3]], pause = 0.25 }
+speed = 0.8
+look = { tail_length = 0.9, antenna_length = 0.35, wobble = 1.0, shirt = "#3bb273" }
+
+[[npc]]
+name = "dial_floppy"
+pos = [16.7, 0, 3.7]
+ai = { type = "patrol", points = [[16.7, 3.7], [20.3, 3.7], [20.3, 7.3], [16.7, 7.3]], pause = 0.25 }
+speed = 0.8
+look = { tail_length = 0.9, antenna_length = 0.35, wobble = 2.0, shirt = "#e0709a" }
+
+# TAIL LENGTHS: lizards patrolling a rectangle in their lane.
+[[npc]]
+name = "tail_short"
+kind = "lizard"
+pos = [24.2, 0, 3.2]
+ai = { type = "patrol", points = [[24.2, 3.2], [26.8, 3.2], [26.8, 7.8], [24.2, 7.8]] }
+speed = 0.6
+look = { tail_length = 0.4 }
+
+[[npc]]
+name = "tail_medium"
+kind = "lizard"
+pos = [29.2, 0, 3.2]
+ai = { type = "patrol", points = [[29.2, 3.2], [31.8, 3.2], [31.8, 7.8], [29.2, 7.8]] }
+speed = 0.6
+look = { tail_length = 1.2 }
+
+[[npc]]
+name = "tail_long"
+kind = "lizard"
+pos = [34.2, 0, 3.2]
+ai = { type = "patrol", points = [[34.2, 3.2], [36.8, 3.2], [36.8, 7.8], [34.2, 7.8]] }
+speed = 0.6
+look = { tail_length = 2.2 }
+
+# ANTENNAE: beetles on circles.
+[[npc]]
+name = "antenna_short"
+kind = "beetle"
+pos = [4.5, 0, 15.5]
+ai = { type = "circle", radius = 2.0 }
+speed = 0.5
+look = { antenna_length = 0.2 }
+
+[[npc]]
+name = "antenna_medium"
+kind = "beetle"
+pos = [11.5, 0, 15.5]
+ai = { type = "circle", radius = 2.0 }
+speed = 0.5
+look = { antenna_length = 0.5 }
+
+[[npc]]
+name = "antenna_long"
+kind = "beetle"
+pos = [18.5, 0, 15.5]
+ai = { type = "circle", radius = 2.0 }
+speed = 0.5
+look = { antenna_length = 0.9 }
+
+# PETS: they follow you around the fenced yard.
+[[npc]]
+name = "pet_lizard"
+kind = "lizard"
+pos = [5.5, 0, 24.5]
+ai = { type = "follow", distance = 3.2 }
+speed = 0.9
+look = { tail_length = 2.0 }
+
+[[npc]]
+name = "pet_beetle"
+kind = "beetle"
+pos = [8.5, 0, 26.0]
+ai = { type = "follow", distance = 1.6 }
+speed = 0.9
+look = { antenna_length = 0.9 }
+
+# SPIN ZONE: they stand still (a follow brain with a huge distance never walks) and the
+# rotating platform carries them round.
+[[npc]]
+name = "spin_critter"
+pos = [29.5, 0.24, 15.5]
+yaw = 90
+ai = { type = "follow", distance = 999 }
+look = { tail_length = 1.1, antenna_length = 0.4, wobble = 1.2, shirt = "#7a5cff" }
+
+[[npc]]
+name = "spin_lizard"
+kind = "lizard"
+pos = [36.5, 0.24, 15.5]
+ai = { type = "follow", distance = 999 }
+look = { tail_length = 1.6 }
+
+# ---- objects (keep at the end of the file) ----
+
+# Rotating kinematic platforms (45 deg/s and -60 deg/s about Y). 0.24 m high: you can step on.
+[[object]]
+name = "carousel_critter"
+shape = { type = "cylinder", half_height = 0.12, radius = 2.8 }
+pos = [27.5, 0.12, 15.5]
+color = "#9c8fd8"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80 }
+
+[[object]]
+name = "carousel_lizard"
+shape = { type = "cylinder", half_height = 0.12, radius = 2.8 }
+pos = [34.5, 0.12, 15.5]
+color = "#e0a86a"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100 }
+
+# Low rails round each platform (they rotate with it): a rider is only carried along the tangent,
+# so without a rail it would slowly drift outward and off the edge. Jump over to board.
+[[object]]
+name = "rail_critter_00"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [30.180, 0.54, 15.500]
+yaw = -90.00
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_01"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [29.915, 0.54, 16.663]
+yaw = -115.71
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_02"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [29.171, 0.54, 17.595]
+yaw = -141.43
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_03"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [28.096, 0.54, 18.113]
+yaw = -167.14
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_04"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [26.904, 0.54, 18.113]
+yaw = 167.14
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_05"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [25.829, 0.54, 17.595]
+yaw = 141.43
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_06"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [25.085, 0.54, 16.663]
+yaw = 115.71
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_07"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [24.820, 0.54, 15.500]
+yaw = 90.00
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_08"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [25.085, 0.54, 14.337]
+yaw = 64.29
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_09"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [25.829, 0.54, 13.405]
+yaw = 38.57
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_10"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [26.904, 0.54, 12.887]
+yaw = 12.86
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_11"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [28.096, 0.54, 12.887]
+yaw = -12.86
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_12"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [29.171, 0.54, 13.405]
+yaw = -38.57
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_critter_13"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [29.915, 0.54, 14.337]
+yaw = -64.29
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = 80, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_00"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [37.180, 0.54, 15.500]
+yaw = -90.00
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_01"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [36.915, 0.54, 16.663]
+yaw = -115.71
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_02"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [36.171, 0.54, 17.595]
+yaw = -141.43
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_03"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [35.096, 0.54, 18.113]
+yaw = -167.14
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_04"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [33.904, 0.54, 18.113]
+yaw = 167.14
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_05"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [32.829, 0.54, 17.595]
+yaw = 141.43
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_06"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [32.085, 0.54, 16.663]
+yaw = 115.71
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_07"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [31.820, 0.54, 15.500]
+yaw = 90.00
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_08"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [32.085, 0.54, 14.337]
+yaw = 64.29
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_09"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [32.829, 0.54, 13.405]
+yaw = 38.57
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_10"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [33.904, 0.54, 12.887]
+yaw = 12.86
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_11"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [35.096, 0.54, 12.887]
+yaw = -12.86
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_12"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [36.171, 0.54, 13.405]
+yaw = -38.57
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [-0.000, 0, 2.680] }
+
+[[object]]
+name = "rail_lizard_13"
+shape = { type = "box", half = [0.65, 0.3, 0.07] }
+pos = [36.915, 0.54, 14.337]
+yaw = -64.29
+color = "#5a5f6b"
+body = "kinematic"
+behavior = { type = "rotate", axis = [0, 1, 0], speed = -100, pivot = [0.000, 0, 2.680] }
+

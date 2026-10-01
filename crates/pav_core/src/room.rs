@@ -77,6 +77,13 @@ pub struct ObjectDef {
     /// A deformable body instead of a rigid one (jelly, ball, cloth, rope).
     #[serde(default)]
     pub soft: Option<SoftDef>,
+    /// Visual-only effects: a point light, a particle emitter, a screen distortion.
+    #[serde(default)]
+    pub light: Option<crate::fxdef::LightDef>,
+    #[serde(default)]
+    pub particles: Option<crate::fxdef::EmitterDef>,
+    #[serde(default)]
+    pub distortion: Option<crate::fxdef::DistortDef>,
 }
 
 impl ObjectDef {
@@ -208,6 +215,10 @@ pub struct RoomDef {
     /// Simulation parameter overrides while inside (full paths, e.g. "movement.jump_height").
     #[serde(default)]
     pub params: BTreeMap<String, ParamValue>,
+    /// View setting overrides while inside (`pav params prefix=view`, without the `view.`):
+    /// e.g. "light.sun_intensity" = 0.1, bloom = 0.8, sky = "#101830".
+    #[serde(default)]
+    pub view: BTreeMap<String, ParamValue>,
     /// Room-specific control guide lines: [action, keys].
     #[serde(default)]
     pub controls: Vec<[String; 2]>,

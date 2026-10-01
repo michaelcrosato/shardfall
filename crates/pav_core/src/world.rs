@@ -356,6 +356,9 @@ impl Sim {
             let mut v = Visual::new(o.shape, Color::hex(&o.color));
             v.look = o.look;
             v.emissive = o.emissive;
+            v.light = o.light.clone().map(Box::new);
+            v.particles = o.particles.clone().map(Box::new);
+            v.distortion = o.distortion.clone().map(Box::new);
             let rot = slot.place.quat() * o.local_rot();
             let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
                 .visual(v)
@@ -1061,6 +1064,9 @@ impl Sim {
                     friction: e.material.friction,
                     restitution: e.material.restitution,
                     damping: e.material.damping,
+                    light: v.light.as_deref().cloned(),
+                    particles: v.particles.as_deref().cloned(),
+                    distortion: v.distortion.as_deref().cloned(),
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1180,6 +1186,16 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
     if let Some(s) = &o.soft {
         if let Ok(v) = toml::Value::try_from(s) {
             t.push_str(&format!("soft = {}\n", inline(&v)));
+        }
+    }
+    let fx = [
+        ("light", o.light.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+        ("particles", o.particles.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+        ("distortion", o.distortion.as_ref().and_then(|x| toml::Value::try_from(x).ok())),
+    ];
+    for (k, v) in fx {
+        if let Some(v) = v {
+            t.push_str(&format!("{k} = {}\n", inline(&v)));
         }
     }
     t

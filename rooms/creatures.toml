@@ -1,0 +1,343 @@
+# Jointed Limbs: creatures that plant each foot and step when it falls behind (IK legs).
+#   NORTH-WEST  spider pen (fenced, rocks and a stepped mound 0.2-0.4 m): normal, long-legged (1.2 m), tiny (0.6x)
+#   NORTH-EAST  lizard run (two patrol lanes, one lizard with a 2.4 m tail) over a beetle row
+#               (circle brains, 2 / 3 / 5 leg pairs = 4 / 6 / 10 legs)
+#   MIDDLE      leg count (idle spiders with 1-6 leg pairs) and the PLAY AS pads (the pads change
+#               the player's puppet.* settings: body plan, leg length, tail, ...; they revert when you
+#               leave the room)
+#   SOUTH       a yard with low steps where a lizard and a beetle follow you around
+# Pads can only set numbers and choices (not colours), so you stay orange-and-blue in every body.
+name = "Jointed Limbs"
+about = "Creatures plant each foot and step only when it falls behind, so legs adapt to rocks and steps. Watch spiders, lizards and beetles walk, count legs, then become one yourself on the PLAY AS pads."
+try = [
+  "Step on PLAY AS SPIDER, then walk around: the posture changes to crawl and your feet plant on the floor",
+  "Walk over the rocks in the spider pen (jump the low fence) and watch every leg find the step height",
+  "Compare the normal, 1.2 m long-legged and tiny spiders: longer legs take fewer, bigger steps",
+  "Follow the lizard run: the spine wiggles and diagonal legs step together; the orange lizard has a 2.4 m tail",
+  "Count the beetles' legs (4 / 6 / 10) and the LEG COUNT spiders (1 to 6 pairs)",
+  "Try the LIZARD, BEETLE, BLOB and GIANT SPIDER pads, then BACK TO HUMAN to restore the biped",
+  "Run around the yard: the follower lizard and beetle trail you and climb the low steps",
+  "Throw a bomb near a creature (F or click) to see it recoil",
+]
+wing = "animation"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 24.0
+
+[params]
+"movement.step_height" = 0.45
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#qqqqqqqq11111ftttttttttttttttttttttttt#
+#qqqqqqqq12221ftttttttttttttttttttttttt#
+#qq22q1qq12321ftttttttttttttttttttttttt#
+#qq2qqqqq12221ftttttttttttttttttttttttt#
+#qqqqqqqq11111ftttttttttttttttttttttttt#
+#2qqqq13qqqqqqfffffffffffffffffffffffff#
+#qqqqqq3qqqqqqfuuuuuuuuuuuuuuuuuuuuuuuu#
+#q112qqqqqq12qfuuuuuuuuuuuuuuuuuuuuuuuu#
+#qq2qqqqqqqq3qfuuuuuuuuuuuuuuuuuuuuuuuu#
+#qqqqqqqq123qqfuuuuuuuuuuuuuuuuuuuuuuuu#
+#qqqqqqqqqqqqqfuuuuuuuuuuuuuuuuuuuuuuuu#
+#ffffffffffffffffffffffffffffffffffffff#
+#......................................#
+#llllllllllllllllll....................#
+#llllllllllllllllll..SSSSS.LLLLL.BBBBB.#
+#llllllllllllllllll..SSSSS.LLLLL.BBBBB.#
+#llllllllllllllllll....................#
+#llllllllllllllllll..OOOOO.HHHHH.GGGGG.#
+#llllllllllllllllll..OOOOO.HHHHH.GGGGG.#
+#......................................#
+#gggggggggggggggggggggggggggggggggggggg#
+#gggggggggggggxgggggggggggggggggggggggg#
+#ggxyzggggggggggggggggggggggggggggzyxgg#
+#ggxyzggggggggggggggggggggggggggggzyxgg#
+#ggxyzgggggggggggggggggggggyzgggggzyxgg#
+#gggggggggyxggggggggggggggggygggggggggg#
+#gggggggggggggggggggggggxyggggggggggggg#
+#ggggggggggggggggggggggggxggggggggggggg#
+###################..###################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c9b58f" }, { y0 = 0, y1 = 0.6, color = "#8f9fae" }]
+
+[layout.legend.'q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c9a3" }]
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c9a3" }, { y0 = 0, y1 = 0.2, color = "#a89a82", rounded = true }]
+
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c9a3" }, { y0 = 0, y1 = 0.3, color = "#9a8c76", rounded = true }]
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c9a3" }, { y0 = 0, y1 = 0.4, color = "#8a7d69", rounded = true }]
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0c4" }, { y0 = 0, y1 = 0.2, color = "#a89a82", rounded = true }]
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0c4" }, { y0 = 0, y1 = 0.3, color = "#9a8c76", rounded = true }]
+
+[layout.legend.'z']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0c4" }, { y0 = 0, y1 = 0.4, color = "#8a7d69", rounded = true }]
+
+[layout.legend.'t']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c9d6b8" }]
+
+[layout.legend.'u']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#bfd0dc" }]
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d7d0e6" }]
+
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0c4" }]
+
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "PLAY AS SPIDER", label_size = 0.4, color = "#eba99b", params = { "puppet.body" = "spider", "puppet.leg_length" = 0.8, "puppet.torso_radius" = 0.2, "puppet.head_radius" = 0.12, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.12, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "PLAY AS LIZARD", label_size = 0.4, color = "#b9dfa6", params = { "puppet.body" = "lizard", "puppet.leg_length" = 0.42, "puppet.torso_radius" = 0.15, "puppet.head_radius" = 0.14, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.9, "puppet.tail_length" = 1.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "PLAY AS BEETLE", label_size = 0.4, color = "#a9d0e4", params = { "puppet.body" = "beetle", "puppet.leg_length" = 0.5, "puppet.torso_radius" = 0.24, "puppet.head_radius" = 0.13, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.75, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.45, "puppet.legs" = 0, "puppet.step_time" = 0.1, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+
+[layout.legend.'O']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "PLAY AS BLOB", label_size = 0.4, color = "#9fe3bd", params = { "puppet.body" = "blob", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.42, "puppet.head_radius" = 0.08, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.6, "puppet.stride" = 1.4, "puppet.scale" = 1.0 } }
+
+[layout.legend.'H']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "BACK TO HUMAN", label_size = 0.4, color = "#f6c0a4", params = { "puppet.body" = "biped", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "PLAY AS GIANT SPIDER", label_size = 0.4, color = "#cdbff5", params = { "puppet.body" = "spider", "puppet.leg_length" = 1.3, "puppet.torso_radius" = 0.3, "puppet.head_radius" = 0.17, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+
+[[label]]
+text = "SPIDER PEN"
+pos = [7.0, 0.03, 11.45]
+size = 0.5
+
+[[label]]
+text = "LIZARD RUN"
+pos = [27.0, 0.03, 5.45]
+size = 0.5
+
+[[label]]
+text = "BEETLE ROW"
+pos = [27.0, 0.03, 11.45]
+size = 0.5
+
+[[label]]
+text = "LEG COUNT"
+pos = [9.5, 0.03, 14.55]
+size = 0.5
+
+[[label]]
+text = "PLAY AS ... STEP ON A PAD"
+pos = [29.0, 0.03, 14.55]
+size = 0.45
+
+[[label]]
+text = "FOLLOWERS"
+pos = [19.5, 0.03, 21.6]
+size = 0.5
+
+[[label]]
+text = "WALK AROUND: THEY TRAIL YOU"
+pos = [19.5, 0.03, 22.4]
+size = 0.35
+
+[[label]]
+text = "1 PAIR"
+pos = [3.0, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "2 PAIRS"
+pos = [5.6, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "3 PAIRS"
+pos = [8.2, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "4 PAIRS"
+pos = [10.8, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "5 PAIRS"
+pos = [13.4, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "6 PAIRS"
+pos = [16.0, 0.03, 18.7]
+size = 0.4
+
+[[label]]
+text = "4 LEGS"
+pos = [20, 0.03, 9.0]
+size = 0.45
+
+[[label]]
+text = "6 LEGS"
+pos = [27, 0.03, 9.0]
+size = 0.45
+
+[[label]]
+text = "10 LEGS"
+pos = [34, 0.03, 9.0]
+size = 0.45
+
+# ---- creatures ----
+
+[[npc]]
+name = "pen_spider"
+kind = "spider"
+pos = [6.5, 0, 7.5]
+ai = { type = "wander", radius = 2.5, pause = [0.4, 1.8] }
+speed = 0.5
+
+[[npc]]
+name = "pen_longlegs"
+kind = "spider"
+pos = [10.5, 0, 8.0]
+ai = { type = "wander", radius = 2.0, pause = [0.4, 1.8] }
+speed = 0.45
+look = { leg_length = 1.2, torso_radius = 0.26, head_radius = 0.15, limb_radius = 0.045, accent = "#3bb273" }
+
+[[npc]]
+name = "pen_tiny"
+kind = "spider"
+pos = [4.5, 0, 4.5]
+ai = { type = "wander", radius = 2.5, pause = [0.4, 1.8] }
+speed = 0.55
+look = { scale = 0.6, accent = "#e8c547" }
+
+[[npc]]
+name = "lizard_run"
+kind = "lizard"
+pos = [22.5, 0, 2.2]
+ai = { type = "patrol", points = [[36.5, 2.2], [16.5, 2.2]], pause = 0.5 }
+speed = 0.6
+
+[[npc]]
+name = "lizard_longtail"
+kind = "lizard"
+pos = [30.5, 0, 3.9]
+ai = { type = "patrol", points = [[16.5, 3.9], [36.5, 3.9]], pause = 0.5 }
+speed = 0.6
+look = { tail_length = 2.4, skin = "#d98b3a", shirt = "#c97a2b", accent = "#7a3b1c" }
+
+[[npc]]
+name = "beetle_4"
+kind = "beetle"
+pos = [20, 0, 9.0]
+ai = { type = "circle", radius = 2.0, clockwise = false }
+speed = 0.4
+look = { legs = 2, shirt = "#c0563b", accent = "#f2b8a0" }
+
+[[npc]]
+name = "beetle_6"
+kind = "beetle"
+pos = [27, 0, 9.0]
+ai = { type = "circle", radius = 2.0, clockwise = true }
+speed = 0.4
+look = { legs = 3 }
+
+[[npc]]
+name = "beetle_10"
+kind = "beetle"
+pos = [34, 0, 9.0]
+ai = { type = "circle", radius = 2.0, clockwise = false }
+speed = 0.4
+look = { legs = 5, shirt = "#3bb273", accent = "#c8f0d8" }
+
+[[npc]]
+name = "legs_1"
+kind = "spider"
+pos = [3.0, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 1, leg_length = 0.7, accent = "#c0563b" }
+
+[[npc]]
+name = "legs_2"
+kind = "spider"
+pos = [5.6, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 2, leg_length = 0.7, accent = "#e8a23a" }
+
+[[npc]]
+name = "legs_3"
+kind = "spider"
+pos = [8.2, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 3, leg_length = 0.7, accent = "#e8c547" }
+
+[[npc]]
+name = "legs_4"
+kind = "spider"
+pos = [10.8, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 4, leg_length = 0.7, accent = "#3bb273" }
+
+[[npc]]
+name = "legs_5"
+kind = "spider"
+pos = [13.4, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 5, leg_length = 0.7, accent = "#2e6f8e" }
+
+[[npc]]
+name = "legs_6"
+kind = "spider"
+pos = [16.0, 0, 16.6]
+ai = { type = "idle" }
+speed = 0.3
+look = { legs = 6, leg_length = 0.7, accent = "#7a5cff" }
+
+[[npc]]
+name = "follow_lizard"
+kind = "lizard"
+pos = [9.5, 0, 25.0]
+ai = { type = "follow", distance = 3.2 }
+speed = 0.75
+
+[[npc]]
+name = "follow_beetle"
+kind = "beetle"
+pos = [30.5, 0, 25.0]
+ai = { type = "follow", distance = 1.5 }
+speed = 0.85

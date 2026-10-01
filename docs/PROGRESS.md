@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M6 Procedural Animation Lab** (M1–M5 complete; M4–M10 run as one goal).
+Current milestone: **M7 Visual Effects Wing** (M1–M6 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -10,8 +10,9 @@ Current milestone: **M6 Procedural Animation Lab** (M1–M5 complete; M4–M10 r
 | M3 World & rooms | ✅ complete (2026-10-01) |
 | M4 Movement & Feel Lab | ✅ complete (2026-10-01) |
 | M5 Physics Lab | ✅ complete (2026-10-01) |
-| M6 Procedural Animation Lab | 🔨 in progress |
-| M7–M10 | ⏳ next |
+| M6 Procedural Animation Lab | ✅ complete (2026-10-01) |
+| M7 Visual Effects Wing | 🔨 in progress |
+| M8–M10 | ⏳ next |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -236,18 +237,34 @@ soft bodies, `signal` agent tool. Tests: tests/physics.rs (9) + every room build
 - Helper-agent tips: give each helper its own scratch subdirectory; keep briefs explicit about
   coordinates, tools and what to verify; they work from the prebuilt `target/debug/pav`.
 
-## M6 Procedural Animation Lab — in progress
-Engine done (uncommitted parts get committed as they land):
-- Body plans (`puppet.body`): biped, spider, lizard, beetle, blob. Creatures are characters with a
-  low capsule (crawl height), full speed and jumping, so they reuse the whole controller.
-- `rig.rs`: creature feet plant and step (furthest-behind first, neighbours never lift
-  together), body height/tilt from the feet, lizard follow-the-leader spine with walking wiggle,
-  verlet tails / antennae / spider abdomen (`tail_length`, `antenna_length`, `wobble`).
-- Bipeds: foot IK on steps (ground probe under each foot, pelvis drops), hit recoil spring
-  (flinch away from hits and blasts, arms fling).
-- Looks: `cutout` (side view on a camera-facing card, mirrored by facing), `face_camera` lean.
-- NPCs: room `[[npc]]` (kind, pos, yaw, ai, speed, hop, look overrides over the kind's preset);
-  brains in `ai.rs`; NPCs sleep/wake with their room, respawn home if they fall out.
-- Tests: tests/animation.rs (5) on tests/anim_room.toml.
-Next: agent tool for NPCs, the six rooms (walk cycles, creatures, recoil, squash & stretch,
-secondary motion, Character Style Bench), Windows build, merge, send.
+## M6 Procedural Animation Lab — done
+Six rooms in the west corridor (wing `animation`), built by helper agents from data and reviewed:
+- **Walk Cycles** (`walk_cycles`): stroll/walk/run track, proportions (short/long legs, big head,
+  tiny, giant), walk styles (bouncy, stiff, swagger, on twos vs smooth), stairs and slope (foot
+  IK), treadmill, pads that change your own stride / legs / scale / on twos.
+- **Jointed Limbs** (`creatures`): spider pen over rocks, lizard run, beetles with 4/6/10 legs,
+  leg-count line-up, PLAY AS spider / lizard / beetle / blob / giant spider / human, followers.
+- **Impact & Recoil** (`recoil`): shooting gallery (knockback 2-14), bomb ring of bipeds and
+  creatures, gauntlet corridor, stun vs bounce back, machine gun vs cannon, sizes & bodies.
+- **Squash & Stretch** (`squash`): blob pond, squash dial (none/normal/rubber), trampolines,
+  high drop, pads for rubber / stiff / blob you.
+- **Secondary Motion** (`secondary`): wobble dial, tail lengths, antennae, spinning platforms,
+  pets that follow you, pads to grow a tail / antennae / floppy / stiff.
+- **Character Style Bench** (`style_bench`): you on a stage with CUTOUT / FLAT / CEL / LIT pads,
+  yaw and tilt swing zones, fixed camera pads, cheats (eyes / lean to camera, on twos), and a
+  line-up of all four looks plus a cutout and a lit spider.
+Engine: body plans (biped/spider/lizard/beetle/blob; creatures are characters with a low capsule),
+`rig.rs` (planted feet stepping, follow-the-leader spine, verlet tails/antennae/abdomen with a
+wobble-scaled wag), foot IK on steps, hit-recoil spring, cutout look + face-camera lean, NPCs
+(`[[npc]]`, `ai.rs`: idle/wander/patrol/circle/follow, separation, hops), `npcs` agent tool.
+Tests: tests/animation.rs (5).
+
+## Decisions (M6)
+- Creatures reuse the character controller (crawl-height capsule, full speed, can jump) instead
+  of a separate mover: they get conveyors, hits, water, platforms and agent tools for free.
+- Body plan, proportions and animation are all puppet params, so pads can turn the player into
+  a spider (`puppet.body`); NPCs carry their own puppet def (preset + `look` overrides).
+- Characters are never sliced by the camera cutaway.
+- Text glyphs are drawn without screen-space outlines (they speckled light text).
+- Idle NPCs walk back to their spot and face their start direction after a knock.
+

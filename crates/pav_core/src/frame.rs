@@ -110,6 +110,9 @@ pub struct HudFrame {
     pub invuln: f32,
     pub model: String,
     pub physics: PhysicsStats,
+    /// View settings from pads (applied on top of the room's), and a counter that changes.
+    pub view: std::collections::BTreeMap<String, crate::params::ParamValue>,
+    pub view_serial: u64,
 }
 
 /// Physics counters for the stats overlay.

@@ -1,0 +1,389 @@
+# Walk Cycles: the biped puppet's procedural walk (stride, bob, arm swing, lean, foot IK) under a
+# microscope. Every walker is a plain [[npc]] on a circle or a short patrol, so it never leaves its
+# exhibit; the pads at the south change YOUR walk through `puppet.*` params until you leave the room.
+#   NORTH-WEST  SPEED TRACK: three bipeds on circles at speed 0.2 / 0.5 / 1.0
+#   NORTH-EAST  TREADMILL: a belt carries a biped back as fast as it walks
+#   MIDDLE      PROPORTIONS (legs, head, scale) and STYLE OF WALK (bounce, stiff, swagger, on twos)
+#   EAST        STAIRS (0.25 m rises) and a SLOPE: feet land on the surface (foot IK)
+#   SOUTH       PLAYER PADS: TINY STEPS, BIG STRIDE, LONG LEGS, ON TWOS, GIANT, RESET
+name = "Walk Cycles"
+about = "The biped's procedural walk, side by side: three speeds on circles, different proportions and styles of walk (bouncy, stiff, swagger, on twos), feet finding the steps of a staircase and a slope, and a treadmill. Pads at the entrance change your own stride."
+try = [
+  "Compare STROLL, WALK and RUN on the speed track: stride, bob and arm swing grow with speed",
+  "Look along the PROPORTIONS row: legs 0.5 / 1.1, a big head, a tiny and a giant walker move at the same speed with different gaits",
+  "Compare BOUNCY, STIFF and SWAGGER, then ON TWOS (stepped 12 fps) next to SMOOTH",
+  "Step on BIG STRIDE or TINY STEPS and run around: your stride length changes until you leave the room",
+  "Step on LONG LEGS, GIANT or ON TWOS: the pads stack, so try BIG STRIDE + ON TWOS; RESET puts your walk back",
+  "Walk up the staircase beside the patrol walker and watch both pairs of feet land on the steps",
+  "Follow the SLOPE walker up and down the ramp: feet stay on the surface",
+  "Stand next to the TREADMILL and watch the belt carry the walker back as fast as it walks",
+]
+wing = "animation"
+order = 1
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 26.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#aaaaaaaaaaaaaaaaaaaaa..ppppppppppppppp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppppppppppppp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppkkkkkkkkkpp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppkEEEEEEEfpp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppkEEEEEEEfpp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppkkkkkkkkkpp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppppppppppppp#
+#aaaaaaaaaaaaaaaaaaaaa..ppppppppppppppp#
+#......................................#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.qqqqqqqqq#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.q1234321q#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.q1234321q#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.q1234321q#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.qqqqqqqqq#
+#bbbbbbbbbbbbbbbbbbbbbbbbbbbb.qqqqqqqqq#
+#......................................#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#cccccccccccccccccccccccccccc.rrrrrrrrr#
+#......................................#
+#......................................#
+#.SSSS.BBBB.LLLL........TTTT.GGGG.RRRR.#
+#.SSSS.BBBB.LLLL........TTTT.GGGG.RRRR.#
+#......................................#
+#......................................#
+###################..###################
+'''
+
+# Map key:  # wall (3 m)  . floor  a b c p q r  exhibit plates  f fence (0.6 m)  k curb (0.2 m)  E treadmill belt (east)
+#   1 2 3 4  stair blocks 0.25 / 0.5 / 0.75 / 1.0 m   S B L T G R  pads TINY STEPS / BIG STRIDE / LONG LEGS / ON TWOS / GIANT / RESET
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c7d3e0" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e4d8c0" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0cd" }]
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8cde0" }]
+
+[layout.legend.'q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e0d0cf" }]
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d4dcc4" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.6, color = "#8f9fae" }]
+
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.2, color = "#8f9fae" }]
+
+[layout.legend.'E']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3a3f47" }]
+zone = { kind = "conveyor", facing = "east", speed = 2.7, label = ">>>  >>>  >>>" }
+
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0.25, color = "#c9b79c" }]
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0.5, color = "#bfa98a" }]
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0.75, color = "#b59d7c" }]
+[layout.legend.'4']
+blocks = [{ y0 = -0.5, y1 = 1.0, color = "#ab916e" }]
+
+# Player pads: walk params that revert when you leave the room. RESET restores every one of them.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "TINY STEPS", color = "#4f7be0", params = { "puppet.stride" = 0.8 } }
+
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "BIG STRIDE", color = "#e07a5f", params = { "puppet.stride" = 2.5 } }
+
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "ON TWOS", color = "#8a52d6", params = { "puppet.anim_fps" = 12.0 } }
+
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "LONG LEGS", color = "#1fa5b8", params = { "puppet.leg_length" = 1.1 } }
+
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "GIANT", color = "#d4891c", params = { "puppet.scale" = 1.8 } }
+
+[layout.legend.'R']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "RESET", color = "#3bb273", params = { "puppet.stride" = 1.5, "puppet.anim_fps" = 0.0, "puppet.leg_length" = 0.78, "puppet.scale" = 1.0 } }
+
+# ---- SPEED TRACK -------------------------------------------------------------------------------
+[[npc]]
+name = "speed_stroll"
+pos = [4.50, 0.00, 4.80]
+ai = { type = "circle", radius = 2.8 }
+speed = 0.2
+look = { shirt = "#4f9dde" }
+
+[[label]]
+text = "STROLL"
+pos = [4.50, 0.03, 8.30]
+size = 0.50
+
+[[npc]]
+name = "speed_walk"
+pos = [11.50, 0.00, 4.80]
+ai = { type = "circle", radius = 2.8 }
+speed = 0.5
+look = { shirt = "#e8c23a" }
+
+[[label]]
+text = "WALK"
+pos = [11.50, 0.03, 8.30]
+size = 0.50
+
+[[npc]]
+name = "speed_run"
+pos = [18.50, 0.00, 4.80]
+ai = { type = "circle", radius = 2.8 }
+speed = 1.0
+look = { shirt = "#a83279" }
+
+[[label]]
+text = "RUN"
+pos = [18.50, 0.03, 8.30]
+size = 0.50
+
+[[label]]
+text = "SPEED TRACK"
+pos = [11.50, 0.03, 1.50]
+size = 0.40
+
+# ---- PROPORTIONS -------------------------------------------------------------------------------
+[[npc]]
+name = "prop_short_legs"
+pos = [1.80, 0.00, 12.80]
+ai = { type = "patrol", points = [[1.80, 12.80], [5.20, 12.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { leg_length = 0.5, shirt = "#2e7d6b" }
+
+[[label]]
+text = "SHORT LEGS"
+pos = [3.50, 0.03, 14.90]
+size = 0.40
+
+[[npc]]
+name = "prop_long_legs"
+pos = [7.30, 0.00, 12.80]
+ai = { type = "patrol", points = [[7.30, 12.80], [10.70, 12.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { leg_length = 1.1, shirt = "#4f9dde" }
+
+[[label]]
+text = "LONG LEGS"
+pos = [9.00, 0.03, 14.90]
+size = 0.40
+
+[[npc]]
+name = "prop_big_head"
+pos = [12.80, 0.00, 12.80]
+ai = { type = "patrol", points = [[12.80, 12.80], [16.20, 12.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { head_radius = 0.32, shirt = "#3bb273" }
+
+[[label]]
+text = "BIG HEAD"
+pos = [14.50, 0.03, 14.90]
+size = 0.40
+
+[[npc]]
+name = "prop_tiny"
+pos = [18.30, 0.00, 12.80]
+ai = { type = "patrol", points = [[18.30, 12.80], [21.70, 12.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { scale = 0.6, shirt = "#f2c14e" }
+
+[[label]]
+text = "TINY"
+pos = [20.00, 0.03, 14.90]
+size = 0.40
+
+[[npc]]
+name = "prop_giant"
+pos = [23.80, 0.00, 12.80]
+ai = { type = "patrol", points = [[23.80, 12.80], [27.20, 12.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { scale = 1.5, shirt = "#8a52d6" }
+
+[[label]]
+text = "GIANT"
+pos = [25.50, 0.03, 14.90]
+size = 0.40
+
+[[label]]
+text = "PROPORTIONS"
+pos = [4.20, 0.03, 10.70]
+size = 0.40
+
+# ---- STYLE OF WALK -----------------------------------------------------------------------------
+[[npc]]
+name = "style_bouncy"
+pos = [1.80, 0.00, 19.80]
+ai = { type = "patrol", points = [[1.80, 19.80], [5.20, 19.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { bob = 0.12, step_height = 0.3, shirt = "#f15bb5" }
+
+[[label]]
+text = "BOUNCY"
+pos = [3.50, 0.03, 21.90]
+size = 0.40
+
+[[npc]]
+name = "style_stiff"
+pos = [7.30, 0.00, 19.80]
+ai = { type = "patrol", points = [[7.30, 19.80], [10.70, 19.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { arm_swing = 0.0, bob = 0.0, shirt = "#7d8a99" }
+
+[[label]]
+text = "STIFF"
+pos = [9.00, 0.03, 21.90]
+size = 0.40
+
+[[npc]]
+name = "style_swagger"
+pos = [12.80, 0.00, 19.80]
+ai = { type = "patrol", points = [[12.80, 19.80], [16.20, 19.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { lean = 2.5, arm_swing = 1.3, shirt = "#2e9e68" }
+
+[[label]]
+text = "SWAGGER"
+pos = [14.50, 0.03, 21.90]
+size = 0.40
+
+[[npc]]
+name = "style_on_twos"
+pos = [18.30, 0.00, 19.80]
+ai = { type = "patrol", points = [[18.30, 19.80], [21.70, 19.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { anim_fps = 12.0, shirt = "#8a52d6" }
+
+[[label]]
+text = "ON TWOS"
+pos = [20.00, 0.03, 21.90]
+size = 0.40
+
+[[npc]]
+name = "style_smooth"
+pos = [23.80, 0.00, 19.80]
+ai = { type = "patrol", points = [[23.80, 19.80], [27.20, 19.80]], pause = 0.5 }
+speed = 0.4
+yaw = 90
+look = { shirt = "#4f9dde" }
+
+[[label]]
+text = "SMOOTH"
+pos = [25.50, 0.03, 21.90]
+size = 0.40
+
+[[label]]
+text = "STYLE OF WALK"
+pos = [5.00, 0.03, 17.70]
+size = 0.40
+
+[[label]]
+text = "PLAYER PADS: CHANGE YOUR OWN WALK"
+pos = [20.00, 0.03, 24.10]
+size = 0.40
+
+# ---- TREADMILL ---------------------------------------------------------------------------------
+[[npc]]
+name = "treadmill"
+pos = [34.00, 0.00, 5.00]
+ai = { type = "patrol", points = [[31.40, 5.00], [35.10, 5.00]], pause = 0.0 }
+speed = 0.5
+yaw = -90
+look = { shirt = "#8a52d6" }
+
+[[label]]
+text = "TREADMILL"
+pos = [31.50, 0.03, 7.60]
+size = 0.50
+
+# ---- STAIRS & SLOPE ----------------------------------------------------------------------------
+[[npc]]
+name = "stairs_walker"
+pos = [30.50, 0.00, 12.50]
+ai = { type = "patrol", points = [[30.50, 12.50], [38.50, 12.50]], pause = 0.3 }
+speed = 0.35
+yaw = 90
+look = { shirt = "#3a7bd5" }
+
+[[label]]
+text = "FEET FIND THE STEPS"
+pos = [34.50, 0.03, 14.70]
+size = 0.40
+
+[[label]]
+text = "SLOPE"
+pos = [34.50, 0.03, 21.60]
+size = 0.50
+
+# ---- slope (a gable of two fixed ramps) ---------------------------------------------------------
+[[object]]
+name = "slope_up"
+shape = { type = "box", half = [1.30, 0.10, 1.80] }
+pos = [32.781, 0.276, 19.500]
+yaw = -90
+pitch = 12.0
+color = "#b9a98c"
+body = "fixed"
+friction = 0.8
+
+[[object]]
+name = "slope_down"
+shape = { type = "box", half = [1.30, 0.10, 1.80] }
+pos = [36.261, 0.276, 19.500]
+yaw = 90
+pitch = 12.0
+color = "#b9a98c"
+body = "fixed"
+friction = 0.8
+
+[[npc]]
+name = "slope_walker"
+pos = [30.60, 0.00, 19.50]
+ai = { type = "patrol", points = [[30.60, 19.50], [38.40, 19.50]], pause = 0.3 }
+speed = 0.35
+yaw = 90
+look = { shirt = "#c9a227" }

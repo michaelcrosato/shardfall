@@ -1,0 +1,335 @@
+# Squash & Stretch: puppets squash when they land and stretch when they jump or fall; the
+# `squash` amount scales it (0 = stiff, 1 = normal, 3 = rubber). Blobs hop as they walk. NPCs jump
+# every `hop` seconds. Everything is data (no scripts).
+#   NORTH-WEST  BLOB POND: six blobs of different colours and sizes wander in a fenced pen
+#   NORTH       SQUASH DIAL: three hopping bipeds, squash 0 / 1 / 2.5, each in its own pen
+#   WEST        TRAMPOLINES: bounce pads of 10, 15 and 20 m/s with a bouncing NPC on each
+#   MIDDLE/EAST HIGH DROP: 0.3 m steps up to a 2.4 m platform, jump off onto the LAND HERE mat
+#   SOUTH       PLAYER PADS: RUBBER / STIFF / BLOB / BACK TO NORMAL change your own puppet
+# Bounce zones launch at v m/s, so you rise about v^2/64 m (gravity 32): 1.6, 3.5 and 6.3 m.
+name = "Squash & Stretch"
+about = "Puppets squash on landing and stretch in the air, and a single number (puppet.squash) says how much. Watch blobs hop around their pond, compare stiff, normal and rubber hoppers, bounce on trampolines of three strengths and drop off a 2.4 m platform, then change your own puppet on the pads."
+try = [
+  "Watch the BLOB POND: six blobs hop at different rates and squash hard on every landing",
+  "Compare the SQUASH DIAL hoppers (NONE / NORMAL / RUBBER) landing side by side",
+  "Bounce on the 10, 15 and 20 m/s trampolines and watch the stretch on the way up and the squash on landing",
+  "Climb the steps to the HIGH DROP platform (2.4 m) and jump off onto the LAND HERE mat",
+  "Step on RUBBER YOU and jump around, then try STIFF YOU (no squash at all)",
+  "Step on BLOB YOU to turn into a hopping blob, and BACK TO NORMAL to restore the biped",
+  "Bounce on a trampoline as RUBBER YOU, then as STIFF YOU, and compare",
+  "Push a hopper or run through the pond; reset the room with F5 (pads revert when you leave)",
+]
+wing = "animation"
+order = 4
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 55.0
+distance = 20.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+# 40 x 30 room, entrance gap in the south wall at columns 19-20.
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#wwwwwwwwwwwwf.ffffffffffffffffffffff..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.faaaaaafbbbbbbfccccccf..#
+#wwwwwwwwwwwwf.ffffffffffffffffffffff..#
+#wwwwwwwwwwwwf.........................#
+#fffffffffffff.........................#
+#......................................#
+#................................mmmmmm#
+#.111...222...333.........PPPPPP.mmmmmm#
+#.111...222...333.qrstuvxyPPPPPP.mmmmmm#
+#.111...222...333.qrstuvxyPPPPPP.mmmmmm#
+#.........................PPPPPP.mmmmmm#
+#................................mmmmmm#
+#................................mmmmmm#
+#................................mmmmmm#
+#......................................#
+#......................................#
+#......................................#
+#......................................#
+#..RRRRR.SSSSS............BBBBB.NNNNN..#
+#..RRRRR.SSSSS............BBBBB.NNNNN..#
+#..RRRRR.SSSSS............BBBBB.NNNNN..#
+#......................................#
+#......................................#
+###################..###################
+'''
+
+# Floor, outer wall (3 m) and the low fences (0.7 m) around the pond and the three dial pens.
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#aeb7c2" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.7, color = "#8f9fae" }]
+
+# Pond floor, dial plates (stiff grey, normal green, rubber pink), landing mat.
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#a9dbe8" }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c6ccd4" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#bfe3c8" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f4c6d4" }]
+
+[layout.legend.'m']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f3e3a8" }]
+
+# Trampolines: launch speed in m/s.
+[layout.legend.'1']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 10, label = "10", color = "#7ec8e3" }
+
+[layout.legend.'2']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 15, label = "15", color = "#f2c14e" }
+
+[layout.legend.'3']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "bounce", speed = 20, label = "20", color = "#e0584a" }
+
+# High drop: eight 0.3 m steps (walkable without jumping, step height is 0.32) and the platform.
+[layout.legend.q]
+blocks = [{ y0 = -0.5, y1 = 0.3, color = "#c9b79c" }]
+[layout.legend.r]
+blocks = [{ y0 = -0.5, y1 = 0.6, color = "#c9b79c" }]
+[layout.legend.s]
+blocks = [{ y0 = -0.5, y1 = 0.9, color = "#c9b79c" }]
+[layout.legend.t]
+blocks = [{ y0 = -0.5, y1 = 1.2, color = "#c9b79c" }]
+[layout.legend.u]
+blocks = [{ y0 = -0.5, y1 = 1.5, color = "#c9b79c" }]
+[layout.legend.v]
+blocks = [{ y0 = -0.5, y1 = 1.8, color = "#c9b79c" }]
+[layout.legend.x]
+blocks = [{ y0 = -0.5, y1 = 2.1, color = "#c9b79c" }]
+[layout.legend.y]
+blocks = [{ y0 = -0.5, y1 = 2.4, color = "#c9b79c" }]
+
+[layout.legend.P]
+blocks = [{ y0 = -0.5, y1 = 2.4, color = "#8fb4d9" }]
+
+# Player pads: puppet settings change until you leave the room.
+[layout.legend.R]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "RUBBER YOU", color = "#f4a3c4", params = { "puppet.squash" = 3.0 } }
+
+[layout.legend.S]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "STIFF YOU", color = "#c9d1da", params = { "puppet.squash" = 0.0 } }
+
+[layout.legend.B]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "BLOB YOU", color = "#8fe0a8", params = { "puppet.body" = "blob", "puppet.torso_radius" = 0.42, "puppet.squash" = 1.6, "puppet.head_radius" = 0.0 } }
+
+[layout.legend.N]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+zone = { kind = "pad", label = "BACK TO NORMAL", color = "#9dbcf5", label_size = 0.45, params = { "puppet.body" = "biped", "puppet.squash" = 1.0, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21 } }
+
+# ---- labels (layout space) ----
+
+[[label]]
+text = "BLOB POND"
+pos = [6.5, 0.03, 11.5]
+size = 0.55
+
+[[label]]
+text = "SQUASH DIAL"
+pos = [22.0, 0.03, 11.6]
+size = 0.55
+
+[[label]]
+text = "NONE"
+pos = [19.0, 0.03, 9.4]
+size = 0.5
+
+[[label]]
+text = "SQUASH 0"
+pos = [19.0, 0.03, 10.1]
+size = 0.35
+
+[[label]]
+text = "NORMAL"
+pos = [26.0, 0.03, 9.4]
+size = 0.5
+
+[[label]]
+text = "SQUASH 1"
+pos = [26.0, 0.03, 10.1]
+size = 0.35
+
+[[label]]
+text = "RUBBER"
+pos = [33.0, 0.03, 9.4]
+size = 0.5
+
+[[label]]
+text = "SQUASH 2.5"
+pos = [33.0, 0.03, 10.1]
+size = 0.35
+
+[[label]]
+text = "BOUNCE 10"
+pos = [3.5, 0.03, 16.8]
+size = 0.4
+
+[[label]]
+text = "BOUNCE 15"
+pos = [9.5, 0.03, 16.8]
+size = 0.4
+
+[[label]]
+text = "BOUNCE 20"
+pos = [15.5, 0.03, 16.8]
+size = 0.4
+
+[[label]]
+text = "TRAMPOLINES"
+pos = [9.5, 0.03, 18.2]
+size = 0.55
+
+[[label]]
+text = "HIGH DROP 2.4 M"
+pos = [23.0, 0.03, 18.2]
+size = 0.5
+
+[[label]]
+text = "JUMP!"
+pos = [28.5, 2.43, 14.5]
+size = 0.6
+
+[[label]]
+text = "LAND HERE"
+pos = [35.5, 0.03, 15.5]
+size = 0.5
+
+[[label]]
+text = "PLAYER PADS"
+pos = [19.5, 0.03, 22.4]
+size = 0.55
+
+[[label]]
+text = "STEP ON ONE, THEN JUMP AROUND"
+pos = [19.5, 0.03, 23.3]
+size = 0.3
+
+[[label]]
+text = "SQUASH & STRETCH"
+pos = [19.5, 0.03, 20.6]
+size = 0.55
+
+# ---- NPCs (keep at the end of the file) ----
+
+# Blob pond: pen interior x 1..13, z 1..10. Wander radii stay well inside the fence.
+[[npc]]
+name = "sq_pond_mint"
+kind = "blob"
+pos = [3.5, 0, 3.5]
+ai = { type = "wander", radius = 1.8 }
+hop = 1.5
+look = { shirt = "#7fd6a4", skin = "#7fd6a4", scale = 1.0 }
+
+[[npc]]
+name = "sq_pond_tomato"
+kind = "blob"
+pos = [7.0, 0, 3.5]
+ai = { type = "wander", radius = 1.8 }
+hop = 2.5
+look = { shirt = "#e8704a", skin = "#e8704a", scale = 1.5 }
+
+[[npc]]
+name = "sq_pond_sky"
+kind = "blob"
+pos = [10.5, 0, 3.5]
+ai = { type = "wander", radius = 1.8 }
+hop = 1.0
+look = { shirt = "#5b8def", skin = "#5b8def", scale = 0.6 }
+
+[[npc]]
+name = "sq_pond_lemon"
+kind = "blob"
+pos = [3.5, 0, 7.0]
+ai = { type = "wander", radius = 1.8 }
+hop = 1.2
+look = { shirt = "#f2c14e", skin = "#f2c14e", scale = 0.8 }
+
+[[npc]]
+name = "sq_pond_grape"
+kind = "blob"
+pos = [7.0, 0, 7.0]
+ai = { type = "wander", radius = 1.8 }
+hop = 1.8
+look = { shirt = "#9b5de5", skin = "#9b5de5", scale = 1.2 }
+
+[[npc]]
+name = "sq_pond_pink"
+kind = "blob"
+pos = [10.5, 0, 7.0]
+ai = { type = "wander", radius = 1.8 }
+hop = 1.1
+look = { shirt = "#f28ab2", skin = "#f28ab2", scale = 0.7 }
+
+# Squash dial: the same hop, three squash amounts.
+[[npc]]
+name = "sq_dial_none"
+pos = [19.0, 0, 5.0]
+ai = { type = "idle" }
+hop = 1.2
+look = { squash = 0.0, shirt = "#8f9fae" }
+
+[[npc]]
+name = "sq_dial_normal"
+pos = [26.0, 0, 5.0]
+ai = { type = "idle" }
+hop = 1.2
+look = { squash = 1.0, shirt = "#3bb273" }
+
+[[npc]]
+name = "sq_dial_rubber"
+pos = [33.0, 0, 5.0]
+ai = { type = "idle" }
+hop = 1.2
+look = { squash = 2.5, shirt = "#e86fa3" }
+
+# Trampolines: idle characters bounce on their pad for ever. They are blobs because the camera's
+# height cutaway (view.cutaway, 2.4 m above the player's feet within 9 m) slices bipeds in two
+# and hides anything higher; a blob just disappears while it is above the line.
+[[npc]]
+name = "sq_tramp_10"
+kind = "blob"
+pos = [3.5, 0, 14.5]
+ai = { type = "idle" }
+look = { shirt = "#2f8fc4", skin = "#2f8fc4", scale = 0.6 }
+
+[[npc]]
+name = "sq_tramp_15"
+kind = "blob"
+pos = [9.5, 0, 14.5]
+ai = { type = "idle" }
+look = { shirt = "#e0a21b", skin = "#e0a21b", scale = 0.9 }
+
+[[npc]]
+name = "sq_tramp_20"
+kind = "blob"
+pos = [15.5, 0, 14.5]
+ai = { type = "idle" }
+look = { shirt = "#c93c3c", skin = "#c93c3c", scale = 1.2 }

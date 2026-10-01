@@ -201,6 +201,11 @@ pub struct PostSettings {
     pub exposure: f32,
     pub tonemap: Tonemap,
     pub saturation: f32,
+    /// Bloom strength (0 = off) and the HDR brightness where glow starts.
+    pub bloom: f32,
+    pub bloom_threshold: f32,
+    /// Screen distortion (shockwaves, haze) on/off.
+    pub distortion: bool,
 }
 
 impl Default for PostSettings {
@@ -215,6 +220,85 @@ impl Default for PostSettings {
             exposure: 1.0,
             tonemap: Tonemap::SoftKnee,
             saturation: 1.0,
+            bloom: 0.35,
+            bloom_threshold: 1.2,
+            distortion: true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DistortKind {
+    /// Shockwave ring pushing outward (`progress` 0..1 = ring radius / fade).
+    Ring = 0,
+    /// Heat haze wobble.
+    Haze = 1,
+    /// Magnifying lens (negative strength shrinks).
+    Lens = 2,
+    /// Rings travelling outward.
+    Ripple = 3,
+}
+
+/// A screen distortion source, drawn as a camera-facing disc.
+#[derive(Clone, Copy, Debug)]
+pub struct Distortion {
+    pub pos: Vec3,
+    pub radius: f32,
+    /// Offset as a fraction of the disc's screen radius (0.05-0.3 typical).
+    pub strength: f32,
+    pub kind: DistortKind,
+    pub progress: f32,
+}
+
+/// New particles to emit this frame (they live on the GPU afterwards).
+#[derive(Clone, Copy, Debug)]
+pub struct ParticleBurst {
+    pub count: u32,
+    pub pos: Vec3,
+    /// Spawn inside this box (half extents) around `pos`.
+    pub area: Vec3,
+    pub vel: Vec3,
+    /// Random extra speed in any direction (m/s).
+    pub spread: f32,
+    pub gravity: f32,
+    pub drag: f32,
+    /// Life range (s).
+    pub life: (f32, f32),
+    /// Size at birth and at death (m, radius).
+    pub size: (f32, f32),
+    /// Linear RGB (may exceed 1 for glow) + alpha, at birth and at death.
+    pub color0: glam::Vec4,
+    pub color1: glam::Vec4,
+    /// Adds light instead of covering (fire, sparks, magic).
+    pub additive: bool,
+    /// Streaks along the velocity (sparks, rain).
+    pub stretch: bool,
+    /// Bounce off this height (None = fall forever).
+    pub floor: Option<f32>,
+    pub bounce: f32,
+    /// Swirling noise strength (smoke, fireflies).
+    pub turbulence: f32,
+}
+
+impl Default for ParticleBurst {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            pos: Vec3::ZERO,
+            area: Vec3::ZERO,
+            vel: Vec3::ZERO,
+            spread: 1.0,
+            gravity: 0.0,
+            drag: 0.0,
+            life: (1.0, 1.5),
+            size: (0.1, 0.0),
+            color0: glam::Vec4::ONE,
+            color1: glam::Vec4::new(1.0, 1.0, 1.0, 0.0),
+            additive: true,
+            stretch: false,
+            floor: None,
+            bounce: 0.3,
+            turbulence: 0.0,
         }
     }
 }
@@ -274,6 +358,9 @@ pub struct Scene {
     pub texts: Vec<crate::text::Text3d>,
     /// Meshes rebuilt every frame (soft bodies).
     pub dynamic: Vec<DynamicMesh>,
+    /// Particles born this frame.
+    pub particles: Vec<ParticleBurst>,
+    pub distortions: Vec<Distortion>,
     pub time: f32,
 }
 
@@ -294,6 +381,8 @@ impl Default for Scene {
             custom_meshes: Vec::new(),
             texts: Vec::new(),
             dynamic: Vec::new(),
+            particles: Vec::new(),
+            distortions: Vec::new(),
             time: 0.0,
         }
     }

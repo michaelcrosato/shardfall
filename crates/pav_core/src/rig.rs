@@ -381,7 +381,14 @@ impl Rig {
                 ChainKind::AntennaL | ChainKind::AntennaR => (soft(0.25), 2.0),
                 ChainKind::Abdomen => (soft(0.35), 4.0),
             };
-            c.step(root_w, frame * dir, stiff, gravity, floor, dt);
+            // Tails wag (more when floppy, faster when moving); antennae bob a little.
+            let lively = 0.4 + (speed / 3.0).min(1.0);
+            let sway = match kind {
+                ChainKind::Tail => Quat::from_rotation_y((anim.time * 3.2).sin() * 0.28 * wobble * lively),
+                ChainKind::AntennaL | ChainKind::AntennaR => Quat::from_rotation_x((anim.time * 4.1).sin() * 0.12 * wobble),
+                _ => Quat::IDENTITY,
+            };
+            c.step(root_w, frame * (sway * dir), stiff, gravity, floor, dt);
             if kind == ChainKind::Spine {
                 spine_end = c.pts.last().copied();
             }
@@ -439,7 +446,9 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
     let walk = (st.speed / 3.0).min(1.0) * (1.0 - st.air);
     let sq = (1.0 + st.squash).max(0.4);
     let sxz = 1.0 / sq.sqrt();
-    let body = rig.body + hit + Vec3::Y * ((st.phase * TAU * 4.0).sin() * 0.015 * k * walk);
+    // Walking bob, and slow breathing when standing still.
+    let breathe = (st.time * 2.4).sin() * 0.012 * k * (1.0 - walk);
+    let body = rig.body + hit + Vec3::Y * ((st.phase * TAU * 4.0).sin() * 0.015 * k * walk + breathe);
     let skin = Color::hex(&def.skin);
     let shirt = Color::hex(&def.shirt);
     let accent = Color::hex(&def.accent);

@@ -103,22 +103,22 @@ struct FrameTargets {
 }
 
 /// A growable GPU buffer.
-struct DynBuffer {
-    buf: wgpu::Buffer,
+pub(crate) struct DynBuffer {
+    pub(crate) buf: wgpu::Buffer,
     cap: u64,
     usage: wgpu::BufferUsages,
     label: &'static str,
 }
 
 impl DynBuffer {
-    fn new(device: &wgpu::Device, label: &'static str, usage: wgpu::BufferUsages, cap: u64) -> Self {
+    pub(crate) fn new(device: &wgpu::Device, label: &'static str, usage: wgpu::BufferUsages, cap: u64) -> Self {
         let usage = usage | wgpu::BufferUsages::COPY_DST;
         let buf =
             device.create_buffer(&wgpu::BufferDescriptor { label: Some(label), size: cap, usage, mapped_at_creation: false });
         Self { buf, cap, usage, label }
     }
     /// Uploads `data`; returns true if the buffer was reallocated.
-    fn write(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, data: &[u8]) -> bool {
+    pub(crate) fn write(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, data: &[u8]) -> bool {
         let mut grew = false;
         if data.len() as u64 > self.cap {
             self.cap = (data.len() as u64).next_power_of_two();
@@ -144,6 +144,8 @@ pub struct RenderStats {
     pub glyphs: usize,
     pub draw_calls: usize,
     pub meshes_loaded: usize,
+    /// Particle slots in use (alive or recently dead).
+    pub particles: usize,
 }
 
 pub struct Renderer {
@@ -176,6 +178,10 @@ pub struct Renderer {
     atlas: crate::text::FontAtlas,
     dyn_vertices: DynBuffer,
     dyn_indices: DynBuffer,
+    bloom: crate::fx::Bloom,
+    distort: crate::fx::Distort,
+    particles: crate::fx::Particles,
+    lin_sampler: wgpu::Sampler,
     frame: u64,
     pub stats: RenderStats,
 }
@@ -452,7 +458,7 @@ impl Renderer {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -476,6 +482,33 @@ impl Renderer {
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: true,
                     },
+                    count: None,
+                },
+                // Bloom glow, distortion offsets, linear sampler.
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
             ],
@@ -615,6 +648,10 @@ impl Renderer {
             atlas,
             dyn_vertices,
             dyn_indices,
+            bloom: crate::fx::Bloom::new(device),
+            distort: crate::fx::Distort::new(device),
+            particles: crate::fx::Particles::new(device),
+            lin_sampler: crate::fx::linear_sampler(device),
             frame: 0,
             stats: RenderStats::default(),
         }
@@ -696,6 +733,8 @@ impl Renderer {
         let hdr = make("hdr", HDR_FORMAT, 1, rt | tb);
         let normal_ms = make("normal ms", NORMAL_FORMAT, SAMPLES, rt | tb);
         let depth_ms = make("depth ms", DEPTH_FORMAT, SAMPLES, rt | tb);
+        self.bloom.resize(&self.device, &self.queue, size, &hdr);
+        self.distort.resize(&self.device, size);
         let post_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("post"),
             layout: &self.post_layout,
@@ -704,6 +743,9 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&hdr) },
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&depth_ms) },
                 wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(&normal_ms) },
+                wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(self.bloom.view().unwrap()) },
+                wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(self.distort.view().unwrap()) },
+                wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::Sampler(&self.lin_sampler) },
             ],
         });
         self.targets = Some(FrameTargets { size, hdr_ms, hdr, normal_ms, depth_ms, post_bg });
@@ -937,7 +979,8 @@ impl Renderer {
                     ay: q.ay.extend(n.z).to_array(),
                     uv: q.uv,
                     color: t.color.extend(t.weight).to_array(),
-                    params: [t.flags, 0x7f0, 0, 0],
+                    // Group 0: no screen-space outlines around glyph strokes (they speckle small text).
+                    params: [t.flags, 0, 0, 0],
                 });
             }
         }
@@ -947,6 +990,9 @@ impl Renderer {
         }
 
         let mut draw_calls = 0;
+
+        // 0. Particles: birth and integration (compute).
+        self.particles.prepare(encoder, &self.queue, cam, scene.time, &scene.particles);
 
         // 1. Shadow pass.
         {
@@ -1063,7 +1109,20 @@ impl Renderer {
                 pass.draw(0..6, 0..glyph_count);
                 draw_calls += 1;
             }
+            if self.particles.draw(&mut pass) {
+                draw_calls += 1;
+            }
         }
+
+        // 2b. Bloom and distortion.
+        let bloom = if scene.post.bloom > 0.0 {
+            self.bloom.record(encoder, &self.queue, scene.post.bloom_threshold);
+            scene.post.bloom
+        } else {
+            0.0
+        };
+        let distorted =
+            scene.post.distortion && self.distort.record(encoder, &self.device, &self.queue, cam, scene.time, &scene.distortions);
 
         // 3. Composite.
         let p = &scene.post;
@@ -1084,7 +1143,7 @@ impl Renderer {
                 if target_format.is_srgb() { 0.0 } else { 1.0 },
                 p.saturation,
             ],
-            misc: [p.outline_darken, 0.0, 0.0, 0.0],
+            misc: [p.outline_darken, bloom, if distorted { 1.0 } else { 0.0 }, 0.0],
             fwd: cam.forward.normalize_or(Vec3::NEG_Z).extend(0.0).to_array(),
         };
         self.queue.write_buffer(&self.post_buf, 0, bytemuck::bytes_of(&post));
@@ -1116,6 +1175,7 @@ impl Renderer {
             glyphs: glyph_count as usize,
             draw_calls,
             meshes_loaded: self.meshes.len(),
+            particles: self.particles.slots() as usize,
         };
     }
 }

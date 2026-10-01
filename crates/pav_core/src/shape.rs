@@ -78,10 +78,17 @@ pub struct Visual {
     pub look: Look,
     #[serde(default)]
     pub emissive: f32,
+    /// Visual-only effects: a light, a particle emitter, a screen distortion.
+    #[serde(default)]
+    pub light: Option<Box<crate::fxdef::LightDef>>,
+    #[serde(default)]
+    pub particles: Option<Box<crate::fxdef::EmitterDef>>,
+    #[serde(default)]
+    pub distortion: Option<Box<crate::fxdef::DistortDef>>,
 }
 
 impl Visual {
     pub fn new(shape: Shape, color: Color) -> Self {
-        Self { shape, color, look: Look::Cel, emissive: 0.0 }
+        Self { shape, color, look: Look::Cel, emissive: 0.0, light: None, particles: None, distortion: None }
     }
 }

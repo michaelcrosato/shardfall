@@ -525,9 +525,8 @@ impl ViewBuilder {
             }
             match &o.puppet {
                 Some(p) => {
-                    let player = curr.player == Some(o.id);
                     let def = p.def.as_deref().unwrap_or(&curr.puppet_def);
-                    emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style, player)
+                    emit_puppet(&mut scene, def, &o, p, cam_fwd, settings.style)
                 }
                 None => emit_object(&mut scene, &o, settings.style, now),
             }
@@ -705,11 +704,11 @@ fn emit_puppet(
     p: &PuppetFrame,
     cam_fwd: Vec3,
     ov: StyleOverride,
-    player: bool,
 ) {
     let feet = o.pos - Vec3::Y * p.feet_offset;
     let style = style_of(def.look, ov);
-    let flags = if player { rs::flags::NO_CUT } else { 0 };
+    // Characters are never sliced by the cutaway.
+    let flags = rs::flags::NO_CUT;
     for part in pav_core::puppet::pose(def, &p.state, p.rig.as_ref(), feet, cam_fwd) {
         scene.sdfs.push(SdfInstance {
             a: part.a,

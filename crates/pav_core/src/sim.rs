@@ -427,6 +427,12 @@ impl Sim {
         let mut events = Vec::new();
         let idle = InputFrame::default();
         let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
+        let all_feet: Vec<Vec3> = self
+            .state
+            .entities
+            .iter()
+            .filter_map(|e| Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5))
+            .collect();
         let mut fallen = Vec::new();
         for id in ids {
             let npc_input: InputFrame;
@@ -442,7 +448,7 @@ impl Sim {
                         if feet.y < crate::course::FALL_LIMIT {
                             fallen.push((id, ai.home));
                         }
-                        npc_input = ai.think(feet, player_feet, &mut st.rng, dt);
+                        npc_input = ai.think(feet, player_feet, &all_feet, &mut st.rng, dt);
                         if let (Some(f), Some(ch)) = (ai.rest_facing(), e.character.as_mut()) {
                             if ch.stun <= 0.0 {
                                 ch.facing = f;
@@ -789,6 +795,8 @@ impl Sim {
             invuln,
             model: crate::params::ChoiceParam::name(self.config.movement.model).to_string(),
             physics: self.physics_stats(),
+            view: c.view.clone(),
+            view_serial: c.view_serial,
         };
         RenderFrame {
             tick: self.state.tick,

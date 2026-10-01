@@ -77,11 +77,14 @@ pub struct Ai {
     pub stuck: f32,
     #[serde(default)]
     pub last: Vec3,
+    /// Seconds the jump button is still held (full-height hops).
+    #[serde(default)]
+    pub jump_hold: f32,
 }
 
 impl Ai {
     pub fn new(def: AiDef, home: Vec3, points: Vec<Vec3>, speed: f32, hop: f32, facing: f32) -> Self {
-        Self { def, home, points, speed, hop, facing, target: None, wait: 0.5, index: 0, hop_timer: hop, stuck: 0.0, last: home }
+        Self { def, home, points, speed, hop, facing, target: None, wait: 0.5, index: 0, hop_timer: hop, stuck: 0.0, last: home, jump_hold: 0.0 }
     }
 
     /// Facing to turn to while standing still (idle brains face their start direction).
@@ -89,8 +92,9 @@ impl Ai {
         matches!(self.def, AiDef::Idle).then_some(self.facing).filter(|_| self.target.is_none())
     }
 
-    /// Decides this tick's input. `feet` = own position, `player` = the player's feet.
-    pub fn think(&mut self, feet: Vec3, player: Option<Vec3>, rng: &mut Rng, dt: f32) -> InputFrame {
+    /// Decides this tick's input. `feet` = own position, `player` = the player's feet,
+    /// `others` = other characters' feet (kept at arm's length).
+    pub fn think(&mut self, feet: Vec3, player: Option<Vec3>, others: &[Vec3], rng: &mut Rng, dt: f32) -> InputFrame {
         let mut out = InputFrame::default();
         let flat = |v: Vec3| Vec2::new(v.x, v.z);
         let mut dir = Vec2::ZERO;
@@ -98,7 +102,7 @@ impl Ai {
             AiDef::Idle => {
                 // Knocked away: walk back to the spot.
                 let d = flat(self.home - feet);
-                if d.length() > if self.target.is_some() { 0.15 } else { 0.6 } {
+                if d.length() > if self.target.is_some() { 0.15 } else { 0.35 } {
                     self.target = Some(self.home);
                     dir = d.normalize();
                 } else {
@@ -157,6 +161,18 @@ impl Ai {
                 }
             }
         }
+        // Keep apart from other characters (followers would pile up on each other).
+        let mut push = Vec2::ZERO;
+        for o in others {
+            let d = flat(feet - *o);
+            let len = d.length();
+            if len > 1e-3 && len < 1.1 {
+                push += d / len * (1.0 - len / 1.1);
+            }
+        }
+        if push != Vec2::ZERO && (dir != Vec2::ZERO || push.length() > 0.45) {
+            dir = (dir + push * 1.2).clamp_length_max(1.0);
+        }
         // Stuck detection (walking but not getting anywhere).
         if dir != Vec2::ZERO && flat(feet - self.last).length() < 0.3 * self.speed.max(0.2) * dt {
             self.stuck += dt;
@@ -169,9 +185,13 @@ impl Ai {
             self.hop_timer -= dt;
             if self.hop_timer <= 0.0 {
                 self.hop_timer = self.hop;
+                self.jump_hold = 0.35;
                 out.pressed |= buttons::JUMP;
-                out.held |= buttons::JUMP;
             }
+        }
+        if self.jump_hold > 0.0 {
+            self.jump_hold -= dt;
+            out.held |= buttons::JUMP;
         }
         out
     }

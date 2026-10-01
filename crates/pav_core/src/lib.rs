@@ -11,6 +11,7 @@ pub mod destruct;
 pub mod entity;
 pub mod feel;
 pub mod frame;
+pub mod fxdef;
 pub mod history;
 pub mod input;
 pub mod joints;

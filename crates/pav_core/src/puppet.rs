@@ -191,7 +191,7 @@ impl PuppetDef {
 impl Tunable for PuppetDef {
     fn visit(&mut self, v: &mut dyn ParamVisitor) {
         v.float("scale", &mut self.scale, 0.3, 3.0, "Overall size");
-        v.float("head_radius", &mut self.head_radius, 0.08, 0.5, "Head size (m)");
+        v.float("head_radius", &mut self.head_radius, 0.0, 0.5, "Head size (m)");
         v.float("torso_length", &mut self.torso_length, 0.15, 0.9, "Torso length (m)");
         v.float("torso_radius", &mut self.torso_radius, 0.08, 0.45, "Torso thickness (m)");
         v.float("hip_width", &mut self.hip_width, 0.04, 0.3, "Half distance between hips (m)");

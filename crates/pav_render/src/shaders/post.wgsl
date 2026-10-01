@@ -5,7 +5,7 @@ struct Post {
     outline_color: vec4<f32>,  // rgb; a = 1 use this color, 0 darken the pixel instead
     outline: vec4<f32>,        // x px, y depth threshold, z normal threshold, w enabled
     tone: vec4<f32>,           // x exposure, y tonemap mode, z encode sRGB manually, w saturation
-    misc: vec4<f32>,           // x darken factor
+    misc: vec4<f32>,           // x darken factor, y bloom strength, z distortion on
     fwd: vec4<f32>,            // camera forward (world)
 };
 
@@ -13,6 +13,9 @@ struct Post {
 @group(0) @binding(1) var hdr_tex: texture_2d<f32>;
 @group(0) @binding(2) var depth_ms: texture_depth_multisampled_2d;
 @group(0) @binding(3) var normal_ms: texture_multisampled_2d<f32>;
+@group(0) @binding(4) var bloom_tex: texture_2d<f32>;
+@group(0) @binding(5) var distort_tex: texture_2d<f32>;
+@group(0) @binding(6) var lin: sampler;
 
 @vertex
 fn vs_full(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4<f32> {
@@ -84,7 +87,11 @@ fn to_srgb(c: vec3<f32>) -> vec3<f32> {
 fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
     let px = vec2<i32>(frag.xy);
     let dims = vec2<i32>(textureDimensions(hdr_tex));
-    var col = textureLoad(hdr_tex, px, 0).rgb;
+    var uv = frag.xy / vec2<f32>(dims);
+    if (post.misc.z > 0.5) {
+        uv += textureLoad(distort_tex, px, 0).xy;
+    }
+    var col = textureSampleLevel(hdr_tex, lin, uv, 0.0).rgb;
 
     if (post.outline.w > 0.5) {
         let t = max(i32(post.outline.x + 0.5), 1);
@@ -96,6 +103,9 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
         edge = edge / f32(samples);
         let oc = select(col * post.misc.x, post.outline_color.rgb, post.outline_color.a > 0.5);
         col = mix(col, oc, edge);
+    }
+    if (post.misc.y > 0.0) {
+        col += textureSampleLevel(bloom_tex, lin, uv, 0.0).rgb * post.misc.y;
     }
 
     col = col * post.tone.x;

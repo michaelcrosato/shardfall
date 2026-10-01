@@ -83,6 +83,11 @@ pub struct Courses {
     pub cue_serial: u64,
     /// Short message for the HUD and the tick it was set.
     pub message: Option<(String, u64)>,
+    /// View settings set by pads (`view.*` params, prefix removed); until leaving the room.
+    #[serde(default)]
+    pub view: BTreeMap<String, ParamValue>,
+    #[serde(default)]
+    pub view_serial: u64,
 }
 
 impl Courses {
@@ -175,7 +180,7 @@ impl Sim {
         let flat = Vec3::new(dir.x, 0.0, dir.z).normalize_or(Vec3::X);
         ch.impulse += flat * knockback + Vec3::Y * (knockback * 0.35 + 1.5);
         ch.anim.recoil = 1.0;
-        ch.anim.hit(dir, (knockback / 6.0).clamp(0.4, 2.0));
+        ch.anim.hit(dir, (knockback / 6.0).clamp(0.4, 3.0));
         events.push(SimEvent::Hit { pos: at, strength: knockback });
         if is_player {
             if let Some(r) = &mut self.state.courses.run {
@@ -195,6 +200,10 @@ impl Sim {
         if c.sticky_cue.take().is_some() | c.zone_cue.take().is_some() {
             c.cue_serial += 1;
         }
+        if !c.view.is_empty() {
+            c.view.clear();
+            c.view_serial += 1;
+        }
         c.checkpoint = entered
             .and_then(|i| self.state.world.rooms.get(i as usize))
             .map(|r| (r.inside, yaw_of(r.inward)));
@@ -207,6 +216,14 @@ impl Sim {
             _ => 0,
         };
         let mut values = values.clone();
+        // View settings are the app's business: hand them over through the frame.
+        let view: Vec<(String, ParamValue)> =
+            values.iter().filter_map(|(k, v)| Some((k.strip_prefix("view.")?.to_string(), v.clone()))).collect();
+        if !view.is_empty() {
+            values.retain(|k, _| !k.starts_with("view."));
+            self.state.courses.view.extend(view);
+            self.state.courses.view_serial += 1;
+        }
         rotate_axis_params(&mut values, quarters);
         if self.state.world.current_room.is_some() {
             let mut root = crate::world::ConfigRoot(&mut self.config);

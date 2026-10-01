@@ -1,0 +1,829 @@
+# Impact & Recoil: characters flinch away from hits. A projectile or a bomb blast kicks a damped
+# spring that bends the torso, snaps the head and flings the arms; knockback pushes them. Idle
+# dummies walk back to their spot afterwards and face their start direction again.
+# Turrets are fixed [[object]]s with a `forward` emitter (+Z of the object, yaw aims it); they
+# only fire while the player is within `range` metres, so each exhibit wakes up as you arrive.
+#   NORTH-WEST  SHOOTING GALLERY: four dummies, knockback 2 / 5 / 9 / 14 (west turrets fire east)
+#   NORTH-EAST  BOMB RING: eight characters around a spot you bomb (bombs.push is raised here)
+#               plus three pads that change how YOUR character is drawn (CUTOUT, ON TWOS, NORMAL)
+#   MIDDLE      WALK THE GAUNTLET: a corridor with side turrets (the player flinches too)
+#   SOUTH-WEST  STUN vs BOUNCE BACK, a machine gun and a cannon (west turrets fire east)
+#   SOUTH-EAST  SIZES & BODIES: tiny, giant, spider and lizard targets (east turrets fire west)
+# Lanes are 2 m wide with 0.5 m dividers; a wall stops everything at the far end of each lane.
+# Interior walls are 1.6 m so the camera can see over them; the outer walls are 3 m.
+# Room params: bombs.push 14 and bombs.radius 2 (bigger blasts shove the ring harder).
+name = "Impact & Recoil"
+about = "Characters flinch away from hits: bullets and bomb blasts bend the torso, snap the head and fling the arms on a damped spring, and knockback shoves them back before idle dummies walk home. A shooting gallery, a bomb ring, a turret gauntlet you can walk, and side-by-side stun vs bounce-back tests."
+try = [
+  "Watch the four SHOOTING GALLERY dummies: knockback 2, 5, 9 and 14 flinch, stumble and walk back by different amounts",
+  "Stand in the THROW A BOMB HERE ring and bomb the centre (F or left click): people, a spider, a lizard, a beetle and a blob all jolt",
+  "Bomb the ring off-centre: the nearest characters flinch hardest and are flung furthest",
+  "Walk the gauntlet from the south entrance: every shot flinches and shoves you, and the turrets only wake when you are near",
+  "Hop a 0.5 m lane divider and stand between a turret and its dummy to take the hit yourself (the dummy shields you from behind)",
+  "Compare LIGHT HIT (bounces back) with HEAVY HIT (stunned and thrown) in the south-west",
+  "Stand near the MACHINE GUN and CANNON dummies: sustained small hits vs one enormous one",
+  "Check SIZES & BODIES: a tiny and a giant biped, and a spider and a lizard whose bodies jolt",
+]
+wing = "animation"
+order = 3
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+entrance = { at = [19, 29], facing = "south" }
+
+[camera]
+tilt = 50.0
+distance = 13.0
+
+[params]
+"bombs.push" = 14.0
+"bombs.radius" = 2.0
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+# 40 x 30 room, entrance gap at columns 19-20 of the south wall.
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#ffffffffffffgggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#ffffffffffffgggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrPPQQNNrrrrrrrrrrrrrrr#
+#ffffffffffffgggwrPPQQNNrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#gggggggggggggggwrrrrrrrrrrrrrrrrrrrrrr#
+#ffffffffffffgggwffffrrrrfffffrrrrfffff#
+#......................................#
+#ssssssssssssssswwccccwwzzzzzzzzzzzzzzz#
+#ssssssssssssssswnccccwwzzzzzzzzzzzzzzz#
+#ssssssssssssssswwccccnwzzzzzzzzzzzzzzz#
+#ffffffffffffssswnccccwwzzzffffffffffff#
+#ssssssssssssssswwccccnwzzzzzzzzzzzzzzz#
+#ssssssssssssssswnccccwwzzzzzzzzzzzzzzz#
+#ffffffffffffssswwccccnwzzzffffffffffff#
+#ssssssssssssssswnccccwwzzzzzzzzzzzzzzz#
+#ssssssssssssssswwccccnwzzzzzzzzzzzzzzz#
+#ffffffffffffssswnccccwwzzzffffffffffff#
+#ssssssssssssssswwccccnwzzzzzzzzzzzzzzz#
+#ssssssssssssssswnccccwwzzzzzzzzzzzzzzz#
+#ffffffffffffssswwccccnwzzzffffffffffff#
+#ssssssssssssssswwccccwwzzzzzzzzzzzzzzz#
+#ssssssssssssssswwccccwwzzzzzzzzzzzzzzz#
+###################..###################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 3.0, color = "#9ea9b6" }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.5, color = "#b9a98f", inset = 0.3 }]
+
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e3d3b8" }]
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
+
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe3cf" }]
+
+[layout.legend.'z']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#e0d0e6" }]
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ecc9b4" }]
+
+[layout.legend.'n']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b98a6c" }]
+
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 1.6, color = "#9ea9b6" }]
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
+zone = { kind = "pad", label = "CUTOUT", label_size = 0.35, color = "#9b5de5", params = { "puppet.look" = "cutout" } }
+
+[layout.legend.'Q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
+zone = { kind = "pad", label = "ON TWOS", label_size = 0.35, color = "#f2a33a", params = { "puppet.anim_fps" = 12.0 } }
+
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
+zone = { kind = "pad", label = "NORMAL", label_size = 0.35, color = "#3bb273", params = { "puppet.look" = "cel", "puppet.anim_fps" = 0.0 } }
+
+# Floor names (layout space).
+
+[[label]]
+text = "LIGHT 2"
+pos = [4.3, 0.03, 2]
+size = 0.42
+
+[[label]]
+text = "MEDIUM 5"
+pos = [4.3, 0.03, 5]
+size = 0.42
+
+[[label]]
+text = "HEAVY 9"
+pos = [4.3, 0.03, 8]
+size = 0.42
+
+[[label]]
+text = "HUGE 14"
+pos = [4.3, 0.03, 11]
+size = 0.42
+
+[[label]]
+text = "SHOOTING GALLERY"
+pos = [7.5, 0.03, 13.5]
+size = 0.5
+
+[[label]]
+text = "THROW A BOMB"
+pos = [27.5, 0.03, 5.65]
+size = 0.36
+
+[[label]]
+text = "HERE"
+pos = [27.5, 0.03, 6.35]
+size = 0.36
+
+[[label]]
+text = "BOMB RING"
+pos = [21, 0.03, 11]
+size = 0.5
+
+[[label]]
+text = "PLAYER LOOK"
+pos = [21, 0.03, 7.4]
+size = 0.35
+
+[[label]]
+text = "WALK THE"
+pos = [20, 0.03, 25.3]
+size = 0.5
+
+[[label]]
+text = "GAUNTLET"
+pos = [20, 0.03, 26]
+size = 0.5
+
+[[label]]
+text = "LIGHT HIT"
+pos = [4.4, 0.03, 16]
+size = 0.36
+
+[[label]]
+text = "BOUNCES BACK"
+pos = [10.8, 0.03, 16]
+size = 0.36
+
+[[label]]
+text = "HEAVY HIT"
+pos = [4.4, 0.03, 19]
+size = 0.36
+
+[[label]]
+text = "STUNNED"
+pos = [10.8, 0.03, 19]
+size = 0.36
+
+[[label]]
+text = "MACHINE GUN 3"
+pos = [4.4, 0.03, 22]
+size = 0.36
+
+[[label]]
+text = "CANNON 24"
+pos = [4.4, 0.03, 25]
+size = 0.36
+
+[[label]]
+text = "STUN vs BOUNCE BACK"
+pos = [7, 0.03, 27.4]
+size = 0.45
+
+[[label]]
+text = "TINY 6"
+pos = [34.4, 0.03, 16]
+size = 0.36
+
+[[label]]
+text = "GIANT 6"
+pos = [34.4, 0.03, 19]
+size = 0.36
+
+[[label]]
+text = "SPIDER 8"
+pos = [34.4, 0.03, 22]
+size = 0.36
+
+[[label]]
+text = "LIZARD 8"
+pos = [34.4, 0.03, 25]
+size = 0.36
+
+[[label]]
+text = "SIZES & BODIES"
+pos = [31, 0.03, 27.4]
+size = 0.45
+
+# ---- characters (idle dummies and creatures) ----
+
+[[npc]]
+name = "gal_light"
+kind = "biped"
+pos = [7, 0, 2]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#e8704a", pants = "#3a3d4a" }
+
+[[npc]]
+name = "gal_medium"
+kind = "biped"
+pos = [7, 0, 5]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#f2c14e", pants = "#3a3d4a" }
+
+[[npc]]
+name = "gal_heavy"
+kind = "biped"
+pos = [7, 0, 8]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#5b8def", pants = "#3a3d4a" }
+
+[[npc]]
+name = "gal_huge"
+kind = "biped"
+pos = [7, 0, 11]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#9b5de5", pants = "#3a3d4a" }
+
+[[npc]]
+name = "ring_0_biped"
+kind = "biped"
+pos = [29.81, 0, 6.957]
+ai = { type = "idle" }
+speed = 0.6
+yaw = -112.5
+look = { shirt = "#e8704a", pants = "#3a3d4a" }
+
+[[npc]]
+name = "ring_1_spider"
+kind = "spider"
+pos = [28.457, 0, 8.31]
+ai = { type = "idle" }
+speed = 0.6
+yaw = -157.5
+look = { accent = "#3bb273" }
+
+[[npc]]
+name = "ring_2_biped"
+kind = "biped"
+pos = [26.543, 0, 8.31]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 157.5
+look = { shirt = "#f2c14e", pants = "#3a3d4a" }
+
+[[npc]]
+name = "ring_3_lizard"
+kind = "lizard"
+pos = [25.19, 0, 6.957]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 112.5
+look = { accent = "#2ec4b6" }
+
+[[npc]]
+name = "ring_4_biped"
+kind = "biped"
+pos = [25.19, 0, 5.043]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 67.5
+look = { shirt = "#5b8def", pants = "#3a3d4a" }
+
+[[npc]]
+name = "ring_5_beetle"
+kind = "beetle"
+pos = [26.543, 0, 3.69]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 22.5
+look = { accent = "#d94f9a" }
+
+[[npc]]
+name = "ring_6_biped"
+kind = "biped"
+pos = [28.457, 0, 3.69]
+ai = { type = "idle" }
+speed = 0.6
+yaw = -22.5
+look = { shirt = "#9b5de5", pants = "#3a3d4a" }
+
+[[npc]]
+name = "ring_7_blob"
+kind = "blob"
+pos = [29.81, 0, 5.043]
+ai = { type = "idle" }
+speed = 0.6
+yaw = -67.5
+look = { accent = "#ff9f1c" }
+
+[[npc]]
+name = "sw_light"
+kind = "biped"
+pos = [7, 0, 16]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#3bb273", pants = "#3a3d4a" }
+
+[[npc]]
+name = "sw_heavy"
+kind = "biped"
+pos = [7, 0, 19]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#e0483c", pants = "#3a3d4a" }
+
+[[npc]]
+name = "sw_mg"
+kind = "biped"
+pos = [7, 0, 22]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#f2c14e", pants = "#3a3d4a" }
+
+[[npc]]
+name = "sw_cannon"
+kind = "biped"
+pos = [7, 0, 25]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 270
+look = { shirt = "#9b5de5", pants = "#3a3d4a" }
+
+[[npc]]
+name = "se_tiny"
+kind = "biped"
+pos = [31, 0, 16]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 90
+look = { shirt = "#2ec4b6", pants = "#3a3d4a", scale = 0.55 }
+
+[[npc]]
+name = "se_giant"
+kind = "biped"
+pos = [31, 0, 19]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 90
+look = { shirt = "#ff9f1c", pants = "#3a3d4a", scale = 1.6 }
+
+[[npc]]
+name = "se_spider"
+kind = "spider"
+pos = [31, 0, 22]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 90
+look = { accent = "#3bb273" }
+
+[[npc]]
+name = "se_lizard"
+kind = "lizard"
+pos = [31, 0, 25]
+ai = { type = "idle" }
+speed = 0.6
+yaw = 90
+look = { accent = "#d94f9a" }
+
+# ---- turrets (keep objects at the end of the file) ----
+
+[[object]]
+name = "gal_light_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 2]
+yaw = 90
+color = "#e8704a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 17, delay = 0, color = "#e8704a", knockback = 2, life = 2.2 }
+
+[[object]]
+name = "gal_light_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 2]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gal_medium_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 5]
+yaw = 90
+color = "#f2c14e"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 17, delay = 0.5, color = "#f2c14e", knockback = 5, life = 2.2 }
+
+[[object]]
+name = "gal_medium_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gal_heavy_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 8]
+yaw = 90
+color = "#5b8def"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 17, delay = 1, color = "#5b8def", knockback = 9, life = 2.2 }
+
+[[object]]
+name = "gal_heavy_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 8]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gal_huge_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 11]
+yaw = 90
+color = "#9b5de5"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 17, delay = 1.5, color = "#9b5de5", knockback = 14, life = 2.2 }
+
+[[object]]
+name = "gal_huge_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 11]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_0"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 15.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.66, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0, color = "#ffb23e", knockback = 4, life = 0.7 }
+
+[[object]]
+name = "gauntlet_0_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 15.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_1"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 16.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.78, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.1, color = "#ffb23e", knockback = 6, life = 0.7 }
+
+[[object]]
+name = "gauntlet_1_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 16.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_2"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 17.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.6, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.2, color = "#ffb23e", knockback = 5, life = 0.7 }
+
+[[object]]
+name = "gauntlet_2_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 17.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_3"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 18.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.84, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.3, color = "#ffb23e", knockback = 4, life = 0.7 }
+
+[[object]]
+name = "gauntlet_3_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 18.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_4"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 19.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.7, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.4, color = "#ffb23e", knockback = 6, life = 0.7 }
+
+[[object]]
+name = "gauntlet_4_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 19.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_5"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 20.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.8, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.5, color = "#ffb23e", knockback = 5, life = 0.7 }
+
+[[object]]
+name = "gauntlet_5_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 20.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_6"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 21.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.64, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.6, color = "#ffb23e", knockback = 5, life = 0.7 }
+
+[[object]]
+name = "gauntlet_6_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 21.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_7"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 22.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.74, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.7, color = "#ffb23e", knockback = 4, life = 0.7 }
+
+[[object]]
+name = "gauntlet_7_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 22.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_8"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 23.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.76, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.8, color = "#ffb23e", knockback = 6, life = 0.7 }
+
+[[object]]
+name = "gauntlet_8_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 23.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_9"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 24.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.66, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 0.9, color = "#ffb23e", knockback = 6, life = 0.7 }
+
+[[object]]
+name = "gauntlet_9_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 24.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_10"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [17.5, 0.425, 25.5]
+yaw = 90
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.82, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 1, color = "#ffb23e", knockback = 4, life = 0.7 }
+
+[[object]]
+name = "gauntlet_10_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [17.7, 0.9, 25.5]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "gauntlet_11"
+shape = { type = "cylinder", half_height = 0.425, radius = 0.24 }
+pos = [22.5, 0.425, 26.5]
+yaw = 270
+color = "#f2a33a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.72, count = 1, spread = 0, speed = 9, radius = 0.2, height = 0.475, range = 14, delay = 1.1, color = "#ffb23e", knockback = 5, life = 0.7 }
+
+[[object]]
+name = "gauntlet_11_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [22.3, 0.9, 26.5]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "sw_light_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 16]
+yaw = 90
+color = "#3bb273"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 14, delay = 0, color = "#3bb273", knockback = 2, life = 2.2 }
+
+[[object]]
+name = "sw_light_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 16]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "sw_heavy_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 19]
+yaw = 90
+color = "#e0483c"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 14, delay = 0, color = "#e0483c", knockback = 14, life = 2.2 }
+
+[[object]]
+name = "sw_heavy_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 19]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "sw_mg_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 22]
+yaw = 90
+color = "#f2c14e"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 0.25, count = 1, spread = 0, speed = 12, radius = 0.14, height = 0.525, range = 14, delay = 0, color = "#f2c14e", knockback = 3, life = 2.2 }
+
+[[object]]
+name = "sw_mg_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 22]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "sw_cannon_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [1.55, 0.475, 25]
+yaw = 90
+color = "#9b5de5"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 3, count = 1, spread = 0, speed = 12, radius = 0.14, height = 0.525, range = 14, delay = 0, color = "#9b5de5", knockback = 24, life = 2.2 }
+
+[[object]]
+name = "sw_cannon_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [1.75, 1, 25]
+yaw = 90
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "se_tiny_gun"
+shape = { type = "cylinder", half_height = 0.2, radius = 0.24 }
+pos = [37.45, 0.2, 16]
+yaw = 270
+color = "#2ec4b6"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.25, range = 14, delay = 0, color = "#2ec4b6", knockback = 6, life = 2.2 }
+
+[[object]]
+name = "se_tiny_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [37.25, 0.45, 16]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "se_giant_gun"
+shape = { type = "cylinder", half_height = 0.475, radius = 0.24 }
+pos = [37.45, 0.475, 19]
+yaw = 270
+color = "#ff9f1c"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.525, range = 14, delay = 0.4, color = "#ff9f1c", knockback = 6, life = 2.2 }
+
+[[object]]
+name = "se_giant_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [37.25, 1, 19]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "se_spider_gun"
+shape = { type = "cylinder", half_height = 0.225, radius = 0.24 }
+pos = [37.45, 0.225, 22]
+yaw = 270
+color = "#3bb273"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.275, range = 14, delay = 0.8, color = "#3bb273", knockback = 8, life = 2.2 }
+
+[[object]]
+name = "se_spider_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [37.25, 0.5, 22]
+yaw = 270
+color = "#2b2d35"
+body = "none"
+
+[[object]]
+name = "se_lizard_gun"
+shape = { type = "cylinder", half_height = 0.225, radius = 0.24 }
+pos = [37.45, 0.225, 25]
+yaw = 270
+color = "#d94f9a"
+body = "fixed"
+behavior = { type = "emitter", pattern = "forward", interval = 2, count = 1, spread = 0, speed = 9, radius = 0.14, height = 0.275, range = 14, delay = 1.2, color = "#d94f9a", knockback = 8, life = 2.2 }
+
+[[object]]
+name = "se_lizard_gun_barrel"
+shape = { type = "box", half = [0.07, 0.07, 0.26] }
+pos = [37.25, 0.5, 25]
+yaw = 270
+color = "#2b2d35"
+body = "none"
