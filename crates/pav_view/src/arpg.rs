@@ -110,6 +110,29 @@ impl ArpgView {
         for (i, s) in g.shots.iter().enumerate() {
             let pos = s.pos - s.vel * back;
             let c = v3(s.color);
+            if s.orbit.is_some() {
+                // Orbiting blades: a spectral blade along the circle.
+                let d = s.vel.normalize_or(Vec3::X);
+                scene.sdfs.push(rs::SdfInstance {
+                    a: pos - d * 0.32,
+                    b: pos + d * 0.32,
+                    ra: 0.05,
+                    rb: 0.11,
+                    color: c,
+                    emissive: 2.5,
+                    style: Style::Unlit,
+                    flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
+                    group: 1,
+                });
+                if particles {
+                    scene.particles.push(burst(pos, 1, c.extend(0.6), c.extend(0.0), |b| {
+                        b.size = (0.1, 0.0);
+                        b.life = (0.12, 0.2);
+                        b.spread = 0.2;
+                    }));
+                }
+                continue;
+            }
             scene.sdfs.push(rs::SdfInstance {
                 a: pos,
                 b: pos,
@@ -167,6 +190,36 @@ impl ArpgView {
                         radius: e.radius * 3.0,
                         shadows: false,
                     });
+                }
+                EffectKind::Field => {
+                    // Burning ground: a flickering patch with embers, fading at the end.
+                    let fade = ((e.dur - e.t) / 0.4).clamp(0.0, 1.0) * (e.t / 0.1).clamp(0.0, 1.0);
+                    let flick = 0.75 + 0.25 * noise(time * 9.0, e.pos.x + e.pos.z);
+                    let mut m = MeshData::default();
+                    band(&mut m, e.pos + Vec3::Y * 0.03, 0.0, e.radius * 0.9, 0.0, std::f32::consts::TAU, 0.8);
+                    decal(scene, m, c, 1.6 * fade * flick);
+                    if particles {
+                        let key = 0x6000_0000_0000 + ((e.pos.x * 31.0) as i64 as u64) * 977 + (e.pos.z * 17.0) as i64 as u64;
+                        let carry = self.carry.entry(key).or_insert(0.0);
+                        *carry += dt * 14.0 * fade;
+                        let n = carry.floor();
+                        *carry -= n;
+                        if n >= 1.0 {
+                            scene.particles.push(burst(
+                                e.pos + Vec3::Y * 0.1,
+                                n as u32,
+                                Vec4::new(1.0, 0.6, 0.2, 1.0),
+                                Vec4::new(1.0, 0.2, 0.05, 0.0),
+                                |b| {
+                                    b.area = Vec3::new(e.radius * 0.6, 0.05, e.radius * 0.6);
+                                    b.vel = Vec3::Y * 1.8;
+                                    b.spread = 0.5;
+                                    b.size = (0.14, 0.0);
+                                    b.life = (0.3, 0.6);
+                                },
+                            ));
+                        }
+                    }
                 }
                 EffectKind::Delayed => {
                     let mut outline = MeshData::default();
@@ -257,6 +310,88 @@ impl ArpgView {
                     }));
                 }
             }
+        }
+        // Loot: the item lying there, a rarity ring, and a pillar of light for rares and uniques.
+        for (i, l) in g.loot.iter().enumerate() {
+            let rc = v3(l.rarity.color());
+            let ic = v3(l.color);
+            let spin = l.age * 7.0 * if l.rest { 0.0 } else { 1.0 } + l.id as f32;
+            let (half, r) = match l.slot {
+                pav_core::arpg::items::Slot::Weapon => (0.42, 0.07),
+                pav_core::arpg::items::Slot::Ring | pav_core::arpg::items::Slot::Amulet => (0.05, 0.1),
+                pav_core::arpg::items::Slot::Body => (0.12, 0.22),
+                _ => (0.1, 0.15),
+            };
+            let d = Vec3::new(spin.cos(), if l.rest { 0.0 } else { spin.sin() * 0.5 }, spin.sin()).normalize();
+            let pos = l.pos + Vec3::Y * r;
+            scene.sdfs.push(rs::SdfInstance {
+                a: pos - d * half,
+                b: pos + d * half,
+                ra: r,
+                rb: r * 0.8,
+                color: ic,
+                emissive: if l.rarity >= Rarity::Rare { 0.6 } else { 0.15 },
+                style: Style::Lit,
+                flags: rs::flags::NO_CUT,
+                group: 1,
+            });
+            if l.rarity >= Rarity::Magic && l.rest {
+                let pulse = 0.7 + 0.3 * (time * 3.0 + l.id as f32).sin();
+                let mut m = MeshData::default();
+                band(&mut m, l.pos + Vec3::Y * 0.03, 0.42, 0.5, 0.0, std::f32::consts::TAU, 1.0);
+                decal(scene, m, rc, 1.4 * pulse);
+            }
+            if l.rarity >= Rarity::Rare {
+                if i < 12 {
+                    scene.point_lights.push(rs::PointLight {
+                        position: l.pos + Vec3::Y * 1.0,
+                        color: rc * 1.4,
+                        radius: 4.0,
+                        shadows: false,
+                    });
+                }
+                if particles {
+                    let key = 0x7000_0000_0000 + l.id as u64;
+                    let carry = self.carry.entry(key).or_insert(0.0);
+                    *carry += dt * if l.rarity == Rarity::Unique { 40.0 } else { 22.0 };
+                    let n = carry.floor();
+                    *carry -= n;
+                    if n >= 1.0 {
+                        scene.particles.push(burst(l.pos + Vec3::Y * 0.2, n as u32, rc.extend(0.8), rc.extend(0.0), |b| {
+                            b.area = Vec3::new(0.08, 0.05, 0.08);
+                            b.vel = Vec3::Y * 5.0;
+                            b.spread = 0.04;
+                            b.gravity = 0.0;
+                            b.drag = 0.0;
+                            b.size = (0.2, 0.05);
+                            b.life = (0.8, 1.2);
+                            b.stretch = true;
+                        }));
+                    }
+                }
+            }
+        }
+        // Gold: little glinting coins.
+        for (i, p) in g.gold.iter().enumerate() {
+            let glint = 1.0 + 1.5 * ((time * 5.0 + i as f32 * 1.7).sin().max(0.0)).powi(8);
+            scene.sdfs.push(rs::SdfInstance {
+                a: *p + Vec3::new(-0.06, 0.06, 0.0),
+                b: *p + Vec3::new(0.06, 0.06, 0.0),
+                ra: 0.07,
+                rb: 0.07,
+                color: Vec3::new(1.0, 0.8, 0.3),
+                emissive: 0.4 * glint,
+                style: Style::Lit,
+                flags: rs::flags::NO_CUT,
+                group: 1,
+            });
+        }
+        // The spot the hero can use right now: a soft ring at its feet.
+        if let Some(sp) = g.near.and_then(|i| g.spots.get(i)) {
+            let mut m = MeshData::default();
+            let r = 1.0 + 0.08 * (time * 4.0).sin();
+            band(&mut m, sp.pos + Vec3::Y * 0.05, r - 0.08, r, 0.0, std::f32::consts::TAU, 1.0);
+            decal(scene, m, Vec3::new(1.0, 0.85, 0.5), 1.4);
         }
         // Weapon swing trails: glowing streaks from the blade's last position.
         let mut live = Vec::new();

@@ -445,12 +445,12 @@ impl Sim {
         self.vehicle_interact(input);
 
         // The game decides what the hero and its monsters do this tick.
-        let game_inputs = self.game_pre(input, dt);
+        let mut events = Vec::new();
+        let game_inputs = self.game_pre(input, dt, &mut events);
 
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
         let mut actions = Vec::new();
-        let mut events = Vec::new();
         let idle = InputFrame::default();
         let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
         let all_feet: Vec<Vec3> =
@@ -615,6 +615,7 @@ impl Sim {
         }
 
         self.game_post(dt, raw_dt, &mut events);
+        self.game_travel(&mut events);
 
         if let Some(p) = self.player() {
             self.state.focus = p.pos;

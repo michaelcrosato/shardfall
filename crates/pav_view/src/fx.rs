@@ -411,6 +411,22 @@ pub fn event_bursts(e: &pav_core::frame::SimEvent, out: &mut Vec<ParticleBurst>)
                 b.color1 = Vec4::new(1.0, 0.7, 0.2, 0.0);
             }));
         }
+        E::Loot { pos, rarity } if *rarity >= 2 => {
+            let c = if *rarity >= 3 { Vec4::new(1.0, 0.55, 0.15, 1.0) } else { Vec4::new(1.0, 0.85, 0.3, 1.0) };
+            out.push(with("magic", *pos + Vec3::Y * 0.5, 40 + 30 * (*rarity as u32 - 2), &|b| {
+                b.area = Vec3::new(0.3, 0.3, 0.3);
+                b.vel = Vec3::Y * 3.0;
+                b.spread = 1.2;
+                b.size = (0.16, 0.0);
+                b.color0 = c * 2.0;
+                b.color1 = Vec4::new(c.x, c.y, c.z, 0.0);
+            }));
+        }
+        E::Pickup { pos, .. } => out.push(with("sparks", *pos + Vec3::Y * 0.3, 8, &|b| {
+            b.spread = 1.0;
+            b.vel = Vec3::Y * 1.5;
+            b.color0 = Vec4::new(0.9, 0.95, 1.0, 1.0) * 1.4;
+        })),
         E::Block { pos } => out.push(with("sparks", *pos + Vec3::Y * 1.0, 18, &|b| {
             b.spread = 3.0;
             b.color0 = Vec4::new(0.8, 0.9, 1.0, 1.0) * 1.5;

@@ -580,6 +580,7 @@ fn t_input(s: &mut Session, a: &Args) -> Result<Output> {
             aim,
             held: held | if i == 0 { press } else { 0 },
             pressed: if i == 0 { press } else { 0 },
+            cmd: None,
         };
         s.sim.step(&f);
         s.sync_camera();

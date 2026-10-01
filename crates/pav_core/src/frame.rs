@@ -187,6 +187,19 @@ pub enum SimEvent {
     LevelUp {
         pos: Vec3,
     },
+    /// An item dropped (rarity 0 normal .. 3 unique) or was picked up.
+    Loot {
+        pos: Vec3,
+        rarity: u8,
+    },
+    Pickup {
+        pos: Vec3,
+        rarity: u8,
+    },
+    /// Arrived somewhere else (Shardfall place code).
+    Travel {
+        place: u32,
+    },
 }
 
 /// The room the player is in, for the HUD (info card, control guide, camera defaults).

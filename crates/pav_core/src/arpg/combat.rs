@@ -200,6 +200,9 @@ pub struct Actor {
     pub immovable: bool,
     /// Last attacker (kill credit) and the tick of the last damage.
     pub last_hit: Option<EntityId>,
+    /// Rule-bending effects (unique items, keystones, monster affixes).
+    #[serde(default)]
+    pub powers: Vec<super::powers::Power>,
 }
 
 impl Actor {
@@ -235,6 +238,7 @@ impl Actor {
             affixes: Vec::new(),
             immovable: false,
             last_hit: None,
+            powers: Vec::new(),
         }
     }
 
@@ -274,6 +278,9 @@ pub struct Shot {
     pub explode: f32,
     pub hit: Vec<EntityId>,
     pub color: [f32; 3],
+    /// Orbiting blades circle their owner instead of flying.
+    #[serde(default)]
+    pub orbit: Option<super::powers::Orbit>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -285,6 +292,8 @@ pub enum EffectKind {
     Burst,
     /// A delayed hit: a warning circle, then damage (meteors, monster slams at a point).
     Delayed,
+    /// Ground that hurts while it lasts (burning trails, poison pools): `dmg` every 0.25 s.
+    Field,
 }
 
 /// Something happening on the ground.

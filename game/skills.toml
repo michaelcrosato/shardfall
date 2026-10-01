@@ -225,3 +225,60 @@ shake = 0.3
 telegraph = true
 monster = true
 color = "#ff8a3a"
+
+# ---------------------------------------------------------------- power effects
+# Internal skills that powers (unique items, keystones, monster affixes) hit with; never on
+# the skill bar. Attacks roll weapon damage, spells their base, both scaled by the power.
+
+[power_blade]
+name = "Orbiting Blade"
+tags = ["attack"]
+power = true
+element = "physical"
+knockback = 0.6
+hitstop = 0.015
+color = "#b8d8ff"
+
+[power_ember]
+name = "Burning Ground"
+tags = ["attack", "area"]
+power = true
+element = "fire"
+ailment = 0.15
+color = "#ff7a2a"
+
+[power_frost]
+name = "Frost Nova"
+tags = ["attack", "area"]
+power = true
+element = "cold"
+knockback = 2.5
+color = "#8ad8ff"
+
+[power_meteor]
+name = "Meteor"
+tags = ["attack", "area"]
+power = true
+element = "fire"
+knockback = 3.0
+shake = 0.3
+hitstop = 0.03
+ailment = 0.3
+color = "#ff5a1a"
+
+[power_storm]
+name = "Called Lightning"
+tags = ["spell", "area"]
+power = true
+element = "lightning"
+base = [6, 13]
+ailment = 0.25
+hitstop = 0.02
+color = "#ffe85a"
+
+[power_corpse]
+name = "Corpse Burst"
+tags = ["area"]
+power = true
+element = "fire"
+color = "#ff6a1a"

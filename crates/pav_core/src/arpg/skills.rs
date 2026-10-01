@@ -33,13 +33,19 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
         return false;
     }
     let cost = def.cost * a.sheet.mana_cost;
-    if a.mana < cost {
+    let blood = a.has_power(super::powers::PowerKind::BloodMagic);
+    let pool = if blood { a.life - 1.0 } else { a.mana };
+    if pool < cost {
         if is_hero {
-            g.float_text(feet + Vec3::Y * 2.2, "Not enough mana");
+            g.float_text(feet + Vec3::Y * 2.2, if blood { "Not enough life" } else { "Not enough mana" });
         }
         return false;
     }
-    a.mana -= cost;
+    if blood {
+        a.life -= cost;
+    } else {
+        a.mana -= cost;
+    }
     if def.cooldown > 0.0 {
         a.set_cooldown(skill, def.cooldown / a.sheet.cooldown.max(0.1));
     }
@@ -259,9 +265,25 @@ pub fn circle_hit(
 }
 
 fn fire_skill(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events: &mut Vec<SimEvent>) {
+    let Some(c) = g.actors.get(&id).and_then(|a| a.cast.clone()) else { return };
+    fire_cast(g, sim, id, def, &c, 1.0, false, events);
+}
+
+/// Lands a skill's hit (or launches its projectiles) for a cast. `extra` scales the damage;
+/// `echo` marks a repeat (echo strikes) so it doesn't echo again.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn fire_cast(
+    g: &mut Game,
+    sim: &mut Sim,
+    id: EntityId,
+    def: &SkillDef,
+    c: &Cast,
+    extra: f32,
+    echo: bool,
+    events: &mut Vec<SimEvent>,
+) {
     let Some((feet, height)) = feet_of(sim, id) else { return };
     let Some(a) = g.actors.get(&id) else { return };
-    let Some(c) = a.cast.clone() else { return };
     let team = a.team;
     let sheet = a.sheet.clone();
     let is_hero = Some(id) == g.hero_id;
@@ -270,7 +292,8 @@ fn fire_skill(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events:
     let color = def.rgb();
     let el_color = def.element.color();
     let last = def.combo > 1 && c.combo + 1 == def.combo;
-    let mult = if last { 1.5 } else { 1.0 };
+    let mult = if last { 1.5 } else { 1.0 } * extra;
+    let mut center = feet;
     match def.behavior {
         Behavior::Melee => {
             let range = def.range
@@ -280,6 +303,7 @@ fn fire_skill(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events:
                 * if is_hero { 1.0 } else { a.radius / 0.42 * 0.5 + 0.5 };
             let half = (def.angle * if last { 1.2 } else { 1.0 }).to_radians() * 0.5;
             let dir = c.dir;
+            center = feet + dir * range * 0.6;
             let hit = targets(g, sim, team, |f, r| {
                 let to = flat(f - feet);
                 let dist = to.length();
@@ -309,7 +333,7 @@ fn fire_skill(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events:
             events.push(SimEvent::Swing { pos: feet, heavy: def.knockback >= 2.5 || last });
         }
         Behavior::Slam | Behavior::Leap => {
-            let center = if def.behavior == Behavior::Slam { feet + c.dir * def.range * 0.8 } else { feet };
+            center = if def.behavior == Behavior::Slam { feet + c.dir * def.range * 0.8 } else { feet };
             let r = def.radius * area.sqrt();
             circle_hit(g, sim, id, def, center, r, mult, events);
             g.effects.push(Effect {
@@ -381,14 +405,17 @@ fn fire_skill(g: &mut Game, sim: &mut Sim, id: EntityId, def: &SkillDef, events:
                     explode: def.explode * area.sqrt(),
                     hit: Vec::new(),
                     color: if def.color == "#ffffff" { el_color } else { color },
+                    orbit: None,
                 });
             }
             events.push(SimEvent::Spell { pos: from, element: def.element as u8 });
+            center = c.target;
         }
         Behavior::Dash | Behavior::Charge => {
             events.push(SimEvent::Swing { pos: feet, heavy: def.behavior == Behavior::Charge });
         }
     }
+    g.power_on_fire(sim, id, def, c, center, echo, events);
 }
 
 /// Dashes and charges: everything along the way, once each.
@@ -427,6 +454,12 @@ pub fn update_shots(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEv
     let mut shots = std::mem::take(&mut g.shots);
     let mut keep = Vec::with_capacity(shots.len());
     for mut s in shots.drain(..) {
+        if s.orbit.is_some() {
+            if super::powers::update_orbit(g, sim, &mut s, dt, events) {
+                keep.push(s);
+            }
+            continue;
+        }
         let step = s.vel * dt;
         let len = step.length();
         let dir = step / len.max(1e-6);
@@ -566,6 +599,14 @@ pub fn update_effects(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<Sim
     for e in &mut effects {
         let before = e.t;
         e.t += dt;
+        if e.kind == EffectKind::Field && (before / 0.25).floor() != (e.t / 0.25).floor() && e.t < e.dur {
+            if let Some(dmg) = e.dmg.clone() {
+                let hit = targets(g, sim, e.team, |f, r| flat(f - e.pos).length() <= e.radius + r);
+                for (t, _) in hit {
+                    g.hit(sim, t, &dmg, e.pos, events);
+                }
+            }
+        }
         if e.kind == EffectKind::Delayed && before < e.dur && e.t >= e.dur {
             if let Some(dmg) = e.dmg.clone() {
                 let hit = targets(g, sim, e.team, |f, r| flat(f - e.pos).length() <= e.radius + r);

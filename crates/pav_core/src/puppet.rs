@@ -72,6 +72,56 @@ impl Default for WeaponLook {
 }
 
 choice_enum! {
+    /// Helmet shapes (Shardfall armour).
+    #[derive(Default)]
+    pub enum HelmKind {
+        #[default]
+        None => "none",
+        Cap => "cap",
+        Helm => "helm",
+        Great => "great",
+        Crown => "crown",
+        Horned => "horned",
+        Halo => "halo",
+    }
+}
+
+/// Worn armour's look: helmet, shoulder plates, cape, gloves, belt buckle.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GearLook {
+    pub helm: HelmKind,
+    pub helm_color: String,
+    /// Shoulder plates (0 = none, 1 = full size) and their colour.
+    pub pauldrons: f32,
+    pub armor_color: String,
+    /// Cape (0 = none) and its colour.
+    pub cape: f32,
+    pub cape_color: String,
+    /// Glove and belt colours ("" = none).
+    pub gloves: String,
+    pub belt: String,
+    /// Enchanted shine on the helmet.
+    pub glow: f32,
+}
+
+impl Default for GearLook {
+    fn default() -> Self {
+        Self {
+            helm: HelmKind::None,
+            helm_color: "#8a8f99".into(),
+            pauldrons: 0.0,
+            armor_color: "#8a8f99".into(),
+            cape: 0.0,
+            cape_color: "#3a2f4a".into(),
+            gloves: String::new(),
+            belt: String::new(),
+            glow: 0.0,
+        }
+    }
+}
+
+choice_enum! {
     /// Action animations (attacks, casts, ...), played by `PuppetState::act`.
     #[derive(Default)]
     pub enum ActKind {
@@ -247,6 +297,8 @@ pub struct PuppetDef {
     pub accent: String,
     /// Held weapon and off hand.
     pub weapon: WeaponLook,
+    /// Worn armour.
+    pub gear: GearLook,
 }
 
 impl Default for PuppetDef {
@@ -285,6 +337,7 @@ impl Default for PuppetDef {
             wobble: 1.0,
             accent: "#3a3f4b".into(),
             weapon: WeaponLook::default(),
+            gear: GearLook::default(),
         }
     }
 }
@@ -812,13 +865,100 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
     let head = neck + head_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * def.head_radius * k * 0.95;
 
     let mut parts = Vec::with_capacity(20);
+    // Parts pushed while `glow_now` is set shine (enchanted helmets).
+    let glow_now = std::cell::Cell::new(0.0f32);
     let mut push = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color| {
-        parts.push(PuppetPart { a: local(a), b: local(b), ra: ra * sxz.max(0.8), rb: rb * sxz.max(0.8), color, glow: 0.0 });
+        parts.push(PuppetPart {
+            a: local(a),
+            b: local(b),
+            ra: ra * sxz.max(0.8),
+            rb: rb * sxz.max(0.8),
+            color,
+            glow: glow_now.get(),
+        });
     };
 
     // Torso and head.
     push(pelvis, chest, def.torso_radius * k * 0.92, def.torso_radius * k, shirt);
     push(head, head, def.head_radius * k, def.head_radius * k, skin);
+    let gear = &def.gear;
+    let hr = def.head_radius * k;
+    glow_now.set(gear.glow);
+    if gear.helm != HelmKind::None {
+        let hc = Color::try_hex(&gear.helm_color).unwrap_or(Color::hex("#8a8f99"));
+        let gold = Color::hex("#e8c45a");
+        let hu = head_dir;
+        let (f, x) = (Vec3::Z, Vec3::X);
+        match gear.helm {
+            HelmKind::Cap => push(head + hu * hr * 0.3, head + hu * hr * 0.3, hr * 0.9, hr * 0.9, hc),
+            HelmKind::Crown => {
+                push(head + hu * hr * 0.3, head + hu * hr * 0.3, hr * 0.92, hr * 0.92, hc);
+                for i in 0..5 {
+                    let a = i as f32 / 5.0 * std::f32::consts::TAU;
+                    let b = head + hu * hr * 0.8 + (x * a.cos() + f * a.sin()) * hr * 0.62;
+                    push(b, b + hu * hr * 0.42, hr * 0.1, hr * 0.05, gold);
+                }
+            }
+            _ => {
+                let full = matches!(gear.helm, HelmKind::Great);
+                push(
+                    head + hu * hr * 0.12,
+                    head + hu * hr * 0.12,
+                    hr * if full { 1.12 } else { 1.05 },
+                    hr * if full { 1.12 } else { 1.05 },
+                    hc,
+                );
+                if !full {
+                    // Nose guard.
+                    push(head + f * hr * 1.0 + hu * hr * 0.25, head + f * hr * 1.02 - hu * hr * 0.3, hr * 0.11, hr * 0.09, hc);
+                } else {
+                    // Crest.
+                    push(
+                        head + hu * hr * 1.05 + f * hr * 0.5,
+                        head + hu * hr * 0.95 - f * hr * 0.9,
+                        hr * 0.14,
+                        hr * 0.08,
+                        Color::hex("#9a2a2a"),
+                    );
+                }
+                if gear.helm == HelmKind::Horned {
+                    for sd in [-1.0f32, 1.0] {
+                        let b = head + hu * hr * 0.55 + x * sd * hr * 0.8;
+                        let m = b + x * sd * hr * 0.55 + hu * hr * 0.25;
+                        let t = m + hu * hr * 0.65 - f * hr * 0.15;
+                        push(b, m, hr * 0.2, hr * 0.15, Color::hex("#e8e0c8"));
+                        push(m, t, hr * 0.15, hr * 0.05, Color::hex("#e8e0c8"));
+                    }
+                }
+                if gear.helm == HelmKind::Halo {
+                    let c = head + hu * hr * 1.7;
+                    for i in 0..12 {
+                        let a = i as f32 / 12.0 * std::f32::consts::TAU;
+                        let a2 = (i + 1) as f32 / 12.0 * std::f32::consts::TAU;
+                        let p0 = c + (x * a.cos() + f * a.sin()) * hr * 0.85;
+                        let p1 = c + (x * a2.cos() + f * a2.sin()) * hr * 0.85;
+                        push(p0, p1, hr * 0.07, hr * 0.07, Color::hex("#ffe9a0"));
+                    }
+                }
+            }
+        }
+    }
+    glow_now.set(0.0);
+    if !gear.belt.is_empty() {
+        let b = Color::try_hex(&gear.belt).unwrap_or(Color::hex("#5a4030"));
+        let at = pelvis + torso_dir * def.torso_length * k * 0.12 + Vec3::Z * def.torso_radius * k * 0.92;
+        push(at, at, lr * 0.75, lr * 0.75, b);
+    }
+    if gear.cape > 0.0 {
+        let cc = Color::try_hex(&gear.cape_color).unwrap_or(Color::hex("#3a2f4a"));
+        let top = chest - Vec3::Z * def.torso_radius * k * 1.05 - Vec3::Y * 0.05 * k;
+        let flow = (st.speed / 6.0).min(1.0) * 0.55 + (cyc * 2.0).sin() * 0.05 * walk + st.lean_fwd.max(0.0) * 0.4;
+        let bottom = Vec3::new(0.0, (pelvis.y - leg * 0.55).max(0.12 * k), top.z - 0.1 * k - flow * leg * 0.75);
+        for xs in [-1.0f32, 0.0, 1.0] {
+            let off = Vec3::X * xs * def.torso_radius * k * 0.62;
+            push(top + off, bottom + off * 1.35, lr * 0.85 * gear.cape, lr * 1.05 * gear.cape, cc);
+        }
+    }
 
     // Legs.
     for s in [-1.0f32, 1.0] {
@@ -888,8 +1028,16 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
         let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
         push(shoulder, elbow, lr * 1.05, lr * 0.95, shirt);
-        push(elbow, hand, lr * 0.95, lr * 0.85, skin);
-        push(hand, hand, lr * 1.1, lr * 1.1, skin);
+        let glove = Color::try_hex(&def.gear.gloves).unwrap_or(skin);
+        let fore = if def.gear.gloves.is_empty() { skin } else { glove };
+        push(elbow, hand, lr * 0.95, lr * if def.gear.gloves.is_empty() { 0.85 } else { 1.05 }, fore);
+        push(hand, hand, lr * 1.1, lr * 1.1, glove);
+        if def.gear.pauldrons > 0.0 {
+            let pc = Color::try_hex(&def.gear.armor_color).unwrap_or(shirt);
+            let p = shoulder + Vec3::new(s * 0.03 * k, 0.04 * k, 0.0);
+            let r = lr * 1.9 * def.gear.pauldrons;
+            push(p, p + Vec3::new(s * 0.05 * k, -0.02 * k, 0.0), r, r * 0.85, pc);
+        }
         if s > 0.0 {
             held = (shoulder, elbow, hand);
         } else {
@@ -916,10 +1064,10 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
     let cam_up = (-cam_fwd).dot(up).clamp(0.0, 1.0) * def.eyes_to_camera;
     let face_dir = (Vec3::Z * (1.0 - cam_up) + Vec3::Y * cam_up * 1.2).normalize();
     let face_dir = face_dir.lerp(Vec3::new(0.0, 0.3 + cam_up * 0.5, 1.0).normalize(), crawl).normalize();
-    let hr = def.head_radius * k;
+    let out = if def.gear.helm == HelmKind::Great { 1.13 } else { 0.9 };
     for s in [-1.0f32, 1.0] {
         let side = Vec3::new(s * 0.36, 0.08, 0.0) * hr;
-        let e = head + (face_dir * hr * 0.93 + side).normalize() * hr * 0.9;
+        let e = head + (face_dir * hr * 0.93 + side).normalize() * hr * out;
         push(e, e, hr * 0.17, hr * 0.17, eyes);
     }
     parts.extend(held_parts);

@@ -361,6 +361,28 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             (Patch { decay: 0.08, volume: 0.1, ..Patch::new(Triangle, 1980.0) }, 0.0),
             (Patch { decay: 0.12, volume: 0.09, ..Patch::new(Triangle, 2640.0) }, 0.05),
         ],
+        // Drops chime by rarity: rares ring, uniques ring a chord.
+        SimEvent::Loot { rarity, .. } => match rarity {
+            0 => vec![(Patch { decay: 0.05, volume: 0.05, cutoff: 2500.0, ..Patch::new(Triangle, 880.0) }, 0.0)],
+            1 => vec![(Patch { decay: 0.12, volume: 0.08, ..Patch::new(Triangle, 1320.0) }, 0.0)],
+            2 => vec![
+                (Patch { decay: 0.25, volume: 0.12, ..Patch::new(Triangle, 1568.0) }, 0.0),
+                (Patch { decay: 0.35, volume: 0.1, ..Patch::new(Sine, 2093.0) }, 0.08),
+            ],
+            _ => vec![
+                (Patch { decay: 0.5, volume: 0.14, ..Patch::new(Triangle, 784.0) }, 0.0),
+                (Patch { decay: 0.5, volume: 0.13, ..Patch::new(Triangle, 988.0) }, 0.06),
+                (Patch { decay: 0.6, volume: 0.13, ..Patch::new(Triangle, 1175.0) }, 0.12),
+                (Patch { decay: 0.9, volume: 0.12, ..Patch::new(Sine, 1568.0) }, 0.2),
+            ],
+        },
+        SimEvent::Pickup { .. } => {
+            vec![(Patch { freq_end: 1400.0, glide: 0.06, decay: 0.07, volume: 0.08, ..Patch::new(Triangle, 700.0) }, 0.0)]
+        }
+        SimEvent::Travel { .. } => vec![
+            (Patch { freq_end: 1200.0, glide: 0.5, decay: 0.6, volume: 0.12, ..Patch::new(Sine, 200.0) }, 0.0),
+            (Patch { freq_end: 2400.0, glide: 0.4, decay: 0.5, volume: 0.06, ..Patch::new(Triangle, 600.0) }, 0.1),
+        ],
         SimEvent::Potion { .. } => {
             vec![(Patch { freq_end: 700.0, glide: 0.3, decay: 0.3, volume: 0.14, ..Patch::new(Sine, 300.0) }, 0.0)]
         }
@@ -484,6 +506,8 @@ pub fn event_pos(ev: &SimEvent) -> Option<Vec3> {
         | SimEvent::Blast { pos, .. }
         | SimEvent::Spell { pos, .. }
         | SimEvent::Coin { pos }
+        | SimEvent::Loot { pos, .. }
+        | SimEvent::Pickup { pos, .. }
         | SimEvent::Block { pos } => Some(*pos),
         _ => None,
     }

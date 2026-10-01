@@ -7,6 +7,8 @@ use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
+use super::items::{AffixDef, BaseDef, Slot, UniqueDef};
+use super::stats::Stat;
 use crate::puppet::{ActKind, BodyPlan, PuppetDef};
 
 include!(concat!(env!("OUT_DIR"), "/game_data.rs"));
@@ -126,6 +128,8 @@ pub struct SkillDef {
     pub ailment: f32,
     pub telegraph: bool,
     pub monster: bool,
+    /// Internal skill behind a power (unique items, keystones): never on the skill bar.
+    pub power: bool,
     pub color: String,
 }
 
@@ -162,6 +166,7 @@ impl Default for SkillDef {
             ailment: 0.0,
             telegraph: false,
             monster: false,
+            power: false,
             color: "#ffffff".into(),
         }
     }
@@ -256,6 +261,9 @@ pub fn puppet_with(plan: BodyPlan, look: &toml::Table, scale: f32) -> Result<Pup
 pub struct Data {
     pub skills: Vec<SkillDef>,
     pub families: Vec<FamilyDef>,
+    pub bases: Vec<BaseDef>,
+    pub affixes: Vec<AffixDef>,
+    pub uniques: Vec<UniqueDef>,
 }
 
 impl Data {
@@ -268,9 +276,19 @@ impl Data {
     pub fn family(&self, key: &str) -> Option<&FamilyDef> {
         self.families.iter().find(|f| f.key == key)
     }
-    /// Hero skills (not monster-only), in unlock order.
+    pub fn base(&self, key: &str) -> Option<&BaseDef> {
+        self.bases.iter().find(|b| b.key == key)
+    }
+    pub fn affix(&self, key: &str) -> Option<&AffixDef> {
+        self.affixes.iter().find(|a| a.key == key)
+    }
+    pub fn unique(&self, key: &str) -> Option<&UniqueDef> {
+        self.uniques.iter().find(|u| u.key == key)
+    }
+    /// Hero skills (not monster-only or internal), in unlock order.
     pub fn hero_skills(&self) -> Vec<u16> {
-        let mut v: Vec<u16> = (0..self.skills.len() as u16).filter(|i| !self.skill(*i).monster).collect();
+        let mut v: Vec<u16> =
+            (0..self.skills.len() as u16).filter(|i| !self.skill(*i).monster && !self.skill(*i).power).collect();
         v.sort_by_key(|i| (self.skill(*i).unlock, self.skill(*i).key.clone()));
         v
     }
@@ -290,7 +308,7 @@ pub fn load() -> Result<Data, String> {
         }
         skills.push(s);
     }
-    let mut d = Data { skills, families: Vec::new() };
+    let mut d = Data { skills, families: Vec::new(), bases: Vec::new(), affixes: Vec::new(), uniques: Vec::new() };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
         f.puppet = puppet_with(f.body, &f.look, f.scale).map_err(|e| format!("monster '{k}': {e}"))?;
@@ -301,6 +319,49 @@ pub fn load() -> Result<Data, String> {
             return Err(format!("monster '{k}' has no skills"));
         }
         d.families.push(f);
+    }
+    let stat = |owner: &str, k: &str| Stat::from_key(k).ok_or_else(|| format!("{owner}: unknown stat '{k}'"));
+    for (k, mut b) in table::<BaseDef>("items")? {
+        b.key = k.clone();
+        for (s, v) in &b.implicit {
+            b.implicits.push((stat(&format!("item '{k}'"), s)?, *v));
+        }
+        if b.slot == Slot::Weapon && b.weapon_kind() == crate::puppet::WeaponKind::None {
+            return Err(format!("item '{k}': unknown weapon kind '{}'", b.kind));
+        }
+        d.bases.push(b);
+    }
+    d.bases.sort_by(|a, b| (a.slot, a.kind.clone(), a.level).cmp(&(b.slot, b.kind.clone(), b.level)));
+    for (k, mut a) in table::<AffixDef>("affixes")? {
+        a.key = k.clone();
+        a.stat_id = Some(stat(&format!("affix '{k}'"), &a.stat)?);
+        if a.tiers.is_empty() {
+            return Err(format!("affix '{k}' has no tiers"));
+        }
+        if a.tiers.windows(2).any(|w| w[1][0] < w[0][0]) {
+            return Err(format!("affix '{k}': tiers must go up in item level"));
+        }
+        for s in &a.slots {
+            if !d.bases.iter().any(|b| b.matches(std::slice::from_ref(s))) && s != "armor" {
+                return Err(format!("affix '{k}': slot '{s}' matches no item base"));
+            }
+        }
+        d.affixes.push(a);
+    }
+    for (k, mut u) in table::<UniqueDef>("uniques")? {
+        u.key = k.clone();
+        if d.base(&u.base).is_none() {
+            return Err(format!("unique '{k}': unknown base '{}'", u.base));
+        }
+        for (s, r) in &u.mods {
+            u.stats.push((stat(&format!("unique '{k}'"), s)?, *r));
+        }
+        d.uniques.push(u);
+    }
+    for s in &d.skills {
+        if s.power && !s.key.starts_with("power_") {
+            return Err(format!("skill '{}': power skills are named power_*", s.key));
+        }
     }
     Ok(d)
 }
@@ -334,5 +395,9 @@ mod tests {
         assert!(d.skill_id("slash").is_some());
         assert!(!d.families.is_empty());
         assert!(!d.hero_skills().is_empty());
+        assert!(d.bases.len() > 100 && d.affixes.len() > 60 && d.uniques.len() > 15);
+        for k in ["power_blade", "power_ember", "power_frost", "power_meteor", "power_storm", "power_corpse"] {
+            assert!(d.skill_id(k).is_some_and(|i| d.skill(i).power), "{k}");
+        }
     }
 }

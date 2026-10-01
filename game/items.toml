@@ -1,0 +1,1262 @@
+# Shardfall item bases: what an item is before its affixes. Six tiers per kind; `level` is the
+# item level from which a base can drop. Numbers here are at item level 1 and grow with item
+# level (`items::base_scale`), so bases never run out: a level-200 Rusted Sword is still a
+# sword, just a much sharper one. Higher tiers carry bigger implicits and finer looks.
+# (Generated table - edit freely; keys are referenced by uniques.toml and saves.)
+#
+# slot       weapon | offhand | helmet | body | gloves | boots | belt | amulet | ring
+# kind       weapons: sword axe mace dagger claw wand greatsword maul spear staff (the look and
+#            how it swings); off-hands: shield focus; helmets: helm
+# phys       weapon physical damage range; aps attacks per second; crit base crit chance (%)
+# reach      melee reach multiplier; two_hand: uses both hands (no off-hand)
+# armor      armour of armour pieces and shields; implicit: stats every copy has
+# color      how it looks (weapon blade, armour tint); glow: enchanted shine
+# look       helmets: cap helm great crown horned halo; body: vest mail scale plate plate_cape
+
+[rusted_sword]
+name = "Rusted Sword"
+slot = "weapon"
+kind = "sword"
+level = 1
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 8 }
+color = "#9c8f84"
+
+[arming_sword]
+name = "Arming Sword"
+slot = "weapon"
+kind = "sword"
+level = 10
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 10 }
+color = "#c9ced8"
+
+[knights_blade]
+name = "Knight's Blade"
+slot = "weapon"
+kind = "sword"
+level = 22
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 12 }
+color = "#d8dce4"
+
+[runed_longsword]
+name = "Runed Longsword"
+slot = "weapon"
+kind = "sword"
+level = 38
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 14 }
+color = "#8fb4ff"
+glow = 0.15
+
+[ashen_saber]
+name = "Ashen Saber"
+slot = "weapon"
+kind = "sword"
+level = 55
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 16 }
+color = "#3a3036"
+glow = 0.35
+
+[starforged_blade]
+name = "Starforged Blade"
+slot = "weapon"
+kind = "sword"
+level = 75
+phys = [6, 11]
+aps = 1.4
+crit = 5
+reach = 1
+two_hand = false
+implicit = { melee_inc = 18 }
+color = "#fff2c4"
+glow = 0.7
+
+[hatchet]
+name = "Hatchet"
+slot = "weapon"
+kind = "axe"
+level = 1
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 10 }
+color = "#8a7d70"
+
+[war_axe]
+name = "War Axe"
+slot = "weapon"
+kind = "axe"
+level = 10
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 12 }
+color = "#b8bcc4"
+
+[bearded_axe]
+name = "Bearded Axe"
+slot = "weapon"
+kind = "axe"
+level = 22
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 15 }
+color = "#c4c8d0"
+
+[reaver_axe]
+name = "Reaver Axe"
+slot = "weapon"
+kind = "axe"
+level = 38
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 18 }
+color = "#c05040"
+glow = 0.15
+
+[ember_cleaver]
+name = "Ember Cleaver"
+slot = "weapon"
+kind = "axe"
+level = 55
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 20 }
+color = "#ff7a3a"
+glow = 0.35
+
+[void_splitter]
+name = "Void Splitter"
+slot = "weapon"
+kind = "axe"
+level = 75
+phys = [7, 13]
+aps = 1.3
+crit = 5
+reach = 1
+two_hand = false
+implicit = { bleed_chance = 22 }
+color = "#8a5aff"
+glow = 0.7
+
+[club]
+name = "Club"
+slot = "weapon"
+kind = "mace"
+level = 1
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 10 }
+color = "#6a5240"
+
+[flanged_mace]
+name = "Flanged Mace"
+slot = "weapon"
+kind = "mace"
+level = 10
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 12 }
+color = "#9aa0a8"
+
+[morning_star]
+name = "Morning Star"
+slot = "weapon"
+kind = "mace"
+level = 22
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 15 }
+color = "#7a7f88"
+
+[templar_mace]
+name = "Templar Mace"
+slot = "weapon"
+kind = "mace"
+level = 38
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 18 }
+color = "#e0c870"
+glow = 0.15
+
+[dread_hammer]
+name = "Dread Hammer"
+slot = "weapon"
+kind = "mace"
+level = 55
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 20 }
+color = "#4a4048"
+glow = 0.35
+
+[sunfall_mace]
+name = "Sunfall Mace"
+slot = "weapon"
+kind = "mace"
+level = 75
+phys = [8, 14]
+aps = 1.2
+crit = 5
+reach = 0.95
+two_hand = false
+implicit = { phys_inc = 22 }
+color = "#ffd25a"
+glow = 0.7
+
+[shiv]
+name = "Shiv"
+slot = "weapon"
+kind = "dagger"
+level = 1
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 25 }
+color = "#a09488"
+
+[stiletto]
+name = "Stiletto"
+slot = "weapon"
+kind = "dagger"
+level = 10
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 31 }
+color = "#d0d4dc"
+
+[kris]
+name = "Kris"
+slot = "weapon"
+kind = "dagger"
+level = 22
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 38 }
+color = "#c8b08a"
+
+[assassins_fang]
+name = "Assassin's Fang"
+slot = "weapon"
+kind = "dagger"
+level = 38
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 44 }
+color = "#9ae07a"
+glow = 0.15
+
+[shadow_edge]
+name = "Shadow Edge"
+slot = "weapon"
+kind = "dagger"
+level = 55
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 50 }
+color = "#2a2a38"
+glow = 0.35
+
+[nightglass_dirk]
+name = "Nightglass Dirk"
+slot = "weapon"
+kind = "dagger"
+level = 75
+phys = [4, 8]
+aps = 1.6
+crit = 8
+reach = 0.85
+two_hand = false
+implicit = { crit_chance = 56 }
+color = "#b0e8ff"
+glow = 0.7
+
+[hooks]
+name = "Hooks"
+slot = "weapon"
+kind = "claw"
+level = 1
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 2 }
+color = "#8a8076"
+
+[tiger_claw]
+name = "Tiger Claw"
+slot = "weapon"
+kind = "claw"
+level = 10
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 2 }
+color = "#c8ccd4"
+
+[ripper]
+name = "Ripper"
+slot = "weapon"
+kind = "claw"
+level = 22
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 3 }
+color = "#d06a4a"
+
+[gutting_claw]
+name = "Gutting Claw"
+slot = "weapon"
+kind = "claw"
+level = 38
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 4 }
+color = "#b03a3a"
+glow = 0.15
+
+[wraith_talons]
+name = "Wraith Talons"
+slot = "weapon"
+kind = "claw"
+level = 55
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 4 }
+color = "#9ad0d8"
+glow = 0.35
+
+[abyssal_claws]
+name = "Abyssal Claws"
+slot = "weapon"
+kind = "claw"
+level = 75
+phys = [5, 9]
+aps = 1.6
+crit = 6.5
+reach = 0.8
+two_hand = false
+implicit = { life_on_hit = 4 }
+color = "#6a3aa0"
+glow = 0.7
+
+[twig_wand]
+name = "Twig Wand"
+slot = "weapon"
+kind = "wand"
+level = 1
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 12 }
+color = "#8a6a48"
+
+[bone_wand]
+name = "Bone Wand"
+slot = "weapon"
+kind = "wand"
+level = 10
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 15 }
+color = "#e8e0c8"
+
+[ember_wand]
+name = "Ember Wand"
+slot = "weapon"
+kind = "wand"
+level = 22
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 18 }
+color = "#ff7a3a"
+
+[runic_wand]
+name = "Runic Wand"
+slot = "weapon"
+kind = "wand"
+level = 38
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 21 }
+color = "#7aa8ff"
+glow = 0.15
+
+[crystal_wand]
+name = "Crystal Wand"
+slot = "weapon"
+kind = "wand"
+level = 55
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 24 }
+color = "#b8f0ff"
+glow = 0.35
+
+[prism_wand]
+name = "Prism Wand"
+slot = "weapon"
+kind = "wand"
+level = 75
+phys = [4, 7]
+aps = 1.5
+crit = 7
+reach = 0.8
+two_hand = false
+implicit = { spell_inc = 27 }
+color = "#ff9aff"
+glow = 0.7
+
+[bastard_sword]
+name = "Bastard Sword"
+slot = "weapon"
+kind = "greatsword"
+level = 1
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 14 }
+color = "#9c8f84"
+
+[zweihander]
+name = "Zweihander"
+slot = "weapon"
+kind = "greatsword"
+level = 10
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 18 }
+color = "#c9ced8"
+
+[executioner]
+name = "Executioner"
+slot = "weapon"
+kind = "greatsword"
+level = 22
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 21 }
+color = "#7a7078"
+
+[colossus_blade]
+name = "Colossus Blade"
+slot = "weapon"
+kind = "greatsword"
+level = 38
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 24 }
+color = "#d8dce4"
+glow = 0.15
+
+[doomsayer]
+name = "Doomsayer"
+slot = "weapon"
+kind = "greatsword"
+level = 55
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 28 }
+color = "#5a2a2a"
+glow = 0.35
+
+[worldsplitter]
+name = "Worldsplitter"
+slot = "weapon"
+kind = "greatsword"
+level = 75
+phys = [13, 22]
+aps = 1.1
+crit = 5
+reach = 1.25
+two_hand = true
+implicit = { melee_inc = 32 }
+color = "#c4f0ff"
+glow = 0.7
+
+[mallet]
+name = "Mallet"
+slot = "weapon"
+kind = "maul"
+level = 1
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 8 }
+color = "#7a5c42"
+
+[sledge]
+name = "Sledge"
+slot = "weapon"
+kind = "maul"
+level = 10
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 10 }
+color = "#8a8f99"
+
+[earthbreaker]
+name = "Earthbreaker"
+slot = "weapon"
+kind = "maul"
+level = 22
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 12 }
+color = "#6a6460"
+
+[titan_maul]
+name = "Titan Maul"
+slot = "weapon"
+kind = "maul"
+level = 38
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 14 }
+color = "#a8aab0"
+glow = 0.15
+
+[cinder_maul]
+name = "Cinder Maul"
+slot = "weapon"
+kind = "maul"
+level = 55
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 16 }
+color = "#ff6a2a"
+glow = 0.35
+
+[mountains_fall]
+name = "Mountain's Fall"
+slot = "weapon"
+kind = "maul"
+level = 75
+phys = [16, 26]
+aps = 0.95
+crit = 5
+reach = 1.15
+two_hand = true
+implicit = { phys_inc = 18 }
+color = "#e8e0c0"
+glow = 0.7
+
+[pike]
+name = "Pike"
+slot = "weapon"
+kind = "spear"
+level = 1
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 6 }
+color = "#9c8f84"
+
+[partisan]
+name = "Partisan"
+slot = "weapon"
+kind = "spear"
+level = 10
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 8 }
+color = "#c9ced8"
+
+[glaive]
+name = "Glaive"
+slot = "weapon"
+kind = "spear"
+level = 22
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 9 }
+color = "#b8bcc4"
+
+[halberd]
+name = "Halberd"
+slot = "weapon"
+kind = "spear"
+level = 38
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 10 }
+color = "#a0a4ac"
+glow = 0.15
+
+[dragon_lance]
+name = "Dragon Lance"
+slot = "weapon"
+kind = "spear"
+level = 55
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 12 }
+color = "#e05a30"
+glow = 0.35
+
+[comet_spear]
+name = "Comet Spear"
+slot = "weapon"
+kind = "spear"
+level = 75
+phys = [10, 18]
+aps = 1.25
+crit = 5.5
+reach = 1.4
+two_hand = true
+implicit = { attack_speed = 14 }
+color = "#9ae0ff"
+glow = 0.7
+
+[quarterstaff]
+name = "Quarterstaff"
+slot = "weapon"
+kind = "staff"
+level = 1
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 20 }
+color = "#7a5a3a"
+
+[oak_staff]
+name = "Oak Staff"
+slot = "weapon"
+kind = "staff"
+level = 10
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 25 }
+color = "#8a6a40"
+
+[serpent_staff]
+name = "Serpent Staff"
+slot = "weapon"
+kind = "staff"
+level = 22
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 30 }
+color = "#5a8a4a"
+
+[arcane_staff]
+name = "Arcane Staff"
+slot = "weapon"
+kind = "staff"
+level = 38
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 35 }
+color = "#7a8aff"
+glow = 0.15
+
+[storm_staff]
+name = "Storm Staff"
+slot = "weapon"
+kind = "staff"
+level = 55
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 40 }
+color = "#ffe85a"
+glow = 0.35
+
+[astral_staff]
+name = "Astral Staff"
+slot = "weapon"
+kind = "staff"
+level = 75
+phys = [8, 15]
+aps = 1.2
+crit = 6
+reach = 1.2
+two_hand = true
+implicit = { spell_inc = 45 }
+color = "#c08aff"
+glow = 0.7
+
+[leather_cap]
+name = "Leather Cap"
+slot = "helmet"
+kind = "helm"
+level = 1
+armor = 6
+color = "#7a5a3a"
+look = "cap"
+
+[iron_helm]
+name = "Iron Helm"
+slot = "helmet"
+kind = "helm"
+level = 10
+armor = 6
+color = "#8a8f99"
+look = "helm"
+
+[great_helm]
+name = "Great Helm"
+slot = "helmet"
+kind = "helm"
+level = 22
+armor = 6
+color = "#a3a8b0"
+look = "great"
+
+[warlord_crown]
+name = "Warlord Crown"
+slot = "helmet"
+kind = "helm"
+level = 38
+armor = 6
+color = "#c9a54a"
+look = "crown"
+glow = 0.09
+
+[eclipse_helm]
+name = "Eclipse Helm"
+slot = "helmet"
+kind = "helm"
+level = 55
+armor = 6
+color = "#5a4a7a"
+look = "horned"
+glow = 0.21
+
+[seraph_helm]
+name = "Seraph Helm"
+slot = "helmet"
+kind = "helm"
+level = 75
+armor = 6
+color = "#e8e2c8"
+look = "halo"
+glow = 0.42
+
+[padded_vest]
+name = "Padded Vest"
+slot = "body"
+level = 1
+armor = 14
+color = "#6b4f35"
+look = "vest"
+
+[chain_shirt]
+name = "Chain Shirt"
+slot = "body"
+level = 10
+armor = 14
+color = "#7d838c"
+look = "mail"
+
+[scale_hauberk]
+name = "Scale Hauberk"
+slot = "body"
+level = 22
+armor = 14
+color = "#8c7a55"
+look = "scale"
+
+[plate_cuirass]
+name = "Plate Cuirass"
+slot = "body"
+level = 38
+armor = 14
+color = "#a8adb5"
+look = "plate"
+glow = 0.09
+
+[obsidian_mail]
+name = "Obsidian Mail"
+slot = "body"
+level = 55
+armor = 14
+color = "#2e2a33"
+look = "plate_cape"
+glow = 0.21
+
+[celestial_plate]
+name = "Celestial Plate"
+slot = "body"
+level = 75
+armor = 14
+color = "#e6dfc4"
+look = "plate_cape"
+glow = 0.42
+
+[wraps]
+name = "Wraps"
+slot = "gloves"
+level = 1
+armor = 4
+implicit = { attack_speed = 3 }
+color = "#8a7a62"
+
+[leather_gloves]
+name = "Leather Gloves"
+slot = "gloves"
+level = 10
+armor = 4
+implicit = { attack_speed = 4 }
+color = "#6b4f35"
+
+[chain_gauntlets]
+name = "Chain Gauntlets"
+slot = "gloves"
+level = 22
+armor = 4
+implicit = { attack_speed = 4 }
+color = "#7d838c"
+
+[plated_gauntlets]
+name = "Plated Gauntlets"
+slot = "gloves"
+level = 38
+armor = 4
+implicit = { attack_speed = 5 }
+color = "#a8adb5"
+
+[dread_grips]
+name = "Dread Grips"
+slot = "gloves"
+level = 55
+armor = 4
+implicit = { attack_speed = 6 }
+color = "#3a2a3a"
+
+[astral_gauntlets]
+name = "Astral Gauntlets"
+slot = "gloves"
+level = 75
+armor = 4
+implicit = { attack_speed = 7 }
+color = "#d8d0f0"
+
+[sandals]
+name = "Sandals"
+slot = "boots"
+level = 1
+armor = 5
+implicit = { move_speed = 4 }
+color = "#8a7a62"
+
+[leather_boots]
+name = "Leather Boots"
+slot = "boots"
+level = 10
+armor = 5
+implicit = { move_speed = 5 }
+color = "#5a4030"
+
+[chain_boots]
+name = "Chain Boots"
+slot = "boots"
+level = 22
+armor = 5
+implicit = { move_speed = 6 }
+color = "#7d838c"
+
+[plated_greaves]
+name = "Plated Greaves"
+slot = "boots"
+level = 38
+armor = 5
+implicit = { move_speed = 7 }
+color = "#a8adb5"
+
+[shadow_striders]
+name = "Shadow Striders"
+slot = "boots"
+level = 55
+armor = 5
+implicit = { move_speed = 8 }
+color = "#2a2a38"
+
+[comet_treads]
+name = "Comet Treads"
+slot = "boots"
+level = 75
+armor = 5
+implicit = { move_speed = 9 }
+color = "#9ad8ff"
+
+[rope_belt]
+name = "Rope Belt"
+slot = "belt"
+level = 1
+implicit = { life = 10 }
+color = "#9a8a62"
+
+[leather_belt]
+name = "Leather Belt"
+slot = "belt"
+level = 10
+implicit = { life = 12 }
+color = "#6b4f35"
+
+[studded_belt]
+name = "Studded Belt"
+slot = "belt"
+level = 22
+implicit = { life = 15 }
+color = "#7a5a3a"
+
+[heavy_belt]
+name = "Heavy Belt"
+slot = "belt"
+level = 38
+implicit = { life = 18 }
+color = "#5a4030"
+
+[chain_sash]
+name = "Chain Sash"
+slot = "belt"
+level = 55
+implicit = { life = 20 }
+color = "#8a8f99"
+
+[titan_girdle]
+name = "Titan Girdle"
+slot = "belt"
+level = 75
+implicit = { life = 22 }
+color = "#c9a54a"
+
+[bone_charm]
+name = "Bone Charm"
+slot = "amulet"
+level = 1
+implicit = { all_attributes = 5 }
+color = "#e8e0c8"
+
+[copper_amulet]
+name = "Copper Amulet"
+slot = "amulet"
+level = 10
+implicit = { all_attributes = 6 }
+color = "#c08050"
+
+[jade_amulet]
+name = "Jade Amulet"
+slot = "amulet"
+level = 22
+implicit = { all_attributes = 8 }
+color = "#5ac080"
+
+[gold_amulet]
+name = "Gold Amulet"
+slot = "amulet"
+level = 38
+implicit = { all_attributes = 9 }
+color = "#ffd25a"
+
+[onyx_amulet]
+name = "Onyx Amulet"
+slot = "amulet"
+level = 55
+implicit = { all_attributes = 10 }
+color = "#3a3040"
+
+[star_pendant]
+name = "Star Pendant"
+slot = "amulet"
+level = 75
+implicit = { all_attributes = 11 }
+color = "#c4e8ff"
+
+[iron_ring]
+name = "Iron Ring"
+slot = "ring"
+level = 1
+implicit = { all_res = 6 }
+color = "#8a8f99"
+
+[copper_ring]
+name = "Copper Ring"
+slot = "ring"
+level = 10
+implicit = { all_res = 8 }
+color = "#c08050"
+
+[silver_ring]
+name = "Silver Ring"
+slot = "ring"
+level = 22
+implicit = { all_res = 9 }
+color = "#d8dce4"
+
+[gold_ring]
+name = "Gold Ring"
+slot = "ring"
+level = 38
+implicit = { all_res = 10 }
+color = "#ffd25a"
+
+[moonstone_ring]
+name = "Moonstone Ring"
+slot = "ring"
+level = 55
+implicit = { all_res = 12 }
+color = "#b8d8ff"
+
+[prismatic_ring]
+name = "Prismatic Ring"
+slot = "ring"
+level = 75
+implicit = { all_res = 14 }
+color = "#ff9aff"
+
+[buckler]
+name = "Buckler"
+slot = "offhand"
+kind = "shield"
+level = 1
+armor = 10
+implicit = { block = 14 }
+color = "#8a6a3a"
+
+[kite_shield]
+name = "Kite Shield"
+slot = "offhand"
+kind = "shield"
+level = 10
+armor = 10
+implicit = { block = 18 }
+color = "#7a5030"
+
+[tower_shield]
+name = "Tower Shield"
+slot = "offhand"
+kind = "shield"
+level = 22
+armor = 10
+implicit = { block = 21 }
+color = "#8a8f99"
+
+[templar_shield]
+name = "Templar Shield"
+slot = "offhand"
+kind = "shield"
+level = 38
+armor = 10
+implicit = { block = 24 }
+color = "#c9b37a"
+glow = 0.09
+
+[bastion]
+name = "Bastion"
+slot = "offhand"
+kind = "shield"
+level = 55
+armor = 10
+implicit = { block = 28 }
+color = "#4a4058"
+glow = 0.21
+
+[aegis]
+name = "Aegis"
+slot = "offhand"
+kind = "shield"
+level = 75
+armor = 10
+implicit = { block = 32 }
+color = "#e8e0c0"
+glow = 0.42
+
+[candle]
+name = "Candle"
+slot = "offhand"
+kind = "focus"
+level = 1
+implicit = { spell_inc = 8 }
+color = "#9ad8ff"
+
+[crystal_shard]
+name = "Crystal Shard"
+slot = "offhand"
+kind = "focus"
+level = 10
+implicit = { spell_inc = 10 }
+color = "#b8f0ff"
+
+[spirit_lantern]
+name = "Spirit Lantern"
+slot = "offhand"
+kind = "focus"
+level = 22
+implicit = { spell_inc = 12 }
+color = "#ffd27a"
+
+[skull_focus]
+name = "Skull Focus"
+slot = "offhand"
+kind = "focus"
+level = 38
+implicit = { spell_inc = 14 }
+color = "#e0e0d0"
+glow = 0.09
+
+[void_orb]
+name = "Void Orb"
+slot = "offhand"
+kind = "focus"
+level = 55
+implicit = { spell_inc = 16 }
+color = "#9a6aff"
+glow = 0.21
+
+[sun_orb]
+name = "Sun Orb"
+slot = "offhand"
+kind = "focus"
+level = 75
+implicit = { spell_inc = 18 }
+color = "#ffe9a0"
+glow = 0.42

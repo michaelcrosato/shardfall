@@ -61,6 +61,9 @@ pub struct InputFrame {
     /// Buttons that went down since the previous tick (never lost, even for short taps).
     #[serde(default)]
     pub pressed: u32,
+    /// A menu action this tick (Shardfall: equip, sell, travel...), queued one per tick.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cmd: Option<crate::arpg::GameCmd>,
 }
 
 impl InputFrame {
