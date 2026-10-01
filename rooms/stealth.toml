@@ -1,0 +1,300 @@
+# Grid Stealth: a night heist in four sections, played one cell per step on the grid model. Guards
+# are [[npc]]s with `ai = { type = "guard" }`; their vision cones are drawn on the floor (yellow ->
+# red as they notice you). Walls, pillars and crates block line of sight, tables only hide a
+# crouching player, and crouching shortens a guard's range to 60%. A full alert meter = "SPOTTED!"
+# and back to the last checkpoint.
+#   rows 24-28  1 CORRIDOR PATROL  one guard paces a 2-wide corridor; 2-deep alcoves to wait in
+#                                  (it narrows to one cell before the exit, so you cannot squeeze past)
+#   rows 10-20  2 GUARD HALL       a sentry that sweeps left and right + a guard pacing the west
+#                                  end, in a field of pillars (they cut the cones)
+#   rows 10-20  3 JUNCTION         a wide-cone guard on watch; the only way on is a crouch lane
+#                                  (low tables hide you, a 1.3 m duct needs crouching)
+#   rows  1-8   4 CAMERA HALL      two sweeping cameras, pillars and crates, the VAULT (north-east)
+# Map key: # wall (3 m)  l floor (lobby + corridor)  b c d floors of S2 / S3 / S4  A alcove
+# S START  K J N CHECKPOINTS 1-3  V FINISH  P p pillars (3 m)  C k X crates (1.4-1.5 m)
+# T table (1.15 m)  D duct (ceiling at 1.3 m)  G gold floor.
+# Facts the layout relies on (see stealth.rs): a guard's eye is at 1.3 m, the target point of a
+# standing player is 1.27 m and of a crouching one 0.86 m, so a 1.15 m table hides only the
+# crouching player; a guard that is paused (or a camera) stops looking around the moment it sees
+# you, so glimpses are not forgiven; the alert meter fills in 0.4 s and drains at 0.6/s. A
+# stationary guard faces the direction of its single patrol point (a point 0.25 m away from
+# where it stands). Guards walk with the room's grid model, i.e. at your own running speed.
+# Keep the lobby and the corridor on the same floor tile ('l'): with two different tiles there
+# the player is stuck for the first 1.5 s after the room loads (an engine quirk).
+name = "Grid Stealth"
+about = "A cell-by-cell night heist: sneak from the lobby to the VAULT past patrolling guards and sweeping cameras whose vision cones are painted on the floor, using alcoves, pillars, crates and crouching. Being seen fills an alert meter; when it is full you are sent back to the last checkpoint."
+try = [
+  "Walk out of the green START pad to start the heist clock, then reach the checkered VAULT (WASD moves one cell per step)",
+  "1 CORRIDOR PATROL: wait in an alcove (go to the back of it) while the guard walks past, then follow behind it: guards only see forwards",
+  "2 GUARD HALL: watch the sweeping cones; pillars cut them off, so hop from cover to cover and move when the light points away",
+  "3 JUNCTION: hold C to crouch (guard range drops to 60%) and take the lane behind the low tables and under the duct",
+  "4 CAMERA HALL: the cameras sweep left and right: cross each lit stripe while it points away, and use the crates and pillars",
+  "A yellow cone turns red as a guard notices you: step out of it quickly and the meter drains again",
+  "Blue CHECKPOINT flags keep your progress: SPOTTED! sends you back to the last one you touched (or to the lobby); crouching is slower, so plan each hop before you leave cover",
+]
+wing = "genre"
+order = 2
+primary_device = "keyboard_mouse"
+movement_model = "grid"
+# A gap in the south wall (row 29) right below the START pad.
+entrance = { at = [3, 29], facing = "south" }
+
+[camera]
+tilt = 70.0
+distance = 27.0
+
+# A night heist: dim moonlight, dark sky (the cones read best on dark floors).
+[view]
+"light.sun_intensity" = 0.32
+"light.ambient" = 0.65
+"light.sun_elevation" = 48
+sky = "#0d1424"
+
+[params]
+"movement.allow_jump" = false       # no hopping over cover
+"movement.grid_step_time" = 0.25    # 4 cells/s; guards use the same model, so they walk at this speed too
+"movement.crouch_mult" = 0.6        # crouched: 2.4 cells/s
+
+[layout]
+origin = [-20.0, 0.0, -15.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+########################################
+#ddddddddddddddddddddddddddddddddd######
+#ddddddddddddddddddddddddddddddddd#GGGG#
+#ddddddddpdddddpdddddpdddddpdddddd#GVVV#
+#dddddddddddkkddddddddddkkdddddddddGVVV#
+#dddddddddddddddddkkddddddddddkkdddGVVV#
+#ddddddddpdddddpdddddpdddddpdddddd#GVVV#
+#ddddddddddddddddddddddddddddddddd#GGGG#
+#ddNNddddddddddddddddddddddddddddd######
+###cc###################################
+##ccccDDDDccc#bbbbbbbbbbbbbbbbbbbbPbbbb#
+##TTTTTTTTTTc#bbbbbbPbbbbbbbbbbbbbbbbbb#
+##ccccccccccc#bbbbbbbbbbPbbbbbbPbbbbPbb#
+##ccccccccccc#bbbbbbbbbbbbbbbbbbbbbbbbb#
+##cccccccccccbJJbbbbbbbbbbbbbbbbbbPbbbb#
+##cccccccccccbJJbbbbbPbbbbbbbbPbbbbbbbb#
+##ccccccccccc#bbbbbbbbbbbbbbbbbbbbbbbbb#
+##ccccccccccc#bbbbbbbbbbbbbbbbbbbbPbbbb#
+##ccccccccccc#bbbbbbbbbbPbbbbbbPbbbbbbb#
+##XXcccccccXX#bbbbbbPbbbbbbbbbbbbbbbbbb#
+##XccccccccXX#bbbbbbbbbbbbbbbbbbbbbbbbb#
+####################################ll##
+####################################KK##
+####################################KK##
+##############A###A###A###A###A#####ll##
+#llllll#######A###A###A###A###A#####ll##
+#lllllllllllllllllllllllllllllll####ll##
+#lSSSlllllllllllllllllllllllllllllllll##
+#lSSSll#################################
+###l####################################
+'''
+
+# --- tiles ------------------------------------------------------------------------------------
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2c3140" }, { y0 = 0, y1 = 3.0, color = "#7a8499" }]
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#47546e" }]
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5d6e96" }]
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#473f5e" }]
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4455" }]
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2f5659" }]
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b8932f" }]
+
+# START: leaving it starts the heist clock. Checkpoints 1-3 sit in the safe rooms between sections.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#47546e" }]
+zone = { kind = "start", course = "heist", label = "START", facing = "east" }
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#47546e" }]
+zone = { kind = "checkpoint", course = "heist", label = "CP 1", facing = "north" }
+[layout.legend.'J']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#473f5e" }]
+zone = { kind = "checkpoint", course = "heist", label = "CP 2", facing = "west" }
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4455" }]
+zone = { kind = "checkpoint", course = "heist", label = "CP 3", facing = "north" }
+[layout.legend.'V']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b8932f" }]
+zone = { kind = "finish", course = "heist", label = "VAULT" }
+
+# Cover: pillars (3 m) and crates (1.4-1.5 m) block sight for everybody.
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#473f5e" }, { y0 = 0, y1 = 3.0, color = "#a4adbd", rounded = true }]
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#473f5e" }, { y0 = 0, y1 = 1.5, color = "#b88a55" }]
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2f5659" }, { y0 = 0, y1 = 3.0, color = "#a4adbd", rounded = true }]
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2f5659" }, { y0 = 0, y1 = 1.5, color = "#b88a55" }]
+[layout.legend.'X']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4455" }, { y0 = 0, y1 = 1.4, color = "#b88a55" }]
+
+# Low tables (1.15 m): a guard's eye is at 1.3 m, so they hide a crouching player (chest at 0.86 m)
+# but not a standing one (1.27 m).
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4455" }, { y0 = 0, y1 = 1.15, color = "#8a6a45" }]
+# Duct: a ceiling 1.3 m up. A standing character (1.7 m) cannot enter, a crouching one (1.15 m) can.
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#5c4455" }, { y0 = 1.3, y1 = 2.8, color = "#68727f" }]
+
+# Floor signs: the sections, and the crouch hint (colours are light on the dark floors).
+[[label]]
+text = "NIGHT HEIST"
+pos = [3.5, 0.03, 25.7]
+size = 0.5
+color = "#c9d3ee"
+
+[[label]]
+text = "WASD: ONE CELL PER STEP"
+pos = [3.5, 0.03, 26.15]
+size = 0.22
+color = "#aab6d6"
+
+[[label]]
+text = "HOLD CROUCH: GUARDS SEE LESS"
+pos = [3.5, 0.03, 26.6]
+size = 0.25
+color = "#f2d46b"
+
+[[label]]
+text = "1  CORRIDOR PATROL: WAIT IN THE ALCOVES"
+pos = [22.0, 0.03, 26.5]
+size = 0.42
+color = "#c9d3ee"
+
+[[label]]
+text = "2  GUARD HALL: COVER BLOCKS SIGHT"
+pos = [27.0, 0.03, 20.4]
+size = 0.42
+color = "#d6c9ee"
+
+[[label]]
+text = "3  JUNCTION"
+pos = [7.5, 0.03, 18.2]
+size = 0.55
+color = "#eec9d6"
+
+[[label]]
+text = "HOLD CROUCH: GUARDS SEE LESS"
+pos = [8.0, 0.03, 17.2]
+size = 0.3
+color = "#f2d46b"
+
+[[label]]
+text = "CROUCH LANE"
+pos = [10.0, 0.03, 12.6]
+size = 0.3
+color = "#f2d46b"
+
+[[label]]
+text = "4  CAMERA HALL"
+pos = [8.0, 0.03, 7.5]
+size = 0.5
+color = "#bfe3e0"
+
+# Guards (layout space, feet). They patrol cell centres and look around at every stop. A
+# stationary guard faces the direction of its single point (offset 0.25 m from where it stands).
+[[npc]]
+name = "guard1"
+pos = [12.5, 0, 27.5]
+yaw = 270
+ai = { type = "guard", points = [[11.5, 27.5], [33.5, 27.5]], pause = 3, range = 6.5, angle = 140 }
+look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
+
+[[npc]]
+name = "guard2a"
+pos = [27.5, 0, 15.5]
+yaw = 90
+ai = { type = "guard", points = [[27.75, 15.5]], pause = 1000, range = 11, angle = 70 }
+look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
+
+[[npc]]
+name = "guard2b"
+pos = [17.5, 0, 11.5]
+yaw = 0
+ai = { type = "guard", points = [[17.5, 12.5], [17.5, 18.5]], pause = 2.5, range = 8, angle = 90 }
+look = { shirt = "#2a3350", pants = "#1b2030", accent = "#d94a4a" }
+
+[[npc]]
+name = "guard3"
+pos = [5.5, 0, 15.5]
+yaw = 90
+ai = { type = "guard", points = [[5.75, 15.5]], pause = 1000, range = 7.5, angle = 110 }
+look = { shirt = "#2a3350", pants = "#1b2030", accent = "#e8c547" }
+
+[[npc]]
+name = "camera1"
+kind = "blob"
+pos = [33.5, 0, 1.5]
+yaw = 0
+ai = { type = "guard", points = [[33.25, 1.6]], pause = 1000, range = 10, angle = 60 }
+look = { scale = 0.6, skin = "#d8403a", shirt = "#d8403a", accent = "#ffffff" }
+
+[[npc]]
+name = "camera2"
+kind = "blob"
+pos = [17.5, 0, 8.5]
+yaw = 0
+ai = { type = "guard", points = [[17.5, 8.25]], pause = 1000, range = 10, angle = 60 }
+look = { scale = 0.6, skin = "#d8403a", shirt = "#d8403a", accent = "#ffffff" }
+
+
+# Gold in the vault (decoration only; rows 2 and 7 are outside the FINISH pad).
+
+[[object]]
+name = "gold1"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [35.7, 0.15, 2.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
+
+[[object]]
+name = "gold2"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [36.7, 0.15, 2.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
+
+[[object]]
+name = "gold3"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [37.7, 0.15, 2.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
+
+[[object]]
+name = "gold4"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [35.7, 0.15, 7.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
+
+[[object]]
+name = "gold5"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [36.7, 0.15, 7.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
+
+[[object]]
+name = "gold6"
+shape = { type = "box", half = [0.4, 0.15, 0.22] }
+pos = [37.7, 0.15, 7.5]
+color = "#e8c547"
+emissive = 1.6
+body = "fixed"
