@@ -165,6 +165,10 @@ pub struct App {
     game_ui: crate::arpg_items::GameUi,
     /// When the hero was last saved.
     last_save: Instant,
+    /// The gamepad's menu cursor (egui points) and the pointer events it makes this frame.
+    pad_cursor: Option<Vec2>,
+    pad_events: Vec<egui::Event>,
+    pad_buttons: (bool, bool, bool),
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
     game_place: Option<pav_core::arpg::Place>,
     #[cfg(not(target_arch = "wasm32"))]
@@ -225,6 +229,9 @@ impl App {
             game_saved: None,
             game_ui: Default::default(),
             last_save: Instant::now(),
+            pad_cursor: None,
+            pad_events: Vec::new(),
+            pad_buttons: (false, false, false),
             game_frame: None,
             game_place: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -316,6 +323,19 @@ impl App {
         self.hud.errors = sim.state.world.errors.clone();
         self.watcher = RoomWatcher::start();
         #[cfg(not(target_arch = "wasm32"))]
+        if !s.pad_script.is_empty() {
+            match std::fs::read_to_string(&s.pad_script)
+                .map_err(|e| e.to_string())
+                .and_then(|t| crate::input::PadScript::parse(&t))
+            {
+                Ok(p) => {
+                    log::info!("pad script: {} steps from {}", p.steps.len(), s.pad_script);
+                    self.input.pad_script = Some(p);
+                }
+                Err(e) => log::error!("pad script {}: {e}", s.pad_script),
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         if !s.bridge.is_empty() {
             self.bridge = stage("agent bridge", || match crate::bridge::Bridge::start(&s.bridge) {
                 Ok(b) => {
@@ -329,6 +349,99 @@ impl App {
         self.gfx = Some(gfx);
         self.egui_state = Some(egui_state);
         Ok(())
+    }
+
+    /// Whether the gamepad drives a menu cursor now (a game window or the pause menu is open).
+    fn pad_ui_active(&self) -> bool {
+        self.input.last_device == Device::Gamepad && (self.menu_open || self.game_ui.any_open())
+    }
+
+    /// Gamepad in menus: D-pad down opens the hero's panels (LB / RB switch them), B closes;
+    /// while a window is open the left stick (or D-pad) moves a cursor, A and X click left and
+    /// right, the right stick scrolls, and the game gets no pad input.
+    fn pad_menus(&mut self, dt: f32) {
+        use gilrs::Button as B;
+        let taps = std::mem::take(&mut self.input.pad.taps);
+        let game = self.game_frame.is_some();
+        if self.input.last_device != Device::Gamepad {
+            self.pad_cursor = None;
+            return;
+        }
+        let ui = &mut self.game_ui;
+        if game && !self.menu_open && taps.contains(&B::DPadDown) && !ui.any_open() {
+            ui.inventory = true;
+            return;
+        }
+        if !self.pad_ui_active() {
+            self.pad_cursor = None;
+            if self.pad_buttons.2 {
+                self.pad_events.push(egui::Event::ModifiersChanged(Default::default()));
+            }
+            self.pad_buttons = (false, false, false);
+            return;
+        }
+        let ui = &mut self.game_ui;
+        // Switch between the hero's panels.
+        let cycle = taps.contains(&B::RightTrigger) as i32 - taps.contains(&B::LeftTrigger) as i32;
+        if cycle != 0 && game && !self.menu_open {
+            let now = [ui.inventory, ui.character, ui.skills, ui.tree.open].iter().position(|x| *x).unwrap_or(0) as i32;
+            let next = (now + cycle).rem_euclid(4);
+            ui.inventory = next == 0;
+            ui.character = next == 1;
+            ui.skills = next == 2;
+            ui.tree.open = next == 3;
+        }
+        if taps.contains(&B::East) {
+            if ui.any_open() {
+                ui.close_all();
+            } else {
+                self.set_menu(false);
+            }
+        }
+        // The cursor.
+        let screen = self.egui_ctx.content_rect();
+        let mut p = self.pad_cursor.unwrap_or(Vec2::new(screen.center().x, screen.center().y));
+        let stick = self.input.pad.left;
+        let speed = 260.0 + 900.0 * stick.length().powi(2);
+        p += Vec2::new(stick.x, -stick.y) * speed * dt;
+        for (b, d) in [(B::DPadLeft, Vec2::NEG_X), (B::DPadRight, Vec2::X), (B::DPadUp, Vec2::NEG_Y), (B::DPadDown, Vec2::Y)] {
+            if taps.contains(&b) {
+                p += d * 40.0;
+            }
+        }
+        p = p.clamp(Vec2::new(screen.min.x, screen.min.y), Vec2::new(screen.max.x - 2.0, screen.max.y - 2.0));
+        let pos = egui::pos2(p.x, p.y);
+        self.pad_events.push(egui::Event::PointerMoved(pos));
+        let (a, x) = (self.input.pad.a_held, self.input.pad.x_held);
+        let modifiers = egui::Modifiers { shift: self.input.pad.y_held, ..Default::default() };
+        if self.input.pad.y_held != self.pad_buttons.2 {
+            self.pad_events.push(egui::Event::ModifiersChanged(modifiers));
+        }
+        for (now, was, button) in
+            [(a, self.pad_buttons.0, egui::PointerButton::Primary), (x, self.pad_buttons.1, egui::PointerButton::Secondary)]
+        {
+            if now != was {
+                self.pad_events.push(egui::Event::PointerButton { pos, button, pressed: now, modifiers });
+            }
+        }
+        self.pad_buttons = (a, x, self.input.pad.y_held);
+        let scroll = self.input.pad.right.y;
+        if scroll.abs() > 0.1 {
+            self.pad_events.push(egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                phase: egui::TouchPhase::Move,
+                delta: egui::vec2(0.0, scroll * 900.0 * dt),
+                modifiers: Default::default(),
+            });
+        }
+        self.pad_cursor = Some(p);
+        // Menus have the pad: nothing reaches the game.
+        let pad = &mut self.input.pad;
+        pad.left = Vec2::ZERO;
+        pad.right = Vec2::ZERO;
+        pad.held = 0;
+        pad.zoom = 0.0;
+        pad.rotate = 0.0;
     }
 
     fn toast(&mut self, msg: impl Into<String>) {
@@ -604,6 +717,10 @@ impl App {
         if self.input.pad.map_pressed {
             self.game_ui.map = !self.game_ui.map;
         }
+        self.pad_menus(dt);
+        let pad = self.input.last_device == Device::Gamepad;
+        self.game_ui.pad = pad;
+        self.game_ui.tree.pad = pad;
         self.rig.params.yaw = (self.rig.params.yaw + self.input.pad.rotate * 90.0 * dt + 540.0).rem_euclid(360.0) - 180.0;
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 
@@ -864,7 +981,9 @@ impl App {
         let guide_visible = self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
         let state = self.egui_state.as_mut().unwrap();
-        let raw = state.take(&gfx.window);
+        let mut raw = state.take(&gfx.window);
+        raw.events.append(&mut self.pad_events);
+        let pad_cursor = self.pad_cursor;
         let mut show_boot = self.show_boot;
         let menu_open = self.menu_open;
         let scene_name = self.scene_name.clone();
@@ -920,6 +1039,17 @@ impl App {
                 hud.card(&ctx, device);
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
+            if let Some(p) = pad_cursor {
+                // The gamepad's menu cursor, above everything.
+                let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("pad_cursor")));
+                let tip = egui::Pos2::new(p.x, p.y);
+                let pts = vec![tip, tip + egui::vec2(0.0, 22.0), tip + egui::vec2(6.0, 16.5), tip + egui::vec2(15.0, 16.0)];
+                painter.add(egui::Shape::convex_polygon(
+                    pts,
+                    egui::Color32::from_rgb(255, 225, 150),
+                    egui::Stroke::new(1.5, egui::Color32::BLACK),
+                ));
+            }
             physics.ui(&ctx, &hud_ctx, stats.tps, stats.tick_ms);
             crate::hud::hit_flash(&ctx, hud_ctx.hud.invuln);
             feel.ui(

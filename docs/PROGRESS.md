@@ -605,9 +605,21 @@ Windows build.
   genome or a new body plan; reports its anatomy), `levelmap nav=true` (walkable grid and the
   planned way to the exit). Tool captures now use each place's own light (`pav_view::arpg::
   place_look`, shared with the app).
-- Gamepad: D-pad left toggles the map. Browser saves go to local storage.
+- Gamepad: D-pad left toggles the map. Browser saves go to local storage. (Menus: see
+  "Gamepad menus" below.)
 - Tests: tests/feel.rs (gibs, streak bonus, boss entrance), nav unit test (paths round walls,
   flow points the way).
+
+## Gamepad menus — done
+- Every window works on a controller through a virtual cursor (pointer events fed to egui):
+  left stick (speeds up when pushed fully) or D-pad steps move it, A / X are left / right
+  click, holding Y is shift, the right stick scrolls and zooms the tree, B closes. D-pad down
+  opens the hero's panels and LB / RB cycle inventory, character, skills, passive tree. While
+  a window or the menu is open the pad doesn't reach the game. Hints in the windows switch
+  to button names on a pad (`arpg_items::hint`); the menu lists the game's pad controls.
+- `--pad-script FILE` plays a scripted controller (`input::PadScript`), so controller flows
+  are testable without hardware: used to check opening the bag and equipping by A, cycling
+  to the tree, and taking a path with Y+A, with screenshots.
 
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
@@ -641,6 +653,8 @@ Windows build.
 - Hazards take a share of a monster's life (paying back resistances) rather than flat damage,
   so exploiting mechanics stays worthwhile at any depth.
 - The save holds only the hero; places are rebuilt. Travel is the save point.
+- Gamepad menus use a cursor rather than focus-hopping between widgets: it works for every
+  window as written (grids, popups, the tree canvas) and costs no per-window code.
 - Navigation is derived data (never saved): rebuilt on demand from the level's blocks, so
   snapshots stay small and identical whether or not it was built.
 - Balance is judged by a bot campaign, not by feel alone: it's repeatable, and agents can run
