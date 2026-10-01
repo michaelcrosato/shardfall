@@ -291,7 +291,7 @@ fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
 }
 
 /// A shimmering portal: a ring of standing stones around a glowing pool.
-pub(crate) fn portal(sim: &mut Sim, at: Vec3) {
+pub(crate) fn portal(sim: &mut Sim, at: Vec3) -> EntityId {
     let st = &mut sim.state;
     let stone = Color::hex("#4a4650");
     for k in 0..10 {
@@ -324,7 +324,7 @@ pub(crate) fn portal(sim: &mut Sim, at: Vec3) {
     }));
     v.distortion =
         Some(Box::new(DistortDef { kind: "ripple".into(), radius: 1.6, strength: 0.35, period: 1.2, offset: Vec3::Y * 0.4 }));
-    sim.spawn(Spawn::new("portal", at + Vec3::Y * 0.04).visual(v));
+    sim.spawn(Spawn::new("portal", at + Vec3::Y * 0.04).visual(v))
 }
 
 /// A lamp post with a warm light.

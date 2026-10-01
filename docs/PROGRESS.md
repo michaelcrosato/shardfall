@@ -404,7 +404,7 @@ Windows build.
 | G3 Passive tree, all skills | ✅ done |
 | G4 Monster genome, bosses | ✅ done |
 | G5 Town, levels, mechanics, endless | ✅ done |
-| G6 Polish, agent tools, final build | ⏳ next |
+| G6 Polish, agent tools, final build | ✅ done |
 
 ## G1 Combat core — done
 - `pav_core::arpg` lives in `SimState::game` (Option<Box<Game>>): `game_pre` (hero input ->
@@ -576,6 +576,37 @@ Windows build.
   combine and stay stable; each mechanic works; boss seals the exit; waypoints; rewind exact),
   tests/town.rs (townsfolk alive, gambling, brewing, portal, save round-trip).
 
+## G6 Showcase polish, agent tools, final build — done
+- Navigation (`pav_core::nav`): a walkable grid built from the floor blocks, walls, furniture
+  and fixed props (grown by a walker's radius), A* paths smoothed by line of sight, and flow
+  fields. Levels build it once (`LevelState::nav_grid`); monsters chase the hero around walls
+  along a flow field toward the hero's cell (recomputed when the hero changes cell); the bot
+  plans its way to the exit with A*. Both are pure functions of the grid and goal (and the
+  grid ignores things that come and go), so rewind stays exact.
+- Bot: line-of-sight targeting in levels, fat-ray steering, totems first, backing off when
+  nearly dead without potions, never fighting on crumbling floor.
+- Balance (`campaign` runs): monster level is now 1 + 2 per depth (23 at level 12), bosses one
+  above. The bot clears all twelve designed levels in about 90 game-minutes: levels 1-3 in a
+  few minutes each without trouble, boss levels cost it 4-24 deaths (level 12's Frostbound
+  Colossus is the wall), the rest 0-6. Humans dodge better than the bot; it's meant to be
+  challenging, not punishing.
+- Juice: crushing blows (crits, 60%+ of life, shatters) burst monsters into physics chunks of
+  their colours (budgeted); kill streaks (Rampage / Massacre / Annihilation) pay bonus xp; a
+  boss's entrance (banner, hit-stop, shake, shockwave) the first time it sees you; a pillar of
+  light over the way down when it opens; dimmer portals in the dark levels; sconce brackets
+  are ghosts (a sliding hero got wedged under one).
+- Agent tools (`pav_tools/src/agent_tools.rs`): `see` (screenshot with numbered marks on
+  everything that matters and a legend: kind, name, rarity, life, distance, position: visual
+  grounding for agents), `campaign` (the bot plays down through levels, a row per level, with
+  a wall-clock cap), `theme_swatch` (every theme's palette and the endless blends),
+  `turntable`/`animsheet def={...}` (author a creature as JSON on top of any family, boss,
+  genome or a new body plan; reports its anatomy), `levelmap nav=true` (walkable grid and the
+  planned way to the exit). Tool captures now use each place's own light (`pav_view::arpg::
+  place_look`, shared with the app).
+- Gamepad: D-pad left toggles the map. Browser saves go to local storage.
+- Tests: tests/feel.rs (gibs, streak bonus, boss entrance), nav unit test (paths round walls,
+  flow points the way).
+
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
   it, including rewind mid-fight and the live bridge.
@@ -608,3 +639,7 @@ Windows build.
 - Hazards take a share of a monster's life (paying back resistances) rather than flat damage,
   so exploiting mechanics stays worthwhile at any depth.
 - The save holds only the hero; places are rebuilt. Travel is the save point.
+- Navigation is derived data (never saved): rebuilt on demand from the level's blocks, so
+  snapshots stay small and identical whether or not it was built.
+- Balance is judged by a bot campaign, not by feel alone: it's repeatable, and agents can run
+  it after every data change.

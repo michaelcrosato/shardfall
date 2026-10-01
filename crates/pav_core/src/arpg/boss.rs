@@ -71,6 +71,9 @@ pub struct BossState {
     /// Generated bosses carry their own definition seed.
     #[serde(default)]
     pub seed: u64,
+    /// The hero has met it (its entrance played).
+    #[serde(default)]
+    pub met: bool,
 }
 
 /// The boss definition for a key ("gen:<seed>" makes one).
@@ -176,7 +179,7 @@ impl Game {
         let id =
             super::spawn_actor(sim, self, &spec, &def.name, level, Rarity::Unique, feet, pack, Default::default(), Vec::new())?;
         if let Some(a) = self.actors.get_mut(&id) {
-            a.boss = Some(BossState { key: def.key.clone(), phase: 0, seed: def.seed });
+            a.boss = Some(BossState { key: def.key.clone(), phase: 0, seed: def.seed, met: false });
             a.immovable = true;
             if let Some(b) = a.brain.as_mut() {
                 b.aggro = true;
@@ -195,6 +198,32 @@ impl Game {
             let a = &self.actors[&id];
             let st = a.boss.clone().unwrap();
             let Some(def) = boss_def(&d, &st.key, a.level) else { continue };
+            // Its entrance: the moment it notices the hero, time catches its breath.
+            if !st.met && a.brain.as_ref().is_some_and(|b| b.aggro) {
+                let name = a.name.clone();
+                if let Some(b) = self.actors.get_mut(&id).and_then(|a| a.boss.as_mut()) {
+                    b.met = true;
+                }
+                if let Some((feet, _)) = feet_of(sim, id) {
+                    self.hitstop = self.hitstop.max(0.35);
+                    self.shake = (self.shake + 0.9 * sim.config.difficulty.shake).min(1.5);
+                    self.say(if def.title.is_empty() { name } else { format!("{name} · {}", def.title) }, 3.5);
+                    self.effects.push(super::combat::Effect {
+                        kind: super::combat::EffectKind::Ring,
+                        pos: feet,
+                        radius: 9.0,
+                        t: 0.0,
+                        dur: 0.8,
+                        color: [1.0, 0.3, 0.2],
+                        team: super::combat::Team::Neutral,
+                        dmg: None,
+                        dir: Vec3::X,
+                        angle: 360.0,
+                    });
+                    events.push(SimEvent::Slam { pos: feet, radius: 6.0 });
+                }
+            }
+            let a = &self.actors[&id];
             let Some(ph) = def.phases.get(st.phase as usize) else { continue };
             if a.life > a.sheet.life_max * ph.at {
                 continue;

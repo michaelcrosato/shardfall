@@ -93,3 +93,14 @@ printf 'load scene=world\ngoto room=drift\ncapture out=out/drift.png\n' | pav re
 ```
 The same tools are an MCP server (`pav mcp`, registered in `.mcp.json`), and a live bridge into
 the running game: start it with `--bridge`, then use `pav live` (REPL) or `pav mcp --live`.
+
+For building game content there are tools that make and judge it: grow a creature from a seed
+(`genome`), author one as JSON and see it from every side with its measurements (`turntable
+def={...}`), roll loot tables (`loot_roll`), map any level with its mechanics and what the AI
+thinks is walkable (`levelmap nav=true`), describe any depth (`level depth=40`), take a
+screenshot with numbered marks and a legend of what each mark is (`see`), and let a bot play
+the whole descent and report every level (`campaign`):
+```sh
+pav levelmap depth=7 nav=true out=out/level7.png
+printf 'load scene=town\ncampaign from=1 to=12 wall=300\n' | pav repl
+```

@@ -18,6 +18,7 @@ pub mod history;
 pub mod input;
 pub mod joints;
 pub mod level;
+pub mod nav;
 pub mod params;
 pub mod parts;
 pub mod physics;

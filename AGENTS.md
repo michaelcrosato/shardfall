@@ -22,11 +22,13 @@ crates/
               terrain.rs (procedural wilderness), tile levels (level.rs), characters
               (character.rs: movement models instant/momentum/grid/committed, jump,
               crouch/crawl, ladders, ledge grab/mantle, swimming, axis lock, moving platforms,
-              knockback, pushing shares momentum, bombs), puppet (puppet.rs: body plans
-              biped/spider/lizard/beetle/blob, procedural animation, hit recoil, foot IK,
+              knockback, pushing shares momentum, bombs, ice slide), puppet (puppet.rs: body
+              plans biped/spider/lizard/beetle/blob/quadruped, procedural animation, hit recoil,
+              creature lunges, foot IK,
               cutout look and camera cheats), rig.rs (creature feet that plant and step,
               follow-the-leader spines, verlet tails/antennae), ai.rs (NPC brains: idle,
               wander, patrol, circle, follow; they drive characters through InputFrames),
+              nav.rs (walkable grid from blocks and props, A* paths, flow fields),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
               vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter),
               health.rs (shootable objects: hp, score, boss phases/bar, finish),
@@ -109,7 +111,8 @@ Tools: `scenes load step status entities params set camera capture bench gpu pla
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
-tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature`
+tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature see campaign
+theme_swatch`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
@@ -124,7 +127,15 @@ tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature
   position and state), `levelmap depth=7 seed=3` (top-down PNG of a freshly built level, no
   GPU), `go place=level depth=9` (travel there, waypoint unlocked), `goto_feature kind=keg`
   (stand next to one), `game_cmd do=use spot=N` (the way down, a cursed chest);
-  `autoplay` walks levels to their exits by itself. Game data lives in `game/*.toml`
+  `autoplay` walks levels to their exits by itself.
+- Building and judging content: `see` is a screenshot with numbered marks on monsters, the
+  hero, townsfolk, loot, spots and level pieces plus a legend (talk about "mark 7" and know
+  it's a rare Frost Ghoul at 40%); `campaign from=1 to=12 wall=300` lets the bot play down
+  through the levels and reports each (time, deaths, kills, levels gained): run it after data
+  changes; `turntable family=ghoul def={"parts":[{"kind":"wings"}],"shirt":"#3050a0"}` authors
+  a creature as JSON over any family/boss/genome (or `{"body":"quadruped",...}` for a new one)
+  and reports its anatomy; `theme_swatch depths=13-20` shows palettes; `levelmap nav=true`
+  shows what the AI thinks is walkable and its planned way out. Game data lives in `game/*.toml`
   (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`; levels from
   `themes.toml` and `levels.toml`).
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
@@ -175,7 +186,7 @@ B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start me
 Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
 G use (vendor, stash, portal, gambler, alchemist, the way down, cursed chests), I/Tab
 inventory, P passive tree, C character, K skills, M map, T town portal; gamepad
-X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use.
+X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use, D-pad left map.
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
 F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
@@ -197,7 +208,7 @@ passive tree through commands, keystones, the bot spending points), `tests/monst
 (archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie),
 `tests/levels.rs` (every designed level has its mechanics, each mechanic works, endless
 depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
-brewing, saves).
+brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

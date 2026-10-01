@@ -433,7 +433,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "turntable",
-        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, or the hero.",
+        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, or the hero; def= lays JSON puppet fields over it (author a creature: colours, proportions, parts, body plan). Reports its anatomy (height, length, parts, colours).",
         args: &[
             arg("seed", "integer", "genome seed"),
             arg("family", "string", "designed family"),
@@ -442,6 +442,11 @@ pub static TOOLS: &[Tool] = &[
             arg("archetype", "string", "genome archetype"),
             arg("element", "string", "genome element"),
             arg("parts", "string", "genome parts, comma separated (horns,wings,...)"),
+            arg(
+                "def",
+                "object",
+                "puppet fields to lay over it, e.g. {\"parts\": [{\"kind\": \"wings\"}], \"shirt\": \"#3050a0\"}",
+            ),
             arg("angles", "integer", "views (default 8)"),
             arg("size", "integer", "pixels per view (default 256)"),
             arg("out", "string", "PNG path"),
@@ -478,6 +483,7 @@ pub static TOOLS: &[Tool] = &[
             arg("depth", "integer", "build this depth (default: the level being played)"),
             arg("seed", "integer", "layout seed for depth= (default 1)"),
             arg("size", "integer", "image size in pixels (default 900)"),
+            arg("nav", "boolean", "overlay the navigation grid and the planned way to the exit"),
             arg("out", "string", "PNG path"),
         ],
         run: crate::game_tools::t_levelmap,
@@ -497,6 +503,41 @@ pub static TOOLS: &[Tool] = &[
             arg("offset", "array", "[x, y, z] from it (default [0, 0, 3])"),
         ],
         run: crate::game_tools::t_goto_feature,
+    },
+    // ---- agent tools for building and judging content (agent_tools.rs)
+    Tool {
+        name: "see",
+        help: "Screenshot with numbered marks on what matters (monsters, hero, townsfolk, loot, spots, level pieces; characters and named objects outside the game) plus a legend: what each number is, its kind, name, rarity, life, distance, world position.",
+        args: &[
+            arg("width", "integer", "default 1280"),
+            arg("height", "integer", "default 720"),
+            arg("max", "integer", "at most this many marks, nearest first (default 40)"),
+            arg(
+                "only",
+                "string",
+                "comma list of kinds: monster,boss,hero,townsfolk,loot,spot,feature,totem,keg,character,object",
+            ),
+            arg("out", "string", "PNG path"),
+        ],
+        run: crate::agent_tools::t_see,
+    },
+    Tool {
+        name: "campaign",
+        help: "Balance pass: the bot plays down through the levels (from= a depth, to= the last) for up to seconds= of game time and reports each finished level: minutes, kills, deaths, damage taken, hero level in/out, gold.",
+        args: &[
+            arg("from", "integer", "start at this depth (default: where the hero is)"),
+            arg("to", "integer", "stop after this depth (default 12)"),
+            arg("seconds", "number", "game seconds at most (default 1800)"),
+            arg("hero_level", "integer", "set the hero's level first"),
+            arg("wall", "number", "stop after this many real seconds and report (default 300)"),
+        ],
+        run: crate::agent_tools::t_campaign,
+    },
+    Tool {
+        name: "theme_swatch",
+        help: "PNG of every level theme's palette (floor, wall, pillar, accent, light, sky); depths=13-20 adds the blended palettes of those endless depths.",
+        args: &[arg("depths", "string", "a range of endless depths, e.g. 13-20"), arg("out", "string", "PNG path")],
+        run: crate::agent_tools::t_theme_swatch,
     },
 ];
 

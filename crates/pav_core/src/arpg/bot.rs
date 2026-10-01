@@ -118,6 +118,15 @@ impl Bot {
         }
         // Target: the nearest living monster (in levels: one close by, or one already fighting).
         let lv = g.level.as_deref();
+        // In levels, only what it can see (walls hide the rest; the route leads round to them).
+        let visible = |p: Vec3, id: crate::entity::EntityId| {
+            let from = me + Vec3::Y;
+            let d = p + Vec3::Y - from;
+            match sim.raycast(from, d, d.length(), None) {
+                None => true,
+                Some(hit) => hit.entity == Some(id) || hit.entity.is_some_and(|e| g.actors.contains_key(&e)),
+            }
+        };
         let target = g
             .actors
             .iter()
@@ -126,10 +135,15 @@ impl Bot {
                 let (p, h) = feet_of(sim, *id)?;
                 let dist = flat(p - me).length();
                 let aggro = a.brain.as_ref().is_some_and(|b| b.aggro);
-                let near = lv.is_none() || dist < 9.0 || (aggro && dist < 15.0);
-                near.then_some((p, h, a.radius))
+                let totem = a.family == "totem";
+                let near = lv.is_none() || ((dist < 9.0 || ((aggro || totem) && dist < 15.0)) && (dist < 2.5 || visible(p, *id)));
+                // Totems first (they shield the pack), then the nearest.
+                near.then_some((p, h, a.radius, dist - if totem { 8.0 } else { 0.0 }))
             })
-            .min_by(|a, b| flat(a.0 - me).length().total_cmp(&flat(b.0 - me).length()));
+            .min_by(|a, b| a.3.total_cmp(&b.3))
+            .map(|(p, h, r, _)| (p, h, r));
+        // Crumbling floor: don't stop to fight, keep running.
+        let target = target.filter(|_| !lv.is_some_and(|l| l.on_crumble(me)));
         let Some((t, h, r)) = target else {
             if let Some(lv) = lv {
                 return self.walk_level(sim, g, lv, me, f);
@@ -145,6 +159,16 @@ impl Bot {
         };
         f.aim = Some(t + Vec3::Y * h * 0.5);
         let dist = flat(t - me).length();
+        // Nearly dead and no potions: back off and let life come back (or a potion drop).
+        if hero.life < hero.sheet.life_max * 0.22 && g.hero.potions == 0 && dist < 6.0 {
+            let away = steer(sim, me, flat(me - t).normalize_or(Vec3::X), 1.8);
+            f.move_dir = Vec2::new(away.x, away.z);
+            if hero.dodge_cd <= 0.0 {
+                f.pressed |= buttons::DODGE;
+                f.held |= buttons::DODGE;
+            }
+            return f;
+        }
         // Keep spinning while something is close.
         if let Some(c) = &hero.cast {
             let def = d.skill(c.skill);
@@ -181,12 +205,12 @@ impl Bot {
                 f.held |= SLOT_BUTTONS[slot];
                 f.pressed |= SLOT_BUTTONS[slot];
                 if dist > 2.0 && slot == 0 {
-                    let n = flat(t - me).normalize_or_zero();
+                    let n = steer(sim, me, flat(t - me).normalize_or_zero(), dist.min(1.8));
                     f.move_dir = Vec2::new(n.x, n.z);
                 }
             }
             None => {
-                let n = flat(t - me).normalize_or_zero();
+                let n = steer(sim, me, flat(t - me).normalize_or_zero(), dist.min(1.8));
                 f.move_dir = Vec2::new(n.x, n.z);
             }
         }
@@ -212,8 +236,16 @@ impl Bot {
                 return f;
             }
             self.route = vec![at];
-        } else if self.route.is_empty() || self.stats.ticks > self.route_at + 300 {
-            self.route = lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect();
+        } else if self.route.is_empty() || self.stats.ticks > self.route_at + 240 {
+            // The navigation grid knows the furniture; the room graph is the fallback.
+            let goal = exit.unwrap_or_else(|| {
+                let c = lv.layout.rooms[lv.layout.exit].rect.center();
+                Vec3::new(c.x, 0.0, c.y)
+            });
+            self.route = match lv.nav.as_ref().and_then(|n| n.path(me, goal)) {
+                Some(p) => p.into_iter().map(|q| Vec3::new(q.x, me.y, q.z)).collect(),
+                None => lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
+            };
             self.route_at = self.stats.ticks;
         }
         while self.route.len() > 1 && flat(self.route[0] - me).length() < 1.2 {
@@ -221,21 +253,7 @@ impl Bot {
         }
         let Some(next) = self.route.first().copied() else { return f };
         let want = flat(next - me).normalize_or_zero();
-        // Steer around furniture: the first free heading closest to the one wanted.
-        let look = flat(next - me).length().min(1.8);
-        // Three rays a body's width apart: thin gaps between stones don't count as free.
-        let free = |d: Vec3| {
-            let side = Vec3::new(-d.z, 0.0, d.x) * 0.45;
-            [Vec3::ZERO, side, -side].iter().all(|o| sim.raycast(me + Vec3::Y * 0.45 + *o, d, look, None).is_none())
-        };
-        let mut dir = want;
-        for k in [0.0f32, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8] {
-            let d = glam::Quat::from_rotation_y(k) * want;
-            if free(d) {
-                dir = d;
-                break;
-            }
-        }
+        let mut dir = steer(sim, me, want, flat(next - me).length().min(1.8));
         // Still stuck: sidestep for a moment and plan again.
         if self.stats.ticks.is_multiple_of(60) {
             if flat(self.stuck.0 - me).length() < 0.5 {
@@ -335,6 +353,26 @@ impl Bot {
         }
         self.stats.clone()
     }
+}
+
+/// Steers around furniture: the free heading closest to the one wanted (three rays a body's
+/// width apart, so thin gaps between stones don't count as free).
+fn steer(sim: &Sim, me: Vec3, want: Vec3, look: f32) -> Vec3 {
+    let free = |d: Vec3| {
+        let side = Vec3::new(-d.z, 0.0, d.x) * 0.45;
+        [Vec3::ZERO, side, -side].iter().all(|o| match sim.raycast(me + Vec3::Y * 0.45 + *o, d, look, None) {
+            None => true,
+            // Monsters are not furniture: walk into them (that's the fight).
+            Some(h) => h.entity.is_some_and(|e| sim.state.entities.get(e).is_some_and(|x| x.character.is_some())),
+        })
+    };
+    for k in [0.0f32, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8] {
+        let d = glam::Quat::from_rotation_y(k) * want;
+        if free(d) {
+            return d;
+        }
+    }
+    want
 }
 
 fn total_xp(level: u32, xp: f64) -> f64 {
