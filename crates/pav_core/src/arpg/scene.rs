@@ -305,11 +305,11 @@ fn portal(sim: &mut Sim, at: Vec3) {
     }
     let mut v = Visual::new(Shape::Cylinder { half_height: 0.03, radius: 1.45 }, Color::hex("#7fd8ff"));
     v.look = Look::Unlit;
-    v.emissive = 2.2;
+    v.emissive = 0.9;
     v.light = Some(Box::new(LightDef {
         color: "#6ac8ff".into(),
         radius: 8.0,
-        intensity: 2.6,
+        intensity: 1.8,
         pulse: 0.6,
         offset: Vec3::Y * 1.2,
         ..Default::default()

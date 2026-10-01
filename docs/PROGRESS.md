@@ -402,8 +402,8 @@ Windows build.
 | G1 Combat core | ✅ done (3423ab6) |
 | G2 Loot, items, inventory | ✅ done |
 | G3 Passive tree, all skills | ✅ done |
-| G4 Monster genome, bosses | ⏳ next |
-| G5 Town, levels, mechanics, endless | ⏳ |
+| G4 Monster genome, bosses | ✅ done |
+| G5 Town, levels, mechanics, endless | ⏳ next |
 | G6 Polish, agent tools, final build | ⏳ |
 
 ## G1 Combat core — done
@@ -495,6 +495,36 @@ Windows build.
   and refund/respec, Avatar of Flame converts, bot spends points and keeps winning); tree unit
   tests (size, connectivity, no overlaps, path/refund rules).
 
+## G4 Monster genome and bosses — done
+- Attachments (`crate::parts`): horns, antlers, spikes, crest, tusks, mandibles, plates, eyes,
+  orbs, wings on any body plan; body builders report `Anchors` (head, back line, shoulders);
+  `PuppetDef::parts`.
+- Genome (`arpg/genome.rs`, `game/genome.toml`): body plans (proportion ranges, legs, tails,
+  antennae, weapons), parts (which bodies, sizes, counts), palettes per element, archetypes
+  (brain + skill pools + stat shape + powers), names. `Genome::generate(data, seed, level,
+  opts)` is deterministic; `MonsterSpec` unifies designed families and genomes for spawning
+  (`spawn_spec_into` / `spawn_actor`). Element re-colours skills through a `*` tweak.
+- New brains: caster, skirmisher (strike and retreat), swarm, bomber (bursts on contact),
+  summoner. New powers: death_burst (telegraphed), summon (brood from the summoner's genome,
+  same element, capped), enrage.
+- Monster affixes (`game/monster_affixes.toml`, 18): stats, powers, `*` tweaks, extra skills,
+  size/life/speed; magic 1, rare 2-3 plus a rare name. Monsters keep base/mods and recompute.
+- Bosses (`arpg/boss.rs`, `game/bosses.toml`): 5 designed (Hollow King, Mother of Swarms,
+  Cinder Wyrm, Frostbound Colossus, Abyssal Bloom) built from genome seeds with overrides
+  (body, element, scale, parts, look), phases at life shares (speech, skills, summons, mods,
+  powers); generated bosses `gen:<seed>` with three phases. Boss bar in the HUD.
+- Arena: every 10th wave a boss (designed in order, then generated); from wave 4 a third of
+  packs are generated creatures. Monsters casting big hero skills telegraph; hero spells have
+  `effect` values for monster use.
+- The Menagerie (`lab` scene, Place::Lab via portals): 20 pedestals (designed families, then
+  genomes), genome cards on G, release one to fight, reroll the set.
+- Tools: `genome` (seed/body/archetype/element/parts, spawn), `bestiary` (spread of N
+  genomes: 487 distinct names in 500), `boss` (list/spawn), `turntable` (multi-angle render
+  of any creature), `animsheet` (action frames).
+- Tests: tests/monsters.rs (every archetype fights, bombers burst, broods, rare affixes/names,
+  every boss through all phases incl. a generated one, wave 10 boss, Menagerie release/reroll,
+  rewind exact) + genome variety/determinism unit test.
+
 ## Decisions (Shardfall)
 - The game is part of the simulation (not a separate crate) so every engine feature works on
   it, including rewind mid-fight and the live bridge.
@@ -516,3 +546,6 @@ Windows build.
   rather than hand-placed: one design language, easy to extend, and infinite (Astral rings).
 - Skill upgrades are tweaks on the actor applied to the skill definition at use, so monsters
   can carry them too (G4 affixes like "extra projectiles").
+- Everything that fights is a genome: designed families and bosses are specs/overrides of the
+  same pieces the generator uses, so new content is data and endless content is the same
+  language. Parts attach to anchors, not to specific skeletons.
