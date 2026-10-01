@@ -29,6 +29,8 @@ crates/
               wander, patrol, circle, follow; they drive characters through InputFrames),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
               vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter),
+              health.rs (shootable objects: hp, score, boss phases/bar, finish),
+              stealth.rs (guard sight cones with line of sight and an alert meter),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
               spawners), projectile.rs (lightweight bullets), feel.rs (feel metrics),
@@ -45,9 +47,12 @@ crates/
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
-  pav_tools   agent layer: tool registry + `pav` CLI (one-shot, REPL) + MCP stdio server
+  pav_tools   agent layer: tool registry + `pav` CLI (one-shot, REPL) + MCP stdio server +
+              live bridge client (bridge.rs)
   pav_app     the game (`pavilion` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
+              (simhost.rs; stepped from the frame loop in the browser), live bridge server
+              (bridge.rs), egui input (uiinput.rs). Builds natively and for wasm32 (WebGPU).
 rooms/        room data files (TOML: info card, wing, primary device, movement model, camera,
               params, keys, entrance, ASCII tile layers + legend, [[object]]s). Every file
               here is embedded in the exe at build time AND hot-reloaded at runtime.
@@ -75,7 +80,13 @@ cargo run -p pav_app               # the game (needs a display; Xvfb works with 
 scripts/build-windows.sh           # -> target/x86_64-pc-windows-gnu/dist/pavilion.exe
 scripts/smoke-windows.sh 25        # run the .exe under Wine+lavapipe, screenshot + log in out/smoke/
 scripts/smoke-linux.sh 10          # same for the native Linux build
+scripts/build-web.sh               # browser build -> target/web/ (serve over HTTP; Chrome/Edge)
 ```
+Browser build: `cfg(target_arch = "wasm32")` branches live in `pav_app` only (no threads, async
+GPU setup, no files). Check it with `cargo clippy -p pav_app --target wasm32-unknown-unknown`.
+Headless Chromium can run it (WebGPU on SwiftShader): launch with `--enable-unsafe-webgpu
+--enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader` (other flag sets
+show a blank canvas). `?room=NAME&seed=N` picks the start room.
 From WSL2 you can launch the Windows build directly: `./target/x86_64-pc-windows-gnu/dist/pavilion.exe`.
 
 ## Agent CLI (`pav`) and MCP
@@ -90,6 +101,10 @@ pav set path=camera.tilt value=90             # (one-shot: pointless alone; use 
 printf 'step ticks=200\ncamera preset=top\ncapture out=out/b.png\n' | pav repl
 printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\n' | pav repl
 ```
+Live bridge: start the game with `--bridge` (or `bridge = "127.0.0.1:7878"` in pavilion.toml),
+then `pav live` is a REPL into the running game and `pav mcp --live` an MCP server for it. Same
+tools; they act on what is on screen (captures render the game's camera on a second device).
+
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`
