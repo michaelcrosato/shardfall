@@ -1,0 +1,94 @@
+name = "PT"
+entrance = { at = [12, 19], facing = "south" }
+[layout]
+origin = [-12.0, 0.0, -10.0]
+[[layout.layer]]
+map = '''
+########################
+#......................#
+#..cccc......gggg......#
+#......................#
+#..>>>>>>>>............#
+#..>>>>>>>>......bb....#
+#................bb....#
+#......................#
+#..___________.........#
+#..___________.........#
+#..___________.........#
+#......................#
+#......................#
+#......................#
+#..ss..................#
+#..ss..................#
+#......................#
+#......................#
+#......................#
+############.###########
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 3, color = "#b9c3cf" }]
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c9a27a", crumble = 0.8, regrow = 4 }]
+[layout.legend.'g']
+blocks = [{ y0 = -0.3, y1 = 0, color = "#a8d8ea", strength = 40 }, { y0 = -3, y1 = -2.5, color = "#888888" }]
+[layout.legend.'>']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a4f57" }]
+zone = { kind = "conveyor", facing = "east", speed = 3 }
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#ff8fb1" }]
+zone = { kind = "bounce", speed = 12 }
+[layout.legend.'_']
+blocks = [{ y0 = -3.5, y1 = -3, color = "#6d7a6a" }]
+zone = { kind = "kill", y0 = -2.9, y1 = -1 }
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "pad", label = "SPAWN", signal = "drop" }
+
+[[chain]]
+from = [3.0, 0.0, 8.5]
+to = [14.0, 0.0, 8.5]
+style = "bridge"
+links = 12
+sag = 0.04
+color = "#a0703c"
+
+[[chain]]
+from = [18.0, 4.0, 10.0]
+to = [18.0, 1.5, 10.0]
+links = 8
+fix_to = false
+attach_to = "ball"
+
+[[object]]
+name = "ball"
+shape = { type = "sphere", radius = 0.5 }
+pos = [18.0, 1.0, 10.0]
+color = "#5b5f66"
+density = 5
+
+[[object]]
+name = "jelly"
+pos = [8.0, 1.5, 13.0]
+color = "#7bd389"
+soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 6 }
+
+[[object]]
+name = "flag"
+pos = [14.0, 3.0, 14.0]
+color = "#e8704a"
+soft = { shape = { type = "cloth", size = [2.0, 1.4], res = [10, 8], vertical = true }, pin = "top", stiffness = 20 }
+
+[[object]]
+name = "rope"
+pos = [20.0, 3.0, 15.0]
+color = "#a0703c"
+soft = { shape = { type = "rope", to = [0.0, -2.5, 0.0], segments = 16 }, pin = "start", stiffness = 30 }
+
+[[object]]
+name = "spawner"
+pos = [4.0, 5.0, 4.0]
+body = "none"
+shape = { type = "sphere", radius = 0.1 }
+behavior = { type = "spawner", signal = "drop", count = 20, area = [1.5, 0.5, 1.0] }

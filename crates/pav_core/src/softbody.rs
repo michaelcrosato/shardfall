@@ -107,6 +107,9 @@ pub struct SoftPart {
     /// Particles to attach to the `attach` object (indices).
     #[serde(default)]
     pub attach_particles: Vec<u32>,
+    /// The entity the particles are tied to (restored when the region wakes up).
+    #[serde(default)]
+    pub tied_to: Option<crate::entity::EntityId>,
 }
 
 /// Particle indices selected by a pin mode for a generated shape.
@@ -203,6 +206,7 @@ impl PhysicsState {
             segments: Arc::new(segments),
             saved: Vec::new(),
             attach_particles,
+            tied_to: None,
         }
     }
 

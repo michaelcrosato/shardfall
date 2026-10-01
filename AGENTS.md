@@ -24,8 +24,11 @@ crates/
               crouch/crawl, ladders, ledge grab/mantle, swimming, axis lock, moving platforms,
               knockback, bombs), puppet (puppet.rs: skeleton + procedural animation),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
-              pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters),
-              projectile.rs (lightweight bullets), feel.rs (feel metrics), history, params
+              pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
+              spawners), projectile.rs (lightweight bullets), feel.rs (feel metrics),
+              softbody.rs (rapier soft bodies: jelly, balls, cloth, ropes), joints.rs (joints
+              owned by entities, recreated on wake), destruct.rs (crumbling/breakable tiles,
+              conveyors and bounce pads for props), history, params
   pav_render  wgpu renderer (Vulkan/DX12): Scene description -> shadow pass -> MSAA scene
               pass -> composite (outlines, tonemap). Procedural meshes + analytic SDF
               spheres/capsules/rounded cones, SDF-font text in the world (text.rs).
@@ -103,8 +106,9 @@ and add a `Tool { .. }` entry to `TOOLS`. It is automatically in the CLI, REPL a
 
 ### Adding a room (preferred: data only, no rebuild)
 Copy `rooms/_template.toml` to `rooms/<key>.toml` and edit (the template documents every
-field: layers, legend blocks, ladders, props, zones, labels, objects with move/rotate/emitter
-behaviours and hazards; `rooms/feel_lab.toml` is a full example). It appears in the pavilion on
+field: layers, legend blocks, ladders, props, zones, labels, objects with move/rotate/emitter/
+spawner behaviours, hazards, soft bodies, materials, joints and chains; `rooms/feel_lab.toml`
+and `crates/pav_core/tests/physics_room.toml` are full examples). It appears in the pavilion on
 its wing's corridor (auto-placed and rotated so its entrance faces the corridor). Check it with
 `pav room_check path=rooms/<key>.toml`, look at it with `pav capture scene=<key>` (the room
 alone, fast) or `printf 'load scene=world\ngoto room=<key>\ncapture\n' | pav repl`. The running
@@ -132,8 +136,11 @@ Rooms may remap game keys while you are inside (`[keys]` in the room file); syst
 `cargo test` includes `crates/pav_core/tests/gameplay.rs` (walk, jump onto a crate, climb the
 ladder, bomb the floor and drop through, crawl the tunnel, rewind repeatability, snapshot files),
 `tests/world.rs` (pavilion layout, streaming, props persisting while dormant, room
-enter/exit/reset, overrides, saved-object round trip) and `tests/movement.rs` (courses, pads,
-ledge grab, swimming, pits, grid/committed models, projectiles, moving platforms, hazards).
+enter/exit/reset, overrides, saved-object round trip), `tests/movement.rs` (courses, pads,
+ledge grab, swimming, pits, grid/committed models, projectiles, moving platforms, hazards),
+`tests/physics.rs` (rope bridge, chain, soft bodies, conveyor, bounce, crumble/regrow, glass,
+spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a compact example
+of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

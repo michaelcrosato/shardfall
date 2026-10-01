@@ -419,13 +419,22 @@ impl Sim {
             .filter(|(_, n)| named.contains_key(n))
             .collect();
         for (id, name) in ties {
-            let Some(body) = named.get(&name).and_then(|o| self.state.entities.get(*o)).and_then(|e| e.body) else { continue };
-            let Some(part) = self.state.entities.get(id).and_then(|e| e.soft.clone()) else { continue };
-            let ph = &mut self.state.physics;
-            if let Some(sb) = part.handle.and_then(|h| ph.soft_bodies.get_mut(h)) {
-                for &i in &part.attach_particles {
-                    sb.attach_particle(i as usize, body, &ph.bodies);
-                }
+            let Some(&target) = named.get(&name) else { continue };
+            if let Some(s) = self.state.entities.get_mut(id).and_then(|e| e.soft.as_mut()) {
+                s.tied_to = Some(target);
+            }
+            self.retie_soft(id);
+        }
+    }
+
+    /// Attaches a soft body's tie particles to the entity it is tied to.
+    fn retie_soft(&mut self, id: EntityId) {
+        let Some(part) = self.state.entities.get(id).and_then(|e| e.soft.clone()) else { return };
+        let Some(body) = part.tied_to.and_then(|t| self.state.entities.get(t)).and_then(|e| e.body) else { return };
+        let ph = &mut self.state.physics;
+        if let Some(sb) = part.handle.and_then(|h| ph.soft_bodies.get_mut(h)) {
+            for &i in &part.attach_particles {
+                sb.attach_particle(i as usize, body, &ph.bodies);
             }
         }
     }
@@ -854,6 +863,7 @@ impl Sim {
                     }
                 }
                 fresh.saved.clear();
+                fresh.tied_to = part.tied_to;
                 e.soft = Some(fresh);
             }
             if e.body_kind != BodyKind::None {
@@ -879,6 +889,9 @@ impl Sim {
             self.state.entities.map.insert(e.id, e);
         }
         self.restore_joints(&woken);
+        for id in &woken {
+            self.retie_soft(*id);
+        }
     }
 
     /// Tracks which room the player is in; applies/restores room overrides; emits events.

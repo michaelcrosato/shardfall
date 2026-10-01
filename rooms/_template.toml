@@ -9,7 +9,7 @@ wing = "misc"                 # movement | physics | animation | vfx | aesthetic
 order = 10                    # position within the wing
 primary_device = "keyboard_mouse"   # or "gamepad"
 # movement_model = "momentum" # instant | momentum | grid | committed (applied while inside)
-# overlays = ["feel"]         # HUD overlays opened while inside (feel metrics)
+# overlays = ["feel"]         # HUD overlays opened while inside: "feel" metrics, "physics" stats
 entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, and the way out
 
 # Optional: camera defaults while inside (camera parameter names).
@@ -58,6 +58,8 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 2.0, color = 
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = "#c9a27a", rounded = true }]
 # Other options: destructible = true, ghost = true (no collision), inset = 0.3 (thinner),
+# crumble = 0.8 (falls 0.8 s after being stepped on), regrow = 4 (comes back after 4 s),
+# strength = 40 (breaks when hit with more than this contact force, e.g. glass),
 # look = "flat" | "cel" | "lit" | "unlit",
 # ladder = { facing = "north", height = 3.0 },
 # prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a" },
@@ -65,7 +67,9 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 # label = { text = "HELLO", size = 0.5, color = "#2b2d35", mode = "floor" }   (text on the tile)
 #
 # zone = { kind = "...", ... } makes the tile a trigger (identical neighbours merge):
-#   kind = "start" | "finish" | "gate" | "checkpoint" | "kill" | "water" | "pad" | "camera"
+#   kind = "start" | "finish" | "gate" | "checkpoint" | "kill" | "water" | "pad" | "camera" |
+#          "conveyor" (facing = direction, speed = m/s; carries characters and props) |
+#          "bounce" (speed = launch m/s; trampolines for characters and props)
 #   course = "name"   start/finish/gates of one course share it; leaving START starts the timer,
 #                     gates must be passed in `index` order (missed gate = +2 s), FINISH stops it
 #   index = 1         gate order
@@ -75,6 +79,7 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 #   Zones are half-open boxes, so touching zones never overlap. A respawn point that lies in a
 #   zone does not trigger it (respawning onto START keeps the timer running).
 #   params = { "movement.model" = "momentum" }       pads: parameter changes until you leave
+#   signal = "drop"   pads: tells spawners listening for "drop" to fire
 #   camera = { set = { tilt = 90, ortho = true }, sweep = [{ param = "tilt", from = 90,
 #              to = 10, period = 12 }], flip_ortho = 6 }  pads (sticky) / camera zones (inside)
 #   water: swim below y1. kill: back to the last checkpoint.
@@ -108,3 +113,43 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #     pattern: aimed (at the player) | forward (+Z of the object, see yaw) | ring | spiral | random
 # Touching a hazard knocks you back (respawn = true sends you to the last checkpoint):
 #   hazard = { knockback = 7, respawn = false }
+# Spawners drop props on a timer and/or when a pad sends their signal (body = "none"):
+#   behavior = { type = "spawner", shape = { type = "box", half = [0.3, 0.3, 0.3] }, color = "",
+#                count = 20, interval = 0, max = 200, area = [1.5, 0.5, 1.5], signal = "drop",
+#                clear = "clear", density = 1, friction = 0.5, restitution = 0.1, tumble = true }
+# More object fields: pitch = 20, roll = 0 (tilt in degrees, e.g. ramps), density = 1 (kg/m³:
+# 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
+# restitution = 0.0 (bounciness 0..1).
+# Soft (deformable) objects ignore `shape`:
+#   soft = { shape = { type = "cuboid", half = [0.6, 0.6, 0.6], res = [4, 4, 4] }, stiffness = 6 }
+#   soft = { shape = { type = "sphere", radius = 0.6, subdivisions = 2 }, stiffness = 10 }
+#   soft = { shape = { type = "cloth", size = [2, 1.5], res = [10, 8], vertical = true },
+#            pin = "top", stiffness = 20 }          (vertical = hangs down from pos, else flat +Z)
+#   soft = { shape = { type = "rope", to = [0, -3, 0], segments = 16, radius = 0.05 },
+#            pin = "start", attach = "ball" }        (rope end tied to the object named "ball")
+#   also: damping = 0.3, mass = 4 (kg), tear = 0.6 (breaks when stretched 60%),
+#         pin = "" | "top" | "start" | "end" | "ends" | "corners" | "top_corners" | "edge"
+
+# Joints between named objects (b = "" fixes `a` to the world); `at` = anchor, layout space:
+# [[joint]]
+# a = "door"
+# b = ""
+# at = [3.0, 1.0, 2.0]
+# joint = { type = "hinge", axis = [0, 1, 0], limits = [-90, 90] }
+#   joint types: fixed | ball | hinge (axis, limits deg, motor_speed deg/s, motor_force) |
+#   slider (axis, limits m, spring, damping) | rope (length) | spring (length, stiffness, damping)
+
+# Generated chains and rope bridges (layout space; density defaults to 400):
+# [[chain]]
+# from = [3.0, 4.0, 2.0]
+# to = [3.0, 1.0, 2.0]
+# links = 8
+# radius = 0.07
+# attach_to = "ball"          # tie the end to an object (fix_to = true pins it to the world)
+# [[chain]]
+# style = "bridge"            # planks hinged edge to edge, both ends fixed
+# from = [2.0, 0.0, 8.5]
+# to = [14.0, 0.0, 8.5]
+# links = 12
+# width = 1.4
+# sag = 0.04                  # hangs 4% of the span lower in the middle
