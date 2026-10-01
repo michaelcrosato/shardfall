@@ -68,9 +68,12 @@ impl Sim {
 
     /// The boss bar for the HUD: name and health fraction of the first `bar` enemy.
     pub fn boss_bar(&self) -> Option<(String, f32)> {
+        // Only the room you are in (other rooms' bosses live on in the world).
+        let here = self.state.world.current_room.map(crate::statics::RegionKey::Room);
         self.state.entities.iter().find_map(|e| {
             let h = e.health.as_ref()?;
-            h.def.bar.then(|| (e.name.clone(), h.fraction()))
+            let near = !self.state.world.enabled || e.region.is_none() || e.region == here;
+            (h.def.bar && near).then(|| (e.name.clone(), h.fraction()))
         })
     }
 }

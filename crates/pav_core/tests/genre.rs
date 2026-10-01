@@ -114,3 +114,14 @@ fn guards_spot_you_in_plain_sight_but_not_behind_walls_or_low() {
     sim.run(240, &InputFrame::default());
     assert!(sim.state.courses.message.is_some(), "standing there is seen");
 }
+
+#[test]
+fn the_boss_bar_only_shows_in_the_bosses_room() {
+    let mut sim = Sim::new("world", 1).unwrap();
+    assert!(sim.teleport_to_room("bullet_hell"));
+    sim.run(30, &InputFrame::default());
+    assert!(sim.boss_bar().is_some(), "bullet hell shows its boss");
+    assert!(sim.teleport_to_room("stealth"));
+    sim.run(30, &InputFrame::default());
+    assert!(sim.boss_bar().is_none(), "other rooms do not");
+}

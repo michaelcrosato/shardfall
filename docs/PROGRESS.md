@@ -1,6 +1,6 @@
 # Progress log
 
-Current milestone: **M9 Genre Wing** finishing, with M10 started (M1–M8 complete; M4–M10 run as one goal).
+Current milestone: **M10 Browser build, live bridge, polish** (M1–M9 complete; M4–M10 run as one goal).
 
 ## Status by milestone
 | Milestone | State |
@@ -13,7 +13,7 @@ Current milestone: **M9 Genre Wing** finishing, with M10 started (M1–M8 comple
 | M6 Procedural Animation Lab | ✅ complete (2026-10-01) |
 | M7 Visual Effects Wing | ✅ complete (2026-10-01) |
 | M8 Aesthetic & Filter Wing | ✅ complete (2026-10-01) |
-| M9 Genre Wing | 🔨 in progress |
+| M9 Genre Wing | ✅ complete (2026-10-01) |
 | M10 Browser build, live bridge, polish | 🔨 in progress (bridge + browser build done) |
 
 ## M1 Foundation — done
@@ -315,22 +315,26 @@ grain, chroma, saturation, split).
 - `view.filter.saturation` (split-aware) for grading; `view.saturation` is the global one.
 - Agent `load` re-applies the room's `[camera]` / `[view]`.
 
-## M9 Genre Wing — in progress
-Rooms in the genre wing, built by helper agents and reviewed:
-- **Bullet Hell** (`bullet_hell`) ✅: top-down blaster arena, drone and turret stages, a phased
-  boss with health bar; score, hits, dodgeable patterns (bot-verified 0-hit run).
-- **Drift Circuit** (`drift`) ✅: ~157 m lap with gates, checkpoints, gravel kill traps, a grippy
-  and a drifty car, a drift pad and a skid pad (bot laps 12.3-12.4 s after the steering fix).
-- **Helicopter Run** (`helicopter`) ✅: 9 rings through a small city to a rooftop landing,
+## M9 Genre Wing — done
+Four rooms in the north corridor (wing `genre`), built by helper agents and reviewed:
+- **Bullet Hell** (`bullet_hell`): top-down blaster arena, drone and turret stages, a phased
+  boss with a health bar; score, hits, dodgeable patterns (bot-verified 0-hit run, 83 s).
+- **Grid Stealth** (`stealth`): a night heist on the grid model; guards with vision cones (cut
+  by pillars; tables hide a crouching player), an alert meter, checkpoints, sweeping cameras,
+  a crouch-only duct (bot runs reach the vault in 39-49 s with no SPOTTED).
+- **Drift Circuit** (`drift`): ~157 m lap with gates, checkpoints, gravel kill traps, a grippy
+  and a drifty car, a drift pad and a skid pad (bot laps 12.3-12.4 s).
+- **Helicopter Run** (`helicopter`): 9 rings through a small city to a rooftop landing,
   practice pad with a touchdown target (bot run 20.9 s).
-- **Grid Stealth** (`stealth`) 🔨: helper still building (guards with vision cones, alert meter).
-Engine (commit 6bffa8c + f8975fb): `vehicle.rs` (rapier raycast car with handbrake drift, arcade
-helicopter with ceiling), `health.rs` (shootable objects: hp, score, signal, finish, boss bar,
-sway, phases), `stealth.rs` (guard AI with LOS cones and alert), blaster weapon
-(`bombs.weapon = "blaster"`, fire_interval, bullet_speed, shoot_angle, shot_range), small
-`movement.hitbox`, room `height`. Tests: tests/vehicles.rs, tests/genre.rs.
-Still to do for M9: review stealth, docs (AGENTS.md module map), Windows build + smoke test,
-merge to main, send pavilion-M9.zip.
+Engine: `vehicle.rs` (rapier ray-cast car with handbrake drift, arcade helicopter with a
+ceiling; E / pad D-pad right gets in and out), `health.rs` (shootable objects: hp, score,
+signal, finish, boss bar for the current room, sway, phases), `stealth.rs` (guard AI with
+line-of-sight cones and an alert meter), blaster weapon (`bombs.weapon = "blaster"`,
+fire_interval, bullet_speed, shoot_angle, shot_range), small `movement.hitbox`, room `height`.
+Fixes from the helpers' reports: car steering sign, characters spawn just outside the
+controller skin (they stuck at floor seams for ~1 s), grid steps follow stick strength (NPC
+`speed` works in grid rooms), sentries keep their yaw, `player` shows the vehicle, `npcs` shows
+guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
 
 ## Decisions (M9)
 - Cars use rapier's ray-cast vehicle controller (it serializes, so rewind stays exact); the
@@ -341,6 +345,9 @@ merge to main, send pavilion-M9.zip.
 - A boss with `health.finish` ends the course and stands in for a FINISH tile.
 - A fixed `shoot_angle` is in the room's map frame and turns with the room's placement.
 - Rooms have a `height` (default 8 m): flying rooms raise it so courses are not cancelled.
+- Characters placed by their feet start 0.025 m up (outside the 0.02 m controller skin).
+- Grid steps take the stick's strength as their pace (keyboard = full pace; NPC `speed` scales).
+- The boss bar only shows for a boss in the player's current room.
 
 ## M10 Browser build, live bridge, polish — in progress (started early, alongside M9)
 - **Live agent bridge** ✅ (a4fdd13): the game listens with `--bridge [ADDR]` (default
