@@ -1,0 +1,93 @@
+# Shardfall bosses. Each grows from a genome seed (game/genome.toml) and forces what matters:
+# body, archetype, element, size, parts, puppet look. Phases fire as life drops: a line, new
+# skills, a summon ("brood" = born from the boss's own genome), stats, a power. Past these,
+# bosses are generated from a seed with the same pieces ("gen:<seed>").
+
+[hollow_king]
+name = "The Hollow King"
+title = "who rules what the shards left"
+seed = 101
+body = "biped"
+archetype = "tank"
+element = "physical"
+scale = 2.3
+skills = ["smash", "earthsplitter"]
+life = 1.6
+parts = [{ kind = "horns", size = 1.6, color = "#e8c45a", glow = 0.6 }, { kind = "spikes", size = 1.2, count = 5 }]
+look = { skin = "#8a8478", shirt = "#3a2a3a", pants = "#2a2030", eyes = "#ff4a2a", weapon = { kind = "greatsword", color = "#c0c4cc", glow = 0.4 } }
+lore = "He was crowned in the first fall, and never stopped falling."
+phases = [
+    { at = 0.7, say = "Kneel before your king!", summon = { family = "ghoul", count = 4 } },
+    { at = 0.4, say = "The crown demands blood!", skills = ["leap_slam", "war_cry"], mods = { attack_speed = 20 } },
+    { at = 0.15, say = "I... will not... fall!", mods = { damage_more = 40 } },
+]
+
+[mother_of_swarms]
+name = "Mother of Swarms"
+title = "the brood beneath"
+seed = 202
+body = "spider"
+archetype = "summoner"
+element = "poison"
+scale = 2.4
+skills = ["bite", "toxic_rain"]
+life = 1.4
+parts = [{ kind = "mandibles", size = 1.5 }, { kind = "eyes", count = 6, glow = 1.5 }, { kind = "spikes", count = 7, size = 1.3 }]
+lore = "Every skitterer in the dark is one of hers."
+phases = [
+    { at = 0.75, say = "My children, feed!", summon = { family = "brood", count = 6 } },
+    { at = 0.45, say = "More! MORE!", summon = { family = "brood", count = 8 }, mods = { cast_speed = 30 } },
+    { at = 0.2, say = "You will be eaten.", mods = { damage_more = 50, attack_speed = 25 } },
+]
+
+[cinder_wyrm]
+name = "Cinder Wyrm"
+title = "ash on the wind"
+seed = 303
+body = "lizard"
+archetype = "charger"
+element = "fire"
+scale = 2.2
+skills = ["gore", "fireball"]
+life = 1.5
+parts = [{ kind = "horns", size = 1.4 }, { kind = "spikes", count = 8, size = 1.4 }, { kind = "wings", size = 1.5, glow = 0.6 }]
+lore = "It sleeps under the ash fields, and wakes hungry."
+phases = [
+    { at = 0.66, say = "The sky burns!", skills = ["meteor"] },
+    { at = 0.33, say = "Ash to ash!", summon = { family = "ashdrake", count = 2 }, mods = { damage_more = 35 } },
+]
+
+[frostbound_colossus]
+name = "Frostbound Colossus"
+title = "the winter that walks"
+seed = 404
+body = "beetle"
+archetype = "tank"
+element = "cold"
+scale = 2.5
+skills = ["smash", "stomp"]
+life = 1.8
+parts = [{ kind = "plates", count = 5, size = 1.4 }, { kind = "horns", size = 1.8 }]
+lore = "Glaciers move. So does this."
+phases = [
+    { at = 0.6, say = "The cold deepens.", skills = ["blizzard", "frost_nova"] },
+    { at = 0.3, say = "Shatter.", mods = { armor_inc = 100, damage_more = 30 } },
+]
+
+[the_bloom]
+name = "The Abyssal Bloom"
+title = "a flower of the deep shard"
+seed = 505
+body = "blob"
+archetype = "caster"
+element = "lightning"
+scale = 2.4
+skills = ["chain_lightning", "stomp"]
+life = 1.5
+parts = [{ kind = "orbs", count = 5, size = 1.5, glow = 2.5 }, { kind = "eyes", count = 5 }]
+lore = "Pretty, if you don't look at it for long."
+phases = [
+    { at = 0.7, say = "It pulses...", summon = { family = "brood", count = 5 } },
+    { at = 0.4, say = "The storm opens.", skills = ["blink", "toxic_rain"], mods = { cast_speed = 40 } },
+    { at = 0.15, say = "It blooms.", power = { kind = "ignite_aura", a = 5, b = 1.5 } },
+]

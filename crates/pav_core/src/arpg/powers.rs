@@ -36,10 +36,16 @@ pub enum PowerKind {
     Quickening,
     /// All damage becomes element `a` (1 fire, 2 cold, 3 lightning, 4 poison).
     Convert,
+    /// On death: bursts for a% of its life (radius b m) after a short warning.
+    DeathBurst,
+    /// Calls a brood of a creatures every b seconds while fighting.
+    Summon,
+    /// Below a% life: b% more damage and faster attacks.
+    Enrage,
 }
 
 impl PowerKind {
-    pub const ALL: [PowerKind; 17] = [
+    pub const ALL: [PowerKind; 20] = [
         PowerKind::CorpseBurst,
         PowerKind::FrostCrits,
         PowerKind::BloodMagic,
@@ -57,6 +63,9 @@ impl PowerKind {
         PowerKind::ManaShield,
         PowerKind::Quickening,
         PowerKind::Convert,
+        PowerKind::DeathBurst,
+        PowerKind::Summon,
+        PowerKind::Enrage,
     ];
 }
 
@@ -99,6 +108,9 @@ impl Power {
             PowerKind::Frenzy => format!("Kills grant {a}% Attack and Movement Speed for 4s (up to 3 times)"),
             PowerKind::ManaShield => format!("{a}% of damage taken is paid from Mana first"),
             PowerKind::Quickening => format!("Kills take {a}s off all skill cooldowns"),
+            PowerKind::DeathBurst => format!("On death, bursts for {a}% of its Life ({b} m)"),
+            PowerKind::Summon => format!("Calls {a} of its brood every {b}s"),
+            PowerKind::Enrage => format!("Below {a}% Life: {b}% more Damage and faster attacks"),
             PowerKind::Convert => {
                 format!("All your damage is converted to {}", super::data::Element::ALL[(self.a.max(0.0) as usize).min(4)].name())
             }

@@ -123,7 +123,7 @@ impl Tweak {
 /// A skill as this actor uses it: the data plus the actor's tweaks for it.
 pub fn tuned(def: &SkillDef, tweaks: &[Tweak]) -> SkillDef {
     let mut d = def.clone();
-    for t in tweaks.iter().filter(|t| t.skill == def.key) {
+    for t in tweaks.iter().filter(|t| t.skill == def.key || t.skill == "*") {
         let v = t.value;
         let pct = 1.0 + v / 100.0;
         match t.field {

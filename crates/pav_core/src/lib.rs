@@ -19,6 +19,7 @@ pub mod input;
 pub mod joints;
 pub mod level;
 pub mod params;
+pub mod parts;
 pub mod physics;
 pub mod projectile;
 pub mod puppet;

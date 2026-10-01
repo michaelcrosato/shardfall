@@ -299,6 +299,8 @@ pub struct PuppetDef {
     pub weapon: WeaponLook,
     /// Worn armour.
     pub gear: GearLook,
+    /// Horns, spikes, wings... (any body plan).
+    pub parts: Vec<crate::parts::Attach>,
 }
 
 impl Default for PuppetDef {
@@ -338,6 +340,7 @@ impl Default for PuppetDef {
             accent: "#3a3f4b".into(),
             weapon: WeaponLook::default(),
             gear: GearLook::default(),
+            parts: Vec::new(),
         }
     }
 }
@@ -944,6 +947,31 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         }
     }
     glow_now.set(0.0);
+    if !def.parts.is_empty() {
+        let anchors = crate::parts::Anchors {
+            head,
+            head_r: hr,
+            fwd: Vec3::Z,
+            up: head_dir,
+            right: Vec3::X,
+            back: vec![chest - Vec3::Z * def.torso_radius * k * 0.6, pelvis - Vec3::Z * def.torso_radius * k * 0.6],
+            back_r: def.torso_radius * k,
+            back_out: (-Vec3::Z + Vec3::Y * 0.35).normalize(),
+            shoulders: [
+                chest + Vec3::new(-def.shoulder_width * k * 0.7, 0.0, -def.torso_radius * k * 0.5),
+                chest + Vec3::new(def.shoulder_width * k * 0.7, 0.0, -def.torso_radius * k * 0.5),
+            ],
+            center: pelvis.lerp(chest, 0.5),
+            k,
+        };
+        let accent = Color::try_hex(&def.accent).unwrap_or(shirt);
+        let mut add = |a: Vec3, b: Vec3, ra: f32, rb: f32, c: Color, g: f32| {
+            glow_now.set(g);
+            push(a, b, ra, rb, c);
+        };
+        crate::parts::attach(&def.parts, accent, &anchors, st.time, &mut add);
+        glow_now.set(0.0);
+    }
     if !gear.belt.is_empty() {
         let b = Color::try_hex(&gear.belt).unwrap_or(Color::hex("#5a4030"));
         let at = pelvis + torso_dir * def.torso_length * k * 0.12 + Vec3::Z * def.torso_radius * k * 0.92;

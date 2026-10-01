@@ -4,11 +4,13 @@
 //! use before characters move; `game_post` lands hits, moves projectiles, ticks ailments and
 //! hands out rewards after physics.
 
+pub mod boss;
 pub mod bot;
 pub mod brain;
 pub mod cmd;
 pub mod combat;
 pub mod data;
+pub mod genome;
 pub mod hero;
 pub mod items;
 pub mod loot;
@@ -443,38 +445,81 @@ pub(crate) fn spawn_monster_into(
     pack: u32,
 ) -> Option<EntityId> {
     let d = data();
-    let fam = d.family(family)?;
-    let mut look = fam.puppet.clone();
+    let spec = d.family(family)?.spec();
+    spawn_spec_into(sim, g, &spec, level, rarity, feet, pack)
+}
+
+/// Spawns a monster from a spec (designed family or genome). Magic monsters roll one affix,
+/// rares two or three and a name of their own.
+pub fn spawn_spec_into(
+    sim: &mut Sim,
+    g: &mut Game,
+    spec: &genome::MonsterSpec,
+    level: u32,
+    rarity: Rarity,
+    feet: Vec3,
+    pack: u32,
+) -> Option<EntityId> {
+    let d = data();
+    let n_affixes = match rarity {
+        Rarity::Magic => 1,
+        Rarity::Rare => 2 + sim.state.rng.below(2) as usize,
+        _ => 0,
+    };
+    let affixes = genome::roll_affixes(&d, &mut sim.state.rng, level, n_affixes);
+    let mut spec = spec.clone();
+    let (mods, affix_names) = genome::apply_affixes(&d, &mut spec, &affixes);
+    let name = if rarity == Rarity::Rare { genome::rare_name(&mut sim.state.rng) } else { spec.name.clone() };
+    spawn_actor(sim, g, &spec, &name, level, rarity, feet, pack, mods, affix_names)
+}
+
+/// Puts a monster in the world: entity, stats, brain.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_actor(
+    sim: &mut Sim,
+    g: &mut Game,
+    spec: &genome::MonsterSpec,
+    name: &str,
+    level: u32,
+    rarity: Rarity,
+    feet: Vec3,
+    pack: u32,
+    mods: Mods,
+    affixes: Vec<String>,
+) -> Option<EntityId> {
+    let mut look = spec.puppet.clone();
     if rarity >= Rarity::Rare {
         look.scale *= 1.15;
     }
     let facing = sim.state.rng.range(-3.1, 3.1);
-    let id = sim.spawn_npc(&fam.name, feet, facing, look.clone(), None, None);
+    let id = sim.spawn_npc(name, feet, facing, look.clone(), None, None);
     let diff = sim.config.difficulty.clone();
     let base = Base {
-        life: monster_life(level) * fam.life * rarity.life_mult() * diff.enemy_life,
+        life: monster_life(level) * spec.life * rarity.life_mult() * diff.enemy_life,
         mana: 100.0,
         life_regen: 0.0,
         mana_regen: 10.0,
         armor: level as f32 * 2.0,
         res: 0.0,
     };
-    let mut a = Actor::new(Team::Monster, &fam.name, level, Sheet::compute(base, &Mods::default()));
+    let mut a = Actor::new(Team::Monster, name, level, Sheet::compute(base, &mods));
     a.base = base;
-    a.family = fam.key.clone();
+    a.mods = mods;
+    a.family = spec.key.clone();
     a.rarity = rarity;
-    let body = match fam.body {
-        crate::puppet::BodyPlan::Biped => 0.42,
-        crate::puppet::BodyPlan::Blob => 0.55,
-        _ => 0.5,
-    };
-    a.radius = body * look.scale;
-    a.base_damage = monster_damage(level) * fam.damage * rarity.damage_mult();
-    a.speed = fam.speed * MONSTER_PACE;
-    a.skills = fam.skill_ids.clone();
-    a.brain = Some(Brain::new(fam.archetype, feet));
-    a.xp = monster_xp(level) * fam.xp * rarity.xp_mult();
+    a.radius = spec.radius * look.scale;
+    a.base_damage = monster_damage(level) * spec.damage * rarity.damage_mult();
+    a.speed = spec.speed * MONSTER_PACE;
+    a.skills = spec.skills.clone();
+    a.brain = Some(Brain::new(spec.brain, feet));
+    a.xp = monster_xp(level) * spec.xp * rarity.xp_mult();
     a.pack = pack;
+    a.powers = spec.powers.clone();
+    a.tweaks = spec.tweaks.clone();
+    a.genome = spec.genome;
+    a.affixes = affixes;
+    a.life = a.sheet.life_max;
+    a.mana = a.sheet.mana_max;
     g.actors.insert(id, a);
     Some(id)
 }
@@ -517,6 +562,7 @@ impl Game {
                 }
             }
         }
+        let mut burst = Vec::new();
         for id in ids {
             let Some((feet, _)) = feet_of(sim, id) else { continue };
             let a = self.actors.get_mut(&id).unwrap();
@@ -530,15 +576,22 @@ impl Game {
                 if let Some((skill, target)) = dec.cast {
                     skills::try_cast(self, sim, id, skill, target);
                 }
+                if dec.detonate {
+                    burst.push(id);
+                }
             }
             let a = &self.actors[&id];
             let chill = a.ailments.chill.0;
             if let Some(ch) = sim.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) {
-                ch.haste = a.speed * speed_k * (1.0 - chill) - 1.0;
+                ch.haste = a.speed * a.sheet.move_speed * speed_k * (1.0 - chill) - 1.0;
                 ch.slow = if a.dead || a.frozen() || a.cast.is_some() { 1.0 } else { 0.0 };
                 ch.face = a.cast.as_ref().map(|c| yaw_of(c.dir));
             }
             out.insert(id, inp);
+        }
+        // Bombers that reached you.
+        for id in burst {
+            self.kill(sim, id, events);
         }
         // Skills that move their user (leaps, dashes, charges).
         let casting: Vec<EntityId> = self.actors.iter().filter(|(_, a)| a.cast.is_some()).map(|(id, _)| *id).collect();
@@ -670,6 +723,8 @@ impl Game {
         skills::update_shots(self, sim, dt, events);
         skills::update_effects(self, sim, dt, events);
         self.power_tick(sim, dt, events);
+        self.tick_monster_powers(sim, dt);
+        self.update_bosses(sim, events);
         self.update_loot(sim, dt, events);
         // Ailments, regeneration, timers.
         for id in &ids {
@@ -985,7 +1040,11 @@ impl Game {
         a.ailments = Ailments::default();
         let (team, xp, level, rarity, radius, life_max, killer) =
             (a.team, a.xp, a.level, a.rarity, a.radius, a.sheet.life_max, a.last_hit);
+        let burst = a.power(powers::PowerKind::DeathBurst);
         events.push(SimEvent::Slain { pos: feet, size: radius });
+        if let Some(p) = burst {
+            self.death_burst(sim, team, feet, life_max / rarity.life_mult(), p);
+        }
         if team == Team::Hero {
             self.hero.deaths += 1;
             self.respawn = 3.0;

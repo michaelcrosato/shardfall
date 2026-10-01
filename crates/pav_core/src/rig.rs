@@ -516,6 +516,20 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
         push(&mut parts, knee, f, lr, lr * 0.6, skin);
     }
 
+    let mut anchors: Option<crate::parts::Anchors> = None;
+    let mk = |head: Vec3, head_r: f32, hf: Vec3, back: Vec<Vec3>, back_r: f32, center: Vec3| crate::parts::Anchors {
+        head,
+        head_r,
+        fwd: hf,
+        up,
+        right,
+        back,
+        back_r,
+        back_out: up,
+        shoulders: [center + up * back_r * 0.6 - right * back_r * 0.6, center + up * back_r * 0.6 + right * back_r * 0.6],
+        center,
+        k,
+    };
     match def.body {
         BodyPlan::Spider => {
             let abdomen = chain(ChainKind::Abdomen).and_then(|c| c.last().copied()).unwrap_or(body - fwd * rb * 1.6) + hit;
@@ -526,6 +540,7 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
             let head = body + fwd * rb * 0.95 + up * rb * 0.15;
             push(&mut parts, head, head, hr, hr, skin);
             eyes(&mut parts, head, hr, fwd, right, cam_fwd, def, 0.26);
+            anchors = Some(mk(head, hr, fwd, vec![body + up * rb * 0.3, abdomen + up * rb * 0.5], rb * 1.2, body));
         }
         BodyPlan::Beetle => {
             let front = body + fwd * bl * 0.28;
@@ -537,6 +552,7 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
             let head = front + fwd * rb * 0.85;
             push(&mut parts, head, head, hr, hr, skin);
             eyes(&mut parts, head, hr, fwd, right, cam_fwd, def, 0.24);
+            anchors = Some(mk(head, hr, fwd, vec![front + up * rb * 0.25, back + up * rb * 0.3], rb, body));
         }
         BodyPlan::Lizard => {
             let sp: Vec<Vec3> = match spine {
@@ -569,6 +585,8 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
                 let p = *w + Vec3::Y * rb * 0.85;
                 push(&mut parts, p, p, rb * 0.16, rb * 0.16, accent);
             }
+            let back: Vec<Vec3> = wiggled[1..n - 1].iter().map(|w| *w + Vec3::Y * rb * 0.15).collect();
+            anchors = Some(mk(head, hr, d0, back, rb * 0.85, wiggled[n / 2]));
         }
         BodyPlan::Blob => {
             // Hops as it goes: stretched in the air, squashed on landing.
@@ -589,8 +607,25 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
             }
             let face = c + Vec3::Y * h * 0.12;
             eyes(&mut parts, face, (w * 0.5).min(h * 0.5), yaw * Vec3::Z, yaw * Vec3::X, cam_fwd, def, 0.16);
+            let top = c + Vec3::Y * h * 0.35;
+            let mut a = mk(
+                face,
+                (w * 0.5).min(h * 0.5) * 0.7,
+                yaw * Vec3::Z,
+                vec![top + yaw * Vec3::Z * w * 0.2, top - yaw * Vec3::Z * w * 0.3],
+                w * 0.35,
+                c,
+            );
+            a.up = Vec3::Y;
+            a.back_out = Vec3::Y;
+            anchors = Some(a);
         }
         BodyPlan::Biped => {}
+    }
+    if let Some(a) = anchors.filter(|_| !def.parts.is_empty()) {
+        crate::parts::attach(&def.parts, accent, &a, st.time, &mut |a, b, ra, rb, color, glow| {
+            parts.push(PuppetPart { a, b, ra, rb, color, glow });
+        });
     }
     parts
 }
