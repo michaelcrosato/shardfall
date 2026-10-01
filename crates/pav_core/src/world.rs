@@ -40,6 +40,20 @@ pub fn wing_direction(wing: &str) -> Facing {
     }
 }
 
+/// The sign name of a wing.
+pub fn wing_title(wing: &str) -> &str {
+    match wing {
+        "movement" => "Movement & Feel Lab",
+        "physics" => "Physics Lab",
+        "animation" => "Animation Lab",
+        "vfx" => "Visual Effects",
+        "aesthetic" => "Styles & Filters",
+        "genre" => "Genre Wing",
+        "misc" => "Workshop",
+        other => other,
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoomSlot {
     pub id: u16,
@@ -737,6 +751,41 @@ impl Sim {
                 for d in decor {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, d);
                 }
+                // Signs over each corridor mouth naming its wings, and a welcome line.
+                for f in DIRS {
+                    let mut wings: Vec<&str> = Vec::new();
+                    for r in &st.world.rooms {
+                        if wing_direction(&r.def.wing) == f && !wings.contains(&r.def.wing.as_str()) {
+                            wings.push(&r.def.wing);
+                        }
+                    }
+                    if wings.is_empty() {
+                        continue;
+                    }
+                    let text = wings.iter().map(|w| wing_title(w)).collect::<Vec<_>>().join("  ·  ");
+                    st.statics.add_label_to(
+                        RegionKey::Hub,
+                        crate::zones::Label {
+                            text,
+                            pos: f.dir() * (PLAZA_HALF - 1.2) + Vec3::Y * 2.4,
+                            size: 0.95,
+                            color: Color::hex("#3d3226"),
+                            mode: crate::zones::LabelMode::Billboard,
+                            facing: Facing::South,
+                        },
+                    );
+                }
+                st.statics.add_label_to(
+                    RegionKey::Hub,
+                    crate::zones::Label {
+                        text: "PAVILION  ·  walk down a corridor, or press F2 for any room".into(),
+                        pos: Vec3::new(0.0, 0.03, 4.2),
+                        size: 0.6,
+                        color: Color::hex("#6b5a44"),
+                        mode: crate::zones::LabelMode::Floor,
+                        facing: Facing::South,
+                    },
+                );
                 // Room names on the corridor floor in front of each door.
                 for r in &st.world.rooms {
                     let name = if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() };

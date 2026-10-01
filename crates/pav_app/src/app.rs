@@ -805,7 +805,10 @@ impl App {
             if let Some(t) = &toast {
                 ui::toast(&ctx, t);
             }
-            ui::hint_bar(&ctx, if device == Device::Gamepad { "Start: menu" } else { "Esc menu · F1 tuning · F12 screenshot" });
+            ui::hint_bar(
+                &ctx,
+                if device == Device::Gamepad { "Start: menu" } else { "Esc menu · F1 tuning · F2 rooms · F12 screenshot" },
+            );
         });
         self.show_boot = show_boot;
         if ctl.paused != ctl_before.paused
