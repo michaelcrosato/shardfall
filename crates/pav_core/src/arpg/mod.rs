@@ -141,6 +141,9 @@ pub struct Game {
     pub inv_cache: Option<Arc<InvView>>,
     /// Town folk (animated, not fighting).
     pub npcs: Vec<scene::Npc>,
+    /// The Menagerie's creatures on show (and the seed of the current set).
+    pub exhibits: Vec<scene::Exhibit>,
+    pub lab_seed: u64,
 }
 
 impl Game {
@@ -177,6 +180,8 @@ impl Game {
             inv_rev: 0,
             inv_cache: None,
             npcs: Vec::new(),
+            exhibits: Vec::new(),
+            lab_seed: 0,
         }
     }
 
@@ -276,6 +281,7 @@ impl Sim {
         g.spots.clear();
         g.echoes.clear();
         g.npcs.clear();
+        g.exhibits.clear();
         g.arena = None;
         g.respawn = 0.0;
         g.message = None;
@@ -1207,11 +1213,24 @@ pub struct SpotView {
     pub kind: SpotKind,
     pub name: String,
     pub pos: Vec3,
+    pub info: Vec<String>,
+}
+
+/// The boss being fought (for the big bar).
+#[derive(Clone, Debug)]
+pub struct BossView {
+    pub name: String,
+    pub title: String,
+    pub life: f32,
+    /// Phases passed and the life shares where they start.
+    pub phase: u8,
+    pub marks: Vec<f32>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct GameFrame {
     pub place: Place,
+    pub boss: Option<BossView>,
     pub inv: Option<Arc<InvView>>,
     pub loot: Vec<LootView>,
     pub gold: Vec<Vec3>,
@@ -1349,12 +1368,33 @@ impl Game {
                 }
             })
             .collect();
+        let boss = self
+            .actors
+            .values()
+            .filter(|a| !a.dead && a.boss.is_some())
+            .max_by(|a, b| a.sheet.life_max.total_cmp(&b.sheet.life_max))
+            .and_then(|a| {
+                let st = a.boss.as_ref()?;
+                let def = boss::boss_def(&d, &st.key, a.level)?;
+                Some(BossView {
+                    name: a.name.clone(),
+                    title: def.title.clone(),
+                    life: (a.life / a.sheet.life_max.max(1.0)).clamp(0.0, 1.0),
+                    phase: st.phase,
+                    marks: def.phases.iter().map(|p| p.at).collect(),
+                })
+            });
         GameFrame {
             place: self.place,
+            boss,
             inv: self.inv_cache.clone(),
             loot,
             gold: self.gold.iter().map(|g| g.pos).collect(),
-            spots: self.spots.iter().map(|s| SpotView { kind: s.kind, name: s.name.clone(), pos: s.pos }).collect(),
+            spots: self
+                .spots
+                .iter()
+                .map(|s| SpotView { kind: s.kind, name: s.name.clone(), pos: s.pos, info: s.info.clone() })
+                .collect(),
             near: self.near_spot(sim),
             hero,
             actors,

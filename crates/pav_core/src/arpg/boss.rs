@@ -129,7 +129,7 @@ pub fn generated(d: &Data, seed: u64, level: u32) -> BossDef {
 
 /// The spawnable form of a boss at a level.
 pub fn boss_spec(d: &Data, b: &BossDef, level: u32) -> Result<MonsterSpec, String> {
-    let opts = GenomeOpts { body: b.body, archetype: b.archetype.clone(), element: b.element };
+    let opts = GenomeOpts { body: b.body, archetype: b.archetype.clone(), element: b.element, parts: None };
     let mut g = Genome::generate(d, b.seed, level, &opts)?;
     if b.scale > 0.0 {
         g.puppet.scale = b.scale;

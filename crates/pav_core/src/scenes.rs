@@ -20,6 +20,7 @@ pub const SCENES: &[(&str, &str)] = &[
     ("empty", "A single floor slab with a player."),
     ("arena", "Shardfall: the Proving Grounds, a wave arena (combat test ground)."),
     ("town", "Shardfall: Emberwatch, the town (smith, stash, portal)."),
+    ("lab", "Shardfall: the Menagerie, a gallery of designed and generated creatures."),
 ];
 
 /// All scene names, including standalone rooms (any room key builds just that room).
@@ -108,6 +109,7 @@ pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
         "test" => test_scene(sim),
         "arena" => crate::arpg::scene::build_arena(sim),
         "town" => crate::arpg::scene::build_town(sim, None),
+        "lab" => crate::arpg::scene::build_lab(sim, None),
         "empty" => {
             floor(sim, 20);
             sim.state.spawn = Vec3::new(0.5, 0.0, 0.5);

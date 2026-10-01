@@ -1019,7 +1019,15 @@ pub fn update_effects(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<Sim
 /// Where a monster's wind-up will land.
 pub fn telegraph(a: &Actor, c: &Cast, feet: Vec3) -> Option<Telegraph> {
     let def = skill_of(a, c.skill);
-    if !def.telegraph || c.fired || a.team != Team::Monster {
+    if c.fired || a.team != Team::Monster {
+        return None;
+    }
+    // Monsters casting the big skills always warn (hero skills have no `telegraph` flag).
+    let big = matches!(
+        def.behavior,
+        Behavior::Meteor | Behavior::Field | Behavior::Rain | Behavior::Wave | Behavior::Nova | Behavior::Slam | Behavior::Leap
+    );
+    if !def.telegraph && !big {
         return None;
     }
     let progress = (c.t / c.hit_at.max(1e-3)).clamp(0.0, 1.0);

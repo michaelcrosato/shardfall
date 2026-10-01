@@ -21,6 +21,8 @@ pub struct GameUi {
     pub skills: bool,
     /// The vendor, stash or portal window (opened by interacting).
     pub panel: Option<SpotKind>,
+    /// Which spot the panel belongs to (exhibits).
+    pub panel_spot: Option<usize>,
     pub tree: crate::arpg_tree::TreeUi,
 }
 
@@ -326,7 +328,9 @@ impl GameUi {
     /// Interact pressed: open whatever the hero stands at.
     pub fn interact(&mut self, g: &GameFrame) {
         if let Some(s) = g.near.and_then(|i| g.spots.get(i)) {
-            self.panel = if self.panel == Some(s.kind) { None } else { Some(s.kind) };
+            let same = self.panel == Some(s.kind) && self.panel_spot == g.near;
+            self.panel = if same { None } else { Some(s.kind) };
+            self.panel_spot = g.near;
             if matches!(s.kind, SpotKind::Vendor | SpotKind::Stash) && self.panel.is_some() {
                 self.inventory = true;
             }
@@ -337,9 +341,11 @@ impl GameUi {
     pub fn ui(&mut self, ctx: &egui::Context, g: &GameFrame, proj: &Projector) -> Vec<GameCmd> {
         let mut out = Vec::new();
         let d = data();
-        // Walking away closes the vendor and the stash.
+        // Walking away closes the vendor, the stash and exhibit cards.
         if let Some(k) = self.panel {
-            if g.near.and_then(|i| g.spots.get(i)).map(|s| s.kind) != Some(k) {
+            if g.near.and_then(|i| g.spots.get(i)).map(|s| s.kind) != Some(k)
+                || (k == SpotKind::Exhibit && g.near != self.panel_spot)
+            {
                 self.panel = None;
             }
         }
@@ -372,6 +378,7 @@ impl GameUi {
             Some(SpotKind::Vendor) => self.vendor_window(ctx, &d, &inv, &mut out),
             Some(SpotKind::Stash) => self.stash_window(ctx, &d, &inv, &mut out),
             Some(SpotKind::Portal) => self.portal_window(ctx, g, &mut out),
+            Some(SpotKind::Exhibit) => self.exhibit_window(ctx, g, &mut out),
             None => {}
         }
         out
@@ -611,6 +618,36 @@ impl GameUi {
         }
     }
 
+    fn exhibit_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
+        let Some(i) = self.panel_spot else { return };
+        let Some(s) = g.spots.get(i) else { return };
+        let mut open = true;
+        egui::Window::new(&s.name)
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::RIGHT_TOP, EVec2::new(-16.0, 80.0))
+            .show(ctx, |ui| {
+                for l in &s.info {
+                    ui.label(l);
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Release it (fight)").clicked() {
+                        out.push(GameCmd::Release(i as u32));
+                        self.panel = None;
+                    }
+                    if ui.button("New creatures").clicked() {
+                        out.push(GameCmd::Reroll);
+                        self.panel = None;
+                    }
+                });
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
     fn portal_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
         let mut open = true;
         egui::Window::new("Portal")
@@ -620,7 +657,7 @@ impl GameUi {
             .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
             .show(ctx, |ui| {
                 ui.label(RichText::new("Where to?").strong());
-                for p in [Place::Town, Place::Arena] {
+                for p in [Place::Town, Place::Arena, Place::Lab] {
                     let here = p == g.place;
                     let b = ui.add_enabled(
                         !here,
@@ -810,6 +847,7 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Vendor => "trade",
                 SpotKind::Stash => "open the stash",
                 SpotKind::Portal => "travel",
+                SpotKind::Exhibit => "examine",
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),

@@ -46,6 +46,9 @@ pub enum GameCmd {
     Refund(u32),
     Respec,
     Mastery(u32, u8),
+    /// The Menagerie: let an exhibit out to fight (spot index); new creatures for every pedestal.
+    Release(u32),
+    Reroll,
 }
 
 /// Where the hero can be. Codes: 0 town, 1 arena (levels come in G5).
@@ -55,6 +58,8 @@ pub enum Place {
     #[default]
     Town,
     Arena,
+    /// The Menagerie: the creature lab.
+    Lab,
 }
 
 impl Place {
@@ -65,6 +70,7 @@ impl Place {
         match c {
             0 => Some(Place::Town),
             1 => Some(Place::Arena),
+            2 => Some(Place::Lab),
             _ => None,
         }
     }
@@ -72,6 +78,7 @@ impl Place {
         match self {
             Place::Town => "Emberwatch",
             Place::Arena => "The Proving Grounds",
+            Place::Lab => "The Menagerie",
         }
     }
     /// The scene name for this place.
@@ -79,6 +86,7 @@ impl Place {
         match self {
             Place::Town => "town",
             Place::Arena => "arena",
+            Place::Lab => "lab",
         }
     }
 }
@@ -90,6 +98,8 @@ pub enum SpotKind {
     Vendor,
     Stash,
     Portal,
+    /// A creature on a pedestal (the Menagerie).
+    Exhibit,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -99,6 +109,9 @@ pub struct Spot {
     pub pos: Vec3,
     /// How close the hero must be to use it.
     pub reach: f32,
+    /// Details shown when used (exhibits: the genome card).
+    #[serde(default)]
+    pub info: Vec<String>,
 }
 
 /// Vendors pay an item's value and charge four times it.
@@ -320,6 +333,18 @@ impl Game {
                 }
                 self.hero.masteries.insert(id, option);
                 gear = true;
+            }
+            GameCmd::Release(i) => {
+                if self.place != Place::Lab {
+                    return Err("Only in the Menagerie".into());
+                }
+                super::scene::release_exhibit(self, sim, i as usize)?;
+            }
+            GameCmd::Reroll => {
+                if self.place != Place::Lab {
+                    return Err("Only in the Menagerie".into());
+                }
+                super::scene::stock_lab(self, sim, true);
             }
             GameCmd::Sort => {
                 let key =

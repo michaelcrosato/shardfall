@@ -118,12 +118,13 @@ pub fn attach(parts: &[Attach], accent: Color, a: &Anchors, time: f32, push: &mu
                     let base = a.head + u * hr * 0.75 + r * sd * hr * 0.4;
                     let mid = base + (u * 0.8 + r * sd * 0.6) * hr * s;
                     let tip = mid + (u * 0.9 + r * sd * 0.3 - f * 0.2) * hr * s;
-                    let w = hr * 0.08 * s.sqrt();
+                    let w = hr * 0.06 * s.sqrt();
                     push(base, mid, w * 1.2, w, c, g);
                     push(mid, tip, w, w * 0.4, c, g);
-                    for (k, t) in [(0.5f32, 0.4f32), (0.8, 0.8)] {
-                        let at = base.lerp(mid, t).lerp(mid.lerp(tip, t), k * 0.5);
-                        push(at, at + (f * 0.5 + u * 0.6) * hr * s * 0.6, w * 0.8, w * 0.3, c, g);
+                    // Tines off the beam.
+                    for t in [0.55f32, 1.0] {
+                        let at = if t < 1.0 { base.lerp(mid, t) } else { mid };
+                        push(at, at + (f * 0.45 + u * 0.7 + r * sd * 0.1) * hr * s * 0.55, w * 0.8, w * 0.25, c, g);
                     }
                 }
             }
@@ -199,19 +200,28 @@ pub fn attach(parts: &[Attach], accent: Color, a: &Anchors, time: f32, push: &mu
                 }
             }
             AttachKind::Wings => {
-                // Two fans of bones with membranes, flapping.
-                let flap = (time * 7.0).sin() * 0.45;
+                // A fan of four bones with membrane strips stretched between them, flapping.
+                let flap = (time * 6.0).sin() * 0.4;
+                let k = a.k;
                 for sd in [-1.0f32, 1.0] {
                     let root = a.shoulders[if sd < 0.0 { 0 } else { 1 }];
-                    let out = (r * sd * flap.cos() + u * (0.4 + flap.sin())).normalize();
-                    for k in 0..3 {
-                        let spread = k as f32 * 0.35;
-                        let dir = (out - f * spread + u * 0.1 * k as f32).normalize();
-                        let len = (0.55 - 0.1 * k as f32) * a.k * s;
-                        push(root, root + dir * len, 0.025 * a.k, 0.012 * a.k, c, g);
-                        // Membrane: a flat, wide capsule between bones (reads as a sail).
-                        let m = root + dir * len * 0.55;
-                        push(m - f * 0.05 * a.k, m + f * 0.05 * a.k, 0.09 * a.k * s, 0.07 * a.k * s, c.scale(0.8), g);
+                    let out = (r * sd * (0.9 + flap * 0.3) + u * (0.55 + flap)).normalize();
+                    let tips: Vec<Vec3> = (0..4)
+                        .map(|i| {
+                            let back = i as f32 * 0.32;
+                            let dir = (out - f * back - u * 0.18 * i as f32).normalize();
+                            dir * (0.62 - 0.08 * i as f32) * k * s
+                        })
+                        .collect();
+                    for t in &tips {
+                        push(root, root + *t, 0.024 * k, 0.01 * k, c, g);
+                    }
+                    let skin = c.scale(0.7);
+                    for w in tips.windows(2) {
+                        push(root + w[0], root + w[1], 0.012 * k, 0.012 * k, c, g);
+                        for t in [0.3f32, 0.55, 0.8] {
+                            push(root + w[0] * t, root + w[1] * t, 0.03 * k * t, 0.03 * k * t, skin, g * 0.5);
+                        }
                     }
                 }
             }

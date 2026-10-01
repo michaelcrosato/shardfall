@@ -150,6 +150,8 @@ pub struct GenomeOpts {
     pub body: Option<BodyPlan>,
     pub archetype: Option<String>,
     pub element: Option<Element>,
+    /// These parts instead of rolled ones.
+    pub parts: Option<Vec<AttachKind>>,
 }
 
 /// A generated (or designed) creature.
@@ -323,12 +325,21 @@ impl Genome {
         }
         // Parts: 0-3 (more deeper down).
         let parts_n = (rng.below(3) + if level > 10 { 1 } else { 0 } + if rng.f32() < 0.5 { 1 } else { 0 }).min(3);
-        let fitting: Vec<(&str, &PartGene, f32)> = gd
-            .part
-            .iter()
-            .filter(|(_, g)| g.bodies.iter().any(|b| b == body_key(body)))
-            .map(|(k, g)| (k.as_str(), g, g.weight))
-            .collect();
+        let fitting: Vec<(&str, &PartGene, f32)> = match &opts.parts {
+            Some(list) => gd
+                .part
+                .iter()
+                .filter(|(k, _)| list.iter().any(|p| p.name() == k.as_str()))
+                .map(|(k, g)| (k.as_str(), g, g.weight))
+                .collect(),
+            None => gd
+                .part
+                .iter()
+                .filter(|(_, g)| g.bodies.iter().any(|b| b == body_key(body)))
+                .map(|(k, g)| (k.as_str(), g, g.weight))
+                .collect(),
+        };
+        let parts_n = if opts.parts.is_some() { fitting.len() as u32 } else { parts_n };
         let mut taken: Vec<&str> = Vec::new();
         for _ in 0..parts_n {
             let avail: Vec<(&str, &PartGene, f32)> = fitting.iter().filter(|x| !taken.contains(&x.0)).copied().collect();
