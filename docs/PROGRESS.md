@@ -1,6 +1,8 @@
 # Progress log
 
-All milestones M1–M10 are complete (M4–M10 ran as one goal). See *Known issues and limits* below.
+All engine milestones M1–M10 are complete. **Current goal: Shardfall**, the showcase
+hack-and-slash built on the engine (design: `docs/GAME.md`; progress: *Shardfall* section at
+the end of this file).
 
 ## Status by milestone
 | Milestone | State |
@@ -388,3 +390,55 @@ guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
   live sessions skip the session's own room camera/view sync (the game does that).
 - Browser build reuses the app crate rather than a separate web crate; wasm-bindgen CLI must
   match Cargo.lock's wasm-bindgen version (0.2.129).
+
+
+# Shardfall (the showcase game)
+Goal: a complete hack-and-slash on the engine (docs/GAME.md has the design and milestones
+G1-G6). Work happens on the same branch; each milestone ends with merge to main + a zipped
+Windows build.
+
+| Milestone | State |
+|---|---|
+| G1 Combat core | ✅ done (3423ab6) |
+| G2 Loot, items, inventory | ⏳ next |
+| G3 Passive tree, all skills | ⏳ |
+| G4 Monster genome, bosses | ⏳ |
+| G5 Town, levels, mechanics, endless | ⏳ |
+| G6 Polish, agent tools, final build | ⏳ |
+
+## G1 Combat core — done
+- `pav_core::arpg` lives in `SimState::game` (Option<Box<Game>>): `game_pre` (hero input ->
+  casts/dodge/potion; monster brains -> movement + casts) runs before characters move,
+  `game_post` (casts land, shots, effects, ailments, regen, deaths, rewards, arena waves) after
+  physics. Hit-stop scales the whole tick's dt (`Game::time_scale`).
+- Data in `/game` (embedded by pav_core/build.rs as GAME_DATA; `data::reload(true)` re-reads
+  ./game or $PAV_GAME): `skills.toml` (hero skills and monster attacks share one format),
+  `monsters.toml` (families: body plan, archetype, skills, multipliers, puppet look).
+- Stats (`stats.rs`, ~75 stats with item-text templates) -> `Sheet`. Damage: per element
+  (physical/fire/cold/lightning/poison), armour, resistances, crit, ailments (bleed, ignite,
+  chill/freeze, shock, poison stacks), knockback, leech/on-hit.
+- Hero skills: slash (3-hit combo), cleave, leap_slam, blade_dash, fireball, frost_nova; dodge
+  roll (Space, i-frames), potions (1). Monster skills: claw, bite, smash, stomp, spit, gore
+  (telegraphed). Families: ghoul, bonecrusher, skitterer, spitter, ashdrake, bile_ooze.
+- Puppets: `ActKind` action poses (slash, overhead, thrust, spin, cast, throw, roar, leap,
+  lunge), held weapons (`WeaponLook`), whole-body motion (spin, lunge, leap lift, death topple),
+  part glow, frame tint (hit flash, frozen, burning...). `pose_ex` returns the weapon span.
+- View (`pav_view::arpg`): telegraph decals, swing arcs, rings, flashes, projectiles with light
+  and trails, swing-trail particles, elite auras, ailment particles, screen shake; game event
+  particles in fx.rs; synth sounds for the game events.
+- App: game mode switches bindings (WASD, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift
+  stand; gamepad X/Y/B/RB/LB/RT, A dodge), camera preset and look; HUD (`arpg_ui.rs`: orbs,
+  skill bar with cooldown sweeps, XP bar, damage numbers, monster bars, banners, death);
+  difficulty sliders + presets in the pause menu (`difficulty.*` params).
+- Scene `arena` (wave arena). Bot (`arpg::bot`) + tools: game, hero, monster, autoplay, skills,
+  game_reload. Tests: tests/arpg.rs (bot clears waves, monsters hurt, mana/cooldowns, dodge,
+  rewind exact).
+
+## Decisions (Shardfall)
+- The game is part of the simulation (not a separate crate) so every engine feature works on
+  it, including rewind mid-fight and the live bridge.
+- One skill format for hero and monsters: archetype brains choose among skills, so procedural
+  monsters can use any skill.
+- Actors live in a side table (`Game::actors`, keyed by entity) instead of new Entity fields.
+- Damage numbers and health bars are egui drawn over the 3D view (crisp); trails are additive
+  particles (meshes have no transparency).
