@@ -31,6 +31,15 @@ impl Color {
     pub fn lerp(self, o: Color, t: f32) -> Self {
         Color([0, 1, 2].map(|i| self.0[i] + (o.0[i] - self.0[i]) * t))
     }
+    /// Turns the colour around the colour wheel (degrees), keeping its brightness roughly.
+    pub fn hue_shift(self, deg: f32) -> Self {
+        let (s, c) = deg.to_radians().sin_cos();
+        let k = (1.0 - c) / 3.0;
+        let r = (1.0f32 / 3.0).sqrt() * s;
+        let m = [[c + k, k - r, k + r], [k + r, c + k, k - r], [k - r, k + r, c + k]];
+        let v = self.0;
+        Color([0, 1, 2].map(|i| (m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2]).max(0.0)))
+    }
 }
 
 fn l2s(c: f32) -> f32 {

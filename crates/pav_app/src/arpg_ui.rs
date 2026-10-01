@@ -6,6 +6,7 @@ use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Shape, Stroke, Vec2 as
 use glam::{Mat4, Vec3};
 use pav_core::arpg::combat::{FloatKind, Rarity, Team};
 use pav_core::arpg::data::{Behavior, Element, data};
+use pav_core::arpg::mechanics::{LevelView, MarkKind};
 use pav_core::arpg::{Difficulty, GameFrame, HeroHud};
 
 use crate::input::Device;
@@ -257,9 +258,12 @@ fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device
 }
 
 /// The whole in-game HUD.
-pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device) {
+pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device, big_map: bool) {
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("arpg_hud")));
     let screen = ctx.content_rect();
+    if let Some(l) = &g.level {
+        level_hud(&p, g, l, proj, screen, big_map);
+    }
     // The boss bar.
     if let Some(b) = &g.boss {
         let w = 640.0f32.min(screen.width() * 0.6);
@@ -453,6 +457,135 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device)
             format!("You fell   {:.0}", h.respawn.ceil().max(0.0)),
             FontId::proportional(36.0),
             Color32::from_rgb(230, 80, 70),
+        );
+    }
+}
+
+/// The level: its card (top left), the intro banner, and the map (top right; M for a big one).
+/// The map turns with the camera, shows only rooms the hero has been in, and marks shrines,
+/// gates, chests, wells, totems, the portal and the way down.
+fn level_hud(p: &egui::Painter, g: &GameFrame, l: &LevelView, proj: &Projector, screen: Rect, big: bool) {
+    // Card.
+    let mut y = 34.0;
+    p.text(
+        Pos2::new(14.0, y),
+        Align2::LEFT_TOP,
+        format!("{} · {}", l.label, l.name),
+        FontId::proportional(14.0),
+        if l.endless { Color32::from_rgb(205, 175, 255) } else { Color32::from_rgb(255, 214, 150) },
+    );
+    y += 18.0;
+    for (name, hint) in &l.mechanics {
+        p.text(
+            Pos2::new(16.0, y),
+            Align2::LEFT_TOP,
+            format!("{name}: {hint}"),
+            FontId::proportional(11.5),
+            Color32::from_white_alpha(170),
+        );
+        y += 14.0;
+    }
+    if !l.exit_open && !l.boss_name.is_empty() {
+        p.text(
+            Pos2::new(16.0, y + 2.0),
+            Align2::LEFT_TOP,
+            format!("The way down is sealed: slay {}", l.boss_name),
+            FontId::proportional(11.5),
+            Color32::from_rgb(255, 120, 90),
+        );
+    }
+    // Intro banner for the first seconds.
+    if l.time < 6.0 {
+        let a = ((6.0 - l.time) / 1.5).clamp(0.0, 1.0) * (l.time / 0.4).clamp(0.0, 1.0);
+        let c = screen.center_top() + EVec2::new(0.0, 190.0);
+        let gold = Color32::from_rgba_unmultiplied(255, 220, 160, (a * 255.0) as u8);
+        let shadow = Color32::from_black_alpha((a * 200.0) as u8);
+        p.text(c + EVec2::new(2.0, 2.0), Align2::CENTER_CENTER, &l.name, FontId::proportional(40.0), shadow);
+        p.text(c, Align2::CENTER_CENTER, &l.name, FontId::proportional(40.0), gold);
+        let sub = Color32::from_rgba_unmultiplied(235, 225, 210, (a * 230.0) as u8);
+        p.text(c + EVec2::new(0.0, 34.0), Align2::CENTER_CENTER, &l.about, FontId::proportional(16.0), sub);
+    }
+    // The map: turned like the camera (world axes projected around the hero).
+    let Some(hero) = g.actors.iter().find(|a| a.team == Team::Hero) else { return };
+    let (Some(o), Some(ex), Some(ez)) =
+        (proj.to_screen(hero.feet), proj.to_screen(hero.feet + Vec3::X), proj.to_screen(hero.feet + Vec3::Z))
+    else {
+        return;
+    };
+    let ax = (ex - o).normalized();
+    let az = (ez - o).normalized();
+    let (size, center) = if big {
+        let s = (screen.height() * 0.7).min(screen.width() * 0.6);
+        (s, screen.center())
+    } else {
+        (210.0, Pos2::new(screen.right() - 125.0, 125.0))
+    };
+    let area = Rect::from_center_size(center, EVec2::splat(size));
+    p.rect_filled(area, 8.0, Color32::from_black_alpha(if big { 150 } else { 120 }));
+    // Scale: the whole level fits the big map; the minimap shows 90 m around the hero.
+    let (mut lo, mut hi) = (glam::Vec2::splat(f32::MAX), glam::Vec2::splat(f32::MIN));
+    for r in &l.rooms {
+        lo = lo.min(r.rect.min);
+        hi = hi.max(r.rect.max);
+    }
+    let (focus, span) =
+        if big { ((lo + hi) * 0.5, (hi - lo).max_element() * 1.05) } else { (glam::Vec2::new(hero.feet.x, hero.feet.z), 90.0) };
+    let k = size / span.max(1.0);
+    let to = |x: f32, z: f32| -> Pos2 { center + (ax * (x - focus.x) + az * (z - focus.y)) * k };
+    let clip = p.with_clip_rect(area.shrink(2.0));
+    let quad = |r: &pav_core::arpg::levelgen::Rect, fill: Color32, stroke: Stroke| {
+        let pts = vec![to(r.min.x, r.min.y), to(r.max.x, r.min.y), to(r.max.x, r.max.y), to(r.min.x, r.max.y)];
+        clip.add(Shape::convex_polygon(pts, fill, stroke));
+    };
+    for c in &l.corridors {
+        quad(c, Color32::from_rgba_unmultiplied(150, 140, 120, 150), Stroke::NONE);
+    }
+    for r in l.rooms.iter().filter(|r| r.seen) {
+        quad(&r.rect, Color32::from_rgba_unmultiplied(120, 110, 95, 140), Stroke::new(1.2, Color32::from_rgb(210, 190, 150)));
+    }
+    for m in &l.marks {
+        let at = to(m.pos.x, m.pos.y);
+        let (c, r) = match m.kind {
+            MarkKind::Portal => (Color32::from_rgb(110, 200, 255), 4.5),
+            MarkKind::Exit => {
+                if m.active {
+                    (Color32::from_rgb(255, 210, 110), 6.0)
+                } else {
+                    (Color32::from_rgb(230, 60, 50), 6.0)
+                }
+            }
+            MarkKind::Shrine => (Color32::from_rgb(120, 255, 200), 3.5),
+            MarkKind::Gate => (Color32::from_rgb(180, 120, 255), 4.0),
+            MarkKind::Chest => (Color32::from_rgb(170, 90, 255), 4.0),
+            MarkKind::Well => (Color32::from_rgb(255, 140, 60), 3.5),
+            MarkKind::Totem => (Color32::from_rgb(150, 230, 90), 3.0),
+        };
+        let c = if m.active { c } else { c.gamma_multiply(0.35) };
+        if m.kind == MarkKind::Exit {
+            clip.add(Shape::convex_polygon(
+                vec![at + EVec2::new(0.0, -r), at + EVec2::new(r, 0.0), at + EVec2::new(0.0, r), at + EVec2::new(-r, 0.0)],
+                c,
+                Stroke::new(1.0, Color32::BLACK),
+            ));
+        } else {
+            clip.circle(at, r, c, Stroke::new(1.0, Color32::from_black_alpha(200)));
+        }
+    }
+    // Monsters the hero is fighting, and the hero.
+    for a in g.actors.iter().filter(|a| a.team == Team::Monster && !a.dead && a.aggro) {
+        let r = if a.rarity >= Rarity::Rare { 2.6 } else { 1.6 };
+        clip.circle_filled(to(a.feet.x, a.feet.z), r, Color32::from_rgb(230, 70, 60));
+    }
+    let h = to(hero.feet.x, hero.feet.z);
+    clip.circle(h, 4.0, Color32::WHITE, Stroke::new(1.5, Color32::BLACK));
+    p.rect_stroke(area, 8.0, Stroke::new(1.0, Color32::from_white_alpha(60)), egui::StrokeKind::Inside);
+    if !big {
+        p.text(
+            area.center_bottom() + EVec2::new(0.0, 4.0),
+            Align2::CENTER_TOP,
+            "M: map",
+            FontId::proportional(10.0),
+            Color32::from_white_alpha(130),
         );
     }
 }

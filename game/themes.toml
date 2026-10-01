@@ -2,7 +2,7 @@
 # rooms and corridors and paints them with a theme; endless depths pick themes in turn.
 #
 # floor / wall / pillar / accent    colours (floor tiles alternate between the two floor colours)
-# light      colour of braziers and lamps; light_every: one per this many floor tiles of a room
+# light      colour of the wall sconces; light_every: metres of wall between two sconces
 # sky / sun / sun_angle / ambient   the level's mood (sun 0 = dark, only lamps)
 # particles  ambience drifting about (embers, snow, fireflies, dust, magic, spores...)
 # elements   how likely each element is for its creatures [physical, fire, cold, lightning, poison]
@@ -16,7 +16,7 @@ wall = "#5a4a44"
 pillar = "#6a5850"
 accent = "#ff7a2a"
 light = "#ff8a3a"
-light_every = 40
+light_every = 10
 sky = "#1a1210"
 sun = 0.35
 sun_angle = 30
@@ -33,7 +33,7 @@ wall = "#8aa0b8"
 pillar = "#c8dcec"
 accent = "#9ae4ff"
 light = "#9ad8ff"
-light_every = 45
+light_every = 11
 sky = "#0e1620"
 sun = 0.5
 sun_angle = 45
@@ -50,7 +50,7 @@ wall = "#4a4238"
 pillar = "#5a4a5a"
 accent = "#c8f25a"
 light = "#b0ff7a"
-light_every = 50
+light_every = 12
 sky = "#10140e"
 sun = 0.25
 sun_angle = 50
@@ -67,7 +67,7 @@ wall = "#5a5a6e"
 pillar = "#6e6e86"
 accent = "#ffe85a"
 light = "#c8d8ff"
-light_every = 40
+light_every = 10
 sky = "#121220"
 sun = 0.45
 sun_angle = 60
@@ -84,7 +84,7 @@ wall = "#6a6056"
 pillar = "#8a8070"
 accent = "#e8e0c8"
 light = "#ffd8a0"
-light_every = 45
+light_every = 11
 sky = "#121010"
 sun = 0.3
 sun_angle = 35
@@ -101,7 +101,7 @@ wall = "#4a6a6a"
 pillar = "#6a8a86"
 accent = "#7affd8"
 light = "#7affe0"
-light_every = 45
+light_every = 11
 sky = "#0a1416"
 sun = 0.4
 sun_angle = 55
@@ -118,7 +118,7 @@ wall = "#3a3040"
 pillar = "#4a3a54"
 accent = "#c070ff"
 light = "#c08aff"
-light_every = 40
+light_every = 10
 sky = "#0c0812"
 sun = 0.2
 sun_angle = 25
@@ -135,7 +135,7 @@ wall = "#6a6a5a"
 pillar = "#7a7a68"
 accent = "#a0e060"
 light = "#ffe0a0"
-light_every = 55
+light_every = 13
 sky = "#141a12"
 sun = 0.6
 sun_angle = 55

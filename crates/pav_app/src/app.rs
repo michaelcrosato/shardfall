@@ -481,6 +481,10 @@ impl App {
                     ui.tree.open = !ui.tree.open;
                     return;
                 }
+                KeyCode::KeyM => {
+                    ui.map = !ui.map;
+                    return;
+                }
                 KeyCode::KeyT => {
                     // Town portal: home from anywhere.
                     if self.game_frame.as_ref().is_some_and(|g| g.place != pav_core::arpg::Place::Town) {
@@ -699,7 +703,7 @@ impl App {
             if self.game_place != Some(g.place) {
                 self.game_place = Some(g.place);
                 self.game_ui.panel = None;
-                place_look(g.place, &mut self.view);
+                place_look(g, &mut self.view);
             }
         }
         let alpha =
@@ -720,7 +724,9 @@ impl App {
         let (mut held, mut pressed) = self.input.buttons();
         if pressed & pav_core::input::buttons::INTERACT != 0 {
             if let Some(g) = &curr.game {
-                self.game_ui.interact(g);
+                if let Some(c) = self.game_ui.interact(g) {
+                    host.shared.command(c);
+                }
             }
         }
         if pressed != 0 && self.input.last_device == Device::Gamepad {
@@ -883,7 +889,7 @@ impl App {
             }
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
-                crate::arpg_ui::hud(&ctx, g, &proj, device);
+                crate::arpg_ui::hud(&ctx, g, &proj, device, game_ui.map);
                 if !menu_open {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
                 }
@@ -1286,8 +1292,25 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
 }
 
 /// Each Shardfall place has its own light: Emberwatch at dusk, the Proving Grounds by day.
-fn place_look(place: pav_core::arpg::Place, v: &mut ViewSettings) {
-    match place {
+fn place_look(g: &pav_core::arpg::GameFrame, v: &mut ViewSettings) {
+    v.fog = false;
+    match g.place {
+        pav_core::arpg::Place::Level(_) => {
+            // The level's own mood (its theme; darkness levels nearly black).
+            let Some(m) = g.level.as_ref().map(|l| &l.mood) else { return };
+            v.sky = m.sky.clone();
+            v.light.sun_elevation = 55.0;
+            v.light.sun_azimuth = m.sun_angle;
+            v.light.sun_intensity = m.sun;
+            v.light.ambient = m.ambient;
+            v.bloom = 0.75;
+            v.saturation = 1.1;
+            if m.fog > 0.0 {
+                v.fog = true;
+                v.fog_start = m.fog * 0.45;
+                v.fog_end = m.fog;
+            }
+        }
         pav_core::arpg::Place::Town => {
             v.sky = "#1a1420".into();
             v.light.sun_elevation = 24.0;

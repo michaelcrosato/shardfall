@@ -24,6 +24,8 @@ pub struct GameUi {
     /// Which spot the panel belongs to (exhibits).
     pub panel_spot: Option<usize>,
     pub tree: crate::arpg_tree::TreeUi,
+    /// The big level map (M).
+    pub map: bool,
 }
 
 pub fn rarity_color(r: Rarity) -> Color32 {
@@ -325,9 +327,12 @@ impl GameUi {
         self.tree.open = false;
     }
 
-    /// Interact pressed: open whatever the hero stands at.
-    pub fn interact(&mut self, g: &GameFrame) {
+    /// Interact pressed: open whatever the hero stands at, or use it (the way down, a chest).
+    pub fn interact(&mut self, g: &GameFrame) -> Option<GameCmd> {
         if let Some(s) = g.near.and_then(|i| g.spots.get(i)) {
+            if matches!(s.kind, SpotKind::Exit | SpotKind::Chest) {
+                return g.near.map(|i| GameCmd::Use(i as u32));
+            }
             let same = self.panel == Some(s.kind) && self.panel_spot == g.near;
             self.panel = if same { None } else { Some(s.kind) };
             self.panel_spot = g.near;
@@ -335,6 +340,7 @@ impl GameUi {
                 self.inventory = true;
             }
         }
+        None
     }
 
     /// Draws the windows and labels; returns the commands the player gave.
@@ -379,7 +385,7 @@ impl GameUi {
             Some(SpotKind::Stash) => self.stash_window(ctx, &d, &inv, &mut out),
             Some(SpotKind::Portal) => self.portal_window(ctx, g, &mut out),
             Some(SpotKind::Exhibit) => self.exhibit_window(ctx, g, &mut out),
-            None => {}
+            Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         out
     }
@@ -650,6 +656,8 @@ impl GameUi {
 
     fn portal_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
         let mut open = true;
+        let deepest = g.inv.as_ref().map(|i| i.max_depth).unwrap_or(0).max(1);
+        let d = data();
         egui::Window::new("Portal")
             .open(&mut open)
             .resizable(false)
@@ -661,14 +669,40 @@ impl GameUi {
                     let here = p == g.place;
                     let b = ui.add_enabled(
                         !here,
-                        egui::Button::new(RichText::new(p.name()).size(16.0)).min_size(EVec2::new(240.0, 30.0)),
+                        egui::Button::new(RichText::new(p.name()).size(16.0)).min_size(EVec2::new(300.0, 30.0)),
                     );
                     if b.clicked() {
                         out.push(GameCmd::Travel(p.code()));
                         self.panel = None;
                     }
                 }
-                ui.label(RichText::new("The depths open in a later update.").small().color(Color32::from_white_alpha(110)));
+                ui.separator();
+                ui.label(RichText::new("Waypoints: the descent").strong());
+                egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+                    for n in (1..=deepest).rev() {
+                        let plan = pav_core::arpg::world::plan(&d, n);
+                        let p = Place::Level(n);
+                        let here = p == g.place;
+                        let mut text = RichText::new(format!("{} · {}", plan.label(), plan.name)).size(15.0);
+                        if plan.endless {
+                            text = text.color(Color32::from_rgb(200, 170, 255));
+                        }
+                        let b = ui.add_enabled(!here, egui::Button::new(text).min_size(EVec2::new(300.0, 26.0)));
+                        let b = b.on_hover_ui(|ui| {
+                            ui.label(RichText::new(&plan.about).italics());
+                            let mech: Vec<&str> = plan.mechanics.iter().map(|m| m.name()).collect();
+                            ui.label(format!("Mechanics: {}", mech.join(", ")));
+                            ui.label(format!("Monster level {}", plan.monster_level));
+                            if let Some(b) = &plan.boss {
+                                ui.label(RichText::new(format!("Boss: {b}")).color(Color32::from_rgb(255, 150, 80)));
+                            }
+                        });
+                        if b.clicked() {
+                            out.push(GameCmd::Travel(p.code()));
+                            self.panel = None;
+                        }
+                    }
+                });
             });
         if !open {
             self.panel = None;
@@ -848,6 +882,8 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Stash => "open the stash",
                 SpotKind::Portal => "travel",
                 SpotKind::Exhibit => "examine",
+                SpotKind::Exit => "descend",
+                SpotKind::Chest => "break the seal (keepers will come)",
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),

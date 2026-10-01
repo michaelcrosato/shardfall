@@ -56,7 +56,7 @@ pub enum RoomRole {
     Exit,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Room {
     pub cell: (i32, i32),
     pub rect: Rect,
@@ -66,7 +66,7 @@ pub struct Room {
     pub depth: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Corridor {
     pub rect: Rect,
     /// Runs along x (else along z).
@@ -74,7 +74,7 @@ pub struct Corridor {
     pub rooms: (usize, usize),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Layout {
     pub rooms: Vec<Room>,
     pub corridors: Vec<Corridor>,
@@ -103,7 +103,8 @@ impl Layout {
         while cells.len() < main && tries < 200 {
             tries += 1;
             let last = *cells.last().unwrap();
-            let mut options: Vec<usize> = (0..4).filter(|d| !cells.contains(&(last.0 + DIRS[*d].0, last.1 + DIRS[*d].1))).collect();
+            let mut options: Vec<usize> =
+                (0..4).filter(|d| !cells.contains(&(last.0 + DIRS[*d].0, last.1 + DIRS[*d].1))).collect();
             if options.is_empty() {
                 // Dead end: start over from a different direction.
                 cells.truncate(1);
@@ -119,7 +120,15 @@ impl Layout {
         let n_main = cells.len();
         let mut edges: Vec<(usize, usize)> = (1..n_main).map(|i| (i - 1, i)).collect();
         let mut roles: Vec<RoomRole> = (0..n_main)
-            .map(|i| if i == 0 { RoomRole::Start } else if i + 1 == n_main { RoomRole::Exit } else { RoomRole::Main })
+            .map(|i| {
+                if i == 0 {
+                    RoomRole::Start
+                } else if i + 1 == n_main {
+                    RoomRole::Exit
+                } else {
+                    RoomRole::Main
+                }
+            })
             .collect();
         let mut depth: Vec<usize> = (0..n_main).collect();
         // Side branches off the middle of the path.
@@ -132,8 +141,7 @@ impl Layout {
             let mut at = from;
             for _ in 0..(1 + rng.below(2)) {
                 let c = cells[at];
-                let free: Vec<(i32, i32)> =
-                    DIRS.iter().map(|d| (c.0 + d.0, c.1 + d.1)).filter(|p| !cells.contains(p)).collect();
+                let free: Vec<(i32, i32)> = DIRS.iter().map(|d| (c.0 + d.0, c.1 + d.1)).filter(|p| !cells.contains(p)).collect();
                 if free.is_empty() {
                     break;
                 }
@@ -231,7 +239,10 @@ mod tests {
             assert_eq!(l.rooms[l.exit].role, RoomRole::Exit);
             for (i, a) in l.rooms.iter().enumerate() {
                 for b in &l.rooms[i + 1..] {
-                    let overlap = a.rect.min.x < b.rect.max.x && b.rect.min.x < a.rect.max.x && a.rect.min.y < b.rect.max.y && b.rect.min.y < a.rect.max.y;
+                    let overlap = a.rect.min.x < b.rect.max.x
+                        && b.rect.min.x < a.rect.max.x
+                        && a.rect.min.y < b.rect.max.y
+                        && b.rect.min.y < a.rect.max.y;
                     assert!(!overlap, "seed {seed}: rooms overlap");
                 }
             }

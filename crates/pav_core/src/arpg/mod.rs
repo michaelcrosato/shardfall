@@ -15,11 +15,13 @@ pub mod hero;
 pub mod items;
 pub mod levelgen;
 pub mod loot;
+pub mod mechanics;
 pub mod powers;
 pub mod scene;
 pub mod skills;
 pub mod stats;
 pub mod tree;
+pub mod world;
 
 pub use cmd::{GameCmd, Place, Spot, SpotKind};
 
@@ -145,6 +147,8 @@ pub struct Game {
     /// The Menagerie's creatures on show (and the seed of the current set).
     pub exhibits: Vec<scene::Exhibit>,
     pub lab_seed: u64,
+    /// The level in progress (levels only).
+    pub level: Option<Box<mechanics::LevelState>>,
 }
 
 impl Game {
@@ -183,6 +187,7 @@ impl Game {
             npcs: Vec::new(),
             exhibits: Vec::new(),
             lab_seed: 0,
+            level: None,
         }
     }
 
@@ -213,6 +218,7 @@ impl Game {
             refund_cost: self.hero.refund_cost(),
             respec_cost: self.hero.respec_cost(),
             tweaks: self.hero_actor().map(|a| a.tweaks.clone()).unwrap_or_default(),
+            max_depth: self.hero.max_depth,
         }
     }
 
@@ -253,11 +259,17 @@ fn yaw_of(d: Vec3) -> f32 {
     d.x.atan2(d.z)
 }
 
-/// Feet position and body height of a character entity.
+/// Feet position and body height of a character entity (or of a prop actor, from its shape:
+/// kegs, totems).
 pub(crate) fn feet_of(sim: &Sim, id: EntityId) -> Option<(Vec3, f32)> {
     let e = sim.state.entities.get(id)?;
-    let ch = e.character.as_ref()?;
-    Some((e.pos - Vec3::Y * ch.height() * 0.5, ch.height()))
+    match e.character.as_ref() {
+        Some(ch) => Some((e.pos - Vec3::Y * ch.height() * 0.5, ch.height())),
+        None => {
+            let h = e.visual.as_ref()?.shape.half_extents().y;
+            Some((e.pos - Vec3::Y * h, h * 2.0))
+        }
+    }
 }
 
 impl Sim {
@@ -284,6 +296,7 @@ impl Sim {
         g.npcs.clear();
         g.exhibits.clear();
         g.arena = None;
+        g.level = None;
         g.respawn = 0.0;
         g.message = None;
         g.hitstop = 0.0;
@@ -337,7 +350,7 @@ impl Sim {
             std::sync::Arc::make_mut(c).version += bump;
         }
         fresh.state.tick = tick;
-        fresh.state.scene = place.scene().to_string();
+        fresh.state.scene = place.scene();
         self.config = fresh.config.clone();
         self.restore(fresh.state);
         events.push(SimEvent::Travel { place: dest });
@@ -348,6 +361,12 @@ impl Sim {
         g.post(self, dt, raw_dt, events);
         self.state.game = Some(g);
     }
+}
+
+/// Lands a hit on `target` (tools and tests; the game's own hits come from skills).
+pub fn debug_hit(sim: &mut Sim, g: &mut Game, target: EntityId, dmg: &Damage, events: &mut Vec<SimEvent>) -> f32 {
+    let from = feet_of(sim, target).map(|f| f.0).unwrap_or(Vec3::ZERO);
+    g.hit(sim, target, dmg, from, events)
 }
 
 /// Recomputes the hero's numbers from the profile (level, gear, passives, difficulty) and their
@@ -814,6 +833,7 @@ impl Game {
         self.shake *= (-9.0 * raw_dt).exp();
         self.level_flash += raw_dt;
         scene::update_arena(self, sim, dt);
+        mechanics::update_level(self, sim, dt, events);
         scene::update_npcs(self, sim, dt, events);
         if self.inv_cache.is_none() {
             self.inv_cache = Some(Arc::new(self.inv_view()));
@@ -985,11 +1005,21 @@ impl Game {
         if parts[4] > 0.0 && rng.f32() < dmg.ailment[4] && t.ailments.poison.len() < 25 {
             t.ailments.poison.push(Dot { dps: parts[4] * 0.3 / 2.0 * am, time: 2.0, source: dmg.source });
         }
+        // Frozen on ice: one more hit and they shatter.
+        let shattered =
+            t.team == Team::Monster && !boss && t.life > 0.0 && t.frozen() && self.level.as_ref().is_some_and(|l| l.on_ice(feet));
+        if shattered {
+            t.life = 0.0;
+        }
         let team = t.team;
         let immovable = t.immovable || boss || t.has_power(powers::PowerKind::StandFirm);
         let killed = t.life <= 0.0;
         let kind = if dmg.crit { FloatKind::Crit(dmg.main_element() as u8) } else { FloatKind::Damage(dmg.main_element() as u8) };
         self.float(head, total, kind);
+        if shattered {
+            self.float_text(head + Vec3::Y * 0.4, "Shatter!");
+            events.push(SimEvent::Break { pos: feet + Vec3::Y * 0.6 });
+        }
         // Knockback and flinch.
         let dir = flat(feet - from).normalize_or(Vec3::X);
         if let Some(ch) = sim.state.entities.get_mut(target).and_then(|e| e.character.as_mut()) {
@@ -1193,6 +1223,8 @@ pub struct InvView {
     pub refund_cost: u64,
     pub respec_cost: u64,
     pub tweaks: Vec<skills::Tweak>,
+    /// Deepest level reached (waypoints).
+    pub max_depth: u32,
 }
 
 /// An item on the ground as the HUD and view see it.
@@ -1231,6 +1263,8 @@ pub struct BossView {
 #[derive(Clone, Debug, Default)]
 pub struct GameFrame {
     pub place: Place,
+    /// The level in progress: card, map, marks, mood.
+    pub level: Option<mechanics::LevelView>,
     pub boss: Option<BossView>,
     pub inv: Option<Arc<InvView>>,
     pub loot: Vec<LootView>,
@@ -1372,7 +1406,7 @@ impl Game {
         let boss = self
             .actors
             .values()
-            .filter(|a| !a.dead && a.boss.is_some())
+            .filter(|a| !a.dead && a.boss.is_some() && a.brain.as_ref().is_none_or(|b| b.aggro))
             .max_by(|a, b| a.sheet.life_max.total_cmp(&b.sheet.life_max))
             .and_then(|a| {
                 let st = a.boss.as_ref()?;
@@ -1385,8 +1419,12 @@ impl Game {
                     marks: def.phases.iter().map(|p| p.at).collect(),
                 })
             });
+        if let Some(l) = &self.level {
+            telegraphs.extend(l.telegraphs());
+        }
         GameFrame {
             place: self.place,
+            level: self.level.as_ref().map(|l| l.view(self)),
             boss,
             inv: self.inv_cache.clone(),
             loot,

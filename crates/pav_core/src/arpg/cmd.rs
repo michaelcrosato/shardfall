@@ -49,9 +49,11 @@ pub enum GameCmd {
     /// The Menagerie: let an exhibit out to fight (spot index); new creatures for every pedestal.
     Release(u32),
     Reroll,
+    /// Use a spot in the world (spot index): take the way down, open a cursed chest.
+    Use(u32),
 }
 
-/// Where the hero can be. Codes: 0 town, 1 arena (levels come in G5).
+/// Where the hero can be. Codes: 0 town, 1 arena, 2 the Menagerie, 100 + n depth n.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Place {
@@ -60,33 +62,46 @@ pub enum Place {
     Arena,
     /// The Menagerie: the creature lab.
     Lab,
+    /// A level of the descent: 1..=12 designed, then the endless Depths.
+    Level(u32),
 }
 
 impl Place {
     pub fn code(self) -> u32 {
-        self as u32
+        match self {
+            Place::Town => 0,
+            Place::Arena => 1,
+            Place::Lab => 2,
+            Place::Level(n) => 100 + n,
+        }
     }
     pub fn from_code(c: u32) -> Option<Place> {
         match c {
             0 => Some(Place::Town),
             1 => Some(Place::Arena),
             2 => Some(Place::Lab),
+            n if n > 100 => Some(Place::Level(n - 100)),
             _ => None,
         }
     }
-    pub fn name(self) -> &'static str {
+    pub fn name(self) -> String {
         match self {
-            Place::Town => "Emberwatch",
-            Place::Arena => "The Proving Grounds",
-            Place::Lab => "The Menagerie",
+            Place::Town => "Emberwatch".into(),
+            Place::Arena => "The Proving Grounds".into(),
+            Place::Lab => "The Menagerie".into(),
+            Place::Level(n) => {
+                let p = super::world::plan(&data(), n);
+                format!("{} · {}", p.label(), p.name)
+            }
         }
     }
     /// The scene name for this place.
-    pub fn scene(self) -> &'static str {
+    pub fn scene(self) -> String {
         match self {
-            Place::Town => "town",
-            Place::Arena => "arena",
-            Place::Lab => "lab",
+            Place::Town => "town".into(),
+            Place::Arena => "arena".into(),
+            Place::Lab => "lab".into(),
+            Place::Level(n) => format!("level/{n}"),
         }
     }
 }
@@ -100,6 +115,10 @@ pub enum SpotKind {
     Portal,
     /// A creature on a pedestal (the Menagerie).
     Exhibit,
+    /// The way down to the next depth.
+    Exit,
+    /// A cursed chest (levels).
+    Chest,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -265,7 +284,25 @@ impl Game {
             }
             GameCmd::Travel(code) => {
                 let place = Place::from_code(code).ok_or("unknown destination")?;
+                if let Place::Level(n) = place {
+                    if n > self.hero.max_depth.max(1) {
+                        return Err(format!("{} is not reached yet", place.name()));
+                    }
+                }
                 self.travel = Some(place.code());
+            }
+            GameCmd::Use(i) => {
+                let s = self.spots.get(i as usize).ok_or("nothing there")?.clone();
+                let hid = self.hero_id.ok_or("no hero")?;
+                let (feet, _) = feet_of(sim, hid).ok_or("no hero")?;
+                if flat(feet - s.pos).length() > s.reach + 1.0 {
+                    return Err(format!("{} is too far away", s.name));
+                }
+                match s.kind {
+                    SpotKind::Exit => super::mechanics::use_exit(self)?,
+                    SpotKind::Chest => super::mechanics::open_chest(self, i as usize)?,
+                    _ => return Err("nothing to do there".into()),
+                }
             }
             GameCmd::AutoLoot(r) => {
                 self.auto_loot = match r {

@@ -376,6 +376,10 @@ pub struct Character {
     pub dash_time: f32,
     #[serde(default)]
     pub dash_roll: bool,
+    /// Footing (0 = sure-footed, towards 1 = ice): how slowly the ground velocity follows the
+    /// wanted one, and how far a knockback slides.
+    #[serde(default)]
+    pub slide: f32,
 }
 
 impl Character {
@@ -773,7 +777,7 @@ pub fn tick(
             vh = Vec3::new(ch.dash_vel.x, 0.0, ch.dash_vel.z);
         } else if stunned {
             // Knocked back: slide to a stop, no control.
-            vh *= (-3.0 * dt).exp();
+            vh *= (-3.0 * (1.0 - ch.slide).max(0.05) * dt).exp();
         } else if ch.swimming {
             let target = wish * mp.swim_speed;
             vh = vh.lerp(target, 1.0 - (-5.0 * dt).exp());
@@ -782,7 +786,10 @@ pub fn tick(
                 MovementModel::Instant => {
                     let s = if held(buttons::FOCUS) { mp.focus_speed } else { mp.speed } * mult;
                     let target = wish * s;
-                    if ch.grounded || mp.air_control >= 0.99 {
+                    if ch.grounded && ch.slide > 0.0 {
+                        // Ice: momentum carries on.
+                        vh = vh.lerp(target, 1.0 - (-(1.0 - ch.slide).max(0.03) * 14.0 * dt).exp());
+                    } else if ch.grounded || mp.air_control >= 0.99 {
                         vh = target;
                     } else {
                         vh = vh.lerp(target, 1.0 - (-mp.air_control * 25.0 * dt).exp());

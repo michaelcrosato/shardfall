@@ -25,6 +25,7 @@ pub fn build_place(sim: &mut Sim, place: Place, g: Game) {
         Place::Town => build_town(sim, Some(g)),
         Place::Arena => build_arena_with(sim, Some(g)),
         Place::Lab => build_lab(sim, Some(g)),
+        Place::Level(n) => super::world::build_level(sim, n, Some(g)),
     }
 }
 
@@ -290,7 +291,7 @@ fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
 }
 
 /// A shimmering portal: a ring of standing stones around a glowing pool.
-fn portal(sim: &mut Sim, at: Vec3) {
+pub(crate) fn portal(sim: &mut Sim, at: Vec3) {
     let st = &mut sim.state;
     let stone = Color::hex("#4a4650");
     for k in 0..10 {
