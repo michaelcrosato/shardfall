@@ -6,6 +6,7 @@ pub mod gpu;
 pub mod mesh;
 pub mod renderer;
 pub mod scene;
+pub mod shadows;
 pub mod text;
 
 pub use mesh::{MeshData, MeshKey};

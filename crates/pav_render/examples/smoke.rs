@@ -68,6 +68,7 @@ fn main() -> anyhow::Result<()> {
         position: Vec3::new(0.0, 1.5, 1.0),
         color: Vec3::new(1.0, 0.5, 0.2) * 2.0,
         radius: 5.0,
+        shadows: true,
     });
     let t = std::time::Instant::now();
     let px = capture::render_to_rgba(&mut r, &scene, 960, 540)?;

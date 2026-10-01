@@ -148,6 +148,8 @@ pub struct PointLight {
     /// Linear RGB times intensity.
     pub color: Vec3,
     pub radius: f32,
+    /// Casts shadows (the brightest few such lights get shadow maps).
+    pub shadows: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -278,6 +280,9 @@ pub struct ParticleBurst {
     pub bounce: f32,
     /// Swirling noise strength (smoke, fireflies).
     pub turbulence: f32,
+    /// Born as if emitted over the last `prewarm` seconds (spread-out ages), so a new
+    /// emitter starts in full swing.
+    pub prewarm: f32,
 }
 
 impl Default for ParticleBurst {
@@ -299,6 +304,7 @@ impl Default for ParticleBurst {
             floor: None,
             bounce: 0.3,
             turbulence: 0.0,
+            prewarm: 0.0,
         }
     }
 }

@@ -508,7 +508,7 @@ fn t_input(s: &mut Session, a: &Args) -> Result<Output> {
         s.sim.step(&f);
         s.sync_camera();
     }
-    s.sim.drain_events();
+    s.keep_events();
     Ok(Output::Json(player_json(s)))
 }
 
@@ -604,7 +604,7 @@ fn t_replay(s: &mut Session, a: &Args) -> Result<Output> {
     for f in r.iter() {
         s.sim.step(f);
     }
-    s.sim.drain_events();
+    s.keep_events();
     let hash = format!("{:016x}", s.sim.state_hash());
     Ok(Output::Json(json!({
         "ticks": r.ticks(),
@@ -778,7 +778,7 @@ fn t_filmstrip(s: &mut Session, a: &Args) -> Result<Output> {
                 s.sim.step(&f);
                 s.sync_camera();
             }
-            s.sim.drain_events();
+            s.keep_events();
         }
     }
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, w, h, cols);
@@ -799,7 +799,7 @@ fn t_audio_capture(s: &mut Session, a: &Args) -> Result<Output> {
     let held = buttons_arg(a, "hold")?;
     let press = buttons_arg(a, "press")?;
     let aim = vec_arg(a, "aim")?.filter(|v| v.len() == 3).map(|v| glam::Vec3::new(v[0], v[1], v[2]));
-    s.sim.drain_events();
+    s.keep_events();
     let dt = s.sim.dt();
     let mut events = Vec::new();
     for i in 0..n {

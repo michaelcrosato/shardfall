@@ -29,6 +29,8 @@ struct PointLight {
 @group(0) @binding(1) var<storage, read> point_lights: array<PointLight>;
 @group(0) @binding(2) var shadow_map: texture_depth_2d;
 @group(0) @binding(3) var shadow_sampler: sampler_comparison;
+@group(0) @binding(4) var point_shadow: texture_depth_2d_array;
+@group(0) @binding(5) var<storage, read> point_mats: array<mat4x4<f32>>;
 
 const FLAG_NO_CUT: u32 = 1u;
 const FLAG_NO_RECEIVE_SHADOW: u32 = 4u;
@@ -110,6 +112,38 @@ fn shadow_factor(p: vec3<f32>, n: vec3<f32>) -> f32 {
     return s / 9.0;
 }
 
+// Shadow of point light shadow slot `slot` at p (1 = lit). Faces: +x -x +y -y +z -z.
+fn point_shadow_factor(slot: u32, light: vec3<f32>, p: vec3<f32>, n: vec3<f32>) -> f32 {
+    let d = p - light;
+    let a = abs(d);
+    var face = 0u;
+    if (a.x >= a.y && a.x >= a.z) {
+        face = select(1u, 0u, d.x > 0.0);
+    } else if (a.y >= a.z) {
+        face = select(3u, 2u, d.y > 0.0);
+    } else {
+        face = select(5u, 4u, d.z > 0.0);
+    }
+    let layer = slot * 6u + face;
+    // Pull the sample point toward the light and off the surface (world-space bias).
+    let q = p + n * 0.04 - normalize(d) * 0.04;
+    let c = point_mats[layer] * vec4<f32>(q, 1.0);
+    let ndc = c.xyz / c.w;
+    let uv = vec2<f32>(ndc.x * 0.5 + 0.5, -ndc.y * 0.5 + 0.5);
+    if (ndc.z > 1.0 || ndc.z < 0.0) {
+        return 1.0;
+    }
+    let ts = 1.0 / f32(textureDimensions(point_shadow).x);
+    var s = 0.0;
+    for (var y = 0; y < 2; y++) {
+        for (var x = 0; x < 2; x++) {
+            let o = (vec2<f32>(f32(x), f32(y)) - 0.5) * ts * 1.5;
+            s += textureSampleCompareLevel(point_shadow, shadow_sampler, clamp(uv + o, vec2<f32>(0.0), vec2<f32>(1.0)), layer, ndc.z);
+        }
+    }
+    return s * 0.25;
+}
+
 fn view_dir(p: vec3<f32>) -> vec3<f32> {
     if (g.eye.w > 0.5) {
         return normalize(g.eye.xyz - p);
@@ -159,7 +193,10 @@ fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u3
         let r = pl.pos_radius.w;
         if (dist < r) {
             let ld = d / max(dist, 1e-4);
-            let att = pow(clamp(1.0 - dist / r, 0.0, 1.0), 2.0);
+            var att = pow(clamp(1.0 - dist / r, 0.0, 1.0), 2.0);
+            if (pl.color.w > 0.5 && (flags & FLAG_NO_RECEIVE_SHADOW) == 0u) {
+                att *= point_shadow_factor(u32(pl.color.w - 0.5), pl.pos_radius.xyz, p, n);
+            }
             var k = max(dot(n, ld), 0.0) * att;
             if (style == 0u) {
                 k = att;

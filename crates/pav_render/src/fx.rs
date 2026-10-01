@@ -550,11 +550,24 @@ impl Particles {
                         break d;
                     }
                 };
-                let vel = b.vel + dir * b.spread;
+                let mut vel = b.vel + dir * b.spread;
                 let life = b.life.0 + (b.life.1 - b.life.0) * self.rand();
+                let mut pos = b.pos + off;
+                let mut left = life;
+                if b.prewarm > 0.0 {
+                    // Already flying for a while (drag and turbulence ignored).
+                    let age = self.rand() * b.prewarm.min(life) * 0.95;
+                    let g = Vec3::Y * -b.gravity;
+                    pos += vel * age + g * 0.5 * age * age;
+                    vel += g * age;
+                    if let Some(f) = b.floor {
+                        pos.y = pos.y.max(f);
+                    }
+                    left = life - age;
+                }
                 let flags = (b.additive as u32) | ((b.stretch as u32) << 1);
                 born.push(GpuParticle {
-                    p0: (b.pos + off).extend(life.max(0.01)).to_array(),
+                    p0: pos.extend(left.max(0.01)).to_array(),
                     p1: vel.extend(life.max(0.01)).to_array(),
                     c0: b.color0.to_array(),
                     c1: b.color1.to_array(),

@@ -182,6 +182,7 @@ pub struct Renderer {
     distort: crate::fx::Distort,
     particles: crate::fx::Particles,
     lin_sampler: wgpu::Sampler,
+    point_shadows: crate::shadows::PointShadows,
     frame: u64,
     pub stats: RenderStats,
 }
@@ -282,6 +283,27 @@ impl Renderer {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
+                // Point light shadow faces and their matrices.
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let shadow_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -328,7 +350,9 @@ impl Renderer {
             ..Default::default()
         });
 
-        let globals_bg = Self::make_globals_bg(device, &globals_layout, &globals_buf, &lights.buf, &shadow_view, &shadow_sampler);
+        let point_shadows = crate::shadows::PointShadows::new(device, &shadow_layout, globals_size);
+        let globals_bg =
+            Self::make_globals_bg(device, &globals_layout, &globals_buf, &lights.buf, &shadow_view, &shadow_sampler, &point_shadows);
         let shadow_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shadow globals"),
             layout: &shadow_layout,
@@ -652,6 +676,7 @@ impl Renderer {
             distort: crate::fx::Distort::new(device),
             particles: crate::fx::Particles::new(device),
             lin_sampler: crate::fx::linear_sampler(device),
+            point_shadows,
             frame: 0,
             stats: RenderStats::default(),
         }
@@ -664,6 +689,7 @@ impl Renderer {
         lights: &wgpu::Buffer,
         shadow_view: &wgpu::TextureView,
         shadow_sampler: &wgpu::Sampler,
+        points: &crate::shadows::PointShadows,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("globals"),
@@ -673,6 +699,8 @@ impl Renderer {
                 wgpu::BindGroupEntry { binding: 1, resource: lights.as_entire_binding() },
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(shadow_view) },
                 wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::Sampler(shadow_sampler) },
+                wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&points.view) },
+                wgpu::BindGroupEntry { binding: 5, resource: points.mats.as_entire_binding() },
             ],
         })
     }
@@ -861,11 +889,36 @@ impl Renderer {
         globals.cut3 = [0.0; 4];
         self.queue.write_buffer(&self.shadow_globals_buf, 0, bytemuck::bytes_of(&globals));
 
+        // Shadow-casting point lights nearest the camera target get the shadow slots.
+        let mut casters: Vec<usize> = (0..n_lights).filter(|&i| scene.point_lights[i].shadows).collect();
+        casters.sort_by(|&a, &b| {
+            let d = |i: usize| scene.point_lights[i].position.distance_squared(scene.cutaway.focus);
+            d(a).total_cmp(&d(b))
+        });
+        casters.truncate(crate::shadows::MAX_SHADOW_LIGHTS);
+        let shadow_slots = casters.len();
+        let mut mats: Vec<[[f32; 4]; 4]> = Vec::with_capacity(shadow_slots * 6);
+        for (slot, &i) in casters.iter().enumerate() {
+            let l = &scene.point_lights[i];
+            for (f, (dir, m)) in crate::shadows::face_matrices(l.position, l.radius).into_iter().enumerate() {
+                mats.push(mat(m));
+                let mut g = globals;
+                g.view_proj = mat(m);
+                g.eye = [l.position.x, l.position.y, l.position.z, 1.0];
+                g.forward = dir.extend(0.0).to_array();
+                self.queue.write_buffer(&self.point_shadows.faces[slot * 6 + f].0, 0, bytemuck::bytes_of(&g));
+            }
+        }
+        if !mats.is_empty() {
+            self.queue.write_buffer(&self.point_shadows.mats, 0, bytemuck::cast_slice(&mats));
+        }
         let mut lights: Vec<GpuPointLight> = scene.point_lights[..n_lights]
             .iter()
-            .map(|l| GpuPointLight {
+            .enumerate()
+            .map(|(i, l)| GpuPointLight {
                 pos_radius: [l.position.x, l.position.y, l.position.z, l.radius],
-                color: l.color.extend(1.0).to_array(),
+                // w = shadow slot + 1 (0 = no shadows).
+                color: l.color.extend(casters.iter().position(|&c| c == i).map(|s| s as f32 + 1.0).unwrap_or(0.0)).to_array(),
             })
             .collect();
         if lights.is_empty() {
@@ -879,6 +932,7 @@ impl Renderer {
                 &self.lights.buf,
                 &self.shadow_view,
                 &self.shadow_sampler,
+                &self.point_shadows,
             );
         }
 
@@ -994,10 +1048,21 @@ impl Renderer {
         // 0. Particles: birth and integration (compute).
         self.particles.prepare(encoder, &self.queue, cam, scene.time, &scene.particles);
 
-        // 1. Shadow pass.
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("shadow"),
+        // 1. Shadow passes: the sun, then six faces per shadow-casting point light.
+        let mut shadow_targets: Vec<(&wgpu::TextureView, &wgpu::BindGroup)> = Vec::new();
+        if scene.sun.shadows {
+            shadow_targets.push((&self.shadow_view, &self.shadow_bg));
+        }
+        for slot in 0..shadow_slots {
+            for f in 0..6 {
+                let i = slot * 6 + f;
+                shadow_targets.push((&self.point_shadows.layers[i], &self.point_shadows.faces[i].1));
+            }
+        }
+        if !scene.sun.shadows {
+            // Keep the sun map cleared so nothing stale shadows the scene.
+            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("shadow clear"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.shadow_view,
@@ -1008,35 +1073,47 @@ impl Renderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            if scene.sun.shadows {
-                pass.set_bind_group(0, &self.shadow_bg, &[]);
-                pass.set_pipeline(&self.mesh_shadow_pipeline);
-                pass.set_vertex_buffer(1, self.mesh_instances.buf.slice(..));
-                for b in &batches {
-                    let mesh = &self.meshes[&b.0];
-                    if b.4 > b.3 && mesh.index_count > 0 {
-                        pass.set_vertex_buffer(0, mesh.vbuf.slice(..));
-                        pass.set_index_buffer(mesh.ibuf.slice(..), wgpu::IndexFormat::Uint32);
-                        pass.draw_indexed(0..mesh.index_count, 0, b.3..b.4);
+        }
+        for (view, bg) in shadow_targets {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("shadow"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_bind_group(0, bg, &[]);
+            pass.set_pipeline(&self.mesh_shadow_pipeline);
+            pass.set_vertex_buffer(1, self.mesh_instances.buf.slice(..));
+            for b in &batches {
+                let mesh = &self.meshes[&b.0];
+                if b.4 > b.3 && mesh.index_count > 0 {
+                    pass.set_vertex_buffer(0, mesh.vbuf.slice(..));
+                    pass.set_index_buffer(mesh.ibuf.slice(..), wgpu::IndexFormat::Uint32);
+                    pass.draw_indexed(0..mesh.index_count, 0, b.3..b.4);
+                    draw_calls += 1;
+                }
+            }
+            if !dyn_draws.is_empty() {
+                pass.set_vertex_buffer(0, self.dyn_vertices.buf.slice(..));
+                pass.set_index_buffer(self.dyn_indices.buf.slice(..), wgpu::IndexFormat::Uint32);
+                for &(first, count, base, inst, shadow) in &dyn_draws {
+                    if shadow {
+                        pass.draw_indexed(first..first + count, base, inst..inst + 1);
                         draw_calls += 1;
                     }
                 }
-                if !dyn_draws.is_empty() {
-                    pass.set_vertex_buffer(0, self.dyn_vertices.buf.slice(..));
-                    pass.set_index_buffer(self.dyn_indices.buf.slice(..), wgpu::IndexFormat::Uint32);
-                    for &(first, count, base, inst, shadow) in &dyn_draws {
-                        if shadow {
-                            pass.draw_indexed(first..first + count, base, inst..inst + 1);
-                            draw_calls += 1;
-                        }
-                    }
-                }
-                if sdf_shadow_end > sdf_count {
-                    pass.set_pipeline(&self.sdf_shadow_pipeline);
-                    pass.set_vertex_buffer(0, self.sdf_instances.buf.slice(..));
-                    pass.draw(0..36, sdf_count..sdf_shadow_end);
-                    draw_calls += 1;
-                }
+            }
+            if sdf_shadow_end > sdf_count {
+                pass.set_pipeline(&self.sdf_shadow_pipeline);
+                pass.set_vertex_buffer(0, self.sdf_instances.buf.slice(..));
+                pass.draw(0..36, sdf_count..sdf_shadow_end);
+                draw_calls += 1;
             }
         }
 

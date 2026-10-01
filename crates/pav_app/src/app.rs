@@ -113,6 +113,10 @@ pub struct App {
     host: Option<SimHost>,
     rig: CameraRig,
     view: ViewSettings,
+    /// View settings before the room's `[view]` table and pad overrides were applied, and
+    /// which room / pad state they belong to.
+    view_base: Option<ViewSettings>,
+    view_key: (Option<u16>, u64),
     sim_config: SimConfig,
     app_settings: AppSettings,
     builder: ViewBuilder,
@@ -154,6 +158,8 @@ impl App {
             host: None,
             rig: CameraRig::default(),
             view: ViewSettings::default(),
+            view_base: None,
+            view_key: (None, 0),
             sim_config: SimConfig::default(),
             app_settings: AppSettings {
                 vsync: settings.vsync,
@@ -486,6 +492,21 @@ impl App {
         self.director.update(&curr.hud, quarters, &mut self.rig);
         let room_id_before = self.hud.current.as_ref().map(|r| r.id);
         self.hud.update(&curr.room, &mut self.rig);
+        // Rooms and pads can change view settings (night lighting, bloom, filters).
+        let key = (curr.room.as_ref().map(|r| r.id), curr.hud.view_serial);
+        if key != self.view_key {
+            self.view_key = key;
+            if let Some(b) = self.view_base.take() {
+                self.view = b;
+            }
+            let room = curr.room.as_ref().map(|r| r.def.view.clone()).unwrap_or_default();
+            if !room.is_empty() || !curr.hud.view.is_empty() {
+                self.view_base = Some(self.view.clone());
+                for u in self.view.apply(&room).into_iter().chain(self.view.apply(&curr.hud.view)) {
+                    log::warn!("unknown view setting '{u}'");
+                }
+            }
+        }
         if self.hud.current.as_ref().map(|r| r.id) != room_id_before {
             // Rooms can open HUD overlays (feel metrics) while you are inside.
             let wants = self.hud.current.as_ref().is_some_and(|r| r.def.overlays.iter().any(|o| o == "feel"));

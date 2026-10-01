@@ -23,6 +23,12 @@ pub struct Session {
     room_cam: Option<(u16, CameraParams)>,
     cue_serial: u64,
     cue_base: Option<CameraParams>,
+    /// Events since the last render (they become particles and shockwaves in captures).
+    events: Vec<pav_core::frame::SimEvent>,
+    /// View settings before the current room's `[view]` table / pad overrides.
+    view_base: Option<ViewSettings>,
+    view_room: Option<u16>,
+    view_serial: u64,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -56,6 +62,10 @@ impl Session {
             room_cam: None,
             cue_serial: 0,
             cue_base: None,
+            events: Vec::new(),
+            view_base: None,
+            view_room: None,
+            view_serial: 0,
         };
         s.sync_camera();
         Ok(s)
@@ -79,8 +89,18 @@ impl Session {
             self.sim.step(&self.input);
             self.input.pressed = 0;
         }
-        self.sim.drain_events();
+        self.keep_events();
         self.sync_camera();
+    }
+
+    /// Moves the simulation's new events into the render queue (bounded).
+    pub fn keep_events(&mut self) {
+        let ev = self.sim.drain_events();
+        self.events.extend(ev);
+        if self.events.len() > 400 {
+            let cut = self.events.len() - 400;
+            self.events.drain(..cut);
+        }
     }
 
     /// Applies a room's camera defaults when the player enters/leaves it, and level camera
@@ -130,6 +150,30 @@ impl Session {
                 self.room_cam = Some((r.id, saved));
             }
         }
+        self.sync_view();
+    }
+
+    /// Room `[view]` tables and pad `view.*` overrides, like the game applies them.
+    fn sync_view(&mut self) {
+        let w = &self.sim.state.world;
+        let now = w.current_room;
+        let serial = self.sim.state.courses.view_serial;
+        if now == self.view_room && serial == self.view_serial {
+            return;
+        }
+        if let Some(base) = self.view_base.take() {
+            self.view = base;
+        }
+        self.view_room = now;
+        self.view_serial = serial;
+        let room = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.def.view.clone()).unwrap_or_default();
+        let pads = self.sim.state.courses.view.clone();
+        if room.is_empty() && pads.is_empty() {
+            return;
+        }
+        self.view_base = Some(self.view.clone());
+        self.view.apply(&room);
+        self.view.apply(&pads);
     }
 
     /// Renders the current state to RGBA8 pixels.
@@ -139,7 +183,9 @@ impl Session {
         self.camera.snap(focus);
         let camera = self.camera.clone();
         let view = self.view.clone();
+        let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
+        gpu.builder.add_events(&events);
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
         pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
     }

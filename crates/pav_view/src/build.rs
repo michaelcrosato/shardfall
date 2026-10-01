@@ -102,6 +102,13 @@ pub struct ViewSettings {
     pub exposure: f32,
     pub tonemap: TonemapChoice,
     pub saturation: f32,
+    /// Glow around bright things (0 = off) and the brightness where it starts.
+    pub bloom: f32,
+    pub bloom_threshold: f32,
+    /// Shockwaves, heat haze and lenses.
+    pub distortion: bool,
+    /// GPU particles (fire, smoke, sparks, event bursts).
+    pub particles: bool,
     pub sky: String,
     pub fog: bool,
     pub fog_start: f32,
@@ -124,6 +131,10 @@ impl Default for ViewSettings {
             exposure: 1.0,
             tonemap: TonemapChoice::SoftKnee,
             saturation: 1.0,
+            bloom: 0.35,
+            bloom_threshold: 1.2,
+            distortion: true,
+            particles: true,
             sky: "#8fb8d8".into(),
             fog: true,
             fog_start: 48.0,
@@ -131,6 +142,18 @@ impl Default for ViewSettings {
             light: LightSettings::default(),
             cutaway: CutawaySettings::default(),
         }
+    }
+}
+
+impl ViewSettings {
+    /// Applies a map of view settings (paths as in `pav params prefix=view`, without `view.`),
+    /// including the text-valued `sky` colour. Returns unknown keys.
+    pub fn apply(&mut self, map: &std::collections::BTreeMap<String, pav_core::params::ParamValue>) -> Vec<String> {
+        let mut rest = map.clone();
+        if let Some(pav_core::params::ParamValue::Text(t)) = rest.remove("sky") {
+            self.sky = t;
+        }
+        pav_core::params::apply_map(self, &rest)
     }
 }
 
@@ -147,6 +170,10 @@ impl Tunable for ViewSettings {
         v.float("exposure", &mut self.exposure, 0.2, 3.0, "Exposure");
         self.tonemap.visit_choice(v, "tonemap", "HDR to screen mapping");
         v.float("saturation", &mut self.saturation, 0.0, 2.0, "Color saturation");
+        v.float("bloom", &mut self.bloom, 0.0, 2.0, "Glow around bright things (0 = off)");
+        v.float("bloom_threshold", &mut self.bloom_threshold, 0.2, 4.0, "Brightness where glow starts");
+        v.bool("distortion", &mut self.distortion, "Screen distortion (shockwaves, heat haze)");
+        v.bool("particles", &mut self.particles, "GPU particles");
         v.bool("fog", &mut self.fog, "Distance fog (hides streaming edges)");
         v.float("fog_start", &mut self.fog_start, 5.0, 300.0, "Fog starts at this distance from the camera target (m)");
         v.float("fog_end", &mut self.fog_end, 10.0, 400.0, "Fog is complete at this distance (m)");
@@ -206,6 +233,14 @@ pub struct ViewBuilder {
     effects: Vec<Effect>,
     /// Wall-clock seconds, drives effects.
     pub now: f64,
+    /// Particles from events, born in the next built scene.
+    pending_particles: Vec<rs::ParticleBurst>,
+    /// Fractional particles owed per emitting object.
+    emit_carry: HashMap<u32, f32>,
+    /// Shockwaves: centre, radius, start (simulation seconds).
+    shocks: Vec<(Vec3, f32, f32)>,
+    /// Simulation time of the last built scene.
+    last_time: Option<f32>,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -255,6 +290,10 @@ impl ViewBuilder {
     /// Turns simulation events into visual effects (explosions, dust).
     pub fn add_events(&mut self, events: &[SimEvent]) {
         for e in events {
+            crate::fx::event_bursts(e, &mut self.pending_particles);
+            if let SimEvent::Explosion { pos, radius } = e {
+                self.shocks.push((*pos, radius * 3.5, self.last_time.unwrap_or(0.0)));
+            }
             match e {
                 SimEvent::Explosion { pos, radius } => {
                     self.effects.push(Effect { kind: EffectKind::Explosion { radius: *radius }, pos: *pos, start: self.now })
@@ -315,6 +354,7 @@ impl ViewBuilder {
                             position: e.pos + Vec3::Y * 0.5,
                             color: Vec3::new(1.0, 0.6, 0.25) * 6.0 * fade,
                             radius: radius * 5.0,
+                            shadows: false,
                         });
                     }
                     // Smoke puffs drifting up.
@@ -373,7 +413,29 @@ impl ViewBuilder {
         settings: &ViewSettings,
         focus: Vec3,
     ) -> Scene {
-        let mut scene = Scene { camera: rig.data(aspect), time: curr.time as f32, ..Default::default() };
+        // Interpolated simulation time: animations and particles move smoothly between ticks.
+        let time = (prev.time + (curr.time - prev.time) * alpha as f64) as f32;
+        let mut scene = Scene { camera: rig.data(aspect), time, ..Default::default() };
+        let dt = self.last_time.map(|t| (time - t).clamp(0.0, 0.1)).unwrap_or(0.0);
+        self.last_time = Some(time);
+        scene.post.bloom = settings.bloom;
+        scene.post.bloom_threshold = settings.bloom_threshold;
+        scene.post.distortion = settings.distortion;
+        if settings.particles {
+            scene.particles = std::mem::take(&mut self.pending_particles);
+        } else {
+            self.pending_particles.clear();
+        }
+        self.shocks.retain(|s| time - s.2 < 0.7 && time >= s.2);
+        for &(pos, radius, start) in &self.shocks {
+            scene.distortions.push(rs::Distortion {
+                pos,
+                radius,
+                strength: 0.35,
+                kind: rs::DistortKind::Ring,
+                progress: ((time - start) / 0.7).clamp(0.0, 1.0),
+            });
+        }
 
         let l = &settings.light;
         let (el, az) = (l.sun_elevation.to_radians(), l.sun_azimuth.to_radians());
@@ -518,7 +580,33 @@ impl ViewBuilder {
         // Dynamic objects.
         let cam_fwd = scene.camera.forward;
         let now = self.now as f32;
+        let mut live = Vec::new();
         for o in interpolate(prev, curr, alpha) {
+            let v = &o.visual;
+            if let Some(l) = &v.light {
+                scene.point_lights.push(crate::fx::light(l, o.pos, time, o.id.0 as f32 * 1.7));
+            }
+            if let Some(d) = &v.distortion {
+                scene.distortions.push(crate::fx::distortion(d, o.pos, time));
+            }
+            if let (Some(e), true) = (&v.particles, settings.particles) {
+                let rate = crate::fx::emitter_rate(e);
+                if !self.emit_carry.contains_key(&o.id.0) {
+                    // A new emitter starts in full swing.
+                    let mut b = crate::fx::emitter_burst(e, o.pos, 0);
+                    b.count = (rate * b.life.1).min(800.0) as u32;
+                    b.prewarm = b.life.1;
+                    scene.particles.push(b);
+                }
+                let carry = self.emit_carry.entry(o.id.0).or_insert(0.0);
+                *carry += rate * dt;
+                let n = carry.floor();
+                *carry -= n;
+                if n >= 1.0 {
+                    scene.particles.push(crate::fx::emitter_burst(e, o.pos, n as u32));
+                }
+                live.push(o.id.0);
+            }
             if let Some(s) = &o.soft {
                 emit_soft(&mut scene, &o, s, settings.style);
                 continue;
@@ -531,6 +619,7 @@ impl ViewBuilder {
                 None => emit_object(&mut scene, &o, settings.style, now),
             }
         }
+        self.emit_carry.retain(|id, _| live.contains(id));
         // Projectiles: drawn where they are between ticks (they move in straight lines).
         let back = (1.0 - alpha) * curr.dt;
         for p in &curr.projectiles {
@@ -737,7 +826,7 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
         if (now * rate).sin() > 0.0 {
             color = Vec3::new(1.0, 0.25, 0.15);
             v.emissive = 1.2;
-            scene.point_lights.push(rs::PointLight { position: o.pos, color: Vec3::new(1.0, 0.2, 0.1) * 1.5, radius: 2.5 });
+            scene.point_lights.push(rs::PointLight { position: o.pos, color: Vec3::new(1.0, 0.2, 0.1) * 1.5, radius: 2.5, shadows: false });
         }
     }
     let v = &v;
@@ -785,7 +874,7 @@ pub fn emit_shape(
         }
     }
     if emissive > 0.5 {
-        lights.push(rs::PointLight { position: pos, color: color * emissive, radius: 4.0 + emissive * 2.0 });
+        lights.push(rs::PointLight { position: pos, color: color * emissive, radius: 4.0 + emissive * 2.0, shadows: false });
     }
 }
 
