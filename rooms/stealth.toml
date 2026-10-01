@@ -197,6 +197,18 @@ size = 0.3
 color = "#f2d46b"
 
 [[label]]
+text = "CAMERA"
+pos = [32.0, 0.03, 1.5]
+size = 0.28
+color = "#ff8f87"
+
+[[label]]
+text = "CAMERA"
+pos = [19.4, 0.03, 8.5]
+size = 0.28
+color = "#ff8f87"
+
+[[label]]
 text = "4  CAMERA HALL"
 pos = [8.0, 0.03, 7.5]
 size = 0.5
