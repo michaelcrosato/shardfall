@@ -107,6 +107,12 @@ pub struct SimState {
     pub projectiles: Projectiles,
     #[serde(default)]
     pub feel: FeelMeter,
+    /// Signals sent by pads this tick (read by spawners next tick).
+    #[serde(default)]
+    pub signals: Vec<String>,
+    /// Tiles that are crumbling or waiting to regrow.
+    #[serde(default)]
+    pub crumbles: Vec<crate::destruct::Crumble>,
 }
 
 impl SimState {
@@ -157,6 +163,8 @@ impl Sim {
                 courses: Courses::default(),
                 projectiles: Projectiles::default(),
                 feel: FeelMeter::default(),
+                signals: Vec::new(),
+                crumbles: Vec::new(),
             },
             config,
             history: History::default(),
@@ -204,7 +212,23 @@ impl Sim {
 
     pub fn spawn(&mut self, s: Spawn) -> EntityId {
         let id = self.state.entities.alloc_id();
+        let soft = s.soft.as_ref().map(|d| {
+            let part = self.state.physics.insert_soft(d, s.pos, s.rot);
+            if let Some(sb) = part.handle.and_then(|h| self.state.physics.soft_bodies.get_mut(h)) {
+                let tag = entity_tag(id.0);
+                let root = sb.root_body();
+                if let Some(b) = self.state.physics.bodies.get(root) {
+                    for c in b.colliders().to_vec() {
+                        if let Some(col) = self.state.physics.colliders.get_mut(c) {
+                            col.user_data = tag;
+                        }
+                    }
+                }
+            }
+            part
+        });
         let body = match s.body {
+            _ if soft.is_some() => None,
             BodyKind::None => None,
             kind => {
                 let builder = match kind {
@@ -241,6 +265,8 @@ impl Sim {
                 region: s.region,
                 material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution },
                 hazard: s.hazard,
+                soft,
+                joints: Vec::new(),
             },
         );
         if !self.replaying {
@@ -276,6 +302,8 @@ impl Sim {
                 region: None,
                 material: Default::default(),
                 hazard: None,
+                soft: None,
+                joints: Vec::new(),
             },
         );
         id
@@ -297,6 +325,9 @@ impl Sim {
             Some(e) => {
                 if let Some(b) = e.body {
                     self.state.physics.remove_body(b);
+                }
+                if let Some(h) = e.soft.and_then(|s| s.handle) {
+                    self.state.physics.remove_soft(h);
                 }
                 if self.state.player == Some(id) {
                     self.state.player = None;
@@ -389,9 +420,15 @@ impl Sim {
                 Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
             }
         }
+        self.zone_props(dt);
         let collector = EventCollector::default();
         self.state.physics.step(&mut self.pipeline, &collector);
         self.sync_from_physics();
+        let contacts = collector.contacts.into_inner().unwrap_or_default();
+        if !contacts.is_empty() {
+            self.break_blocks(contacts, &mut events);
+        }
+        self.update_crumbles(dt, &mut events);
 
         // Bombs and debris.
         let mut blasts = Vec::new();
@@ -506,7 +543,7 @@ impl Sim {
                 let life = (rng.range(2.5, 4.0) * self.config.tick_rate.hz() as f32) as u32;
                 let rot = Quat::from_euler(glam::EulerRot::XYZ, rng.range(0.0, 3.0), rng.range(0.0, 3.0), 0.0);
                 let id = self.spawn(
-                    Spawn::new("debris", c + off)
+                    Spawn::new("~debris", c + off)
                         .visual(Visual::new(Shape::Box { half: size }, color))
                         .body(BodyKind::Dynamic)
                         .rot(rot),
@@ -609,11 +646,49 @@ impl Sim {
     // ------------------------------------------------------------------ internals
 
     fn sync_from_physics(&mut self) {
-        let bodies = &self.state.physics.bodies;
+        let ph = &self.state.physics;
         for e in self.state.entities.map.values_mut() {
-            if let Some(b) = e.body.and_then(|h| bodies.get(h)) {
+            if let Some(b) = e.body.and_then(|h| ph.bodies.get(h)) {
                 e.pos = b.translation();
                 e.rot = *b.rotation();
+            } else if let Some(sb) = e.soft.as_ref().and_then(|s| s.handle).and_then(|h| ph.soft_bodies.get(h)) {
+                e.pos = sb.center_of_mass();
+            }
+        }
+    }
+
+    /// Adds a joint owned by `owner` (to `link.other`, or the world) and creates it now if both
+    /// bodies exist.
+    pub fn add_joint(&mut self, owner: EntityId, link: crate::joints::JointLink) -> bool {
+        let Some(a) = self.state.entities.get(owner).and_then(|e| e.body) else { return false };
+        let b = match link.other {
+            Some(o) => match self.state.entities.get(o).and_then(|e| e.body) {
+                Some(b) => Some(b),
+                None => return false,
+            },
+            None => None,
+        };
+        self.state.physics.insert_joint(a, b, &link);
+        if let Some(e) = self.state.entities.get_mut(owner) {
+            e.joints.push(link);
+        }
+        true
+    }
+
+    /// Recreates the joints of the given entities (after their region wakes up).
+    pub(crate) fn restore_joints(&mut self, ids: &[EntityId]) {
+        for id in ids {
+            let Some(e) = self.state.entities.get(*id) else { continue };
+            let Some(a) = e.body else { continue };
+            for link in e.joints.clone() {
+                let b = match link.other {
+                    Some(o) => match self.state.entities.get(o).and_then(|x| x.body) {
+                        Some(b) => Some(b),
+                        None => continue,
+                    },
+                    None => None,
+                };
+                self.state.physics.insert_joint(a, b, &link);
             }
         }
     }
@@ -639,6 +714,7 @@ impl Sim {
             cue_serial: c.cue_serial,
             invuln,
             model: crate::params::ChoiceParam::name(self.config.movement.model).to_string(),
+            physics: self.physics_stats(),
         };
         RenderFrame {
             tick: self.state.tick,
@@ -655,7 +731,21 @@ impl Sim {
                     }
                     let visual = e.visual.clone().unwrap_or(Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE));
                     let pulse = e.bomb.as_ref().map(|b| b.fuse).unwrap_or(-1.0);
-                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse })
+                    let soft = e.soft.as_ref().and_then(|s| {
+                        let h = s.handle?;
+                        let radius = match &s.def.shape {
+                            crate::softbody::SoftShape::Rope { radius, .. } => *radius,
+                            _ => 0.0,
+                        };
+                        Some(crate::frame::SoftView {
+                            points: self.state.physics.soft_positions(h),
+                            surface: s.surface.clone(),
+                            segments: s.segments.clone(),
+                            radius,
+                            two_sided: matches!(s.def.shape, crate::softbody::SoftShape::Cloth { .. }),
+                        })
+                    });
+                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft })
                 })
                 .collect(),
             statics: self.state.statics.clone(),
@@ -674,6 +764,30 @@ impl Sim {
                 .map(|p| crate::frame::ProjectileView { pos: p.pos, vel: p.vel, radius: p.radius, color: p.color })
                 .collect(),
             hud,
+        }
+    }
+
+    /// Counts for the physics overlay.
+    pub fn physics_stats(&self) -> crate::frame::PhysicsStats {
+        let ph = &self.state.physics;
+        let (mut dynamic, mut sleeping) = (0, 0);
+        for (_, b) in ph.bodies.iter() {
+            if b.is_dynamic() {
+                dynamic += 1;
+                if b.is_sleeping() {
+                    sleeping += 1;
+                }
+            }
+        }
+        crate::frame::PhysicsStats {
+            dynamic,
+            sleeping,
+            colliders: ph.colliders.len(),
+            joints: ph.impulse_joints.len(),
+            soft_bodies: ph.soft_bodies.len(),
+            particles: ph.soft_bodies.iter().map(|(_, s)| s.num_particles()).sum(),
+            contacts: ph.narrow_phase.contact_pairs().filter(|p| p.has_any_active_contact()).count(),
+            projectiles: self.state.projectiles.list.len(),
         }
     }
 

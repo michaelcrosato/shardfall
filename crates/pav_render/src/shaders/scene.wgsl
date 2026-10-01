@@ -33,6 +33,7 @@ struct PointLight {
 const FLAG_NO_CUT: u32 = 1u;
 const FLAG_NO_RECEIVE_SHADOW: u32 = 4u;
 const FLAG_CUT_VERTEX: u32 = 8u;
+const FLAG_TWO_SIDED: u32 = 16u;
 
 struct FsOut {
     @location(0) color: vec4<f32>,
@@ -257,6 +258,12 @@ fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
         discard;
     }
     var o: FsOut;
+    if (!front && (in.params.y & FLAG_TWO_SIDED) != 0u) {
+        let nb = -normalize(in.normal);
+        o.color = vec4<f32>(shade(in.world, nb, in.color.rgb * 0.85, in.color.a, in.params.x, in.params.y), 1.0);
+        o.normal = group_out(nb, in.params.z);
+        return o;
+    }
     if (!front) {
         // Inside of a cut-open solid: draw a flat "cross-section" cap.
         o.color = vec4<f32>(in.color.rgb * 0.42, 1.0);

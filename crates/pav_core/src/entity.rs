@@ -53,6 +53,60 @@ pub enum Behavior {
     Rotate(RotatorDef),
     /// Fires projectiles in patterns (dodge gauntlet, bullet hell).
     Emitter(EmitterDef),
+    /// Drops props: on a timer and/or when a pad sends its signal (physics stress tests).
+    Spawner(SpawnerDef),
+}
+
+/// Spawns props around itself.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SpawnerDef {
+    pub shape: crate::shape::Shape,
+    /// Colour, or "" for a random bright colour per prop.
+    pub color: String,
+    pub look: crate::shape::Look,
+    pub density: f32,
+    pub friction: f32,
+    pub restitution: f32,
+    /// Seconds between automatic drops (0 = only on signals).
+    pub interval: f32,
+    /// Props per drop / per signal.
+    pub count: u32,
+    /// Oldest props are removed beyond this many.
+    pub max: u32,
+    /// Props appear in a box of these half extents around the spawner.
+    pub area: Vec3,
+    /// Pad signal that triggers a drop, and the one that removes everything spawned.
+    pub signal: String,
+    pub clear: String,
+    /// Random rotation of spawned props.
+    pub tumble: bool,
+    pub timer: f32,
+    pub pending: u32,
+    pub spawned: VecDeque<EntityId>,
+}
+
+impl Default for SpawnerDef {
+    fn default() -> Self {
+        Self {
+            shape: crate::shape::Shape::Box { half: Vec3::splat(0.3) },
+            color: String::new(),
+            look: crate::shape::Look::Cel,
+            density: 1.0,
+            friction: 0.5,
+            restitution: 0.1,
+            interval: 0.0,
+            count: 1,
+            max: 200,
+            area: Vec3::new(1.0, 0.0, 1.0),
+            signal: String::new(),
+            clear: String::new(),
+            tumble: true,
+            timer: 0.0,
+            pending: 0,
+            spawned: VecDeque::new(),
+        }
+    }
 }
 
 /// Back-and-forth motion. Vectors are in the object's own frame (they turn with the room).
@@ -263,6 +317,12 @@ pub struct Entity {
     pub material: Material,
     #[serde(default)]
     pub hazard: Option<Hazard>,
+    /// Deformable body (jelly, cloth, rope).
+    #[serde(default)]
+    pub soft: Option<crate::softbody::SoftPart>,
+    /// Joints this entity owns (to other entities or the world).
+    #[serde(default)]
+    pub joints: Vec<crate::joints::JointLink>,
 }
 
 /// Everything needed to create an entity.
@@ -289,6 +349,8 @@ pub struct Spawn {
     pub region: Option<RegionKey>,
     #[serde(default)]
     pub hazard: Option<Hazard>,
+    #[serde(default)]
+    pub soft: Option<crate::softbody::SoftDef>,
 }
 
 fn quat_identity() -> Quat {
@@ -315,6 +377,7 @@ impl Spawn {
             behavior: Behavior::None,
             region: None,
             hazard: None,
+            soft: None,
         }
     }
     pub fn visual(mut self, v: Visual) -> Self {
@@ -335,6 +398,14 @@ impl Spawn {
     }
     pub fn restitution(mut self, r: f32) -> Self {
         self.restitution = r;
+        self
+    }
+    pub fn friction(mut self, f: f32) -> Self {
+        self.friction = f;
+        self
+    }
+    pub fn density(mut self, d: f32) -> Self {
+        self.density = d;
         self
     }
 }

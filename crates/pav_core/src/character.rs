@@ -107,6 +107,8 @@ pub struct MovementParams {
     pub swim_speed: f32,
     pub wade_mult: f32,
     pub hit_stun: f32,
+    /// Character weight pushing down on movable things it stands on (kg).
+    pub weight: f32,
     pub lock_axis: LockAxis,
     pub face_aim: bool,
     pub push_mass: f32,
@@ -143,6 +145,7 @@ impl Default for MovementParams {
             swim_speed: 3.2,
             wade_mult: 0.65,
             hit_stun: 0.35,
+            weight: 70.0,
             lock_axis: LockAxis::None,
             face_aim: false,
             push_mass: 70.0,
@@ -180,6 +183,7 @@ impl Tunable for MovementParams {
         v.float("swim_speed", &mut self.swim_speed, 0.5, 10.0, "Swimming speed (m/s)");
         v.float("wade_mult", &mut self.wade_mult, 0.1, 1.0, "Speed multiplier in shallow water");
         v.float("hit_stun", &mut self.hit_stun, 0.0, 2.0, "Seconds without control after a hit");
+        v.float("weight", &mut self.weight, 0.0, 500.0, "Weight pressing on movable floors (kg)");
         self.lock_axis.visit_choice(v, "lock_axis", "Lock motion along an axis (side view)");
         v.bool("face_aim", &mut self.face_aim, "Face the aim point instead of the movement direction");
         v.float("push_mass", &mut self.push_mass, 1.0, 500.0, "How hard the character pushes props (kg)");
@@ -447,14 +451,19 @@ pub fn tick(
         }
     }
 
-    // --- water
+    // --- zones at the feet: water, conveyors, bounce pads
     let feet0 = center - Vec3::Y * (ch.height() * 0.5);
-    ch.water_depth = st
-        .statics
-        .zones_at(feet0 + Vec3::Y * 0.05)
-        .filter(|(_, z)| z.kind == ZoneKind::Water)
-        .map(|(_, z)| z.max.y - feet0.y)
-        .fold(0.0, f32::max);
+    let mut conveyor = Vec3::ZERO;
+    let mut bounce = 0.0f32;
+    ch.water_depth = 0.0;
+    for (_, z) in st.statics.zones_at(feet0 + Vec3::Y * 0.05) {
+        match z.kind {
+            ZoneKind::Water => ch.water_depth = ch.water_depth.max(z.max.y - feet0.y),
+            ZoneKind::Conveyor => conveyor += z.conveyor_velocity(),
+            ZoneKind::Bounce => bounce = bounce.max(z.speed),
+            _ => {}
+        }
+    }
     let was_swimming = ch.swimming;
     ch.swimming = ch.water_depth > if was_swimming { 1.05 } else { 1.25 } && ch.climbing.is_none() && ch.hang.is_none();
     let rolling = ch.roll > 0.0;
@@ -763,6 +772,14 @@ pub fn tick(
     }
     ch.vel += ch.impulse;
     ch.impulse = Vec3::ZERO;
+    // Trampolines launch you when you land on them.
+    if bounce > 0.0 && was_grounded && !climbing && !hanging && ch.vel.y <= 0.1 {
+        ch.vel.y = bounce * if held(buttons::JUMP) { 1.25 } else { 1.0 };
+        ch.grounded = false;
+        ch.jumping = false;
+        ch.air_jumped = true;
+        events.push(SimEvent::Bounce { pos: feet });
+    }
     if jumped {
         events.push(SimEvent::Jump { pos: feet });
         ch.air_jumped = true;
@@ -804,6 +821,10 @@ pub fn tick(
         Some(m) => m,
         None => ch.vel * dt + lock_fix,
     };
+    if was_grounded && !climbing && !hanging {
+        // Conveyor belts carry whoever stands on them.
+        desired += conveyor * dt;
+    }
     if desired.length_squared() < 1e-8 && !climbing && !hanging {
         // A hair of downward motion keeps the controller running its ground checks, which is
         // where it carries the character along with moving platforms.
@@ -824,6 +845,20 @@ pub fn tick(
     let new_center = center + moved;
     if let Some(b) = st.physics.bodies.get_mut(body_h) {
         b.set_next_kinematic_translation(new_center);
+    }
+
+    // --- weight: press down on movable things underfoot (rope bridges, seesaws)
+    if mp.weight > 0.0 && !climbing && !hanging {
+        let ray = Ray::new(new_center, Vec3::NEG_Y);
+        let hit = st.physics.query_filtered(filter).cast_ray(&ray, (height * 0.5 + 0.15) as Real, true);
+        if let Some((h, toi)) = hit {
+            let point = new_center - Vec3::Y * toi as f32;
+            if let Some(b) = st.physics.colliders.get(h).and_then(|c| c.parent()).and_then(|p| st.physics.bodies.get_mut(p)) {
+                if b.is_dynamic() {
+                    b.apply_impulse_at_point(Vec3::NEG_Y * mp.weight * 9.81 * dt, point, true);
+                }
+            }
+        }
     }
 
     // --- resolve velocity from what actually happened

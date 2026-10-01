@@ -41,6 +41,7 @@ impl Sim {
             self.state.entities.iter().filter(|e| !matches!(e.behavior, Behavior::None)).map(|e| e.id).collect();
         // Time at the end of this tick: movers arrive there after the physics step.
         let t = (self.state.tick + 1) as f32 * dt;
+        let signals = std::mem::take(&mut self.state.signals);
         let player = self.player().map(|p| p.pos);
         for id in ids {
             let Some(e) = self.state.entities.get(id) else { continue };
@@ -87,6 +88,63 @@ impl Sim {
                     }
                     if let Some(e) = self.state.entities.get_mut(id) {
                         e.behavior = Behavior::Emitter(em);
+                    }
+                }
+                Behavior::Spawner(mut sp) => {
+                    let region = e.region;
+                    if !sp.clear.is_empty() && signals.contains(&sp.clear) {
+                        for old in std::mem::take(&mut sp.spawned) {
+                            self.despawn(old);
+                        }
+                        sp.pending = 0;
+                    }
+                    if !sp.signal.is_empty() && signals.contains(&sp.signal) {
+                        sp.pending += sp.count;
+                    }
+                    if sp.interval > 0.0 {
+                        sp.timer += dt;
+                        if sp.timer >= sp.interval {
+                            sp.timer -= sp.interval;
+                            sp.pending += sp.count;
+                        }
+                    }
+                    // Spread big drops over several ticks.
+                    let n = sp.pending.min(25);
+                    sp.pending -= n;
+                    for _ in 0..n {
+                        let rng = &mut self.state.rng;
+                        let off = Vec3::new(rng.range(-1.0, 1.0), rng.range(-1.0, 1.0), rng.range(-1.0, 1.0)) * sp.area;
+                        let color = if sp.color.is_empty() {
+                            let palette = ["#e8704a", "#f2c14e", "#5b8def", "#9b5de5", "#3bb273", "#f15bb5", "#00bbf9"];
+                            Color::hex(palette[rng.below(palette.len() as u32) as usize])
+                        } else {
+                            Color::hex(&sp.color)
+                        };
+                        let rot = if sp.tumble {
+                            Quat::from_euler(glam::EulerRot::XYZ, rng.range(0.0, 3.1), rng.range(0.0, 3.1), rng.range(0.0, 3.1))
+                        } else {
+                            erot
+                        };
+                        let mut v = Visual::new(sp.shape, color);
+                        v.look = sp.look;
+                        let mut s = Spawn::new("spawned", epos + erot * off)
+                            .visual(v)
+                            .body(BodyKind::Dynamic)
+                            .rot(rot)
+                            .density(sp.density)
+                            .friction(sp.friction)
+                            .restitution(sp.restitution);
+                        s.region = region;
+                        let new_id = self.spawn(s);
+                        sp.spawned.push_back(new_id);
+                    }
+                    while sp.spawned.len() > sp.max as usize {
+                        if let Some(old) = sp.spawned.pop_front() {
+                            self.despawn(old);
+                        }
+                    }
+                    if let Some(e) = self.state.entities.get_mut(id) {
+                        e.behavior = Behavior::Spawner(sp);
                     }
                 }
                 Behavior::Rain { interval, max, area, height, mut timer, mut spawned } => {

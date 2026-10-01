@@ -30,6 +30,9 @@ pub struct PhysicsState {
     pub multibody_joints: MultibodyJointSet,
     pub soft_bodies: SoftBodySet,
     pub ccd: CCDSolver,
+    /// Fixed body that world-anchored joints attach to.
+    #[serde(default)]
+    pub anchor: Option<RigidBodyHandle>,
 }
 
 impl PhysicsState {
@@ -47,6 +50,7 @@ impl PhysicsState {
             multibody_joints: MultibodyJointSet::new(),
             soft_bodies: SoftBodySet::new(),
             ccd: CCDSolver::new(),
+            anchor: None,
         }
     }
 

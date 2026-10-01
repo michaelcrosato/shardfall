@@ -375,6 +375,9 @@ impl Sim {
                     if !z.label.is_empty() {
                         self.say(z.label.clone());
                     }
+                    if !z.signal.is_empty() {
+                        self.state.signals.push(z.signal.clone());
+                    }
                     events.push(SimEvent::Pad { pos: feet });
                 }
                 ZoneKind::Camera => {
@@ -383,6 +386,7 @@ impl Sim {
                         self.state.courses.cue_serial += 1;
                     }
                 }
+                ZoneKind::Conveyor | ZoneKind::Bounce => {}
             }
         }
         if respawn {

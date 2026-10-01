@@ -351,19 +351,54 @@ impl Sim {
         for warn in built.warnings {
             log::warn!("room {}: {warn}", slot.key);
         }
+        let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
             let mut v = Visual::new(o.shape, Color::hex(&o.color));
             v.look = o.look;
             v.emissive = o.emissive;
-            let rot = slot.place.quat() * Quat::from_rotation_y(o.yaw.to_radians());
+            let rot = slot.place.quat() * o.local_rot();
             let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
                 .visual(v)
                 .body(o.body)
                 .rot(rot)
-                .behavior(o.behavior.clone());
+                .behavior(o.behavior.clone())
+                .density(o.density)
+                .friction(o.friction)
+                .restitution(o.restitution);
             sp.region = Some(region);
             sp.hazard = o.hazard.clone();
-            self.spawn(sp);
+            sp.soft = o.soft.clone();
+            let id = self.spawn(sp);
+            if !o.name.is_empty() {
+                named.entry(o.name.clone()).or_insert(id);
+            }
+        }
+        self.tie_soft_bodies(&named);
+        for j in &slot.def.joints {
+            let Some(&a) = named.get(&j.a) else {
+                log::warn!("room {}: joint object '{}' not found", slot.key, j.a);
+                continue;
+            };
+            let b = if j.b.is_empty() { None } else { named.get(&j.b).copied() };
+            if !j.b.is_empty() && b.is_none() {
+                log::warn!("room {}: joint object '{}' not found", slot.key, j.b);
+                continue;
+            }
+            let mut kind = j.joint.clone();
+            match &mut kind {
+                crate::joints::JointKind::Hinge { axis, .. } | crate::joints::JointKind::Slider { axis, .. } => {
+                    *axis = slot.place.rotate(*axis)
+                }
+                _ => {}
+            }
+            let pose = |id: EntityId| self.state.entities.get(id).map(|e| (e.pos, e.rot));
+            let Some(pa) = pose(a) else { continue };
+            let pb = b.and_then(|b| pose(b).map(|(p, q)| (b, p, q)));
+            let link = crate::joints::JointLink::at(kind, slot.place.point(j.at), pa, pb);
+            self.add_joint(a, link);
+        }
+        for c in &slot.def.chains {
+            self.build_chain(c, &slot.place, region, &named);
         }
         for l in &slot.def.labels {
             if let Some(p) = l.pos {
@@ -372,6 +407,85 @@ impl Sim {
             }
         }
         self.state.world.rooms[id as usize].built = true;
+    }
+
+    /// Ties soft bodies with `attach` to the named object's body.
+    fn tie_soft_bodies(&mut self, named: &BTreeMap<String, EntityId>) {
+        let ties: Vec<(EntityId, String)> = self
+            .state
+            .entities
+            .iter()
+            .filter_map(|e| e.soft.as_ref().filter(|s| !s.def.attach.is_empty()).map(|s| (e.id, s.def.attach.clone())))
+            .filter(|(_, n)| named.contains_key(n))
+            .collect();
+        for (id, name) in ties {
+            let Some(body) = named.get(&name).and_then(|o| self.state.entities.get(*o)).and_then(|e| e.body) else { continue };
+            let Some(part) = self.state.entities.get(id).and_then(|e| e.soft.clone()) else { continue };
+            let ph = &mut self.state.physics;
+            if let Some(sb) = part.handle.and_then(|h| ph.soft_bodies.get_mut(h)) {
+                for &i in &part.attach_particles {
+                    sb.attach_particle(i as usize, body, &ph.bodies);
+                }
+            }
+        }
+    }
+
+    /// A chain of capsule links, or a rope bridge of hinged planks, between two points.
+    fn build_chain(&mut self, c: &crate::room::ChainDef, place: &Placement, region: RegionKey, named: &BTreeMap<String, EntityId>) {
+        use crate::joints::{JointKind, JointLink};
+        use crate::room::ChainStyle;
+        let (from, to) = (place.point(c.from), place.point(c.to));
+        let n = c.links.max(1) as usize;
+        let span = (to - from).length();
+        let dip = c.sag * span;
+        let point = |t: f32| from.lerp(to, t) - Vec3::Y * 4.0 * dip * t * (1.0 - t);
+        let pts: Vec<Vec3> = (0..=n).map(|i| point(i as f32 / n as f32)).collect();
+        let color = Color::hex(&c.color);
+        let bridge = c.style == ChainStyle::Bridge;
+        // Lateral direction for bridges (horizontal, across the span).
+        let along = (to - from).normalize_or(Vec3::X);
+        let side = Vec3::Y.cross(along).normalize_or(Vec3::Z) * (c.width * 0.5);
+        let mut ids: Vec<EntityId> = Vec::with_capacity(n);
+        for i in 0..n {
+            let (a, b) = (pts[i], pts[i + 1]);
+            let dir = (b - a).normalize_or(along);
+            let len = (b - a).length();
+            let mid = (a + b) * 0.5;
+            let (shape, rot, name) = if bridge {
+                let rot = Quat::from_mat3(&glam::Mat3::from_cols(dir, dir.cross(side.normalize()).normalize() * -1.0, side.normalize()))
+                    .normalize();
+                (Shape::Box { half: Vec3::new(len * 0.46, c.radius * 0.5, c.width * 0.5) }, rot, "~plank")
+            } else {
+                let rot = Quat::from_rotation_arc(Vec3::Y, dir);
+                (Shape::Capsule { half_height: (len * 0.5 - c.radius).max(0.01), radius: c.radius }, rot, "~link")
+            };
+            let mut sp = Spawn::new(name, mid).visual(Visual::new(shape, color)).body(BodyKind::Dynamic).rot(rot).density(c.density);
+            sp.region = Some(region);
+            ids.push(self.spawn(sp));
+        }
+        let pose = |s: &Sim, id: EntityId| s.state.entities.get(id).map(|e| (e.pos, e.rot)).unwrap_or_default();
+        // Anchors: one in the middle for chains, two (left/right edges) for bridges.
+        let anchors = |p: Vec3| if bridge { vec![p - side, p + side] } else { vec![p] };
+        for i in 0..n.saturating_sub(1) {
+            let (a, b) = (ids[i], ids[i + 1]);
+            for p in anchors(pts[i + 1]) {
+                let link = JointLink::at(JointKind::Ball, p, pose(self, a), Some((b, pose(self, b).0, pose(self, b).1)));
+                self.add_joint(a, link);
+            }
+        }
+        let fix_to = c.fix_to.unwrap_or(bridge);
+        let ends = [(ids[0], pts[0], c.fix_from, &c.attach_from), (ids[n - 1], pts[n], fix_to, &c.attach_to)];
+        for (id, p, fix, attach) in ends {
+            let other = named.get(attach.as_str()).copied();
+            if other.is_none() && !fix {
+                continue;
+            }
+            for q in anchors(p) {
+                let pb = other.map(|o| (o, pose(self, o).0, pose(self, o).1));
+                let link = JointLink::at(JointKind::Ball, q, pose(self, id), pb);
+                self.add_joint(id, link);
+            }
+        }
     }
 
     /// Removes a room's content (statics and its entities, active or dormant).
@@ -692,6 +806,14 @@ impl Sim {
                 }
                 self.state.physics.remove_body(h);
             }
+            if let Some(part) = &mut e.soft {
+                if let Some(h) = part.handle.take() {
+                    if let Some(sb) = self.state.physics.soft_bodies.get(h) {
+                        part.saved = sb.particle_positions().zip(sb.particle_velocities()).collect();
+                    }
+                    self.state.physics.remove_soft(h);
+                }
+            }
             e.region = Some(key);
             stored.push(DormantEntity { entity: e, linvel, angvel });
         }
@@ -712,8 +834,28 @@ impl Sim {
     /// Restores a region's stored entities.
     fn wake_entities(&mut self, key: RegionKey) {
         let Some(list) = self.state.world.dormant_entities.remove(&key) else { return };
+        let woken: Vec<EntityId> = list.iter().map(|d| d.entity.id).collect();
         for d in list {
             let mut e = d.entity;
+            if let Some(part) = e.soft.take() {
+                let mut fresh = self.state.physics.insert_soft(&part.def, e.pos, e.rot);
+                if let Some(sb) = fresh.handle.and_then(|h| self.state.physics.soft_bodies.get_mut(h)) {
+                    for (i, (p, v)) in part.saved.iter().enumerate().take(sb.num_particles()) {
+                        sb.set_particle_position(i, *p);
+                        sb.set_particle_velocity(i, *v);
+                    }
+                    let tag = entity_tag(e.id.0);
+                    if let Some(b) = self.state.physics.bodies.get(sb.root_body()) {
+                        for c in b.colliders().to_vec() {
+                            if let Some(col) = self.state.physics.colliders.get_mut(c) {
+                                col.user_data = tag;
+                            }
+                        }
+                    }
+                }
+                fresh.saved.clear();
+                e.soft = Some(fresh);
+            }
             if e.body_kind != BodyKind::None {
                 let shape = e.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
                 let builder = match e.body_kind {
@@ -736,6 +878,7 @@ impl Sim {
             }
             self.state.entities.map.insert(e.id, e);
         }
+        self.restore_joints(&woken);
     }
 
     /// Tracks which room the player is in; applies/restores room overrides; emits events.
@@ -845,7 +988,7 @@ impl Sim {
             .iter()
             .filter(|e| e.region == region)
             .chain(dormant)
-            .filter(|e| e.character.is_none() && e.bomb.is_none() && e.lifetime.is_none())
+            .filter(|e| e.character.is_none() && e.bomb.is_none() && e.lifetime.is_none() && !e.name.starts_with('~'))
             .filter_map(|e| {
                 let v = e.visual.as_ref()?;
                 // Animated objects are saved at their start pose, without running state.
@@ -856,19 +999,25 @@ impl Sim {
                 };
                 let local = inv * (pos - slot.place.origin);
                 let rot = inv * rot0;
-                let (axis, angle) = rot.to_axis_angle();
-                let yaw = if axis.y < 0.0 { -angle } else { angle };
+                let (yaw, pitch, roll) = rot.to_euler(glam::EulerRot::YXZ);
+                let r1 = |a: f32| (a.to_degrees() * 10.0).round() / 10.0;
                 Some(crate::room::ObjectDef {
                     name: e.name.clone(),
                     shape: v.shape,
                     pos: (local * 1000.0).round() / 1000.0,
-                    yaw: (yaw.to_degrees() * 10.0).round() / 10.0,
+                    yaw: r1(yaw),
+                    pitch: r1(pitch),
+                    roll: r1(roll),
                     color: crate::color::to_hex(v.color),
                     body: e.body_kind,
                     look: v.look,
                     emissive: v.emissive,
                     behavior: fresh_behavior(&e.behavior),
                     hazard: e.hazard.clone(),
+                    density: e.material.density,
+                    friction: e.material.friction,
+                    restitution: e.material.restitution,
+                    soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
             .collect()
@@ -884,6 +1033,12 @@ fn fresh_behavior(b: &crate::entity::Behavior) -> crate::entity::Behavior {
         Behavior::Emitter(e) => {
             Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() })
         }
+        Behavior::Spawner(s) => Behavior::Spawner(crate::entity::SpawnerDef {
+            timer: 0.0,
+            pending: 0,
+            spawned: Default::default(),
+            ..s.clone()
+        }),
         Behavior::Rain { interval, max, area, height, .. } => {
             Behavior::Rain { interval: *interval, max: *max, area: *area, height: *height, timer: 0, spawned: Default::default() }
         }
@@ -945,8 +1100,10 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         }
     };
     let mut t = format!("[[object]]\nname = {:?}\nshape = {shape}\npos = {}\n", o.name, vec3(o.pos));
-    if o.yaw.abs() > 0.05 {
-        t.push_str(&format!("yaw = {}\n", num(o.yaw)));
+    for (k, v) in [("yaw", o.yaw), ("pitch", o.pitch), ("roll", o.roll)] {
+        if v.abs() > 0.05 {
+            t.push_str(&format!("{k} = {}\n", num(v)));
+        }
     }
     t.push_str(&format!("color = {:?}\n", o.color));
     if o.body != BodyKind::Dynamic {
@@ -969,6 +1126,16 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
     if let Some(h) = &o.hazard {
         if let Ok(v) = toml::Value::try_from(h) {
             t.push_str(&format!("hazard = {}\n", inline(&v)));
+        }
+    }
+    for (k, v, d) in [("density", o.density, 1.0), ("friction", o.friction, 0.5), ("restitution", o.restitution, 0.0)] {
+        if (v - d).abs() > 1e-4 {
+            t.push_str(&format!("{k} = {}\n", num(v)));
+        }
+    }
+    if let Some(s) = &o.soft {
+        if let Ok(v) = toml::Value::try_from(s) {
+            t.push_str(&format!("soft = {}\n", inline(&v)));
         }
     }
     t

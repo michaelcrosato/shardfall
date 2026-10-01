@@ -222,6 +222,13 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
             if p.pos.distance_squared(o.pos) < 4.0 {
                 obj.pos = p.pos.lerp(o.pos, alpha);
                 obj.rot = p.rot.slerp(o.rot, alpha);
+                if let (Some(a), Some(b)) = (&p.soft, &mut obj.soft) {
+                    if a.points.len() == b.points.len() {
+                        for (q, pa) in b.points.iter_mut().zip(&a.points) {
+                            *q = pa.lerp(*q, alpha);
+                        }
+                    }
+                }
                 if let (Some(a), Some(b)) = (p.puppet, o.puppet) {
                     obj.puppet = Some(PuppetFrame {
                         state: a.state.lerp(&b.state, alpha),
@@ -258,6 +265,16 @@ impl ViewBuilder {
                 SimEvent::Splash { pos } => self.effects.push(Effect {
                     kind: EffectKind::Burst { color: [0.75, 0.88, 1.0], up: 2.5 },
                     pos: *pos + Vec3::Y * 0.3,
+                    start: self.now,
+                }),
+                SimEvent::Break { pos } => self.effects.push(Effect {
+                    kind: EffectKind::Burst { color: [0.85, 0.82, 0.75], up: 1.0 },
+                    pos: *pos,
+                    start: self.now,
+                }),
+                SimEvent::Bounce { pos } => self.effects.push(Effect {
+                    kind: EffectKind::Burst { color: [1.0, 0.6, 0.75], up: 0.5 },
+                    pos: *pos + Vec3::Y * 0.1,
                     start: self.now,
                 }),
                 SimEvent::Respawn { pos } => self.effects.push(Effect {
@@ -416,7 +433,7 @@ impl ViewBuilder {
                     list.push(MeshInstance {
                         mesh,
                         transform: Mat4::from_scale_rotation_translation(scale, Quat::IDENTITY, b.center()),
-                        color: v3(b.color),
+                        color: if b.has(block_flags::CRACKED) { v3(b.color) * 0.55 } else { v3(b.color) },
                         emissive: 0.0,
                         style: style_of(b.look, settings.style),
                         flags: 0,
@@ -497,6 +514,10 @@ impl ViewBuilder {
         let cam_fwd = scene.camera.forward;
         let now = self.now as f32;
         for o in interpolate(prev, curr, alpha) {
+            if let Some(s) = &o.soft {
+                emit_soft(&mut scene, &o, s, settings.style);
+                continue;
+            }
             match o.puppet {
                 Some(p) => {
                     let player = curr.player == Some(o.id);
@@ -517,6 +538,48 @@ impl ViewBuilder {
         }
         self.emit_effects(&mut scene);
         scene
+    }
+}
+
+/// A soft body: a deforming surface with smooth normals, or a rope of rounded cones.
+fn emit_soft(scene: &mut Scene, o: &RenderObject, s: &pav_core::frame::SoftView, ov: StyleOverride) {
+    let color = v3(o.visual.color);
+    let style = style_of(o.visual.look, ov);
+    let group = o.id.0 + 2;
+    if !s.surface.is_empty() {
+        let mut normals = vec![Vec3::ZERO; s.points.len()];
+        for t in s.surface.iter() {
+            let [a, b, c] = t.map(|i| i as usize);
+            if a >= s.points.len() || b >= s.points.len() || c >= s.points.len() {
+                continue;
+            }
+            let n = (s.points[b] - s.points[a]).cross(s.points[c] - s.points[a]);
+            normals[a] += n;
+            normals[b] += n;
+            normals[c] += n;
+        }
+        let vertices = s
+            .points
+            .iter()
+            .zip(&normals)
+            .map(|(p, n)| Vertex { pos: p.to_array(), normal: n.normalize_or(Vec3::Y).to_array(), uv: [0.0, 0.0], color: [1.0; 4] })
+            .collect();
+        let indices = s.surface.iter().flat_map(|t| t.iter().copied()).filter(|i| (*i as usize) < s.points.len()).collect();
+        scene.dynamic.push(rs::DynamicMesh {
+            data: MeshData { vertices, indices },
+            color,
+            emissive: o.visual.emissive,
+            style,
+            flags: if s.two_sided { rs::flags::TWO_SIDED } else { 0 },
+            group,
+        });
+    }
+    let r = s.radius.max(0.02);
+    for seg in s.segments.iter() {
+        let (a, b) = (seg[0] as usize, seg[1] as usize);
+        if a < s.points.len() && b < s.points.len() {
+            scene.sdfs.push(SdfInstance { a: s.points[a], b: s.points[b], ra: r, rb: r, color, emissive: 0.0, style, flags: 0, group });
+        }
     }
 }
 

@@ -35,6 +35,10 @@ choice_enum! {
         Pad => "pad",
         /// Applies `camera` while inside.
         Camera => "camera",
+        /// Moves whatever stands on it toward `facing` at `speed` (m/s).
+        Conveyor => "conveyor",
+        /// Launches characters and props upward at `speed` (m/s): trampolines.
+        Bounce => "bounce",
     }
 }
 
@@ -95,9 +99,22 @@ pub struct Zone {
     /// Floor marking colour (None = the kind's default; transparent kinds draw nothing).
     #[serde(default)]
     pub color: Option<Color>,
-    /// Direction the player faces after respawning here (checkpoints, start).
+    /// Direction the player faces after respawning here (checkpoints, start); conveyor direction.
     #[serde(default)]
     pub facing: Option<Facing>,
+    /// Conveyor / bounce speed (m/s).
+    #[serde(default)]
+    pub speed: f32,
+    /// Pads: a signal sent to spawners (and other listeners) when stepped on.
+    #[serde(default)]
+    pub signal: String,
+}
+
+impl Zone {
+    /// Conveyor velocity (zero for other kinds).
+    pub fn conveyor_velocity(&self) -> Vec3 {
+        if self.kind == ZoneKind::Conveyor { self.facing.unwrap_or(Facing::North).dir() * self.speed } else { Vec3::ZERO }
+    }
 }
 
 impl Zone {
@@ -153,5 +170,7 @@ pub fn default_zone_color(kind: ZoneKind) -> Option<Color> {
         ZoneKind::Water => Some(Color::hex("#3f88c5")),
         ZoneKind::Pad => Some(Color::hex("#9b6fd6")),
         ZoneKind::Camera => None,
+        ZoneKind::Conveyor => Some(Color::hex("#4a4f57")),
+        ZoneKind::Bounce => Some(Color::hex("#ff8fb1")),
     }
 }

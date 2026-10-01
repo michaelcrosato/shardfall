@@ -26,6 +26,21 @@ pub struct RenderObject {
     pub puppet: Option<PuppetFrame>,
     /// Blink/highlight driver: bomb fuse seconds left, or < 0 for none.
     pub pulse: f32,
+    /// Deformable body: particle positions and how to draw them.
+    pub soft: Option<SoftView>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SoftView {
+    pub points: Vec<Vec3>,
+    /// Surface triangles (cubes, balls, cloth); empty for ropes.
+    pub surface: std::sync::Arc<Vec<[u32; 3]>>,
+    /// Rope segments.
+    pub segments: std::sync::Arc<Vec<[u32; 2]>>,
+    /// Rope thickness.
+    pub radius: f32,
+    /// Sheets are seen from both sides.
+    pub two_sided: bool,
 }
 
 /// Things that happened during a tick, for sound and effects.
@@ -51,6 +66,10 @@ pub enum SimEvent {
     Pad { pos: Vec3 },
     Grab { pos: Vec3 },
     Roll { pos: Vec3 },
+    /// A tile starts crumbling / breaks.
+    Crack { pos: Vec3 },
+    Break { pos: Vec3 },
+    Bounce { pos: Vec3 },
 }
 
 /// The room the player is in, for the HUD (info card, control guide, camera defaults).
@@ -86,6 +105,20 @@ pub struct HudFrame {
     /// Player hit flash (seconds of invulnerability left).
     pub invuln: f32,
     pub model: String,
+    pub physics: PhysicsStats,
+}
+
+/// Physics counters for the stats overlay.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PhysicsStats {
+    pub dynamic: usize,
+    pub sleeping: usize,
+    pub colliders: usize,
+    pub joints: usize,
+    pub soft_bodies: usize,
+    pub particles: usize,
+    pub contacts: usize,
+    pub projectiles: usize,
 }
 
 #[derive(Clone, Debug)]

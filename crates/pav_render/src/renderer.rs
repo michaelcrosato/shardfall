@@ -174,6 +174,8 @@ pub struct Renderer {
     text_bg: wgpu::BindGroup,
     text_instances: DynBuffer,
     atlas: crate::text::FontAtlas,
+    dyn_vertices: DynBuffer,
+    dyn_indices: DynBuffer,
     frame: u64,
     pub stats: RenderStats,
 }
@@ -577,6 +579,8 @@ impl Renderer {
             cache: None,
         });
         let text_instances = DynBuffer::new(device, "glyphs", wgpu::BufferUsages::VERTEX, 16 * 1024);
+        let dyn_vertices = DynBuffer::new(device, "dynamic vertices", wgpu::BufferUsages::VERTEX, 64 * 1024);
+        let dyn_indices = DynBuffer::new(device, "dynamic indices", wgpu::BufferUsages::INDEX, 32 * 1024);
 
         let mesh_instances = DynBuffer::new(device, "mesh instances", wgpu::BufferUsages::VERTEX, 64 * 1024);
         let sdf_instances = DynBuffer::new(device, "sdf instances", wgpu::BufferUsages::VERTEX, 16 * 1024);
@@ -609,6 +613,8 @@ impl Renderer {
             text_bg,
             text_instances,
             atlas,
+            dyn_vertices,
+            dyn_indices,
             frame: 0,
             stats: RenderStats::default(),
         }
@@ -854,6 +860,36 @@ impl Renderer {
                 _ => batches.push((m.mesh, idx, idx + 1, 0, 0)),
             }
         }
+        // Dynamic meshes: one instance each (identity transform), after the regular ones.
+        let mut dyn_draws: Vec<(u32, u32, i32, u32, bool)> = Vec::new(); // first index, count, base vertex, instance, shadow
+        {
+            let mut verts: Vec<Vertex> = Vec::new();
+            let mut idx: Vec<u32> = Vec::new();
+            for d in &scene.dynamic {
+                if d.data.indices.is_empty() {
+                    continue;
+                }
+                let inst = gpu_meshes.len() as u32;
+                gpu_meshes.push(GpuMeshInstance {
+                    model: mat(Mat4::IDENTITY),
+                    color: d.color.extend(d.emissive).to_array(),
+                    params: [d.style as u32, d.flags, d.group, 0],
+                });
+                dyn_draws.push((
+                    idx.len() as u32,
+                    d.data.indices.len() as u32,
+                    verts.len() as i32,
+                    inst,
+                    d.flags & crate::scene::flags::NO_SHADOW == 0,
+                ));
+                verts.extend_from_slice(&d.data.vertices);
+                idx.extend_from_slice(&d.data.indices);
+            }
+            if !dyn_draws.is_empty() {
+                self.dyn_vertices.write(&self.device, &self.queue, bytemuck::cast_slice(&verts));
+                self.dyn_indices.write(&self.device, &self.queue, bytemuck::cast_slice(&idx));
+            }
+        }
         // Shadow-casting copies appended after the main list.
         for b in batches.iter_mut() {
             let start = gpu_meshes.len() as u32;
@@ -939,6 +975,16 @@ impl Renderer {
                         draw_calls += 1;
                     }
                 }
+                if !dyn_draws.is_empty() {
+                    pass.set_vertex_buffer(0, self.dyn_vertices.buf.slice(..));
+                    pass.set_index_buffer(self.dyn_indices.buf.slice(..), wgpu::IndexFormat::Uint32);
+                    for &(first, count, base, inst, shadow) in &dyn_draws {
+                        if shadow {
+                            pass.draw_indexed(first..first + count, base, inst..inst + 1);
+                            draw_calls += 1;
+                        }
+                    }
+                }
                 if sdf_shadow_end > sdf_count {
                     pass.set_pipeline(&self.sdf_shadow_pipeline);
                     pass.set_vertex_buffer(0, self.sdf_instances.buf.slice(..));
@@ -992,6 +1038,14 @@ impl Renderer {
                 pass.set_index_buffer(mesh.ibuf.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..mesh.index_count, 0, b.1..b.2);
                 draw_calls += 1;
+            }
+            if !dyn_draws.is_empty() {
+                pass.set_vertex_buffer(0, self.dyn_vertices.buf.slice(..));
+                pass.set_index_buffer(self.dyn_indices.buf.slice(..), wgpu::IndexFormat::Uint32);
+                for &(first, count, base, inst, _) in &dyn_draws {
+                    pass.draw_indexed(first..first + count, base, inst..inst + 1);
+                    draw_calls += 1;
+                }
             }
             if sdf_count > 0 {
                 pass.set_pipeline(&self.sdf_pipeline);

@@ -9,7 +9,8 @@ Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goa
 | M2 Core gameplay | ✅ complete (2026-09-30) |
 | M3 World & rooms | ✅ complete (2026-10-01) |
 | M4 Movement & Feel Lab | ✅ complete (2026-10-01) |
-| M5–M10 | ⏳ next |
+| M5 Physics Lab | 🔨 in progress |
+| M6–M10 | ⏳ next |
 
 ## M1 Foundation — done
 - Cargo workspace: `pav_core`, `pav_render`, `pav_view`, `pav_tools`, `pav_app` (see AGENTS.md).
@@ -197,7 +198,25 @@ Current milestone: **M5 Physics Lab** (M1–M4 complete; M4–M10 run as one goa
 - Dev builds use line-table debug info and no incremental cache (disk allowance in the cloud).
 - Map rows: only a truly empty first line is dropped (a leading row of spaces is a real row).
 
-## Next: M5 Physics Lab
+## M5 Physics Lab — in progress
+Engine pieces done (uncommitted parts get committed as they land):
+- `softbody.rs`: rapier soft bodies as entities (`[[object]] soft = { shape = {type = cuboid |
+  sphere | cloth | rope ...}, stiffness, damping, mass, pin, tear, attach }`); drawn as per-frame
+  dynamic meshes (renderer `Scene.dynamic`, TWO_SIDED flag for cloth) or rope capsules; kept
+  through dormancy (particle positions saved).
+- `joints.rs`: joints owned by entities (fixed/ball/hinge/slider/rope/spring), world anchor body,
+  recreated when regions wake; room `[[joint]]` (a, b, at, joint) and `[[chain]]` generator
+  (chains of capsule links, rope bridges of hinged planks; density 400 default).
+- `destruct.rs`: crumbling tiles (`crumble`, `regrow`), breakable tiles (`strength`, contact force
+  events), conveyors and bounce pads acting on props; characters ride conveyors, bounce on pads
+  and press on dynamic floors with their weight (`movement.weight`).
+- Spawner behaviour + pad `signal`s; physics stats overlay (`overlays = ["physics"]`).
+- Objects: pitch/roll, density/friction/restitution.
+Verified headlessly in a scratch room (bridge walkable, chain + wrecking ball, cloth flag, rope,
+jelly cube, conveyor, bounce, crumble + regrow, glass breaks, spawner pad).
+Remaining: tests, template docs, the seven rooms (helpers), Windows build, merge, send.
+
+## Next: M5 Physics Lab (plan)
 Rooms (wing = "physics", north corridor): stacking & toppling, springs & soft bodies (rapier 0.36
 soft bodies: cuboid/sphere/cloth/rope), chains & rope bridges (joints in room data + chain/bridge
 generators), conveyors, bounce & friction gallery (spawners, tilted ramps), destructible floors

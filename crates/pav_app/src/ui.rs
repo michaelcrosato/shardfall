@@ -28,6 +28,7 @@ pub enum MenuAction {
     LoadScene(String),
     Tuning,
     Feel,
+    Physics,
     Screenshot,
     Quit,
 }
@@ -145,6 +146,9 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                 }
                 if ui.button("Feel metrics").clicked() {
                     action = Some(MenuAction::Feel);
+                }
+                if ui.button("Physics stats").clicked() {
+                    action = Some(MenuAction::Physics);
                 }
                 if ui.button("Screenshot (F12)").clicked() {
                     action = Some(MenuAction::Screenshot);

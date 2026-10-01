@@ -323,3 +323,75 @@ impl FeelOverlay {
         let _ = Duration::ZERO;
     }
 }
+
+/// Physics counters and simulation cost (stress tests).
+#[derive(Default)]
+pub struct PhysicsOverlay {
+    pub open: bool,
+    pub auto: bool,
+    tick_ms: VecDeque<f32>,
+}
+
+impl PhysicsOverlay {
+    pub fn ui(&mut self, ctx: &egui::Context, h: &HudCtx, tps: f32, tick_ms: f32) {
+        if !self.open {
+            return;
+        }
+        self.tick_ms.push_back(tick_ms);
+        while self.tick_ms.len() > 240 {
+            self.tick_ms.pop_front();
+        }
+        let p = &h.hud.physics;
+        let budget = h.dt * 1000.0;
+        let mut open = self.open;
+        egui::Window::new("Physics")
+            .id(egui::Id::new("physics_overlay"))
+            .open(&mut open)
+            .anchor(egui::Align2::RIGHT_TOP, [-12.0, 110.0])
+            .resizable(false)
+            .default_width(280.0)
+            .show(ctx, |ui| {
+                let load = tick_ms / budget.max(1e-3);
+                let color = if load < 0.5 {
+                    Color32::from_rgb(120, 220, 140)
+                } else if load < 0.9 {
+                    Color32::from_rgb(255, 210, 90)
+                } else {
+                    Color32::from_rgb(255, 110, 100)
+                };
+                ui.label(RichText::new(format!("{tps:.0} ticks/s")).size(26.0).strong().color(color));
+                ui.label(format!("{tick_ms:.2} ms per tick ({:.0}% of the {budget:.1} ms budget)", load * 100.0));
+                egui::Grid::new("physics_grid").num_columns(2).show(ui, |ui| {
+                    let mut row = |k: &str, v: String| {
+                        ui.label(k);
+                        ui.label(RichText::new(v).monospace());
+                        ui.end_row();
+                    };
+                    row("Moving bodies", format!("{} ({} asleep)", p.dynamic, p.sleeping));
+                    row("Colliders", p.colliders.to_string());
+                    row("Contacts", p.contacts.to_string());
+                    row("Joints", p.joints.to_string());
+                    row("Soft bodies", format!("{} ({} particles)", p.soft_bodies, p.particles));
+                    row("Projectiles", p.projectiles.to_string());
+                });
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(240.0), 50.0), egui::Sense::hover());
+                let painter = ui.painter_at(rect);
+                painter.rect_filled(rect, 3.0, Color32::from_black_alpha(60));
+                let max = self.tick_ms.iter().copied().fold(budget, f32::max) * 1.1;
+                let y = |v: f32| rect.bottom() - rect.height() * v / max;
+                painter.hline(rect.x_range(), y(budget), egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 120, 100, 120)));
+                let n = self.tick_ms.len().max(2);
+                let pts: Vec<egui::Pos2> = self
+                    .tick_ms
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| egui::pos2(rect.left() + rect.width() * i as f32 / (n - 1) as f32, y(*v)))
+                    .collect();
+                painter.add(egui::Shape::line(pts, egui::Stroke::new(1.5, Color32::from_rgb(120, 200, 255))));
+                painter.text(rect.left_top() + egui::vec2(4.0, 2.0), egui::Align2::LEFT_TOP, "ms per tick (red line = budget)", egui::FontId::proportional(10.0), Color32::from_white_alpha(150));
+            });
+        if !open {
+            self.open = false;
+        }
+    }
+}

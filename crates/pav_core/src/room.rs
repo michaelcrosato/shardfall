@@ -9,8 +9,11 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::character::MovementModel;
+use crate::choice_enum;
 use crate::entity::{Behavior, BodyKind, Hazard};
+use crate::joints::JointKind;
 use crate::level::{LabelDef, Layout};
+use crate::softbody::SoftDef;
 use crate::params::ParamValue;
 use crate::shape::{Look, Shape};
 use crate::statics::Facing;
@@ -39,11 +42,17 @@ pub struct Entrance {
 pub struct ObjectDef {
     #[serde(default)]
     pub name: String,
+    #[serde(default = "box_shape")]
     pub shape: Shape,
     pub pos: Vec3,
     /// Rotation about the vertical axis (degrees).
     #[serde(default)]
     pub yaw: f32,
+    /// Tilt about the object's X axis and Z axis (degrees): ramps, seesaws.
+    #[serde(default)]
+    pub pitch: f32,
+    #[serde(default)]
+    pub roll: f32,
     #[serde(default = "gray")]
     pub color: String,
     #[serde(default = "dynamic")]
@@ -56,6 +65,100 @@ pub struct ObjectDef {
     pub behavior: Behavior,
     #[serde(default)]
     pub hazard: Option<Hazard>,
+    #[serde(default = "one")]
+    pub density: f32,
+    #[serde(default = "half")]
+    pub friction: f32,
+    #[serde(default)]
+    pub restitution: f32,
+    /// A deformable body instead of a rigid one (jelly, ball, cloth, rope).
+    #[serde(default)]
+    pub soft: Option<SoftDef>,
+}
+
+impl ObjectDef {
+    /// Rotation in the room's own frame.
+    pub fn local_rot(&self) -> glam::Quat {
+        glam::Quat::from_euler(glam::EulerRot::YXZ, self.yaw.to_radians(), self.pitch.to_radians(), self.roll.to_radians())
+    }
+}
+
+fn box_shape() -> Shape {
+    Shape::Box { half: Vec3::splat(0.5) }
+}
+fn one() -> f32 {
+    1.0
+}
+fn half() -> f32 {
+    0.5
+}
+
+/// A joint between two named objects (or an object and the world), anchored at `at`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JointDef {
+    pub a: String,
+    /// The other object; empty = fixed to the world.
+    #[serde(default)]
+    pub b: String,
+    /// Anchor point in layout space (x = column, y = height, z = row).
+    pub at: Vec3,
+    pub joint: JointKind,
+}
+
+choice_enum! {
+    #[derive(Default)]
+    pub enum ChainStyle {
+        /// Capsule links joined end to end.
+        #[default]
+        Chain => "chain",
+        /// Planks hinged edge to edge: a walkable rope bridge.
+        Bridge => "bridge",
+    }
+}
+
+/// A generated chain or rope bridge between two points (layout space).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ChainDef {
+    pub from: Vec3,
+    pub to: Vec3,
+    pub style: ChainStyle,
+    pub links: u32,
+    /// Chain link radius / plank thickness (m).
+    pub radius: f32,
+    /// Bridge width (m).
+    pub width: f32,
+    /// Extra slack: the chain hangs this fraction of its span lower in the middle.
+    pub sag: f32,
+    pub color: String,
+    pub density: f32,
+    /// Ends fixed to the world (default: the start always, the end for bridges) ...
+    pub fix_from: bool,
+    pub fix_to: Option<bool>,
+    /// ... or tied to named objects.
+    pub attach_from: String,
+    pub attach_to: String,
+}
+
+impl Default for ChainDef {
+    fn default() -> Self {
+        Self {
+            from: Vec3::ZERO,
+            to: Vec3::new(0.0, -3.0, 0.0),
+            style: ChainStyle::Chain,
+            links: 10,
+            radius: 0.07,
+            width: 1.4,
+            sag: 0.0,
+            color: "#8a8f99".into(),
+            // Wood/steel-ish: light links make joints unstable under a character's weight.
+            density: 400.0,
+            fix_from: true,
+            fix_to: None,
+            attach_from: String::new(),
+            attach_to: String::new(),
+        }
+    }
 }
 
 fn gray() -> String {
@@ -113,6 +216,10 @@ pub struct RoomDef {
     /// Free-placed text (positions in layout space).
     #[serde(default, rename = "label")]
     pub labels: Vec<LabelDef>,
+    #[serde(default, rename = "joint")]
+    pub joints: Vec<JointDef>,
+    #[serde(default, rename = "chain")]
+    pub chains: Vec<ChainDef>,
     #[serde(default, rename = "object")]
     pub objects: Vec<ObjectDef>,
 }

@@ -19,7 +19,7 @@ use winit::window::{Fullscreen, Window, WindowId};
 use crate::boot::{self, stage};
 use crate::edit::Editor;
 use crate::gfx::Gfx;
-use crate::hud::{CameraDirector, FeelOverlay, FeelSettings, HudCtx, Latency, LatencySample};
+use crate::hud::{CameraDirector, FeelOverlay, FeelSettings, HudCtx, Latency, LatencySample, PhysicsOverlay};
 use crate::input::{Device, Input};
 use crate::panel::{Panel, PanelAction};
 use crate::rooms::{RoomEntry, RoomHud, RoomWatcher, TeleportTarget};
@@ -139,6 +139,7 @@ pub struct App {
     latency: Latency,
     director: CameraDirector,
     feel: FeelOverlay,
+    physics: PhysicsOverlay,
     quit: bool,
     pub fatal: Option<String>,
 }
@@ -184,6 +185,7 @@ impl App {
             latency: Latency::default(),
             director: CameraDirector::default(),
             feel: FeelOverlay::default(),
+            physics: PhysicsOverlay::default(),
             quit: false,
             fatal: None,
             settings,
@@ -494,6 +496,14 @@ impl App {
                 self.feel.open = false;
                 self.feel.auto = false;
             }
+            let wants = self.hud.current.as_ref().is_some_and(|r| r.def.overlays.iter().any(|o| o == "physics"));
+            if wants && !self.physics.open {
+                self.physics.open = true;
+                self.physics.auto = true;
+            } else if !wants && self.physics.auto {
+                self.physics.open = false;
+                self.physics.auto = false;
+            }
         }
         self.feel.record(curr.tick, curr.hud.feel.speed);
         if self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def))) != room_before {
@@ -664,6 +674,7 @@ impl App {
         };
         let show_stats = root.app.show_stats;
         let feel = &mut self.feel;
+        let physics = &mut self.physics;
         let latency = &self.latency;
         let hud_ctx = HudCtx { hud: &curr.hud, tick: curr.tick, dt: curr.dt };
         let out = self.egui_ctx.run_ui(raw, |ui| {
@@ -684,6 +695,7 @@ impl App {
                 hud.card(&ctx, device);
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
+            physics.ui(&ctx, &hud_ctx, stats.tps, stats.tick_ms);
             crate::hud::hit_flash(&ctx, hud_ctx.hud.invuln);
             feel.ui(
                 &ctx,
@@ -892,6 +904,11 @@ impl App {
                 self.set_menu(false);
                 self.feel.open = !self.feel.open;
                 self.feel.auto = false;
+            }
+            MenuAction::Physics => {
+                self.set_menu(false);
+                self.physics.open = !self.physics.open;
+                self.physics.auto = false;
             }
             MenuAction::Quit => self.quit = true,
         }

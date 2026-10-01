@@ -41,6 +41,19 @@ pub mod flags {
     pub const NO_RECEIVE_SHADOW: u32 = 4;
     /// Cutaway lowers individual vertices near the player (for big meshes like terrain).
     pub const CUT_VERTEX: u32 = 8;
+    /// Both sides are real surfaces (cloth), not the inside of a solid.
+    pub const TWO_SIDED: u32 = 16;
+}
+
+/// A mesh rebuilt every frame (soft bodies), in world space.
+#[derive(Clone, Debug)]
+pub struct DynamicMesh {
+    pub data: crate::mesh::MeshData,
+    pub color: Vec3,
+    pub emissive: f32,
+    pub style: Style,
+    pub flags: u32,
+    pub group: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -259,6 +272,8 @@ pub struct Scene {
     pub custom_meshes: Vec<(MeshKey, std::sync::Arc<crate::mesh::MeshData>)>,
     /// Text in the world.
     pub texts: Vec<crate::text::Text3d>,
+    /// Meshes rebuilt every frame (soft bodies).
+    pub dynamic: Vec<DynamicMesh>,
     pub time: f32,
 }
 
@@ -278,6 +293,7 @@ impl Default for Scene {
             fog: Fog::default(),
             custom_meshes: Vec::new(),
             texts: Vec::new(),
+            dynamic: Vec::new(),
             time: 0.0,
         }
     }

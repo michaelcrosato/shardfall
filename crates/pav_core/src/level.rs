@@ -80,6 +80,15 @@ pub struct Piece {
     /// Shrinks the block horizontally on every side (m), e.g. for pillars.
     #[serde(default)]
     pub inset: f32,
+    /// Falls this many seconds after something stands on it (0 = never).
+    #[serde(default)]
+    pub crumble: f32,
+    /// Comes back this many seconds after crumbling or breaking (0 = never).
+    #[serde(default)]
+    pub regrow: f32,
+    /// Breaks when hit harder than this (contact force, N; 0 = unbreakable): glass floors.
+    #[serde(default)]
+    pub strength: f32,
 }
 
 fn default_color() -> String {
@@ -88,7 +97,19 @@ fn default_color() -> String {
 
 impl Piece {
     pub fn new(y0: f32, y1: f32, color: &str) -> Self {
-        Self { y0, y1, color: color.into(), look: Look::Cel, destructible: false, rounded: false, ghost: false, inset: 0.0 }
+        Self {
+            y0,
+            y1,
+            color: color.into(),
+            look: Look::Cel,
+            destructible: false,
+            rounded: false,
+            ghost: false,
+            inset: 0.0,
+            crumble: 0.0,
+            regrow: 0.0,
+            strength: 0.0,
+        }
     }
     pub fn destructible(mut self) -> Self {
         self.destructible = true;
@@ -161,6 +182,10 @@ pub struct ZoneDef {
     pub color: Option<String>,
     #[serde(default)]
     pub facing: Option<Facing>,
+    #[serde(default)]
+    pub speed: f32,
+    #[serde(default)]
+    pub signal: String,
 }
 
 fn three() -> f32 {
@@ -328,7 +353,8 @@ impl Layout {
                     };
                     let cell = base + Vec3::new(c as f32, 0.0, r as f32); // layout space
                     for p in &def.blocks {
-                        match runs.iter_mut().rev().find(|(_, end, rp)| *end == c && *rp == p && !p.destructible) {
+                        let single = p.destructible || p.crumble > 0.0 || p.strength > 0.0;
+                        match runs.iter_mut().rev().find(|(_, end, rp)| *end == c && *rp == p && !single) {
                             Some(run) => run.1 = c + 1,
                             None => runs.push((c, c + 1, p)),
                         }
@@ -387,7 +413,8 @@ impl Layout {
                 }
                 for (c0, c1, p) in runs {
                     // Merge with the same run on the row above (not for destructible tiles).
-                    match brects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == p && !p.destructible) {
+                        let single = p.destructible || p.crumble > 0.0 || p.strength > 0.0;
+                match brects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == p && !single) {
                         Some(q) => q.3 = r + 1,
                         None => brects.push((c0, c1, r, r + 1, p)),
                     }
@@ -409,6 +436,9 @@ impl Layout {
                 if p.ghost {
                     b = b.with_flags(block_flags::GHOST);
                 }
+                b.crumble = p.crumble;
+                b.regrow = p.regrow;
+                b.strength = p.strength;
                 let st = &mut sim.state;
                 match region {
                     Some(k) => st.statics.add_to(&mut st.physics, k, b),
@@ -438,6 +468,8 @@ impl Layout {
                     label_size: z.label_size,
                     color,
                     facing: z.facing.map(|f| place.facing(f)),
+                    speed: z.speed,
+                    signal: z.signal.clone(),
                 };
                 let key = region.unwrap_or(RegionKey::chunk_of(zone.center()));
                 sim.state.statics.add_zone_to(key, zone);

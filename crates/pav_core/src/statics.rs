@@ -27,6 +27,8 @@ pub mod block_flags {
     pub const GHOST: u32 = 4;
     /// Rendered with rounded edges.
     pub const ROUNDED: u32 = 8;
+    /// About to crumble (drawn cracked).
+    pub const CRACKED: u32 = 16;
 }
 
 /// Which region static content belongs to.
@@ -85,6 +87,12 @@ pub struct Block {
     pub collider: Option<ColliderHandle>,
     #[serde(default = "yes")]
     pub alive: bool,
+    #[serde(default)]
+    pub crumble: f32,
+    #[serde(default)]
+    pub regrow: f32,
+    #[serde(default)]
+    pub strength: f32,
 }
 
 fn yes() -> bool {
@@ -93,7 +101,18 @@ fn yes() -> bool {
 
 impl Block {
     pub fn new(min: Vec3, max: Vec3, color: Color) -> Self {
-        Self { min: min.min(max), max: max.max(min), color, look: Look::Cel, flags: 0, collider: None, alive: true }
+        Self {
+            min: min.min(max),
+            max: max.max(min),
+            color,
+            look: Look::Cel,
+            flags: 0,
+            collider: None,
+            alive: true,
+            crumble: 0.0,
+            regrow: 0.0,
+            strength: 0.0,
+        }
     }
     pub fn with_flags(mut self, flags: u32) -> Self {
         self.flags |= flags;
@@ -283,10 +302,15 @@ impl BlockRef {
 fn block_collider(b: &Block, tag: u128) -> ColliderBuilder {
     let h = b.half();
     let c = b.center();
-    ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
+    let mut cb = ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
         .translation(Vector::new(c.x as Real, c.y as Real, c.z as Real))
         .friction(0.8)
-        .user_data(tag)
+        .user_data(tag);
+    if b.strength > 0.0 {
+        // Breakable: report hard impacts.
+        cb = cb.active_events(ActiveEvents::CONTACT_FORCE_EVENTS).contact_force_event_threshold(b.strength as Real);
+    }
+    cb
 }
 
 fn decor_collider(d: &Decor) -> ColliderBuilder {
@@ -394,6 +418,32 @@ impl StaticWorld {
 
     pub fn get(&self, r: BlockRef) -> Option<&Block> {
         self.chunks.get(&r.region)?.blocks.get(r.index as usize)
+    }
+
+    /// Brings a destroyed block back (crumbling/breakable tiles regrow).
+    pub fn restore(&mut self, physics: &mut PhysicsState, r: BlockRef) -> bool {
+        let Some(chunk) = self.chunks.get_mut(&r.region).map(Arc::make_mut) else { return false };
+        let Some(b) = chunk.blocks.get_mut(r.index as usize) else { return false };
+        if b.alive {
+            return false;
+        }
+        b.alive = true;
+        b.flags &= !block_flags::CRACKED;
+        if !b.has(block_flags::GHOST) {
+            b.collider = Some(physics.insert_static(block_collider(b, r.tag())));
+        }
+        chunk.version += 1;
+        true
+    }
+
+    /// Sets or clears flags on a block (e.g. CRACKED); bumps the region version.
+    pub fn set_block_flags(&mut self, r: BlockRef, set: u32, clear: u32) {
+        if let Some(chunk) = self.chunks.get_mut(&r.region).map(Arc::make_mut) {
+            if let Some(b) = chunk.blocks.get_mut(r.index as usize) {
+                b.flags = (b.flags | set) & !clear;
+                chunk.version += 1;
+            }
+        }
     }
 
     /// Removes a block's collider and marks it dead. Returns the block if it was alive.
