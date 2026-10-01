@@ -16,6 +16,7 @@ pub mod powers;
 pub mod scene;
 pub mod skills;
 pub mod stats;
+pub mod tree;
 
 pub use cmd::{GameCmd, Place, Spot, SpotKind};
 
@@ -198,6 +199,12 @@ impl Game {
             sheet: self.hero_actor().map(|a| a.sheet.clone()).unwrap_or_default(),
             weapon: self.hero.weapon.clone(),
             powers: self.hero.powers.clone(),
+            tree: self.hero.tree.clone(),
+            masteries: self.hero.masteries.clone(),
+            points: self.hero.points(),
+            refund_cost: self.hero.refund_cost(),
+            respec_cost: self.hero.respec_cost(),
+            tweaks: self.hero_actor().map(|a| a.tweaks.clone()).unwrap_or_default(),
         }
     }
 
@@ -340,24 +347,29 @@ pub fn refresh_hero(sim: &mut Sim, g: &mut Game, heal: bool) {
     let Some(hid) = g.hero_id else { return };
     let d = data();
     let gear = g.hero.gear(&d);
+    let tree = d.tree.bonus(&g.hero.tree, &g.hero.masteries);
     let mut mods = gear.mods.clone();
+    mods.merge(&tree.mods);
     mods.merge(&g.hero.mods);
+    let mut powers = gear.powers.clone();
+    powers.extend(tree.powers.iter().copied());
     if let Some(a) = g.actors.get(&hid) {
         for b in &a.buffs {
             mods.merge(&b.mods);
         }
     }
     g.hero.weapon = gear.weapon.clone();
-    g.hero.powers = gear.powers.clone();
+    g.hero.powers = powers.clone();
     let mut sheet = Sheet::compute(g.hero.base(), &mods);
-    if let Some(p) = gear.powers.iter().find(|p| p.kind == powers::PowerKind::BloodMagic) {
+    if let Some(p) = powers.iter().find(|p| p.kind == powers::PowerKind::BloodMagic) {
         sheet.life_max += sheet.mana_max * p.a / 100.0;
         sheet.mana_max = 0.0;
     }
     sheet.life_max *= sim.config.difficulty.player_life;
     g.inv_changed();
     if let Some(a) = g.actors.get_mut(&hid) {
-        a.powers = gear.powers.clone();
+        a.powers = powers;
+        a.tweaks = tree.tweaks;
         let frac = if a.sheet.life_max > 0.0 { a.life / a.sheet.life_max } else { 1.0 };
         let mfrac = if a.sheet.mana_max > 0.0 { a.mana / a.sheet.mana_max } else { 1.0 };
         a.level = g.hero.level;
@@ -448,6 +460,7 @@ pub(crate) fn spawn_monster_into(
         res: 0.0,
     };
     let mut a = Actor::new(Team::Monster, &fam.name, level, Sheet::compute(base, &Mods::default()));
+    a.base = base;
     a.family = fam.key.clone();
     a.rarity = rarity;
     let body = match fam.body {
@@ -600,7 +613,11 @@ impl Game {
                     .is_some_and(|c| c.dash_time > 0.0 && c.dash_roll);
                 match &a.cast {
                     None if !dodging => {
-                        skills::try_cast(self, sim, hid, skill, aim);
+                        if skills::try_cast(self, sim, hid, skill, aim) {
+                            if let Some(c) = self.actors.get_mut(&hid).and_then(|a| a.cast.as_mut()) {
+                                c.button = slots[slot];
+                            }
+                        }
                     }
                     Some(c) if c.fired && c.dur - c.t < c.dur * 0.45 && input.just(slots[slot]) => {
                         self.actors.get_mut(&hid).unwrap().queued = Some((skill, aim));
@@ -608,6 +625,14 @@ impl Game {
                     _ => {}
                 }
             }
+        }
+        // Channels last while their button is held.
+        let channel_released = self.actors[&hid]
+            .cast
+            .as_ref()
+            .is_some_and(|c| d.skill(c.skill).behavior == Behavior::Channel && c.button != 0 && !input.down(c.button));
+        if channel_released {
+            self.actors.get_mut(&hid).unwrap().cast = None;
         }
         let a = &self.actors[&hid];
         let def = a.cast.as_ref().map(|c| d.skill(c.skill));
@@ -618,14 +643,16 @@ impl Game {
                 _ if frozen => 1.0,
                 (Some(def), Some(c)) => match def.behavior {
                     Behavior::Dash | Behavior::Leap | Behavior::Charge => 0.0,
+                    Behavior::Channel => 0.45,
                     _ if stand => 1.0,
                     _ if !c.fired => 0.72,
                     _ => 0.35,
                 },
                 _ => 0.0,
             };
+            let channeling = def.is_some_and(|d| d.behavior == Behavior::Channel);
             if !(ch.dash_time > 0.0 && ch.dash_roll) {
-                ch.face = a.cast.as_ref().map(|c| yaw_of(c.dir));
+                ch.face = if channeling { None } else { a.cast.as_ref().map(|c| yaw_of(c.dir)) };
             }
         }
         out.insert(hid, if frozen { InputFrame::default() } else { *input });
@@ -685,7 +712,12 @@ impl Game {
                 Some(c) => {
                     let def = d.skill(c.skill);
                     ch.anim.act_kind = def.anim.index();
-                    ch.anim.act = (c.t / c.dur.max(1e-3)).clamp(0.0, 1.0);
+                    ch.anim.act = if def.behavior == Behavior::Channel {
+                        // Spinning: one turn per pulse.
+                        ((c.t - c.hit_at).max(0.0) / def.interval.max(0.05)).fract()
+                    } else {
+                        (c.t / c.dur.max(1e-3)).clamp(0.0, 1.0)
+                    };
                     ch.anim.act_hit = def.hit;
                     ch.anim.act_side = c.side;
                     ch.anim.lift = if def.behavior == Behavior::Leap {
@@ -781,8 +813,12 @@ impl Game {
             }
             self.kill(sim, id, events);
         }
-        if buffs_changed && Some(id) == self.hero_id {
-            refresh_hero(sim, self, false);
+        if buffs_changed {
+            if Some(id) == self.hero_id {
+                refresh_hero(sim, self, false);
+            } else if let Some(a) = self.actors.get_mut(&id) {
+                a.recompute();
+            }
         }
     }
 
@@ -983,7 +1019,15 @@ impl Game {
             let hf = feet_of(sim, hid).map(|f| f.0).unwrap_or(feet);
             refresh_hero(sim, self, true);
             self.level_flash = 0.0;
-            self.say(format!("Level {}", self.hero.level), 2.5);
+            self.say(
+                format!(
+                    "Level {}  ·  {} passive point{} (P)",
+                    self.hero.level,
+                    self.hero.points(),
+                    if self.hero.points() == 1 { "" } else { "s" }
+                ),
+                2.5,
+            );
             events.push(SimEvent::LevelUp { pos: hf });
         }
     }
@@ -1076,6 +1120,13 @@ pub struct InvView {
     pub sheet: Sheet,
     pub weapon: hero::WeaponStats,
     pub powers: Vec<powers::Power>,
+    /// The passive tree: allocated nodes, mastery picks, points left and what changes cost.
+    pub tree: std::collections::BTreeSet<u32>,
+    pub masteries: BTreeMap<u32, u8>,
+    pub points: u32,
+    pub refund_cost: u64,
+    pub respec_cost: u64,
+    pub tweaks: Vec<skills::Tweak>,
 }
 
 /// An item on the ground as the HUD and view see it.
@@ -1170,7 +1221,7 @@ impl Game {
                 .iter()
                 .map(|k| match d.skill_id(k) {
                     Some(id) => {
-                        let s = d.skill(id);
+                        let s = &skills::skill_of(a, id);
                         let cost = s.cost * a.sheet.mana_cost;
                         SlotHud {
                             key: k.clone(),

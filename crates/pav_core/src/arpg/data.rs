@@ -91,6 +91,20 @@ pub enum Behavior {
     Projectile,
     Nova,
     Charge,
+    /// Held: spins (or pulses) every `interval` while the button is down, paying `cost` per second.
+    Channel,
+    /// A rolling line of blasts along the aim (`count` segments).
+    Wave,
+    /// A war cry: `buff` stats for `duration` on the user (and allies near it), taunts.
+    Buff,
+    /// Something falls on the target after `delay`.
+    Meteor,
+    /// Hurting ground at the target for `duration` (blizzards, poison pools).
+    Field,
+    /// Teleport to the target (up to `range`).
+    Blink,
+    /// `count` small blasts scattered over `scatter` metres around the target.
+    Rain,
 }
 
 /// One skill (hero skill or monster attack). See game/skills.toml for the fields.
@@ -131,6 +145,18 @@ pub struct SkillDef {
     /// Internal skill behind a power (unique items, keystones): never on the skill bar.
     pub power: bool,
     pub color: String,
+    /// Fields, buffs and channels: how long (s); channel pulses every `interval` (s).
+    pub duration: f32,
+    pub interval: f32,
+    /// Projectiles: extra enemies to chain to.
+    pub chain: u32,
+    /// Meteors: seconds until it lands. Rain: area the drops scatter over (m).
+    pub delay: f32,
+    pub scatter: f32,
+    /// War cries: stats granted while the buff lasts.
+    pub buff: BTreeMap<String, f32>,
+    #[serde(skip)]
+    pub buff_mods: super::stats::Mods,
 }
 
 impl Default for SkillDef {
@@ -168,6 +194,13 @@ impl Default for SkillDef {
             monster: false,
             power: false,
             color: "#ffffff".into(),
+            duration: 0.0,
+            interval: 0.25,
+            chain: 0,
+            delay: 0.8,
+            scatter: 0.0,
+            buff: BTreeMap::new(),
+            buff_mods: Default::default(),
         }
     }
 }
@@ -264,6 +297,8 @@ pub struct Data {
     pub bases: Vec<BaseDef>,
     pub affixes: Vec<AffixDef>,
     pub uniques: Vec<UniqueDef>,
+    /// The passive tree, generated from game/tree.toml.
+    pub tree: super::tree::Tree,
 }
 
 impl Data {
@@ -306,9 +341,20 @@ pub fn load() -> Result<Data, String> {
         if s.name.is_empty() {
             s.name = s.key.clone();
         }
+        for (st, v) in &s.buff {
+            let st = Stat::from_key(st).ok_or_else(|| format!("skill '{}': unknown stat '{st}' in buff", s.key))?;
+            s.buff_mods.add(st, *v);
+        }
         skills.push(s);
     }
-    let mut d = Data { skills, families: Vec::new(), bases: Vec::new(), affixes: Vec::new(), uniques: Vec::new() };
+    let mut d = Data {
+        skills,
+        families: Vec::new(),
+        bases: Vec::new(),
+        affixes: Vec::new(),
+        uniques: Vec::new(),
+        tree: Default::default(),
+    };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
         f.puppet = puppet_with(f.body, &f.look, f.scale).map_err(|e| format!("monster '{k}': {e}"))?;
@@ -363,6 +409,10 @@ pub fn load() -> Result<Data, String> {
             return Err(format!("skill '{}': power skills are named power_*", s.key));
         }
     }
+    let text = source("tree").ok_or("game/tree.toml is missing")?;
+    let file: super::tree::TreeFile = toml::from_str(&text).map_err(|e| format!("game/tree.toml: {e}"))?;
+    let names = |k: &str| d.skill_id(k).filter(|i| !d.skill(*i).monster).map(|i| d.skill(i).name.clone());
+    d.tree = super::tree::Tree::build(&file, &names)?;
     Ok(d)
 }
 

@@ -63,8 +63,12 @@ pub struct Hero {
     pub stash: Vec<Item>,
     /// Next item id.
     pub next_item: u32,
-    /// Powers from gear (recomputed with the sheet).
+    /// Powers from gear and the tree (recomputed with the sheet).
     pub powers: Vec<Power>,
+    /// Allocated passive tree nodes, mastery choices (node -> option), extra points.
+    pub tree: std::collections::BTreeSet<u32>,
+    pub masteries: std::collections::BTreeMap<u32, u8>,
+    pub bonus_points: u32,
 }
 
 impl Default for Hero {
@@ -112,6 +116,9 @@ impl Default for Hero {
             stash: Vec::new(),
             next_item: 2,
             powers: Vec::new(),
+            tree: Default::default(),
+            masteries: Default::default(),
+            bonus_points: 0,
         }
     }
 }
@@ -199,6 +206,19 @@ impl Hero {
             }
         }
         g
+    }
+
+    /// Passive points to spend: one per level after the first, plus bonuses.
+    pub fn points(&self) -> u32 {
+        (self.level - 1 + self.bonus_points).saturating_sub(self.tree.len() as u32)
+    }
+
+    /// Gold to take back one node, and to reset the whole tree.
+    pub fn refund_cost(&self) -> u64 {
+        4 + self.level as u64 * 2
+    }
+    pub fn respec_cost(&self) -> u64 {
+        self.refund_cost() * self.tree.len() as u64 / 2
     }
 
     /// A new item id.

@@ -221,6 +221,45 @@ impl ArpgView {
                         }
                     }
                 }
+                EffectKind::Meteor => {
+                    // A burning rock falls along a slant onto the target circle.
+                    let mut outline = MeshData::default();
+                    band(&mut outline, e.pos + Vec3::Y * 0.04, e.radius - 0.15, e.radius, 0.0, std::f32::consts::TAU, 1.0);
+                    decal(scene, outline, c, 1.4);
+                    let mut fill = MeshData::default();
+                    band(&mut fill, e.pos + Vec3::Y * 0.035, 0.0, e.radius * p.min(1.0), 0.0, std::f32::consts::TAU, 0.5);
+                    decal(scene, fill, c, 0.7);
+                    if p < 1.0 {
+                        let fall = (1.0 - p).powf(1.3);
+                        let rock = e.pos + Vec3::new(-e.dir.x * 5.0, 15.0, -e.dir.z * 5.0) * fall + Vec3::Y * 0.4;
+                        let r = 0.45 + e.radius * 0.12;
+                        scene.sdfs.push(rs::SdfInstance {
+                            a: rock,
+                            b: rock,
+                            ra: r,
+                            rb: r,
+                            color: Vec3::new(1.0, 0.45, 0.12),
+                            emissive: 3.0,
+                            style: Style::Unlit,
+                            flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
+                            group: 1,
+                        });
+                        scene.point_lights.push(rs::PointLight { position: rock, color: c * 3.0, radius: 9.0, shadows: false });
+                        if particles {
+                            scene.particles.push(burst(
+                                rock,
+                                3,
+                                Vec4::new(1.0, 0.6, 0.2, 1.0),
+                                Vec4::new(0.4, 0.2, 0.1, 0.0),
+                                |b| {
+                                    b.size = (r * 0.8, 0.1);
+                                    b.life = (0.25, 0.5);
+                                    b.spread = 0.5;
+                                },
+                            ));
+                        }
+                    }
+                }
                 EffectKind::Delayed => {
                     let mut outline = MeshData::default();
                     band(&mut outline, e.pos + Vec3::Y * 0.04, e.radius - 0.12, e.radius, 0.0, std::f32::consts::TAU, 1.0);

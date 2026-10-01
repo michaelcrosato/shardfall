@@ -131,6 +131,74 @@ fn skill_icon(p: &egui::Painter, rect: Rect, key: &str, color: Color32) {
                 p.line_segment([c - v, c + v], st);
             }
         }
+        Behavior::Channel => {
+            // A spinning arc with an arrowhead.
+            let pts: Vec<Pos2> = (0..=20)
+                .map(|i| {
+                    let a = 0.3 + 5.2 * i as f32 / 20.0;
+                    c + EVec2::new(a.cos(), a.sin()) * r * (0.55 + 0.45 * i as f32 / 20.0)
+                })
+                .collect();
+            let tip = *pts.last().unwrap();
+            p.add(Shape::line(pts, st));
+            p.line_segment([tip, tip + EVec2::new(-r * 0.4, -r * 0.1)], st);
+            p.line_segment([tip, tip + EVec2::new(-r * 0.05, r * 0.4)], st);
+        }
+        Behavior::Wave => {
+            let pts: Vec<Pos2> = (0..=6)
+                .map(|i| c + EVec2::new(-r + 2.0 * r * i as f32 / 6.0, if i % 2 == 0 { r * 0.4 } else { -r * 0.4 }))
+                .collect();
+            p.add(Shape::line(pts, st));
+        }
+        Behavior::Buff => {
+            for k in 0..3 {
+                let rr = r * (0.35 + 0.3 * k as f32);
+                let pts: Vec<Pos2> = (0..=10)
+                    .map(|i| {
+                        let a = -0.8 + 1.6 * i as f32 / 10.0;
+                        c + EVec2::new(-r * 0.5 + a.cos() * rr, a.sin() * rr)
+                    })
+                    .collect();
+                p.add(Shape::line(pts, Stroke::new(2.5, color)));
+            }
+        }
+        Behavior::Meteor => {
+            p.circle_filled(c + EVec2::new(r * 0.35, r * 0.35), r * 0.45, color);
+            for k in 0..3 {
+                let o = EVec2::new(k as f32 * 0.25 - 0.25, -(k as f32) * 0.25 + 0.25) * r;
+                p.line_segment(
+                    [c + o + EVec2::new(r * 0.1, r * 0.1), c + o + EVec2::new(-r * 0.8, -r * 0.8)],
+                    Stroke::new(2.0, color),
+                );
+            }
+        }
+        Behavior::Field => {
+            p.line_segment([c + EVec2::new(-r, -r * 0.5), c + EVec2::new(r, -r * 0.5)], st);
+            for k in 0..4 {
+                let x = -r * 0.75 + k as f32 * r * 0.5;
+                p.circle_filled(c + EVec2::new(x, r * (0.1 + 0.35 * (k % 2) as f32)), 2.5, color);
+            }
+        }
+        Behavior::Blink => {
+            p.circle_stroke(c + EVec2::new(-r * 0.6, r * 0.4), r * 0.3, Stroke::new(2.0, color));
+            p.circle_filled(c + EVec2::new(r * 0.6, -r * 0.4), r * 0.3, color);
+            for k in 0..3 {
+                let t0 = 0.25 + k as f32 * 0.2;
+                let a = c + EVec2::new(-r * 0.6, r * 0.4) + EVec2::new(r * 1.2, -r * 0.8) * t0;
+                let b = c + EVec2::new(-r * 0.6, r * 0.4) + EVec2::new(r * 1.2, -r * 0.8) * (t0 + 0.1);
+                p.line_segment([a, b], Stroke::new(2.0, color));
+            }
+        }
+        Behavior::Rain => {
+            for k in 0..5 {
+                let x = -r + k as f32 * r * 0.5;
+                let y = if k % 2 == 0 { -r * 0.3 } else { r * 0.1 };
+                p.line_segment(
+                    [c + EVec2::new(x, y - r * 0.4), c + EVec2::new(x - r * 0.15, y + r * 0.2)],
+                    Stroke::new(2.0, color),
+                );
+            }
+        }
     }
 }
 

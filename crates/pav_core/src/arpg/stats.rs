@@ -127,8 +127,19 @@ impl Mods {
 
 /// Formats a stat line ("+12 to maximum Life").
 pub fn describe(s: Stat, v: f32) -> String {
-    let n = if (v - v.round()).abs() < 0.05 { format!("{}", v.round() as i64) } else { format!("{v:.1}") };
-    s.template().replace("{}", &n)
+    let a = v.abs();
+    let mut n = if (a - a.round()).abs() < 0.05 { format!("{}", a.round() as i64) } else { format!("{a:.1}") };
+    let mut t = s.template().to_string();
+    if v < 0.0 {
+        // Negative values read naturally: "10% reduced", "20% less", "-15% to".
+        let swaps = [("increased", "reduced"), ("reduced", "increased"), ("more", "less"), ("faster", "slower")];
+        match swaps.iter().find(|(from, _)| t.contains(from)) {
+            Some((from, to)) => t = t.replacen(from, to, 1),
+            None if t.starts_with("+{}") => t = t.replacen("+{}", "-{}", 1),
+            None => n = format!("-{n}"),
+        }
+    }
+    t.replace("{}", &n)
 }
 
 /// Combat numbers derived from base values and mods.
@@ -182,7 +193,7 @@ pub struct Sheet {
 pub const RES_CAP: f32 = 75.0;
 
 /// Base values before mods.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Base {
     pub life: f32,
     pub mana: f32,
@@ -305,6 +316,10 @@ mod tests {
         }
         assert_eq!(describe(Stat::Life, 12.0), "+12 to maximum Life");
         assert_eq!(describe(Stat::FireInc, 7.5), "7.5% increased Fire Damage");
+        assert_eq!(describe(Stat::MoveSpeed, -10.0), "10% reduced Movement Speed");
+        assert_eq!(describe(Stat::DamageTaken, -10.0), "10% increased Damage taken");
+        assert_eq!(describe(Stat::DamageMore, -20.0), "20% less Damage");
+        assert_eq!(describe(Stat::AllRes, -10.0), "-10% to all Elemental Resistances");
     }
 
     #[test]

@@ -1,0 +1,338 @@
+# Shardfall passive tree. The tree is *generated* from these pieces, so it is easy to grow:
+# six sectors around a start point; in each a road of seven nodes outward with notables, three
+# wheel clusters (a ring of nodes around a mastery), three skill branches (tweaks for one
+# skill each), a keystone at the end; bridges join neighbouring sectors (with their own
+# keystone) so builds can mix; and past the keystones the endless Astral rings go on forever,
+# their stats growing ring by ring.
+#
+# Every stat key is a stat from arpg/stats.rs; powers are arpg/powers.rs kinds; skill tweaks
+# are damage count radius cooldown cost pierce chain ailment duration speed range knockback
+# element (see arpg/skills.rs). Node ids are hashes of their place in the layout, so adding
+# sectors or notables does not move what a saved hero allocated elsewhere.
+
+[layout]
+# Road: radius of the first level, spacing between levels; lanes' angle off the road
+# (degrees); wheels' size (tree units).
+base = 3.0
+step = 1.6
+lane = 18.0
+wheel_radius = 1.15
+# The Astral rings: where they start (tree units), spacing, node spacing, how many are built,
+# and how fast their stats grow per ring.
+endless_start = 19.5
+endless_step = 1.3
+endless_spacing = 1.6
+endless_rings = 30
+endless_growth = 0.1
+
+# ------------------------------------------------------------------------------- sectors
+[sector.might]
+name = "Might"
+angle = 0
+color = "#e0603a"
+minor = [{ strength = 8 }, { life = 10 }, { melee_inc = 6 }, { phys_inc = 7 }, { armor_inc = 10 }]
+notables = ["brute_force", "iron_body", "crushing_blows", "titans_grip", "unbreakable"]
+keystone = "unbowed"
+bridge_keystone = "echoing_blades"
+mastery = "might"
+skills = ["cleave", "leap_slam", "earthsplitter"]
+
+[sector.fury]
+name = "Fury"
+angle = 60
+color = "#e8b030"
+minor = [{ attack_speed = 3 }, { crit_chance = 10 }, { bleed_chance = 4 }, { dexterity = 8 }, { attack_inc = 6 }]
+notables = ["bloodlust", "killing_edge", "relentless", "frenzied_mind", "deadly_rhythm"]
+keystone = "bloodfrenzy"
+bridge_keystone = "wind_dancer"
+mastery = "fury"
+skills = ["slash", "whirlwind", "rend"]
+
+[sector.precision]
+name = "Precision"
+angle = 120
+color = "#60c868"
+minor = [{ dexterity = 8 }, { projectile_inc = 7 }, { evasion = 1.5 }, { projectile_speed = 6 }, { move_speed = 2 }]
+notables = ["sharpshooter", "fleet_foot", "ghost_step", "piercing_gaze", "quick_draw"]
+keystone = "splinter_mind"
+bridge_keystone = "glass_edge"
+mastery = "precision"
+skills = ["blade_dash", "ice_shards", "blink"]
+
+[sector.arcana]
+name = "Arcana"
+angle = 180
+color = "#6a86f5"
+minor = [{ intelligence = 8 }, { spell_inc = 7 }, { mana = 10 }, { cast_speed = 3 }, { mana_regen = 8 }]
+notables = ["arcane_flow", "deep_well", "focused_will", "spellweaver", "overcharge"]
+keystone = "mind_over_matter"
+bridge_keystone = "avatar_of_storm"
+mastery = "arcana"
+skills = ["fireball", "chain_lightning", "meteor"]
+
+[sector.elements]
+name = "Elements"
+angle = 240
+color = "#40c8d8"
+minor = [{ elemental_inc = 6 }, { fire_res = 8 }, { cold_res = 8 }, { lightning_res = 8 }, { ailment_inc = 8 }]
+notables = ["kindling", "permafrost", "live_wire", "elemental_ward", "plague_bearer"]
+keystone = "stormcaller"
+bridge_keystone = "pyre"
+mastery = "elements"
+skills = ["frost_nova", "blizzard", "toxic_rain"]
+
+[sector.bulwark]
+name = "Bulwark"
+angle = 300
+color = "#c0b0a0"
+minor = [{ life = 12 }, { armor = 12 }, { life_regen = 1 }, { block = 1 }, { poison_res = 8 }]
+notables = ["stalwart", "shield_wall", "second_wind", "thick_skin", "retaliation"]
+keystone = "blood_magic"
+bridge_keystone = "avatar_of_flame"
+mastery = "bulwark"
+skills = ["war_cry"]
+
+# ------------------------------------------------------------------------------ notables
+[notable.brute_force]
+name = "Brute Force"
+stats = { strength = 16, melee_inc = 14 }
+[notable.iron_body]
+name = "Iron Body"
+stats = { armor_inc = 30, life = 20 }
+[notable.crushing_blows]
+name = "Crushing Blows"
+stats = { phys_inc = 18, area_damage_inc = 10 }
+[notable.titans_grip]
+name = "Titan's Grip"
+stats = { melee_inc = 20, attack_speed = 4 }
+[notable.unbreakable]
+name = "Unbreakable"
+stats = { life_inc = 8, damage_taken = 3 }
+
+[notable.bloodlust]
+name = "Bloodlust"
+stats = { bleed_chance = 10, ailment_inc = 15 }
+[notable.killing_edge]
+name = "Killing Edge"
+stats = { crit_chance = 25, crit_multi = 15 }
+[notable.relentless]
+name = "Relentless"
+stats = { attack_speed = 8, life_on_kill = 6 }
+[notable.frenzied_mind]
+name = "Frenzied Mind"
+stats = { attack_speed = 5, move_speed = 4 }
+[notable.deadly_rhythm]
+name = "Deadly Rhythm"
+stats = { crit_multi = 25, attack_inc = 10 }
+
+[notable.sharpshooter]
+name = "Sharpshooter"
+stats = { projectile_inc = 18, crit_chance = 10 }
+[notable.fleet_foot]
+name = "Fleet Foot"
+stats = { move_speed = 6, dodge_recovery = 12 }
+[notable.ghost_step]
+name = "Ghost Step"
+stats = { evasion = 5, dodge_recovery = 10 }
+[notable.piercing_gaze]
+name = "Piercing Gaze"
+stats = { pierce = 1, projectile_inc = 10 }
+[notable.quick_draw]
+name = "Quick Draw"
+stats = { attack_speed = 5, cast_speed = 5 }
+
+[notable.arcane_flow]
+name = "Arcane Flow"
+stats = { spell_inc = 18, cast_speed = 4 }
+[notable.deep_well]
+name = "Deep Well"
+stats = { mana = 30, mana_regen = 20 }
+[notable.focused_will]
+name = "Focused Will"
+stats = { spell_inc = 12, mana_cost = 6 }
+[notable.spellweaver]
+name = "Spellweaver"
+stats = { cast_speed = 8, cooldown_recovery = 6 }
+[notable.overcharge]
+name = "Overcharge"
+stats = { spell_inc = 10, crit_chance = 15 }
+
+[notable.kindling]
+name = "Kindling"
+stats = { fire_inc = 18, ignite_chance = 8 }
+[notable.permafrost]
+name = "Permafrost"
+stats = { cold_inc = 18, freeze_chance = 6 }
+[notable.live_wire]
+name = "Live Wire"
+stats = { lightning_inc = 18, shock_chance = 8 }
+[notable.elemental_ward]
+name = "Elemental Ward"
+stats = { all_res = 10 }
+[notable.plague_bearer]
+name = "Plague Bearer"
+stats = { poison_inc = 18, poison_chance = 10 }
+
+[notable.stalwart]
+name = "Stalwart"
+stats = { life_inc = 8, armor_inc = 15 }
+[notable.shield_wall]
+name = "Shield Wall"
+stats = { block = 5, armor = 30 }
+[notable.second_wind]
+name = "Second Wind"
+stats = { life_regen = 4, potion_inc = 20 }
+[notable.thick_skin]
+name = "Thick Skin"
+stats = { damage_taken = 3, life = 25 }
+[notable.retaliation]
+name = "Retaliation"
+stats = { thorns = 10, life_on_hit = 2 }
+
+# ----------------------------------------------------------------------------- keystones
+# Powerful and double-edged.
+[keystone.unbowed]
+name = "Unbowed"
+stats = { move_speed = -10 }
+power = { kind = "stand_firm", a = 25 }
+lore = "The ground moves before you do."
+[keystone.echoing_blades]
+name = "Echoing Blades"
+stats = { attack_speed = -10 }
+power = { kind = "echo_strike", a = 40 }
+lore = "Every cut is answered."
+[keystone.bloodfrenzy]
+name = "Bloodfrenzy"
+stats = { damage_taken = -10 }
+power = { kind = "frenzy", a = 8 }
+lore = "More. Faster. Never mind the wounds."
+[keystone.wind_dancer]
+name = "Wind Dancer"
+stats = { life_inc = -10, dodge_recovery = 25 }
+power = { kind = "dodge_reset", a = 35 }
+lore = "Not there. Never there."
+[keystone.splinter_mind]
+name = "Splinter Mind"
+stats = { projectile_count = 2, damage_more = -20 }
+lore = "One thought, many paths."
+[keystone.glass_edge]
+name = "Glass Edge"
+stats = { damage_more = 40, life_inc = -30 }
+lore = "Sharp enough to cut its wielder."
+[keystone.mind_over_matter]
+name = "Mind over Matter"
+stats = { mana_regen = -20 }
+power = { kind = "mana_shield", a = 35 }
+lore = "Pain is a thought. Think of something else."
+[keystone.avatar_of_storm]
+name = "Avatar of Storm"
+stats = { shock_chance = 20, fire_res = -20, cold_res = -20 }
+power = { kind = "convert", a = 3 }
+lore = "Every blow a thunderclap."
+[keystone.stormcaller]
+name = "Stormcaller"
+stats = { all_res = -10 }
+power = { kind = "storm_call", a = 2, b = 45 }
+lore = "The sky listens when you speak."
+[keystone.pyre]
+name = "Pyre"
+stats = { move_speed = -8 }
+power = { kind = "corpse_burst", a = 30, b = 25 }
+lore = "Nothing you kill stays quiet."
+[keystone.blood_magic]
+name = "Blood Magic"
+stats = { life_inc = 10 }
+power = { kind = "blood_magic", a = 100 }
+lore = "Spend what flows in your veins."
+[keystone.avatar_of_flame]
+name = "Avatar of Flame"
+stats = { ignite_chance = 20, cold_res = -15, lightning_res = -15 }
+power = { kind = "convert", a = 1 }
+lore = "Steel is just fire that forgot."
+
+# ----------------------------------------------------------------------------- masteries
+# A mastery sits inside each wheel: allocate it, then pick one of its options. Each option
+# can be taken once per sector.
+[mastery.might]
+name = "Might Mastery"
+options = [
+    { name = "Vitality", stats = { life_inc = 10 } },
+    { name = "Heavy Hands", stats = { melee_inc = 25 } },
+    { name = "Bloodletting", stats = { life_on_kill = 12 } },
+    { name = "Weapon Master", stats = { melee_levels = 1 } },
+]
+[mastery.fury]
+name = "Fury Mastery"
+options = [
+    { name = "Haste", stats = { attack_speed = 10 } },
+    { name = "Executioner", power = { kind = "execute", a = 10 } },
+    { name = "Lacerate", stats = { bleed_chance = 25 } },
+    { name = "Lethality", stats = { crit_multi = 30 } },
+]
+[mastery.precision]
+name = "Precision Mastery"
+options = [
+    { name = "Piercing", stats = { pierce = 1 } },
+    { name = "Velocity", stats = { projectile_speed = 30, projectile_inc = 15 } },
+    { name = "Elusive", stats = { evasion = 8 } },
+    { name = "Acrobatics", stats = { dodge_recovery = 25 } },
+]
+[mastery.arcana]
+name = "Arcana Mastery"
+options = [
+    { name = "Clarity", stats = { mana_regen = 30 } },
+    { name = "Quickcast", stats = { cast_speed = 10 } },
+    { name = "Efficiency", stats = { mana_cost = 10 } },
+    { name = "Archmage", stats = { spell_levels = 1 } },
+]
+[mastery.elements]
+name = "Elements Mastery"
+options = [
+    { name = "Resilience", stats = { all_res = 12 } },
+    { name = "Elemental Fury", stats = { elemental_inc = 20 } },
+    { name = "Afflictions", stats = { ignite_chance = 8, freeze_chance = 8, shock_chance = 8 } },
+    { name = "Torment", stats = { ailment_inc = 30 } },
+]
+[mastery.bulwark]
+name = "Bulwark Mastery"
+options = [
+    { name = "Bastion", stats = { block = 8 } },
+    { name = "Regrowth", stats = { life_regen = 6 } },
+    { name = "Fortitude", stats = { damage_taken = 6 } },
+    { name = "Draught", stats = { potion_inc = 30 } },
+]
+
+# ------------------------------------------------------------------------- skill branches
+# Three nodes per skill, in order along the branch.
+[skill.slash]
+nodes = [{ name = "Keen Edge", tweaks = { damage = 25 } }, { name = "Flurry", tweaks = { speed = 15 } }, { name = "Bleeding Cuts", tweaks = { ailment = 30 } }]
+[skill.cleave]
+nodes = [{ name = "Wide Arc", tweaks = { radius = 20 } }, { name = "Executioner's Swing", tweaks = { damage = 30 } }, { name = "Flame Edge", tweaks = { element = 1, damage = 10 } }]
+[skill.leap_slam]
+nodes = [{ name = "Shockwave", tweaks = { radius = 25 } }, { name = "Spring", tweaks = { cooldown = 30 } }, { name = "Crater", tweaks = { damage = 35 } }]
+[skill.blade_dash]
+nodes = [{ name = "Long Dash", tweaks = { range = 30 } }, { name = "Quick Return", tweaks = { cooldown = 35 } }, { name = "Thunderdash", tweaks = { element = 3, damage = 20 } }]
+[skill.fireball]
+nodes = [{ name = "Bigger Blast", tweaks = { radius = 35 } }, { name = "Twin Flames", tweaks = { count = 1 } }, { name = "Searing", tweaks = { ailment = 25, damage = 10 } }]
+[skill.frost_nova]
+nodes = [{ name = "Deep Freeze", tweaks = { radius = 25 } }, { name = "Cold Snap", tweaks = { cooldown = 30 } }, { name = "Shatter", tweaks = { damage = 40 } }]
+[skill.rend]
+nodes = [{ name = "Deep Wounds", tweaks = { ailment = 20 } }, { name = "Gouge", tweaks = { damage = 30 } }, { name = "Swift Thrust", tweaks = { speed = 15 } }]
+[skill.ice_shards]
+nodes = [{ name = "Hail", tweaks = { count = 2 } }, { name = "Splinters", tweaks = { pierce = 1 } }, { name = "Frostbite", tweaks = { damage = 25 } }]
+[skill.war_cry]
+nodes = [{ name = "Long Echo", tweaks = { duration = 40 } }, { name = "Battle Ready", tweaks = { cooldown = 30 } }, { name = "Booming Voice", tweaks = { radius = 40 } }]
+[skill.chain_lightning]
+nodes = [{ name = "Forking", tweaks = { chain = 2 } }, { name = "High Voltage", tweaks = { damage = 25 } }, { name = "Arc Burn", tweaks = { ailment = 20 } }]
+[skill.whirlwind]
+nodes = [{ name = "Wide Spin", tweaks = { radius = 20 } }, { name = "Endless Spin", tweaks = { cost = 30 } }, { name = "Frozen Whirl", tweaks = { element = 2, damage = 15 } }]
+[skill.blizzard]
+nodes = [{ name = "Whiteout", tweaks = { radius = 30 } }, { name = "Long Winter", tweaks = { duration = 40 } }, { name = "Hailstorm", tweaks = { damage = 30 } }]
+[skill.earthsplitter]
+nodes = [{ name = "Long Fissure", tweaks = { count = 3 } }, { name = "Wide Rift", tweaks = { radius = 20 } }, { name = "Magma Rift", tweaks = { element = 1, damage = 20 } }]
+[skill.blink]
+nodes = [{ name = "Phase", tweaks = { cooldown = 40 } }, { name = "Far Step", tweaks = { range = 30 } }, { name = "Thunder Arrival", tweaks = { damage = 60 } }]
+[skill.meteor]
+nodes = [{ name = "Impact Crater", tweaks = { radius = 25 } }, { name = "Starfall", tweaks = { cooldown = 30 } }, { name = "Molten Core", tweaks = { damage = 40 } }]
+[skill.toxic_rain]
+nodes = [{ name = "Downpour", tweaks = { count = 4 } }, { name = "Wide Clouds", tweaks = { radius = 25 } }, { name = "Virulence", tweaks = { ailment = 20 } }]

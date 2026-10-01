@@ -389,3 +389,212 @@ pub fn t_game_cmd(s: &mut Session, a: &Args) -> Result<Output> {
         g.floaters.iter().skip(floaters_before).filter(|f| !f.text.is_empty()).map(|f| f.text.clone()).collect();
     Ok(Output::Json(json!({ "did": format!("{cmd:?}"), "said": said, "scene": s.sim.state.scene, "hero": hero_json(s)? })))
 }
+
+/// A tiny software canvas for diagrams (no GPU needed).
+pub struct Canvas {
+    pub w: u32,
+    pub h: u32,
+    pub px: Vec<u8>,
+}
+
+impl Canvas {
+    pub fn new(w: u32, h: u32, bg: [u8; 3]) -> Self {
+        let mut px = vec![255u8; (w * h * 4) as usize];
+        for p in px.chunks_mut(4) {
+            p[..3].copy_from_slice(&bg);
+        }
+        Self { w, h, px }
+    }
+    fn blend(&mut self, x: i32, y: i32, c: [u8; 3], a: f32) {
+        if x < 0 || y < 0 || x >= self.w as i32 || y >= self.h as i32 {
+            return;
+        }
+        let i = ((y as u32 * self.w + x as u32) * 4) as usize;
+        for (k, ck) in c.iter().enumerate() {
+            self.px[i + k] = (self.px[i + k] as f32 * (1.0 - a) + *ck as f32 * a) as u8;
+        }
+    }
+    pub fn disc(&mut self, cx: f32, cy: f32, r: f32, c: [u8; 3]) {
+        let (x0, x1, y0, y1) = ((cx - r - 1.0) as i32, (cx + r + 1.0) as i32, (cy - r - 1.0) as i32, (cy + r + 1.0) as i32);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let d = ((x as f32 + 0.5 - cx).powi(2) + (y as f32 + 0.5 - cy).powi(2)).sqrt();
+                let a = (r + 0.5 - d).clamp(0.0, 1.0);
+                if a > 0.0 {
+                    self.blend(x, y, c, a);
+                }
+            }
+        }
+    }
+    pub fn line(&mut self, a: (f32, f32), b: (f32, f32), width: f32, c: [u8; 3]) {
+        let len = ((b.0 - a.0).powi(2) + (b.1 - a.1).powi(2)).sqrt();
+        let n = (len / 0.7).ceil().max(1.0) as i32;
+        for i in 0..=n {
+            let t = i as f32 / n as f32;
+            self.disc(a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, width * 0.5, c);
+        }
+    }
+}
+
+pub fn t_tree_map(s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_core::arpg::tree::NodeKind;
+    let d = data();
+    let t = &d.tree;
+    let size = get_u64(a, "size", 1200)?.clamp(256, 4096) as u32;
+    let rings = get_u64(a, "rings", 2)? as u32;
+    let alloc = s.sim.state.game.as_ref().map(|g| g.hero.tree.clone()).unwrap_or_default();
+    let shown: Vec<&pav_core::arpg::tree::Node> = t.nodes.iter().filter(|n| n.ring <= rings).collect();
+    let extent = shown.iter().map(|n| n.pos.length()).fold(1.0f32, f32::max) + 1.0;
+    let scale = size as f32 * 0.5 / extent;
+    let at = |p: glam::Vec2| (size as f32 * 0.5 + p.x * scale, size as f32 * 0.5 + p.y * scale);
+    let mut c = Canvas::new(size, size, [18, 17, 22]);
+    let col = |n: &pav_core::arpg::tree::Node| {
+        let k = t.sectors.get(n.sector as usize).map(|s| s.color).unwrap_or([0.8; 3]);
+        [(k[0] * 255.0) as u8, (k[1] * 255.0) as u8, (k[2] * 255.0) as u8]
+    };
+    for n in &shown {
+        for l in &n.links {
+            let Some(m) = t.node(*l).filter(|m| m.ring <= rings && m.id > n.id) else { continue };
+            let on = alloc.contains(&n.id) && alloc.contains(&m.id);
+            c.line(at(n.pos), at(m.pos), if on { 3.0 } else { 1.5 }, if on { [240, 220, 150] } else { [70, 66, 72] });
+        }
+    }
+    for n in &shown {
+        let (x, y) = at(n.pos);
+        let r = match n.kind {
+            NodeKind::Start => 9.0,
+            NodeKind::Keystone => 8.0,
+            NodeKind::Notable => 6.0,
+            NodeKind::Mastery => 5.5,
+            NodeKind::Skill => 4.5,
+            NodeKind::Astral if n.lore == "star" => 4.5,
+            _ => 3.2,
+        } * (size as f32 / 1200.0).sqrt();
+        let base = col(n);
+        let fill = if alloc.contains(&n.id) || n.kind == NodeKind::Start { [250, 235, 170] } else { base };
+        if matches!(n.kind, NodeKind::Keystone | NodeKind::Notable | NodeKind::Mastery) {
+            c.disc(x, y, r + 1.5, [230, 230, 230]);
+        }
+        if n.kind == NodeKind::Skill {
+            c.disc(x, y, r + 1.5, [140, 220, 255]);
+        }
+        c.disc(x, y, r, fill);
+    }
+    let png = pav_render::capture::encode_png(size, size, &c.px)?;
+    let path = std::path::PathBuf::from(get_str(a, "out").map(String::from).unwrap_or("out/tree.png".into()));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    let count = |k: NodeKind| t.nodes.iter().filter(|n| n.kind == k && n.ring == 0).count();
+    let meta = json!({
+        "path": path,
+        "nodes_main": t.nodes.iter().filter(|n| n.ring == 0).count(),
+        "nodes_total": t.nodes.len(),
+        "notables": count(NodeKind::Notable),
+        "keystones": count(NodeKind::Keystone),
+        "masteries": count(NodeKind::Mastery),
+        "skill_nodes": count(NodeKind::Skill),
+        "astral_rings": t.nodes.iter().map(|n| n.ring).max(),
+        "allocated": alloc.len(),
+    });
+    Ok(Output::Image { png, path: Some(path), meta })
+}
+
+/// Runs one game command as an input frame; returns complaints that floated up.
+fn run_cmd(s: &mut Session, cmd: GameCmd) -> Vec<String> {
+    let before = s.sim.state.game.as_ref().map(|g| g.floaters.len()).unwrap_or(0);
+    s.sim.step(&pav_core::InputFrame { cmd: Some(cmd), ..Default::default() });
+    s.keep_events();
+    s.sim
+        .state
+        .game
+        .as_ref()
+        .map(|g| g.floaters.iter().skip(before).filter(|f| !f.text.is_empty()).map(|f| f.text.clone()).collect())
+        .unwrap_or_default()
+}
+
+pub fn t_tree(s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_core::arpg::tree::NodeKind;
+    game(s)?;
+    let d = data();
+    let t = &d.tree;
+    let find_node = |q: &str| -> Option<u32> {
+        if let Ok(id) = q.parse::<u32>() {
+            return t.node(id).map(|n| n.id);
+        }
+        let q = q.to_lowercase();
+        t.nodes
+            .iter()
+            .filter(|n| n.ring == 0)
+            .find(|n| n.name.to_lowercase() == q)
+            .or_else(|| t.nodes.iter().find(|n| n.name.to_lowercase().contains(&q) || n.key == q))
+            .map(|n| n.id)
+    };
+    let mut said = Vec::new();
+    if let Some(q) = get_str(a, "take") {
+        let id = find_node(q).ok_or_else(|| anyhow!("no node matches '{q}'"))?;
+        let alloc = game(s)?.hero.tree.clone();
+        let path = t.path_to(&alloc, id).ok_or_else(|| anyhow!("no path"))?;
+        for p in path {
+            said.extend(run_cmd(s, GameCmd::Allocate(p)));
+        }
+    }
+    if let Some(q) = get_str(a, "refund") {
+        let id = find_node(q).ok_or_else(|| anyhow!("no node matches '{q}'"))?;
+        said.extend(run_cmd(s, GameCmd::Refund(id)));
+    }
+    if a.get("respec").and_then(|v| v.as_bool()).unwrap_or(false) {
+        said.extend(run_cmd(s, GameCmd::Respec));
+    }
+    if let Some(q) = get_str(a, "mastery") {
+        let id = find_node(q).ok_or_else(|| anyhow!("no node matches '{q}'"))?;
+        said.extend(run_cmd(s, GameCmd::Mastery(id, get_u64(a, "option", 0)? as u8)));
+    }
+    let g = game(s)?;
+    let alloc = &g.hero.tree;
+    let describe = |n: &pav_core::arpg::tree::Node| {
+        json!({
+            "id": n.id,
+            "name": n.name,
+            "kind": format!("{:?}", n.kind).to_lowercase(),
+            "does": t.describe(n),
+            "allocated": alloc.contains(&n.id),
+            "points_away": if alloc.contains(&n.id) { 0 } else { t.path_to(alloc, n.id).map(|p| p.len()).unwrap_or(0) },
+        })
+    };
+    let found: Vec<Value> = match get_str(a, "find") {
+        Some(q) => {
+            let q = q.to_lowercase();
+            t.nodes
+                .iter()
+                .filter(|n| n.ring == 0 || a.get("astral").and_then(|v| v.as_bool()).unwrap_or(false))
+                .filter(|n| {
+                    q == "keystone" && n.kind == NodeKind::Keystone
+                        || n.name.to_lowercase().contains(&q)
+                        || t.describe(n).iter().any(|l| l.to_lowercase().contains(&q))
+                })
+                .take(40)
+                .map(describe)
+                .collect()
+        }
+        None => Vec::new(),
+    };
+    let bonus = t.bonus(alloc, &g.hero.masteries);
+    let mut lines: Vec<String> = bonus.mods.0.iter().map(|(st, v)| pav_core::arpg::stats::describe(*st, *v)).collect();
+    lines.extend(bonus.powers.iter().map(|p| p.describe()));
+    for tw in &bonus.tweaks {
+        let name = d.skill_id(&tw.skill).map(|i| d.skill(i).name.clone()).unwrap_or_default();
+        lines.push(tw.describe(&name));
+    }
+    Ok(Output::Json(json!({
+        "points": g.hero.points(),
+        "allocated": alloc.len(),
+        "tree_gives": lines,
+        "found": found,
+        "said": said,
+        "refund_cost": g.hero.refund_cost(),
+        "respec_cost": g.hero.respec_cost(),
+        "nodes": t.nodes.iter().filter(|n| n.ring == 0).count(),
+    })))
+}

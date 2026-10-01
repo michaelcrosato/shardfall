@@ -34,10 +34,12 @@ pub enum PowerKind {
     Frenzy,
     ManaShield,
     Quickening,
+    /// All damage becomes element `a` (1 fire, 2 cold, 3 lightning, 4 poison).
+    Convert,
 }
 
 impl PowerKind {
-    pub const ALL: [PowerKind; 16] = [
+    pub const ALL: [PowerKind; 17] = [
         PowerKind::CorpseBurst,
         PowerKind::FrostCrits,
         PowerKind::BloodMagic,
@@ -54,6 +56,7 @@ impl PowerKind {
         PowerKind::Frenzy,
         PowerKind::ManaShield,
         PowerKind::Quickening,
+        PowerKind::Convert,
     ];
 }
 
@@ -96,6 +99,9 @@ impl Power {
             PowerKind::Frenzy => format!("Kills grant {a}% Attack and Movement Speed for 4s (up to 3 times)"),
             PowerKind::ManaShield => format!("{a}% of damage taken is paid from Mana first"),
             PowerKind::Quickening => format!("Kills take {a}s off all skill cooldowns"),
+            PowerKind::Convert => {
+                format!("All your damage is converted to {}", super::data::Element::ALL[(self.a.max(0.0) as usize).min(4)].name())
+            }
         }
     }
 }
@@ -289,9 +295,7 @@ impl Game {
             now
         };
         for e in due {
-            if self.actors.get(&e.actor).is_some_and(|a| !a.dead) {
-                let d = data();
-                let def = d.skill(e.skill).clone();
+            if let Some(def) = self.actors.get(&e.actor).filter(|a| !a.dead).map(|a| super::skills::skill_of(a, e.skill)) {
                 super::skills::fire_cast(self, sim, e.actor, &def, &e.cast, e.mult, true, events);
             }
         }

@@ -3,6 +3,7 @@
 
 mod app;
 mod arpg_items;
+mod arpg_tree;
 mod arpg_ui;
 mod boot;
 #[cfg(not(target_arch = "wasm32"))]

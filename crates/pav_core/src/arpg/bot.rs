@@ -53,6 +53,29 @@ impl Bot {
             return InputFrame::default();
         }
         let mut f = InputFrame::default();
+        // Spend passive points (one per tick, every few ticks).
+        if g.hero.points() > 0 && self.stats.ticks.is_multiple_of(6) {
+            f.cmd = self.pick_passive(g);
+        } else if self.stats.ticks % 6 == 3 {
+            // Masteries taken without a choice: the first free option.
+            let t = &d.tree;
+            for id in &g.hero.tree {
+                let Some(n) = t.node(*id).filter(|n| !n.mastery.is_empty() && !g.hero.masteries.contains_key(id)) else {
+                    continue;
+                };
+                let used: Vec<u8> = g
+                    .hero
+                    .masteries
+                    .iter()
+                    .filter(|(nid, _)| t.node(**nid).is_some_and(|x| x.mastery == n.mastery))
+                    .map(|(_, o)| *o)
+                    .collect();
+                if let Some(o) = (0..4u8).find(|o| !used.contains(o)) {
+                    f.cmd = Some(super::GameCmd::Mastery(*id, o));
+                    break;
+                }
+            }
+        }
         // Low life: drink.
         if hero.life < hero.sheet.life_max * 0.35 && g.hero.potions > 0 {
             f.pressed |= buttons::POTION;
@@ -103,18 +126,31 @@ impl Bot {
         };
         f.aim = Some(t + Vec3::Y * h * 0.5);
         let dist = flat(t - me).length();
+        // Keep spinning while something is close.
+        if let Some(c) = &hero.cast {
+            let def = d.skill(c.skill);
+            if def.behavior == Behavior::Channel && c.button != 0 && dist <= def.radius + r + 0.5 {
+                f.held |= c.button;
+                let n = flat(t - me).normalize_or_zero();
+                f.move_dir = Vec2::new(n.x, n.z) * 0.5;
+                return f;
+            }
+        }
         // A ready skill that reaches, best (longest cooldown) first; else the basic attack.
         let mut best: Option<(usize, f32)> = None;
         for (slot, key) in g.hero.bar.iter().enumerate() {
             let Some(id) = d.skill_id(key) else { continue };
-            let s = d.skill(id);
+            let s = super::skills::skill_of(hero, id);
             if hero.cooldown(id) > 0.0 || hero.mana < s.cost * hero.sheet.mana_cost {
                 continue;
             }
             let reach = match s.behavior {
                 Behavior::Projectile => s.range * 0.7,
-                Behavior::Nova => s.radius,
-                Behavior::Leap | Behavior::Dash => s.range,
+                Behavior::Nova | Behavior::Channel | Behavior::Buff => s.radius,
+                Behavior::Wave => 1.2 + s.count as f32 * s.radius * 1.2,
+                Behavior::Leap | Behavior::Dash | Behavior::Meteor | Behavior::Field | Behavior::Rain => s.range,
+                // Blink only to close a long gap.
+                Behavior::Blink if dist < 7.0 => continue,
                 _ => s.range,
             } + r;
             if dist <= reach && best.is_none_or(|b| s.cooldown + s.cost * 0.01 > b.1) {
@@ -136,6 +172,48 @@ impl Bot {
             }
         }
         f
+    }
+
+    /// The next passive to take: notables and skill upgrades for skills on the bar first, then
+    /// life and damage, never keystones (they change how the bot would have to play).
+    fn pick_passive(&self, g: &super::Game) -> Option<super::GameCmd> {
+        use super::stats::Stat;
+        use super::tree::NodeKind;
+        let d = data();
+        let t = &d.tree;
+        let alloc = &g.hero.tree;
+        let mut best: Option<(f32, u32)> = None;
+        for n in &t.nodes {
+            if alloc.contains(&n.id) || n.kind == NodeKind::Keystone || !t.can_allocate(alloc, n.id) {
+                continue;
+            }
+            let mut score = match n.kind {
+                NodeKind::Notable => 3.0,
+                NodeKind::Mastery => 2.5,
+                NodeKind::Skill => {
+                    if n.tweaks.iter().any(|tw| g.hero.bar.contains(&tw.skill) && tw.field != super::skills::TweakField::Element)
+                    {
+                        3.0
+                    } else {
+                        0.3
+                    }
+                }
+                _ => 1.0,
+            };
+            for (s, _) in &n.stats {
+                score += match s {
+                    Stat::Life | Stat::LifeInc | Stat::MeleeInc | Stat::PhysInc | Stat::AttackSpeed | Stat::DamageInc => 0.6,
+                    Stat::FireRes | Stat::ColdRes | Stat::LightningRes | Stat::AllRes | Stat::Armor | Stat::ArmorInc => 0.3,
+                    _ => 0.0,
+                };
+            }
+            // Closer to the start first (cheaper paths later), a little.
+            score -= n.pos.length() * 0.02;
+            if best.is_none_or(|b| score > b.0) {
+                best = Some((score, n.id));
+            }
+        }
+        best.map(|b| super::GameCmd::Allocate(b.1))
     }
 
     /// Runs the bot for `ticks` and returns what happened.
