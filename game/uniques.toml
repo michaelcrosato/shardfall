@@ -1,0 +1,176 @@
+# Shardfall unique items: a fixed name and base, fixed stat ranges (scaled to the item level
+# like everything else) and often a power - a rule-bending effect. Powers are shared with the
+# passive tree's keystones and monster affixes: one set of effects, many sources.
+#
+# base      an item base from items.toml (slot and look come from it)
+# level     the lowest item level it can drop at
+# mods      stat = [min, max] (flat stats grow with item level; percentages do not)
+# power     kind and its two numbers `a` and `b` (see the list below)
+# lore      flavour text
+#
+# Powers:
+#   corpse_burst    a% chance on kill: the corpse explodes for b% of its life as fire (3 m)
+#   frost_crits     critical strikes always freeze; a% more crit damage against frozen enemies
+#   blood_magic     skills cost life instead of mana; a% of mana is added as life
+#   execute         hits finish off non-boss enemies below a% life
+#   fire_trail      dodging leaves burning ground for a s that burns for b% of weapon damage/s
+#   orbit_blades    a spectral blades circle you, each hit deals b% of weapon damage
+#   echo_strike     melee skills strike again a moment later for a% damage
+#   dodge_reset     kills have a% chance to reset the dodge
+#   storm_call      spells call lightning on a enemies near the target for b% of the spell
+#   block_nova      blocking releases a frost nova (radius a m) for b% of weapon damage
+#   ignite_aura     enemies within a m burn for b% of your maximum life per second
+#   stand_firm      cannot be knocked back or stunned; a% less damage taken while casting
+#   meteor_slam     slams and leaps call a meteor onto the impact for a% damage
+#   frenzy          kills grant a% attack and movement speed for 4 s (stacks 3 times)
+#   mana_shield     a% of damage taken is paid from mana first
+#   quickening      kills take a s off every skill cooldown
+
+[corpsefire_grips]
+name = "Corpsefire Grips"
+base = "leather_gloves"
+level = 8
+mods = { life = [20, 30], attack_speed = [6, 10], added_fire = [3, 6] }
+power = { kind = "corpse_burst", a = 25, b = 30 }
+lore = "Every ending feeds the fire."
+
+[rime_band]
+name = "Rime Band"
+base = "silver_ring"
+level = 18
+mods = { cold_res = [20, 30], added_cold = [4, 8], crit_chance = [20, 30] }
+power = { kind = "frost_crits", a = 30 }
+lore = "Cold hands, colder heart."
+
+[bloodbound_hauberk]
+name = "Bloodbound Hauberk"
+base = "chain_shirt"
+level = 12
+mods = { life_inc = [12, 18], life_regen = [4, 8], armor_inc = [40, 60] }
+power = { kind = "blood_magic", a = 100 }
+lore = "Pay in what you have most of."
+
+[headsmans_due]
+name = "Headsman's Due"
+base = "war_axe"
+level = 10
+mods = { phys_inc = [80, 110], attack_speed = [6, 10], life_on_kill = [6, 10] }
+power = { kind = "execute", a = 18 }
+lore = "The sentence is carried out at once."
+
+[cinderwalk]
+name = "Cinderwalk"
+base = "leather_boots"
+level = 6
+mods = { move_speed = [15, 20], fire_res = [20, 30], dodge_recovery = [15, 20] }
+power = { kind = "fire_trail", a = 3, b = 60 }
+lore = "Leave nothing but ash behind."
+
+[whirling_orrery]
+name = "Whirling Orrery"
+base = "gold_amulet"
+level = 30
+mods = { all_attributes = [10, 15], damage_inc = [10, 15] }
+power = { kind = "orbit_blades", a = 3, b = 45 }
+lore = "Little moons, sharp as regret."
+
+[twinfang]
+name = "Twinfang"
+base = "arming_sword"
+level = 14
+mods = { phys_inc = [60, 90], crit_chance = [20, 30], dexterity = [15, 20] }
+power = { kind = "echo_strike", a = 50 }
+lore = "Strike once; the echo strikes again."
+
+[gale_sash]
+name = "Gale Sash"
+base = "leather_belt"
+level = 9
+mods = { life = [25, 35], dodge_recovery = [20, 30], move_speed = [5, 8] }
+power = { kind = "dodge_reset", a = 30 }
+lore = "Never where the blow lands."
+
+[stormcaller]
+name = "Stormcaller"
+base = "serpent_staff"
+level = 22
+mods = { spell_inc = [60, 80], cast_speed = [10, 15], lightning_res = [25, 35] }
+power = { kind = "storm_call", a = 2, b = 60 }
+lore = "Ask, and the sky answers."
+
+[frostwall]
+name = "Frostwall"
+base = "kite_shield"
+level = 16
+mods = { armor_inc = [60, 90], cold_res = [30, 40], block = [5, 8] }
+power = { kind = "block_nova", a = 4.5, b = 120 }
+lore = "Strike the wall. Feel the winter."
+
+[emberheart]
+name = "Emberheart"
+base = "scale_hauberk"
+level = 24
+mods = { life = [50, 70], fire_res = [30, 40], ignite_chance = [10, 15] }
+power = { kind = "ignite_aura", a = 4, b = 4 }
+lore = "It burns so you need not."
+
+[unbowed_crown]
+name = "Unbowed Crown"
+base = "great_helm"
+level = 26
+mods = { life = [40, 60], armor_inc = [50, 70], strength = [20, 30] }
+power = { kind = "stand_firm", a = 20 }
+lore = "Kneel? No."
+
+[skyfall]
+name = "Skyfall"
+base = "sledge"
+level = 20
+mods = { phys_inc = [90, 130], area_inc = [10, 20], strength = [15, 25] }
+power = { kind = "meteor_slam", a = 80 }
+lore = "What falls with the hammer is not the hammer."
+
+[bloodfrenzy_talons]
+name = "Bloodfrenzy Talons"
+base = "tiger_claw"
+level = 15
+mods = { phys_inc = [60, 80], life_leech = [1, 1.5], attack_speed = [8, 12] }
+power = { kind = "frenzy", a = 10 }
+lore = "Faster. Hungrier."
+
+[still_water]
+name = "Lantern of Still Water"
+base = "spirit_lantern"
+level = 28
+mods = { mana = [40, 60], mana_regen = [40, 60], spell_inc = [20, 30] }
+power = { kind = "mana_shield", a = 30 }
+lore = "The calm takes the blow."
+
+[quickening]
+name = "The Quickening"
+base = "kris"
+level = 32
+mods = { crit_chance = [30, 40], attack_speed = [10, 15], cooldown_recovery = [10, 15] }
+power = { kind = "quickening", a = 0.5 }
+lore = "Every death is a second returned."
+
+[shard_of_hubris]
+name = "Shard of Hubris"
+base = "gold_ring"
+level = 40
+mods = { damage_more = [35, 45], life_inc = [-30, -25], crit_multi = [20, 30] }
+lore = "It shows you everything you could be. Briefly."
+
+[prism_splinter]
+name = "Prism Splinter"
+base = "crystal_wand"
+level = 45
+mods = { added_spell = [12, 20], projectile_count = [2, 2], pierce = [1, 1], cast_speed = [10, 15] }
+lore = "One light, many paths."
+
+[pilgrims_wraps]
+name = "Pilgrim's Wraps"
+base = "wraps"
+level = 1
+mods = { life_regen = [2, 4], move_speed = [5, 8], xp_gain = [5, 8] }
+lore = "For the long road."

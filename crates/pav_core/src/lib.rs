@@ -3,6 +3,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 pub mod ai;
+pub mod arpg;
 pub mod behaviors;
 pub mod character;
 pub mod color;

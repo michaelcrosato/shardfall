@@ -317,6 +317,120 @@ pub fn event_bursts(e: &pav_core::frame::SimEvent, out: &mut Vec<ParticleBurst>)
                 b.size = (0.3, 1.1);
             }));
         }
+        E::Strike { pos, power, element, crit } => {
+            let c = pav_core::arpg::data::Element::ALL[(*element as usize).min(4)].color();
+            let c = Vec3::from(c);
+            let n = (8.0 + power.sqrt() * 2.0).min(34.0) as u32 + if *crit { 18 } else { 0 };
+            out.push(with("sparks", *pos, n, &|b| {
+                b.spread = if *crit { 6.0 } else { 4.0 };
+                b.vel = Vec3::Y * 1.2;
+                b.life = (0.15, 0.4);
+                b.color0 = c.extend(1.0) * 1.4;
+                b.color1 = c.extend(0.0);
+                b.stretch = true;
+            }));
+            if *crit {
+                out.push(with("magic", *pos, 12, &|b| {
+                    b.spread = 2.0;
+                    b.size = (0.25, 0.0);
+                    b.life = (0.15, 0.3);
+                    b.color0 = Vec4::new(1.0, 0.95, 0.7, 1.0) * 1.5;
+                }));
+            }
+        }
+        E::Slain { pos, size } => {
+            let s = size.max(0.3);
+            out.push(with("dust", *pos + Vec3::Y * 0.2, (14.0 * s * 2.0) as u32, &|b| {
+                b.area = Vec3::new(s, 0.2, s);
+                b.spread = 1.6;
+                b.size = (0.35 * s, 0.9 * s);
+            }));
+            out.push(with("embers", *pos + Vec3::Y * 0.6, 14, &|b| {
+                b.vel = Vec3::Y * 2.2;
+                b.spread = 1.2;
+                b.color0 = Vec4::new(1.0, 0.85, 0.6, 1.0) * 1.3;
+            }));
+        }
+        E::Slam { pos, radius } => {
+            let r = *radius;
+            out.push(with("dust", *pos + Vec3::Y * 0.15, (r * 18.0) as u32, &|b| {
+                b.area = Vec3::new(r * 0.6, 0.05, r * 0.6);
+                b.spread = 3.0;
+                b.vel = Vec3::Y * 0.8;
+                b.size = (0.4, 1.2);
+            }));
+            out.push(with("sparks", *pos + Vec3::Y * 0.2, 20, &|b| {
+                b.spread = 5.0;
+                b.vel = Vec3::Y * 3.0;
+                b.floor = Some(pos.y);
+            }));
+        }
+        E::Blast { pos, element } => {
+            let c = Vec3::from(pav_core::arpg::data::Element::ALL[(*element as usize).min(4)].color());
+            out.push(with("fire", *pos, 40, &|b| {
+                b.spread = 4.5;
+                b.size = (0.45, 0.05);
+                b.life = (0.2, 0.45);
+                b.color0 = c.extend(1.0) * 1.6;
+                b.color1 = (c * 0.4).extend(0.0);
+            }));
+            out.push(with("smoke", *pos + Vec3::Y * 0.3, 12, &|b| {
+                b.spread = 1.4;
+                b.size = (0.3, 1.0);
+            }));
+        }
+        E::Spell { pos, element } => {
+            let c = Vec3::from(pav_core::arpg::data::Element::ALL[(*element as usize).min(4)].color());
+            out.push(with("magic", *pos + Vec3::Y * 0.4, 14, &|b| {
+                b.spread = 1.6;
+                b.life = (0.15, 0.35);
+                b.color0 = c.extend(1.0) * 1.5;
+                b.color1 = c.extend(0.0);
+            }));
+        }
+        E::Coin { pos } => out.push(with("sparks", *pos + Vec3::Y * 0.8, 10, &|b| {
+            b.spread = 1.5;
+            b.vel = Vec3::Y * 2.0;
+            b.color0 = Vec4::new(1.0, 0.85, 0.3, 1.0) * 1.6;
+            b.color1 = Vec4::new(1.0, 0.7, 0.1, 0.0);
+        })),
+        E::Potion { pos } => out.push(with("magic", *pos + Vec3::Y * 0.9, 24, &|b| {
+            b.area = Vec3::new(0.4, 0.8, 0.4);
+            b.vel = Vec3::Y * 1.5;
+            b.color0 = Vec4::new(1.0, 0.3, 0.3, 1.0) * 1.4;
+            b.color1 = Vec4::new(1.0, 0.1, 0.1, 0.0);
+        })),
+        E::LevelUp { pos } => {
+            out.push(with("magic", *pos + Vec3::Y * 0.2, 90, &|b| {
+                b.area = Vec3::new(0.6, 0.1, 0.6);
+                b.vel = Vec3::Y * 4.5;
+                b.spread = 0.6;
+                b.life = (0.6, 1.2);
+                b.size = (0.18, 0.0);
+                b.color0 = Vec4::new(1.0, 0.9, 0.5, 1.0) * 2.0;
+                b.color1 = Vec4::new(1.0, 0.7, 0.2, 0.0);
+            }));
+        }
+        E::Loot { pos, rarity } if *rarity >= 2 => {
+            let c = if *rarity >= 3 { Vec4::new(1.0, 0.55, 0.15, 1.0) } else { Vec4::new(1.0, 0.85, 0.3, 1.0) };
+            out.push(with("magic", *pos + Vec3::Y * 0.5, 40 + 30 * (*rarity as u32 - 2), &|b| {
+                b.area = Vec3::new(0.3, 0.3, 0.3);
+                b.vel = Vec3::Y * 3.0;
+                b.spread = 1.2;
+                b.size = (0.16, 0.0);
+                b.color0 = c * 2.0;
+                b.color1 = Vec4::new(c.x, c.y, c.z, 0.0);
+            }));
+        }
+        E::Pickup { pos, .. } => out.push(with("sparks", *pos + Vec3::Y * 0.3, 8, &|b| {
+            b.spread = 1.0;
+            b.vel = Vec3::Y * 1.5;
+            b.color0 = Vec4::new(0.9, 0.95, 1.0, 1.0) * 1.4;
+        })),
+        E::Block { pos } => out.push(with("sparks", *pos + Vec3::Y * 1.0, 18, &|b| {
+            b.spread = 3.0;
+            b.color0 = Vec4::new(0.8, 0.9, 1.0, 1.0) * 1.5;
+        })),
         E::Hit { pos, .. } => out.push(with("sparks", *pos, 16, &|b| {
             b.spread = 3.5;
             b.vel = Vec3::Y;

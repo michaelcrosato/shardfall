@@ -446,7 +446,7 @@ fn eyes(parts: &mut Vec<PuppetPart>, head: Vec3, r: f32, fwd: Vec3, right: Vec3,
     let color = Color::hex(&def.eyes);
     for s in [-1.0f32, 1.0] {
         let e = head + (face * 0.93 + right * s * 0.38).normalize() * r * 0.92;
-        parts.push(PuppetPart { a: e, b: e, ra: r * size, rb: r * size, color });
+        parts.push(PuppetPart { a: e, b: e, ra: r * size, rb: r * size, color, glow: 0.0 });
     }
 }
 
@@ -481,7 +481,7 @@ pub fn creature_parts(def: &PuppetDef, st: &PuppetState, rig: Option<&RigView>, 
     let lr = def.limb_radius * k;
     let mut parts: Vec<PuppetPart> = Vec::with_capacity(32);
     let push = |parts: &mut Vec<PuppetPart>, a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color| {
-        parts.push(PuppetPart { a, b, ra, rb, color });
+        parts.push(PuppetPart { a, b, ra, rb, color, glow: 0.0 });
     };
     let chain = |kind: ChainKind| rig.chains.iter().find(|c| c.0 == kind).map(|c| &c.1);
 
@@ -623,11 +623,18 @@ pub fn chain_parts(def: &PuppetDef, rig: &RigView, parts: &mut Vec<PuppetPart>) 
         for i in 0..n {
             let t0 = i as f32 / n as f32;
             let t1 = (i + 1) as f32 / n as f32;
-            parts.push(PuppetPart { a: pts[i], b: pts[i + 1], ra: r0 + (r1 - r0) * t0, rb: r0 + (r1 - r0) * t1, color });
+            parts.push(PuppetPart {
+                a: pts[i],
+                b: pts[i + 1],
+                ra: r0 + (r1 - r0) * t0,
+                rb: r0 + (r1 - r0) * t1,
+                color,
+                glow: 0.0,
+            });
         }
         if let Some((r, c)) = tip {
             let p = pts[n];
-            parts.push(PuppetPart { a: p, b: p, ra: r, rb: r, color: c });
+            parts.push(PuppetPart { a: p, b: p, ra: r, rb: r, color: c, glow: 0.0 });
         }
     }
 }

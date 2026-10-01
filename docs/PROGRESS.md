@@ -1,6 +1,8 @@
 # Progress log
 
-All milestones M1–M10 are complete (M4–M10 ran as one goal). See *Known issues and limits* below.
+All engine milestones M1–M10 are complete. **Current goal: Shardfall**, the showcase
+hack-and-slash built on the engine (design: `docs/GAME.md`; progress: *Shardfall* section at
+the end of this file).
 
 ## Status by milestone
 | Milestone | State |
@@ -388,3 +390,93 @@ guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
   live sessions skip the session's own room camera/view sync (the game does that).
 - Browser build reuses the app crate rather than a separate web crate; wasm-bindgen CLI must
   match Cargo.lock's wasm-bindgen version (0.2.129).
+
+
+# Shardfall (the showcase game)
+Goal: a complete hack-and-slash on the engine (docs/GAME.md has the design and milestones
+G1-G6). Work happens on the same branch; each milestone ends with merge to main + a zipped
+Windows build.
+
+| Milestone | State |
+|---|---|
+| G1 Combat core | ✅ done (3423ab6) |
+| G2 Loot, items, inventory | ✅ done |
+| G3 Passive tree, all skills | ⏳ next |
+| G4 Monster genome, bosses | ⏳ |
+| G5 Town, levels, mechanics, endless | ⏳ |
+| G6 Polish, agent tools, final build | ⏳ |
+
+## G1 Combat core — done
+- `pav_core::arpg` lives in `SimState::game` (Option<Box<Game>>): `game_pre` (hero input ->
+  casts/dodge/potion; monster brains -> movement + casts) runs before characters move,
+  `game_post` (casts land, shots, effects, ailments, regen, deaths, rewards, arena waves) after
+  physics. Hit-stop scales the whole tick's dt (`Game::time_scale`).
+- Data in `/game` (embedded by pav_core/build.rs as GAME_DATA; `data::reload(true)` re-reads
+  ./game or $PAV_GAME): `skills.toml` (hero skills and monster attacks share one format),
+  `monsters.toml` (families: body plan, archetype, skills, multipliers, puppet look).
+- Stats (`stats.rs`, ~75 stats with item-text templates) -> `Sheet`. Damage: per element
+  (physical/fire/cold/lightning/poison), armour, resistances, crit, ailments (bleed, ignite,
+  chill/freeze, shock, poison stacks), knockback, leech/on-hit.
+- Hero skills: slash (3-hit combo), cleave, leap_slam, blade_dash, fireball, frost_nova; dodge
+  roll (Space, i-frames), potions (1). Monster skills: claw, bite, smash, stomp, spit, gore
+  (telegraphed). Families: ghoul, bonecrusher, skitterer, spitter, ashdrake, bile_ooze.
+- Puppets: `ActKind` action poses (slash, overhead, thrust, spin, cast, throw, roar, leap,
+  lunge), held weapons (`WeaponLook`), whole-body motion (spin, lunge, leap lift, death topple),
+  part glow, frame tint (hit flash, frozen, burning...). `pose_ex` returns the weapon span.
+- View (`pav_view::arpg`): telegraph decals, swing arcs, rings, flashes, projectiles with light
+  and trails, swing-trail particles, elite auras, ailment particles, screen shake; game event
+  particles in fx.rs; synth sounds for the game events.
+- App: game mode switches bindings (WASD, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift
+  stand; gamepad X/Y/B/RB/LB/RT, A dodge), camera preset and look; HUD (`arpg_ui.rs`: orbs,
+  skill bar with cooldown sweeps, XP bar, damage numbers, monster bars, banners, death);
+  difficulty sliders + presets in the pause menu (`difficulty.*` params).
+- Scene `arena` (wave arena). Bot (`arpg::bot`) + tools: game, hero, monster, autoplay, skills,
+  game_reload. Tests: tests/arpg.rs (bot clears waves, monsters hurt, mana/cooldowns, dodge,
+  rewind exact).
+
+## G2 Loot, items, inventory — done
+- Data: `game/items.toml` (114 bases, generated table), `game/affixes.toml` (74 affixes with
+  endless tiers), `game/uniques.toml` (19 uniques with powers); loaded and validated in
+  `arpg/data.rs` (unknown stats, slots, bases are load errors).
+- `arpg/items.rs` (Slot, EquipSlot, BaseDef/AffixDef/UniqueDef, Item, roll_item, unique_item,
+  base_scale, local affixes, tooltips `ItemText`, value), `arpg/loot.rs` (drops, ground items,
+  gold magnet, auto-loot), `arpg/powers.rs` (16 powers + hooks: on fire, on kill, per tick,
+  in `hit`), `arpg/cmd.rs` (`GameCmd`, `Place`, `Spot`, vendor restock), hero equipment (10
+  slots), bag (40), stash (120), `refresh_hero` sums gear (weapon stats, armour, powers, blood
+  magic) and dresses the puppet (`hero_look`, `PuppetDef::gear` = `GearLook`).
+- Town scene `town` (Emberwatch: square, houses, well, lamps, forge, Hilda hammering with
+  sparks and turning to greet, stash chest, portal with ripple distortion); arena has a portal
+  home. `Sim::game_travel` rebuilds the place at the end of the tick (same tick/rng, entity ids
+  continue, region versions bumped so the renderer refreshes).
+- `InputFrame::cmd` (one menu command per tick; simhost queues them in `Shared::cmds`).
+- View: loot (item shapes, rarity rings, light pillars for rare/unique), coins, burning fields,
+  orbiting blades, the usable spot ring; fx/sounds for drops by rarity, pickups, travel.
+- App (`arpg_items.rs`): inventory with paper doll, tooltips with tier tags and a compare panel
+  (stat-by-stat gains/losses, DPS), green frame on upgrades, context menu (wear, right hand,
+  sell, stash, drop), vendor (wares, buy-back, sell all), stash, portal window, character sheet,
+  skill bar picker, clickable loot labels (stacked), spot labels with "G: trade" prompts;
+  keys I/Tab C K T G; each place has its own light (town at dusk).
+- Tools: `loot_roll` (tooltips or distribution summary), `give`, `inventory`, `game_cmd`.
+- Tests: tests/loot.rs (drops picked up, equip changes weapon/two-hander/armour/helm look, town
+  trade + buy-back + stash + travel both ways, rewind across travel exact, orbiting blades hit
+  and vanish when unequipped); items unit tests (every level/rarity rolls, scaling, local).
+- Known gaps (later milestones): no saving yet (G5), gamepad cannot drive the menus yet (G6),
+  vendor only has the smith (more NPCs in G5), item level requirements are not used.
+
+## Decisions (Shardfall)
+- The game is part of the simulation (not a separate crate) so every engine feature works on
+  it, including rewind mid-fight and the live bridge.
+- One skill format for hero and monsters: archetype brains choose among skills, so procedural
+  monsters can use any skill.
+- Actors live in a side table (`Game::actors`, keyed by entity) instead of new Entity fields.
+- Damage numbers and health bars are egui drawn over the 3D view (crisp); trails are additive
+  particles (meshes have no transparency).
+- Items store their rolled stat and value (not just an affix id), so data edits never change
+  existing items; affix keys are kept for tooltips and analysis.
+- Base numbers scale with *item level*, not base tier: endless scaling with one table; tiers
+  differ by look and implicit size.
+- Menu actions are input (GameCmd in the input frame) rather than direct state edits, so the
+  replay/rewind guarantees cover trading too.
+- Travel rebuilds the whole SimState in place (not a second Sim): history snapshots hold the
+  entire state, so rewinding across a portal just works.
+- Powers are on actors, fed by items now and by keystones/monster affixes later.

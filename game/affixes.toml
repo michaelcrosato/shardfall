@@ -1,0 +1,623 @@
+# Shardfall item affixes. Magic items get up to one prefix and one suffix, rares three of
+# each. A tier is [item level, min, max]: items roll from the tiers their level reaches (the
+# best ones less often). Past the last tier, values keep growing by `grow` per item level, so
+# loot scales forever (`grow = 0` caps the affix: percent stats stay sane).
+#
+# kind      prefix | suffix
+# stat      the stat it adds (see arpg/stats.rs for every stat and how it reads)
+# names     the magic-item name part, one per tier (the last is reused for higher tiers)
+# slots     where it can roll: weapon kinds (sword axe ... staff), "weapon" (all weapons),
+#           offhand, shield, focus, helmet, body, gloves, boots, belt, amulet, ring
+# weight    how common it is (default 100)
+# local     changes the item itself instead of the hero: weapon damage, attack speed and
+#           crit chance, or the armour of an armour piece
+
+# ---------------------------------------------------------------- prefixes
+
+[life]
+kind = "prefix"
+stat = "life"
+names = ["Healthy", "Sanguine", "Stalwart", "Robust", "Vigorous", "Undying"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "shield"]
+tiers = [[1, 8, 14], [10, 13, 21], [22, 20, 31], [38, 32, 45], [55, 50, 67], [75, 80, 99]]
+grow = 0.012
+weight = 140
+
+[life_pct]
+kind = "prefix"
+stat = "life_inc"
+names = ["Hale", "Hearty", "Mighty", "Titanic"]
+slots = ["body", "belt", "amulet"]
+tiers = [[22, 4, 6], [38, 6, 8], [55, 9, 12], [75, 13, 16]]
+weight = 50
+
+[mana]
+kind = "prefix"
+stat = "mana"
+names = ["Azure", "Sapphire", "Cobalt", "Lapis", "Cerulean", "Zaffre"]
+slots = ["helmet", "gloves", "ring", "amulet", "wand", "staff", "focus"]
+tiers = [[1, 6, 10], [10, 9, 14], [22, 14, 20], [38, 21, 29], [55, 33, 42], [75, 50, 60]]
+grow = 0.01
+
+[armor_flat]
+kind = "prefix"
+stat = "armor"
+names = ["Lacquered", "Studded", "Ribbed", "Fortified", "Plated", "Impervious"]
+slots = ["helmet", "body", "gloves", "boots", "shield"]
+tiers = [[1, 6, 12], [10, 10, 19], [22, 18, 31], [38, 31, 49], [55, 55, 78], [75, 95, 125]]
+grow = 0.012
+local = true
+
+[armor_pct]
+kind = "prefix"
+stat = "armor_inc"
+names = ["Reinforced", "Layered", "Lobstered", "Buttressed", "Thickened", "Unyielding"]
+slots = ["helmet", "body", "gloves", "boots", "shield"]
+tiers = [[1, 12, 20], [10, 18, 28], [22, 26, 38], [38, 37, 53], [55, 55, 72], [75, 80, 100]]
+local = true
+
+[weapon_phys_flat]
+kind = "prefix"
+stat = "added_phys"
+names = ["Glinting", "Burnished", "Polished", "Honed", "Gleaming", "Flaring"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear"]
+tiers = [[1, 2, 4], [10, 3, 6], [22, 6, 10], [38, 10, 16], [55, 17, 25], [75, 30, 40]]
+grow = 0.012
+weight = 120
+local = true
+
+[weapon_phys_pct]
+kind = "prefix"
+stat = "phys_inc"
+names = ["Heavy", "Serrated", "Wicked", "Vicious", "Bloodthirsty", "Merciless"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear"]
+tiers = [[1, 15, 24], [10, 22, 34], [22, 33, 47], [38, 50, 66], [55, 74, 93], [75, 110, 130]]
+weight = 120
+local = true
+
+[added_phys]
+kind = "prefix"
+stat = "added_phys"
+names = ["Barbed", "Spiked", "Jagged", "Razored", "Flayed", "Gutting"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 3, 4], [38, 4, 6], [55, 6, 9], [75, 10, 14]]
+grow = 0.012
+
+[weapon_fire]
+kind = "prefix"
+stat = "added_fire"
+names = ["Heated", "Smouldering", "Blazing", "Flaming", "Scorching", "Incinerating"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand"]
+tiers = [[1, 3, 5], [10, 5, 8], [22, 8, 12], [38, 12, 18], [55, 20, 28], [75, 32, 44]]
+grow = 0.012
+
+[fire_jewel]
+kind = "prefix"
+stat = "added_fire"
+names = ["Heated", "Smouldering", "Blazing", "Flaming", "Scorching", "Incinerating"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 2, 4], [38, 4, 6], [55, 6, 9], [75, 9, 13]]
+grow = 0.012
+weight = 60
+
+[fire_pct]
+kind = "prefix"
+stat = "fire_inc"
+names = ["Smouldering", "Blazing", "Flaming", "Scorching"]
+slots = ["wand", "staff", "focus", "amulet", "ring"]
+tiers = [[10, 8, 12], [22, 11, 16], [38, 15, 21], [55, 22, 27], [75, 30, 36]]
+weight = 70
+
+[weapon_cold]
+kind = "prefix"
+stat = "added_cold"
+names = ["Frosted", "Chilled", "Icy", "Frigid", "Freezing", "Glacial"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand"]
+tiers = [[1, 3, 5], [10, 5, 8], [22, 8, 12], [38, 12, 18], [55, 20, 28], [75, 32, 44]]
+grow = 0.012
+
+[cold_jewel]
+kind = "prefix"
+stat = "added_cold"
+names = ["Frosted", "Chilled", "Icy", "Frigid", "Freezing", "Glacial"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 2, 4], [38, 4, 6], [55, 6, 9], [75, 9, 13]]
+grow = 0.012
+weight = 60
+
+[cold_pct]
+kind = "prefix"
+stat = "cold_inc"
+names = ["Chilled", "Icy", "Frigid", "Freezing"]
+slots = ["wand", "staff", "focus", "amulet", "ring"]
+tiers = [[10, 8, 12], [22, 11, 16], [38, 15, 21], [55, 22, 27], [75, 30, 36]]
+weight = 70
+
+[weapon_lightning]
+kind = "prefix"
+stat = "added_lightning"
+names = ["Humming", "Buzzing", "Snapping", "Crackling", "Sparking", "Arcing"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand"]
+tiers = [[1, 3, 5], [10, 5, 8], [22, 8, 12], [38, 12, 18], [55, 20, 28], [75, 32, 44]]
+grow = 0.012
+
+[lightning_jewel]
+kind = "prefix"
+stat = "added_lightning"
+names = ["Humming", "Buzzing", "Snapping", "Crackling", "Sparking", "Arcing"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 2, 4], [38, 4, 6], [55, 6, 9], [75, 9, 13]]
+grow = 0.012
+weight = 60
+
+[lightning_pct]
+kind = "prefix"
+stat = "lightning_inc"
+names = ["Buzzing", "Snapping", "Crackling", "Sparking"]
+slots = ["wand", "staff", "focus", "amulet", "ring"]
+tiers = [[10, 8, 12], [22, 11, 16], [38, 15, 21], [55, 22, 27], [75, 30, 36]]
+weight = 70
+
+[weapon_poison]
+kind = "prefix"
+stat = "added_poison"
+names = ["Tainted", "Noxious", "Venomous", "Toxic", "Virulent", "Pestilent"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand"]
+tiers = [[1, 3, 5], [10, 5, 8], [22, 8, 12], [38, 12, 18], [55, 20, 28], [75, 32, 44]]
+grow = 0.012
+
+[poison_jewel]
+kind = "prefix"
+stat = "added_poison"
+names = ["Tainted", "Noxious", "Venomous", "Toxic", "Virulent", "Pestilent"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 2, 4], [38, 4, 6], [55, 6, 9], [75, 9, 13]]
+grow = 0.012
+weight = 60
+
+[poison_pct]
+kind = "prefix"
+stat = "poison_inc"
+names = ["Noxious", "Venomous", "Toxic", "Virulent"]
+slots = ["wand", "staff", "focus", "amulet", "ring"]
+tiers = [[10, 8, 12], [22, 11, 16], [38, 15, 21], [55, 22, 27], [75, 30, 36]]
+weight = 70
+
+[spell_pct]
+kind = "prefix"
+stat = "spell_inc"
+names = ["Apprentice's", "Adept's", "Scholar's", "Professor's", "Occultist's", "Archmage's"]
+slots = ["wand", "staff", "focus", "amulet"]
+tiers = [[1, 10, 14], [10, 14, 19], [22, 20, 27], [38, 29, 37], [55, 42, 52], [75, 60, 72]]
+weight = 110
+
+[added_spell]
+kind = "prefix"
+stat = "added_spell"
+names = ["Glowing", "Shining", "Radiant", "Lustrous", "Brilliant", "Resplendent"]
+slots = ["wand", "staff", "focus"]
+tiers = [[1, 2, 4], [10, 3, 6], [22, 6, 10], [38, 10, 16], [55, 17, 25], [75, 30, 40]]
+grow = 0.012
+
+[elemental_pct]
+kind = "prefix"
+stat = "elemental_inc"
+names = ["Prismatic", "Chromatic", "Iridescent", "Spectral"]
+slots = ["amulet", "ring", "gloves"]
+tiers = [[22, 6, 10], [38, 10, 14], [55, 15, 21], [75, 24, 30]]
+weight = 60
+
+[attack_pct]
+kind = "prefix"
+stat = "attack_inc"
+names = ["Squire's", "Journeyman's", "Reaver's", "Champion's", "Conqueror's", "Emperor's"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 6, 9], [10, 8, 12], [22, 11, 15], [38, 15, 20], [55, 21, 26], [75, 28, 34]]
+
+[melee_pct]
+kind = "prefix"
+stat = "melee_inc"
+names = ["Brawler's", "Bruiser's", "Butcher's", "Warlord's"]
+slots = ["gloves", "amulet", "belt"]
+tiers = [[22, 8, 12], [38, 12, 17], [55, 19, 25], [75, 30, 36]]
+weight = 70
+
+[damage_pct]
+kind = "prefix"
+stat = "damage_inc"
+names = ["Fierce", "Savage", "Brutal", "Ruthless"]
+slots = ["amulet", "ring"]
+tiers = [[22, 5, 8], [38, 8, 12], [55, 12, 17], [75, 18, 24]]
+weight = 50
+
+[thorns]
+kind = "prefix"
+stat = "thorns"
+names = ["Thorned", "Brambled", "Barbed", "Spined", "Pricking", "Retaliating"]
+slots = ["body", "shield", "gloves"]
+tiers = [[1, 2, 4], [10, 3, 6], [22, 6, 10], [38, 10, 16], [55, 17, 25], [75, 30, 40]]
+grow = 0.012
+weight = 60
+
+[evasion]
+kind = "prefix"
+stat = "evasion"
+names = ["Agile", "Nimble", "Fleet", "Elusive", "Phantom", "Ethereal"]
+slots = ["helmet", "body", "gloves", "boots"]
+tiers = [[1, 2, 3], [10, 3, 4], [22, 3, 5], [38, 5, 6], [55, 6, 8], [75, 8, 10]]
+weight = 60
+
+[block]
+kind = "prefix"
+stat = "block"
+names = ["Steadfast", "Bulwark", "Rampart", "Bastioned"]
+slots = ["shield"]
+tiers = [[22, 2, 3], [38, 3, 4], [55, 4, 6], [75, 6, 8]]
+weight = 80
+
+[leech]
+kind = "prefix"
+stat = "life_leech"
+names = ["Vampiric", "Leeching", "Draining", "Sanguinary"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "ring", "gloves"]
+tiers = [[10, 0.3, 0.5], [22, 0.5, 0.8], [38, 0.8, 1.2], [55, 1.4, 1.8]]
+weight = 50
+
+[crit_multi]
+kind = "prefix"
+stat = "crit_multi"
+names = ["Dire", "Deadly", "Lethal", "Fatal", "Murderous", "Annihilating"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "amulet"]
+tiers = [[1, 8, 12], [10, 11, 15], [22, 14, 19], [38, 18, 24], [55, 24, 30], [75, 32, 38]]
+weight = 70
+
+[damage_taken]
+kind = "prefix"
+stat = "damage_taken"
+names = ["Warded", "Sheltered", "Sanctified"]
+slots = ["body", "shield"]
+tiers = [[38, 2, 3], [55, 3, 5], [75, 6, 8]]
+weight = 30
+
+# ---------------------------------------------------------------- suffixes
+
+[strength]
+kind = "suffix"
+stat = "strength"
+names = ["of the Brute", "of the Wrestler", "of the Bear", "of the Lion", "of the Gorilla", "of the Titan"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "weapon", "offhand"]
+tiers = [[1, 5, 8], [10, 8, 12], [22, 11, 17], [38, 17, 24], [55, 26, 35], [75, 40, 50]]
+grow = 0.01
+weight = 110
+
+[dexterity]
+kind = "suffix"
+stat = "dexterity"
+names = ["of the Mongoose", "of the Lynx", "of the Fox", "of the Falcon", "of the Panther", "of the Phantom"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "weapon", "offhand"]
+tiers = [[1, 5, 8], [10, 8, 12], [22, 11, 17], [38, 17, 24], [55, 26, 35], [75, 40, 50]]
+grow = 0.01
+weight = 110
+
+[intelligence]
+kind = "suffix"
+stat = "intelligence"
+names = ["of the Pupil", "of the Student", "of the Prodigy", "of the Augur", "of the Philosopher", "of the Savant"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "weapon", "offhand"]
+tiers = [[1, 5, 8], [10, 8, 12], [22, 11, 17], [38, 17, 24], [55, 26, 35], [75, 40, 50]]
+grow = 0.01
+weight = 110
+
+[all_attributes]
+kind = "suffix"
+stat = "all_attributes"
+names = ["of the Clouds", "of the Sky", "of the Meteor", "of the Comet", "of the Heavens", "of the Galaxy"]
+slots = ["amulet"]
+tiers = [[1, 3, 5], [10, 4, 7], [22, 6, 10], [38, 9, 13], [55, 14, 18], [75, 20, 25]]
+grow = 0.01
+weight = 60
+
+[fire_res]
+kind = "suffix"
+stat = "fire_res"
+names = ["of the Whelpling", "of the Salamander", "of the Drake", "of the Kiln", "of the Furnace", "of the Volcano"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "offhand"]
+tiers = [[1, 6, 11], [10, 9, 15], [22, 13, 19], [38, 19, 26], [55, 27, 35], [75, 40, 46]]
+weight = 120
+
+[cold_res]
+kind = "suffix"
+stat = "cold_res"
+names = ["of the Inuit", "of the Seal", "of the Penguin", "of the Yeti", "of the Walrus", "of the Polar Bear"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "offhand"]
+tiers = [[1, 6, 11], [10, 9, 15], [22, 13, 19], [38, 19, 26], [55, 27, 35], [75, 40, 46]]
+weight = 120
+
+[lightning_res]
+kind = "suffix"
+stat = "lightning_res"
+names = ["of the Cloud", "of the Squall", "of the Storm", "of the Thunderhead", "of the Tempest", "of the Maelstrom"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "offhand"]
+tiers = [[1, 6, 11], [10, 9, 15], [22, 13, 19], [38, 19, 26], [55, 27, 35], [75, 40, 46]]
+weight = 120
+
+[poison_res]
+kind = "suffix"
+stat = "poison_res"
+names = ["of the Lost", "of Banishment", "of Eviction", "of Expulsion", "of Exile", "of Bameth"]
+slots = ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "offhand"]
+tiers = [[1, 5, 10], [10, 7, 13], [22, 10, 17], [38, 15, 22], [55, 22, 28], [75, 31, 36]]
+weight = 80
+
+[all_res]
+kind = "suffix"
+stat = "all_res"
+names = ["of the Crystal", "of the Prism", "of the Kaleidoscope", "of Variegation", "of the Rainbow", "of the Span"]
+slots = ["amulet", "ring", "shield"]
+tiers = [[1, 3, 5], [10, 4, 6], [22, 6, 8], [38, 8, 11], [55, 11, 14], [75, 15, 18]]
+weight = 60
+
+[weapon_speed]
+kind = "suffix"
+stat = "attack_speed"
+names = ["of Skill", "of Ease", "of Mastery", "of Renown", "of Acclaim", "of Fame"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear"]
+tiers = [[1, 5, 7], [10, 7, 9], [22, 9, 12], [38, 12, 15], [55, 16, 20], [75, 22, 26]]
+weight = 110
+local = true
+
+[attack_speed]
+kind = "suffix"
+stat = "attack_speed"
+names = ["of Rapidity", "of Haste", "of Alacrity", "of Celerity", "of Fervour", "of Frenzy"]
+slots = ["gloves", "ring", "amulet"]
+tiers = [[1, 3, 4], [10, 4, 5], [22, 5, 7], [38, 7, 8], [55, 8, 11], [75, 11, 14]]
+weight = 80
+
+[cast_speed]
+kind = "suffix"
+stat = "cast_speed"
+names = ["of Talent", "of Nimbleness", "of Expertise", "of Legerdemain", "of Prestidigitation", "of Sortilege"]
+slots = ["wand", "staff", "focus", "amulet", "ring"]
+tiers = [[1, 5, 8], [10, 7, 10], [22, 9, 13], [38, 12, 17], [55, 16, 22], [75, 22, 28]]
+weight = 90
+
+[weapon_crit]
+kind = "suffix"
+stat = "crit_chance"
+names = ["of Needling", "of Stinging", "of Piercing", "of Puncturing", "of Penetrating", "of Incision"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear"]
+tiers = [[1, 10, 14], [10, 13, 17], [22, 17, 21], [38, 21, 26], [55, 27, 32], [75, 35, 40]]
+local = true
+
+[crit_chance]
+kind = "suffix"
+stat = "crit_chance"
+names = ["of Menace", "of Havoc", "of Disaster", "of Calamity", "of Ruin", "of Unmaking"]
+slots = ["helmet", "ring", "amulet", "wand", "staff", "focus"]
+tiers = [[1, 8, 12], [10, 11, 15], [22, 14, 19], [38, 18, 24], [55, 24, 30], [75, 32, 38]]
+
+[move_speed]
+kind = "suffix"
+stat = "move_speed"
+names = ["of the Runner", "of the Courser", "of the Hare", "of the Gazelle", "of the Cheetah", "of the Wind"]
+slots = ["boots"]
+tiers = [[1, 4, 6], [10, 6, 8], [22, 8, 11], [38, 11, 14], [55, 14, 19], [75, 20, 25]]
+weight = 110
+
+[life_regen]
+kind = "suffix"
+stat = "life_regen"
+names = ["of the Newt", "of the Lizard", "of the Flatworm", "of the Starfish", "of the Hydra", "of the Phoenix"]
+slots = ["body", "helmet", "belt", "ring", "amulet", "shield"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 3, 5], [38, 5, 7], [55, 8, 12], [75, 14, 18]]
+grow = 0.012
+
+[mana_regen]
+kind = "suffix"
+stat = "mana_regen"
+names = ["of Excitement", "of Joy", "of Elation", "of Bliss", "of Euphoria", "of Nirvana"]
+slots = ["helmet", "ring", "amulet", "wand", "staff", "focus"]
+tiers = [[1, 10, 20], [10, 14, 25], [22, 19, 31], [38, 26, 39], [55, 36, 48], [75, 50, 60]]
+
+[life_on_hit]
+kind = "suffix"
+stat = "life_on_hit"
+names = ["of Rejuvenation", "of Restoration", "of Regrowth", "of Nourishment", "of Absorption", "of Devouring"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "gloves", "ring"]
+tiers = [[1, 1, 2], [10, 2, 3], [22, 3, 4], [38, 4, 6], [55, 6, 9], [75, 10, 14]]
+grow = 0.012
+weight = 70
+
+[mana_on_hit]
+kind = "suffix"
+stat = "mana_on_hit"
+names = ["of Thought", "of Musing", "of Insight", "of Clarity"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "gloves"]
+tiers = [[10, 1, 1], [22, 2, 2], [38, 3, 3], [55, 4, 5]]
+weight = 50
+
+[life_on_kill]
+kind = "suffix"
+stat = "life_on_kill"
+names = ["of Success", "of Victory", "of Triumph", "of Conquest", "of Domination", "of Supremacy"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "belt", "gloves"]
+tiers = [[1, 3, 5], [10, 5, 7], [22, 7, 10], [38, 11, 15], [55, 16, 21], [75, 25, 30]]
+grow = 0.012
+weight = 70
+
+[cooldown]
+kind = "suffix"
+stat = "cooldown_recovery"
+names = ["of Readiness", "of Tempo", "of Rhythm", "of the Metronome"]
+slots = ["helmet", "amulet", "gloves", "boots"]
+tiers = [[22, 4, 6], [38, 6, 8], [55, 9, 12], [75, 14, 16]]
+weight = 60
+
+[rarity]
+kind = "suffix"
+stat = "item_rarity"
+names = ["of Plunder", "of Raiding", "of Archaeology", "of Excavation", "of Fortune", "of the Magpie"]
+slots = ["helmet", "ring", "amulet", "boots"]
+tiers = [[1, 6, 10], [10, 8, 13], [22, 11, 17], [38, 16, 22], [55, 22, 28], [75, 30, 36]]
+weight = 70
+
+[gold]
+kind = "suffix"
+stat = "gold_find"
+names = ["of Coin", "of Wealth", "of Avarice", "of Greed", "of Riches", "of the Hoard"]
+slots = ["gloves", "boots", "belt", "ring"]
+tiers = [[1, 8, 14], [10, 11, 18], [22, 15, 23], [38, 21, 30], [55, 29, 39], [75, 40, 50]]
+weight = 70
+
+[xp]
+kind = "suffix"
+stat = "xp_gain"
+names = ["of Learning", "of Wisdom", "of Enlightenment"]
+slots = ["amulet"]
+tiers = [[38, 2, 4], [55, 4, 6], [75, 8, 10]]
+weight = 30
+
+[dodge]
+kind = "suffix"
+stat = "dodge_recovery"
+names = ["of Evasion", "of Tumbling", "of the Acrobat", "of the Wind Dancer"]
+slots = ["boots", "belt"]
+tiers = [[10, 6, 10], [22, 10, 14], [38, 16, 21], [55, 25, 30]]
+weight = 70
+
+[potion]
+kind = "suffix"
+stat = "potion_inc"
+names = ["of the Apothecary", "of the Alchemist", "of the Physician", "of the Saint"]
+slots = ["belt"]
+tiers = [[10, 10, 15], [22, 16, 22], [38, 25, 33], [55, 40, 50]]
+weight = 90
+
+[bleed_chance]
+kind = "suffix"
+stat = "bleed_chance"
+names = ["of Bleeding", "of Hemorrhage", "of Exsanguination"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "gloves"]
+tiers = [[22, 4, 6], [38, 9, 12], [55, 20, 25]]
+weight = 45
+
+[ignite_chance]
+kind = "suffix"
+stat = "ignite_chance"
+names = ["of Kindling", "of Combustion", "of Immolation"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "gloves"]
+tiers = [[22, 4, 6], [38, 9, 12], [55, 20, 25]]
+weight = 45
+
+[freeze_chance]
+kind = "suffix"
+stat = "freeze_chance"
+names = ["of Frost", "of Rime", "of the Glacier"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "gloves"]
+tiers = [[22, 4, 6], [38, 9, 12], [55, 20, 25]]
+weight = 45
+
+[shock_chance]
+kind = "suffix"
+stat = "shock_chance"
+names = ["of Static", "of Shocking", "of Electrocution"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "gloves"]
+tiers = [[22, 4, 6], [38, 9, 12], [55, 20, 25]]
+weight = 45
+
+[poison_chance]
+kind = "suffix"
+stat = "poison_chance"
+names = ["of Venom", "of Toxins", "of the Viper"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "wand", "staff", "gloves"]
+tiers = [[22, 4, 6], [38, 9, 12], [55, 20, 25]]
+weight = 45
+
+[ailment_pct]
+kind = "suffix"
+stat = "ailment_inc"
+names = ["of Agony", "of Torment", "of Suffering", "of Anguish"]
+slots = ["amulet", "gloves", "sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear"]
+tiers = [[22, 8, 12], [38, 12, 17], [55, 19, 25], [75, 30, 36]]
+weight = 50
+
+[area]
+kind = "suffix"
+stat = "area_inc"
+names = ["of Reach", "of Expanse", "of the Horizon", "of Magnitude"]
+slots = ["amulet", "helmet", "maul", "staff"]
+tiers = [[22, 5, 8], [38, 7, 11], [55, 11, 15], [75, 16, 20]]
+weight = 50
+
+[duration]
+kind = "suffix"
+stat = "duration_inc"
+names = ["of Persistence", "of Patience", "of Endurance"]
+slots = ["amulet", "helmet"]
+tiers = [[38, 6, 10], [55, 11, 16], [75, 20, 25]]
+weight = 40
+
+[mana_cost]
+kind = "suffix"
+stat = "mana_cost"
+names = ["of Efficiency", "of Economy", "of Frugality", "of Austerity"]
+slots = ["ring", "amulet", "helmet"]
+tiers = [[22, 3, 5], [38, 4, 7], [55, 7, 9], [75, 10, 12]]
+weight = 50
+
+[proj_speed]
+kind = "suffix"
+stat = "projectile_speed"
+names = ["of Flight", "of the Arrow", "of the Bolt", "of the Comet"]
+slots = ["wand", "staff", "gloves"]
+tiers = [[10, 8, 12], [22, 12, 17], [38, 19, 25], [55, 30, 36]]
+weight = 50
+
+[pierce]
+kind = "suffix"
+stat = "pierce"
+names = ["of Piercing", "of Skewering", "of Impaling"]
+slots = ["wand", "staff", "gloves"]
+tiers = [[38, 1, 1], [55, 1, 1], [75, 1, 2]]
+weight = 25
+
+[chain]
+kind = "suffix"
+stat = "chain"
+names = ["of Arcing", "of Forking"]
+slots = ["wand", "staff"]
+tiers = [[55, 1, 1], [75, 1, 1]]
+weight = 15
+
+[proj_count]
+kind = "suffix"
+stat = "projectile_count"
+names = ["of Splintering", "of Many"]
+slots = ["wand", "staff"]
+tiers = [[55, 1, 1], [75, 1, 1]]
+weight = 10
+
+[skill_levels]
+kind = "suffix"
+stat = "skill_levels"
+names = ["of the Virtuoso", "of the Grandmaster"]
+slots = ["amulet"]
+tiers = [[55, 1, 1], [75, 1, 1]]
+weight = 10
+
+[spell_levels]
+kind = "suffix"
+stat = "spell_levels"
+names = ["of the Sorcerer", "of the Archon", "of the Magus"]
+slots = ["wand", "staff", "focus"]
+tiers = [[38, 1, 1], [55, 1, 1], [75, 1, 2]]
+weight = 25
+
+[melee_levels]
+kind = "suffix"
+stat = "melee_levels"
+names = ["of the Duelist", "of the Weaponmaster", "of the Blademaster"]
+slots = ["sword", "axe", "mace", "dagger", "claw", "greatsword", "maul", "spear", "gloves"]
+tiers = [[38, 1, 1], [55, 1, 1], [75, 1, 2]]
+weight = 25

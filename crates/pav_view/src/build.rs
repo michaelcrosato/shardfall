@@ -354,6 +354,8 @@ pub struct ViewBuilder {
     shocks: Vec<(Vec3, f32, f32)>,
     /// Simulation time of the last built scene.
     last_time: Option<f32>,
+    /// Shardfall drawing state (swing trails, emission carry).
+    arpg: crate::arpg::ArpgView,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -386,6 +388,7 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
                             (Some(ra), Some(rb)) => Some(ra.lerp(rb, alpha)),
                             _ => b.rig.clone(),
                         },
+                        tint: b.tint,
                     });
                 }
             }
@@ -409,6 +412,11 @@ impl ViewBuilder {
             }
             if let SimEvent::Destroyed { pos, size } = e {
                 self.shocks.push((*pos, size.max(0.5) * 5.0, self.last_time.unwrap_or(0.0)));
+            }
+            match e {
+                SimEvent::Slam { pos, radius } => self.shocks.push((*pos, radius * 2.5, self.last_time.unwrap_or(0.0))),
+                SimEvent::Blast { pos, .. } => self.shocks.push((*pos, 4.0, self.last_time.unwrap_or(0.0))),
+                _ => {}
             }
             match e {
                 SimEvent::Explosion { pos, radius } => {
@@ -532,6 +540,15 @@ impl ViewBuilder {
         // Interpolated simulation time: animations and particles move smoothly between ticks.
         let time = (prev.time + (curr.time - prev.time) * alpha as f64) as f32;
         let mut scene = Scene { camera: rig.data(aspect), time, ..Default::default() };
+        // Screen shake (the game's big hits).
+        if let Some(g) = &curr.game {
+            let off = crate::arpg::shake_offset(g, time);
+            if off != Vec3::ZERO {
+                let mut shaken = rig.clone();
+                shaken.target += off;
+                scene.camera = shaken.data(aspect);
+            }
+        }
         let dt = self.last_time.map(|t| (time - t).clamp(0.0, 0.1)).unwrap_or(0.0);
         self.last_time = Some(time);
         scene.post.bloom = settings.bloom;
@@ -787,6 +804,9 @@ impl ViewBuilder {
             }
         }
         self.emit_carry.retain(|id, _| live.contains(id));
+        if let Some(g) = &curr.game {
+            self.arpg.emit(&mut scene, curr, g, alpha, time, dt, settings.particles, cam_fwd);
+        }
         // Projectiles: drawn where they are between ticks (they move in straight lines).
         let back = (1.0 - alpha) * curr.dt;
         for p in &curr.projectiles {
@@ -973,14 +993,15 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
     let style = style_of(def.look, ov);
     // Characters are never sliced by the cutaway.
     let flags = rs::flags::NO_CUT;
+    let (tint, wash) = p.tint.map(|(c, k)| (Vec3::from(c), k)).unwrap_or((Vec3::ONE, 0.0));
     for part in pav_core::puppet::pose(def, &p.state, p.rig.as_ref(), feet, cam_fwd) {
         scene.sdfs.push(SdfInstance {
             a: part.a,
             b: part.b,
             ra: part.ra,
             rb: part.rb,
-            color: v3(part.color),
-            emissive: 0.0,
+            color: v3(part.color).lerp(tint, wash),
+            emissive: part.glow + wash * 0.6,
             style,
             flags,
             group: o.id.0 + 2,

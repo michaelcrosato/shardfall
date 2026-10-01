@@ -99,7 +99,7 @@ pub fn hint_bar(ctx: &egui::Context, text: &str) {
     });
 }
 
-pub fn guide_panel(ctx: &egui::Context, device: Device) {
+pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
     egui::Area::new(egui::Id::new("guide")).anchor(egui::Align2::LEFT_BOTTOM, [10.0, -30.0]).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.label(
@@ -110,7 +110,7 @@ pub fn guide_panel(ctx: &egui::Context, device: Device) {
                 .strong(),
             );
             egui::Grid::new("guide_grid").show(ui, |ui| {
-                for (a, k) in guide(device) {
+                for (a, k) in if game { crate::input::game_guide(device) } else { guide(device) } {
                     ui.label(*a);
                     ui.label(RichText::new(*k).monospace());
                     ui.end_row();
@@ -120,7 +120,12 @@ pub fn guide_panel(ctx: &egui::Context, device: Device) {
     });
 }
 
-pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<MenuAction> {
+pub fn pause_menu(
+    ctx: &egui::Context,
+    device: Device,
+    scene: &str,
+    difficulty: Option<&mut pav_core::arpg::Difficulty>,
+) -> Option<MenuAction> {
     let mut action = None;
     egui::Window::new("Paused")
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
@@ -157,6 +162,10 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                     action = Some(MenuAction::Quit);
                 }
             });
+            if let Some(d) = difficulty {
+                ui.separator();
+                crate::arpg_ui::difficulty_ui(ui, d);
+            }
             ui.separator();
             ui.label(RichText::new("Load scene").strong());
             for (name, about) in pav_core::scenes::SCENES {

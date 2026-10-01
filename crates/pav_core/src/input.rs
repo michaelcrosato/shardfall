@@ -14,6 +14,13 @@ pub mod buttons {
     pub const PRIMARY: u32 = 1 << 6;
     pub const SECONDARY: u32 = 1 << 7;
     pub const CRAWL: u32 = 1 << 8;
+    /// Shardfall: skill slots 3-6 (slots 1-2 are PRIMARY / SECONDARY), dodge and potion.
+    pub const SKILL3: u32 = 1 << 9;
+    pub const SKILL4: u32 = 1 << 10;
+    pub const SKILL5: u32 = 1 << 11;
+    pub const SKILL6: u32 = 1 << 12;
+    pub const DODGE: u32 = 1 << 13;
+    pub const POTION: u32 = 1 << 14;
 
     pub const NAMES: &[(&str, u32)] = &[
         ("jump", JUMP),
@@ -25,6 +32,12 @@ pub mod buttons {
         ("primary", PRIMARY),
         ("secondary", SECONDARY),
         ("crawl", CRAWL),
+        ("skill3", SKILL3),
+        ("skill4", SKILL4),
+        ("skill5", SKILL5),
+        ("skill6", SKILL6),
+        ("dodge", DODGE),
+        ("potion", POTION),
     ];
 
     pub fn from_name(n: &str) -> Option<u32> {
@@ -48,6 +61,9 @@ pub struct InputFrame {
     /// Buttons that went down since the previous tick (never lost, even for short taps).
     #[serde(default)]
     pub pressed: u32,
+    /// A menu action this tick (Shardfall: equip, sell, travel...), queued one per tick.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cmd: Option<crate::arpg::GameCmd>,
 }
 
 impl InputFrame {

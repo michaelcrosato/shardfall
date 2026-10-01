@@ -51,6 +51,8 @@ pub struct SimConfig {
     pub bombs: BombParams,
     pub puppet: PuppetDef,
     pub terrain: TerrainParams,
+    /// Shardfall difficulty multipliers.
+    pub difficulty: crate::arpg::Difficulty,
 }
 
 impl Default for SimConfig {
@@ -63,6 +65,7 @@ impl Default for SimConfig {
             bombs: BombParams::default(),
             puppet: PuppetDef::default(),
             terrain: TerrainParams::default(),
+            difficulty: crate::arpg::Difficulty::default(),
         }
     }
 }
@@ -84,6 +87,7 @@ impl SimConfig {
         nested(v, "bombs", &mut self.bombs);
         nested(v, "puppet", &mut self.puppet);
         nested(v, "world", &mut self.terrain);
+        nested(v, "difficulty", &mut self.difficulty);
     }
 }
 
@@ -113,6 +117,9 @@ pub struct SimState {
     /// Tiles that are crumbling or waiting to regrow.
     #[serde(default)]
     pub crumbles: Vec<crate::destruct::Crumble>,
+    /// Shardfall, when this scene is part of the game.
+    #[serde(default)]
+    pub game: Option<Box<crate::arpg::Game>>,
 }
 
 impl SimState {
@@ -165,6 +172,7 @@ impl Sim {
                 feel: FeelMeter::default(),
                 signals: Vec::new(),
                 crumbles: Vec::new(),
+                game: None,
             },
             config,
             history: History::default(),
@@ -422,7 +430,9 @@ impl Sim {
     }
 
     fn step_inner(&mut self, input: &InputFrame) {
-        let dt = self.dt();
+        // Hit-stop slows the whole world for a moment.
+        let raw_dt = self.dt();
+        let dt = raw_dt * self.game_time_scale();
         self.state.physics.params.dt = dt as Real;
         self.state.physics.gravity = Vector::new(0.0, -self.config.gravity as Real, 0.0);
 
@@ -434,10 +444,13 @@ impl Sim {
         // Getting in and out of vehicles.
         self.vehicle_interact(input);
 
+        // The game decides what the hero and its monsters do this tick.
+        let mut events = Vec::new();
+        let game_inputs = self.game_pre(input, dt, &mut events);
+
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
         let mut actions = Vec::new();
-        let mut events = Vec::new();
         let idle = InputFrame::default();
         let player_feet = self.player().and_then(|p| Some(p.pos - Vec3::Y * p.character.as_ref()?.height() * 0.5));
         let all_feet: Vec<Vec3> =
@@ -445,7 +458,9 @@ impl Sim {
         let mut fallen = Vec::new();
         for id in ids {
             let npc_input: InputFrame;
-            let inp = if Some(id) == self.state.player {
+            let inp = if let Some(gi) = game_inputs.get(&id) {
+                gi
+            } else if Some(id) == self.state.player {
                 input
             } else {
                 // Non-player characters: their brain drives them like a player would.
@@ -598,6 +613,9 @@ impl Sim {
                 self.damage(id, at, dmg, &mut events);
             }
         }
+
+        self.game_post(dt, raw_dt, &mut events);
+        self.game_travel(&mut events);
 
         if let Some(p) = self.player() {
             self.state.focus = p.pos;
@@ -866,6 +884,7 @@ impl Sim {
                         feet_offset: c.height() * 0.5,
                         def: c.puppet.clone(),
                         rig: c.rig.as_ref().map(|r| r.view()),
+                        tint: self.state.game.as_ref().and_then(|g| g.tint(e.id)),
                     });
                     if e.visual.is_none() && puppet.is_none() {
                         return None;
@@ -912,6 +931,7 @@ impl Sim {
                 .map(|p| crate::frame::ProjectileView { pos: p.pos, vel: p.vel, radius: p.radius, color: p.color })
                 .collect(),
             hud,
+            game: self.state.game.as_ref().map(|g| std::sync::Arc::new(g.frame(self))),
         }
     }
 

@@ -36,7 +36,7 @@ pub struct Tool {
     pub run: fn(&mut Session, &Args) -> Result<Output>,
 }
 
-const fn arg(name: &'static str, kind: &'static str, help: &'static str) -> Arg {
+pub(crate) const fn arg(name: &'static str, kind: &'static str, help: &'static str) -> Arg {
     Arg { name, kind, help }
 }
 
@@ -261,6 +261,109 @@ pub static TOOLS: &[Tool] = &[
         args: &[arg("path", "string", "file path")],
         run: t_replay,
     },
+    // ---- Shardfall (game_tools.rs)
+    Tool {
+        name: "game",
+        help: "Shardfall status: the hero (level, life, gold, skills), monsters by family and rarity, the wave.",
+        args: &[],
+        run: crate::game_tools::t_game,
+    },
+    Tool {
+        name: "hero",
+        help: "Change the hero: level, gold, xp to add, a skill on a bar slot (slot=0..5 skill=key), full heal.",
+        args: &[
+            arg("level", "integer", "set the level"),
+            arg("gold", "integer", "set gold"),
+            arg("xp", "number", "experience to add"),
+            arg("slot", "integer", "bar slot 0-5 (with skill)"),
+            arg("skill", "string", "skill key for the slot"),
+            arg("heal", "boolean", "refill life, mana and potions"),
+        ],
+        run: crate::game_tools::t_hero,
+    },
+    Tool {
+        name: "monster",
+        help: "Spawn monsters of a family near the hero (or at pos). Lists families with no arguments.",
+        args: &[
+            arg("family", "string", "family key (game/monsters.toml)"),
+            arg("level", "integer", "monster level (default: the hero's)"),
+            arg("rarity", "string", "normal | magic | rare | unique"),
+            arg("count", "integer", "how many (default 1)"),
+            arg("pos", "array", "[x, y, z] feet position (default: 6 m in front of the hero)"),
+            arg("aggro", "boolean", "start hunting the hero (default true)"),
+        ],
+        run: crate::game_tools::t_monster,
+    },
+    Tool {
+        name: "autoplay",
+        help: "Let a bot play for N seconds (fight, skills, potions, dodge telegraphs); reports kills, deaths, damage taken, xp, gold.",
+        args: &[
+            arg("seconds", "number", "how long (default 30)"),
+            arg("goal", "array", "[x, y, z] to walk to when no monsters are near"),
+        ],
+        run: crate::game_tools::t_autoplay,
+    },
+    Tool {
+        name: "skills",
+        help: "Every skill (hero and monster) with its numbers, from game/skills.toml.",
+        args: &[arg("key", "string", "only this skill")],
+        run: crate::game_tools::t_skills,
+    },
+    Tool {
+        name: "game_reload",
+        help: "Re-read the game data folder (./game or $PAV_GAME) for live editing; reports errors.",
+        args: &[],
+        run: crate::game_tools::t_game_reload,
+    },
+    Tool {
+        name: "loot_roll",
+        help: "Roll items without playing (item level, rarity, slot, count): full tooltips, or a summary of many rolls (rarity spread, affix frequency, value ranges) to check loot tables.",
+        args: &[
+            arg("level", "integer", "item level (default the hero's or 10)"),
+            arg("rarity", "string", "normal | magic | rare | unique (default: rolled)"),
+            arg("slot", "string", "weapon | offhand | helmet | body | gloves | boots | belt | amulet | ring"),
+            arg("count", "integer", "how many (default 5; more than 20 gives a summary)"),
+            arg("bonus", "number", "item rarity bonus in percent"),
+            arg("seed", "integer", "random seed (default 1)"),
+        ],
+        run: crate::game_tools::t_loot_roll,
+    },
+    Tool {
+        name: "give",
+        help: "Give the hero an item: a unique by key, or a rolled item (level, rarity, slot); optionally wear it at once.",
+        args: &[
+            arg("unique", "string", "unique key (game/uniques.toml)"),
+            arg("base", "string", "item base key (game/items.toml) for a plain item"),
+            arg("level", "integer", "item level (default the hero's)"),
+            arg("rarity", "string", "normal | magic | rare | unique"),
+            arg("slot", "string", "item slot"),
+            arg("equip", "boolean", "wear it now"),
+        ],
+        run: crate::game_tools::t_give,
+    },
+    Tool {
+        name: "inventory",
+        help: "The hero's worn gear, bag and stash with every item described, gold, and the vendor's wares in town.",
+        args: &[arg("brief", "boolean", "names only")],
+        run: crate::game_tools::t_inventory,
+    },
+    Tool {
+        name: "game_cmd",
+        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|auto_loot|sort with id/slot/skill/place.",
+        args: &[
+            arg("do", "string", "the action"),
+            arg("id", "integer", "item id (equip, drop, sell, buy, stash, take, pickup)"),
+            arg(
+                "slot",
+                "string",
+                "equip slot (weapon, offhand, helmet, body, gloves, boots, belt, amulet, ring1, ring2) or bar slot 0-5",
+            ),
+            arg("skill", "string", "skill key for bar"),
+            arg("place", "string", "town | arena for travel"),
+            arg("rarity", "integer", "sell_all up to / auto_loot from this rarity (0 normal .. 3 unique, 4 off)"),
+        ],
+        run: crate::game_tools::t_game_cmd,
+    },
 ];
 
 pub fn find(name: &str) -> Option<&'static Tool> {
@@ -281,7 +384,7 @@ pub fn schema(t: &Tool) -> Value {
     json!({ "type": "object", "properties": props })
 }
 
-fn get_u64(a: &Args, k: &str, default: u64) -> Result<u64> {
+pub(crate) fn get_u64(a: &Args, k: &str, default: u64) -> Result<u64> {
     match a.get(k) {
         None => Ok(default),
         Some(v) => v
@@ -292,7 +395,7 @@ fn get_u64(a: &Args, k: &str, default: u64) -> Result<u64> {
     }
 }
 
-fn get_str<'a>(a: &'a Args, k: &str) -> Option<&'a str> {
+pub(crate) fn get_str<'a>(a: &'a Args, k: &str) -> Option<&'a str> {
     a.get(k).and_then(|v| v.as_str())
 }
 
@@ -365,7 +468,7 @@ fn t_entities(s: &mut Session, a: &Args) -> Result<Output> {
     Ok(Output::Json(json!(list)))
 }
 
-fn round3(x: f32) -> f64 {
+pub(crate) fn round3(x: f32) -> f64 {
     (x as f64 * 1000.0).round() / 1000.0
 }
 
@@ -446,7 +549,7 @@ fn t_gpu(s: &mut Session, _: &Args) -> Result<Output> {
     Ok(Output::Json(json!({ "adapter": pav_render::gpu::describe(&g.headless.adapter.get_info()) })))
 }
 
-fn vec_arg(a: &Args, k: &str) -> Result<Option<Vec<f32>>> {
+pub(crate) fn vec_arg(a: &Args, k: &str) -> Result<Option<Vec<f32>>> {
     match a.get(k) {
         None => Ok(None),
         Some(Value::Array(v)) => Ok(Some(v.iter().map(|x| x.as_f64().unwrap_or(0.0) as f32).collect())),
@@ -526,6 +629,7 @@ fn t_input(s: &mut Session, a: &Args) -> Result<Output> {
             aim,
             held: held | if i == 0 { press } else { 0 },
             pressed: if i == 0 { press } else { 0 },
+            cmd: None,
         };
         s.sim.step(&f);
         s.sync_camera();
