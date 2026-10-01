@@ -54,12 +54,33 @@ impl CameraParams {
     ];
 }
 
+impl CameraParams {
+    /// Blend between two camera setups (yaw takes the short way round; projection switches
+    /// halfway).
+    pub fn lerp(&self, o: &CameraParams, t: f32) -> CameraParams {
+        let l = |a: f32, b: f32| a + (b - a) * t;
+        let dyaw = ((o.yaw - self.yaw + 540.0).rem_euclid(360.0)) - 180.0;
+        CameraParams {
+            tilt: l(self.tilt, o.tilt),
+            yaw: ((self.yaw + dyaw * t + 540.0).rem_euclid(360.0)) - 180.0,
+            distance: l(self.distance, o.distance),
+            fov: l(self.fov, o.fov),
+            ortho: if t < 0.5 { self.ortho } else { o.ortho },
+            follow_lag: l(self.follow_lag, o.follow_lag),
+            height_offset: l(self.height_offset, o.height_offset),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CameraRig {
+    /// Target parameters (what the panel edits).
     pub params: CameraParams,
     /// Smoothed focus point.
     pub target: Vec3,
     initialized: bool,
+    /// Blending from earlier parameters: (from, elapsed, duration).
+    blend: Option<(CameraParams, f32, f32)>,
 }
 
 impl Default for CameraRig {
@@ -70,17 +91,39 @@ impl Default for CameraRig {
 
 impl CameraRig {
     pub fn new(params: CameraParams) -> Self {
-        Self { params, target: Vec3::ZERO, initialized: false }
+        Self { params, target: Vec3::ZERO, initialized: false, blend: None }
+    }
+
+    /// Parameters in effect right now (blended while a transition runs).
+    pub fn current(&self) -> CameraParams {
+        match &self.blend {
+            Some((from, e, d)) => {
+                let t = (e / d.max(1e-3)).clamp(0.0, 1.0);
+                from.lerp(&self.params, t * t * (3.0 - 2.0 * t))
+            }
+            None => self.params.clone(),
+        }
+    }
+
+    /// Call before changing `params` to glide there over `seconds` instead of cutting.
+    pub fn blend_from_current(&mut self, seconds: f32) {
+        self.blend = Some((self.current(), 0.0, seconds));
     }
 
     /// Follows `focus` with exponential smoothing.
     pub fn update(&mut self, focus: Vec3, dt: f32) {
+        if let Some(b) = &mut self.blend {
+            b.1 += dt;
+            if b.1 >= b.2 {
+                self.blend = None;
+            }
+        }
         if !self.initialized || self.params.follow_lag <= 0.0 {
             self.target = focus;
             self.initialized = true;
             return;
         }
-        let k = 1.0 - (-dt / self.params.follow_lag.max(1e-3)).exp();
+        let k = 1.0 - (-dt / self.current().follow_lag.max(1e-3)).exp();
         self.target += (focus - self.target) * k;
     }
 
@@ -91,7 +134,7 @@ impl CameraRig {
 
     /// Horizontal forward (camera looking direction flattened), and right.
     pub fn ground_axes(&self) -> (Vec3, Vec3) {
-        let yaw = self.params.yaw.to_radians();
+        let yaw = self.current().yaw.to_radians();
         let fwd = Vec3::new(yaw.sin(), 0.0, -yaw.cos());
         let right = Vec3::new(yaw.cos(), 0.0, yaw.sin());
         (fwd, right)
@@ -99,26 +142,26 @@ impl CameraRig {
 
     pub fn forward(&self) -> Vec3 {
         let (fh, _) = self.ground_axes();
-        let t = self.params.tilt.clamp(0.0, 90.0).to_radians();
+        let t = self.current().tilt.clamp(0.0, 90.0).to_radians();
         (fh * t.cos() + Vec3::NEG_Y * t.sin()).normalize()
     }
 
-    fn up(&self) -> Vec3 {
+    pub fn up(&self) -> Vec3 {
         let (fh, _) = self.ground_axes();
-        let t = self.params.tilt.clamp(0.0, 90.0).to_radians();
+        let t = self.current().tilt.clamp(0.0, 90.0).to_radians();
         (fh * t.sin() + Vec3::Y * t.cos()).normalize()
     }
 
     pub fn look_at(&self) -> Vec3 {
-        self.target + Vec3::Y * self.params.height_offset
+        self.target + Vec3::Y * self.current().height_offset
     }
 
     pub fn eye(&self) -> Vec3 {
-        self.look_at() - self.forward() * self.params.distance
+        self.look_at() - self.forward() * self.current().distance
     }
 
     pub fn data(&self, aspect: f32) -> CameraData {
-        let p = &self.params;
+        let p = &self.current();
         let fwd = self.forward();
         let eye = self.eye();
         let view = glam::camera::rh::view::look_to_mat4(eye, fwd, self.up());

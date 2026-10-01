@@ -362,7 +362,14 @@ impl Sim {
                 .rot(rot)
                 .behavior(o.behavior.clone());
             sp.region = Some(region);
+            sp.hazard = o.hazard.clone();
             self.spawn(sp);
+        }
+        for l in &slot.def.labels {
+            if let Some(p) = l.pos {
+                let label = l.to_label(&slot.place, p);
+                self.state.statics.add_label_to(region, label);
+            }
         }
         self.state.world.rooms[id as usize].built = true;
     }
@@ -733,16 +740,18 @@ impl Sim {
             events.push(SimEvent::ExitRoom { room: id });
         }
         if let Some(id) = now {
-            let def = self.state.world.rooms[id as usize].def.clone();
-            self.state.world.saved_params = enter_overrides(&mut self.config, &def);
+            let slot = &self.state.world.rooms[id as usize];
+            let (def, quarters) = (slot.def.clone(), slot.place.quarters);
+            self.state.world.saved_params = enter_overrides_rotated(&mut self.config, &def, quarters);
             events.push(SimEvent::EnterRoom { room: id });
         }
         self.state.world.current_room = now;
+        self.courses_on_room_change(now);
     }
 }
 
 /// Wraps the config so parameter paths (movement.model, ...) can be set.
-struct ConfigRoot<'a>(&'a mut SimConfig);
+pub(crate) struct ConfigRoot<'a>(pub &'a mut SimConfig);
 
 impl Tunable for ConfigRoot<'_> {
     fn visit(&mut self, v: &mut dyn params::ParamVisitor) {
@@ -756,7 +765,13 @@ fn apply_params(cfg: &mut SimConfig, values: &BTreeMap<String, ParamValue>) {
 
 /// Applies a room's overrides and returns the previous values.
 pub fn enter_overrides(cfg: &mut SimConfig, def: &RoomDef) -> BTreeMap<String, ParamValue> {
+    enter_overrides_rotated(cfg, def, 0)
+}
+
+/// Same, for a room placed with `quarters` turns (axis locks follow the room).
+pub fn enter_overrides_rotated(cfg: &mut SimConfig, def: &RoomDef, quarters: u8) -> BTreeMap<String, ParamValue> {
     let mut wanted = def.params.clone();
+    crate::course::rotate_axis_params(&mut wanted, quarters);
     if let Some(m) = def.movement_model {
         wanted.insert("movement.model".into(), ParamValue::Text(params::ChoiceParam::name(m).to_string()));
     }
@@ -818,8 +833,14 @@ impl Sim {
             .filter(|e| e.character.is_none() && e.bomb.is_none() && e.lifetime.is_none())
             .filter_map(|e| {
                 let v = e.visual.as_ref()?;
-                let local = inv * (e.pos - slot.place.origin);
-                let rot = inv * e.rot;
+                // Animated objects are saved at their start pose, without running state.
+                let (pos, rot0) = match &e.behavior {
+                    crate::entity::Behavior::Move(m) => m.origin.unwrap_or((e.pos, e.rot)),
+                    crate::entity::Behavior::Rotate(r) => r.origin.unwrap_or((e.pos, e.rot)),
+                    _ => (e.pos, e.rot),
+                };
+                let local = inv * (pos - slot.place.origin);
+                let rot = inv * rot0;
                 let (axis, angle) = rot.to_axis_angle();
                 let yaw = if axis.y < 0.0 { -angle } else { angle };
                 Some(crate::room::ObjectDef {
@@ -831,10 +852,27 @@ impl Sim {
                     body: e.body_kind,
                     look: v.look,
                     emissive: v.emissive,
-                    behavior: e.behavior.clone(),
+                    behavior: fresh_behavior(&e.behavior),
+                    hazard: e.hazard.clone(),
                 })
             })
             .collect()
+    }
+}
+
+/// A behaviour as authored (running state cleared).
+fn fresh_behavior(b: &crate::entity::Behavior) -> crate::entity::Behavior {
+    use crate::entity::Behavior;
+    match b {
+        Behavior::Move(m) => Behavior::Move(crate::entity::MoverDef { origin: None, ..m.clone() }),
+        Behavior::Rotate(r) => Behavior::Rotate(crate::entity::RotatorDef { origin: None, ..r.clone() }),
+        Behavior::Emitter(e) => {
+            Behavior::Emitter(crate::entity::EmitterDef { timer: 0.0, angle: 0.0, shots: 0, ..e.clone() })
+        }
+        Behavior::Rain { interval, max, area, height, .. } => {
+            Behavior::Rain { interval: *interval, max: *max, area: *area, height: *height, timer: 0, spawned: Default::default() }
+        }
+        other => other.clone(),
     }
 }
 
@@ -911,6 +949,11 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
     if o.behavior != crate::entity::Behavior::None {
         if let Ok(v) = toml::Value::try_from(&o.behavior) {
             t.push_str(&format!("behavior = {}\n", inline(&v)));
+        }
+    }
+    if let Some(h) = &o.hazard {
+        if let Ok(v) = toml::Value::try_from(h) {
+            t.push_str(&format!("hazard = {}\n", inline(&v)));
         }
     }
     t

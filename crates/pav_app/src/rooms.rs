@@ -8,7 +8,7 @@ use egui::RichText;
 use pav_core::frame::RoomInfo;
 use pav_core::params;
 use pav_core::room::Device as RoomDevice;
-use pav_view::CameraParams;
+use pav_view::{CameraParams, CameraRig};
 
 use crate::input::{Device, guide};
 
@@ -40,7 +40,7 @@ pub struct RoomHud {
 impl RoomHud {
     /// Call every frame with the room from the latest simulation frame. Applies camera
     /// defaults on enter and restores the camera on exit.
-    pub fn update(&mut self, room: &Option<RoomInfo>, camera: &mut CameraParams) {
+    pub fn update(&mut self, room: &Option<RoomInfo>, rig: &mut CameraRig) {
         let now_id = room.as_ref().map(|r| (r.id, r.key.clone()));
         let prev_id = self.current.as_ref().map(|r| (r.id, r.key.clone()));
         if now_id == prev_id {
@@ -51,13 +51,19 @@ impl RoomHud {
         }
         if prev_id.is_some() {
             if let Some(saved) = self.saved_camera.take() {
-                *camera = saved;
+                rig.blend_from_current(0.6);
+                rig.params = saved;
             }
         }
         if let Some(r) = room {
             if !r.def.camera.is_empty() {
-                self.saved_camera = Some(camera.clone());
-                params::apply_map(camera, &r.def.camera);
+                // Room cameras are authored for the room's own orientation: turn with it.
+                self.saved_camera = Some(rig.params.clone());
+                rig.blend_from_current(0.6);
+                let mut cam = r.def.camera.clone();
+                let yaw = cam.get("yaw").and_then(|v| v.as_f64()).unwrap_or(0.0) + r.quarters as f64 * 90.0;
+                cam.insert("yaw".into(), params::ParamValue::Float((yaw + 540.0).rem_euclid(360.0) - 180.0));
+                params::apply_map(&mut rig.params, &cam);
             }
             self.card_until = Some(Instant::now() + Duration::from_secs(14));
             log::info!("entered room '{}'", r.key);

@@ -2297,8 +2297,10 @@ dependencies = [
 name = "pav_render"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "anyhow",
  "bytemuck",
+ "epaint_default_fonts",
  "glam 0.33.11",
  "log",
  "png",

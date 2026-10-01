@@ -19,6 +19,7 @@ use winit::window::{Fullscreen, Window, WindowId};
 use crate::boot::{self, stage};
 use crate::edit::Editor;
 use crate::gfx::Gfx;
+use crate::hud::{CameraDirector, FeelOverlay, FeelSettings, HudCtx, Latency, LatencySample};
 use crate::input::{Device, Input};
 use crate::panel::{Panel, PanelAction};
 use crate::rooms::{RoomEntry, RoomHud, RoomWatcher, TeleportTarget};
@@ -135,6 +136,9 @@ pub struct App {
     audio_settings: AudioSettings,
     /// Tick at which the app last pushed its config (the sim's copy is adopted after that).
     config_push_tick: u64,
+    latency: Latency,
+    director: CameraDirector,
+    feel: FeelOverlay,
     quit: bool,
     pub fatal: Option<String>,
 }
@@ -177,6 +181,9 @@ impl App {
             audio: None,
             audio_settings: AudioSettings { master: 0.8, sfx: 1.0, footsteps: true },
             config_push_tick: 0,
+            latency: Latency::default(),
+            director: CameraDirector::default(),
+            feel: FeelOverlay::default(),
             quit: false,
             fatal: None,
             settings,
@@ -473,7 +480,22 @@ impl App {
 
         let (prev, curr, curr_at, tick_wall) = host.frames();
         let room_before = self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def)));
-        self.hud.update(&curr.room, &mut self.rig.params);
+        let quarters = curr.room.as_ref().map(|r| r.quarters).unwrap_or(0);
+        self.director.update(&curr.hud, quarters, &mut self.rig);
+        let room_id_before = self.hud.current.as_ref().map(|r| r.id);
+        self.hud.update(&curr.room, &mut self.rig);
+        if self.hud.current.as_ref().map(|r| r.id) != room_id_before {
+            // Rooms can open HUD overlays (feel metrics) while you are inside.
+            let wants = self.hud.current.as_ref().is_some_and(|r| r.def.overlays.iter().any(|o| o == "feel"));
+            if wants && !self.feel.open {
+                self.feel.open = true;
+                self.feel.auto = true;
+            } else if !wants && self.feel.auto {
+                self.feel.open = false;
+                self.feel.auto = false;
+            }
+        }
+        self.feel.record(curr.tick, curr.hud.feel.speed);
         if self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def))) != room_before {
             // Input switching: the room's key overrides apply while inside.
             let (b, errs) = match &self.hud.current {
@@ -533,6 +555,9 @@ impl App {
                 i.held = held;
                 i.pressed |= pressed;
                 i.aim = aim;
+                if let Some(t) = self.latency.pending.take() {
+                    host.shared.input_stamp.lock().unwrap().get_or_insert(t);
+                }
             } else {
                 *i = InputFrame::default();
             }
@@ -634,6 +659,9 @@ impl App {
             audio: &mut self.audio_settings,
         };
         let show_stats = root.app.show_stats;
+        let feel = &mut self.feel;
+        let latency = &self.latency;
+        let hud_ctx = HudCtx { hud: &curr.hud, tick: curr.tick, dt: curr.dt };
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
@@ -651,6 +679,19 @@ impl App {
             if card_visible && !menu_open {
                 hud.card(&ctx, device);
             }
+            crate::hud::course_hud(&ctx, &hud_ctx);
+            crate::hud::hit_flash(&ctx, hud_ctx.hud.invuln);
+            feel.ui(
+                &ctx,
+                &hud_ctx,
+                latency,
+                FeelSettings {
+                    model: &mut root.sim.movement.model,
+                    tick_rate: &mut root.sim.tick_rate,
+                    vsync: &mut root.app.vsync,
+                    smoothing: &mut root.app.smoothing,
+                },
+            );
             teleport = hud.teleport_menu(&ctx);
             hud.error_panel(&ctx);
             save_room = editor.ui(&ctx, room_name.as_deref());
@@ -724,6 +765,20 @@ impl App {
             log::info!("boot complete in {:.0} ms", boot::diag().start.elapsed().as_secs_f64() * 1000.0);
         } else {
             gfx.draw(&scene, Some((&prims, &mut textures, ppp)));
+        }
+        // Input latency: the frame showing the tick that consumed a press is now submitted.
+        {
+            let mut probe = host.shared.latency_probe.lock().unwrap();
+            if let Some((pressed_at, ticked_at, tick)) = *probe {
+                if curr.tick >= tick {
+                    let now = Instant::now();
+                    self.latency.record(LatencySample {
+                        to_tick: (ticked_at - pressed_at).as_secs_f32() * 1000.0,
+                        to_screen: (now - ticked_at).as_secs_f32() * 1000.0,
+                    });
+                    *probe = None;
+                }
+            }
         }
 
         for a in panel_actions {
@@ -829,6 +884,11 @@ impl App {
                 self.set_menu(false);
                 self.screenshot_requested = true;
             }
+            MenuAction::Feel => {
+                self.set_menu(false);
+                self.feel.open = !self.feel.open;
+                self.feel.auto = false;
+            }
             MenuAction::Quit => self.quit = true,
         }
     }
@@ -884,6 +944,9 @@ impl ApplicationHandler for App {
                     );
                     if event.state == ElementState::Pressed && !event.repeat && (system || !consumed) {
                         self.handle_key(code);
+                        if !system && !consumed {
+                            self.latency.press();
+                        }
                     }
                     if !consumed || event.state == ElementState::Released {
                         self.input.key(code, event.state);
@@ -898,6 +961,9 @@ impl ApplicationHandler for App {
                 self.rig.params.distance = (self.rig.params.distance * 0.9f32.powf(lines)).clamp(2.0, 120.0);
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                if state == ElementState::Pressed && button == MouseButton::Left && !consumed {
+                    self.latency.press();
+                }
                 if button == MouseButton::Right {
                     self.mouse.right_down = state == ElementState::Pressed && !consumed;
                 } else if !consumed || state == ElementState::Released {

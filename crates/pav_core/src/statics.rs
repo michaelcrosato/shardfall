@@ -13,6 +13,7 @@ use crate::color::Color;
 use crate::physics::{PhysicsState, TAG_BLOCK};
 use crate::shape::{Look, Shape};
 use crate::terrain::TerrainPatch;
+use crate::zones::{Label, Zone};
 
 /// Terrain chunk edge length in metres.
 pub const CHUNK_SIZE: f32 = 32.0;
@@ -207,6 +208,12 @@ pub struct StaticChunk {
     pub terrain: Option<Arc<TerrainPatch>>,
     #[serde(default)]
     pub terrain_collider: Option<ColliderHandle>,
+    /// Trigger zones (courses, checkpoints, pits, water, pads, camera cues).
+    #[serde(default)]
+    pub zones: Vec<Zone>,
+    /// Text in the world.
+    #[serde(default)]
+    pub labels: Vec<Label>,
     /// Bounding box of everything in the region (for spatial queries).
     pub min: Vec3,
     pub max: Vec3,
@@ -220,7 +227,13 @@ pub struct StaticChunk {
 
 impl StaticChunk {
     fn grow(&mut self, min: Vec3, max: Vec3) {
-        if self.blocks.is_empty() && self.decor.is_empty() && self.ladders.is_empty() && self.terrain.is_none() {
+        if self.blocks.is_empty()
+            && self.decor.is_empty()
+            && self.ladders.is_empty()
+            && self.terrain.is_none()
+            && self.zones.is_empty()
+            && self.labels.is_empty()
+        {
             self.min = min;
             self.max = max;
         } else {
@@ -236,6 +249,13 @@ impl StaticChunk {
             && self.min.z <= max.z
             && self.max.z >= min.z
     }
+}
+
+/// Where a zone lives: region + index inside the region.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ZoneRef {
+    pub region: RegionKey,
+    pub index: u32,
 }
 
 /// Where a block lives: region + index inside the region.
@@ -317,6 +337,37 @@ impl StaticWorld {
     pub fn add_ladder(&mut self, ladder: Ladder) {
         let key = RegionKey::chunk_of(ladder.center());
         self.add_ladder_to(key, ladder);
+    }
+
+    pub fn add_zone_to(&mut self, key: RegionKey, zone: Zone) {
+        let chunk = self.chunk_mut(key);
+        chunk.grow(zone.min, zone.max);
+        chunk.zones.push(zone);
+        chunk.version += 1;
+    }
+
+    pub fn add_label_to(&mut self, key: RegionKey, label: Label) {
+        let chunk = self.chunk_mut(key);
+        let h = Vec3::splat(label.size);
+        chunk.grow(label.pos - h, label.pos + h);
+        chunk.labels.push(label);
+        chunk.version += 1;
+    }
+
+    /// Zones containing `p` (active regions only), with their region and index.
+    pub fn zones_at(&self, p: Vec3) -> impl Iterator<Item = (ZoneRef, &Zone)> {
+        self.regions_in(p, p).flat_map(move |(k, c)| {
+            c.zones.iter().enumerate().filter(move |(_, z)| z.contains(p)).map(move |(i, z)| (ZoneRef { region: *k, index: i as u32 }, z))
+        })
+    }
+
+    pub fn zone(&self, r: ZoneRef) -> Option<&Zone> {
+        self.chunks.get(&r.region)?.zones.get(r.index as usize)
+    }
+
+    /// All zones of a region.
+    pub fn region_zones(&self, key: RegionKey) -> &[Zone] {
+        self.chunks.get(&key).map(|c| c.zones.as_slice()).unwrap_or(&[])
     }
 
     pub fn add_decor(&mut self, physics: &mut PhysicsState, key: RegionKey, mut d: Decor) {

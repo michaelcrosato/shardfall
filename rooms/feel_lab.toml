@@ -1,0 +1,242 @@
+# Feel Lab: compare movement models and measure how they feel. Every number here is live in
+# the tuning panel (F1 → movement) and the feel overlay (bottom right).
+name = "Feel Lab"
+about = "Switch movement models on the pads and feel the difference: a timed sprint lane with distance marks, jump-height poles, gaps, a ledge wall and a pool. The feel overlay measures input delay, acceleration, stopping, turning and jumps live."
+try = [
+  "Step on a pad (INSTANT / MOMENTUM / GRID / COMMITTED) to switch the movement model",
+  "Run the sprint lane (green START → checkered FINISH) with each model and compare times",
+  "Watch the feel overlay: input delay, time to top speed, stopping distance, turnaround",
+  "Jump onto the poles: 0.5–1.5 m are jumps, 2 m and 2.5 m need a ledge grab",
+  "Jump at the 2.4 m wall and hold toward it: grab the ledge, then pull up (or crouch to drop)",
+  "Swim in the pool (Space up, C down); jump out at the edge",
+  "Committed model: crouch while running to dodge-roll",
+]
+wing = "movement"
+order = 1
+primary_device = "keyboard_mouse"
+movement_model = "instant"
+overlays = ["feel"]
+entrance = { at = [15, 25], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 20.0
+
+[layout]
+origin = [-16.0, 0.0, -13.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+################################
+#..............................#
+#S|-|-|-|-|-|-|-|-|-|-|-|-|FF..#
+#S|-|-|-|-|-|-|-|-|-|-|-|-|FF..#
+#S|-|-|-|-|-|-|-|-|-|-|-|-|FF..#
+#..............................#
+#..............................#
+#.aa.bb.cc.dd.ee.PP_PP__PP___PP#
+#.aa.bb.cc.dd.ee.PP_PP__PP___PP#
+#................PP_PP__PP___PP#
+#..............................#
+#..............................#
+#............HHHHHKKK..........#
+#.wwwwwwww...HHHHHKKK..........#
+#.wwwwwwww...HHHHH.............#
+#.wwwww123.....................#
+#.wwwww123.....................#
+#.wwwwwwww.....................#
+#.wwwwwwww.....................#
+#..............................#
+#.IIII.MMMM.........GGGG..CCCC.#
+#.IIII.MMMM.........GGGG..CCCC.#
+#.IIII.MMMM.........GGGG..CCCC.#
+#..............................#
+#..............................#
+###############..###############
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 2.5, color = "#b9c3cf" }]
+
+# Sprint lane: start, distance marks every 2 m, finish.
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "start", course = "sprint", facing = "east" }
+
+[layout.legend.'-']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#b8c4b0" }]
+
+[layout.legend.'|']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#f4f4ee", look = "flat" }]
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "finish", course = "sprint" }
+
+# Jump poles (top heights 0.5 .. 2.5 m).
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 0.5, color = "#e8a87c", rounded = true }]
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 1.0, color = "#e8a87c", rounded = true }]
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 1.5, color = "#e8a87c", rounded = true }]
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 2.0, color = "#d9895b", rounded = true }]
+[layout.legend.'e']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 2.5, color = "#d9895b", rounded = true }]
+
+# Gap course: 1 m high plateaus with 1, 2 and 3 m pits between them.
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 1.0, color = "#9fb39a" }]
+[layout.legend.'_']
+blocks = [{ y0 = -3.0, y1 = -2.5, color = "#6d7a6a" }]
+zone = { kind = "kill", y0 = -2.4, y1 = -1.2 }
+
+# Pool: 1.8 m of water with steps on the east side.
+[layout.legend.'w']
+blocks = [{ y0 = -2.5, y1 = -2.0, color = "#7fa7b8" }]
+zone = { kind = "water", y0 = -2.0, y1 = -0.2 }
+[layout.legend.'1']
+blocks = [{ y0 = -2.5, y1 = -1.5, color = "#9bb7c2" }]
+zone = { kind = "water", y0 = -2.0, y1 = -0.2 }
+[layout.legend.'2']
+blocks = [{ y0 = -2.5, y1 = -1.0, color = "#9bb7c2" }]
+zone = { kind = "water", y0 = -2.0, y1 = -0.2 }
+[layout.legend.'3']
+blocks = [{ y0 = -2.5, y1 = -0.5, color = "#9bb7c2" }]
+zone = { kind = "water", y0 = -2.0, y1 = -0.2 }
+
+# Ledge wall (2.4 m) with a higher step (4.2 m) behind it.
+[layout.legend.'H']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 2.4, color = "#c7b7a3" }]
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 4.2, color = "#b5a28c" }]
+
+# Movement model pads.
+[layout.legend.'I']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" } }
+[layout.legend.'M']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" } }
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "pad", label = "GRID", color = "#3bb273", params = { "movement.model" = "grid" } }
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+zone = { kind = "pad", label = "COMMITTED", color = "#9b5de5", params = { "movement.model" = "committed" } }
+
+# Signs.
+[[label]]
+text = "SPRINT 26 m"
+pos = [14.0, 0.03, 1.2]
+size = 0.6
+
+[[label]]
+text = "0.5 m"
+pos = [3.0, 0.03, 9.7]
+size = 0.4
+
+[[label]]
+text = "1 m"
+pos = [6.0, 0.03, 9.7]
+size = 0.4
+
+[[label]]
+text = "1.5 m"
+pos = [9.0, 0.03, 9.7]
+size = 0.4
+
+[[label]]
+text = "2 m"
+pos = [12.0, 0.03, 9.7]
+size = 0.4
+
+[[label]]
+text = "2.5 m"
+pos = [15.0, 0.03, 9.7]
+size = 0.4
+
+[[label]]
+text = "1 m   2 m   3 m gaps"
+pos = [23.5, 0.03, 10.6]
+size = 0.45
+
+[[label]]
+text = "LEDGE 2.4 m"
+pos = [15.5, 0.03, 15.6]
+size = 0.5
+
+[[label]]
+text = "POOL"
+pos = [5.0, 0.03, 12.4]
+size = 0.5
+
+[[label]]
+text = "0"
+pos = [2.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "2"
+pos = [4.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "4"
+pos = [6.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "6"
+pos = [8.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "8"
+pos = [10.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "10"
+pos = [12.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "12"
+pos = [14.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "14"
+pos = [16.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "16"
+pos = [18.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "18"
+pos = [20.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "20"
+pos = [22.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "22"
+pos = [24.5, 0.03, 5.6]
+size = 0.4
+
+[[label]]
+text = "24"
+pos = [26.5, 0.03, 5.6]
+size = 0.4

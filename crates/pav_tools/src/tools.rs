@@ -207,6 +207,30 @@ pub static TOOLS: &[Tool] = &[
         run: t_filmstrip,
     },
     Tool {
+        name: "camera_bench",
+        help: "Render the current moment from several camera setups, tiled into one PNG.",
+        args: &[
+            arg("presets", "string", "comma-separated preset names or tilt angles (default: all presets)"),
+            arg("columns", "integer", "tiles per row (default 4)"),
+            arg("width", "integer", "tile width (default 320)"),
+            arg("height", "integer", "tile height (default 180)"),
+            arg("out", "string", "output path"),
+        ],
+        run: t_camera_bench,
+    },
+    Tool {
+        name: "course",
+        help: "Course state: current run (timer, gates, hits, falls), last result, best times, checkpoint.",
+        args: &[],
+        run: t_course,
+    },
+    Tool {
+        name: "feel",
+        help: "Feel metrics of the player: response ticks, time to top speed, stopping, turnaround, last jump.",
+        args: &[],
+        run: t_feel,
+    },
+    Tool {
         name: "audio_capture",
         help: "Run N ticks (optionally driving the player) and render the game's sounds to a .wav file.",
         args: &[
@@ -297,6 +321,7 @@ fn status(s: &Session) -> Value {
         "tick_rate": s.sim.config.tick_rate.hz(),
         "entities": s.sim.state.entities.len(),
         "blocks": s.sim.state.statics.block_count(),
+        "projectiles": s.sim.state.projectiles.list.len(),
         "hash": format!("{:016x}", s.sim.state_hash()),
     })
 }
@@ -438,6 +463,12 @@ pub fn player_json(s: &Session) -> Value {
         "grounded": ch.grounded,
         "posture": pav_core::params::ChoiceParam::name(ch.posture),
         "climbing": ch.climbing.is_some(),
+        "hanging": ch.hang.map(|h| h.climb >= 0.0).map(|c| if c { "climbing up" } else { "hanging" }),
+        "swimming": ch.swimming,
+        "water_depth": round3(ch.water_depth),
+        "rolling": ch.roll > 0.0,
+        "stunned": ch.stun > 0.0,
+        "model": pav_core::params::ChoiceParam::name(s.sim.config.movement.model),
         "facing_deg": round3(ch.facing.to_degrees()),
         "tick": s.sim.state.tick,
     })
@@ -463,6 +494,7 @@ fn t_input(s: &mut Session, a: &Args) -> Result<Output> {
             pressed: if i == 0 { press } else { 0 },
         };
         s.sim.step(&f);
+        s.sync_camera();
     }
     s.sim.drain_events();
     Ok(Output::Json(player_json(s)))
@@ -732,6 +764,7 @@ fn t_filmstrip(s: &mut Session, a: &Args) -> Result<Output> {
                     ..Default::default()
                 };
                 s.sim.step(&f);
+                s.sync_camera();
             }
             s.sim.drain_events();
         }
@@ -766,6 +799,7 @@ fn t_audio_capture(s: &mut Session, a: &Args) -> Result<Output> {
             ..Default::default()
         };
         s.sim.step(&f);
+        s.sync_camera();
         for e in s.sim.drain_events() {
             events.push((i as f32 * dt, e));
         }
@@ -785,4 +819,77 @@ fn t_audio_capture(s: &mut Session, a: &Args) -> Result<Output> {
         m
     });
     Ok(Output::Json(json!({ "path": path, "seconds": duration, "events": kinds, "peak": (peak * 1000.0).round() / 1000.0 })))
+}
+
+fn t_course(s: &mut Session, _: &Args) -> Result<Output> {
+    let c = &s.sim.state.courses;
+    Ok(Output::Json(json!({
+        "run": c.hud(s.sim.state.tick, s.sim.dt()),
+        "last": c.last,
+        "best": c.best,
+        "checkpoint": c.checkpoint.map(|(p, _)| [round3(p.x), round3(p.y), round3(p.z)]),
+        "message": c.message.as_ref().map(|m| &m.0),
+    })))
+}
+
+fn t_feel(s: &mut Session, _: &Args) -> Result<Output> {
+    let f = s.sim.state.feel.report;
+    let ms = s.sim.dt() * 1000.0;
+    Ok(Output::Json(json!({
+        "model": pav_core::params::ChoiceParam::name(s.sim.config.movement.model),
+        "response_ticks": f.response_ticks,
+        "response_ms": (f.response_ticks as f32 * ms).round(),
+        "speed": round3(f.speed),
+        "top_speed": round3(f.top_speed),
+        "accel_ms": f.accel_ms.round(),
+        "stop_ms": f.stop_ms.round(),
+        "stop_dist": round3(f.stop_dist),
+        "turn_ms": f.turn_ms.round(),
+        "jump_height": round3(f.jump_height),
+        "air_ms": f.air_ms.round(),
+        "jump_dist": round3(f.jump_dist),
+    })))
+}
+
+fn t_camera_bench(s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_view::CameraParams;
+    let w = get_u64(a, "width", 320)? as u32;
+    let h = get_u64(a, "height", 180)? as u32;
+    let cols = get_u64(a, "columns", 4)? as u32;
+    let base = s.camera.params.clone();
+    let list: Vec<(String, CameraParams)> = match get_str(a, "presets") {
+        None => CameraParams::PRESETS.iter().map(|(n, f)| (n.to_string(), f())).collect(),
+        Some(spec) => spec
+            .split(',')
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+            .map(|t| match t.parse::<f32>() {
+                Ok(tilt) => Ok((format!("{tilt}°"), CameraParams { tilt, ..base.clone() })),
+                Err(_) => CameraParams::PRESETS
+                    .iter()
+                    .find(|(n, _)| n.starts_with(t))
+                    .map(|(n, f)| (n.to_string(), f()))
+                    .ok_or_else(|| anyhow!("unknown preset '{t}'")),
+            })
+            .collect::<Result<_>>()?,
+    };
+    let mut shots = Vec::with_capacity(list.len());
+    for (name, mut p) in list.iter().cloned() {
+        if !name.starts_with("isometric") {
+            p.yaw = base.yaw;
+        }
+        s.camera.params = p;
+        shots.push(s.render(w, h)?);
+    }
+    s.camera.params = base;
+    let (tw, th, px) = pav_render::capture::tile_frames(&shots, w, h, cols);
+    let png = pav_render::capture::encode_png(tw, th, &px)?;
+    let path = PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/camera-bench-{}.png", s.sim.state.tick)));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    let names: Vec<&str> = list.iter().map(|(n, _)| n.as_str()).collect();
+    let meta = json!({ "path": path, "tiles": names, "size": [tw, th] });
+    Ok(Output::Image { png, path: Some(path), meta })
 }

@@ -442,3 +442,58 @@ fn fs_sdf_shadow(in: SdfOut) -> @builtin(frag_depth) f32 {
     let clip = g.view_proj * vec4<f32>(h.xyz, 1.0);
     return clip.z / clip.w;
 }
+
+// ---------------------------------------------------------------- text (SDF glyphs)
+
+@group(1) @binding(0) var font_tex: texture_2d<f32>;
+@group(1) @binding(1) var font_samp: sampler;
+
+struct GlyphIn {
+    @location(0) corner: vec4<f32>,   // xyz bottom-left corner; w = plane normal x
+    @location(1) ax: vec4<f32>,       // xyz glyph width axis; w = normal y
+    @location(2) ay: vec4<f32>,       // xyz glyph height axis; w = normal z
+    @location(3) uv: vec4<f32>,       // atlas rect (u0, v0 top, u1, v1 bottom)
+    @location(4) color: vec4<f32>,    // rgb; w = weight
+    @location(5) params: vec4<u32>,   // flags, group
+};
+
+struct GlyphOut {
+    @builtin(position) clip: vec4<f32>,
+    @location(0) world: vec3<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) @interpolate(flat) color: vec4<f32>,
+    @location(3) @interpolate(flat) normal: vec3<f32>,
+    @location(4) @interpolate(flat) params: vec4<u32>,
+};
+
+@vertex
+fn vs_text(@builtin(vertex_index) vi: u32, gl: GlyphIn) -> GlyphOut {
+    var quad = array<vec2<f32>, 6>(
+        vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0),
+        vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0));
+    let q = quad[vi];
+    let w = gl.corner.xyz + gl.ax.xyz * q.x + gl.ay.xyz * q.y;
+    var o: GlyphOut;
+    o.clip = g.view_proj * vec4<f32>(w, 1.0);
+    o.world = w;
+    o.uv = vec2<f32>(mix(gl.uv.x, gl.uv.z, q.x), mix(gl.uv.w, gl.uv.y, q.y));
+    o.color = gl.color;
+    o.normal = vec3<f32>(gl.corner.w, gl.ax.w, gl.ay.w);
+    o.params = gl.params;
+    return o;
+}
+
+@fragment
+fn fs_text(in: GlyphOut) -> FsOut {
+    let sd = textureSample(font_tex, font_samp, in.uv).r;
+    let aa = max(fwidth(sd), 1e-4) * 0.7;
+    let edge = 0.5 - in.color.w;
+    let a = smoothstep(edge - aa, edge + aa, sd);
+    if (a < 0.01 || cut_away(in.world, in.clip.xy, in.params.x, true)) {
+        discard;
+    }
+    var o: FsOut;
+    o.color = vec4<f32>(apply_fog(in.world, in.color.rgb), a);
+    o.normal = group_out(normalize(in.normal), in.params.y);
+    return o;
+}

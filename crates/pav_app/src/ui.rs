@@ -27,6 +27,7 @@ pub enum MenuAction {
     RoomCard,
     LoadScene(String),
     Tuning,
+    Feel,
     Screenshot,
     Quit,
 }
@@ -142,6 +143,9 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
                 if ui.button("Tuning (F1)").clicked() {
                     action = Some(MenuAction::Tuning);
                 }
+                if ui.button("Feel metrics").clicked() {
+                    action = Some(MenuAction::Feel);
+                }
                 if ui.button("Screenshot (F12)").clicked() {
                     action = Some(MenuAction::Screenshot);
                 }
@@ -174,7 +178,7 @@ pub fn pause_menu(ctx: &egui::Context, device: Device, scene: &str) -> Option<Me
 }
 
 pub fn toast(ctx: &egui::Context, msg: &str) {
-    egui::Area::new(egui::Id::new("toast")).anchor(egui::Align2::CENTER_TOP, [0.0, 16.0]).show(ctx, |ui| {
+    egui::Area::new(egui::Id::new("toast")).anchor(egui::Align2::CENTER_TOP, [0.0, 110.0]).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.label(msg);
         });

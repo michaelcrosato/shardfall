@@ -9,8 +9,8 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::character::MovementModel;
-use crate::entity::{Behavior, BodyKind};
-use crate::level::Layout;
+use crate::entity::{Behavior, BodyKind, Hazard};
+use crate::level::{LabelDef, Layout};
 use crate::params::ParamValue;
 use crate::shape::{Look, Shape};
 use crate::statics::Facing;
@@ -54,6 +54,8 @@ pub struct ObjectDef {
     pub emissive: f32,
     #[serde(default)]
     pub behavior: Behavior,
+    #[serde(default)]
+    pub hazard: Option<Hazard>,
 }
 
 fn gray() -> String {
@@ -103,8 +105,14 @@ pub struct RoomDef {
     /// Space, ShiftLeft, ArrowUp, ...).
     #[serde(default)]
     pub keys: BTreeMap<String, Vec<String>>,
+    /// HUD overlays opened while inside: "feel" (feel metrics).
+    #[serde(default)]
+    pub overlays: Vec<String>,
     pub entrance: Entrance,
     pub layout: Layout,
+    /// Free-placed text (positions in layout space).
+    #[serde(default, rename = "label")]
+    pub labels: Vec<LabelDef>,
     #[serde(default, rename = "object")]
     pub objects: Vec<ObjectDef>,
 }
@@ -138,6 +146,18 @@ impl RoomDef {
         }
         if !missing.is_empty() {
             return Err(format!("map characters without a legend entry: {missing:?}"));
+        }
+        for l in &self.labels {
+            if l.pos.is_none() {
+                return Err(format!("label '{}' needs pos = [x, y, z]", l.text));
+            }
+        }
+        for (k, t) in &self.layout.legend {
+            if let Some(z) = &t.zone {
+                if z.y1 <= z.y0 {
+                    return Err(format!("legend '{k}': zone y1 must be above y0"));
+                }
+            }
         }
         Ok(())
     }

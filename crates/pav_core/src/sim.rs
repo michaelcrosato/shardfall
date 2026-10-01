@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use crate::character::{self, Action, BombParams, Character, MovementParams, RADIUS};
 use crate::choice_enum;
 use crate::color::Color;
+use crate::course::Courses;
 use crate::entity::{Behavior, BodyKind, Bomb, Entities, Entity, EntityId, Spawn};
+use crate::feel::FeelMeter;
+use crate::projectile::{Projectiles, Target};
 use crate::frame::{PuppetFrame, RenderFrame, RenderObject, SimEvent};
 use crate::history::{History, Replay};
 use crate::input::InputFrame;
@@ -98,12 +101,22 @@ pub struct SimState {
     pub player: Option<EntityId>,
     pub spawn: Vec3,
     pub world: World,
+    #[serde(default)]
+    pub courses: Courses,
+    #[serde(default)]
+    pub projectiles: Projectiles,
+    #[serde(default)]
+    pub feel: FeelMeter,
 }
 
 impl SimState {
     /// Rough memory footprint (for the history budget and stats).
     pub fn approx_bytes(&self) -> usize {
-        self.physics.colliders.len() * 700 + self.physics.bodies.len() * 600 + self.entities.len() * 400 + 4096
+        self.physics.colliders.len() * 700
+            + self.physics.bodies.len() * 600
+            + self.entities.len() * 400
+            + self.projectiles.list.len() * 64
+            + 4096
     }
 }
 
@@ -141,6 +154,9 @@ impl Sim {
                 player: None,
                 spawn: Vec3::ZERO,
                 world: World::default(),
+                courses: Courses::default(),
+                projectiles: Projectiles::default(),
+                feel: FeelMeter::default(),
             },
             config,
             history: History::default(),
@@ -224,6 +240,7 @@ impl Sim {
                 lifetime: None,
                 region: s.region,
                 material: crate::entity::Material { density: s.density, friction: s.friction, restitution: s.restitution },
+                hazard: s.hazard,
             },
         );
         if !self.replaying {
@@ -258,6 +275,7 @@ impl Sim {
                 lifetime: None,
                 region: None,
                 material: Default::default(),
+                hazard: None,
             },
         );
         id
@@ -301,6 +319,9 @@ impl Sim {
             None => pos,
         };
         e.pos = center;
+        if self.state.player == Some(id) {
+            self.state.focus = center;
+        }
         if let Some(b) = e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
             b.set_translation(center, true);
             if b.is_kinematic() {
@@ -328,7 +349,12 @@ impl Sim {
         let dt = self.dt();
         self.state.physics.params.dt = dt as Real;
         self.state.physics.gravity = Vector::new(0.0, -self.config.gravity as Real, 0.0);
+
+        // The world moves first (movers, props), then characters move against it.
         self.run_behaviors(dt);
+        let collector = EventCollector::default();
+        self.state.physics.step(&mut self.pipeline, &collector);
+        self.sync_from_physics();
 
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
@@ -356,6 +382,7 @@ impl Sim {
                     self.throw_bomb(from, vel, owner);
                     events.push(SimEvent::Throw { pos: from });
                 }
+                Action::Hit { id, at, dir, knockback, respawn } => self.hit_character(id, at, dir, knockback, respawn, &mut events),
             }
         }
 
@@ -392,12 +419,26 @@ impl Sim {
             self.despawn(id);
         }
 
-        let collector = EventCollector::default();
-        self.state.physics.step(&mut self.pipeline, &collector);
-        self.sync_from_physics();
+        // Projectiles.
+        if !self.state.projectiles.list.is_empty() {
+            let targets: Vec<Target> = self
+                .state
+                .entities
+                .iter()
+                .filter_map(|e| e.character.as_ref().map(|c| Target { id: e.id, feet: e.pos - Vec3::Y * c.height() * 0.5, height: c.height() }))
+                .collect();
+            let physics = &self.state.physics;
+            let out = self.state.projectiles.step(dt, &targets, |from, dir, len| crate::projectile::static_blocked(physics, from, dir, len));
+            for (id, at, dir, kb) in out.hits {
+                self.hit_character(id, at, dir, kb, false, &mut events);
+            }
+        }
+
         if let Some(p) = self.player() {
             self.state.focus = p.pos;
         }
+        self.update_zones(&mut events);
+        self.measure_feel(input);
         self.update_room_tracking(&mut events);
         if self.state.tick % 15 == 0 {
             self.update_streaming(2);
@@ -406,6 +447,15 @@ impl Sim {
         if !self.replaying {
             self.events.extend(events);
         }
+    }
+
+    fn measure_feel(&mut self, input: &InputFrame) {
+        let Some(e) = self.player() else { return };
+        let Some(ch) = e.character.as_ref() else { return };
+        let (vel, grounded, feet) = (ch.vel, ch.grounded || ch.climbing.is_some() || ch.hang.is_some(), e.pos - Vec3::Y * ch.height() * 0.5);
+        let dt = self.dt();
+        let tick = self.state.tick;
+        self.state.feel.update(tick, dt, input.move_dir, vel, feet, grounded);
     }
 
     fn throw_bomb(&mut self, from: Vec3, vel: Vec3, owner: EntityId) {
@@ -471,6 +521,8 @@ impl Sim {
             let dir = (d + Vec3::Y * 0.5).normalize_or(Vec3::Y);
             if let Some(ch) = &mut e.character {
                 ch.impulse += dir * push * fall;
+                ch.stun = ch.stun.max(0.25 * fall);
+                ch.hang = None;
             } else if let Some(b) = e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
                 if b.is_dynamic() {
                     let m = b.mass();
@@ -555,59 +607,6 @@ impl Sim {
         }
     }
 
-    fn run_behaviors(&mut self, dt: f32) {
-        let ids: Vec<EntityId> =
-            self.state.entities.iter().filter(|e| !matches!(e.behavior, Behavior::None)).map(|e| e.id).collect();
-        for id in ids {
-            let Some(e) = self.state.entities.get(id) else { continue };
-            match e.behavior.clone() {
-                Behavior::None => {}
-                Behavior::Spin { speed } => {
-                    if let Some(b) = e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
-                        b.set_angvel(Vector::new(0.0, speed as Real, 0.0), true);
-                    } else if let Some(e) = self.state.entities.get_mut(id) {
-                        e.rot = Quat::from_rotation_y(speed * dt) * e.rot;
-                    }
-                }
-                Behavior::Rain { interval, max, area, height, mut timer, mut spawned } => {
-                    let origin = e.pos;
-                    timer += 1;
-                    if timer >= interval {
-                        timer = 0;
-                        let rng = &mut self.state.rng;
-                        let pos = origin + Vec3::new(rng.range(-area, area), height, rng.range(-area, area));
-                        let palette = ["#e8704a", "#f2c14e", "#5b8def", "#9b5de5", "#3bb273", "#f15bb5", "#00bbf9"];
-                        let color = Color::hex(palette[rng.below(palette.len() as u32) as usize]);
-                        let shape = match rng.below(4) {
-                            0 => Shape::Box { half: Vec3::splat(rng.range(0.2, 0.45)) },
-                            1 => Shape::Sphere { radius: rng.range(0.2, 0.45) },
-                            2 => Shape::Capsule { half_height: rng.range(0.15, 0.35), radius: rng.range(0.15, 0.3) },
-                            _ => Shape::RoundedBox { half: Vec3::new(0.45, 0.25, 0.3), radius: 0.1 },
-                        };
-                        let rot = Quat::from_euler(glam::EulerRot::XYZ, rng.range(0.0, 3.0), rng.range(0.0, 3.0), 0.0);
-                        let bounce = rng.range(0.0, 0.5);
-                        let new_id = self.spawn(
-                            Spawn::new("rain", pos)
-                                .visual(Visual::new(shape, color))
-                                .body(BodyKind::Dynamic)
-                                .rot(rot)
-                                .restitution(bounce),
-                        );
-                        spawned.push_back(new_id);
-                        while spawned.len() > max as usize {
-                            if let Some(old) = spawned.pop_front() {
-                                self.despawn(old);
-                            }
-                        }
-                    }
-                    if let Some(e) = self.state.entities.get_mut(id) {
-                        e.behavior = Behavior::Rain { interval, max, area, height, timer, spawned };
-                    }
-                }
-            }
-        }
-    }
-
     pub fn frame(&mut self) -> RenderFrame {
         if *self.config_arc != self.config {
             self.config_arc = std::sync::Arc::new(self.config.clone());
@@ -617,7 +616,19 @@ impl Sim {
             .world
             .current_room
             .and_then(|i| self.state.world.rooms.get(i as usize))
-            .map(|r| crate::frame::RoomInfo { id: r.id, key: r.key.clone(), def: r.def.clone() });
+            .map(|r| crate::frame::RoomInfo { id: r.id, key: r.key.clone(), def: r.def.clone(), quarters: r.place.quarters });
+        let c = &self.state.courses;
+        let invuln = self.player().and_then(|p| p.character.as_ref()).map(|c| c.invuln).unwrap_or(0.0);
+        let hud = crate::frame::HudFrame {
+            course: c.hud(self.state.tick, self.dt()),
+            last_result: c.last.clone(),
+            message: c.message.clone(),
+            feel: self.state.feel.report,
+            cue: c.cue(),
+            cue_serial: c.cue_serial,
+            invuln,
+            model: crate::params::ChoiceParam::name(self.config.movement.model).to_string(),
+        };
         RenderFrame {
             tick: self.state.tick,
             time: self.time(),
@@ -644,6 +655,14 @@ impl Sim {
             room,
             config: self.config_arc.clone(),
             events: self.events.clone(),
+            projectiles: self
+                .state
+                .projectiles
+                .list
+                .iter()
+                .map(|p| crate::frame::ProjectileView { pos: p.pos, vel: p.vel, radius: p.radius, color: p.color })
+                .collect(),
+            hud,
         }
     }
 

@@ -254,6 +254,8 @@ pub struct Scene {
     pub fog: Fog,
     /// Data for every `MeshKey::Custom` referenced this frame (uploaded when missing).
     pub custom_meshes: Vec<(MeshKey, std::sync::Arc<crate::mesh::MeshData>)>,
+    /// Text in the world.
+    pub texts: Vec<crate::text::Text3d>,
     pub time: f32,
 }
 
@@ -272,6 +274,7 @@ impl Default for Scene {
             cutaway: Cutaway::default(),
             fog: Fog::default(),
             custom_meshes: Vec::new(),
+            texts: Vec::new(),
             time: 0.0,
         }
     }

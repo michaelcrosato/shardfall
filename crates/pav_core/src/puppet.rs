@@ -120,6 +120,13 @@ pub struct PuppetState {
     pub time: f32,
     /// Recoil kick (decays).
     pub recoil: f32,
+    #[serde(default)]
+    pub swim: f32,
+    /// Dodge roll blend and tumble angle (radians).
+    #[serde(default)]
+    pub roll: f32,
+    #[serde(default)]
+    pub roll_angle: f32,
 }
 
 /// What the character is doing this tick (input to the animator).
@@ -135,6 +142,8 @@ pub struct AnimInput {
     /// Landing impact speed this tick (m/s), 0 if none.
     pub landed: f32,
     pub jumped: bool,
+    pub swimming: bool,
+    pub rolling: bool,
 }
 
 fn approach(cur: f32, target: f32, rate: f32, dt: f32) -> f32 {
@@ -184,6 +193,15 @@ impl PuppetState {
         let df = wrap_angle(i.facing - self.facing);
         self.facing = wrap_angle(self.facing + df * (1.0 - (-20.0 * dt).exp()));
         self.recoil = approach(self.recoil, 0.0, 8.0, dt);
+        self.swim = approach(self.swim, if i.swimming { 1.0 } else { 0.0 }, 8.0, dt);
+        self.roll = approach(self.roll, if i.rolling { 1.0 } else { 0.0 }, 30.0, dt);
+        if i.rolling {
+            self.roll_angle += hspeed * dt / 0.55;
+        } else {
+            // Finish the tumble to the nearest full turn.
+            let full = (self.roll_angle / std::f32::consts::TAU).round() * std::f32::consts::TAU;
+            self.roll_angle = approach(self.roll_angle, full, 20.0, dt);
+        }
     }
 
     /// Blends two states (for render interpolation).
@@ -214,6 +232,9 @@ impl PuppetState {
             facing: self.facing + wrap_angle(o.facing - self.facing) * t,
             time: l(self.time, o.time),
             recoil: l(self.recoil, o.recoil),
+            swim: l(self.swim, o.swim),
+            roll: l(self.roll, o.roll),
+            roll_angle: l(self.roll_angle, o.roll_angle),
         }
     }
 }
@@ -287,18 +308,23 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
         feet + w
     };
 
-    let crouch = st.crouch.max(st.crawl * 0.0);
+    let crouch = st.crouch.max(st.roll);
     let crawl = st.crawl;
     let climb = st.climb;
+    let swim = st.swim;
+    let stroke = st.time * 5.0;
 
     // Pelvis height: standing -> crouch -> crawl.
     let stand_pelvis = leg * 0.97 + bob;
-    let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl);
+    let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl) * (1.0 - 0.05 * swim);
     let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb;
     let pelvis = Vec3::new(0.0, pelvis_h, -0.05 * crawl * leg);
     // Torso direction: upright, leaning, or horizontal when crawling.
-    let torso_dir =
-        Vec3::new(st.lean_side, 1.0, lean_f).normalize().lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl).normalize();
+    let torso_dir = Vec3::new(st.lean_side, 1.0, lean_f)
+        .normalize()
+        .lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl)
+        .lerp(Vec3::new(0.0, 0.45, 1.0).normalize(), swim)
+        .normalize();
     let chest = pelvis + torso_dir * def.torso_length * k;
     let neck = chest + torso_dir * (def.head_radius * 0.55 * k);
     let head = neck + torso_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * def.head_radius * k * 0.95;
@@ -331,6 +357,9 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
             0.12,
         );
         foot = foot.lerp(climb_foot, climb);
+        let kick = (stroke * 2.0 + if s > 0.0 { 0.0 } else { std::f32::consts::PI }).sin();
+        let swim_foot = Vec3::new(s * def.hip_width * k, pelvis_h - leg * 0.35 + kick * 0.12 * k, -leg * 0.85);
+        foot = foot.lerp(swim_foot, swim);
         let bend = Vec3::Z.lerp(Vec3::NEG_Y, crawl * 0.8);
         let (knee, foot) = ik(hip, foot, leg * 0.5, leg * 0.5, bend);
         push(hip, knee, lr * 1.25, lr * 1.05, pants);
@@ -355,6 +384,10 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
         let cp = st.climb_phase * std::f32::consts::TAU + if s > 0.0 { std::f32::consts::PI } else { 0.0 };
         let climb_hand = shoulder + Vec3::new(s * 0.1, arm * (0.35 + 0.3 * cp.sin().max(0.0)), 0.22);
         hand = hand.lerp(climb_hand, climb);
+        // Swim: alternating front-crawl strokes.
+        let sp = stroke + if s > 0.0 { 0.0 } else { std::f32::consts::PI };
+        let swim_hand = shoulder + Vec3::new(s * 0.18, sp.sin() * 0.25 * k, sp.cos() * arm * 0.75);
+        hand = hand.lerp(swim_hand, swim);
         hand.z -= st.recoil * 0.3;
         let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
         let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
@@ -372,6 +405,15 @@ pub fn pose(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> Vec
         let side = Vec3::new(s * 0.36, 0.08, 0.0) * hr;
         let e = head + (face_dir * hr * 0.93 + side).normalize() * hr * 0.9;
         push(e, e, hr * 0.17, hr * 0.17, eyes);
+    }
+    if st.roll > 0.01 || st.roll_angle.rem_euclid(std::f32::consts::TAU) > 0.01 {
+        // Dodge roll: tumble forward about the side axis through the curled-up body.
+        let q = Quat::from_axis_angle(right, st.roll_angle);
+        let pivot = feet + up * 0.42 * k;
+        for p in &mut parts {
+            p.a = pivot + q * (p.a - pivot);
+            p.b = pivot + q * (p.b - pivot);
+        }
     }
     parts
 }

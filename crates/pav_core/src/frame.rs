@@ -41,6 +41,16 @@ pub enum SimEvent {
     Throw { pos: Vec3 },
     EnterRoom { room: u16 },
     ExitRoom { room: u16 },
+    Hit { pos: Vec3, strength: f32 },
+    Respawn { pos: Vec3 },
+    CourseStart { pos: Vec3 },
+    CourseFinish { pos: Vec3, time: f32, new_best: bool },
+    Gate { pos: Vec3, ok: bool },
+    Checkpoint { pos: Vec3 },
+    Splash { pos: Vec3 },
+    Pad { pos: Vec3 },
+    Grab { pos: Vec3 },
+    Roll { pos: Vec3 },
 }
 
 /// The room the player is in, for the HUD (info card, control guide, camera defaults).
@@ -49,6 +59,33 @@ pub struct RoomInfo {
     pub id: u16,
     pub key: String,
     pub def: std::sync::Arc<crate::room::RoomDef>,
+    /// Quarter turns (clockwise from above) the room was rotated by when placed.
+    pub quarters: u8,
+}
+
+/// A projectile as drawn (velocity lets the view interpolate).
+#[derive(Clone, Copy, Debug)]
+pub struct ProjectileView {
+    pub pos: Vec3,
+    pub vel: Vec3,
+    pub radius: f32,
+    pub color: crate::color::Color,
+}
+
+/// Game state the HUD shows.
+#[derive(Clone, Debug, Default)]
+pub struct HudFrame {
+    pub course: Option<crate::course::CourseHud>,
+    pub last_result: Option<crate::course::CourseResult>,
+    /// Short message and the tick it was posted.
+    pub message: Option<(String, u64)>,
+    pub feel: crate::feel::FeelReport,
+    /// Camera cue from pads / camera zones, and a counter that changes with it.
+    pub cue: Option<std::sync::Arc<crate::zones::CameraCue>>,
+    pub cue_serial: u64,
+    /// Player hit flash (seconds of invulnerability left).
+    pub invuln: f32,
+    pub model: String,
 }
 
 #[derive(Clone, Debug)]
@@ -68,4 +105,6 @@ pub struct RenderFrame {
     /// The simulation's configuration (shared; changes when rooms override parameters).
     pub config: std::sync::Arc<crate::sim::SimConfig>,
     pub events: Vec<SimEvent>,
+    pub projectiles: Vec<ProjectileView>,
+    pub hud: HudFrame,
 }

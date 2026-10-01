@@ -19,9 +19,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::entity::{BodyKind, Spawn};
+use crate::params::ParamValue;
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
 use crate::statics::{Block, Facing, Ladder, RegionKey, block_flags};
+use crate::zones::{CameraCue, Label, LabelMode, Zone, ZoneKind, default_zone_color};
 
 /// Where a layout goes in the world: translation plus quarter turns (clockwise from above).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -132,6 +134,83 @@ fn dynamic() -> BodyKind {
     BodyKind::Dynamic
 }
 
+/// A trigger zone covering the tile (identical neighbours merge into one rectangle).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ZoneDef {
+    pub kind: ZoneKind,
+    #[serde(default)]
+    pub course: String,
+    #[serde(default)]
+    pub index: i32,
+    /// Bottom and top relative to the layer (default 0 .. 3 m).
+    #[serde(default)]
+    pub y0: f32,
+    #[serde(default = "three")]
+    pub y1: f32,
+    #[serde(default)]
+    pub params: BTreeMap<String, ParamValue>,
+    #[serde(default)]
+    pub camera: Option<CameraCue>,
+    #[serde(default)]
+    pub label: String,
+    /// Floor marking colour; "none" hides it.
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub facing: Option<Facing>,
+}
+
+fn three() -> f32 {
+    3.0
+}
+
+/// In-world text. In a legend it sits on the tile; in a room's `[[label]]` list `pos` is in
+/// layout space (x = column, y = height, z = row).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LabelDef {
+    pub text: String,
+    #[serde(default)]
+    pub pos: Option<Vec3>,
+    /// Height above the layer when placed on a tile.
+    #[serde(default = "label_y")]
+    pub y: f32,
+    #[serde(default = "label_size")]
+    pub size: f32,
+    #[serde(default = "label_color")]
+    pub color: String,
+    #[serde(default)]
+    pub mode: LabelMode,
+    /// Wall labels: the direction the text faces.
+    #[serde(default = "south")]
+    pub facing: Facing,
+}
+
+fn label_y() -> f32 {
+    0.03
+}
+fn label_size() -> f32 {
+    0.5
+}
+fn label_color() -> String {
+    "#2b2d35".into()
+}
+fn south() -> Facing {
+    Facing::South
+}
+
+impl LabelDef {
+    pub fn to_label(&self, place: &Placement, local: Vec3) -> Label {
+        Label {
+            text: self.text.clone(),
+            pos: place.point(local),
+            size: self.size,
+            color: Color::hex(&self.color),
+            mode: self.mode,
+            facing: place.facing(self.facing),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TileDef {
     #[serde(default)]
@@ -143,6 +222,10 @@ pub struct TileDef {
     /// Named marker, e.g. "player" for the player start.
     #[serde(default)]
     pub marker: Option<String>,
+    #[serde(default)]
+    pub zone: Option<ZoneDef>,
+    #[serde(default)]
+    pub label: Option<LabelDef>,
 }
 
 impl TileDef {
@@ -177,6 +260,7 @@ pub struct Layout {
 pub struct BuiltLayout {
     pub markers: Vec<(String, Vec3)>,
     pub blocks: usize,
+    pub zones: usize,
     pub props: usize,
     pub warnings: Vec<String>,
 }
@@ -222,7 +306,11 @@ impl Layout {
         let mut out = BuiltLayout::default();
         for layer in &self.layers {
             let base = Vec3::new(layer.at[0] as f32, layer.y, layer.at[1] as f32);
+            // Zone rectangles: (c0, c1, r0, r1, def), merged across columns and rows.
+            let mut rects: Vec<(usize, usize, usize, usize, &ZoneDef)> = Vec::new();
+            let mut brects: Vec<(usize, usize, usize, usize, &Piece)> = Vec::new();
             for (r, row) in rows(&layer.map).iter().enumerate() {
+                let mut zruns: Vec<(usize, usize, &ZoneDef)> = Vec::new();
                 // Collect (column, piece) runs so identical neighbours merge into one block.
                 let mut runs: Vec<(usize, usize, &Piece)> = Vec::new();
                 for (c, ch) in row.chars().enumerate() {
@@ -274,31 +362,82 @@ impl Layout {
                     if let Some(m) = &def.marker {
                         out.markers.push((m.clone(), place.point(cell + Vec3::new(0.5, 0.0, 0.5))));
                     }
+                    if let Some(z) = &def.zone {
+                        match zruns.last_mut() {
+                            Some(run) if run.1 == c && run.2 == z => run.1 = c + 1,
+                            _ => zruns.push((c, c + 1, z)),
+                        }
+                    }
+                    if let Some(l) = &def.label {
+                        let local = cell + Vec3::new(0.5, l.y, 0.5);
+                        let label = l.to_label(place, local);
+                        if let Some(k) = region.or(Some(RegionKey::chunk_of(label.pos))) {
+                            sim.state.statics.add_label_to(k, label);
+                        }
+                    }
                 }
-                let z = base.z + r as f32;
+                for (c0, c1, z) in zruns {
+                    match rects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == z) {
+                        Some(q) => q.3 = r + 1,
+                        None => rects.push((c0, c1, r, r + 1, z)),
+                    }
+                }
                 for (c0, c1, p) in runs {
-                    let i = p.inset;
-                    let (min, max) = place.aabb(
-                        Vec3::new(base.x + c0 as f32 + i, base.y + p.y0, z + i),
-                        Vec3::new(base.x + c1 as f32 - i, base.y + p.y1, z + 1.0 - i),
-                    );
-                    let mut b = Block::new(min, max, Color::hex(&p.color)).with_look(p.look);
-                    if p.destructible {
-                        b = b.with_flags(block_flags::DESTRUCTIBLE);
+                    // Merge with the same run on the row above (not for destructible tiles).
+                    match brects.iter_mut().find(|q| q.0 == c0 && q.1 == c1 && q.3 == r && q.4 == p && !p.destructible) {
+                        Some(q) => q.3 = r + 1,
+                        None => brects.push((c0, c1, r, r + 1, p)),
                     }
-                    if p.rounded {
-                        b = b.with_flags(block_flags::ROUNDED);
-                    }
-                    if p.ghost {
-                        b = b.with_flags(block_flags::GHOST);
-                    }
-                    let st = &mut sim.state;
-                    match region {
-                        Some(k) => st.statics.add_to(&mut st.physics, k, b),
-                        None => st.statics.add(&mut st.physics, b),
-                    };
-                    out.blocks += 1;
                 }
+            }
+            for (c0, c1, r0, r1, p) in brects {
+                let i = p.inset;
+                let (min, max) = place.aabb(
+                    Vec3::new(base.x + c0 as f32 + i, base.y + p.y0, base.z + r0 as f32 + i),
+                    Vec3::new(base.x + c1 as f32 - i, base.y + p.y1, base.z + r1 as f32 - i),
+                );
+                let mut b = Block::new(min, max, Color::hex(&p.color)).with_look(p.look);
+                if p.destructible {
+                    b = b.with_flags(block_flags::DESTRUCTIBLE);
+                }
+                if p.rounded {
+                    b = b.with_flags(block_flags::ROUNDED);
+                }
+                if p.ghost {
+                    b = b.with_flags(block_flags::GHOST);
+                }
+                let st = &mut sim.state;
+                match region {
+                    Some(k) => st.statics.add_to(&mut st.physics, k, b),
+                    None => st.statics.add(&mut st.physics, b),
+                };
+                out.blocks += 1;
+            }
+            for (c0, c1, r0, r1, z) in rects {
+                let (min, max) = place.aabb(
+                    Vec3::new(base.x + c0 as f32, base.y + z.y0, base.z + r0 as f32),
+                    Vec3::new(base.x + c1 as f32, base.y + z.y1, base.z + r1 as f32),
+                );
+                let color = match z.color.as_deref() {
+                    Some("none") => None,
+                    Some(c) => Color::try_hex(c),
+                    None => default_zone_color(z.kind),
+                };
+                let zone = Zone {
+                    min,
+                    max,
+                    kind: z.kind,
+                    course: z.course.clone(),
+                    index: z.index,
+                    params: z.params.clone(),
+                    camera: z.camera.clone(),
+                    label: z.label.clone(),
+                    color,
+                    facing: z.facing.map(|f| place.facing(f)),
+                };
+                let key = region.unwrap_or(RegionKey::chunk_of(zone.center()));
+                sim.state.statics.add_zone_to(key, zone);
+                out.zones += 1;
             }
         }
         out

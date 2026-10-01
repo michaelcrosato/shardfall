@@ -64,6 +64,17 @@ struct GpuSdfInstance {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
+struct GpuGlyph {
+    corner: [f32; 4],
+    ax: [f32; 4],
+    ay: [f32; 4],
+    uv: [f32; 4],
+    color: [f32; 4],
+    params: [u32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 struct PostUniform {
     inv_proj: [[f32; 4]; 4],
     outline_color: [f32; 4],
@@ -129,6 +140,7 @@ impl DynBuffer {
 pub struct RenderStats {
     pub mesh_instances: usize,
     pub sdf_instances: usize,
+    pub glyphs: usize,
     pub draw_calls: usize,
     pub meshes_loaded: usize,
 }
@@ -157,6 +169,10 @@ pub struct Renderer {
     targets: Option<FrameTargets>,
     mesh_instances: DynBuffer,
     sdf_instances: DynBuffer,
+    text_pipeline: wgpu::RenderPipeline,
+    text_bg: wgpu::BindGroup,
+    text_instances: DynBuffer,
+    atlas: crate::text::FontAtlas,
     frame: u64,
     pub stats: RenderStats,
 }
@@ -186,6 +202,17 @@ fn sdf_layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x4, 3 => Uint32x4];
     wgpu::VertexBufferLayout {
         array_stride: std::mem::size_of::<GpuSdfInstance>() as u64,
+        step_mode: wgpu::VertexStepMode::Instance,
+        attributes: &ATTR,
+    }
+}
+
+fn glyph_layout() -> wgpu::VertexBufferLayout<'static> {
+    const ATTR: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+        0 => Float32x4, 1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32x4, 5 => Uint32x4
+    ];
+    wgpu::VertexBufferLayout {
+        array_stride: std::mem::size_of::<GpuGlyph>() as u64,
         step_mode: wgpu::VertexStepMode::Instance,
         attributes: &ATTR,
     }
@@ -462,6 +489,94 @@ impl Renderer {
             mapped_at_creation: false,
         });
 
+        // Text: SDF font atlas + an alpha-to-coverage pipeline.
+        let atlas = crate::text::FontAtlas::new();
+        let atlas_tex = device.create_texture_with_data(
+            queue,
+            &wgpu::TextureDescriptor {
+                label: Some("font atlas"),
+                size: wgpu::Extent3d { width: atlas.width, height: atlas.height, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::R8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::LayerMajor,
+            &atlas.pixels,
+        );
+        let atlas_view = atlas_tex.create_view(&Default::default());
+        let atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("font sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+        let text_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("text"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let text_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("text"),
+            layout: &text_layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&atlas_view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&atlas_sampler) },
+            ],
+        });
+        let text_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("text"),
+            bind_group_layouts: &[Some(&globals_layout), Some(&text_layout)],
+            immediate_size: 0,
+        });
+        let glyph_buffers = [glyph_layout()];
+        let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("text"),
+            layout: Some(&text_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &scene_shader,
+                entry_point: Some("vs_text"),
+                compilation_options: Default::default(),
+                buffers: &[Some(glyph_buffers[0].clone())],
+            },
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                stencil: Default::default(),
+                bias: wgpu::DepthBiasState { constant: -4, slope_scale: -1.0, clamp: 0.0 },
+            }),
+            multisample: wgpu::MultisampleState { count: SAMPLES, mask: !0, alpha_to_coverage_enabled: true },
+            fragment: Some(wgpu::FragmentState {
+                module: &scene_shader,
+                entry_point: Some("fs_text"),
+                compilation_options: Default::default(),
+                targets: &color_targets,
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+        let text_instances = DynBuffer::new(device, "glyphs", wgpu::BufferUsages::VERTEX, 16 * 1024);
+
         let mesh_instances = DynBuffer::new(device, "mesh instances", wgpu::BufferUsages::VERTEX, 64 * 1024);
         let sdf_instances = DynBuffer::new(device, "sdf instances", wgpu::BufferUsages::VERTEX, 16 * 1024);
 
@@ -489,6 +604,10 @@ impl Renderer {
             targets: None,
             mesh_instances,
             sdf_instances,
+            text_pipeline,
+            text_bg,
+            text_instances,
+            atlas,
             frame: 0,
             stats: RenderStats::default(),
         }
@@ -766,6 +885,28 @@ impl Renderer {
         let sdf_shadow_end = gpu_sdfs.len() as u32;
         self.sdf_instances.write(&self.device, &self.queue, bytemuck::cast_slice(&gpu_sdfs));
 
+        let mut quads = Vec::new();
+        let mut gpu_glyphs: Vec<GpuGlyph> = Vec::new();
+        for t in &scene.texts {
+            quads.clear();
+            crate::text::layout(&self.atlas, t, &mut quads);
+            let n = t.right.cross(t.up).normalize_or(Vec3::Y);
+            for q in &quads {
+                gpu_glyphs.push(GpuGlyph {
+                    corner: q.corner.extend(n.x).to_array(),
+                    ax: q.ax.extend(n.y).to_array(),
+                    ay: q.ay.extend(n.z).to_array(),
+                    uv: q.uv,
+                    color: t.color.extend(t.weight).to_array(),
+                    params: [t.flags, 0x7f0, 0, 0],
+                });
+            }
+        }
+        let glyph_count = gpu_glyphs.len() as u32;
+        if glyph_count > 0 {
+            self.text_instances.write(&self.device, &self.queue, bytemuck::cast_slice(&gpu_glyphs));
+        }
+
         let mut draw_calls = 0;
 
         // 1. Shadow pass.
@@ -855,6 +996,13 @@ impl Renderer {
                 pass.draw(0..36, 0..sdf_count);
                 draw_calls += 1;
             }
+            if glyph_count > 0 {
+                pass.set_pipeline(&self.text_pipeline);
+                pass.set_bind_group(1, &self.text_bg, &[]);
+                pass.set_vertex_buffer(0, self.text_instances.buf.slice(..));
+                pass.draw(0..6, 0..glyph_count);
+                draw_calls += 1;
+            }
         }
 
         // 3. Composite.
@@ -905,6 +1053,7 @@ impl Renderer {
         self.stats = RenderStats {
             mesh_instances: order.len(),
             sdf_instances: sdf_count as usize,
+            glyphs: glyph_count as usize,
             draw_calls,
             meshes_loaded: self.meshes.len(),
         };

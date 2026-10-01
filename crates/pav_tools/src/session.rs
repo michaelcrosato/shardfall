@@ -19,6 +19,9 @@ pub struct Session {
     pub input: InputFrame,
     pub gpu: Option<Gpu>,
     pub prev_frame: RenderFrame,
+    /// Room whose camera defaults were applied last, and the camera before entering it.
+    room_cam: Option<(u16, CameraParams)>,
+    cue_serial: u64,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -42,7 +45,18 @@ impl Session {
         let mut camera = CameraRig::default();
         camera.snap(sim.state.focus);
         let prev_frame = sim.frame();
-        Ok(Self { sim, camera, view: ViewSettings::default(), input: InputFrame::default(), gpu: None, prev_frame })
+        let mut s = Self {
+            sim,
+            camera,
+            view: ViewSettings::default(),
+            input: InputFrame::default(),
+            gpu: None,
+            prev_frame,
+            room_cam: None,
+            cue_serial: 0,
+        };
+        s.sync_camera();
+        Ok(s)
     }
 
     pub fn params(&mut self) -> ParamsRoot<'_> {
@@ -64,6 +78,41 @@ impl Session {
             self.input.pressed = 0;
         }
         self.sim.drain_events();
+        self.sync_camera();
+    }
+
+    /// Applies a room's camera defaults when the player enters/leaves it, and level camera
+    /// cues, the way the game does (without blending). Called after every step.
+    pub fn sync_camera(&mut self) {
+        use pav_core::params::{ParamValue, apply_map};
+        let w = &self.sim.state.world;
+        let now = w.current_room;
+        let rot = |yaw: f64, q: u8| ParamValue::Float((yaw + q as f64 * 90.0 + 540.0).rem_euclid(360.0) - 180.0);
+        if now != self.room_cam.as_ref().map(|r| r.0) {
+            if let Some((_, saved)) = self.room_cam.take() {
+                self.camera.params = saved;
+            }
+            if let Some(r) = now.and_then(|i| w.rooms.get(i as usize)).filter(|r| !r.def.camera.is_empty()) {
+                let saved = self.camera.params.clone();
+                let mut cam = r.def.camera.clone();
+                let yaw = cam.get("yaw").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                cam.insert("yaw".into(), rot(yaw, r.place.quarters));
+                apply_map(&mut self.camera.params, &cam);
+                self.room_cam = Some((r.id, saved));
+            }
+        }
+        let c = &self.sim.state.courses;
+        if c.cue_serial != self.cue_serial {
+            self.cue_serial = c.cue_serial;
+            if let Some(cue) = c.cue() {
+                let q = now.and_then(|i| w.rooms.get(i as usize)).map(|r| r.place.quarters).unwrap_or(0);
+                let mut set = cue.set.clone();
+                if let Some(y) = set.get("yaw").and_then(|v| v.as_f64()) {
+                    set.insert("yaw".into(), rot(y, q));
+                }
+                apply_map(&mut self.camera.params, &set);
+            }
+        }
     }
 
     /// Renders the current state to RGBA8 pixels.

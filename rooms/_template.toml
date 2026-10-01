@@ -8,7 +8,8 @@ try = ["Something to try", "Something else"]
 wing = "misc"                 # movement | physics | animation | vfx | aesthetic | genre | misc
 order = 10                    # position within the wing
 primary_device = "keyboard_mouse"   # or "gamepad"
-# movement_model = "momentum" # instant | momentum (applied while inside)
+# movement_model = "momentum" # instant | momentum | grid | committed (applied while inside)
+# overlays = ["feel"]         # HUD overlays opened while inside (feel metrics)
 entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, and the way out
 
 # Optional: camera defaults while inside (camera parameter names).
@@ -30,7 +31,7 @@ entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, a
 origin = [-5.0, 0.0, -5.0]
 
 [[layout.layer]]
-y = 0
+y = 0                         # more layers = more floors (add at = [col, row] to offset one)
 map = '''
 ###########
 #.........#
@@ -58,6 +59,27 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 # ladder = { facing = "north", height = 3.0 },
 # prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a" },
 # marker = "player"
+# label = { text = "HELLO", size = 0.5, color = "#2b2d35", mode = "floor" }   (text on the tile)
+#
+# zone = { kind = "...", ... } makes the tile a trigger (identical neighbours merge):
+#   kind = "start" | "finish" | "gate" | "checkpoint" | "kill" | "water" | "pad" | "camera"
+#   course = "name"   start/finish/gates of one course share it; leaving START starts the timer,
+#                     gates must be passed in `index` order (missed gate = +2 s), FINISH stops it
+#   index = 1         gate order
+#   y0 = 0, y1 = 3    height range relative to the layer (kill zones in pits: e.g. y0 = -3, y1 = -1)
+#   label = "TEXT"    drawn on the floor; color = "#rrggbb" or "none"; facing = "east" (respawn)
+#   params = { "movement.model" = "momentum" }       pads: parameter changes until you leave
+#   camera = { set = { tilt = 90, ortho = true }, sweep = [{ param = "tilt", from = 90,
+#              to = 10, period = 12 }], flip_ortho = 6 }  pads (sticky) / camera zones (inside)
+#   water: swim below y1. kill: back to the last checkpoint.
+
+# Free text anywhere (layout space: x = column, y = height, z = row).
+# [[label]]
+# text = "SIGN"
+# pos = [5.0, 0.03, 3.0]
+# size = 0.6
+# mode = "floor"            # floor (turns to the camera) | wall (faces `facing`) | billboard
+# facing = "south"
 
 # Free-placed objects (keep them at the end of the file; edit mode rewrites this part).
 [[object]]
@@ -66,3 +88,16 @@ shape = { type = "sphere", radius = 0.4 }
 pos = [3.5, 1.0, 3.5]           # x = column, y = height, z = row
 color = "#5b8def"
 body = "dynamic"                # dynamic | fixed | kinematic | none
+
+# Animated objects use body = "kinematic" and a behavior (vectors are in the object's own frame):
+#   behavior = { type = "move", offset = [0, 0, 4], period = 4, phase = 0, hold = 0.3, smooth = true }
+#   behavior = { type = "rotate", axis = [0, 1, 0], speed = 90 }                   (deg/s)
+#   behavior = { type = "rotate", axis = [1, 0, 0], swing = 60, period = 2, pivot = [0, 2, 0] }
+#   behavior = { type = "spin", speed = 1.5 }                                       (rad/s)
+# Projectile emitters (body = "none" or "fixed"):
+#   behavior = { type = "emitter", pattern = "aimed", interval = 1.0, count = 1, spread = 0,
+#                speed = 6, radius = 0.15, height = 0, range = 30, delay = 0, burst = 0, pause = 1,
+#                color = "#ff5a3c", knockback = 6, gravity = 0, spin = 12, life = 6 }
+#     pattern: aimed (at the player) | forward (+Z of the object, see yaw) | ring | spiral | random
+# Touching a hazard knocks you back (respawn = true sends you to the last checkpoint):
+#   hazard = { knockback = 7, respawn = false }

@@ -9,9 +9,11 @@ use pav_core::params::{ChoiceParam, ParamVisitor, Tunable, nested};
 use pav_core::puppet::PuppetDef;
 use pav_core::statics::Ladder;
 use pav_core::statics::{ChunkKey, block_flags};
+use pav_core::zones::{Label, LabelMode, Zone, ZoneKind};
 use pav_core::{Color, Look, RenderFrame, RenderObject, Shape, choice_enum};
 use pav_render::mesh::{MeshData, Vertex};
 use pav_render::scene::{self as rs, MeshInstance, MeshKey, Scene, SdfInstance, Style, Tonemap};
+use pav_render::text::{Anchor, Text3d};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::CameraRig;
@@ -392,6 +394,9 @@ impl ViewBuilder {
                     let style = style_of(d.look, settings.style);
                     emit_shape(&mut list, &mut sdfs, &mut lights, &d.shape, d.pos, d.rot, v3(d.color), d.emissive, style, 1, 0);
                 }
+                for z in &chunk.zones {
+                    emit_zone(&mut list, z, settings.style);
+                }
                 let terrain = chunk.terrain.as_ref().map(|t| {
                     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
                     for x in [t.cx as i64 as u64, t.cz as i64 as u64, chunk.version] {
@@ -403,6 +408,22 @@ impl ViewBuilder {
                     *key,
                     RegionCache { version: chunk.version, style: settings.style, meshes: list, sdfs, lights, terrain },
                 );
+            }
+            for l in &chunk.labels {
+                emit_label(&mut scene.texts, l, rig);
+            }
+            for z in chunk.zones.iter().filter(|z| !z.label.is_empty() || (z.kind == ZoneKind::Start && z.color.is_some())) {
+                let text = if !z.label.is_empty() { z.label.clone() } else { "START".into() };
+                let (w, d) = (z.max.x - z.min.x, z.max.z - z.min.z);
+                let label = Label {
+                    text,
+                    pos: z.floor_center() + Vec3::Y * 0.035,
+                    size: (w.min(d) * 0.32).clamp(0.25, 0.7),
+                    color: if z.kind == ZoneKind::Finish { Color::hex("#1d1f24") } else { Color::hex("#f6f3ea") },
+                    mode: LabelMode::Floor,
+                    facing: Default::default(),
+                };
+                emit_label(&mut scene.texts, &label, rig);
             }
             let c = &self.static_cache[key];
             scene.meshes.extend_from_slice(&c.meshes);
@@ -441,9 +462,93 @@ impl ViewBuilder {
                 None => emit_object(&mut scene, &o, settings.style, now),
             }
         }
+        // Projectiles: drawn where they are between ticks (they move in straight lines).
+        let back = (1.0 - alpha) * curr.dt;
+        for p in &curr.projectiles {
+            let mut sd = SdfInstance::sphere(p.pos - p.vel * back, p.radius, v3(p.color));
+            sd.style = Style::Unlit;
+            sd.emissive = 0.6;
+            sd.flags = rs::flags::NO_SHADOW | rs::flags::NO_CUT;
+            sd.group = 0x7f1;
+            scene.sdfs.push(sd);
+        }
         self.emit_effects(&mut scene);
         scene
     }
+}
+
+/// Floor markings, water surfaces and checkpoint flags for a zone.
+fn emit_zone(list: &mut Vec<MeshInstance>, z: &Zone, ov: StyleOverride) {
+    let Some(color) = z.color else { return };
+    let size = z.max - z.min;
+    let mut push = |center: Vec3, scale: Vec3, color: Vec3, style: Style, flags: u32| {
+        list.push(MeshInstance {
+            mesh: MeshKey::Cube,
+            transform: Mat4::from_scale_rotation_translation(scale, Quat::IDENTITY, center),
+            color,
+            emissive: 0.0,
+            style,
+            flags,
+            group: 1,
+        })
+    };
+    let floor = Vec3::new((z.min.x + z.max.x) * 0.5, z.min.y + 0.012, (z.min.z + z.max.z) * 0.5);
+    let decal = Vec3::new(size.x - 0.08, 0.02, size.z - 0.08);
+    match z.kind {
+        ZoneKind::Water => {
+            let top = Vec3::new(floor.x, z.max.y - 0.04, floor.z);
+            push(top, Vec3::new(size.x, 0.06, size.z), v3(color), style_of(Look::Flat, ov), rs::flags::NO_SHADOW);
+        }
+        ZoneKind::Finish => {
+            // Checkerboard.
+            let n = ((size.x / 0.5).round() as i32).max(1);
+            let m = ((size.z / 0.5).round() as i32).max(1);
+            let (cw, cd) = (size.x / n as f32, size.z / m as f32);
+            for i in 0..n {
+                for j in 0..m {
+                    let c = if (i + j) % 2 == 0 { v3(color) } else { Vec3::splat(0.02) };
+                    let p = Vec3::new(z.min.x + (i as f32 + 0.5) * cw, floor.y, z.min.z + (j as f32 + 0.5) * cd);
+                    push(p, Vec3::new(cw, 0.02, cd), c, Style::Flat, rs::flags::NO_SHADOW);
+                }
+            }
+        }
+        ZoneKind::Checkpoint => {
+            push(floor, decal, v3(color), style_of(Look::Flat, ov), rs::flags::NO_SHADOW);
+            // A little flag on a pole at the zone's corner.
+            let base = Vec3::new(z.min.x + 0.15, z.min.y, z.min.z + 0.15);
+            push(base + Vec3::Y * 0.8, Vec3::new(0.05, 1.6, 0.05), Vec3::splat(0.2), Style::Cel, 0);
+            push(base + Vec3::new(0.2, 1.42, 0.0), Vec3::new(0.38, 0.26, 0.03), v3(color), Style::Cel, 0);
+        }
+        _ => push(floor, decal, v3(color), style_of(Look::Flat, ov), rs::flags::NO_SHADOW),
+    }
+}
+
+/// A label as renderer text, oriented for the current camera.
+fn emit_label(out: &mut Vec<Text3d>, l: &Label, rig: &CameraRig) {
+    let (fwd, right) = rig.ground_axes();
+    let (r, u) = match l.mode {
+        LabelMode::Floor => (right, fwd),
+        LabelMode::Wall => {
+            let n = l.facing.dir();
+            (Vec3::Y.cross(n).normalize_or(Vec3::X), Vec3::Y)
+        }
+        LabelMode::Billboard => {
+            let f = rig.forward();
+            let r = f.cross(Vec3::Y).normalize_or(right);
+            (r, r.cross(f).normalize_or(Vec3::Y))
+        }
+    };
+    out.push(Text3d {
+        text: l.text.clone(),
+        origin: l.pos,
+        right: r,
+        up: u,
+        size: l.size,
+        color: v3(l.color),
+        anchor: Anchor::Center,
+        flags: 0,
+        weight: 0.04,
+    });
 }
 
 /// Ladder: two rails and rungs against the wall.

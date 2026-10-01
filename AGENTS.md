@@ -20,11 +20,16 @@ crates/
               static regions (statics.rs: terrain chunks, rooms, hub; active or dormant),
               world.rs (pavilion layout, streaming, room tracking), room.rs (room files),
               terrain.rs (procedural wilderness), tile levels (level.rs), characters
-              (character.rs: movement models, jump, crouch/crawl, ladders, bombs), puppet
-              (puppet.rs: skeleton + procedural animation), history (rewind, replays), params
+              (character.rs: movement models instant/momentum/grid/committed, jump,
+              crouch/crawl, ladders, ledge grab/mantle, swimming, axis lock, moving platforms,
+              knockback, bombs), puppet (puppet.rs: skeleton + procedural animation),
+              zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
+              pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters),
+              projectile.rs (lightweight bullets), feel.rs (feel metrics), history, params
   pav_render  wgpu renderer (Vulkan/DX12): Scene description -> shadow pass -> MSAA scene
               pass -> composite (outlines, tonemap). Procedural meshes + analytic SDF
-              spheres/capsules/rounded cones. Offscreen capture -> PNG.
+              spheres/capsules/rounded cones, SDF-font text in the world (text.rs).
+              Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
@@ -76,7 +81,11 @@ printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\
 ```
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
-room_reset room_check room_reload stream filmstrip audio_capture` (`pav help` for args).
+room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`
+(`pav help` for args).
+- `course` shows the running course timer, gates, hits, falls, last result and best times;
+  `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
+- `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
 - `filmstrip` tiles N frames (optionally while driving the player) into one PNG: the cheapest
   way to check motion and animation. `audio_capture` renders a session's sounds to .wav.
 - `stream point=[x,y,z]` adds a streaming interest point (agents exploring the world).
@@ -93,8 +102,10 @@ Write `fn t_name(s: &mut Session, a: &Args) -> Result<Output>` in `crates/pav_to
 and add a `Tool { .. }` entry to `TOOLS`. It is automatically in the CLI, REPL and MCP.
 
 ### Adding a room (preferred: data only, no rebuild)
-Copy `rooms/_template.toml` to `rooms/<key>.toml` and edit. It appears in the pavilion on its
-wing's corridor (auto-placed and rotated so its entrance faces the corridor). Check it with
+Copy `rooms/_template.toml` to `rooms/<key>.toml` and edit (the template documents every
+field: layers, legend blocks, ladders, props, zones, labels, objects with move/rotate/emitter
+behaviours and hazards; `rooms/feel_lab.toml` is a full example). It appears in the pavilion on
+its wing's corridor (auto-placed and rotated so its entrance faces the corridor). Check it with
 `pav room_check path=rooms/<key>.toml`, look at it with `pav capture scene=<key>` (the room
 alone, fast) or `printf 'load scene=world\ngoto room=<key>\ncapture\n' | pav repl`. The running
 game hot-reloads room files. New *mechanics* are Rust (character.rs / sim.rs behaviours /
@@ -106,8 +117,10 @@ entity fields); keep rooms as data wherever possible.
 
 ## Game controls (current)
 Keyboard+mouse: WASD move, Space jump (hold = higher), C/Ctrl crouch, Z crawl toggle, F or left
-click throw bomb at the cursor, Shift walk slowly, walk into ladders to climb; right-drag rotate
-camera, wheel zoom, 1–8 camera presets. Gamepad: left stick move, right stick aim, A jump,
+click throw bomb at the cursor, Shift walk slowly, walk into ladders to climb, jump at a ledge
+and keep pushing toward it to grab it (push again/Space = pull up, C = drop), Space/C swim up/down,
+committed model: C while running = dodge roll; right-drag rotate camera, wheel zoom, 1–8 camera
+presets. Gamepad: left stick move, right stick aim, A jump,
 B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
 
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
@@ -117,10 +130,16 @@ Rooms may remap game keys while you are inside (`[keys]` in the room file); syst
 
 ## Tests
 `cargo test` includes `crates/pav_core/tests/gameplay.rs` (walk, jump onto a crate, climb the
-ladder, bomb the floor and drop through, crawl the tunnel, rewind repeatability, snapshot files)
-and `tests/world.rs` (pavilion layout, streaming, props persisting while dormant, room
-enter/exit/reset, overrides, saved-object round trip).
+ladder, bomb the floor and drop through, crawl the tunnel, rewind repeatability, snapshot files),
+`tests/world.rs` (pavilion layout, streaming, props persisting while dormant, room
+enter/exit/reset, overrides, saved-object round trip) and `tests/movement.rs` (courses, pads,
+ledge grab, swimming, pits, grid/committed models, projectiles, moving platforms, hazards).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
+
+## Disk space
+Cloud containers have a fixed disk allowance. Dev builds use line-table debug info and no
+incremental cache; if the disk fills up anyway, delete stale binaries in `target/debug/deps`
+(or run `cargo clean`).
 
 ## Conventions
 - Rust stable pinned in `rust-toolchain.toml`; `Cargo.lock` committed; edition 2024.

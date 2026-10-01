@@ -68,6 +68,10 @@ pub struct Shared {
     pub crashed: Mutex<Option<String>>,
     /// Events for sound and effects, drained by the render thread.
     pub events: Mutex<Vec<SimEvent>>,
+    /// When the input that is waiting for the next tick was pressed (latency measurement).
+    pub input_stamp: Mutex<Option<Instant>>,
+    /// (pressed, consumed by a tick, that tick's number) for the latest measured press.
+    pub latency_probe: Mutex<Option<(Instant, Instant, u64)>>,
 }
 
 pub struct SimHost {
@@ -86,6 +90,8 @@ impl SimHost {
             stats: Mutex::new(SimStats::default()),
             crashed: Mutex::new(None),
             events: Mutex::new(Vec::new()),
+            input_stamp: Mutex::new(None),
+            latency_probe: Mutex::new(None),
         });
         let (tx, rx) = channel();
         let sh = shared.clone();
@@ -191,9 +197,13 @@ fn run(mut sim: Sim, rx: Receiver<Cmd>, sh: Arc<Shared>) {
                 i.pressed = 0;
                 frame
             };
+            let stamp = sh.input_stamp.lock().unwrap().take();
             let t = Instant::now();
             sim.step(&input);
             busy += t.elapsed();
+            if let Some(s) = stamp {
+                *sh.latency_probe.lock().unwrap() = Some((s, Instant::now(), sim.state.tick));
+            }
             window_ticks += 1;
             publish(sim, &sh, tick_wall, at);
         };

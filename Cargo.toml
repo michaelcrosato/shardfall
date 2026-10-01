@@ -8,6 +8,8 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
+ab_glyph = "0.2"
+epaint_default_fonts = "0.36"
 pav_core = { path = "crates/pav_core" }
 pav_render = { path = "crates/pav_render" }
 pav_view = { path = "crates/pav_view" }
@@ -35,9 +37,14 @@ pollster = "1"
 
 [profile.dev]
 opt-level = 1
+# Keeps the target folder small (cloud containers have a fixed disk allowance); backtraces
+# still show file:line.
+debug = "line-tables-only"
+incremental = false
 
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
 
 [profile.release]
 debug = "line-tables-only"

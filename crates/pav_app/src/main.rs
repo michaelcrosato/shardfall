@@ -5,6 +5,7 @@ mod app;
 mod boot;
 mod edit;
 mod gfx;
+mod hud;
 mod input;
 mod panel;
 mod platform;
