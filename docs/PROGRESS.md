@@ -6,6 +6,65 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Pavilion Lite: the compact engine for AI agents — 2026-10-02
+- New folder `pavilion-lite/`: the essential engine as ONE self-contained Cargo package (its
+  own workspace, lockfile and docs; about 7,000 lines) to hand to other AI agents. It builds
+  with plain `cargo build` on Rust 1.89+ and needs no system packages for headless use.
+  `pavilion-lite/package.sh` makes `dist/pavilion-lite.tar.gz` / `.zip` (~110 KB, source only).
+- Kept (compact rewrites of pav_core/pav_tools ideas): fixed 60 Hz deterministic sim with
+  snapshots, rewind and input replays + state hash; rapier3d physics; the kinematic character
+  controller (instant/momentum models, coyote/buffered/variable jumps, steps, slopes, moving
+  platforms, pushing props, knockback, dash, axis lock); procedural puppets (biped, blob,
+  beast; held items; act poses); ASCII TOML levels (top-down `xz` and new side-view `xy`
+  planes, merged blocks, spawns, triggers, markers, movers, `[params]`); triggers, lightweight
+  projectiles with teams/damage/knockback, hp/invulnerability, sparks, screen shake; grid A*;
+  `Tunable` params by path; one tool registry as CLI, REPL and MCP (24 tools, incl. `capture
+  marks=true`, `filmstrip`, `ascii`, `autoplay` bots, `record`/`replay`, `level_check`).
+- Dropped: wgpu renderer, egui panels, audio, gamepad, streaming world, rooms/pavilion, soft
+  bodies/joints/vehicles, Shardfall. Games are Rust modules implementing a small `Game`
+  trait (setup/update/draw/status/params/bot), registered in `src/games/mod.rs`.
+- Sample games with bots and tests: `template`, `platformer` (side view, bot finishes in
+  ~13 s), `arena` (twin-stick waves, bot reaches wave 3+ in 60 s).
+- Verified: 19 tests (engine units, every game runs/draws/rewinds/replays exactly, every tool
+  end to end, bots win); clippy clean with and without the window; MCP over stdio; the window
+  under Xvfb; a fresh extraction outside the repo builds and passes on Rust 1.97 and checks on
+  1.89. Speed: 15k-80k ticks/s; 640x360 capture ~7 ms, 1280x720 ~18 ms on 4 cores.
+
+- Fresh-agent dry run (another model, only the package and AGENTS.md): it built "Key Hunt"
+  (six-room dungeon, keys, gate, slimes, bot, 3 tests; ~580 lines, zero compile errors, bot
+  wins 40/40 seeds) in ~25 minutes and listed 13 friction points. All fixed: nav grid no
+  longer sees characters as holes (`ground_at` ignores characters/props), nearest walkable
+  path start, NPC input resets each tick, unknown tool arguments are errors, REPL quoting,
+  `ascii` snaps to cells, `rewind` reports its reach, `marks=` kind filter, `autoplay`
+  `until=`/`trace=`/`seeds=` sweeps, hidden level spawns, `player_entered`, fuller API docs.
+- Second dry run (a smaller model, a side-view "Tower Climb"): it built and registered a
+  working game with passing tests, but its bot couldn't reach the top: platforms stacked
+  straight up made the player bump its head, and the level put ledges exactly at the jump
+  apex. Added one-way platforms (`oneway = true` / `Spawn::oneway()`), a `reach` readout in
+  `status` (jump height, air time, jump length), jump-math and "don't weaken the bot test"
+  guidance, and a clearer side-view description (the map reads like a picture). The sample
+  platformer now uses one-way planks; its bot predicts landings and brakes mid-air instead
+  of hopping into the pit (wins in 11.8 s, 1 death).
+- Idle characters on static ground skip rapier's controller (one raycast): 30 idle walkers
+  851 -> 5565 ticks/s; buried under 200 crates 80 -> 460 ticks/s.
+
+## Decisions (Pavilion Lite)
+- **CPU renderer instead of wgpu**: agent sandboxes rarely have a Vulkan driver; a software
+  rasteriser (boxes/cylinders as triangles, spheres and tapered capsules ray-traced per pixel,
+  sun shadow map, cel/lit/flat/glow, outlines, fog, 8x8 bitmap font) makes screenshots work
+  everywhere and keeps the package dependency-light. The window shows the same images
+  through winit + softbuffer (no GPU).
+- **One Cargo package**: engine = library, games = modules of the `pav` binary (editing a game
+  recompiles only the binary). The package is its own workspace so it builds the same inside
+  this repo or alone.
+- **Single entity struct + game-owned side tables** (like Shardfall's actors): enemies' brains
+  live in the game struct keyed by entity id, so snapshots stay one clone.
+- **Events are read one tick later** (`w.events` in `update`), giving game code one simple
+  hook instead of pre/post callbacks.
+- Characters' `pos` is their feet; colliders become queryable at spawn (`set_aabb`), so
+  raycasts work in `setup` before the first physics step.
+- MSRV 1.89 (nalgebra/wide via rapier 0.36); no pinned toolchain in the package.
+
 ## Shardfall naming and Vercel deployment — 2026-10-01
 - Renamed the GitHub repository to `michaelcrosato/shardfall` and updated the local remote.
   `main` remains the default; repository visibility remains private. Shardfall is the app

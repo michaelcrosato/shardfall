@@ -10,6 +10,8 @@ Play [Shardfall](https://shardfall-eight.vercel.app), or open the
 [Pavilion tech demo](https://shardfall-eight.vercel.app/?scene=world). Use recent Chrome
 or Edge with WebGPU and hardware acceleration enabled.
 
+- Compact engine for AI agents: [`pavilion-lite/`](pavilion-lite/) (one Cargo package, CPU
+  renderer, agent tools, sample games; `pavilion-lite/package.sh` makes the handoff archive).
 - Linux agent handoff: [`START_HERE.md`](START_HERE.md). Run `scripts/package-agent.sh`
   to create a standalone source archive and checksum in `out/agent/`.
 - Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state and decisions:
