@@ -30,6 +30,16 @@ tools (`levelmap`, `see`, `campaign`, `turntable def=`).
   under Xvfb; a fresh extraction outside the repo builds and passes on Rust 1.97 and checks on
   1.89. Speed: 15k-80k ticks/s; 640x360 capture ~7 ms, 1280x720 ~18 ms on 4 cores.
 
+- Fresh-agent dry run (another model, only the package and AGENTS.md): it built "Key Hunt"
+  (six-room dungeon, keys, gate, slimes, bot, 3 tests; ~580 lines, zero compile errors, bot
+  wins 40/40 seeds) in ~25 minutes and listed 13 friction points. All fixed: nav grid no
+  longer sees characters as holes (`ground_at` ignores characters/props), nearest walkable
+  path start, NPC input resets each tick, unknown tool arguments are errors, REPL quoting,
+  `ascii` snaps to cells, `rewind` reports its reach, `marks=` kind filter, `autoplay`
+  `until=`/`trace=`/`seeds=` sweeps, hidden level spawns, `player_entered`, fuller API docs.
+- Idle characters on static ground skip rapier's controller (one raycast): 30 idle walkers
+  851 -> 5565 ticks/s; buried under 200 crates 80 -> 460 ticks/s.
+
 ## Decisions (Pavilion Lite)
 - **CPU renderer instead of wgpu**: agent sandboxes rarely have a Vulkan driver; a software
   rasteriser (boxes/cylinders as triangles, spheres and tapered capsules ray-traced per pixel,
