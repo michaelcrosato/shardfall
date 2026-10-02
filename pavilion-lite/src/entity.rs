@@ -158,6 +158,8 @@ pub struct Entity {
     pub flash: f32,
     /// Seconds during which damage is ignored (dodges, mercy time after a hit).
     pub invuln: f32,
+    /// One-way platform: characters jump up through it from below and land on its top.
+    pub oneway: bool,
     /// Seconds until the entity removes itself.
     pub life: Option<f32>,
     pub mover: Option<Mover>,
@@ -208,6 +210,7 @@ pub struct Spawn {
     pub restitution: f32,
     pub damping: f32,
     pub ccd: bool,
+    pub oneway: bool,
     pub character: Option<Character>,
     pub puppet: Option<Puppet>,
 }
@@ -236,6 +239,7 @@ impl Spawn {
             restitution: 0.1,
             damping: 0.05,
             ccd: false,
+            oneway: false,
             character: None,
             puppet: None,
         }
@@ -321,6 +325,11 @@ impl Spawn {
     /// Continuous collision detection for small fast dynamic bodies.
     pub fn ccd(mut self) -> Self {
         self.ccd = true;
+        self
+    }
+    /// One-way platform: characters pass up through it and stand on its top (side views).
+    pub fn oneway(mut self) -> Self {
+        self.oneway = true;
         self
     }
     /// Draw as a procedural body (its main colour becomes the entity's `color`).

@@ -434,6 +434,7 @@ impl World {
                 max_hp: hp,
                 flash: 0.0,
                 invuln: 0.0,
+                oneway: s.oneway,
                 life: s.life,
                 mover: s.mover,
                 character,

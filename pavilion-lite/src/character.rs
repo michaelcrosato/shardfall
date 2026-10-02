@@ -305,7 +305,14 @@ pub(crate) fn tick(w: &mut World, id: Id, dt: f32) {
         // where it carries the character along with moving platforms.
         desired.y -= 1e-3;
     }
-    let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
+    // One-way platforms only count once the feet are at or above their top.
+    let ents = &w.entities;
+    let feet_y = center.y - ch.height * 0.5;
+    let solid = |_: ColliderHandle, c: &Collider| match ents.get(&(c.user_data as Id)) {
+        Some(e) if e.oneway => feet_y >= e.pos.y + e.shape.half_extents().y - 0.08,
+        _ => true,
+    };
+    let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors().predicate(&solid);
     let ph = &mut w.phys;
     // Standing still on static ground: one raycast instead of the full controller (which can
     // cost a lot next to piles of props). Moving platforms and slopes take the full path.
@@ -388,5 +395,43 @@ pub(crate) fn tick(w: &mut World, id: Id, dt: f32) {
         e.pos = new_center - Vec3::Y * ch.height * 0.5;
         e.vel = ch.vel;
         e.character = Some(ch);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn jumps_up_through_oneway_platforms() {
+        let mut w = World::new(1);
+        w.load_level(
+            r##"
+[params]
+"movement.jump_height" = 2.6
+
+[[layer]]
+plane = "xy"
+map = """
+ ===
+ P
+####
+"""
+[legend]
+"#" = { block = {} }
+"=" = { block = { y0 = 0.8, y1 = 1.0, oneway = true } }
+"P" = { marker = "player" }
+"##,
+        )
+        .unwrap();
+        let p = w.spawn(Spawn::character("player", w.marker("player").unwrap()));
+        w.player = Some(p);
+        for t in 0..150 {
+            let pressed = if t == 10 { buttons::JUMP } else { 0 };
+            w.drive(p, Input { held: buttons::JUMP, pressed, ..Default::default() });
+            w.simulate();
+        }
+        let y = w.get(p).unwrap().pos.y;
+        assert!((y - 3.0).abs() < 0.1, "landed on top of the platform (feet at 3.0), got {y}");
     }
 }

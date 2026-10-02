@@ -37,6 +37,14 @@ tools (`levelmap`, `see`, `campaign`, `turntable def=`).
   path start, NPC input resets each tick, unknown tool arguments are errors, REPL quoting,
   `ascii` snaps to cells, `rewind` reports its reach, `marks=` kind filter, `autoplay`
   `until=`/`trace=`/`seeds=` sweeps, hidden level spawns, `player_entered`, fuller API docs.
+- Second dry run (a smaller model, a side-view "Tower Climb"): it built and registered a
+  working game with passing tests, but its bot couldn't reach the top: platforms stacked
+  straight up made the player bump its head, and the level put ledges exactly at the jump
+  apex. Added one-way platforms (`oneway = true` / `Spawn::oneway()`), a `reach` readout in
+  `status` (jump height, air time, jump length), jump-math and "don't weaken the bot test"
+  guidance, and a clearer side-view description (the map reads like a picture). The sample
+  platformer now uses one-way planks; its bot predicts landings and brakes mid-air instead
+  of hopping into the pit (wins in 11.8 s, 1 death).
 - Idle characters on static ground skip rapier's controller (one raycast): 30 idle walkers
   851 -> 5565 ticks/s; buried under 200 crates 80 -> 460 ticks/s.
 

@@ -56,7 +56,7 @@ hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 "#" = { block = { color = "#7a5434", z0 = -7 } }
 "g" = { block = { color = "#5fa83a", z0 = -7 } }
 "h" = { block = { color = "#9cc78a", look = "flat", z0 = -2, z1 = 2 } }
-"=" = { block = { y0 = 0.8, color = "#b07a43" } }
+"=" = { block = { y0 = 0.8, color = "#b07a43", oneway = true } }
 "~" = { block = { y0 = 0.8, color = "#e0a83a", kind = "lift", move = [4, 0, 0], period = 5, hold = 0.6 } }
 "^" = { trigger = { kind = "spikes", y1 = 0.5 } }
 "c" = { spawn = { kind = "coin", shape = "cylinder", size = [0.12, 0.3], body = "trigger", color = "#ffd34d", look = "glow", y = 0.6, rot = [90, 0, 0], spin = 180 } }
@@ -78,9 +78,30 @@ pub struct Platformer {
     won: Option<f32>,
     /// Blob walking directions (-1 left, +1 right).
     patrol: BTreeMap<Id, f32>,
+    /// Bot: airborne on purpose across a gap (don't brake mid-air).
+    bot_leap: bool,
 }
 
 impl Platformer {
+    /// Bot: does a fall from `pos` with velocity `vel` end in a pit or on spikes?
+    fn bad_landing(&self, w: &World, pos: Vec3, vel: Vec3) -> bool {
+        let g = w.config.movement.gravity;
+        let (mut p, mut v) = (pos, vel);
+        for _ in 0..120 {
+            v.y -= g / 30.0;
+            p += v / 30.0;
+            if p.y < w.config.kill_y {
+                return true;
+            }
+            if w.ground_at(p.x, 0.0, p.y + 0.5).is_some_and(|gy| gy >= p.y - 0.05) {
+                return w
+                    .each("spikes")
+                    .any(|s| (s.pos.x - p.x).abs() < s.shape.half_extents().x + 0.3 && (s.pos.y - p.y).abs() < 1.0);
+            }
+        }
+        false
+    }
+
     fn die(&mut self, w: &mut World, pid: Id) {
         if let Some(p) = w.get(pid) {
             let at = p.center();
@@ -219,27 +240,48 @@ impl Game for Platformer {
             if ch.vel.y > 0.0 {
                 input.held = buttons::JUMP;
             }
+            // Hopping a hazard: predict where we come down and brake if that is a pit or
+            // spikes (a full jump is 5 m long).
+            if !self.bot_leap && self.bad_landing(w, pos, ch.vel) {
+                input.move_dir = -Vec2::X;
+            }
             return Some(input);
         }
-        // Somewhere to stand at dx ahead: not too high to reach, not a deadly drop.
-        let ground = |dx: f32| w.ground_at(pos.x + dx, 0.0, pos.y + 2.5).filter(|y| *y > pos.y - 6.0 && *y > w.config.kill_y);
-        let samples: Vec<bool> = (1..=11).map(|k| ground(k as f32 * 0.5).is_some()).collect();
-        let gap_at = samples.iter().position(|g| !g).map(|i| (i + 1) as f32 * 0.5);
+        self.bot_leap = false;
+        // Somewhere to stand at dx ahead (not too high, not a deadly drop), and whether it moves.
+        let ground = |dx: f32| -> Option<bool> {
+            let x = pos.x + dx;
+            let y = w.ground_at(x, 0.0, pos.y + 2.5).filter(|y| *y > pos.y - 6.0 && *y > w.config.kill_y)?;
+            let top = w.raycast(Vec3::new(x, y + 0.05, 0.0), Vec3::NEG_Y, 0.2, None).and_then(|h| w.get(h.id));
+            Some(top.is_some_and(|e| e.mover.is_some()))
+        };
+        let samples: Vec<Option<bool>> = (1..=11).map(|k| ground(k as f32 * 0.5)).collect();
+        let gap_at = samples.iter().position(|g| g.is_none()).map(|i| (i + 1) as f32 * 0.5);
+        // The first place to stand after the gap: (distance, is it the lift?).
         let landing = gap_at.and_then(|g| {
-            samples.iter().enumerate().skip((g / 0.5) as usize).find(|(_, s)| **s).map(|(i, _)| (i + 1) as f32 * 0.5)
+            samples.iter().enumerate().skip((g / 0.5) as usize).find_map(|(i, s)| s.map(|m| ((i + 1) as f32 * 0.5, m)))
         });
         let wall = [0.4, 1.5].iter().any(|h| {
             w.raycast(pos + Vec3::Y * *h, Vec3::X, 1.0, Some(p.id))
                 .is_some_and(|hit| w.get(hit.id).is_some_and(|e| e.character.is_none() && e.body != Body::Trigger))
         });
+        // Hazards: jump when their near edge is this close (jumping earlier overshoots).
         let danger = |kind: &str, reach: f32| {
-            w.each(kind).any(|e| e.pos.x - pos.x > 0.2 && e.pos.x - pos.x < reach && (e.pos.y - pos.y).abs() < 1.0)
+            w.each(kind).any(|e| {
+                let near = e.pos.x - e.shape.half_extents().x - pos.x;
+                near > -0.3 && near < reach && (e.pos.y - pos.y).abs() < 1.0
+            })
         };
-        let mut jump = wall || danger("spikes", 2.0) || danger("blob", 2.6);
+        let mut jump = wall || danger("spikes", 1.0) || danger("blob", 1.6);
         if let Some(g) = gap_at {
             if g <= 1.0 {
                 match landing {
-                    Some(_) => jump = true,
+                    // A lift keeps moving: only jump when it is right next to the edge.
+                    Some((d, true)) if d > 2.0 => input.move_dir = Vec2::ZERO,
+                    Some(_) => {
+                        jump = true;
+                        self.bot_leap = true;
+                    }
                     None => input.move_dir = Vec2::ZERO, // wait for the lift
                 }
             }

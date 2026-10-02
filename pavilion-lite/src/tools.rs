@@ -515,7 +515,7 @@ fn status_json(sim: &Sim) -> Value {
     for e in w.entities.values() {
         *kinds.entry(e.kind.as_str()).or_default() += 1;
     }
-    json!({
+    let mut v = json!({
         "game": sim.name,
         "tick": w.tick,
         "time": r2(w.time()),
@@ -524,7 +524,16 @@ fn status_json(sim: &Sim) -> Value {
         "player": player_json(w),
         "shots": w.shots.len(),
         "status": sim.game.status(w),
-    })
+    });
+    // What a full jump at full speed covers on flat ground (for level design).
+    if let Some(c) = w.player().and_then(|p| p.character.as_ref()) {
+        let mp = &w.config.movement;
+        let h = if mp.allow_jump { mp.jump_height * c.jump } else { 0.0 };
+        let air = 2.0 * (2.0 * h / mp.gravity.max(0.1)).sqrt();
+        let speed = mp.speed * c.speed;
+        v["reach"] = json!({ "jump_height": r2(h), "air_time": r2(air), "run_speed": r2(speed), "jump_length": r2(speed * air) });
+    }
+    v
 }
 
 /// Steps with `input` (re-aimed toward `toward` each tick), collecting event lines.
@@ -754,8 +763,9 @@ fn t_ascii(s: &mut Session, a: &Args) -> R {
             let (dx, dr) = ((c as i32 - radius) as f32 * cell, (r as i32 - radius) as f32 * cell);
             *ch = if side {
                 let p = Vec3::new(center.x + dx, center.y + 0.5 * cell - dr, center.z);
-                match w.solid_at(p, cell * 0.45) {
-                    Some(id) if w.get(id).is_some_and(|e| e.mover.is_some()) => '=',
+                match w.solid_at(p, cell * 0.45).and_then(|id| w.get(id)) {
+                    Some(e) if e.mover.is_some() => '=',
+                    Some(e) if e.oneway => '-',
                     Some(_) => '#',
                     None => ' ',
                 }
@@ -842,7 +852,7 @@ fn t_ascii(s: &mut Session, a: &Args) -> R {
     }
     let map: Vec<String> = grid.into_iter().map(|r| r.into_iter().collect::<String>().trim_end().to_string()).collect();
     let key = if side {
-        "# solid, = moving platform, blank = air; rows top = high"
+        "# solid, - one-way platform, = moving platform, blank = air; rows top = high"
     } else {
         "# wall (>1 m above you), + raised, . floor, , lower, blank = pit/void, = moving platform; top = north (-z)"
     };

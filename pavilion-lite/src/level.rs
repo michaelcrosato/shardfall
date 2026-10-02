@@ -106,6 +106,9 @@ pub struct Piece {
     /// Shrinks the box on each side (m), e.g. pillars.
     #[serde(default)]
     pub inset: f32,
+    /// One-way platform: jump up through it from below, stand on its top.
+    #[serde(default)]
+    pub oneway: bool,
     /// Health: shots damage it (`Event::Killed` at 0). Such blocks never merge.
     #[serde(default)]
     pub hp: f32,
@@ -426,6 +429,7 @@ impl World {
                 }
                 let mut sp = Spawn::new(&p.kind, (min + max) * 0.5).cube(size).look(p.look).hp(p.hp);
                 sp.color = p.color;
+                sp.oneway = p.oneway;
                 if let Some(m) = p.move_by {
                     sp = sp.mover(m, p.period, p.hold);
                     if let Some(mv) = &mut sp.mover {

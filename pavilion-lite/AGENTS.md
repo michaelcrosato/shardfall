@@ -41,7 +41,7 @@ The sample games are complete, commented examples. Read the one closest to your 
 | game | shows |
 |---|---|
 | `template` (~90 lines) | top-down level, player, pickups by trigger, HUD, bot, test |
-| `platformer` | side-view level (`plane = "xy"`), momentum movement, moving lift, spikes, checkpoints, enemies you stomp, goal, a bot that finishes it |
+| `platformer` | side-view level (`plane = "xy"`), momentum movement, one-way planks, moving lift, spikes, checkpoints, enemies you stomp, goal, a bot that finishes it |
 | `arena` | twin-stick shooter: aim, projectiles, health, waves, enemy brains, pathfinding, pickups, dash, restart, HUD bars |
 
 ## Rules
@@ -142,12 +142,13 @@ want to keep).
 Spawn::new("crate", pos).cube(Vec3::splat(0.8)).body(Body::Dynamic).color("#a0703c")
 Spawn::new("coin", pos).ball(0.3).body(Body::Trigger).look(Look::Glow).spin(Vec3::Y * 3.0)
 Spawn::new("lift", pos).cube(Vec3::new(3.0, 0.3, 2.0)).mover(Vec3::X * 6.0, 4.0, 0.5)  // kinematic
+Spawn::new("plank", pos).cube(Vec3::new(2.0, 0.2, 2.0)).oneway()        // jump up through it
 Spawn::character("goblin", feet).size(1.2, 0.35).agility(0.8, 0.0).hp(5.0).team(2)
     .puppet(Puppet::biped("#40a040").held(Held::Sword).hat("#603010"))
 ```
 
 Builder methods: `name shape cube ball body color look rot vel spin team hp life hidden mover
-material(density, friction, bounce) ccd puppet size(height, radius) agility(speed, jump)`.
+oneway material(density, friction, bounce) ccd puppet size(height, radius) agility(speed, jump)`.
 
 - `Body`: `Static` (walls), `Dynamic` (props), `Kinematic` (moved by code: `vel`, `spin`,
   `mover`; carries characters), `Trigger` (no collision; Enter/Exit events), `None` (visual).
@@ -155,7 +156,8 @@ material(density, friction, bounce) ccd puppet size(height, radius) agility(spee
   `Cylinder{half_height, radius}`; `Shape::cube(size)`, `Shape::ball(r)`.
 - `Look`: `Cel` (toon, default), `Lit`, `Flat`, `Glow` (self-lit; pickups, bullets, lava).
 - `Entity` fields: `id name kind pos rot vel spin shape body color look visible team hp
-  max_hp flash invuln life mover character puppet`; `e.center()`, `e.flat_dist(p)`, `e.alive()`.
+  max_hp flash invuln oneway life mover character puppet`; `e.center()`, `e.flat_dist(p)`,
+  `e.alive()`.
 - Teams: projectiles pass through their own team. `hp > 0` entities take projectile damage.
 
 ### Characters, movement, puppets
@@ -170,6 +172,13 @@ meaning. Shared tunables (`movement.*`): `model` (`instant` | `momentum`), `spee
 (`z` for side views), `face_aim` (face the mouse). Per character: `.agility(speed, jump)`
 multiplies `movement.speed` and the jump height (0 = can't jump). A `move_dir` shorter than 1
 walks slower (analog). NPCs: `w.drive` them every tick (an undriven NPC stands still).
+
+**Jump math for level design**: a held jump rises `jump_height` m and stays in the air
+`2 * sqrt(2 * jump_height / gravity)` s, covering `speed * air_time` m on flat ground (the
+`status` tool reports this as `reach`). Defaults: 1.35 m up, 0.58 s, 3.5 m far. Keep ledges
+at most ~80% of the jump height above where the player takes off, and gaps at most ~80% of
+the jump length; a platform right at the apex is a coin toss. Releasing jump early cuts the
+rise (`jump_cut`).
 
 `Puppet`: `Puppet::biped(hex)`, `::blob(hex)`, `::beast(hex)` then `.scale(k)`,
 `.held(Held::Sword | Gun | Staff)`, `.hat(hex)`, `.colors(skin, legs)`; fields `skin body legs
@@ -280,9 +289,12 @@ map = """
 "^" = { trigger = { kind = "spikes", y1 = 0.5, color = "#e8402a" }, block = { y0 = -0.5, y1 = 0 } }
 ```
 
-Side view (`plane = "xy"`): columns go east, rows go UP the screen, the bottom row sits on
-the layer's `y`, and every block is `z0..z1` deep (default -1..1). Use it with
-`"movement.lock_axis" = "z"` and a low camera (`"camera.tilt" = 8`).
+Side view (`plane = "xy"`): the map is a picture of the level as you see it from the side.
+Columns go east (+x); the TOP line of the map is the highest row and the LAST line sits on the
+layer's `y`. Every block is `z0..z1` deep (default -1..1). Use it with
+`"movement.lock_axis" = "z"` and a low camera (`"camera.tilt" = 8`). Mark thin platforms
+`oneway = true` so characters can jump up through them from below (otherwise they bump
+their heads); a tower of platforms stacked above each other needs that.
 
 ```toml
 [[layer]]
@@ -296,17 +308,21 @@ P       ^
 
 [legend]
 "#" = { block = { color = "#5fa83a" } }                                     # fills its cell
-"=" = { block = { y0 = 0.8, y1 = 1.0, color = "#b07a43", move = [3, 0, 0], period = 4 } }  # thin moving platform
+"=" = { block = { y0 = 0.8, y1 = 1.0, color = "#b07a43", oneway = true, move = [3, 0, 0], period = 4 } }  # thin moving one-way platform
 "^" = { trigger = { kind = "spikes", y1 = 0.5 } }
 "c" = { spawn = { kind = "coin", shape = "sphere", size = 0.3, body = "trigger", look = "glow", color = "#ffd34d", y = 0.5 } }
 "F" = { spawn = { kind = "goal", size = [0.3, 3.0, 0.3], body = "trigger", look = "glow", color = "#7cf08a" } }
 "P" = { marker = "player" }
 ```
 
+- Every character is one cell, spaces included (a space is empty air), so keep the lines
+  aligned: a stray leading space shifts that row one cell east. Compare your map with
+  `ascii plane=xy` (side) or `ascii` (top-down) after loading the game.
 - `block` / `blocks = [..]`: boxes. `y0`, `y1` (m): above the layer's `y` (xz) or inside the
   cell (xy). `z0`, `z1`: depth of xy blocks (default -1..1). `color look kind inset hp`
-  (`hp` > 0: shootable, never merged), `move = [dx, dy, dz]` + `period hold phase`: a
-  moving platform. Identical neighbours merge into one box.
+  (`hp` > 0: shootable, never merged), `oneway` (jump up through it, stand on top),
+  `move = [dx, dy, dz]` + `period hold phase`: a moving platform. Identical neighbours merge
+  into one box.
 - `spawn = {..}`: one entity per cell. `kind` (required), `shape` (box | sphere | capsule |
   cylinder), `size` (box: edge or [x,y,z]; sphere: radius; capsule/cylinder: [height, radius]),
   `body` (default dynamic), `color look`, `y` (height of its centre above the cell floor;
@@ -340,7 +356,7 @@ cargo run -q -- help                      # every tool and argument
 | tool | what it does |
 |---|---|
 | `games`, `load game= seed=` | list games; start one fresh |
-| `status` | tick, time, hash, entity counts by kind, player, your `status()` |
+| `status` | tick, time, hash, entity counts by kind, player, your `status()`, and `reach` (how high and far the player can jump) |
 | `step ticks=` | advance with no input; returns the player and the events (as short lines) |
 | `input move=[x,z] toward=[x,y,z] hold=a,b press=a aim=[x,y,z] ticks=` | drive the player (`toward` walks to a point and stops; a jump needs `press=jump`, `hold=jump` keeps it rising) |
 | `capture out= width= height= marks=true at= tilt= yaw= distance= ortho= ssaa=` | screenshot PNG; `marks=true` numbers entities (not level blocks or `body: none` decorations) and returns a legend; `marks=key,slime` only those kinds |
@@ -366,8 +382,11 @@ code, restart it (the CLI rebuilds by itself). `record` warns if tools edited th
 
 - `cargo test` runs engine tests and every game's tests (`src/games/mod.rs` checks that every
   registered game runs, draws, rewinds and replays exactly).
-- Give your game a `bot` and a test that it wins or survives (see `template.rs`). Bots are
-  also how you balance: `autoplay` after every change.
+- Give your game a `bot` and a test that it WINS (reaches the goal, clears the level), not
+  just "makes progress" (see `template.rs`). If the bot can't win, the level is probably too
+  hard (check `reach` in `status`) or the bot too simple (see `platformer.rs`: it waits for
+  the lift and brakes in mid-air when a jump would land in a pit). Fix that; don't weaken
+  the test. Bots are also how you balance: `autoplay` after every change.
 - Test more than one seed: `autoplay seeds=1-30 until=won` (and a loop over seeds in your
   test). Bugs that show up one run in twenty are common in bots and AI.
 - When a bot stalls, `autoplay trace=30` shows where and with what input; `entity id=N` shows
