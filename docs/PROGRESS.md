@@ -22,10 +22,13 @@ tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 - Production: https://shardfall-eight.vercel.app (project `shardfall`, Vercel team
   `michaelcrosato-1122s-projects`). Initial deployment used the verified local static
   build; GitHub is connected for subsequent deployments.
+- The GitHub-triggered cold build of `4ff62c3` also succeeded on Vercel and was
+  automatically promoted to production, confirming the remote toolchain/bootstrap path.
 - Verification: Windows `dist` build, browser/Vercel build, shell lint/format checks;
   browser town/HUD, inventory input, local-storage save, and tech demo rendering. The
-  production HTML, JS and Wasm return HTTP 200 and match the local build byte for byte;
-  Wasm is served as `application/wasm`. Live browser startup has no console errors.
+  initial production HTML, JS and Wasm returned HTTP 200 and matched the local build
+  byte for byte. The subsequent Vercel rebuild serves all three successfully, with Wasm
+  as `application/wasm`. Live browser startup has no console errors.
 - Linux handoff is now `shardfall-linux-agent.tar.gz`, with a `shardfall/` archive root.
 
 ## Linux agent handoff — 2026-10-01
