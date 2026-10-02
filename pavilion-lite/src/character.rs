@@ -305,17 +305,34 @@ pub(crate) fn tick(w: &mut World, id: Id, dt: f32) {
         desired.y -= 1e-3;
     }
     let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
-    let mut collisions: Vec<CharacterCollision> = Vec::new();
     let ph = &mut w.phys;
-    let mv = {
-        let qp = ph.broad.as_query_pipeline(ph.narrow.query_dispatcher(), &ph.bodies, &ph.colliders, filter);
-        kcc.move_shape(dt, &qp, shape.as_ref(), &Pose::from_translation(center), desired, |c| collisions.push(c))
-    };
-    {
+    // Standing still on static ground: one raycast instead of the full controller (which can
+    // cost a lot next to piles of props). Moving platforms and slopes take the full path.
+    let resting = was_grounded
+        && !jumped
+        && Vec2::new(ch.vel.x, ch.vel.z).length() < 1e-3
+        && fix.length() < 1e-4
+        && ch.vel.y <= 0.0
+        && ch.vel.y > -mp.gravity * dt * 1.5
+        && {
+            let qp = ph.broad.as_query_pipeline(ph.narrow.query_dispatcher(), &ph.bodies, &ph.colliders, filter);
+            qp.cast_ray(&Ray::new(center, -Vector::Y), ch.height * 0.5 + 0.06, true)
+                .and_then(|(c, _)| ph.colliders.get(c)?.parent())
+                .and_then(|b| ph.bodies.get(b))
+                .is_some_and(|b| b.is_fixed())
+        };
+    let (moved, grounded) = if resting {
+        (Vector::ZERO, true)
+    } else {
+        let mut collisions: Vec<CharacterCollision> = Vec::new();
+        let mv = {
+            let qp = ph.broad.as_query_pipeline(ph.narrow.query_dispatcher(), &ph.bodies, &ph.colliders, filter);
+            kcc.move_shape(dt, &qp, shape.as_ref(), &Pose::from_translation(center), desired, |c| collisions.push(c))
+        };
         let mut qpm = ph.broad.as_query_pipeline_mut(ph.narrow.query_dispatcher(), &mut ph.bodies, &mut ph.colliders, filter);
         kcc.solve_character_collision_impulses(dt, &mut qpm, shape.as_ref(), mp.push_mass, collisions.iter());
-    }
-    let moved = mv.translation;
+        (mv.translation, mv.grounded)
+    };
     let new_center = center + moved;
     if let Some(b) = ph.bodies.get_mut(body) {
         b.set_next_kinematic_translation(new_center);
@@ -323,7 +340,7 @@ pub(crate) fn tick(w: &mut World, id: Id, dt: f32) {
 
     // --- what actually happened
     let mut landed = 0.0;
-    ch.grounded = mv.grounded && !(ch.jumping && ch.vel.y > 0.0);
+    ch.grounded = grounded && !(ch.jumping && ch.vel.y > 0.0);
     if ch.grounded {
         if !was_grounded && last_vel.y < -2.0 {
             landed = -last_vel.y;
