@@ -1,6 +1,7 @@
-# Pavilion — Engine & Showcase Design Plan
+# Shardfall — Engine & Showcase Design Plan
 
-"Pavilion" is a working name. This document is the source of truth for what we are building and why.
+"Shardfall" is the game and repository name. "Pavilion" is the engine's playable tech demo.
+This document is the source of truth for what we are building and why.
 If a pasted version of this plan in chat differs from this file, the pasted version wins; update this file to match.
 
 ## 1. What we're building
@@ -167,8 +168,9 @@ The engine is meant to be reused for many different games. We don't know yet wha
 - **Genre Wing:** bullet hell, grid stealth, a drift car and a helicopter.
 
 ## 14. Delivery & workflow
-- **Repo:** stays private. No GitHub automation for now.
-- **Branch:** work on `claude/youthful-ptolemy-guj0fb`. Commit and push often, because cloud containers are temporary.
+- **Repo:** `michaelcrosato/shardfall`, stays private. Vercel hosts the browser build;
+  the root `vercel.json` defines the build and static output.
+- **Branch:** work on `main` (the GitHub default). Commit and push often, because cloud containers are temporary.
 - **Windows build:** the `.exe` is cross-compiled in the cloud and sent in chat at the end of each milestone. Local WSL2 agents can build the `.exe` and launch it directly on Windows.
 - **Progress log:** `docs/PROGRESS.md` records the current milestone, what's done, what's next, and decisions made, so any agent can resume.
 - **Build order:** sequential. Once the foundation and rulebook exist, self-contained rooms can be handed to cheaper helper agents and reviewed. This also tests the goal that smaller models can extend the engine.

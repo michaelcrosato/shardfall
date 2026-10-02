@@ -50,7 +50,7 @@ impl Gfx {
                     return Err(anyhow!(
                         "no {} adapter found. Update your graphics driver{}",
                         backend.name(),
-                        if backend == BackendChoice::Vulkan { ", or try backend = \"dx12\" in pavilion.toml" } else { "" }
+                        if backend == BackendChoice::Vulkan { ", or try backend = \"dx12\" in shardfall.toml" } else { "" }
                     ));
                 }
             }

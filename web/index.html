@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pavilion</title>
+<title>Shardfall</title>
+<meta name="description" content="Play Shardfall, a procedural hack-and-slash adventure with an interactive tech demo pavilion.">
 <link rel="icon" href="data:,">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #15171c; }
@@ -14,20 +15,26 @@
 </style>
 </head>
 <body>
-<div id="msg">Loading Pavilion…</div>
+<div id="msg" role="status" aria-live="polite">Loading Shardfall…</div>
 <script type="module">
-  // Pavilion in the browser. Start in a room with ?room=NAME (and ?seed=N).
+  // Start in a demo room with ?room=NAME, or the pavilion with ?scene=world.
   const msg = document.getElementById('msg');
   if (!navigator.gpu) {
-    msg.innerHTML = 'Pavilion needs WebGPU.<br>Use a recent Chrome or Edge on a computer with a GPU.';
+    msg.innerHTML = 'Shardfall needs WebGPU.<br>Use a recent Chrome or Edge with hardware acceleration enabled.';
   } else {
     // The game hides this message once its canvas exists, and takes keyboard focus.
     new MutationObserver((_, obs) => {
       const c = document.querySelector('canvas');
-      if (c) { msg.remove(); c.focus(); obs.disconnect(); }
+      if (c) { c.setAttribute('aria-label', 'Shardfall game'); msg.remove(); c.focus(); obs.disconnect(); }
     }).observe(document.body, { childList: true });
-    const game = await import('./pavilion.js');
-    await game.default();
+    try {
+      const game = await import('./shardfall.js');
+      await game.default();
+    } catch (error) {
+      console.error('Shardfall failed to load:', error);
+      msg.textContent = 'Shardfall could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled.';
+      document.body.append(msg);
+    }
   }
 </script>
 </body>

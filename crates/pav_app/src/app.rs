@@ -249,7 +249,7 @@ impl App {
     fn init(&mut self, el: &ActiveEventLoop) -> Result<()> {
         let s = self.settings.clone();
         let window = stage("window", || {
-            let mut attrs = Window::default_attributes().with_title("Pavilion");
+            let mut attrs = Window::default_attributes().with_title("Shardfall");
             #[cfg(not(target_arch = "wasm32"))]
             {
                 attrs = attrs.with_inner_size(winit::dpi::LogicalSize::new(s.width, s.height));
@@ -1130,7 +1130,7 @@ impl App {
             let (w, h) = gfx.size();
             let dir = boot::exe_dir().join("screenshots");
             let path = dir.join(format!(
-                "pavilion-{}.png",
+                "shardfall-{}.png",
                 web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
             ));
             let r = pav_render::capture::render_to_rgba(&mut gfx.renderer, &scene, w, h)
@@ -1320,7 +1320,7 @@ impl App {
     fn fail(&mut self, el: &ActiveEventLoop, e: anyhow::Error) {
         let msg = format!("{e:#}");
         #[cfg(target_arch = "wasm32")]
-        crate::platform::error_box("Pavilion could not start", &msg);
+        crate::platform::error_box("Shardfall could not start", &msg);
         self.fatal = Some(msg);
         el.exit();
     }

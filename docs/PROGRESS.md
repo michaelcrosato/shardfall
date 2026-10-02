@@ -6,6 +6,52 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Shardfall naming and Vercel deployment — 2026-10-01
+- Renamed the GitHub repository to `michaelcrosato/shardfall` and updated the local remote.
+  `main` remains the default; repository visibility remains private. Shardfall is the app
+  and repository title; Pavilion remains the name of the playable tech demo/engine.
+- Renamed the game binary/window, browser loader and generated assets, startup settings,
+  log and screenshot names, MCP server, documentation, and Linux handoff archive.
+- Rebuilt the Windows game and preserved the existing settings and saved hero while
+  renaming the game folder to `Desktop\New AI Stuff\Shardfall`. The `Shardfall` desktop
+  shortcut points to `shardfall.exe` there.
+- Added `vercel.json` and `scripts/build-vercel.sh` for a static WebAssembly deployment.
+  The build selects pinned Rust 1.98.1 and a matching wasm-bindgen CLI from `Cargo.lock`;
+  the downloaded CLI is checked against the official release checksum. Build output is
+  `target/web/`. Vercel metadata and generated environment files are ignored by Git.
+- Production: https://shardfall-eight.vercel.app (project `shardfall`, Vercel team
+  `michaelcrosato-1122s-projects`). Initial deployment used the verified local static
+  build; GitHub is connected for subsequent deployments.
+- Verification: Windows `dist` build, browser/Vercel build, shell lint/format checks;
+  browser town/HUD, inventory input, local-storage save, and tech demo rendering. The
+  production HTML, JS and Wasm return HTTP 200 and match the local build byte for byte;
+  Wasm is served as `application/wasm`. Live browser startup has no console errors.
+- Linux handoff is now `shardfall-linux-agent.tar.gz`, with a `shardfall/` archive root.
+
+## Linux agent handoff — 2026-10-01
+- Added `START_HERE.md` with Debian/Ubuntu prerequisites, Rust setup expectations, CLI
+  examples, simulation/rendering checks, MCP usage, and native game launch commands.
+- Added `scripts/package-agent.sh`: packages current tracked source (including local edits)
+  plus the handoff guide/script under `pavilion/`, with a SHA-256 checksum. Git history,
+  build caches, and generated output are excluded. New source files must be added to Git
+  before packaging. Updated the design's branch instruction to `main`.
+- Verified shell formatting/lint, extracted archive contents and source hashes (199 files),
+  executable script permissions, and Cargo workspace metadata from the extracted source.
+  This is a source handoff; the receiving agent builds binaries with its Linux dependencies.
+- Delivered `pavilion-linux-agent.tar.gz` and its `.sha256` to the Windows desktop.
+
+## Windows desktop build — 2026-10-01
+- GitHub's default branch and this local checkout now use `main`.
+- Built `main` at `54fa519` with `scripts/build-windows.sh` (Rust 1.98.1,
+  `x86_64-pc-windows-gnu`, optimized `dist` profile, six build jobs).
+- Verified the Windows CLI natively: 600 town simulation ticks and a 640×360 offscreen
+  Vulkan capture (`out/build/windows-town.png`). Inspected the rendered town. The game GUI
+  was not launched during validation.
+- Copied the self-contained `pavilion.exe` to
+  `C:\Users\micha\OneDrive\Desktop\Pavilion\pavilion.exe` and created `Pavilion.lnk` on
+  the desktop. Verified the copy's SHA-256 and the shortcut target. Content is embedded;
+  the executable imports only Windows system DLLs.
+
 ## Status by milestone
 | Milestone | State |
 |---|---|

@@ -5,7 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [[bin]]
-name = "pavilion"
+name = "shardfall"
 path = "src/main.rs"
 
 [dependencies]

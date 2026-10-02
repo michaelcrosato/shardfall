@@ -1,5 +1,5 @@
 //! The live agent bridge, game side: a TCP listener (`--bridge`, or `bridge = "ADDR"` in
-//! `pavilion.toml`) whose requests run as agent tools on the simulation thread, against the
+//! `shardfall.toml`) whose requests run as agent tools on the simulation thread, against the
 //! running game. Tools see the game's own camera and view settings, and changes they make come
 //! back to it. Captures render on a separate headless device, so they work while you play.
 

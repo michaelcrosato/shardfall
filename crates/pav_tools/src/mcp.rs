@@ -99,7 +99,7 @@ fn run(call: &mut dyn FnMut(&str, &Args) -> Value, target: &str) -> Result<()> {
             "initialize" => Ok(json!({
                 "protocolVersion": params.get("protocolVersion").and_then(|v| v.as_str()).unwrap_or(PROTOCOL),
                 "capabilities": { "tools": {} },
-                "serverInfo": { "name": "pavilion", "version": env!("CARGO_PKG_VERSION") },
+                "serverInfo": { "name": "shardfall", "version": env!("CARGO_PKG_VERSION") },
                 "instructions": format!("Pavilion game engine tools, connected to {target}. Start with `scenes` and `load` (or `rooms` and `goto`), drive the player with `input`, look with `capture`. Parameters: `params` / `set`."),
             })),
             "ping" => Ok(json!({})),

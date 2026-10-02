@@ -1,16 +1,22 @@
-# Pavilion
+# Shardfall
 
-A showcase game engine in Rust. You walk around a pavilion whose corridors lead to small rooms,
-and each room demonstrates one thing: movement feel, physics, procedural animation, visual
-effects, rendering styles and filters, and small genre games. Everything is generated from code
-(no image, model or sound files), every parameter can be tuned live, and agents can drive it all
-through the same tools a person uses.
+A procedural hack-and-slash adventure built in Rust and WebGPU, with a playable Pavilion
+tech demo. Explore Emberwatch and the endless Depths, or visit the pavilion's rooms to try
+movement, physics, procedural animation, visual effects, rendering styles, and genre demos.
+Everything is generated from code, every parameter can be tuned live, and agents can drive
+the game through the same tools a person uses.
 
+Play [Shardfall](https://shardfall-eight.vercel.app), or open the
+[Pavilion tech demo](https://shardfall-eight.vercel.app/?scene=world). Use recent Chrome
+or Edge with WebGPU and hardware acceleration enabled.
+
+- Linux agent handoff: [`START_HERE.md`](START_HERE.md). Run `scripts/package-agent.sh`
+  to create a standalone source archive and checksum in `out/agent/`.
 - Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state and decisions:
   [`docs/PROGRESS.md`](docs/PROGRESS.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).
 
-## Shardfall (the showcase game)
-A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `pavilion.exe`
+## The adventure
+A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `shardfall.exe`
 starts in **Emberwatch**, the town: trade with Hilda the smith, gamble with Odo, buy stronger
 potions from Mother Wren, keep loot in the stash, and take the portal down. Twelve designed
 levels each introduce one mechanic (shrines, powder kegs, spike plates, rift gates, wind,
@@ -18,7 +24,7 @@ totems, lava, ice, crumbling floors, darkness, cursed chests, time bubbles) and 
 ones before; after level 12 the Depths generate new combinations forever. The portal also
 leads to the Proving Grounds (wave arena) and the Menagerie (generated creatures). Your hero
 is saved next to the executable on every trip and on quit. The pavilion of engine rooms is
-still there: Esc menu → Load scene → `world` (or `pavilion.exe --scene world`).
+still there: Esc menu → Load scene → `world` (or `shardfall.exe --scene world`).
 
 | Key | Action |
 |---|---|
@@ -39,8 +45,8 @@ right-clicks, hold Y for shift (take a whole path in the tree), the right stick 
 zooms, B closes. Start opens the menu, which works the same way.
 
 ## Playing
-Windows: run `pavilion.exe`. It writes `pavilion.toml` next to itself on first start (Vulkan by
-default; `backend = "dx12"` switches). `pavilion.exe --room drift` starts in a room of the
+Windows: run `shardfall.exe`. It writes `shardfall.toml` next to itself on first start (Vulkan by
+default; `backend = "dx12"` switches). `shardfall.exe --room drift` starts in a room of the
 pavilion (`--scene world` for the pavilion itself).
 Browser: serve the web build (below) and open it in a recent Chrome or Edge; add `?room=drift`
 to the address to start in a room.
@@ -87,6 +93,31 @@ scripts/build-windows.sh      # Windows .exe (cross-compiled)
 scripts/build-web.sh          # browser build -> target/web (WebAssembly + WebGPU)
 python3 -m http.server -d target/web 8000   # then open http://localhost:8000
 ```
+
+## Deploying to Vercel
+
+Import [`michaelcrosato/shardfall`](https://github.com/michaelcrosato/shardfall) into Vercel.
+The root `vercel.json` selects the **Other** framework, installs the pinned Rust and
+wasm-bindgen tools through `scripts/build-vercel.sh`, and serves `target/web/` as a
+static WebAssembly game. No environment variables or backend services are needed.
+
+With an authenticated Vercel CLI, deploy from the repository root:
+
+```sh
+vercel link --project shardfall --yes
+vercel deploy --prod --yes
+```
+
+To build and try the same output locally:
+
+```sh
+scripts/build-vercel.sh
+python3 -m http.server -d target/web 8000
+```
+
+Use recent Chrome or Edge with WebGPU and hardware acceleration enabled. Open `/?scene=world`
+for the tech demo or `/?room=drift` for a particular room. Saves stay in each browser's local
+storage; visiting a different site address uses a separate save.
 
 ## Agent tools
 `pav` runs the engine headless with one tool registry (load rooms, step, drive the player, tune

@@ -1,4 +1,4 @@
-//! Pavilion — the game executable.
+//! Shardfall — the game executable.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod app;
@@ -24,7 +24,7 @@ mod uiinput;
 fn fatal(msg: &str) -> ! {
     let path = boot::diag().log_path.display().to_string();
     log::error!("fatal: {msg}");
-    platform::error_box("Pavilion could not start", &format!("{msg}\n\nThe full log is in:\n{path}"));
+    platform::error_box("Shardfall could not start", &format!("{msg}\n\nThe full log is in:\n{path}"));
     std::process::exit(1);
 }
 
@@ -35,14 +35,14 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "pavilion [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen] [--bridge [ADDR]]\n\
+            "shardfall [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen] [--bridge [ADDR]]\n\
              --bridge opens the live agent bridge (default 127.0.0.1:7878; drive it with `pav live`).\n\
-             Startup settings live in pavilion.toml next to the executable."
+             Startup settings live in shardfall.toml next to the executable."
         );
         return;
     }
     log::info!(
-        "Pavilion {} ({} {}, {} build) — log file: {}",
+        "Shardfall {} ({} {}, {} build) — log file: {}",
         env!("CARGO_PKG_VERSION"),
         if cfg!(target_arch = "wasm32") { "browser" } else { std::env::consts::OS },
         std::env::consts::ARCH,
@@ -67,7 +67,7 @@ fn main() {
         Ok(Err(e)) => fatal(&format!("{e:#}")),
         Err(_) => {
             let msg = boot::LAST_CRASH.lock().ok().and_then(|c| c.clone()).unwrap_or_else(|| "unknown crash".into());
-            fatal(&format!("Pavilion crashed:\n{msg}"));
+            fatal(&format!("Shardfall crashed:\n{msg}"));
         }
     }
 }

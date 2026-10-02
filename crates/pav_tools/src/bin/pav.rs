@@ -44,7 +44,7 @@ fn print(out: Result<Output>) -> bool {
 
 fn help() {
     println!(
-        "pav — Pavilion agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav live [addr] | pav mcp [scene] | pav mcp --live [addr] | pav help\n\nTools:"
+        "pav — Shardfall agent CLI\n\nUsage: pav <tool> [key=value ...] | pav repl | pav live [addr] | pav mcp [scene] | pav mcp --live [addr] | pav help\n\nTools:"
     );
     for t in TOOLS {
         let args: Vec<String> = t.args.iter().map(|a| format!("{}=<{}>", a.name, a.kind)).collect();

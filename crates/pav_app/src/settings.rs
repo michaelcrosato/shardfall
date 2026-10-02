@@ -1,4 +1,4 @@
-//! Startup settings: `pavilion.toml` next to the executable, overridden by command-line flags.
+//! Startup settings: `shardfall.toml` next to the executable, overridden by command-line flags.
 
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +39,7 @@ impl Default for Settings {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const HEADER: &str = "# Pavilion startup settings. Delete this file to restore defaults.\n# backend = \"vulkan\" or \"dx12\"\n";
+const HEADER: &str = "# Shardfall startup settings. Delete this file to restore defaults.\n# backend = \"vulkan\" or \"dx12\"\n";
 
 impl Settings {
     /// In the browser: defaults, plus `?room=NAME&seed=N` from the page address.
@@ -68,7 +68,7 @@ impl Settings {
     /// Loads settings (creating the file with defaults on first run), then applies CLI flags.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load(args: &[String]) -> (Self, String) {
-        let path = crate::boot::exe_dir().join("pavilion.toml");
+        let path = crate::boot::exe_dir().join("shardfall.toml");
         let mut note = String::new();
         let mut s = match std::fs::read_to_string(&path) {
             Ok(text) => match toml_from_str(&text) {
