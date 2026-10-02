@@ -374,9 +374,11 @@ cargo run -q -- help                      # every tool and argument
 
 Tips: look at captures with your image viewer (`width=640 height=360` is plenty). Use the REPL
 for multi-step experiments (one process, state kept). `capture marks=true` lets you say
-"mark 3" and know it's the goblin with 2 hp. If the MCP server is running while you change Rust
-code, restart it (the CLI rebuilds by itself). `record` warns if tools edited the world
-(replays hold only inputs).
+"mark 3" and know it's the goblin with 2 hp. The MCP server starts with `cargo run`: if it
+failed to connect, the first build wasn't finished (the CLI and REPL are the same tools). If
+it is running while you change Rust code, restart it (the CLI rebuilds by itself); on Windows
+a running server also stops `cargo build` from replacing `pav.exe`. `record` warns if tools
+edited the world (replays hold only inputs).
 
 ## Testing
 

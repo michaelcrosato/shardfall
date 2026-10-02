@@ -35,6 +35,10 @@ Give the agent the archive and a prompt like:
 > Look at it with the screenshot tools, give it a bot and a test that the bot can win, keep
 > `cargo test` passing, and tell me how to play it.
 
+For agents that use MCP (Claude Code reads `.mcp.json`), run `cargo build` in the folder
+before starting the agent: the server starts with `cargo run`, and a first build takes longer
+than MCP clients wait. Agents without MCP use the same tools from the command line.
+
 To compare agents, give each the same idea and judge the result with
 `cargo run --release -- play <game>`, `cargo run -q -- autoplay game=<game>` and the
 screenshots they took.
