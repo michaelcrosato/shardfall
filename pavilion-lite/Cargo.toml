@@ -1,0 +1,49 @@
+[package]
+name = "pavlite"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Pavilion Lite: a compact, headless-first 3D game engine built for AI agents"
+publish = false
+default-run = "pav"
+
+[features]
+default = ["window"]
+# The play window (winit + softbuffer). Build without it for headless-only use:
+# `cargo build --no-default-features`.
+window = ["dep:winit", "dep:softbuffer"]
+
+[dependencies]
+glam = { version = "0.33", features = ["serde"] }
+rapier3d = "0.36"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+png = "0.18"
+winit = { version = "0.30", optional = true }
+softbuffer = { version = "0.4", optional = true }
+
+[[bin]]
+name = "pav"
+path = "src/main.rs"
+
+# Its own workspace, so the folder builds the same inside or outside another project.
+[workspace]
+
+[lints.clippy]
+# Style lints that fight readable game code.
+collapsible_if = "allow"
+collapsible_match = "allow"
+too_many_arguments = "allow"
+type_complexity = "allow"
+
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+[profile.release]
+debug = "line-tables-only"

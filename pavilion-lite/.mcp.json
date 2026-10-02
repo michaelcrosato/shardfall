@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pavilion-lite": {
+      "command": "cargo",
+      "args": ["run", "-q", "--", "mcp"]
+    }
+  }
+}
