@@ -66,7 +66,7 @@ const DRIVE: [Arg; 6] = [
     arg("move", "array", "[x, z] world direction: [1,0] east, [-1,0] west, [0,-1] north, [0,1] south"),
     arg("toward", "array", "[x, y, z] walk toward this point instead (stops within 0.3 m)"),
     arg("hold", "string", "buttons held, comma separated: jump,fire,alt,use,crouch,dash"),
-    arg("press", "string", "buttons pressed on the first tick only"),
+    arg("press", "string", "buttons pressed on the first tick only (a jump needs press=jump; hold=jump makes it higher)"),
     arg("aim", "array", "[x, y, z] aim point"),
     arg("ticks", "integer", "ticks to run (60 = 1 second; default 1)"),
 ];
@@ -624,7 +624,9 @@ fn interesting(w: &World) -> Vec<&Entity> {
 fn t_capture(s: &mut Session, a: &Args) -> R {
     let width = arg_u64(a, "width", 640)?.clamp(16, 3840) as usize;
     let height = arg_u64(a, "height", 360)?.clamp(16, 2160) as usize;
-    let ssaa = arg_u64(a, "ssaa", 1)? as usize;
+    // Supersampling multiplies the pixels; keep it within ~16 million.
+    let ssaa = (arg_u64(a, "ssaa", 1)? as usize).clamp(1, 3);
+    let ssaa = (1..=ssaa).rev().find(|k| width * height * k * k <= 16_000_000).unwrap_or(1);
     let marks = arg_bool(a, "marks");
     let at = arg_vec3(a, "at")?;
     let (tilt, yaw, dist) = (arg_f32(a, "tilt")?, arg_f32(a, "yaw")?, arg_f32(a, "distance")?);
@@ -691,7 +693,7 @@ fn t_filmstrip(s: &mut Session, a: &Args) -> R {
     let mut lines = Vec::new();
     for f in 0..frames {
         let mut tile = view::snapshot(&sim.world, sim.game.as_ref(), tw, th, 1, None);
-        tile.text(4, 4, 1.0, Color::WHITE, &format!("t{}", sim.world.tick));
+        tile.text(4, th as i32 - 12, 1.0, Color::hex("#ffe14d"), &format!("t{}", sim.world.tick));
         sheet.blit(&tile, (f % cols) * tw, (f / cols) * th);
         ticks.push(sim.world.tick);
         if f + 1 < frames {

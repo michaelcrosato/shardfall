@@ -247,8 +247,7 @@ impl Spawn {
         s.body = Body::Kinematic;
         s.character = Some(Character::new(1.7, 0.32));
         s.shape = Shape::Capsule { half_height: 1.7 * 0.5 - 0.32, radius: 0.32 };
-        s.puppet = Some(Puppet::default());
-        s
+        s.puppet(Puppet::default())
     }
     pub fn name(mut self, n: &str) -> Self {
         self.name = n.into();
@@ -324,7 +323,9 @@ impl Spawn {
         self.ccd = true;
         self
     }
+    /// Draw as a procedural body (its main colour becomes the entity's `color`).
     pub fn puppet(mut self, p: Puppet) -> Self {
+        self.color = p.body;
         self.puppet = Some(p);
         self
     }

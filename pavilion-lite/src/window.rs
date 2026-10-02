@@ -61,6 +61,7 @@ pub fn play(def: &'static GameDef, args: &Args) -> Result<(), String> {
         started: Instant::now(),
         stats: false,
         frame_ms: 0.0,
+        auto: 1,
         last_image: None,
         message: None,
     };
@@ -97,6 +98,8 @@ struct App {
     started: Instant,
     stats: bool,
     frame_ms: f32,
+    /// Render scale chosen automatically when `scale` is 0.
+    auto: usize,
     last_image: Option<Image>,
     message: Option<(String, Instant)>,
 }
@@ -178,13 +181,16 @@ impl App {
         if surface.resize(NonZeroU32::new(ww).unwrap(), NonZeroU32::new(wh).unwrap()).is_err() {
             return;
         }
-        let scale = if self.scale > 0 {
-            self.scale
-        } else if self.frame_ms > 14.0 && ww > 700 {
-            2
-        } else {
-            1
-        };
+        // Automatic scale: drop to half resolution when frames get slow, go back when there is
+        // plenty of headroom (a quarter of the pixels costs about a quarter of the time).
+        if self.auto == 1 && self.frame_ms > 15.0 && ww > 700 {
+            self.auto = 2;
+            self.frame_ms /= 4.0;
+        } else if self.auto == 2 && self.frame_ms < 3.0 {
+            self.auto = 1;
+            self.frame_ms *= 4.0;
+        }
+        let scale = if self.scale > 0 { self.scale } else { self.auto };
         let (rw, rh) = ((ww as usize / scale).max(16), (wh as usize / scale).max(16));
         let t = Instant::now();
         let w = &self.sim.world;
@@ -207,7 +213,9 @@ impl App {
         if self.stats || self.paused {
             let p = if self.paused { "  PAUSED" } else { "" };
             let line = format!("tick {}  {:.1} ms/frame  {}x{}{p}", w.tick, self.frame_ms, rw, rh);
-            img.text(rw as i32 - crate::font::width(&line, s) - 8 * si as i32, 8 * si as i32, s, Color::hex("#9ef0ff"), &line);
+            // Bottom right, above the help lines (the game's HUD owns the top).
+            let y = rh as f32 - 34.0 * s;
+            img.text(rw as i32 - crate::font::width(&line, s) - 8 * si as i32, y as i32, s, Color::hex("#9ef0ff"), &line);
         }
         if let Some((m, at)) = &self.message {
             if at.elapsed() < Duration::from_secs(3) {

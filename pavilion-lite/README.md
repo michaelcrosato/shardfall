@@ -25,3 +25,16 @@ cargo run --release -- play arena
 Requirements: Rust 1.89 or newer and crates.io access for the first build. No system
 packages for headless use; the play window needs a desktop (on Linux: X11 with
 libxkbcommon-x11, or Wayland). Windows and macOS work as they are.
+
+## Handing it to an agent
+
+Give the agent the archive and a prompt like:
+
+> Extract pavilion-lite and read its AGENTS.md. Then make a new game in it: *(your idea,
+> e.g. "a top-down dungeon where you collect 3 keys and escape while slimes chase you")*.
+> Look at it with the screenshot tools, give it a bot and a test that the bot can win, keep
+> `cargo test` passing, and tell me how to play it.
+
+To compare agents, give each the same idea and judge the result with
+`cargo run --release -- play <game>`, `cargo run -q -- autoplay game=<game>` and the
+screenshots they took.

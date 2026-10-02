@@ -10,8 +10,9 @@ Read this whole file before writing code. It is the only document you need.
 
 ## Quick start
 
-Needs Rust 1.89+ (`rustup` installs it) and network access to crates.io for the first build.
-No system packages are needed for building, tests or screenshots.
+Needs Rust 1.89+ and network access to crates.io for the first build. No Rust? Install it
+with `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y` (then
+`. "$HOME/.cargo/env"`). No system packages are needed for building, tests or screenshots.
 
 ```sh
 cargo build                                  # first build: 1-3 minutes
@@ -39,7 +40,7 @@ The sample games are complete, commented examples. Read the one closest to your 
 
 | game | shows |
 |---|---|
-| `template` (60 lines) | top-down level, player, pickups by trigger, HUD, bot, test |
+| `template` (~90 lines) | top-down level, player, pickups by trigger, HUD, bot, test |
 | `platformer` | side-view level (`plane = "xy"`), momentum movement, moving lift, spikes, checkpoints, enemies you stomp, goal, a bot that finishes it |
 | `arena` | twin-stick shooter: aim, projectiles, health, waves, enemy brains, pathfinding, pickups, dash, restart, HUD bars |
 
@@ -220,42 +221,58 @@ A level is TOML: ASCII map layers plus a legend. Embed it with a raw string (see
 and call `w.load_level(TEXT)` in `setup`. Check one without a game:
 `cargo run -q -- level_check path=my_level.toml`. Unknown fields are errors (typos show).
 
+Top-down (`plane = "xz"`, the default): columns go east, rows go south, heights come from
+the legend.
+
 ```toml
 name = "Yard"
-cell = 1.0                     # metres per character
-origin = [0, 0, 0]             # where column 0 / row 0 is
+cell = 1.0                     # metres per character (default 1)
+origin = [0, 0, 0]             # world position of column 0, row 0
 sky = "#7fb2e5"                # optional colours
 horizon = "#dfe9f2"
 
-[params]                        # any tunable, applied on load
+[params]                        # any engine tunable, applied on load
 "movement.speed" = 8
 "camera.tilt" = 70
 
 [[layer]]
-plane = "xz"                    # top-down (default): columns go east, rows go south
-y = 0                           # base height
+y = 0                           # base height of this layer
 map = """
-######
-#P.c.#
-######
-"""
-
-[[layer]]
-plane = "xy"                    # side view: columns go east, rows go UP the screen
-z = 0                           # depth; the bottom row sits on y
-map = """
-   ==
-P     c
-#######
+########
+#P..c..#
+#..^^..#
+########
 """
 
 [legend]                        # one entry per character; '.' and ' ' without one are empty
-"#" = { block = { y0 = 0, y1 = 2, color = "#8a8f99" } }
-"." = { block = { y0 = -0.5, y1 = 0, color = "#d9cbb0" } }
-"P" = { marker = "player", block = { y0 = -0.5, y1 = 0 } }
-"c" = { spawn = { kind = "coin", shape = "sphere", size = 0.3, body = "trigger", look = "glow", color = "#ffd34d", y = 0.8 } }
-"=" = { block = { y0 = 0.8, y1 = 1.0, color = "#b07a43", move = [4, 0, 0], period = 4, hold = 0.5 } }
-"^" = { trigger = { kind = "spikes", y1 = 0.5, color = "#e8402a" } }
+"#" = { block = { y0 = 0, y1 = 2, color = "#8a8f99" } }            # wall, 2 m tall
+"." = { block = { y0 = -0.5, y1 = 0, color = "#d9cbb0" } }         # floor slab, top at y = 0
+"P" = { marker = "player", block = { y0 = -0.5, y1 = 0, color = "#d9cbb0" } }
+"c" = { spawn = { kind = "coin", shape = "sphere", size = 0.3, body = "trigger", look = "glow", color = "#ffd34d", y = 0.8 }, block = { y0 = -0.5, y1 = 0 } }
+"^" = { trigger = { kind = "spikes", y1 = 0.5, color = "#e8402a" }, block = { y0 = -0.5, y1 = 0 } }
+```
+
+Side view (`plane = "xy"`): columns go east, rows go UP the screen, the bottom row sits on
+the layer's `y`, and every block is `z0..z1` deep (default -1..1). Use it with
+`"movement.lock_axis" = "z"` and a low camera (`"camera.tilt" = 8`).
+
+```toml
+[[layer]]
+plane = "xy"
+map = """
+       c
+   ===        F
+P       ^
+##########  ####
+"""
+
+[legend]
+"#" = { block = { color = "#5fa83a" } }                                     # fills its cell
+"=" = { block = { y0 = 0.8, y1 = 1.0, color = "#b07a43", move = [3, 0, 0], period = 4 } }  # thin moving platform
+"^" = { trigger = { kind = "spikes", y1 = 0.5 } }
+"c" = { spawn = { kind = "coin", shape = "sphere", size = 0.3, body = "trigger", look = "glow", color = "#ffd34d", y = 0.5 } }
+"F" = { spawn = { kind = "goal", size = [0.3, 3.0, 0.3], body = "trigger", look = "glow", color = "#7cf08a" } }
+"P" = { marker = "player" }
 ```
 
 - `block` / `blocks = [..]`: boxes. `y0`, `y1` (m): above the layer's `y` (xz) or inside the
@@ -273,7 +290,9 @@ P     c
 
 ## Tools
 
-One registry, three ways in. Every tool returns one line of JSON.
+One registry, three ways in. Every tool returns one line of JSON. A one-shot call starts the
+game fresh each time (`ticks=N` first advances it N idle ticks); use the REPL or MCP to keep
+one game going across many calls.
 
 ```sh
 cargo run -q -- <tool> game=NAME [seed=N] [ticks=N] [key=value ...]   # one shot (ticks= steps first)
@@ -287,7 +306,7 @@ cargo run -q -- help                      # every tool and argument
 | `games`, `load game= seed=` | list games; start one fresh |
 | `status` | tick, time, hash, entity counts by kind, player, your `status()` |
 | `step ticks=` | advance with no input; returns the player and the events (as short lines) |
-| `input move=[x,z] toward=[x,y,z] hold=a,b press=a aim=[x,y,z] ticks=` | drive the player (`toward` walks to a point and stops) |
+| `input move=[x,z] toward=[x,y,z] hold=a,b press=a aim=[x,y,z] ticks=` | drive the player (`toward` walks to a point and stops; a jump needs `press=jump`, `hold=jump` keeps it rising) |
 | `capture out= width= height= marks=true at= tilt= yaw= distance= ortho= ssaa=` | screenshot PNG; `marks` numbers entities and returns a legend |
 | `filmstrip frames= every= columns= width= height=` (+ input args) | frames over time in one PNG: motion and animation |
 | `ascii radius= cell= at= plane=xy` | text map: walls, floor, pits, entities as letters |
