@@ -125,7 +125,8 @@ pub struct Character {
     /// Yaw in radians (0 = facing +Z / south, PI/2 = +X / east).
     pub facing: f32,
     /// What drives this character this tick. The player gets the tick's input automatically;
-    /// set it for NPCs with `World::drive`. `pressed` clears after each tick.
+    /// NPCs get nothing (stand still) unless `World::drive` sets it in this tick's `update`.
+    /// It keeps the last value until the next tick starts, so tools can show it.
     pub input: Input,
     /// Speed and jump multipliers (1 = the shared `movement.*` values; 0 jump = cannot jump).
     pub speed: f32,

@@ -109,7 +109,7 @@ pub static TOOLS: &[Tool] = &[
             arg("out", "string", "file path (default out/<game>-<tick>.png)"),
             arg("width", "integer", "default 640"),
             arg("height", "integer", "default 360"),
-            arg("marks", "boolean", "number entities on the image and list them"),
+            arg("marks", "string", "true = number the entities on the image and list them; or only these kinds: coin,enemy"),
             arg("ssaa", "integer", "supersampling 1-3 (smoother edges, slower; default 1)"),
             arg("at", "array", "[x, y, z] look at this point instead of the player"),
             arg("tilt", "number", "camera tilt for this shot (90 = top-down)"),
@@ -247,8 +247,13 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "autoplay",
-        help: "Let the game's bot play for N seconds; returns what happened and the final status.",
-        args: &[arg("seconds", "number", "default 30")],
+        help: "Let the game's bot play; returns event counts and the final status. seeds= sweeps many fresh games.",
+        args: &[
+            arg("seconds", "number", "how long (default 30)"),
+            arg("until", "string", "stop early when this field of the game's status is true (e.g. won)"),
+            arg("trace", "integer", "every N ticks, record the player's position, velocity and input"),
+            arg("seeds", "string", "play fresh games with these seeds instead: 1-20, 5 (=1..5) or 3,7,9"),
+        ],
         game: true,
         run: t_autoplay,
     },
@@ -310,6 +315,11 @@ impl Session {
     /// Runs a tool by name.
     pub fn call(&mut self, name: &str, a: &Args) -> R {
         let tool = TOOLS.iter().find(|t| t.name == name).ok_or_else(|| format!("unknown tool '{name}' (try `help`)"))?;
+        if let Some(bad) = a.keys().find(|k| !tool.args.iter().any(|x| x.name == k.as_str())) {
+            let known: Vec<&str> = tool.args.iter().map(|x| x.name).collect();
+            let known = if known.is_empty() { "no arguments".to_string() } else { known.join(", ") };
+            return Err(format!("unknown argument '{bad}' for `{name}` (it takes: {known})"));
+        }
         if tool.game {
             self.sim()?;
         }
@@ -627,7 +637,16 @@ fn t_capture(s: &mut Session, a: &Args) -> R {
     // Supersampling multiplies the pixels; keep it within ~16 million.
     let ssaa = (arg_u64(a, "ssaa", 1)? as usize).clamp(1, 3);
     let ssaa = (1..=ssaa).rev().find(|k| width * height * k * k <= 16_000_000).unwrap_or(1);
-    let marks = arg_bool(a, "marks");
+    // marks=true (everything but level blocks and `body: none` decorations) or a kind list.
+    let mark_kinds: Option<Vec<String>> = match a.get("marks") {
+        None | Some(Value::Bool(false)) => None,
+        Some(Value::Bool(true)) => Some(Vec::new()),
+        Some(Value::String(s)) if matches!(s.as_str(), "false" | "0" | "no" | "") => None,
+        Some(Value::String(s)) if matches!(s.as_str(), "true" | "1" | "yes") => Some(Vec::new()),
+        Some(Value::String(s)) => Some(s.split(',').map(|k| k.trim().to_string()).collect()),
+        Some(v) => return Err(format!("marks must be true or a list of kinds, got {v}")),
+    };
+    let marks = mark_kinds.is_some();
     let at = arg_vec3(a, "at")?;
     let (tilt, yaw, dist) = (arg_f32(a, "tilt")?, arg_f32(a, "yaw")?, arg_f32(a, "distance")?);
     let ortho = a.get("ortho").map(|_| arg_bool(a, "ortho"));
@@ -654,7 +673,12 @@ fn t_capture(s: &mut Session, a: &Args) -> R {
     let mut legend = Vec::new();
     let extra = marks.then(|| {
         let mut d = Draw::new(width as f32 / height as f32);
-        let mut list = interesting(w);
+        let kinds = mark_kinds.unwrap_or_default();
+        let mut list: Vec<&Entity> = if kinds.is_empty() {
+            interesting(w).into_iter().filter(|e| e.body != Body::None).collect()
+        } else {
+            w.entities.values().filter(|e| kinds.contains(&e.kind)).collect()
+        };
         list.sort_by(|x, y| x.pos.distance(target).total_cmp(&y.pos.distance(target)));
         for (n, e) in list.into_iter().take(40).enumerate() {
             let top = match &e.character {
@@ -713,10 +737,14 @@ fn t_ascii(s: &mut Session, a: &Args) -> R {
     let side = arg_str(a, "plane") == Some("xy");
     let sim = s.sim()?;
     let w = &sim.world;
-    let center = match arg_vec3(a, "at")? {
+    let at = match arg_vec3(a, "at")? {
         Some(p) => p,
         None => w.player().map(|p| p.pos).unwrap_or(w.camera.target),
     };
+    // Snap to the cell grid so map cells line up with level cells.
+    let snap = |v: f32| ((v / cell).floor() + 0.5) * cell;
+    let center =
+        if side { Vec3::new(snap(at.x), (at.y / cell).floor() * cell, at.z) } else { Vec3::new(snap(at.x), at.y, snap(at.z)) };
     let mut grid = vec![vec![' '; (radius * 2 + 1) as usize]; (radius * 2 + 1) as usize];
     let mut legend: BTreeMap<char, String> = BTreeMap::new();
     let mut letters: BTreeMap<String, char> = BTreeMap::new();
@@ -915,6 +943,7 @@ fn t_spawn(s: &mut Session, a: &Args) -> R {
         color: Color::hex(arg_str(a, "color").unwrap_or("#b0b0b0")),
         look,
         y: None,
+        hidden: false,
         rot: None,
         hp: arg_f32(a, "hp")?.unwrap_or(0.0),
         team: arg_u64(a, "team", 0)? as u8,
@@ -972,8 +1001,13 @@ fn t_teleport(s: &mut Session, a: &Args) -> R {
 fn t_rewind(s: &mut Session, a: &Args) -> R {
     let ticks = arg_u64(a, "ticks", 60)?;
     let sim = s.sim()?;
+    let before = sim.world.tick;
     let tick = sim.rewind(ticks);
-    Ok(Output::Json(json!({ "tick": tick, "player": player_json(&sim.world) })))
+    let mut v = json!({ "tick": tick, "rewound": before - tick, "player": player_json(&sim.world) });
+    if before - tick < ticks {
+        v["note"] = json!(format!("history reaches back to tick {} only (it restarts at load and restore)", sim.oldest_tick()));
+    }
+    Ok(Output::Json(v))
 }
 
 fn t_snapshot(s: &mut Session, a: &Args) -> R {
@@ -1027,17 +1061,41 @@ fn t_replay(s: &mut Session, a: &Args) -> R {
     })))
 }
 
-fn t_autoplay(s: &mut Session, a: &Args) -> R {
-    let seconds = arg_f32(a, "seconds")?.unwrap_or(30.0).clamp(0.0, 3600.0);
-    let sim = s.sim()?;
-    let ticks = (seconds * 60.0) as u64;
+/// Runs the game's bot for up to `ticks`, stopping early when `until` (a field of the game's
+/// status) becomes truthy. Returns ticks run, event counts and an optional trace.
+fn play(
+    sim: &mut Sim,
+    ticks: u64,
+    until: Option<&str>,
+    trace_every: u64,
+) -> Result<(u64, BTreeMap<String, usize>, Vec<Value>), String> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    let start = Instant::now();
+    let mut trace = Vec::new();
+    let truthy = |v: &Value| match v {
+        Value::Bool(b) => *b,
+        Value::Number(n) => n.as_f64().unwrap_or(0.0) != 0.0,
+        Value::String(s) => !s.is_empty(),
+        Value::Null => false,
+        _ => true,
+    };
     let mut ran = 0;
     for _ in 0..ticks {
-        let Some(input) = sim.game.bot(&sim.world) else {
-            return Err("this game has no bot (implement Game::bot)".into());
+        // None on the first tick means there is no bot; later it means "do nothing".
+        let input = match sim.game.bot(&sim.world) {
+            Some(i) => i,
+            None if ran == 0 => return Err("this game has no bot (implement Game::bot)".into()),
+            None => Input::default(),
         };
+        if trace_every > 0 && sim.world.tick.is_multiple_of(trace_every) && trace.len() < 120 {
+            let p = sim.world.player();
+            trace.push(json!({
+                "t": sim.world.tick,
+                "pos": p.map(|p| v3(p.pos)),
+                "vel": p.map(|p| v3(p.vel)),
+                "move": [r2(input.move_dir.x), r2(input.move_dir.y)],
+                "buttons": buttons::names(input.held | input.pressed),
+            }));
+        }
         sim.step(&input);
         ran += 1;
         for e in &sim.world.events {
@@ -1052,13 +1110,68 @@ fn t_autoplay(s: &mut Session, a: &Args) -> R {
             };
             *counts.entry(key).or_default() += 1;
         }
+        if let Some(field) = until {
+            if sim.game.status(&sim.world).get(field).is_some_and(truthy) {
+                break;
+            }
+        }
     }
-    Ok(Output::Json(json!({
+    Ok((ran, counts, trace))
+}
+
+/// "1-20", "5" (seeds 1..=5), "3,7,9" or a JSON list.
+fn parse_seeds(v: &Value) -> Result<Vec<u64>, String> {
+    let bad = || format!("seeds must look like 1-20, 5 or 3,7,9; got {v}");
+    let list: Vec<u64> = match v {
+        Value::Number(n) => (1..=n.as_u64().ok_or_else(bad)?).collect(),
+        Value::Array(a) => a.iter().map(|x| x.as_u64().ok_or_else(bad)).collect::<Result<_, _>>()?,
+        Value::String(s) => match s.split_once('-') {
+            Some((a, b)) => (a.trim().parse::<u64>().map_err(|_| bad())?..=b.trim().parse::<u64>().map_err(|_| bad())?).collect(),
+            None if s.contains(',') => {
+                s.split(',').map(|x| x.trim().parse::<u64>().map_err(|_| bad())).collect::<Result<_, _>>()?
+            }
+            None => (1..=s.trim().parse::<u64>().map_err(|_| bad())?).collect(),
+        },
+        _ => return Err(bad()),
+    };
+    if list.is_empty() || list.len() > 500 {
+        return Err("give between 1 and 500 seeds".into());
+    }
+    Ok(list)
+}
+
+fn t_autoplay(s: &mut Session, a: &Args) -> R {
+    let seconds = arg_f32(a, "seconds")?.unwrap_or(30.0).clamp(0.0, 3600.0);
+    let ticks = (seconds * 60.0) as u64;
+    let until = arg_str(a, "until").map(String::from);
+    let trace_every = arg_u64(a, "trace", 0)?;
+    if let Some(spec) = a.get("seeds") {
+        // A sweep: every seed from a fresh start; the session's own game is left alone.
+        let seeds = parse_seeds(spec)?;
+        let name = s.sim()?.name.clone();
+        let def = s.games.iter().find(|g| g.name == name).ok_or("game not registered")?;
+        let start = Instant::now();
+        let mut runs = Vec::new();
+        for seed in seeds {
+            let mut sim = Sim::new(def, seed);
+            let (ran, _, _) = play(&mut sim, ticks, until.as_deref(), 0)?;
+            runs.push(json!({ "seed": seed, "ticks": ran, "status": sim.game.status(&sim.world) }));
+        }
+        return Ok(Output::Json(json!({ "game": name, "wall_ms": start.elapsed().as_millis() as u64, "runs": runs })));
+    }
+    let sim = s.sim()?;
+    let start = Instant::now();
+    let (ran, counts, trace) = play(sim, ticks, until.as_deref(), trace_every)?;
+    let mut v = json!({
         "ticks": ran,
         "wall_ms": start.elapsed().as_millis() as u64,
         "events": counts,
         "final": status_json(sim),
-    })))
+    });
+    if trace_every > 0 {
+        v["trace"] = Value::Array(trace);
+    }
+    Ok(Output::Json(v))
 }
 
 fn t_bench(s: &mut Session, a: &Args) -> R {
@@ -1145,6 +1258,10 @@ fn words(line: &str) -> Vec<String> {
         out.push(cur);
     }
     out.into_iter()
+        .map(|w| {
+            let quoted = w.len() >= 2 && w.starts_with('"') && w.ends_with('"') && !w[1..w.len() - 1].contains('"');
+            if quoted { w[1..w.len() - 1].to_string() } else { w }
+        })
         .map(|w| match w.split_once('=') {
             // key="quoted text" -> key=quoted text
             Some((k, v)) if v.len() >= 2 && v.starts_with('"') && v.ends_with('"') && !v[1..v.len() - 1].contains('"') => {
@@ -1269,7 +1386,14 @@ pub fn main(games: &'static [GameDef]) {
                 }
             }
             if ok {
-                ok = print(session.call(name, &rest));
+                // game=, seed= and ticks= set the session up; the tool only sees its own arguments.
+                let mut args = rest.clone();
+                for k in ["game", "seed", "ticks"] {
+                    if !tool.is_some_and(|t| t.args.iter().any(|x| x.name == k)) {
+                        args.remove(k);
+                    }
+                }
+                ok = print(session.call(name, &args));
             }
             if !ok {
                 std::process::exit(1);

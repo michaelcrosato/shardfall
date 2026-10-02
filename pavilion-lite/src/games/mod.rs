@@ -96,6 +96,18 @@ mod tests {
     }
 
     #[test]
+    fn npcs_stand_still_unless_driven() {
+        let mut sim = Sim::new(def("template"), 1);
+        let npc = sim.world.spawn(pavlite::entity::Spawn::character("npc", glam::Vec3::new(5.5, 0.0, 3.5)));
+        sim.run(10, &Input::default());
+        let start = sim.world.get(npc).unwrap().pos;
+        // The game never drives it, so it must not keep walking on an old input.
+        sim.world.drive(npc, Input { move_dir: glam::Vec2::X, ..Default::default() });
+        sim.run(60, &Input::default());
+        assert!(sim.world.get(npc).unwrap().pos.distance(start) < 0.05);
+    }
+
+    #[test]
     fn tools_work_end_to_end() {
         let dir = std::env::temp_dir().join(format!("pav-test-{}", std::process::id()));
         let out = |name: &str| dir.join(name).display().to_string();
@@ -104,6 +116,9 @@ mod tests {
         assert_eq!(call(&mut s, "games").as_array().unwrap().len(), GAMES.len());
         assert!(s.call("status", &Default::default()).is_err(), "no game loaded yet");
         call(&mut s, "load game=template seed=2");
+        // Unknown arguments are errors, not silently ignored.
+        let e = s.call("capture", &parse_args(&["mark=true".into()])).err().unwrap();
+        assert!(e.contains("unknown argument 'mark'") && e.contains("marks"), "{e}");
         let st = call(&mut s, "input toward=[3.5,0,2.5] ticks=120");
         assert!(st["events"].as_array().unwrap().iter().any(|e| e.as_str().unwrap().contains("enter coin")), "{st}");
         assert_eq!(call(&mut s, "status")["status"]["score"], 1);
@@ -125,6 +140,7 @@ mod tests {
         call(&mut s, "snapshot name=x");
         call(&mut s, "input move=[0,1] ticks=30");
         assert_eq!(call(&mut s, "restore name=x")["restored"], "x");
+        assert!(call(&mut s, "rewind ticks=30").get("note").is_some(), "restore starts a new history");
         let t = call(&mut s, "status")["tick"].as_u64().unwrap();
         call(&mut s, "step ticks=60");
         assert_eq!(call(&mut s, "rewind ticks=60")["tick"].as_u64().unwrap(), t);

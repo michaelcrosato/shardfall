@@ -144,6 +144,9 @@ pub struct SpawnDef {
     pub hp: f32,
     #[serde(default)]
     pub team: u8,
+    /// Not drawn (invisible triggers, spawn points that still collide).
+    #[serde(default)]
+    pub hidden: bool,
     /// Starting rotation: [x, y, z] degrees (applied in that order).
     #[serde(default)]
     pub rot: Option<Vec3>,
@@ -383,6 +386,9 @@ impl World {
                         let pos = Vec3::new(cx, top + y, cz);
                         let mut sp = Spawn::new(&s.kind, pos).shape(shape).body(s.body).look(s.look).team(s.team).hp(s.hp);
                         sp.color = s.color;
+                        if s.hidden {
+                            sp = sp.hidden();
+                        }
                         if let Some(r) = s.rot {
                             let r = r * std::f32::consts::PI / 180.0;
                             sp = sp.rot(glam::Quat::from_euler(glam::EulerRot::XYZ, r.x, r.y, r.z));

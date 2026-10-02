@@ -104,6 +104,11 @@ pub trait Game: Clone + Send {          // (Clone via #[derive(Clone)])
 Each tick: the player's character gets `input`, then `update` runs, then the engine moves
 movers and characters, steps physics, moves projectiles, checks triggers, and records events.
 To restart or change level inside the game: `*w = World::new(w.seed); *self = Default::default(); self.setup(w);`
+(this also resets the tick count and any `game.*` values tuned with `set`; carry over what you
+want to keep).
+
+`fn params` lists your tunables with `v.float(name, &mut self.x, min, max, help)`,
+`v.bool(name, &mut self.flag, help)` and `v.choice(name, &mut index, &["a", "b"], help)`.
 
 ### World
 
@@ -115,13 +120,15 @@ To restart or change level inside the game: `*w = World::new(w.seed); *self = De
 | `w.each(kind)`, `w.ids(kind)`, `w.count(kind)`, `w.nearest(kind, pos, max)` | find by kind |
 | `w.set_pos(id, pos)`, `w.set_rot(id, quat)`, `w.set_vel(id, v)` | teleport / velocity |
 | `w.push(id, dv, stun)` | kick a prop, knock back a character (no control for `stun` s) |
-| `w.drive(id, Input)` | what an NPC character does this tick (its brain's output) |
+| `w.drive(id, Input)` | what an NPC character does this tick: call it every tick in `update`; undriven NPCs stand still |
+| `w.player_entered(kind) -> Vec<Id>` | triggers of `kind` the player touched last tick (pickups, goals, hazards) |
 | `w.dash(id, dir, speed, secs)`, `w.act(id, Act::Swing, secs)` | dash; play a pose |
 | `w.damage(id, amount) -> bool` | hp down, white flash; true if it just died; ignored while `invuln > 0` |
 | `w.shoot(Shot)`, `w.burst(pos, "#hex", count, speed)`, `w.shake(strength)` | projectiles, sparks, screen shake |
-| `w.raycast(from, dir, max, ignore) -> Option<RayHit{id, point, normal, dist}>` | first solid hit |
-| `w.can_see(a, b, &[ids to ignore])`, `w.overlap(center, r) -> Vec<Id>` | line of sight, area |
-| `w.ground_at(x, z, from_y) -> Option<f32>`, `w.solid_at(p, half)` | floor height, wall test |
+| `w.raycast(from, dir, max, ignore: Option<Id>) -> Option<RayHit{id, point, normal, dist}>` | first solid hit (characters and props count) |
+| `w.can_see(a, b, &[ids to ignore])`, `w.overlap(center, r) -> Vec<Id>` | line of sight; everything touching a sphere |
+| `w.ground_at(x, z, from_y) -> Option<f32>` | level floor height below a point (blocks and platforms only) |
+| `w.solid_at(p, half)`, `w.solid_box(p, half_vec)` | the wall/block filling a box, if any |
 | `w.inside(trigger) -> &[Id]` | what overlaps a trigger now |
 | `w.marker("name")`, `w.markers_named("name")` | points from the level |
 | `w.load_level(toml) -> Result<LevelInfo>` | build a level into the world |
@@ -160,7 +167,9 @@ platforms and push dynamic props. Only `jump` is built in; your game gives other
 meaning. Shared tunables (`movement.*`): `model` (`instant` | `momentum`), `speed`, `accel`,
 `decel`, `skid`, `air_control`, `gravity`, `jump_height`, `allow_jump`, `jump_cut`,
 `coyote_time`, `jump_buffer`, `max_fall`, `step_height`, `push_mass`, `lock_axis`
-(`z` for side views), `face_aim` (face the mouse). Per character: `.agility(speed, jump)`.
+(`z` for side views), `face_aim` (face the mouse). Per character: `.agility(speed, jump)`
+multiplies `movement.speed` and the jump height (0 = can't jump). A `move_dir` shorter than 1
+walks slower (analog). NPCs: `w.drive` them every tick (an undriven NPC stands still).
 
 `Puppet`: `Puppet::biped(hex)`, `::blob(hex)`, `::beast(hex)` then `.scale(k)`,
 `.held(Held::Sword | Gun | Staff)`, `.hat(hex)`, `.colors(skin, legs)`; fields `skin body legs
@@ -172,13 +181,16 @@ Shoot | Cheer, secs)` plays an action pose. Hit flash is automatic.
 ```rust
 w.shoot(Shot::new(from, dir * 20.0).owner(me).team(1).damage(2.0).radius(0.15)
     .color("#9ef0ff").knockback(4.0).life(1.5).gravity(0.0));
-match ev {
+for ev in w.events.clone() { match ev {
     Event::Enter { trigger, other } | Event::Exit { trigger, other } => ..,
     Event::Hit { target, owner, pos, damage } => ..,   // damage already applied
     Event::Killed { id, by } => ..,                     // hp hit 0 from a shot; despawn it yourself
     Event::Jump { id } | Event::Land { id, speed } | Event::Fell { id } => ..,  // Fell: below sim.kill_y
-}
+} }
 ```
+
+Enter/Exit fire for ANY character or moving body touching a trigger (an enemy walking over a
+key too), so check `other == w.player`, or use `w.player_entered("key")`.
 
 `Input { move_dir: Vec2 (x east, y south), aim: Option<Vec3>, held, pressed }`;
 `input.down(buttons::FIRE)`, `input.just(buttons::JUMP)`, `Input::toward(from, to)`.
@@ -191,12 +203,20 @@ The HUD canvas is 360 units tall and `d.width` wide (640 at 16:9). Text `size` i
 height in those units (8 small, 16 normal, 32 title).
 
 ```rust
-d.text(x, y, 16.0, "#ffffff", "Score 10");   d.title(y, 32.0, "#ffd34d", "YOU WIN");
-d.rect(x, y, w, h, "#101216", 0.7);         d.bar(x, y, w, h, frac, "#ff4a6a");
-d.label(world_pos, "Boss", "#ffffff");      d.health(world_pos, frac, "#ff5a4a");
-d.sphere(c, r, "#hex", Look::Glow); d.cube(c, size, ..); d.line(a, b, r, ..); d.ring(c, r, "#hex");
-d.shape(pavlite::render::Prim::Cone { a, b, ra, rb }, "#hex", Look::Lit);  // spikes, beams
+d.text(x, y, size, "#ffffff", "Score 10");        // top-left corner at (x, y)
+d.title(y, size, "#ffd34d", "YOU WIN");            // centred horizontally
+d.rect(x, y, w, h, "#101216", alpha);              d.bar(x, y, w, h, frac, "#ff4a6a");
+d.label(world_pos, "Boss", "#ffffff");             d.health(world_pos, frac, "#ff5a4a");
+d.sphere(center, radius, "#hex", Look::Glow);      d.cube(center, size, "#hex", Look::Cel);
+d.line(a, b, radius, "#hex", Look::Lit);           d.ring(center, radius, "#hex");  // flat, on the ground
+// Anything else, rotated boxes included:
+use pavlite::render::Prim;
+d.shape(Prim::Box { center, rot: Quat::from_rotation_y(0.5), half }, "#hex", Look::Cel);
+d.shape(Prim::Cone { a, b, ra, rb }, "#hex", Look::Lit);   // tapered capsule: spikes, horns, beams
 ```
+
+Drawn shapes are free decoration (no physics, no marks in screenshots): prefer them over
+entities for torches, spikes, flags and effects.
 
 ### Camera and look
 
@@ -209,11 +229,19 @@ d.shape(pavlite::render::Prim::Cone { a, b, ra, rb }, "#hex", Look::Lit);  // sp
 ### Pathfinding
 
 ```rust
-let nav = NavGrid::build(w, Vec3::ZERO, Vec3::new(32.0, 0.0, 22.0), 0.5, 0.4); // area, cell, radius
-if let Some(path) = nav.path(from, to) { /* walk to path[0], then the next... */ }
+// NavGrid::build(world, min_corner, max_corner, cell, radius): min.y is the floor height.
+let nav = NavGrid::build(w, Vec3::new(0.0, 0.0, 0.0), Vec3::new(32.0, 0.0, 22.0), 0.5, 0.32);
+if let Some(path) = nav.path(from, to) { /* walk toward path[0]; drop it within ~0.5 m */ }
+nav.walkable(p); nav.clear(a, b);                  // a cell / a straight line
 ```
 
-Build it once in `setup`, keep it in your game struct. See `arena.rs`.
+- It reads only the level (blocks and moving platforms); characters and props never block
+  it, so build it whenever you like. After the level changes (a door opens, a wall breaks),
+  build it again.
+- `radius` = the walker's capsule radius (0.32 for a default character). Bigger values close
+  doorways for smaller walkers.
+- Keep the path in your game state, re-plan every 0.3-0.5 s (not every tick), and steer
+  straight at the target when `w.can_see` it (see `arena.rs`).
 
 ## Levels
 
@@ -281,18 +309,26 @@ P       ^
   moving platform. Identical neighbours merge into one box.
 - `spawn = {..}`: one entity per cell. `kind` (required), `shape` (box | sphere | capsule |
   cylinder), `size` (box: edge or [x,y,z]; sphere: radius; capsule/cylinder: [height, radius]),
-  `body` (default dynamic), `color look y` (centre above the cell floor), `rot = [x,y,z]`
-  degrees, `spin` (degrees/s around up), `hp team move period`.
+  `body` (default dynamic), `color look`, `y` (height of its centre above the cell floor;
+  default: resting on it), `rot = [x,y,z]` degrees, `spin` (degrees/s around up), `hidden`
+  (not drawn), `hp team move period`.
 - `trigger = {..}`: invisible trigger box over the cell (neighbours merge): `kind`, `y0`
   (0), `y1` (2), `z0`, `z1`, `color` (makes it visible).
-- `marker = "name"`: a point on the cell's floor (`w.marker("name")`, `markers_named`).
+- `marker = "name"`: a point on the cell floor (`w.marker("name")`, `markers_named`).
+- **The cell floor** (for `y`, markers and spawns) is the top of that same character's
+  blocks; with no blocks it is the layer's `y` (xz) or the bottom of the cell (xy). So a
+  spawn with `y = 0.5` on a 1.2 m pillar tile sits at 1.7 m.
 - Several things can share a cell: `{ marker = "player", block = {..} }`.
+- Big areas: one legend character per surface lets neighbours merge into a few large boxes.
+  Patterns like checkerboards stop merging (hundreds of entities); draw such detail with
+  `Draw` instead.
 
 ## Tools
 
-One registry, three ways in. Every tool returns one line of JSON. A one-shot call starts the
-game fresh each time (`ticks=N` first advances it N idle ticks); use the REPL or MCP to keep
-one game going across many calls.
+One registry, three ways in. Every tool returns one line of JSON (only `pav help` on the
+command line prints plain text). Misspelled argument names are errors that list the right
+ones. A one-shot call starts the game fresh each time (`ticks=N` first advances it N idle
+ticks); use the REPL or MCP to keep one game going across many calls.
 
 ```sh
 cargo run -q -- <tool> game=NAME [seed=N] [ticks=N] [key=value ...]   # one shot (ticks= steps first)
@@ -307,15 +343,16 @@ cargo run -q -- help                      # every tool and argument
 | `status` | tick, time, hash, entity counts by kind, player, your `status()` |
 | `step ticks=` | advance with no input; returns the player and the events (as short lines) |
 | `input move=[x,z] toward=[x,y,z] hold=a,b press=a aim=[x,y,z] ticks=` | drive the player (`toward` walks to a point and stops; a jump needs `press=jump`, `hold=jump` keeps it rising) |
-| `capture out= width= height= marks=true at= tilt= yaw= distance= ortho= ssaa=` | screenshot PNG; `marks` numbers entities and returns a legend |
+| `capture out= width= height= marks=true at= tilt= yaw= distance= ortho= ssaa=` | screenshot PNG; `marks=true` numbers entities (not level blocks or `body: none` decorations) and returns a legend; `marks=key,slime` only those kinds |
 | `filmstrip frames= every= columns= width= height=` (+ input args) | frames over time in one PNG: motion and animation |
-| `ascii radius= cell= at= plane=xy` | text map: walls, floor, pits, entities as letters |
+| `ascii radius= cell= at= plane=xy` | text map: walls, floor, pits, entities as letters (the centre snaps to the cell grid) |
 | `entities kind= near=[..] radius= limit= blocks=`, `entity id=` | list / inspect |
 | `params prefix=`, `set path= value=` | read / tune any parameter live |
 | `spawn kind= ...`, `despawn id=`, `teleport id= pos=` | edit the world |
-| `rewind ticks=`, `snapshot name=`, `restore name=` | time travel, try alternatives |
+| `rewind ticks=`, `snapshot name=`, `restore name=` | time travel (up to 60 s; history restarts at load and restore), try alternatives |
 | `record path=`, `replay path=` | save the inputs since start; re-run them and compare the hash |
-| `autoplay seconds=` | your `bot` plays; returns event counts and final status |
+| `autoplay seconds= until=won trace=30` | your `bot` plays (stops early when `status().won` is true); `trace=N` logs position, velocity and input every N ticks |
+| `autoplay seeds=1-20 seconds=60 until=won` | a fresh game per seed; one status row each: the quickest way to find rare bugs |
 | `bench ticks= frames=` | ticks per second and render time |
 | `level_check path=` / `text=` | validate a level file |
 
@@ -331,6 +368,10 @@ code, restart it (the CLI rebuilds by itself). `record` warns if tools edited th
   registered game runs, draws, rewinds and replays exactly).
 - Give your game a `bot` and a test that it wins or survives (see `template.rs`). Bots are
   also how you balance: `autoplay` after every change.
+- Test more than one seed: `autoplay seeds=1-30 until=won` (and a loop over seeds in your
+  test). Bugs that show up one run in twenty are common in bots and AI.
+- When a bot stalls, `autoplay trace=30` shows where and with what input; `entity id=N` shows
+  an NPC's current input.
 - `cargo clippy --all-targets` and `cargo fmt` keep the code tidy.
 
 ## Playing

@@ -144,8 +144,12 @@ impl Sim {
 
     fn step_inner(&mut self, input: &Input) {
         let w = &mut self.world;
-        if let Some(c) = w.player.and_then(|p| w.entities.get_mut(&p)).and_then(|e| e.character.as_mut()) {
-            c.input = *input;
+        // Characters do nothing unless driven this tick; the player is driven by `input`.
+        let player = w.player;
+        for e in w.entities.values_mut() {
+            if let Some(c) = &mut e.character {
+                c.input = if Some(e.id) == player { *input } else { Input::default() };
+            }
         }
         self.game.update(w, input);
         w.simulate();
@@ -155,6 +159,11 @@ impl Sim {
         for _ in 0..ticks {
             self.step(input);
         }
+    }
+
+    /// The earliest tick `rewind` can reach (history restarts at `new`, `load` and `restore`).
+    pub fn oldest_tick(&self) -> u64 {
+        self.history.front().map(|h| h.0.tick).unwrap_or(self.world.tick)
     }
 
     /// Goes back `ticks` (restores the nearest snapshot and re-simulates the recorded inputs).

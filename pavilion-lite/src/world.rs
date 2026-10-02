@@ -574,7 +574,8 @@ impl World {
         }
     }
 
-    /// Sets what a character does this tick (NPC brains). `pressed` buttons fire once.
+    /// Sets what a character does this tick (NPC brains): call it every tick in `update`;
+    /// an NPC that isn't driven stands still. `pressed` buttons fire once.
     pub fn drive(&mut self, id: Id, input: Input) {
         if let Some(c) = self.entities.get_mut(&id).and_then(|e| e.character.as_mut()) {
             c.input = input;
@@ -667,9 +668,29 @@ impl World {
             .find(|id| self.entities.get(id).is_some_and(|e| e.character.is_none()))
     }
 
-    /// Height of the first solid surface below `(x, from_y, z)`.
+    /// Height of the level surface below `(x, from_y, z)`: static and moving blocks count;
+    /// characters, props (dynamic bodies) and triggers don't.
     pub fn ground_at(&self, x: f32, z: f32, from_y: f32) -> Option<f32> {
-        self.raycast(Vec3::new(x, from_y, z), Vec3::NEG_Y, from_y + 100.0, None).map(|h| h.point.y)
+        let ents = &self.entities;
+        let level = |_: ColliderHandle, c: &Collider| ents.get(&(c.user_data as Id)).is_none_or(|e| e.character.is_none());
+        let flags = QueryFilterFlags::EXCLUDE_DYNAMIC | QueryFilterFlags::EXCLUDE_SENSORS;
+        let qp = self.phys.query(QueryFilter::from(flags).predicate(&level));
+        qp.cast_ray(&Ray::new(Vec3::new(x, from_y, z), Vec3::NEG_Y), from_y + 100.0, true).map(|(_, t)| from_y - t)
+    }
+
+    /// Triggers of `kind` the player started touching during the last tick (pickups, goals,
+    /// hazards). The same as filtering `w.events` for `Event::Enter` by the player.
+    pub fn player_entered(&self, kind: &str) -> Vec<Id> {
+        let Some(p) = self.player else { return Vec::new() };
+        self.events
+            .iter()
+            .filter_map(|e| match e {
+                Event::Enter { trigger, other } if *other == p && self.get(*trigger).is_some_and(|t| t.kind == kind) => {
+                    Some(*trigger)
+                }
+                _ => None,
+            })
+            .collect()
     }
 
     // ------------------------------------------------------------------ effects

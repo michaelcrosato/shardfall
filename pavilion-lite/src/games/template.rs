@@ -41,15 +41,12 @@ impl Game for Template {
 
     /// Rules, once per tick (60 per second). `w.events` says what happened last tick.
     fn update(&mut self, w: &mut World, _input: &Input) {
-        for ev in w.events.clone() {
-            if let Event::Enter { trigger, other } = ev {
-                if Some(other) == w.player && w.get(trigger).is_some_and(|e| e.kind == "coin") {
-                    let pos = w.get(trigger).unwrap().pos;
-                    w.despawn(trigger);
-                    w.burst(pos, "#ffd34d", 20, 3.0);
-                    self.score += 1;
-                }
-            }
+        // Coins the player touched last tick (for everything else, read `w.events`).
+        for coin in w.player_entered("coin") {
+            let pos = w.get(coin).unwrap().pos;
+            w.despawn(coin);
+            w.burst(pos, "#ffd34d", 20, 3.0);
+            self.score += 1;
         }
     }
 
@@ -69,8 +66,10 @@ impl Game for Template {
     /// A scripted player for `autoplay` and tests: walk to the nearest coin.
     fn bot(&mut self, w: &World) -> Option<Input> {
         let me = w.player()?.pos;
-        let coin = w.nearest("coin", me, 100.0).and_then(|id| w.get(id))?;
-        Some(Input::toward(me, coin.pos))
+        match w.nearest("coin", me, 100.0).and_then(|id| w.get(id)) {
+            Some(coin) => Some(Input::toward(me, coin.pos)),
+            None => Some(Input::default()), // all collected: stand still
+        }
     }
 }
 
