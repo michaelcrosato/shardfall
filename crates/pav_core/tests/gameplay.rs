@@ -55,6 +55,16 @@ fn walk_and_jump_onto_crate() {
 }
 
 #[test]
+fn primary_still_throws_bombs_in_engine_rooms() {
+    let mut sim = playground();
+    sim.drain_events();
+    let target = feet(&sim) + Vec3::X * 4.0;
+    sim.step(&InputFrame { aim: Some(target), held: buttons::PRIMARY, pressed: buttons::PRIMARY, ..Default::default() });
+    assert!(sim.drain_events().iter().any(|e| matches!(e, pav_core::SimEvent::Throw { .. })), "left click throws a bomb");
+    assert!(sim.state.entities.iter().any(|e| e.bomb.is_some()), "bomb spawned");
+}
+
+#[test]
 fn climb_ladder_bomb_floor_and_drop() {
     let mut sim = playground();
     let id = sim.state.player.unwrap();
