@@ -6,6 +6,17 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Primary attack input fix — 2026-10-03
+- Shardfall consumed PRIMARY for the equipped skill, then forwarded it to the character
+  controller, which also threw a Pavilion bomb (or fired the demo blaster). Clear PRIMARY
+  from both held and pressed movement input after the game handles skills. Left click and
+  the controller's primary attack now use only the equipped skill; held attacks still repeat.
+- Regression coverage checks repeated sword swings without bomb/blaster events or bomb
+  entities, and confirms left click still throws bombs in Pavilion rooms.
+- Verified the new combat regression fails before the fix and passes afterward; all 23
+  combat, gameplay, genre and skill tests pass. Formatting and pav_core clippy (all targets,
+  warnings denied) pass.
+
 ## Pavilion Lite: the compact engine for AI agents — 2026-10-02
 - New folder `pavilion-lite/`: the essential engine as ONE self-contained Cargo package (its
   own workspace, lockfile and docs; about 7,000 lines) to hand to other AI agents. It builds
