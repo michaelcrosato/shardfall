@@ -3,8 +3,9 @@
 
 use glam::{Vec2, Vec3};
 use pav_core::arpg::combat::Team;
+use pav_core::character::Weapon;
 use pav_core::input::buttons;
-use pav_core::{InputFrame, Sim};
+use pav_core::{InputFrame, Sim, SimEvent};
 
 fn hero_feet(sim: &Sim) -> Vec3 {
     let p = sim.player().unwrap();
@@ -62,6 +63,38 @@ fn monsters_fight_back() {
         }
     }
     assert!(hurt, "monsters reached and hit the hero");
+}
+
+#[test]
+fn primary_attacks_do_not_fire_engine_weapons() {
+    for weapon in [Weapon::Bombs, Weapon::Blaster] {
+        let mut sim = Sim::new("arena", 6).unwrap();
+        sim.state.game.as_mut().unwrap().arena = None;
+        sim.config.bombs.weapon = weapon;
+        sim.run(5, &InputFrame::default());
+        sim.drain_events();
+        let aim = hero_feet(&sim) + Vec3::X * 4.0;
+        sim.step(&InputFrame { aim: Some(aim), held: buttons::PRIMARY, pressed: buttons::PRIMARY, ..Default::default() });
+        let g = sim.state.game.as_ref().unwrap();
+        let skill = pav_core::arpg::data::data().skill_id(&g.hero.bar[0]).unwrap();
+        assert_eq!(g.hero_actor().unwrap().cast.as_ref().expect("primary skill started").skill, skill);
+        // Hold to repeat, then click again: neither path may fire the demo weapon.
+        for t in 0..90 {
+            sim.step(&InputFrame {
+                aim: Some(aim),
+                held: buttons::PRIMARY,
+                pressed: if t % 30 == 0 { buttons::PRIMARY } else { 0 },
+                ..Default::default()
+            });
+        }
+        let events = sim.drain_events();
+        assert!(events.iter().filter(|e| matches!(e, SimEvent::Swing { .. })).count() >= 2, "sword swings repeat");
+        assert!(
+            !events.iter().any(|e| matches!(e, SimEvent::Throw { .. } | SimEvent::Shot { .. })),
+            "primary attack also fired the engine's {weapon:?}"
+        );
+        assert!(sim.state.entities.iter().all(|e| e.bomb.is_none()), "no bomb entities");
+    }
 }
 
 #[test]
