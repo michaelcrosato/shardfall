@@ -117,8 +117,7 @@ fn critical_path(def: &RoomDef) -> Option<usize> {
 /// The numbers of one room.
 fn report(def: &RoomDef) -> Value {
     let npcs = &def.npcs;
-    let crew: Vec<&str> =
-        npcs.iter().filter(|n| matches!(n.ai, AiDef::Follow { .. })).map(|n| n.name.as_str()).collect();
+    let crew: Vec<&str> = npcs.iter().filter(|n| matches!(n.ai, AiDef::Follow { .. })).map(|n| n.name.as_str()).collect();
     let guards: Vec<_> = npcs.iter().filter(|n| matches!(n.ai, AiDef::Guard { .. })).collect();
     let townsfolk = npcs.len() - crew.len() - guards.len();
     let vision: f32 = guards
@@ -134,8 +133,7 @@ fn report(def: &RoomDef) -> Value {
     };
     let shooters: Vec<_> = objs.iter().filter(hostile).collect();
     let killable: Vec<_> = shooters.iter().filter(|o| o.health.is_some()).collect();
-    let bosses: Vec<&str> =
-        objs.iter().filter(|o| o.health.as_ref().is_some_and(|h| h.bar)).map(|o| o.name.as_str()).collect();
+    let bosses: Vec<&str> = objs.iter().filter(|o| o.health.as_ref().is_some_and(|h| h.bar)).map(|o| o.name.as_str()).collect();
     let caches: Vec<_> = objs.iter().filter(|o| o.health.is_some() && !hostile(o)).collect();
     let pickups: Vec<_> = objs.iter().filter(|o| o.pickup.is_some()).collect();
     let hazards = objs.iter().filter(|o| o.hazard.is_some()).count();
@@ -148,7 +146,8 @@ fn report(def: &RoomDef) -> Value {
             behavior_rate(&o.behavior).max(phases.unwrap_or(0.0))
         })
         .sum();
-    let reinforcements = guards.iter().filter(|n| !n.on.is_empty()).count() + shooters.iter().filter(|o| !o.on.is_empty()).count();
+    let reinforcements =
+        guards.iter().filter(|n| !n.on.is_empty()).count() + shooters.iter().filter(|o| !o.on.is_empty()).count();
     let mut zones: BTreeMap<String, usize> = BTreeMap::new();
     let mut uplinks = Vec::new();
     let mut zone_words = 0;
@@ -165,14 +164,8 @@ fn report(def: &RoomDef) -> Value {
             uplinks.push(json!({ "label": z.label, "time": z.time, "score": z.score, "signal": z.signal }));
         }
     }
-    let uplink_pay: u32 = def
-        .layout
-        .legend
-        .values()
-        .filter_map(|t| t.zone.as_ref())
-        .filter(|z| z.kind == ZoneKind::Hack)
-        .map(|z| z.score)
-        .sum();
+    let uplink_pay: u32 =
+        def.layout.legend.values().filter_map(|t| t.zone.as_ref()).filter(|z| z.kind == ZoneKind::Hack).map(|z| z.score).sum();
     let kill_pay: u32 = killable.iter().filter_map(|o| o.health.as_ref()).map(|h| h.score).sum();
     let cache_pay: u32 = caches.iter().filter_map(|o| o.health.as_ref()).map(|h| h.score).sum();
     let pickup_pay: u32 = pickups.iter().filter_map(|o| o.pickup.as_ref()).map(|p| p.score).sum();

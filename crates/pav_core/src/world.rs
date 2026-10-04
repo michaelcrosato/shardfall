@@ -456,7 +456,13 @@ impl Sim {
     pub(crate) fn spawn_room_object(&mut self, slot: &RoomSlot, o: &crate::room::ObjectDef, region: RegionKey) -> EntityId {
         if let Some(vd) = &o.vehicle {
             let name = if o.name.is_empty() { "vehicle" } else { &o.name };
-            return self.spawn_vehicle(name, vd.clone(), slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region));
+            return self.spawn_vehicle(
+                name,
+                vd.clone(),
+                slot.place.point(o.pos),
+                slot.place.quat() * o.local_rot(),
+                Some(region),
+            );
         }
         let mut v = Visual::new(o.shape, Color::hex(&o.color));
         v.look = o.look;
@@ -1231,10 +1237,12 @@ impl Sim {
                 })
             })
             // Objects still waiting for their signals are part of the room too.
-            .chain(self.state.switchboard.armed.iter().filter(|a| a.region == RegionKey::Room(id)).filter_map(|a| match &a.thing {
-                crate::switches::ArmedThing::Object(o) => Some((**o).clone()),
-                _ => None,
-            }))
+            .chain(self.state.switchboard.armed.iter().filter(|a| a.region == RegionKey::Room(id)).filter_map(
+                |a| match &a.thing {
+                    crate::switches::ArmedThing::Object(o) => Some((**o).clone()),
+                    _ => None,
+                },
+            ))
             .collect()
     }
 }

@@ -3,8 +3,8 @@
 //! player's trail, and rewind across all of it. Fixture: tests/mission_room.toml.
 
 use glam::Vec3;
-use pav_core::{InputFrame, Sim};
 use pav_core::room::RoomDef;
+use pav_core::{InputFrame, Sim};
 
 fn room() -> Sim {
     let def = RoomDef::parse(include_str!("mission_room.toml")).expect("room parses");
@@ -152,7 +152,11 @@ fn followers_walk_the_trail_round_the_wall() {
     put(&mut sim, at(5.5, 8.5));
     sim.run(10, &InputFrame::default());
     // East along the wall, round its end, back west below it.
-    let legs = [(at(25.5, 8.5), glam::Vec2::new(1.0, 0.0)), (at(25.5, 13.5), glam::Vec2::new(0.0, 1.0)), (at(8.5, 13.5), glam::Vec2::new(-1.0, 0.0))];
+    let legs = [
+        (at(25.5, 8.5), glam::Vec2::new(1.0, 0.0)),
+        (at(25.5, 13.5), glam::Vec2::new(0.0, 1.0)),
+        (at(8.5, 13.5), glam::Vec2::new(-1.0, 0.0)),
+    ];
     for (goal, dir) in legs {
         for _ in 0..600 {
             let p = sim.player().unwrap().pos;

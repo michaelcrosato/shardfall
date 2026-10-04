@@ -455,10 +455,9 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             (Patch { decay: 0.08, volume: 0.1, duty: 0.25, ..Patch::new(Square, 1760.0) }, 0.07),
             (Patch { freq_end: 2637.0, glide: 0.12, decay: 0.25, volume: 0.12, ..Patch::new(Triangle, 2093.0) }, 0.14),
         ],
-        SimEvent::TraceLost { .. } => vec![(
-            Patch { freq_end: 110.0, glide: 0.3, decay: 0.35, volume: 0.14, duty: 0.2, ..Patch::new(Square, 440.0) },
-            0.0,
-        )],
+        SimEvent::TraceLost { .. } => {
+            vec![(Patch { freq_end: 110.0, glide: 0.3, decay: 0.35, volume: 0.14, duty: 0.2, ..Patch::new(Square, 440.0) }, 0.0)]
+        }
         // Switches: power-down whine (off) / power-up sweep (on).
         SimEvent::Switched { on, .. } => {
             if *on {
