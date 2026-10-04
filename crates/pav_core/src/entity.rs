@@ -335,6 +335,12 @@ pub struct Entity {
     /// Shootable: player shots wear it down (enemies, bosses, targets).
     #[serde(default)]
     pub health: Option<Box<Health>>,
+    /// Shuts down when its signals were heard (turrets, cameras, laser grates).
+    #[serde(default)]
+    pub switch: Option<Box<crate::switches::Switch>>,
+    /// Collected by walking over it.
+    #[serde(default)]
+    pub pickup: Option<crate::switches::PickupDef>,
 }
 
 /// Room data for something the player can shoot down.

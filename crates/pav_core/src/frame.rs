@@ -131,6 +131,19 @@ pub enum SimEvent {
     Spotted {
         pos: Vec3,
     },
+    /// An uplink finished / lost its trace (the player was hit while hacking).
+    Hacked {
+        pos: Vec3,
+    },
+    TraceLost {
+        pos: Vec3,
+    },
+    /// Something shut down (`on` = false) or came online on a signal.
+    Switched {
+        pos: Vec3,
+        on: bool,
+        size: f32,
+    },
     Grab {
         pos: Vec3,
     },
@@ -241,6 +254,8 @@ pub struct HudFrame {
     pub view_serial: u64,
     /// Boss health bar: name and remaining fraction.
     pub boss: Option<(String, f32)>,
+    /// The uplink the player is hacking.
+    pub uplink: Option<crate::switches::UplinkHud>,
 }
 
 /// Physics counters for the stats overlay.

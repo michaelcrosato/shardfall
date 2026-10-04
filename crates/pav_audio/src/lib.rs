@@ -449,6 +449,27 @@ pub fn sounds_for(ev: &SimEvent) -> Vec<(Patch, f32)> {
             Patch { attack: 0.02, decay: 0.2, volume: 0.1, cutoff: 600.0, cutoff_end: 2400.0, ..Patch::new(Noise, 1.0) },
             0.0,
         )],
+        // Uplinks: a rising data chirp when one completes, a falling buzz when the trace drops.
+        SimEvent::Hacked { .. } => vec![
+            (Patch { decay: 0.08, volume: 0.1, duty: 0.25, ..Patch::new(Square, 1318.5) }, 0.0),
+            (Patch { decay: 0.08, volume: 0.1, duty: 0.25, ..Patch::new(Square, 1760.0) }, 0.07),
+            (Patch { freq_end: 2637.0, glide: 0.12, decay: 0.25, volume: 0.12, ..Patch::new(Triangle, 2093.0) }, 0.14),
+        ],
+        SimEvent::TraceLost { .. } => vec![(
+            Patch { freq_end: 110.0, glide: 0.3, decay: 0.35, volume: 0.14, duty: 0.2, ..Patch::new(Square, 440.0) },
+            0.0,
+        )],
+        // Switches: power-down whine (off) / power-up sweep (on).
+        SimEvent::Switched { on, .. } => {
+            if *on {
+                vec![(Patch { freq_end: 880.0, glide: 0.25, decay: 0.3, volume: 0.14, ..Patch::new(Saw, 110.0) }, 0.0)]
+            } else {
+                vec![
+                    (Patch { freq_end: 60.0, glide: 0.4, decay: 0.45, volume: 0.14, ..Patch::new(Saw, 660.0) }, 0.0),
+                    (Patch { decay: 0.12, volume: 0.1, cutoff: 6000.0, cutoff_end: 1500.0, ..Patch::new(Noise, 1.0) }, 0.0),
+                ]
+            }
+        }
         SimEvent::Spotted { .. } => vec![
             (Patch { decay: 0.18, volume: 0.16, ..Patch::new(Square, 990.0) }, 0.0),
             (Patch { decay: 0.25, volume: 0.16, ..Patch::new(Square, 660.0) }, 0.16),
@@ -508,6 +529,9 @@ pub fn event_pos(ev: &SimEvent) -> Option<Vec3> {
         | SimEvent::Coin { pos }
         | SimEvent::Loot { pos, .. }
         | SimEvent::Pickup { pos, .. }
+        | SimEvent::Hacked { pos }
+        | SimEvent::TraceLost { pos }
+        | SimEvent::Switched { pos, .. }
         | SimEvent::Block { pos } => Some(*pos),
         _ => None,
     }

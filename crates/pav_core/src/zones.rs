@@ -39,6 +39,9 @@ choice_enum! {
         Conveyor => "conveyor",
         /// Launches characters and props upward at `speed` (m/s): trampolines.
         Bounce => "bounce",
+        /// An uplink terminal: standing inside fills it over `time` seconds (a hit drops the
+        /// trace back to zero); when full it sends `signal` and pays `score`, once.
+        Hack => "hack",
     }
 }
 
@@ -105,9 +108,16 @@ pub struct Zone {
     /// Conveyor / bounce speed (m/s).
     #[serde(default)]
     pub speed: f32,
-    /// Pads: a signal sent to spawners (and other listeners) when stepped on.
+    /// Pads: a signal sent to spawners (and other listeners) when stepped on. Uplinks: sent
+    /// when the hack completes.
     #[serde(default)]
     pub signal: String,
+    /// Uplinks: seconds of standing inside to complete the hack.
+    #[serde(default)]
+    pub time: f32,
+    /// Uplinks: points added to the running course when the hack completes.
+    #[serde(default)]
+    pub score: u32,
 }
 
 impl Zone {
@@ -172,5 +182,6 @@ pub fn default_zone_color(kind: ZoneKind) -> Option<Color> {
         ZoneKind::Camera => None,
         ZoneKind::Conveyor => Some(Color::hex("#4a4f57")),
         ZoneKind::Bounce => Some(Color::hex("#ff8fb1")),
+        ZoneKind::Hack => Some(Color::hex("#39d0ff")),
     }
 }

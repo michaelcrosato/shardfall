@@ -379,44 +379,17 @@ impl Sim {
         }
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
-            if let Some(vd) = &o.vehicle {
-                let name = if o.name.is_empty() { "vehicle" } else { &o.name };
-                let id = self.spawn_vehicle(
-                    name,
-                    vd.clone(),
-                    slot.place.point(o.pos),
-                    slot.place.quat() * o.local_rot(),
-                    Some(region),
-                );
-                if !o.name.is_empty() {
-                    named.entry(o.name.clone()).or_insert(id);
-                }
+            // Held back until its signals were heard.
+            if !o.on.is_empty() {
+                self.state.switchboard.armed.push(crate::switches::Armed {
+                    region,
+                    on: o.on.clone(),
+                    heard: Vec::new(),
+                    thing: crate::switches::ArmedThing::Object(Box::new(o.clone())),
+                });
                 continue;
             }
-            let mut v = Visual::new(o.shape, Color::hex(&o.color));
-            v.look = o.look;
-            v.emissive = o.emissive;
-            v.light = o.light.clone().map(Box::new);
-            v.particles = o.particles.clone().map(Box::new);
-            v.distortion = o.distortion.clone().map(Box::new);
-            let rot = slot.place.quat() * o.local_rot();
-            let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
-                .visual(v)
-                .body(o.body)
-                .rot(rot)
-                .behavior(o.behavior.clone())
-                .density(o.density)
-                .friction(o.friction)
-                .restitution(o.restitution)
-                .damping(o.damping);
-            sp.region = Some(region);
-            sp.hazard = o.hazard.clone();
-            sp.soft = o.soft.clone();
-            let pos0 = sp.pos;
-            let id = self.spawn(sp);
-            if let (Some(h), Some(e)) = (&o.health, self.state.entities.get_mut(id)) {
-                e.health = Some(Box::new(crate::entity::Health::new(h.clone(), pos0, rot * Vec3::X)));
-            }
+            let id = self.spawn_room_object(&slot, o, region);
             if !o.name.is_empty() {
                 named.entry(o.name.clone()).or_insert(id);
             }
@@ -450,33 +423,101 @@ impl Sim {
             self.build_chain(c, &slot.place, region, &named);
         }
         for n in &slot.def.npcs {
-            let def = match n.puppet() {
-                Ok(d) => d,
-                Err(e) => {
-                    log::warn!("room {}: {e}", slot.key);
-                    continue;
-                }
-            };
-            let feet = slot.place.point(n.pos);
-            let dir = slot.place.rotate(Vec3::new(n.yaw.to_radians().sin(), 0.0, n.yaw.to_radians().cos()));
-            let facing = dir.x.atan2(dir.z);
-            let points = match &n.ai {
-                crate::ai::AiDef::Patrol { points, .. } | crate::ai::AiDef::Guard { points, .. } => {
-                    points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect()
-                }
-                _ => Vec::new(),
-            };
-            let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
-            let name = if n.name.is_empty() { "npc" } else { &n.name };
-            self.spawn_npc(name, feet, facing, def, Some(ai), Some(region));
+            if !n.on.is_empty() {
+                self.state.switchboard.armed.push(crate::switches::Armed {
+                    region,
+                    on: n.on.clone(),
+                    heard: Vec::new(),
+                    thing: crate::switches::ArmedThing::Npc(Box::new(n.clone())),
+                });
+                continue;
+            }
+            self.spawn_room_npc(&slot, n, region);
         }
         for l in &slot.def.labels {
+            if !l.on.is_empty() {
+                self.state.switchboard.armed.push(crate::switches::Armed {
+                    region,
+                    on: l.on.clone(),
+                    heard: Vec::new(),
+                    thing: crate::switches::ArmedThing::Label(Box::new(l.clone())),
+                });
+                continue;
+            }
             if let Some(p) = l.pos {
                 let label = l.to_label(&slot.place, p);
                 self.state.statics.add_label_to(region, label);
             }
         }
         self.state.world.rooms[id as usize].built = true;
+    }
+
+    /// Spawns one of a room's objects (at build time, or when its `on` signals arrive).
+    pub(crate) fn spawn_room_object(&mut self, slot: &RoomSlot, o: &crate::room::ObjectDef, region: RegionKey) -> EntityId {
+        if let Some(vd) = &o.vehicle {
+            let name = if o.name.is_empty() { "vehicle" } else { &o.name };
+            return self.spawn_vehicle(name, vd.clone(), slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region));
+        }
+        let mut v = Visual::new(o.shape, Color::hex(&o.color));
+        v.look = o.look;
+        v.emissive = o.emissive;
+        v.light = o.light.clone().map(Box::new);
+        v.particles = o.particles.clone().map(Box::new);
+        v.distortion = o.distortion.clone().map(Box::new);
+        let rot = slot.place.quat() * o.local_rot();
+        let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
+            .visual(v)
+            .body(o.body)
+            .rot(rot)
+            .behavior(o.behavior.clone())
+            .density(o.density)
+            .friction(o.friction)
+            .restitution(o.restitution)
+            .damping(o.damping);
+        sp.region = Some(region);
+        sp.hazard = o.hazard.clone();
+        sp.soft = o.soft.clone();
+        let pos0 = sp.pos;
+        let id = self.spawn(sp);
+        if let Some(e) = self.state.entities.get_mut(id) {
+            if let Some(h) = &o.health {
+                e.health = Some(Box::new(crate::entity::Health::new(h.clone(), pos0, rot * Vec3::X)));
+            }
+            if !o.off.is_empty() || !o.on.is_empty() {
+                e.switch = Some(Box::new(crate::switches::Switch { off: o.off.clone(), on: o.on.clone(), heard: Vec::new() }));
+            }
+            e.pickup = o.pickup.clone();
+        }
+        id
+    }
+
+    /// Spawns one of a room's characters (at build time, or when its `on` signals arrive).
+    pub(crate) fn spawn_room_npc(&mut self, slot: &RoomSlot, n: &crate::room::NpcDef, region: RegionKey) -> Option<EntityId> {
+        let def = match n.puppet() {
+            Ok(d) => d,
+            Err(e) => {
+                log::warn!("room {}: {e}", slot.key);
+                return None;
+            }
+        };
+        let feet = slot.place.point(n.pos);
+        let dir = slot.place.rotate(Vec3::new(n.yaw.to_radians().sin(), 0.0, n.yaw.to_radians().cos()));
+        let facing = dir.x.atan2(dir.z);
+        let points = match &n.ai {
+            crate::ai::AiDef::Patrol { points, .. } | crate::ai::AiDef::Guard { points, .. } => {
+                points.iter().map(|p| slot.place.point(Vec3::new(p[0], n.pos.y, p[1]))).collect()
+            }
+            _ => Vec::new(),
+        };
+        let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
+        let name = if n.name.is_empty() { "npc" } else { &n.name };
+        let id = self.spawn_npc(name, feet, facing, def, Some(ai), Some(region));
+        if let Some(e) = self.state.entities.get_mut(id) {
+            if !n.off.is_empty() || !n.on.is_empty() {
+                e.switch = Some(Box::new(crate::switches::Switch { off: n.off.clone(), on: n.on.clone(), heard: Vec::new() }));
+            }
+        }
+        Some(id)
     }
 
     /// Ties soft bodies with `attach` to the named object's body.
@@ -588,6 +629,7 @@ impl Sim {
         let st = &mut self.state;
         st.statics.remove_region(&mut st.physics, region);
         st.world.dormant_entities.remove(&region);
+        st.switchboard.clear_region(region);
         let ids: Vec<EntityId> = st.entities.iter().filter(|e| e.region == Some(region)).map(|e| e.id).collect();
         for id in ids {
             self.despawn(id);
@@ -1183,8 +1225,16 @@ impl Sim {
                     vehicle: e.vehicle.as_ref().map(|x| x.def.clone()),
                     health: e.health.as_ref().map(|x| x.def.clone()),
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
+                    off: e.switch.as_ref().map(|s| s.off.clone()).unwrap_or_default(),
+                    on: e.switch.as_ref().map(|s| s.on.clone()).unwrap_or_default(),
+                    pickup: e.pickup.clone(),
                 })
             })
+            // Objects still waiting for their signals are part of the room too.
+            .chain(self.state.switchboard.armed.iter().filter(|a| a.region == RegionKey::Room(id)).filter_map(|a| match &a.thing {
+                crate::switches::ArmedThing::Object(o) => Some((**o).clone()),
+                _ => None,
+            }))
             .collect()
     }
 }
@@ -1314,6 +1364,14 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         if let Some(v) = v {
             t.push_str(&format!("{k} = {}\n", inline(&v)));
         }
+    }
+    for (k, list) in [("off", &o.off), ("on", &o.on)] {
+        if !list.is_empty() {
+            t.push_str(&format!("{k} = [{}]\n", list.iter().map(|x| format!("{x:?}")).collect::<Vec<_>>().join(", ")));
+        }
+    }
+    if let Some(p) = o.pickup.as_ref().and_then(|x| toml::Value::try_from(x).ok()) {
+        t.push_str(&format!("pickup = {}\n", inline(&p)));
     }
     t
 }

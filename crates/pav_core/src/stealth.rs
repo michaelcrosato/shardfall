@@ -93,6 +93,11 @@ impl Sim {
             }
             events.push(SimEvent::Spotted { pos: at });
             self.state.courses.message = Some(("SPOTTED!".into(), self.state.tick));
+            // Rooms can escalate: things with `on = "spotted"` come online.
+            self.state.signals.push(crate::switches::SPOTTED.into());
+            if let Some(r) = &mut self.state.courses.run {
+                r.alarms += 1;
+            }
             self.respawn_player(events);
         }
     }
