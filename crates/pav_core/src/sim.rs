@@ -53,8 +53,6 @@ pub struct SimConfig {
     pub terrain: TerrainParams,
     /// Shardfall difficulty multipliers.
     pub difficulty: crate::arpg::Difficulty,
-    /// Uplink hacking (room missions).
-    pub hack: crate::switches::HackParams,
 }
 
 impl Default for SimConfig {
@@ -68,7 +66,6 @@ impl Default for SimConfig {
             puppet: PuppetDef::default(),
             terrain: TerrainParams::default(),
             difficulty: crate::arpg::Difficulty::default(),
-            hack: crate::switches::HackParams::default(),
         }
     }
 }
@@ -91,7 +88,6 @@ impl SimConfig {
         nested(v, "puppet", &mut self.puppet);
         nested(v, "world", &mut self.terrain);
         nested(v, "difficulty", &mut self.difficulty);
-        nested(v, "hack", &mut self.hack);
     }
 }
 
@@ -121,9 +117,6 @@ pub struct SimState {
     /// Tiles that are crumbling or waiting to regrow.
     #[serde(default)]
     pub crumbles: Vec<crate::destruct::Crumble>,
-    /// Room missions: uplinks, things waiting for signals, the player's trail.
-    #[serde(default)]
-    pub switchboard: crate::switches::Switchboard,
     /// Shardfall, when this scene is part of the game.
     #[serde(default)]
     pub game: Option<Box<crate::arpg::Game>>,
@@ -179,7 +172,6 @@ impl Sim {
                 feel: FeelMeter::default(),
                 signals: Vec::new(),
                 crumbles: Vec::new(),
-                switchboard: Default::default(),
                 game: None,
             },
             config,
@@ -293,8 +285,6 @@ impl Sim {
                 ai: None,
                 vehicle: None,
                 health: None,
-                switch: None,
-                pickup: None,
             },
         );
         if !self.replaying {
@@ -331,8 +321,6 @@ impl Sim {
                 ai: None,
                 vehicle: None,
                 health: None,
-                switch: None,
-                pickup: None,
             },
         );
         id
@@ -448,20 +436,16 @@ impl Sim {
         self.state.physics.params.dt = dt as Real;
         self.state.physics.gravity = Vector::new(0.0, -self.config.gravity as Real, 0.0);
 
-        // Last tick's signals switch things off and on, then reach the spawners.
-        let mut events = Vec::new();
-        let signals = std::mem::take(&mut self.state.signals);
-        self.run_switches(&signals, &mut events);
-
         // Behaviours set this tick's velocities of moving objects; characters then move
         // (rapier's controller carries them with kinematic platforms) and the physics step
         // advances everything together.
-        self.run_behaviors(dt, &signals);
+        self.run_behaviors(dt);
 
         // Getting in and out of vehicles.
         self.vehicle_interact(input);
 
         // The game decides what the hero and its monsters do this tick.
+        let mut events = Vec::new();
         let game_inputs = self.game_pre(input, dt, &mut events);
 
         // Characters.
@@ -487,10 +471,6 @@ impl Sim {
                         let ai = e.ai.as_mut().unwrap();
                         if feet.y < crate::course::FALL_LIMIT {
                             fallen.push((id, ai.home));
-                        }
-                        // Followers walk the player's trail.
-                        if let crate::ai::AiDef::Follow { distance } = ai.def {
-                            ai.goal = st.switchboard.follow_goal(&mut ai.seq, feet, distance);
                         }
                         npc_input = ai.think(feet, player_feet, &all_feet, &mut st.rng, dt);
                         if let (Some(f), Some(ch)) = (ai.rest_facing(), e.character.as_mut()) {
@@ -641,9 +621,6 @@ impl Sim {
             self.state.focus = p.pos;
         }
         self.update_zones(&mut events);
-        self.update_uplinks(dt, &mut events);
-        self.update_pickups(&mut events);
-        self.update_crew();
         self.measure_feel(input);
         self.update_room_tracking(&mut events);
         if self.state.tick.is_multiple_of(15) {
@@ -892,7 +869,6 @@ impl Sim {
             view: c.view.clone(),
             view_serial: c.view_serial,
             boss: self.boss_bar(),
-            uplink: self.uplink_hud(),
         };
         RenderFrame {
             tick: self.state.tick,

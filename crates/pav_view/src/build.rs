@@ -445,21 +445,6 @@ impl ViewBuilder {
                     pos: *pos + Vec3::Y * 0.1,
                     start: self.now,
                 }),
-                SimEvent::Hacked { pos } => self.effects.push(Effect {
-                    kind: EffectKind::Burst { color: [0.25, 0.85, 1.0], up: 2.5 },
-                    pos: *pos + Vec3::Y * 0.2,
-                    start: self.now,
-                }),
-                SimEvent::TraceLost { pos } => self.effects.push(Effect {
-                    kind: EffectKind::Burst { color: [1.0, 0.25, 0.35], up: 1.0 },
-                    pos: *pos + Vec3::Y * 0.2,
-                    start: self.now,
-                }),
-                SimEvent::Switched { pos, on, .. } => self.effects.push(Effect {
-                    kind: EffectKind::Burst { color: if *on { [1.0, 0.3, 0.3] } else { [1.0, 0.75, 0.3] }, up: 1.2 },
-                    pos: *pos,
-                    start: self.now,
-                }),
                 SimEvent::Respawn { pos } => self.effects.push(Effect {
                     kind: EffectKind::Burst { color: [1.0, 1.0, 1.0], up: 1.5 },
                     pos: *pos + Vec3::Y * 0.4,

@@ -6,7 +6,6 @@ pub mod agent_tools;
 pub mod bridge;
 pub mod game_tools;
 pub mod mcp;
-pub mod mission_tools;
 pub mod session;
 pub mod tools;
 

@@ -38,9 +38,6 @@ pub struct CourseRun {
     /// Points for destroyed enemies.
     #[serde(default)]
     pub score: u32,
-    /// Times a guard raised the alarm.
-    #[serde(default)]
-    pub alarms: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -58,8 +55,6 @@ pub struct CourseResult {
     pub tick: u64,
     #[serde(default)]
     pub score: u32,
-    #[serde(default)]
-    pub alarms: u32,
 }
 
 /// Course state shown by the HUD.
@@ -75,7 +70,6 @@ pub struct CourseHud {
     pub falls: u32,
     pub best: Option<f32>,
     pub score: u32,
-    pub alarms: u32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -121,7 +115,6 @@ impl Courses {
             falls: r.falls,
             best: self.best.get(&r.key).copied(),
             score: r.score,
-            alarms: r.alarms,
         })
     }
 }
@@ -181,7 +174,6 @@ impl Sim {
         // Zones at the respawn point count as already entered (respawning onto START must not
         // restart the run).
         self.state.courses.inside = self.state.statics.zones_at(pos + Vec3::Y * 0.1).map(|(r, _)| r).collect();
-        self.mission_respawn(pos, yaw);
         events.push(SimEvent::Respawn { pos });
     }
 
@@ -215,7 +207,6 @@ impl Sim {
             if let Some(r) = &mut self.state.courses.run {
                 r.hits += 1;
             }
-            self.trace_lost(events);
             if respawn {
                 self.respawn_player(events);
             }
@@ -295,7 +286,6 @@ impl Sim {
             new_best,
             tick,
             score: run.score,
-            alarms: run.alarms,
         });
         events.push(SimEvent::CourseFinish { pos, time, new_best });
     }
@@ -381,7 +371,6 @@ impl Sim {
                         hits: 0,
                         falls: 0,
                         score: 0,
-                        alarms: 0,
                     });
                     let yaw = z.facing.map(|f| yaw_of(f.dir())).unwrap_or(facing);
                     self.state.courses.checkpoint = Some((z.floor_center(), yaw));
@@ -455,7 +444,7 @@ impl Sim {
                         self.state.courses.cue_serial += 1;
                     }
                 }
-                ZoneKind::Conveyor | ZoneKind::Bounce | ZoneKind::Hack => {}
+                ZoneKind::Conveyor | ZoneKind::Bounce => {}
             }
         }
         if respawn {

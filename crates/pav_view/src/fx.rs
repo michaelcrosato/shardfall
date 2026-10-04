@@ -394,27 +394,6 @@ pub fn event_bursts(e: &pav_core::frame::SimEvent, out: &mut Vec<ParticleBurst>)
             b.color0 = Vec4::new(1.0, 0.85, 0.3, 1.0) * 1.6;
             b.color1 = Vec4::new(1.0, 0.7, 0.1, 0.0);
         })),
-        // Uplinks and switches (room missions).
-        E::Hacked { pos } => out.push(with("magic", *pos + Vec3::Y * 0.2, 60, &|b| {
-            b.area = Vec3::new(0.6, 0.1, 0.6);
-            b.vel = Vec3::Y * 3.0;
-            b.color0 = Vec4::new(0.3, 0.9, 1.0, 1.0) * 1.8;
-            b.color1 = Vec4::new(0.1, 0.5, 1.0, 0.0);
-        })),
-        E::TraceLost { pos } => out.push(with("sparks", *pos + Vec3::Y * 0.3, 30, &|b| {
-            b.spread = 3.0;
-            b.color0 = Vec4::new(1.0, 0.3, 0.4, 1.0) * 1.6;
-            b.color1 = Vec4::new(1.0, 0.1, 0.2, 0.0);
-        })),
-        E::Switched { pos, on, size } => out.push(with("sparks", *pos, 30 + (*size * 20.0) as u32, &|b| {
-            b.spread = 2.5 + size * 2.0;
-            b.vel = Vec3::Y * 1.5;
-            (b.color0, b.color1) = if *on {
-                (Vec4::new(1.0, 0.25, 0.25, 1.0) * 1.8, Vec4::new(1.0, 0.1, 0.1, 0.0))
-            } else {
-                (Vec4::new(1.0, 0.8, 0.35, 1.0) * 1.6, Vec4::new(0.6, 0.6, 0.6, 0.0))
-            };
-        })),
         E::Potion { pos } => out.push(with("magic", *pos + Vec3::Y * 0.9, 24, &|b| {
             b.area = Vec3::new(0.4, 0.8, 0.4);
             b.vel = Vec3::Y * 1.5;

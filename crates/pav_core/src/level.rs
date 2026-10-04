@@ -186,11 +186,6 @@ pub struct ZoneDef {
     pub speed: f32,
     #[serde(default)]
     pub signal: String,
-    /// Uplinks: seconds to hack, and points paid when done.
-    #[serde(default)]
-    pub time: f32,
-    #[serde(default)]
-    pub score: u32,
 }
 
 fn three() -> f32 {
@@ -216,10 +211,6 @@ pub struct LabelDef {
     /// Wall labels: the direction the text faces.
     #[serde(default = "south")]
     pub facing: Facing,
-    /// Room labels only: signals (all of them) that reveal it (story beats); it also shows as
-    /// a HUD message when it appears.
-    #[serde(default, deserialize_with = "crate::switches::one_or_many", skip_serializing_if = "Vec::is_empty")]
-    pub on: Vec<String>,
 }
 
 fn label_y() -> f32 {
@@ -479,8 +470,6 @@ impl Layout {
                     facing: z.facing.map(|f| place.facing(f)),
                     speed: z.speed,
                     signal: z.signal.clone(),
-                    time: z.time,
-                    score: z.score,
                 };
                 let key = region.unwrap_or(RegionKey::chunk_of(zone.center()));
                 sim.state.statics.add_zone_to(key, zone);

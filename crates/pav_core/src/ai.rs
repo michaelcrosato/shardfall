@@ -110,11 +110,6 @@ pub struct Ai {
     /// Guards: heading when they stopped (they look around it).
     #[serde(default)]
     pub look: f32,
-    /// Followers: the trail point they head for (set by the sim each tick) and its number.
-    #[serde(default)]
-    pub goal: Option<Vec3>,
-    #[serde(default)]
-    pub seq: u64,
 }
 
 impl Ai {
@@ -136,8 +131,6 @@ impl Ai {
             alert: 0.0,
             sees: false,
             look: facing,
-            goal: None,
-            seq: 0,
         }
     }
 
@@ -152,7 +145,6 @@ impl Ai {
         let mut out = InputFrame::default();
         let flat = |v: Vec3| Vec2::new(v.x, v.z);
         let mut dir = Vec2::ZERO;
-        let mut hurry = false;
         match &self.def {
             AiDef::Idle => {
                 // Knocked away: walk back to the spot.
@@ -213,11 +205,7 @@ impl Ai {
                 if let Some(p) = player {
                     let d = flat(p - feet);
                     if d.length() > *distance {
-                        // Along the player's trail when there is one (round corners), else
-                        // straight at them; hurry when far behind.
-                        let goal = self.goal.map(|g| flat(g - feet)).filter(|g| g.length() > 0.3);
-                        dir = goal.unwrap_or(d).normalize();
-                        hurry = d.length() > distance * 2.5 + 2.0;
+                        dir = d.normalize();
                     }
                 }
             }
@@ -241,7 +229,7 @@ impl Ai {
             self.stuck = (self.stuck - dt).max(0.0);
         }
         self.last = feet;
-        out.move_dir = dir * if hurry { 1.0 } else { self.speed.clamp(0.05, 1.0) };
+        out.move_dir = dir * self.speed.clamp(0.05, 1.0);
         if self.hop > 0.0 {
             self.hop_timer -= dt;
             if self.hop_timer <= 0.0 {

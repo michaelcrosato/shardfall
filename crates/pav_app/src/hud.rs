@@ -135,7 +135,7 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
     let ago = |tick: u64| h.tick.saturating_sub(tick) as f32 * h.dt;
     let result = h.hud.last_result.as_ref().filter(|r| ago(r.tick) < 6.0);
     let msg = h.hud.message.as_ref().filter(|(_, t)| ago(*t) < 2.5);
-    if h.hud.course.is_none() && result.is_none() && msg.is_none() && h.hud.boss.is_none() && h.hud.uplink.is_none() {
+    if h.hud.course.is_none() && result.is_none() && msg.is_none() && h.hud.boss.is_none() {
         return;
     }
     egui::Area::new(egui::Id::new("course_hud")).anchor(egui::Align2::CENTER_TOP, [0.0, 10.0]).show(ctx, |ui| {
@@ -163,9 +163,6 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                                 RichText::new(format!("score {}", c.score)).color(Color32::from_rgb(140, 220, 255)).strong(),
                             );
                         }
-                        if c.alarms > 0 {
-                            ui.label(RichText::new(format!("alarms {}", c.alarms)).color(Color32::from_rgb(255, 90, 110)));
-                        }
                         if let Some(b) = c.best {
                             ui.label(RichText::new(format!("best {b:.2} s")).weak());
                         }
@@ -187,11 +184,6 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                     if r.score > 0 {
                         sub.push(format!("score {}", r.score));
                     }
-                    if r.alarms > 0 {
-                        sub.push(format!("{} alarms", r.alarms));
-                    } else {
-                        sub.push("ghost: no alarms".into());
-                    }
                     if r.new_best {
                         ui.label(RichText::new("NEW BEST").color(Color32::from_rgb(255, 215, 90)).strong());
                     } else {
@@ -203,23 +195,6 @@ pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
                 }
                 if let Some((m, _)) = msg {
                     ui.label(RichText::new(m).color(Color32::from_rgb(255, 220, 140)).strong());
-                }
-                if let Some(u) = &h.hud.uplink {
-                    // Uplink progress: cyan while hacking, green once done.
-                    let (text, color) = if u.done {
-                        (format!("{} · HACKED", u.label), Color32::from_rgb(90, 230, 140))
-                    } else {
-                        (format!("UPLINK · {} · {:.0}%", u.label, u.progress * 100.0), Color32::from_rgb(80, 210, 255))
-                    };
-                    ui.label(RichText::new(text).strong().color(color));
-                    let (rect, _) = ui.allocate_exact_size(egui::vec2(260.0, 10.0), egui::Sense::hover());
-                    ui.painter().rect_filled(rect, 3.0, Color32::from_gray(35));
-                    let mut fill = rect;
-                    fill.set_width(rect.width() * if u.done { 1.0 } else { u.progress.clamp(0.0, 1.0) });
-                    ui.painter().rect_filled(fill, 3.0, color);
-                    if !u.done {
-                        ui.label(RichText::new("hold position · a hit drops the trace").weak().small());
-                    }
                 }
                 if let Some((name, f)) = &h.hud.boss {
                     // Boss health bar.

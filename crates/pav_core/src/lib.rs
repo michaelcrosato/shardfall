@@ -33,7 +33,6 @@ pub mod sim;
 pub mod softbody;
 pub mod statics;
 pub mod stealth;
-pub mod switches;
 pub mod terrain;
 pub mod vehicle;
 pub mod world;
