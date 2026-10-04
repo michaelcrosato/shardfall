@@ -400,6 +400,11 @@ impl StaticWorld {
         self.chunks.get(&key).map(|c| c.zones.as_slice()).unwrap_or(&[])
     }
 
+    /// All labels of a region.
+    pub fn region_labels(&self, key: RegionKey) -> &[Label] {
+        self.chunks.get(&key).map(|c| c.labels.as_slice()).unwrap_or(&[])
+    }
+
     pub fn add_decor(&mut self, physics: &mut PhysicsState, key: RegionKey, mut d: Decor) {
         if d.solid {
             d.collider = Some(physics.insert_static(decor_collider(&d)));

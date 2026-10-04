@@ -1,5 +1,47 @@
 # Progress log
 
+## Cinderwire browser import into Muse AI Hub — 2026-10-04
+- Built the current worktree with `scripts/build-web.sh` and imported both
+  Cinderwire missions into `../muse-ai-hub/games/cinderwire-20261004-musespark.html`.
+  The compiled WebAssembly and wasm-bindgen glue are embedded; the hub's shared
+  boot CSS/JS stay external. The hub entry is `play.html?id=cinderwire`.
+- Fixed browser startup sizing in `pav_app::App::finish_init`: apply the latest
+  canvas dimensions after asynchronous GPU creation, including resize events
+  received before graphics initialization completed. Native startup is unchanged.
+- Verified the WebAssembly distribution build, wasm32 Clippy, all six mission
+  tests, and the all-rooms/course test. In the hub, 31 Node tests and both
+  validators pass; both missions render in a headless WebGPU browser, the pause
+  menu responds, and devices without WebGPU receive the boot failure screen.
+
+## Cinderwire mission 2: The Ash Exchange — 2026-10-01
+- Added `rooms/ash_exchange.toml`: sequel run on a fresh 40x30 map (venue hub
+  with rig/keyword pads, setup corridor with one-way alarm state, HIGH/LOW
+  branch with a kinematic timed seal door, optional Veil closet + Adjudicator
+  cache, ordered-gate conveyor exfil). 10 NPCs, 25 objects, 20 labels.
+- Added `docs/ash_exchange_map.png` previz; extended `docs/CINDERWIRE.md` with
+  section 4b (mission 2) and the two-mission manifest.
+- Verified with `/tmp/ax_check.py` (mission-2 contract: PASS, 0 errors/
+  warnings; adds course-coherence + jack-out-mirror checks) and
+  `/tmp/ax_previz.py` (58-tile critical path, ~100+ with optionals);
+  `rooms/cinderwire.toml` re-validated clean (regression).
+
+## Cinderwire vertical slice (original IP, Shadowrun-like) — 2026-10-01
+- Added `rooms/cinderwire.toml` ("Cinderwire: The Helix Ledger"): one complete
+  cyberpunk-noir run on the room framework (street hub with hire/keyword pads,
+  fence stealth, server hall, jack-in Veil re-skin, vault boss + finish). Data
+  only: 10 NPCs, 24 objects, 20 labels, one course; no Rust changes.
+- Added `docs/CINDERWIRE.md` (IP, pillars, modernizations, full-game systems,
+  verification) and `docs/cinderwire_map.png` (top-down previz).
+- Challenge geometry reuses the sightline-tuned stealth map; street hub, Veil,
+  turrets/datastores/boss and all story dressing are new. Movement is instant +
+  cursor-aim blaster; guards retuned to 0.22 speed for the faster model.
+- Verified statically (session sandbox could not exec the Rust toolchain):
+  `/tmp/cw_check.py` mirrors `RoomDef::validate` plus schema/connectivity/
+  signal/course checks — PASS with 0 errors/warnings; reference stealth room
+  passes all generic checks; corrupted copy fails with exactly the injected
+  defects. First runtime gate on a build machine: `pav room_check
+  path=rooms/cinderwire.toml`, then `pav capture scene=cinderwire ...`.
+
 All engine milestones M1–M10 and all Shardfall milestones G1–G6 are complete (Shardfall is
 the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progress: the
 *Shardfall* sections at the end of this file). Next work, if any, is new content or polish:

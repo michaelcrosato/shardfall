@@ -1,0 +1,107 @@
+# Fixture for tests/missions.rs: uplinks, switches (off/on, all-of), the spotted signal,
+# pickups and a follower that has to walk round the long wall.
+name = "MT"
+entrance = { at = [14, 19], facing = "south" }
+[layout]
+origin = [-15.0, 0.0, -10.0]
+[[layout.layer]]
+map = '''
+##############################
+#............................#
+#.SSSS.......................#
+#.SSSS......U...T...A...B....#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#WWWWWWWWWWWWWWWWWWWWW.......#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+#............................#
+##############..##############
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }, { y0 = 0, y1 = 2.5, color = "#c0c7cf" }]
+[layout.legend.'W']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }, { y0 = 0, y1 = 2.5, color = "#6d737c" }]
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "start", course = "job" }
+[layout.legend.'U']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "hack", label = "GRID", time = 2.0, score = 40, signal = "grid" }
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "hack", label = "SLOW", time = 6.0, signal = "slow" }
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "hack", label = "KEY A", time = 1.0, signal = "key_a" }
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#9aa0a8" }]
+zone = { kind = "hack", label = "KEY B", time = 1.0, signal = "key_b" }
+
+[[label]]
+text = "THE GRID IS DOWN"
+pos = [12.5, 0.03, 5.0]
+size = 0.3
+on = "grid"
+
+[[npc]]
+name = "crew"
+pos = [4.5, 0, 8.5]
+ai = { type = "follow", distance = 1.5 }
+
+[[npc]]
+name = "guard"
+pos = [2.5, 0, 16.0]
+ai = { type = "guard", points = [[2.5, 16.0]], pause = 1000, range = 4, angle = 90 }
+
+[[npc]]
+name = "backup"
+pos = [27.5, 0, 17.5]
+yaw = 270.0
+on = "spotted"
+ai = { type = "guard", points = [[27.5, 17.5]], pause = 1000, range = 5, angle = 60 }
+
+[[object]]
+name = "grid_gun"
+shape = { type = "sphere", radius = 0.4 }
+pos = [12.5, 1.1, 7.5]
+color = "#ff8a5c"
+body = "none"
+behavior = { type = "emitter", pattern = "aimed", interval = 100.0, range = 1.0 }
+off = "grid"
+
+[[object]]
+name = "door"
+shape = { type = "box", half = [0.5, 1.0, 0.5] }
+pos = [22.5, 1.0, 6.5]
+color = "#8a93a8"
+body = "fixed"
+off = ["key_a", "key_b"]
+
+[[object]]
+name = "loot"
+shape = { type = "box", half = [0.2, 0.1, 0.2] }
+pos = [14.5, 0.5, 6.5]
+color = "#ffd24a"
+body = "none"
+on = "grid"
+pickup = { score = 30, label = "CACHE" }
+
+[[object]]
+name = "chip"
+shape = { type = "box", half = [0.2, 0.1, 0.2] }
+pos = [8.5, 0.5, 5.5]
+color = "#7df9ff"
+body = "none"
+pickup = { score = 25 }

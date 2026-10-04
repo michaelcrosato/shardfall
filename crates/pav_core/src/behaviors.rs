@@ -36,12 +36,11 @@ impl Sim {
         }
     }
 
-    pub(crate) fn run_behaviors(&mut self, dt: f32) {
+    pub(crate) fn run_behaviors(&mut self, dt: f32, signals: &[String]) {
         let ids: Vec<EntityId> =
             self.state.entities.iter().filter(|e| !matches!(e.behavior, Behavior::None)).map(|e| e.id).collect();
         // Time at the end of this tick: movers arrive there after the physics step.
         let t = (self.state.tick + 1) as f32 * dt;
-        let signals = std::mem::take(&mut self.state.signals);
         let player = self.player().map(|p| p.pos);
         for id in ids {
             let Some(e) = self.state.entities.get(id) else { continue };

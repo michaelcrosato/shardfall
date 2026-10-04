@@ -179,6 +179,12 @@ pub static TOOLS: &[Tool] = &[
         run: t_room_check,
     },
     Tool {
+        name: "mission",
+        help: "The numbers of a room run: cast, enemies, danger (enemy hp, fire rate, vision cone area, hazards, reinforcements), loot (nuyen from kills, caches, pickups, uplinks), story words, critical path tiles (START -> gates -> FINISH) and mechanics used. vs=other adds that room and the ratios. Without room=: the live mission state (uplinks, switches, things waiting for signals).",
+        args: &[arg("room", "string", "room key or .toml path"), arg("vs", "string", "room to compare with")],
+        run: crate::mission_tools::t_mission,
+    },
+    Tool {
         name: "room_reload",
         help: "Re-read room files from the rooms directory and rebuild changed rooms (hot reload).",
         args: &[],

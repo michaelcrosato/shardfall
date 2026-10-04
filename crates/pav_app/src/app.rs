@@ -292,6 +292,15 @@ impl App {
     fn finish_init(&mut self, gfx: Gfx) -> Result<()> {
         let s = self.settings.clone();
         let window = gfx.window.clone();
+        // WebGPU initialization is async. Resize events may arrive before self.gfx
+        // exists, so apply the latest canvas size before rendering the first frame.
+        #[cfg(target_arch = "wasm32")]
+        let gfx = {
+            let mut gfx = gfx;
+            let size = window.inner_size();
+            gfx.resize(size.width, size.height);
+            gfx
+        };
         let egui_state = stage("ui", || {
             let st = UiInput::new(&self.egui_ctx, &window, gfx.device.limits().max_texture_dimension_2d as usize);
             Ok((st, String::new()))

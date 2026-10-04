@@ -91,6 +91,15 @@ pub struct ObjectDef {
     /// Shootable (enemies, bosses): hp, score, signal, finish, bar, sway, phases.
     #[serde(default)]
     pub health: Option<crate::entity::HealthDef>,
+    /// Signals (all of them) that shut it down: it disappears with a spark.
+    #[serde(default, deserialize_with = "crate::switches::one_or_many", skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<String>,
+    /// Signals (all of them) it waits for: it only appears once they were heard.
+    #[serde(default, deserialize_with = "crate::switches::one_or_many", skip_serializing_if = "Vec::is_empty")]
+    pub on: Vec<String>,
+    /// Collected by walking over it (score, HUD message).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pickup: Option<crate::switches::PickupDef>,
 }
 
 impl ObjectDef {
@@ -285,6 +294,12 @@ pub struct NpcDef {
     /// Puppet settings over the preset (any puppet field: colours, proportions, look...).
     #[serde(default)]
     pub look: toml::Table,
+    /// Signals (all of them) that remove it (a camera blinded by an uplink).
+    #[serde(default, deserialize_with = "crate::switches::one_or_many", skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<String>,
+    /// Signals (all of them) it waits for before it appears (reinforcements).
+    #[serde(default, deserialize_with = "crate::switches::one_or_many", skip_serializing_if = "Vec::is_empty")]
+    pub on: Vec<String>,
 }
 
 fn half_speed() -> f32 {

@@ -1337,6 +1337,8 @@ impl<'a> Builder<'a> {
             facing: Some(facing),
             speed: 4.5,
             signal: String::new(),
+            time: 0.0,
+            score: 0,
         };
         let c = rect.center();
         let st = &mut self.sim.state;
