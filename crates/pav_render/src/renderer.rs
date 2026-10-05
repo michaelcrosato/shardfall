@@ -1253,7 +1253,7 @@ impl Renderer {
                     [f.dither, f.levels, f.palette as f32, f.split],
                     [f.temperature, f.tint, f.contrast, f.brightness],
                     [f.vignette, f.grain, f.chroma, scene.time],
-                    [f.saturation, 0.0, 0.0, 0.0],
+                    [f.saturation, f.pixel_art, f.pixel_levels, if f.pixel_outline { 1.0 } else { 0.0 }],
                 ]
             },
         };

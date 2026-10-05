@@ -6,6 +6,25 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Pixel art on part of the scene — 2026-10-05
+- `view.filter.pixel_art` (block size, 1 = off) turns part of the scene into pixel art while the
+  rest stays sharp; `pixel_target` picks what: `all`, `characters` (every puppet), `hero`,
+  `others` (characters but the hero), `world` (everything that isn't a character) or `entity`
+  (`pixel_entity` = an entity id). `pixel_levels` posterizes the pixel-art colours and
+  `pixel_outline` (on) draws a dark one-block outline just outside pixel-art silhouettes.
+  Works with the whole-screen `pixelate`, palettes and the rest of the filter stack.
+- How: the view flags the chosen instances `flags::PIXEL` (by outline group: entity id + 2,
+  1 for level geometry); the scene pass writes their group negative into the normal buffer's
+  w; the composite gives a block its centre's colour when this pixel or the centre is
+  flagged, so flagged silhouettes step in whole blocks and nothing else is touched. Cost: a
+  few extra texel loads per pixel, only while `pixel_art` > 1.
+- The Filter Stack Bench has four new pads (ART OFF / CHARACTERS / HERO / WORLD); RESET
+  clears it. Test: `pav_view/tests/pixel_art.rs` (each target flags exactly its instances).
+- Not done yet: the block grid is fixed to the screen, so with `world` the level shimmers a
+  little as the camera slides (snapping the camera to the block grid would fix it);
+  shadows belong to the ground they fall on (pixelated with `world`, sharp with
+  `characters`); text labels are never flagged themselves.
+
 ## Audit: the bot picks up loot — 2026-10-05
 - Audit of the whole repo: fmt, clippy (warnings denied) and every test pass (main
   workspace and `pavilion-lite/`); every room file passes `room_check`. The one real problem

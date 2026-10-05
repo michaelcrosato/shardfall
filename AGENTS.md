@@ -44,7 +44,9 @@ crates/
   pav_render  wgpu renderer (Vulkan/DX12): Scene description -> particles (compute) -> sun +
               point-light shadow passes (shadows.rs) -> MSAA scene pass (+ GPU particles) ->
               bloom chain and distortion (fx.rs) -> composite (outlines, screen-space GI,
-              tonemap, filter stack: pixelate/CRT/scanlines/dither/palettes/grading, split).
+              tonemap, filter stack: pixelate/CRT/scanlines/dither/palettes/grading, split;
+              pixel art on part of the scene: objects flagged `flags::PIXEL`, chosen in the view
+              by `view.filter.pixel_target` = all/characters/hero/others/world/entity).
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
               the world (text.rs). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),

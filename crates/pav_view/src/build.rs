@@ -106,6 +106,18 @@ choice_enum! {
     }
 }
 
+choice_enum! {
+    /// What `pixel_art` turns into pixel art.
+    pub enum PixelTarget {
+        All => "all",
+        Characters => "characters",
+        Hero => "hero",
+        Others => "others",
+        World => "world",
+        Entity => "entity",
+    }
+}
+
 /// Screen filters (retro looks, grading) applied after tonemapping.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -126,6 +138,13 @@ pub struct FilterSettings {
     pub grain: f32,
     pub chroma: f32,
     pub saturation: f32,
+    /// Pixel art for part of the scene: block size (1 = off), what it applies to (the entity
+    /// id for `entity`), colour levels per channel and a dark one-block outline.
+    pub pixel_art: f32,
+    pub pixel_target: PixelTarget,
+    pub pixel_entity: i32,
+    pub pixel_levels: f32,
+    pub pixel_outline: bool,
 }
 
 impl Default for FilterSettings {
@@ -147,6 +166,11 @@ impl Default for FilterSettings {
             grain: 0.0,
             chroma: 0.0,
             saturation: 1.0,
+            pixel_art: 1.0,
+            pixel_target: PixelTarget::All,
+            pixel_entity: 0,
+            pixel_levels: 0.0,
+            pixel_outline: true,
         }
     }
 }
@@ -169,6 +193,15 @@ impl Tunable for FilterSettings {
         v.float("grain", &mut self.grain, 0.0, 1.0, "Film grain");
         v.float("chroma", &mut self.chroma, 0.0, 1.0, "Chromatic aberration");
         v.float("saturation", &mut self.saturation, 0.0, 2.0, "Saturation of the filtered image (0 = grey)");
+        v.float("pixel_art", &mut self.pixel_art, 1.0, 16.0, "Pixel-art block size for part of the scene (1 = off)");
+        self.pixel_target.visit_choice(
+            v,
+            "pixel_target",
+            "Pixel art on: all, characters, the hero, other characters, the world, one entity",
+        );
+        v.int("pixel_entity", &mut self.pixel_entity, 0, i32::MAX, "Entity id when pixel_target = entity");
+        v.float("pixel_levels", &mut self.pixel_levels, 0.0, 32.0, "Pixel-art colour levels per channel (below 2 = unchanged)");
+        v.bool("pixel_outline", &mut self.pixel_outline, "Dark one-block outline around pixel art");
     }
 }
 
@@ -573,6 +606,9 @@ impl ViewBuilder {
             grain: f.grain,
             chroma: f.chroma,
             saturation: f.saturation,
+            pixel_art: f.pixel_art,
+            pixel_levels: f.pixel_levels,
+            pixel_outline: f.pixel_outline,
         };
         if settings.particles {
             scene.particles = std::mem::take(&mut self.pending_particles);
@@ -734,8 +770,12 @@ impl ViewBuilder {
         let cam_fwd = scene.camera.forward;
         let now = self.now as f32;
         let mut live = Vec::new();
+        let mut puppets = Vec::new();
         for o in interpolate(prev, curr, alpha) {
             let v = &o.visual;
+            if o.puppet.is_some() {
+                puppets.push(o.id.0 + 2);
+            }
             if let Some(c) = &o.cone {
                 crate::vehicles::emit_cone(&mut scene, c, 0xfff8);
             }
@@ -818,7 +858,38 @@ impl ViewBuilder {
             scene.sdfs.push(sd);
         }
         self.emit_effects(&mut scene);
+        if f.pixel_art > 1.0 {
+            let hero = curr.player.map(|p| p.0 + 2);
+            mark_pixel_art(&mut scene, |g| match f.pixel_target {
+                PixelTarget::All => true,
+                PixelTarget::Characters => puppets.contains(&g),
+                PixelTarget::Hero => Some(g) == hero,
+                PixelTarget::Others => puppets.contains(&g) && Some(g) != hero,
+                PixelTarget::World => !puppets.contains(&g),
+                PixelTarget::Entity => g == f.pixel_entity as u32 + 2,
+            });
+        }
         scene
+    }
+}
+
+/// Flags every instance whose outline group passes `pick` as pixel art (groups are the
+/// entity id + 2 for objects and characters, 1 for level geometry).
+fn mark_pixel_art(scene: &mut Scene, pick: impl Fn(u32) -> bool) {
+    for m in &mut scene.meshes {
+        if pick(m.group) {
+            m.flags |= rs::flags::PIXEL;
+        }
+    }
+    for s in &mut scene.sdfs {
+        if pick(s.group) {
+            s.flags |= rs::flags::PIXEL;
+        }
+    }
+    for d in &mut scene.dynamic {
+        if pick(d.group) {
+            d.flags |= rs::flags::PIXEL;
+        }
     }
 }
 
