@@ -36,6 +36,7 @@ const FLAG_NO_CUT: u32 = 1u;
 const FLAG_NO_RECEIVE_SHADOW: u32 = 4u;
 const FLAG_CUT_VERTEX: u32 = 8u;
 const FLAG_TWO_SIDED: u32 = 16u;
+const FLAG_PIXEL: u32 = 32u;
 
 struct FsOut {
     @location(0) color: vec4<f32>,
@@ -218,8 +219,11 @@ fn apply_fog(p: vec3<f32>, col: vec3<f32>) -> vec3<f32> {
     return mix(col, g.fog.rgb, smoothstep(g.fog2.z, g.fog2.w, d));
 }
 
-fn group_out(n: vec3<f32>, group: u32) -> vec4<f32> {
-    return vec4<f32>(n, f32(group & 2047u));
+// The normal buffer's w is the outline group, negative for pixel-art objects (the
+// composite reads the sign as the pixel-art mask).
+fn group_out(n: vec3<f32>, group: u32, flags: u32) -> vec4<f32> {
+    let g = f32(group & 2047u);
+    return vec4<f32>(n, select(g, -g, (flags & FLAG_PIXEL) != 0u));
 }
 
 // ---------------------------------------------------------------- meshes
@@ -298,18 +302,18 @@ fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
     if (!front && (in.params.y & FLAG_TWO_SIDED) != 0u) {
         let nb = -normalize(in.normal);
         o.color = vec4<f32>(shade(in.world, nb, in.color.rgb * 0.85, in.color.a, in.params.x, in.params.y), 1.0);
-        o.normal = group_out(nb, in.params.z);
+        o.normal = group_out(nb, in.params.z, in.params.y);
         return o;
     }
     if (!front) {
         // Inside of a cut-open solid: draw a flat "cross-section" cap.
         o.color = vec4<f32>(in.color.rgb * 0.42, 1.0);
-        o.normal = group_out(vec3<f32>(0.0, 1.0, 0.0), in.params.z);
+        o.normal = group_out(vec3<f32>(0.0, 1.0, 0.0), in.params.z, in.params.y);
         return o;
     }
     let n = normalize(in.normal);
     o.color = vec4<f32>(shade(in.world, n, in.color.rgb, in.color.a, in.params.x, in.params.y), 1.0);
-    o.normal = group_out(n, in.params.z);
+    o.normal = group_out(n, in.params.z, in.params.y);
     return o;
 }
 
@@ -476,7 +480,7 @@ fn fs_sdf(in: SdfOut) -> SdfFsOut {
     let clip = g.view_proj * vec4<f32>(p, 1.0);
     var o: SdfFsOut;
     o.color = vec4<f32>(shade(p, n, in.color.rgb, in.color.a, in.params.x, in.params.y), 1.0);
-    o.normal = group_out(n, in.params.z);
+    o.normal = group_out(n, in.params.z, in.params.y);
     o.depth = clip.z / clip.w;
     return o;
 }
@@ -542,6 +546,6 @@ fn fs_text(in: GlyphOut) -> FsOut {
     }
     var o: FsOut;
     o.color = vec4<f32>(apply_fog(in.world, in.color.rgb), a);
-    o.normal = group_out(normalize(in.normal), in.params.y);
+    o.normal = group_out(normalize(in.normal), in.params.y, 0u);
     return o;
 }

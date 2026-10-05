@@ -13,7 +13,7 @@ struct Post {
     filt1: vec4<f32>,          // dither, levels, palette, split (0 = off, else screen fraction)
     filt2: vec4<f32>,          // temperature, tint, contrast, brightness
     filt3: vec4<f32>,          // vignette, grain, chromatic aberration, time
-    filt4: vec4<f32>,          // saturation (filtered side only)
+    filt4: vec4<f32>,          // saturation (filtered side only), pixel-art block, levels, outline
 };
 
 @group(0) @binding(0) var<uniform> post: Post;
@@ -40,7 +40,7 @@ fn view_depth(px: vec2<i32>, sample: i32) -> f32 {
 fn edge_at(px: vec2<i32>, dims: vec2<i32>, t: i32, sample: i32) -> f32 {
     let d0 = view_depth(px, sample);
     let n0 = textureLoad(normal_ms, px, sample);
-    if (n0.w <= 0.0) {
+    if (n0.w == 0.0) {
         return 0.0;
     }
     var offs = array<vec2<i32>, 4>(vec2<i32>(t, 0), vec2<i32>(-t, 0), vec2<i32>(0, t), vec2<i32>(0, -t));
@@ -82,7 +82,7 @@ fn screen_gi(px: vec2<i32>, dims: vec2<i32>) -> vec4<f32> {
     }
     let p = view_pos(px, dims);
     let n4 = textureLoad(normal_ms, px, 0);
-    if (n4.w <= 0.0) {
+    if (n4.w == 0.0) {
         return vec4<f32>(0.0);
     }
     let n = normalize((post.view * vec4<f32>(n4.xyz, 0.0)).xyz);
@@ -188,6 +188,11 @@ fn to_linear(c: vec3<f32>) -> vec3<f32> {
     return select(hi, lo, c <= vec3<f32>(0.04045));
 }
 
+// Pixel art: the normal buffer's group is negative on objects drawn as pixel art.
+fn group_at(p: vec2<f32>, dims: vec2<i32>) -> f32 {
+    return textureLoad(normal_ms, clamp(vec2<i32>(p), vec2<i32>(0), dims - vec2<i32>(1)), 0).w;
+}
+
 fn bayer4i(p: vec2<f32>) -> f32 {
     var m = array<f32, 16>(0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
     let x = u32(p.x) % 4u;
@@ -289,7 +294,48 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
         if (block > 1.0) {
             p = (floor(p / block) + 0.5) * block;
         }
+        // Pixel art for marked objects only: a block shows its centre's colour where this
+        // pixel or the centre is marked, so marked silhouettes step in whole blocks while
+        // everything else stays sharp.
+        let art_px = post.filt4.y;
+        var art = false;
+        var art_edge = false;
+        if (art_px > 1.0) {
+            let c = (floor(p / art_px) + 0.5) * art_px;
+            let gc = group_at(c, dims);
+            if (gc < 0.0 || group_at(p, dims) < 0.0) {
+                p = c;
+                art = true;
+            }
+            // A one-block outline just outside marked silhouettes: a block whose neighbour
+            // is a different marked object in front of it turns dark.
+            if (post.filt4.w > 0.5) {
+                let dc = view_depth(clamp(vec2<i32>(c), vec2<i32>(0), dims - vec2<i32>(1)), 0);
+                var offs = array<vec2<f32>, 4>(vec2<f32>(1.0, 0.0), vec2<f32>(-1.0, 0.0), vec2<f32>(0.0, 1.0), vec2<f32>(0.0, -1.0));
+                for (var i = 0; i < 4; i++) {
+                    let q = c + offs[i] * art_px;
+                    let gq = group_at(q, dims);
+                    let qi = clamp(vec2<i32>(q), vec2<i32>(0), dims - vec2<i32>(1));
+                    if (gq < 0.0 && gq != gc && view_depth(qi, 0) < dc - 0.05) {
+                        art_edge = true;
+                    }
+                }
+                if (art_edge) {
+                    p = c;
+                    art = true;
+                }
+            }
+        }
         s = to_srgb(scene_color(p, dims, post.filt3.z));
+        if (art) {
+            let al = post.filt4.z;
+            if (al >= 2.0) {
+                s = floor(s * (al - 1.0) + 0.5) / (al - 1.0);
+            }
+            if (art_edge) {
+                s = s * 0.18;
+            }
+        }
         // Colour grading (display space).
         let temp = post.filt2.x;
         s = s * vec3<f32>(1.0 + 0.12 * temp, 1.0 + 0.08 * post.filt2.y, 1.0 - 0.12 * temp);

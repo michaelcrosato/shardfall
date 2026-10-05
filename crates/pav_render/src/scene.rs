@@ -43,6 +43,9 @@ pub mod flags {
     pub const CUT_VERTEX: u32 = 8;
     /// Both sides are real surfaces (cloth), not the inside of a solid.
     pub const TWO_SIDED: u32 = 16;
+    /// Drawn as pixel art (in blocks of `FilterSettings::pixel_art` pixels) when that is
+    /// above 1; the rest of the screen stays sharp.
+    pub const PIXEL: u32 = 32;
 }
 
 /// A mesh rebuilt every frame (soft bodies), in world space.
@@ -339,6 +342,11 @@ pub struct FilterSettings {
     pub chroma: f32,
     /// Saturation of the filtered side (1 = unchanged, 0 = grey).
     pub saturation: f32,
+    /// Pixel-art block size for objects with `flags::PIXEL` (1 = off), their colour levels
+    /// per channel (below 2 = unchanged) and a dark one-block outline around them.
+    pub pixel_art: f32,
+    pub pixel_levels: f32,
+    pub pixel_outline: bool,
 }
 
 impl Default for FilterSettings {
@@ -360,6 +368,9 @@ impl Default for FilterSettings {
             grain: 0.0,
             chroma: 0.0,
             saturation: 1.0,
+            pixel_art: 1.0,
+            pixel_levels: 0.0,
+            pixel_outline: true,
         }
     }
 }
