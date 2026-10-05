@@ -6,6 +6,26 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Audit: the bot picks up loot — 2026-10-05
+- Audit of the whole repo: fmt, clippy (warnings denied) and every test pass (main
+  workspace and `pavilion-lite/`); every room file passes `room_check`. The one real problem
+  was in the `campaign` balance runs: the bot needed 52-61 deaths and ~15-20 game-minutes
+  for level 4 (the first boss, the Hollow King). The commit before the primary-attack fix
+  was worse (boss alive after 30 game-minutes), so the cause was older than that fix.
+- Cause: items are only taken by walking over them (the auto-loot filter) or by clicking
+  them, and the bot did neither on purpose, so it reached every boss in its starting gear.
+  Rift gates were ruled out (blocking them on the nav grid changed nothing).
+- Fix (`bot.rs` `fetch_loot`): with nothing to fight, the bot walks to visible items within
+  12 m that pass the loot filter and picks them up with `GameCmd::Pickup` (as a click
+  would). In levels it follows a nav-grid path and skips items the grid can't reach: a first
+  version walked straight and got stuck inside the town portal's ring of pillars. It gives
+  up on an item after 10 s. Test: `loot.rs` `the_bot_picks_up_loot_nearby` (fails before).
+- Campaign now (levels 1-11, deterministic): 0.7 / 1.0 / 1.4 / 8.0 (19 deaths) / 2.6 / 3.4 /
+  6.1 / 8.3 / 0.8 / 10.1 / 6.7 game-minutes, 40 deaths in total, hero level 18 at level 12.
+- Open: level 12's Frostbound Colossus stops the bot (47-49 deaths in 50 game-minutes at
+  hero level 19 with or without this change; the G6 note that the bot clears all twelve is
+  out of date). Retuning the final boss is a design call, so it is left as is.
+
 ## Primary attack input fix — 2026-10-03
 - Shardfall consumed PRIMARY for the equipped skill, then forwarded it to the character
   controller, which also threw a Pavilion bomb (or fired the demo blaster). Clear PRIMARY

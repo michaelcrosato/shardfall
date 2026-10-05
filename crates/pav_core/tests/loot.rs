@@ -215,3 +215,28 @@ fn unique_powers_work() {
     sim.run(2, &InputFrame::default());
     assert_eq!(game(&sim).shots.iter().filter(|s| s.orbit.is_some()).count(), 0);
 }
+
+#[test]
+fn the_bot_picks_up_loot_nearby() {
+    // Without this the bot fought level 4's boss in its starting gear (campaign runs).
+    let mut sim = Sim::new("level/1", 3).unwrap();
+    let at = hero_feet(&sim) + Vec3::new(0.0, 0.5, 4.0);
+    let d = data();
+    let mut g = sim.state.game.take().unwrap();
+    let id = g.hero.new_id();
+    let it =
+        roll_item(&d, &mut sim.state.rng, RollSpec { level: 1, rarity: Some(Rarity::Normal), slot: None, rarity_bonus: 0.0 }, id)
+            .unwrap();
+    g.auto_loot = Rarity::Normal;
+    g.drop_item(&mut sim, it, at, &mut Vec::new());
+    sim.state.game = Some(g);
+    let mut bot = pav_core::arpg::bot::Bot::default();
+    let stats = bot.run(&mut sim, 60 * 6);
+    let g = game(&sim);
+    assert!(
+        g.hero.inventory.iter().chain(EquipSlot::ALL.iter().filter_map(|s| g.hero.worn(*s))).any(|i| i.id == id),
+        "the bot left the item on the ground: {:?} hero {:?} {stats:?}",
+        g.loot.iter().map(|l| (l.item.id, l.pos, l.rest)).collect::<Vec<_>>(),
+        hero_feet(&sim)
+    );
+}

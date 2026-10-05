@@ -36,6 +36,9 @@ pub struct Bot {
     route: Vec<Vec3>,
     route_at: u64,
     stuck: (Vec3, u64),
+    /// Loot: the item being walked to (since which tick, the way there) and items given up on.
+    loot: Option<(u32, u64, Vec<Vec3>)>,
+    loot_skip: Vec<u32>,
 }
 
 const SLOT_BUTTONS: [u32; 6] =
@@ -145,6 +148,9 @@ impl Bot {
         // Crumbling floor: don't stop to fight, keep running.
         let target = target.filter(|_| !lv.is_some_and(|l| l.on_crumble(me)));
         let Some((t, h, r)) = target else {
+            if let Some(f) = self.fetch_loot(sim, g, me, f) {
+                return f;
+            }
             if let Some(lv) = lv {
                 return self.walk_level(sim, g, lv, me, f);
             }
@@ -215,6 +221,61 @@ impl Bot {
             }
         }
         f
+    }
+
+    /// Nothing to fight: pick up what dropped nearby (what the loot filter would take), like
+    /// a player clicking labels. Without it the bot fought every boss in its starting gear.
+    fn fetch_loot(&mut self, sim: &Sim, g: &super::Game, me: Vec3, mut f: InputFrame) -> Option<InputFrame> {
+        if g.hero.bag_full() || g.auto_loot_off {
+            return None;
+        }
+        let nav = g.level.as_deref().and_then(|l| l.nav.as_deref());
+        let clear = |p: Vec3| {
+            let from = me + Vec3::Y;
+            let d = p + Vec3::Y * 0.3 - from;
+            sim.raycast(from, d, d.length(), None).is_none_or(|hit| hit.entity.is_some_and(|e| g.actors.contains_key(&e)))
+        };
+        let (id, p, dist) = g
+            .loot
+            .iter()
+            .filter(|l| l.rest && l.item.rarity >= g.auto_loot && !self.loot_skip.contains(&l.item.id))
+            .map(|l| (l.item.id, l.pos, flat(l.pos - me).length()))
+            .filter(|x| x.2 < 12.0 && clear(x.1))
+            .min_by(|a, b| a.2.total_cmp(&b.2))?;
+        let close = dist < super::loot::CLICK_REACH - 1.0;
+        if self.loot.as_ref().is_none_or(|l| l.0 != id) {
+            // In levels, only what the navigation grid can reach (not inside a ring of
+            // pillars, say): a short walk, planned once.
+            let way = match nav.filter(|_| !close) {
+                Some(n) => match n.path(me, p) {
+                    Some(w) if w.windows(2).map(|s| flat(s[1] - s[0]).length()).sum::<f32>() < 18.0 => w,
+                    _ => {
+                        self.loot_skip.push(id);
+                        return None;
+                    }
+                },
+                None => vec![p],
+            };
+            self.loot = Some((id, self.stats.ticks, way));
+        }
+        let (_, since, way) = self.loot.as_mut()?;
+        // Ten seconds on one item: it's out of reach after all, forget it.
+        if self.stats.ticks > *since + 600 {
+            self.loot_skip.push(id);
+            self.loot = None;
+            return None;
+        }
+        if close && f.cmd.is_none() {
+            f.cmd = Some(super::GameCmd::Pickup(id));
+            return Some(f);
+        }
+        while way.len() > 1 && flat(way[0] - me).length() < 1.0 {
+            way.remove(0);
+        }
+        let next = way.first().copied().unwrap_or(p);
+        let n = steer(sim, me, flat(next - me).normalize_or_zero(), flat(next - me).length().min(1.8));
+        f.move_dir = Vec2::new(n.x, n.z);
+        Some(f)
     }
 
     /// Nothing to fight: head for the exit room along the doors and corridors, take the way
