@@ -6,6 +6,18 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Turntable/animsheet frame tall creatures — 2026-10-08
+- `turntable` and `animsheet` (`creature_frames` in `game_tools.rs`) cut off tall creatures.
+  The Hollow King (5.26 m) lost its head and horns in every frame because the camera aimed at
+  the 1.7 m capsule's centre from a distance set by `scale` alone. Now the tool poses every
+  frame as the view will (same state, rig and camera direction), takes the box around all of
+  them (`agent_tools::pose_bounds`, shared with `anatomy`) and aims at its centre. The distance
+  is the old `2.2 + scale * 2.6` unless that would spill a box corner out of the frame (with
+  `FRAME_MARGIN` 1.15); then the camera backs off. The camera holds still across frames.
+- Checked by eye: all five bosses and generated genomes 164/172/191 now show head to feet in
+  both tools, swings and orbiting orbs included. Ghouls, skitterers, spitters, oozes and
+  ashdrakes keep the same distance, and the aim moves by a few cm at most.
+
 ## Pixel art on part of the scene — 2026-10-05
 - `view.filter.pixel_art` (block size, 1 = off) turns part of the scene into pixel art while the
   rest stays sharp; `pixel_target` picks what: `all`, `characters` (every puppet), `hero`,

@@ -355,13 +355,7 @@ pub fn t_theme_swatch(_: &mut Session, a: &Args) -> Result<Output> {
 pub fn anatomy(def: &pav_core::puppet::PuppetDef) -> Value {
     let st = pav_core::puppet::PuppetState::default();
     let (parts, _) = pav_core::puppet::pose_ex(def, &st, None, Vec3::ZERO, Vec3::new(0.0, -0.6, -0.8).normalize());
-    let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
-    for p in &parts {
-        for (c, r) in [(p.a, p.ra), (p.b, p.rb)] {
-            lo = lo.min(c - Vec3::splat(r));
-            hi = hi.max(c + Vec3::splat(r));
-        }
-    }
+    let (lo, hi) = pose_bounds(&parts);
     let size = hi - lo;
     json!({
         "body": def.body.name(),
@@ -374,4 +368,16 @@ pub fn anatomy(def: &pav_core::puppet::PuppetDef) -> Value {
         "legs": def.leg_pairs() * 2,
         "tail": round3(def.tail_length * def.scale),
     })
+}
+
+/// The box (min, max corners) around a posed puppet.
+pub fn pose_bounds(parts: &[pav_core::puppet::PuppetPart]) -> (Vec3, Vec3) {
+    let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
+    for p in parts {
+        for (c, r) in [(p.a, p.ra), (p.b, p.rb)] {
+            lo = lo.min(c - Vec3::splat(r));
+            hi = hi.max(c + Vec3::splat(r));
+        }
+    }
+    (lo, hi)
 }
