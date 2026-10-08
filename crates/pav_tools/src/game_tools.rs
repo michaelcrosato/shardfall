@@ -862,7 +862,13 @@ fn authored_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::Pup
     Ok((format!("{name} (authored)"), def, skill))
 }
 
-/// Renders a creature alone on a small floor: from several angles, or through an action.
+/// Room around a creature in `turntable`/`animsheet`: the box around its poses spans at most
+/// 1/FRAME_MARGIN of the frame.
+const FRAME_MARGIN: f32 = 1.15;
+
+/// Renders a creature alone on a small floor: from several angles, or through an action. The
+/// camera holds still and frames the box around every frame's pose, so tall horns, long tails,
+/// leaps and lunges all stay in the picture.
 fn creature_frames(
     s: &mut Session,
     look: pav_core::puppet::PuppetDef,
@@ -876,32 +882,67 @@ fn creature_frames(
     if let Some(p) = tmp.sim.state.player.take() {
         tmp.sim.despawn(p);
     }
-    let scale = look.scale;
-    let id = tmp.sim.spawn_npc("subject", Vec3::new(0.5, 0.0, 0.5), 0.0, look, None, None);
+    let id = tmp.sim.spawn_npc("subject", Vec3::new(0.5, 0.0, 0.5), 0.0, look.clone(), None, None);
     tmp.sim.run(20, &pav_core::InputFrame::default());
-    let feet = tmp.sim.state.entities.get(id).map(|e| e.pos).unwrap_or_default();
-    tmp.sim.state.focus = feet;
     tmp.camera.params.tilt = 22.0;
-    tmp.camera.params.distance = 2.2 + scale * 2.6;
     tmp.camera.params.fov = 38.0;
     tmp.camera.params.height_offset = 0.0;
     tmp.camera.params.follow_lag = 0.0;
+    // Frame i: the camera's yaw, and the subject's animation advanced to it.
+    let step = |i: usize, st: &mut pav_core::puppet::PuppetState| match act {
+        None => 30.0 + i as f32 * 360.0 / frames as f32,
+        Some(def) => {
+            st.act_kind = def.anim.index();
+            st.act = i as f32 / (frames - 1).max(1) as f32;
+            st.act_hit = def.hit;
+            st.act_side = 1.0;
+            st.time += 0.05;
+            60.0
+        }
+    };
     let mut shots = Vec::with_capacity(frames);
     let r = (|| -> Result<()> {
+        // Pose every frame as the view will and frame the box around all of them.
+        let e = tmp.sim.state.entities.get(id).ok_or_else(|| anyhow!("subject did not spawn"))?;
+        let ch = e.character.as_ref().ok_or_else(|| anyhow!("subject has no body"))?;
+        let (feet, mut st, rig) = (e.pos - Vec3::Y * ch.height() * 0.5, ch.anim, ch.rig.as_ref().map(|r| r.view()));
+        let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
+        let mut views = Vec::with_capacity(frames);
         for i in 0..frames {
-            match act {
-                None => tmp.camera.params.yaw = 30.0 + i as f32 * 360.0 / frames as f32,
-                Some(def) => {
-                    tmp.camera.params.yaw = 60.0;
-                    if let Some(ch) = tmp.sim.state.entities.get_mut(id).and_then(|e| e.character.as_mut()) {
-                        ch.anim.act_kind = def.anim.index();
-                        ch.anim.act = i as f32 / (frames - 1).max(1) as f32;
-                        ch.anim.act_hit = def.hit;
-                        ch.anim.act_side = 1.0;
-                        ch.anim.time += 0.05;
-                    }
-                }
+            tmp.camera.params.yaw = step(i, &mut st);
+            let fwd = tmp.camera.forward();
+            let (a, b) = crate::agent_tools::pose_bounds(&pav_core::puppet::pose(&look, &st, rig.as_ref(), feet, fwd));
+            (lo, hi) = (lo.min(a), hi.max(b));
+            views.push((fwd, tmp.camera.up(), tmp.camera.ground_axes().1));
+        }
+        let centre = (lo + hi) * 0.5;
+        // Creatures of ordinary build keep the distance their scale always gave them; anything
+        // that would spill out of that (tall horns, long tails, wide swings) backs the camera off
+        // until every corner of the box sits inside the square frame.
+        let reach = (tmp.camera.params.fov.to_radians() * 0.5).tan() / FRAME_MARGIN;
+        let mut distance = 2.2 + look.scale * 2.6;
+        for (fwd, up, right) in views {
+            for k in 0..8 {
+                let corner = Vec3::new(
+                    if k & 1 == 0 { lo.x } else { hi.x },
+                    if k & 2 == 0 { lo.y } else { hi.y },
+                    if k & 4 == 0 { lo.z } else { hi.z },
+                );
+                let q = corner - centre;
+                distance = distance.max(q.dot(up).abs().max(q.dot(right).abs()) / reach - q.dot(fwd));
             }
+        }
+        tmp.sim.state.focus = centre;
+        tmp.camera.params.distance = distance;
+        for i in 0..frames {
+            let ch = tmp
+                .sim
+                .state
+                .entities
+                .get_mut(id)
+                .and_then(|e| e.character.as_mut())
+                .ok_or_else(|| anyhow!("subject is gone"))?;
+            tmp.camera.params.yaw = step(i, &mut ch.anim);
             shots.push(tmp.render(size, size)?);
         }
         Ok(())
