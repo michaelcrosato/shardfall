@@ -30,6 +30,97 @@ entrance = { at = [19, 29], facing = "south" }
 tilt = 58.0
 distance = 26.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Floors that give way in four ways. The CRUMBLE RUN and the SLOW 1.5 s and FAST 0.3 s lanes drop each tile a moment after you step on it, and the CRUMBLING STAIRS fall away behind you on the way to the SUMMIT. The GLASS FLOOR holds you but shatters under the heavy blocks from DROP WEIGHTS, then grows back. The BOMB WALL of 1 m bricks comes apart one bomb at a time."
+how = [
+  "The floor is a grid of static blocks, each with its own box collider and a few numbers: crumble time, regrow time, strength, destructible. Breaking a tile removes one collider and restoring it adds it back.",
+  "Crumbling: every tick a 0.25 m ray goes down from each character's feet. If it hits a tile with a crumble time, the tile cracks and a timer starts; at zero the static block is removed and a dynamic box of the same size falls in its place (gone after 3 s).",
+  "Regrowing: after the regrow time the tile comes back, unless someone is standing in its space, in which case it tries again every half second.",
+  "Glass: a tile with a strength asks Rapier to report contact force events above that many newtons. After each physics step any glass hit harder breaks into 6 debris pieces and is queued to regrow. Your character is a kinematic capsule, not a physics body, so it never loads the glass; a 205 kg weight at rest presses about 2000 N, under the 4000 limit, so only its landing breaks it.",
+  "Bombs: when the 1.4 s fuse runs out, every destructible block within 1.35 m is removed and thrown out as 3 to 5 debris boxes, things within 2.5 times that radius are pushed away, and bodies nearby are woken so nothing floats over a new hole.",
+  "Debris is ordinary small dynamic boxes with a lifetime of 2.5 to 4 s, so the pieces bounce and settle for real and then vanish before they pile up.",
+]
+uses = [
+  "Crumbling platforms: Super Mario's donut lifts drop a moment after you stand on them, and Celeste's crumble blocks break and come back.",
+  "Bombable walls: Zelda dungeons hide rooms behind cracked walls you blow open with a bomb.",
+  "Destructible terrain: Bomberman's soft blocks and Worms' landscape are removed piece by piece by explosions.",
+  "Full destruction: Teardown and Red Faction: Guerrilla let you take whole buildings apart, debris and all.",
+]
+ask = [
+  "crumbling platforms that fall after a delay and respawn",
+  "glass floor that breaks under heavy objects, not the player",
+  "bombable wall made of destructible blocks",
+  "debris pieces that despawn after a few seconds",
+  "timed crumble run with checkpoints",
+]
+cost = "Mostly cheap and all on the CPU: the crumble check is one short ray per character per tick, and glass costs nothing until Rapier reports a big contact force. The spikes are debris: every broken tile spawns several dynamic boxes for a few seconds, so a bomb in the middle of the wall can briefly add dozens of bodies."
+knobs = ["bombs.radius", "bombs.fuse", "bombs.push", "movement.speed", "sim.gravity"]
+terms = ["rigid body", "raycast", "fixed timestep", "determinism", "instancing"]
+
+[[learn.code]]
+title = "Glass: report impacts above its strength"
+file = "crates/pav_core/src/statics.rs"
+lang = "rust"
+src = """
+fn block_collider(b: &Block, tag: u128) -> ColliderBuilder {
+    let h = b.half();
+    let c = b.center();
+    let mut cb = ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
+        .translation(Vector::new(c.x as Real, c.y as Real, c.z as Real))
+        .friction(0.8)
+        .user_data(tag);
+    if b.strength > 0.0 {
+        // Breakable: report hard impacts.
+        cb = cb.active_events(ActiveEvents::CONTACT_FORCE_EVENTS).contact_force_event_threshold(b.strength as Real);
+    }
+    cb
+}
+"""
+
+[[learn.code]]
+title = "Tiles hit harder than their strength shatter"
+file = "crates/pav_core/src/destruct.rs"
+lang = "rust"
+src = """
+for (c1, c2, force) in contacts {
+    for (h, other) in [(c1, c2), (c2, c1)] {
+        let Some(r) = self.state.physics.colliders.get(h).and_then(|c| BlockRef::from_tag(c.user_data)) else { continue };
+        let Some(b) = self.state.statics.get(r) else { continue };
+        if b.strength <= 0.0 || !b.alive || (force as f32) < b.strength {
+            continue;
+        }
+        let regrow = b.regrow;
+        let from = self.state.physics.colliders.get(other).map(|c| c.position().translation).unwrap_or(b.center());
+        if let Some((center, _, _)) = self.shatter(r, from, 6) {
+            events.push(SimEvent::Break { pos: center });
+            if regrow > 0.0 {
+                self.state.crumbles.push(Crumble { block: r, timer: regrow, fallen: true });
+            }
+        }
+    }
+}
+"""
+
+[[learn.code]]
+title = "Crumbling starts with a ray from the feet"
+file = "crates/pav_core/src/destruct.rs"
+lang = "rust"
+src = """
+let filter = QueryFilter::default().exclude_rigid_body(body).exclude_sensors();
+let hit = {
+    let qp = self.state.physics.query_filtered(filter);
+    qp.cast_ray(&Ray::new(f + Vec3::Y * 0.05, Vec3::NEG_Y), 0.25, true).map(|(h, _)| h)
+};
+// ...
+if b.crumble > 0.0 && b.alive && !self.state.crumbles.iter().any(|c| c.block == r) {
+    let t = b.crumble;
+    self.state.crumbles.push(Crumble { block: r, timer: t, fallen: false });
+    self.state.statics.set_block_flags(r, block_flags::CRACKED, 0);
+    events.push(SimEvent::Crack { pos: f });
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -136,11 +227,11 @@ blocks = [{ y0 = -3, y1 = -0.5, color = "#c99f74" }]
 # Pads: DROP WEIGHTS fires the "weights" spawner above the glass, CLEAR removes the weights.
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "DROP WEIGHTS", color = "#3bb273", signal = "weights" }
+zone = { kind = "pad", label = "DROP WEIGHTS", color = "#3bb273", signal = "weights", note = "Four 205 kg blocks fall from about 6 m. At rest each presses only about 2000 N, but landing spikes far past the glass strength of 4000 N, so they punch through." }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_weights" }
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_weights", note = "Removes the weights. Broken glass grows back 8 s after it shattered, unless someone stands in the gap." }
 
 # ---- bomb wall and vault ------------------------------------------------------------------------
 # Three stacked 1 m bricks per cell, each one a destructible block: a bomb (radius 1.35 m) takes
@@ -153,7 +244,7 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#ecdca8" }]
 
 [layout.legend.'P']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#ecdca8" }]
-zone = { kind = "pad", label = "YOU GOT IN", color = "#d9a21b", signal = "coins" }
+zone = { kind = "pad", label = "YOU GOT IN", color = "#d9a21b", signal = "coins", note = "30 small gold boxes rain into the vault: plain dynamic bodies, like the debris. F5 rebuilds the wall." }
 
 # ---- crumbling stairs (0.5 / 1.0 / 1.5 m steps, 1 s, regrow 5 s) and the summit ----------------
 [layout.legend.'u']

@@ -32,6 +32,91 @@ entrance = { at = [20, 29], facing = "south" }
 tilt = 55.0
 distance = 34.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Dark floor strips that carry whatever stands on them. Six crates ride the CRATE LOOP round and round, the SPEED LANES run at 1, 3 and 6 m/s, UPSTREAM pushes you back toward the entrance at 4.5 m/s while you race from START to FINISH, the SORTING LINE carries dropped boxes into the BIN, and the OPPOSING BELTS split the balls on their seam east and west."
+how = [
+  "A belt is not a moving object. It is a conveyor zone on ordinary floor cells with a facing and a speed; the floor never moves, and the arrows are text written on it.",
+  "Props: every tick the engine asks Rapier for dynamic bodies inside each belt's box (1.5 m tall), keeps the ones whose centre is over the belt, and pulls their sideways velocity toward the belt's by a share of 8 times the tick length (about 13% at 60 ticks/s). Up and down are left alone, so things still fall and bounce.",
+  "You: the character controller adds the belt's velocity times the tick to the move it wants, but only while you are grounded. So you run at your own 6 m/s on top of the belt (1.5 m/s of progress up the 4.5 m/s UPSTREAM), and a jump takes you off it.",
+  "Hand-over: a prop counts as on a belt by its centre, so at the loop's corners the next belt starts a full cell beyond the island, or a crate would turn too early and catch on the corner.",
+  "Zones are half-open boxes, so a point on the seam between two belts belongs to exactly one of them. Each ball goes the way its centre lies, and the 1-cell end belts hand it to the other side of the oval.",
+]
+uses = [
+  "Platformers: Mega Man's Metal Man stage uses belts that rush you forward or hold you back.",
+  "Level builders: Super Mario Maker has conveyor belts as a course part that carries Mario, enemies and items.",
+  "Factory games: Factorio and Satisfactory move every item on belts, as slots on a lane rather than physics bodies.",
+  "Arcade hazards: a belt you must walk against turns a plain corridor into a timing challenge.",
+]
+ask = [
+  "conveyor belt zone that carries the player and props",
+  "treadmill the player must run against",
+  "belt that only carries you while your feet touch it",
+  "sorting line that drops boxes into a bin",
+  "two opposing belts that split objects apart",
+]
+cost = "Tiny, all CPU: one box query per belt zone per tick and a velocity nudge per prop, with no extra bodies because the belt is just floor. The catch is that nudged props are woken every tick, so things riding a belt never sleep and keep their full physics cost."
+knobs = ["movement.speed", "movement.jump_height", "movement.push_mass", "sim.gravity", "bombs.push"]
+terms = ["rigid body", "fixed timestep", "game feel", "determinism"]
+
+[[learn.code]]
+title = "Props on a belt: ease toward its velocity"
+file = "crates/pav_core/src/destruct.rs"
+lang = "rust"
+src = """
+let Some(b) = ph.bodies.get_mut(h) else { continue };
+let p = b.translation();
+if !(z.contains(Vec3::new(p.x, z.min.y + 0.01, p.z)) && p.y < z.min.y + 1.5) {
+    continue;
+}
+let v = b.linvel();
+match z.kind {
+    ZoneKind::Conveyor => {
+        let target = z.conveyor_velocity();
+        let k = (8.0 * dt).min(1.0);
+        let nv = Vec3::new(v.x + (target.x - v.x) * k, v.y, v.z + (target.z - v.z) * k);
+        b.set_linvel(nv, true);
+    }
+    // ...
+}
+"""
+
+[[learn.code]]
+title = "The character rides only while grounded"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+for (_, z) in st.statics.zones_at(feet0 + Vec3::Y * 0.05) {
+    match z.kind {
+        ZoneKind::Water => ch.water_depth = ch.water_depth.max(z.max.y - feet0.y),
+        ZoneKind::Conveyor => conveyor += z.conveyor_velocity(),
+        ZoneKind::Bounce => bounce = bounce.max(z.speed),
+        _ => {}
+    }
+}
+// ...
+if was_grounded && !climbing && !hanging {
+    // Conveyor belts carry whoever stands on them.
+    desired += conveyor * dt;
+}
+"""
+
+[[learn.code]]
+title = "Half-open zones: a seam belongs to one belt"
+file = "crates/pav_core/src/zones.rs"
+lang = "rust"
+src = """
+/// Conveyor velocity (zero for other kinds).
+pub fn conveyor_velocity(&self) -> Vec3 {
+    if self.kind == ZoneKind::Conveyor { self.facing.unwrap_or(Facing::North).dir() * self.speed } else { Vec3::ZERO }
+}
+// ...
+/// Half-open on the ground plane, so zones that touch never both contain a point.
+pub fn contains(&self, p: Vec3) -> bool {
+    p.x >= self.min.x && p.x < self.max.x && p.y >= self.min.y && p.y <= self.max.y && p.z >= self.min.z && p.z < self.max.z
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -146,19 +231,19 @@ zone = { kind = "conveyor", facing = "north", speed = 2.5, label = "^", label_si
 # Pads: stepping on one sends its signal once (the spawners below listen to them).
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "DROP BOXES", color = "#3bb273", signal = "boxes" }
+zone = { kind = "pad", label = "DROP BOXES", color = "#3bb273", signal = "boxes", note = "Ten 0.5 m boxes with low friction (0.15) tumble onto the sorting belt, which eases each toward 4 m/s east until it slides off into the BIN." }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear", note = "Removes every box the sorting dropper made (it keeps 40 at most)." }
 
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "DROP BALLS", color = "#3bb273", signal = "balls" }
+zone = { kind = "pad", label = "DROP BALLS", color = "#3bb273", signal = "balls", note = "Twelve balls fall across the seam. Each is carried by whichever belt its centre is over, so the drop splits east and west and circulates round the oval." }
 
 [layout.legend.'K']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_balls" }
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear_balls", note = "Removes the dropped balls. The six balls that started on the belts stay and keep circulating." }
 
 # UPSTREAM course: leaving START starts the timer, FINISH stops it.
 [layout.legend.'S']

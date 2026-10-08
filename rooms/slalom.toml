@@ -25,6 +25,85 @@ entrance = { at = [14, 29], facing = "south" }
 tilt = 65.0
 distance = 22.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "An open field with two timed courses: the SLALOM (10 gates, up the west lane, across the top and back down the east lane) and the TIGHT course (6 gates 2 m apart up the middle). Gates count only in number order. The pads along the south wall change the MOVEMENT MODEL (INSTANT, MOMENTUM) and the SURFACE (ICE, NORMAL, GRIP), so you can feel the same line change."
+how = [
+  "With the momentum model your velocity is steered toward where the stick points, but each tick it may only change by rate x tick length: accel while you push, decel when you let go, and the harsher skid_decel when you push against your current direction. Those three numbers are the whole difference between ICE and GRIP.",
+  "Top speed is max_speed (7.5 m/s). From a standstill NORMAL (45 m/s²) gets there in about 0.17 s, ICE (10 m/s²) needs 0.75 s and GRIP (90 m/s²) under 0.1 s. When you let go, ICE sheds only 3 m/s every second while GRIP sheds 70.",
+  "INSTANT skips all of that: velocity is set straight to 6 m/s in the stick's direction, so it ignores the surface pads and corners cost nothing, but its top speed is lower.",
+  "Stepping on START arms a course and the clock runs from the tick you leave it. Each gate is a zone with a number: entering one further down the list counts the ones you skipped as missed, going back does nothing, and FINISH adds 2 s for every gate missed or never reached.",
+  "Times are counted in simulation ticks (60 a second) times the tick length, so a run takes the same time on any computer and at any frame rate. The course HUD shows the timer, the gates and your best time.",
+]
+uses = [
+  "Buoy and gate courses: pass every marker in order or pay for it (Wave Race 64).",
+  "Time trials: one course, a clock and a best time to beat (Mario Kart, Trackmania).",
+  "Ice levels: low acceleration and friction turn a familiar layout into a new challenge (Super Mario Bros. 3).",
+  "Surfaces: grip changes with the ground under you, from tarmac to ice (Mario Kart).",
+]
+ask = [
+  "momentum movement with separate acceleration, friction and skid braking",
+  "slippery ice surface zones",
+  "slalom gates that must be passed in order",
+  "time penalty for missed gates",
+  "time trial with best times and a course HUD",
+]
+cost = "Nothing you could measure: gates are a lookup of the zones under your feet once per tick, and the momentum model is a few vector operations per character per tick."
+knobs = ["movement.model", "movement.max_speed", "movement.accel", "movement.decel", "movement.skid_decel", "movement.speed"]
+terms = ["game feel", "fixed timestep", "determinism"]
+
+[[learn.code]]
+title = "Momentum: a limit on how fast velocity can change"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+MovementModel::Momentum => {
+    let max = mp.max_speed * mult * if held(buttons::FOCUS) { 0.5 } else { 1.0 };
+    let target = wish * max;
+    let ctrl = if ch.grounded { 1.0 } else { mp.air_control };
+    let rate = if wish.length() < 0.05 {
+        mp.decel
+    } else if vh.dot(wish) < 0.0 {
+        mp.skid_decel
+    } else {
+        mp.accel
+    };
+    let dv = (target - vh).clamp_length_max(rate * ctrl * dt);
+    vh += dv;
+}
+"""
+
+[[learn.code]]
+title = "Gates in order, skipped ones counted"
+file = "crates/pav_core/src/course.rs"
+lang = "rust"
+src = """
+if let Some(run) =
+    self.state.courses.run.as_mut().filter(|x| x.region == r.region && x.course == z.course && x.started)
+{
+    if let Some(pos) = run.gates.iter().position(|g| *g == z.index) {
+        if pos >= run.next {
+            let skipped = (pos - run.next) as u32;
+            run.missed += skipped;
+            run.passed += 1;
+            run.next = pos + 1;
+            events.push(SimEvent::Gate { pos: feet, ok: skipped == 0 });
+"""
+
+[[learn.code]]
+title = "Two seconds for every missed gate"
+file = "crates/pav_core/src/course.rs"
+lang = "rust"
+src = """
+pub(crate) fn finish_course(&mut self, pos: Vec3, events: &mut Vec<SimEvent>) {
+    let tick = self.state.tick;
+    let dt = self.dt();
+    let Some(run) = self.state.courses.run.take() else { return };
+    let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
+    let raw = (tick - run.start_tick) as f32 * dt;
+    let time = raw + missed as f32 * GATE_PENALTY;
+"""
+
 [layout]
 origin = [-15.0, 0.0, -15.0]
 
@@ -167,22 +246,22 @@ zone = { kind = "gate", course = "tight", index = 6, color = "#6fc3b6" }
 # Movement model pads (same colours as the Feel Lab).
 [layout.legend.'J']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
-zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" } }
+zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" }, note = "Instant model: a flat 6 m/s that starts and stops on the spot. It ignores the surface pads, so corners are free but straights are slower than momentum's 7.5 m/s." }
 [layout.legend.'M']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
-zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" } }
+zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" }, note = "Momentum model: up to 7.5 m/s, but speed builds and bleeds at the surface's rates, so you carry speed on straights and must brake before tight corners." }
 
 # Surface pads: how fast you speed up, coast down and brake (momentum model).
 # NORMAL = the engine defaults, ICE = slippery, GRIP = snappy.
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
-zone = { kind = "pad", label = "ICE", color = "#4fa3c7", params = { "movement.accel" = 10.0, "movement.decel" = 3.0, "movement.skid_decel" = 14.0 } }
+zone = { kind = "pad", label = "ICE", color = "#4fa3c7", params = { "movement.accel" = 10.0, "movement.decel" = 3.0, "movement.skid_decel" = 14.0 }, note = "Accel 10, coast 3 and reverse braking 14 m/s²: 0.75 s to top speed, and you keep sliding when you let go, so the TIGHT course swings wide. INSTANT ignores it." }
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
-zone = { kind = "pad", label = "NORMAL", color = "#7d8794", params = { "movement.accel" = 45.0, "movement.decel" = 32.0, "movement.skid_decel" = 90.0 } }
+zone = { kind = "pad", label = "NORMAL", color = "#7d8794", params = { "movement.accel" = 45.0, "movement.decel" = 32.0, "movement.skid_decel" = 90.0 }, note = "The engine defaults: accel 45, coast 32 and reverse braking 90 m/s². About 0.17 s to top speed and a stop that slides under a metre." }
 [layout.legend.'G']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
-zone = { kind = "pad", label = "GRIP", color = "#2f9e6b", params = { "movement.accel" = 90.0, "movement.decel" = 70.0, "movement.skid_decel" = 160.0 } }
+zone = { kind = "pad", label = "GRIP", color = "#2f9e6b", params = { "movement.accel" = 90.0, "movement.decel" = 70.0, "movement.skid_decel" = 160.0 }, note = "Accel 90, coast 70 and reverse braking 160 m/s². Speed follows the stick almost at once, so you can brake late and still turn inside the gates." }
 
 # Signs (layout space: x = column, y = height, z = row).
 [[label]]

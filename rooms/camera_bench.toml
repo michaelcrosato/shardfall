@@ -29,6 +29,98 @@ distance = 18.0
 fov = 40.0
 ortho = false
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "One short timed loop, CRATES 0.5 / 1 m, GAP 2 m, LADDER 3 m, BEAM 0.4 m and a CRAWL (Z) tunnel, ringed by nine camera pads: ORTHOGRAPHIC ones in the west, PERSPECTIVE TILTS in the east, and WIDE FOV 75°, CLOSE 3RD PERSON and AUTO SWEEP in the north. Each pad glides the camera to a new setup and keeps it, so you can run the same loop under each one and see what it hides or reveals."
+how = [
+  "The camera orbits a follow point: tilt is degrees above the horizon (90 looks straight down, 0 from the side), yaw turns around you, and the eye sits distance metres back along the look direction from a point height_offset (0.8 m) above you.",
+  "The follow point chases your position, itself drawn between the last two simulation ticks, with exponential smoothing: follow_lag (0.12 s) is its time constant, so the gap shrinks by about two thirds every 0.12 s, which takes the jitter out without feeling sluggish.",
+  "Perspective makes far things smaller, and the 40° lens looks natural. Orthographic does not: it frames a fixed box (distance x tan(fov/2) up and down), so sizes stay true but height and depth vanish. TOP 90° ORTHO, ISOMETRIC and SIDE 0° are orthographic.",
+  "A pad carries a camera cue: the app remembers the room's camera and blends to the cue's values over 0.7 s with an ease in and out; yaw takes the short way round and the projection switches halfway. AUTO SWEEP keeps animating tilt and yaw with slow cosine waves.",
+  "A camera zone (the CRAWL tunnel) beats any pad while you are inside it and hands back to the pad's view when you leave. Your keys always move relative to the camera's yaw, which is why ISOMETRIC's 45° turn makes up run diagonally across the room.",
+  "Low cameras would look through walls at nothing, so below 30° of tilt the shader drops everything between the lens and you. At any angle, a dithered see-through hole (1.6 m radius) opens around the line from the lens to you.",
+]
+uses = [
+  "Top-down: the whole room readable at a glance (Hotline Miami, the first Grand Theft Auto).",
+  "Isometric: the classic angle of action RPGs and city builders (Diablo, Hades, SimCity 2000).",
+  "Side view: platformers judge jumps from the side (Super Mario Bros., Celeste).",
+  "Close third person: a low view behind the hero for aiming and drama (Resident Evil 4).",
+  "Camera zones: fixed or scripted angles that change as you walk into an area (Resident Evil, God of War).",
+]
+ask = [
+  "smooth camera transitions between presets",
+  "camera trigger zones that change the view while inside",
+  "isometric orthographic camera",
+  "follow camera with smoothing and a height offset",
+  "cut away walls between the camera and the player",
+  "switch between orthographic and perspective projection",
+]
+cost = "Practically free: the camera is two 4x4 matrices built on the CPU each frame. The see-through cut costs a few extra instructions per vertex and per pixel in the scene shader, the same at any angle."
+knobs = ["camera.tilt", "camera.yaw", "camera.distance", "camera.fov", "camera.ortho", "camera.follow_lag"]
+terms = ["interpolation", "uniform", "vertex shader", "fragment shader", "dithering", "game feel"]
+
+[[learn.code]]
+title = "Tilt and yaw become a look direction"
+file = "crates/pav_view/src/camera.rs"
+lang = "rust"
+src = """
+pub fn ground_axes(&self) -> (Vec3, Vec3) {
+    let yaw = self.current().yaw.to_radians();
+    let fwd = Vec3::new(yaw.sin(), 0.0, -yaw.cos());
+    let right = Vec3::new(yaw.cos(), 0.0, yaw.sin());
+    (fwd, right)
+}
+pub fn forward(&self) -> Vec3 {
+    let (fh, _) = self.ground_axes();
+    let t = self.current().tilt.clamp(0.0, 90.0).to_radians();
+    (fh * t.cos() + Vec3::NEG_Y * t.sin()).normalize()
+}
+// ...
+pub fn look_at(&self) -> Vec3 {
+    self.target + Vec3::Y * self.current().height_offset
+}
+pub fn eye(&self) -> Vec3 {
+    self.look_at() - self.forward() * self.current().distance
+}
+"""
+
+[[learn.code]]
+title = "Perspective or orthographic"
+file = "crates/pav_view/src/camera.rs"
+lang = "rust"
+src = """
+let fov = p.fov.clamp(1.0, 170.0).to_radians();
+let far = (p.distance * 4.0 + 200.0).max(300.0);
+let proj = if p.ortho {
+    let half_h = p.distance * (fov * 0.5).tan();
+    let half_w = half_h * aspect;
+    glam::camera::rh::proj::directx::orthographic(-half_w, half_w, -half_h, half_h, 0.05, far)
+} else {
+    glam::camera::rh::proj::directx::perspective(fov, aspect, 0.1, far)
+};
+"""
+
+[[learn.code]]
+title = "A pad's cue glides in, then sweeps"
+file = "crates/pav_app/src/hud.rs"
+lang = "rust"
+src = """
+let base = self.base.get_or_insert_with(|| rig.params.clone()).clone();
+rig.blend_from_current(0.7);
+// ...
+let Some(c) = &self.cue else { return };
+let t = self.start.map(|s| s.elapsed().as_secs_f32()).unwrap_or(0.0);
+for sw in &c.sweep {
+    let u = (t / sw.period.max(0.1) + sw.phase) * std::f32::consts::TAU;
+    let v = sw.from + (sw.to - sw.from) * (0.5 - 0.5 * u.cos());
+    set_camera_value(&mut rig.params, &sw.param, v, self.quarters);
+}
+if c.flip_ortho > 0.0 {
+    let base = c.set.get("ortho").and_then(|v| v.as_bool()).unwrap_or(false);
+    rig.params.ortho = base ^ (((t / c.flip_ortho) as i64) % 2 == 1);
+}
+"""
+
 [layout]
 origin = [-17.0, 0.0, -13.0]
 
@@ -182,31 +274,31 @@ zone = { kind = "gate", course = "bench", index = 4, y0 = 0, y1 = 1.0 }
 # perspective) lasts until another pad or until you leave the room.
 [layout.legend.'A']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "TOP 90° ORTHO", color = "#4f7be0", camera = { set = { tilt = 90, ortho = true, distance = 22 } } }
+zone = { kind = "pad", label = "TOP 90° ORTHO", color = "#4f7be0", camera = { set = { tilt = 90, ortho = true, distance = 22 } }, note = "Straight down with no perspective: the layout reads perfectly, but heights vanish, so the 3 m platform and the depth of the pits are hard to judge." }
 [layout.legend.'B']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "CLASSIC 62°", color = "#2e9e68", camera = { set = { tilt = 62, ortho = false, distance = 18, fov = 40 } } }
+zone = { kind = "pad", label = "CLASSIC 62°", color = "#2e9e68", camera = { set = { tilt = 62, ortho = false, distance = 18, fov = 40 } }, note = "The engine default: 62° above the horizon, 18 m back, a 40° lens. Steep enough to see the room, low enough to see heights: the usual action-RPG view." }
 [layout.legend.'C']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "HIGH 75°", color = "#1fa5b8", camera = { set = { tilt = 75, ortho = false, distance = 18 } } }
+zone = { kind = "pad", label = "HIGH 75°", color = "#1fa5b8", camera = { set = { tilt = 75, ortho = false, distance = 18 } }, note = "Steeper: walls and the platform hide less behind them, but heights look flatter than at 62°." }
 [layout.legend.'D']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "LOW 35°", color = "#e0623a", camera = { set = { tilt = 35, ortho = false, distance = 14 } } }
+zone = { kind = "pad", label = "LOW 35°", color = "#e0623a", camera = { set = { tilt = 35, ortho = false, distance = 14 } }, note = "Low and closer (14 m): the gap and the pits look deep and heights read well, but tall things hide what is behind them and you see less of the loop ahead." }
 [layout.legend.'E']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "SIDE 0°", color = "#8a52d6", camera = { set = { tilt = 0, ortho = true, distance = 16, height_offset = 1.5 } } }
+zone = { kind = "pad", label = "SIDE 0°", color = "#8a52d6", camera = { set = { tilt = 0, ortho = true, distance = 16, height_offset = 1.5 } }, note = "Side view, orthographic: jump heights and the gap read exactly, depth not at all. Below 30° of tilt the shader cuts away everything between the lens and you." }
 [layout.legend.'G']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "ISOMETRIC", color = "#d4891c", camera = { set = { tilt = 35.264, yaw = 45, ortho = true, distance = 24 } } }
+zone = { kind = "pad", label = "ISOMETRIC", color = "#d4891c", camera = { set = { tilt = 35.264, yaw = 45, ortho = true, distance = 24 } }, note = "Tilt 35.264° and yaw 45°, orthographic: the angle where all three axes shrink equally. Your keys follow the camera, so up now runs diagonally across the room." }
 [layout.legend.'H']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "WIDE FOV 75°", color = "#d63a52", camera = { set = { tilt = 50, fov = 75, distance = 9, ortho = false } } }
+zone = { kind = "pad", label = "WIDE FOV 75°", color = "#d63a52", camera = { set = { tilt = 50, fov = 75, distance = 9, ortho = false } }, note = "A 75° lens only 9 m away: near things loom, the floor stretches away and speed feels higher, but distances are harder to judge." }
 [layout.legend.'I']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "CLOSE 3RD PERSON", color = "#7d9a22", camera = { set = { tilt = 22, fov = 60, distance = 7, height_offset = 1.4, ortho = false } } }
+zone = { kind = "pad", label = "CLOSE 3RD PERSON", color = "#7d9a22", camera = { set = { tilt = 22, fov = 60, distance = 7, height_offset = 1.4, ortho = false } }, note = "22° tilt, 7 m back, aimed 1.4 m above your feet through a 60° lens: a low chase view. Below 30° of tilt walls between the lens and you are cut away." }
 [layout.legend.'J']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "AUTO SWEEP", color = "#c43fb0", camera = { set = { distance = 18 }, sweep = [{ param = "tilt", from = 88, to = 8, period = 14 }, { param = "yaw", from = -60, to = 60, period = 22 }], flip_ortho = 7 } }
+zone = { kind = "pad", label = "AUTO SWEEP", color = "#c43fb0", camera = { set = { distance = 18 }, sweep = [{ param = "tilt", from = 88, to = 8, period = 14 }, { param = "yaw", from = -60, to = 60, period = 22 }], flip_ortho = 7 }, note = "Tilt swings between 88° and 8° every 14 s, yaw between -60° and 60° every 22 s, and the lens flips between orthographic and perspective every 7 s." }
 
 # Signs (floor text turns to read upright from the camera).
 [[label]]

@@ -1,0 +1,517 @@
+# The field guide: words for what the world demo shows. Station guides (`[learn]` in room
+# files) name these in `terms`; the game's Field Guide window and `pav guide` list them.
+# `key` is what rooms refer to (lower case); `see` points at related words.
+
+# ---------------------------------------------------------------- the GPU and its passes
+[[term]]
+key = "gpu"
+name = "GPU"
+text = "The graphics processor: thousands of small cores that run the same program on many pixels or vertices at once. Pavilion drives it through wgpu, which talks Vulkan, DirectX 12 or WebGPU."
+see = ["shader", "draw call", "webgpu"]
+
+[[term]]
+key = "webgpu"
+name = "WebGPU"
+text = "The modern graphics API of the web (the successor to WebGL2), with compute shaders and storage buffers. The browser build of this game runs on it; the desktop build uses Vulkan or DirectX 12 through the same wgpu code."
+see = ["gpu", "compute shader"]
+
+[[term]]
+key = "shader"
+name = "Shader"
+text = "A small program the GPU runs for every vertex (vertex shader) or every pixel (fragment shader) of what it draws. Pavilion's shaders are written in WGSL, WebGPU's shading language."
+see = ["vertex shader", "fragment shader", "compute shader"]
+
+[[term]]
+key = "vertex shader"
+name = "Vertex shader"
+text = "Runs once per corner of every triangle and decides where it lands on screen. Swaying grass and leaves move their corners here, so the CPU never touches them."
+see = ["shader", "vertex animation"]
+
+[[term]]
+key = "fragment shader"
+name = "Fragment (pixel) shader"
+text = "Runs once per pixel a triangle covers and decides its colour: lighting, shadows, cel bands, and every screen filter."
+see = ["shader", "post-process"]
+
+[[term]]
+key = "compute shader"
+name = "Compute shader"
+text = "A GPU program that is not tied to drawing: it reads and writes buffers directly. Pavilion's particles are born and moved by one, so tens of thousands cost the CPU nothing."
+see = ["particle system", "webgpu"]
+
+[[term]]
+key = "draw call"
+name = "Draw call"
+text = "One request to the GPU to draw a batch of triangles. Fewer, bigger draw calls are faster; instancing draws thousands of copies in one call."
+see = ["instancing"]
+
+[[term]]
+key = "instancing"
+name = "Instancing"
+text = "Drawing many copies of one mesh in a single draw call, each with its own position, colour and flags. Every crate, block and grass tuft here is an instance."
+see = ["draw call"]
+
+[[term]]
+key = "render target"
+name = "Render target"
+text = "An image the GPU draws into instead of the screen, to be read by a later pass. The scene is drawn into an HDR colour target, a normal target and a depth target before the composite puts the frame together."
+see = ["post-process", "hdr", "normal buffer", "depth buffer"]
+
+[[term]]
+key = "post-process"
+name = "Post-process"
+text = "Work done on the finished picture rather than on 3D objects: bloom, outlines, colour grading, pixelation, haze, paint. Pavilion does nearly all of it in one composite shader."
+see = ["render target", "fragment shader"]
+
+[[term]]
+key = "depth buffer"
+name = "Depth buffer"
+text = "An image holding how far away the surface in each pixel is. Outlines look for jumps in it, the haze measures how much air is in front of each pixel with it."
+see = ["normal buffer", "outline"]
+
+[[term]]
+key = "normal buffer"
+name = "Normal buffer"
+text = "An image holding which way the surface in each pixel faces. Pavilion also packs the object's outline group, its part of the scene (characters & objects or environment) and its pixel-art mark into it."
+see = ["depth buffer", "outline", "parts of the scene"]
+
+[[term]]
+key = "msaa"
+name = "MSAA (multisample anti-aliasing)"
+text = "Smooth edges by testing several sample points per pixel along triangle edges. The scene is drawn with 4 samples per pixel and averaged."
+see = ["anti-aliasing"]
+
+[[term]]
+key = "anti-aliasing"
+name = "Anti-aliasing"
+text = "Hiding the staircase look of edges by blending pixels along them. MSAA does it for geometry; shaders do it for their own patterns (halftone dots, ripples) by fading over about one pixel."
+see = ["msaa"]
+
+[[term]]
+key = "uniform"
+name = "Uniform"
+text = "A value that is the same for every pixel or vertex of a draw, set from the CPU each frame: the time, the sun direction, a filter's strength. Sliders in the menus end up as uniforms."
+see = ["shader"]
+
+# ---------------------------------------------------------------- light and colour
+[[term]]
+key = "hdr"
+name = "HDR (high dynamic range)"
+text = "Colours brighter than white. The scene is drawn in HDR so a lamp can be 8 times brighter than paper; tonemapping fits it to the screen at the end, and bloom finds what is brighter than a threshold."
+see = ["tonemapping", "bloom"]
+
+[[term]]
+key = "tonemapping"
+name = "Tonemapping"
+text = "Squeezing HDR brightness into the screen's 0..1 range without clipping highlights to flat white. Pavilion offers clamp, a soft knee that keeps authored colours exact, and ACES (filmic)."
+see = ["hdr", "exposure"]
+
+[[term]]
+key = "exposure"
+name = "Exposure"
+text = "A brightness multiplier before tonemapping, like a camera's exposure."
+see = ["tonemapping"]
+
+[[term]]
+key = "bloom"
+name = "Bloom"
+text = "The glow around bright things: everything brighter than the threshold is copied, blurred at several sizes and added back on top."
+see = ["hdr", "threshold"]
+
+[[term]]
+key = "threshold"
+name = "Bloom threshold"
+text = "How bright something must be (in HDR) before it starts to glow. Lower it and dim things glow too."
+see = ["bloom"]
+
+[[term]]
+key = "emissive"
+name = "Emissive"
+text = "A surface that gives off its own light. Here it adds its colour on top of lighting and, above 0.5, also places a point light."
+see = ["bloom", "point light"]
+
+[[term]]
+key = "point light"
+name = "Point light"
+text = "A light that shines in all directions from a point and fades out by its radius: torches, lamps, glowing balls, projectiles. The nearest few cast shadows from six-sided cube maps."
+see = ["shadow map", "halo"]
+
+[[term]]
+key = "shadow map"
+name = "Shadow map"
+text = "A depth image rendered from the light's point of view. A point is in shadow when something in that image is nearer to the light than it is. The sun's map covers a square around the camera."
+see = ["pcf", "volumetric light"]
+
+[[term]]
+key = "pcf"
+name = "PCF (percentage-closer filtering)"
+text = "Softening shadow edges by testing several neighbouring shadow-map texels and averaging the answers (Pavilion takes 9)."
+see = ["shadow map"]
+
+[[term]]
+key = "global illumination"
+name = "Global illumination (GI)"
+text = "Light that bounces: a red wall tints the white floor next to it. Pavilion approximates it in screen space, sampling nearby pixels of the finished image for bounce colour and occlusion."
+see = ["ambient occlusion", "screen space"]
+
+[[term]]
+key = "ambient occlusion"
+name = "Ambient occlusion"
+text = "The soft darkening in corners, creases and under things, where less of the sky's light reaches."
+see = ["global illumination"]
+
+[[term]]
+key = "screen space"
+name = "Screen-space effect"
+text = "An effect worked out from the finished image and its depth and normal buffers instead of from the 3D scene: cheap, but blind to anything off screen or hidden."
+see = ["global illumination", "outline"]
+
+[[term]]
+key = "volumetric light"
+name = "Volumetric light"
+text = "Light you can see in the air: sunbeams through dust, lamp halos in fog. Pavilion marches each pixel's view ray through the haze, asking the sun's shadow map at every step whether light reaches that bit of air."
+see = ["ray marching", "phase function", "shadow map", "halo"]
+
+[[term]]
+key = "ray marching"
+name = "Ray marching"
+text = "Walking along a ray in steps and adding up what you find at each one (haze density, light, distance to a surface). Jittering where each pixel's walk starts turns banding into fine grain."
+see = ["volumetric light", "sdf"]
+
+[[term]]
+key = "phase function"
+name = "Phase function"
+text = "How much light a speck of haze sends in each direction. Forward scattering (Henyey-Greenstein, g > 0) makes the air glow most when you look toward the sun."
+see = ["volumetric light"]
+
+[[term]]
+key = "halo"
+name = "Lamp halo"
+text = "The glow of a lamp lighting the air around it. The light scattered along a view ray past a point light has a closed form (an arctangent), so each lamp costs a few instructions per pixel."
+see = ["volumetric light", "point light"]
+
+[[term]]
+key = "fog"
+name = "Distance fog"
+text = "Blending far-away surfaces into the sky colour, which hides where the streamed world ends."
+see = ["volumetric light"]
+
+# ---------------------------------------------------------------- styles and filters
+[[term]]
+key = "cel shading"
+name = "Cel shading (toon shading)"
+text = "Lighting in a few hard bands instead of a smooth gradient, often with a bright rim and ink outlines, like animation cels."
+see = ["rim light", "outline"]
+
+[[term]]
+key = "flat shading"
+name = "Flat shading"
+text = "Surfaces in their own colour with only a shadow darkening, no light gradient: crisp, graphic, readable."
+see = ["cel shading"]
+
+[[term]]
+key = "rim light"
+name = "Rim light"
+text = "A bright edge where a surface turns away from the camera, which lifts characters off the background."
+see = ["cel shading"]
+
+[[term]]
+key = "specular"
+name = "Specular highlight"
+text = "The shiny glint where the sun reflects toward the camera; how tight it is says how glossy the surface is."
+see = []
+
+[[term]]
+key = "outline"
+name = "Screen-space outline (edge detection)"
+text = "Ink lines drawn where the depth jumps, the surface turns sharply or one object meets another, found by comparing each pixel with its neighbours in the depth and normal buffers."
+see = ["sobel", "depth buffer", "normal buffer"]
+
+[[term]]
+key = "sobel"
+name = "Sobel filter"
+text = "A 3x3 neighbourhood test that measures how fast brightness changes and in which direction: big values mean an edge. The pencil sketch draws its contours with it."
+see = ["outline"]
+
+[[term]]
+key = "kuwahara"
+name = "Kuwahara filter"
+text = "A painterly smoothing filter: look at several overlapping sectors around the pixel, keep the average of the calmest ones. Flat areas become strokes of one colour, but edges stay sharp (a blur would smear them)."
+see = ["post-process"]
+
+[[term]]
+key = "halftone"
+name = "Halftone"
+text = "Printing shades with dots of solid ink: bigger dots read darker. Colour print overlays cyan, magenta, yellow and black dot screens turned to different angles so they do not form moire patterns."
+see = ["cmyk", "dithering"]
+
+[[term]]
+key = "cmyk"
+name = "CMYK"
+text = "Cyan, magenta, yellow and black: the inks of colour printing. They subtract light from white paper, the opposite of a screen's red, green and blue."
+see = ["halftone"]
+
+[[term]]
+key = "ascii art"
+name = "ASCII art"
+text = "Pictures made of text characters chosen for how much ink they have: ' . : - = + o & * 8 # @' from light to dark. The filter reads each cell's brightness and draws the character from a tiny bitmap."
+see = ["post-process"]
+
+[[term]]
+key = "hatching"
+name = "Hatching"
+text = "Shading with parallel lines; crossing more families of lines (cross-hatching) makes it darker. A tonal art map decides which families appear at each darkness."
+see = ["sobel"]
+
+[[term]]
+key = "dithering"
+name = "Ordered dithering"
+text = "Faking in-between shades with a fixed pattern of two colours (a Bayer matrix), the classic look of limited palettes."
+see = ["palette", "posterize"]
+
+[[term]]
+key = "palette"
+name = "Palette quantization"
+text = "Replacing every colour with the nearest colour of a fixed palette (Game Boy greens, PICO-8, CGA)."
+see = ["dithering", "posterize"]
+
+[[term]]
+key = "posterize"
+name = "Posterize"
+text = "Cutting each colour channel to a few levels, so smooth gradients become bands."
+see = ["palette"]
+
+[[term]]
+key = "pixel art"
+name = "Pixel art (from 3D)"
+text = "Drawing part of the scene in big square blocks: every block takes the colour at its centre. Pavilion can do it to the characters only, the world only, one entity, or everything."
+see = ["parts of the scene"]
+
+[[term]]
+key = "parts of the scene"
+name = "Parts of the scene"
+text = "Pavilion knows, per pixel, whether it shows characters & objects (anything that moves, fights or can be picked up) or the environment, so every filter can be aimed at one part: a painted world with crisp heroes."
+see = ["normal buffer"]
+
+[[term]]
+key = "color grading"
+name = "Colour grading"
+text = "Adjusting the finished picture's temperature, tint, contrast, brightness and saturation to set a mood."
+see = ["post-process"]
+
+[[term]]
+key = "chromatic aberration"
+name = "Chromatic aberration"
+text = "Red and blue shifted apart toward the screen edges, like a cheap lens or a glitching screen."
+see = []
+
+[[term]]
+key = "scanlines"
+name = "Scanlines"
+text = "Dark horizontal lines across the picture, like the gaps between the lines a CRT draws."
+see = ["crt"]
+
+[[term]]
+key = "crt"
+name = "CRT look"
+text = "An old tube screen: curved glass, dark corners (vignette), scanlines and a soft, low resolution."
+see = ["scanlines", "vignette"]
+
+[[term]]
+key = "vignette"
+name = "Vignette"
+text = "Darkened corners that pull the eye to the centre."
+see = []
+
+[[term]]
+key = "film grain"
+name = "Film grain"
+text = "Fine random noise over the picture, like film or a sensor in low light."
+see = []
+
+[[term]]
+key = "distortion"
+name = "Screen distortion"
+text = "Moving pixels sideways before they are read: heat haze, shockwave rings, magnifying lenses. Pavilion draws distortion sources into an offset image the composite uses."
+see = ["post-process"]
+
+[[term]]
+key = "screen transition"
+name = "Screen transition"
+text = "Covering and uncovering the screen when you arrive somewhere: a fade, an iris closing on the player, a wave of diamonds, random blocks, growing pixels or blinds. A mask worked out per pixel from one number, how covered the screen is."
+see = ["post-process"]
+
+[[term]]
+key = "sdf"
+name = "SDF (signed distance field)"
+text = "A function that says how far a point is from a shape's surface. Pavilion draws spheres and capsules analytically: each pixel's ray is intersected with the exact shape, so they are perfectly round at any zoom."
+see = ["ray marching"]
+
+[[term]]
+key = "text rendering"
+name = "SDF text"
+text = "Letters stored as distance fields in a small texture; the shader turns distance into crisp edges at any size and angle, which is how floor and wall labels stay sharp."
+see = ["sdf"]
+
+# ---------------------------------------------------------------- motion and simulation
+[[term]]
+key = "vertex animation"
+name = "Vertex animation"
+text = "Moving a mesh's corners in the vertex shader instead of on the CPU: wind in grass and leaves, waves. It costs nearly nothing per object."
+see = ["vertex shader", "wind"]
+
+[[term]]
+key = "wind"
+name = "Wind sway"
+text = "Foliage moves more the higher it is above its root; gusts roll across as a slow wave along the wind so a meadow ripples, with a fast flutter on top. Grass also bends away from the player's feet."
+see = ["vertex animation"]
+
+[[term]]
+key = "wave equation"
+name = "Wave equation"
+text = "Each point of a surface accelerates toward the average of its neighbours, so a dent becomes a ring that spreads, bounces off the walls and fades. Run on a grid of heights it gives rippling water."
+see = ["heightfield"]
+
+[[term]]
+key = "heightfield"
+name = "Heightfield"
+text = "A grid of heights: terrain, or a water surface. Its slopes give the normals that light it."
+see = ["wave equation"]
+
+[[term]]
+key = "particle system"
+name = "Particle system"
+text = "Many tiny short-lived sprites born by emitters with a speed, life, size and colour curve: fire, smoke, sparks, rain. Here they live entirely on the GPU."
+see = ["compute shader", "additive blending"]
+
+[[term]]
+key = "additive blending"
+name = "Additive blending"
+text = "Adding a particle's colour to what is behind it instead of covering it: fire, sparks and magic glow and pile up brighter."
+see = ["particle system"]
+
+[[term]]
+key = "rigid body"
+name = "Rigid body"
+text = "A solid object the physics engine (Rapier) moves with velocity, gravity, mass, friction and bounce; it never bends."
+see = ["joint", "soft body"]
+
+[[term]]
+key = "joint"
+name = "Joint"
+text = "A connection between two bodies that limits how they move relative to each other: a hinge for doors, a rope link, a slider."
+see = ["rigid body"]
+
+[[term]]
+key = "soft body"
+name = "Soft body"
+text = "Something that bends and springs back: points held together by springs (jelly, cloth, ropes, balloons)."
+see = ["verlet"]
+
+[[term]]
+key = "verlet"
+name = "Verlet integration"
+text = "Moving points by their last two positions instead of a velocity, then pulling them back to fixed distances. Simple and stable: tails, antennae and ropes use it."
+see = ["soft body", "secondary motion"]
+
+[[term]]
+key = "fixed timestep"
+name = "Fixed timestep"
+text = "Stepping the simulation by the same small time slice every tick (60 per second here) whatever the frame rate, so it plays the same every time; the view interpolates between ticks for smooth motion."
+see = ["determinism", "interpolation"]
+
+[[term]]
+key = "determinism"
+name = "Determinism"
+text = "The same inputs give exactly the same result. It is what makes rewind, replays and bug reports with a state hash possible."
+see = ["fixed timestep"]
+
+[[term]]
+key = "interpolation"
+name = "Interpolation"
+text = "Drawing objects between their last two simulated positions so motion stays smooth at any frame rate."
+see = ["fixed timestep"]
+
+[[term]]
+key = "coyote time"
+name = "Coyote time"
+text = "A short grace period after running off a ledge during which a jump still works, named after the cartoon coyote who runs on air before falling."
+see = ["jump buffer"]
+
+[[term]]
+key = "jump buffer"
+name = "Jump buffering"
+text = "Remembering a jump pressed slightly before landing and doing it on touchdown, so early presses are not lost."
+see = ["coyote time"]
+
+[[term]]
+key = "game feel"
+name = "Game feel"
+text = "How controls feel in the hands: response time, acceleration, stopping, air control, hit pause, screen shake. Small numbers that decide whether a game feels sluggish or snappy."
+see = ["coyote time", "screen shake"]
+
+[[term]]
+key = "screen shake"
+name = "Screen shake"
+text = "Jolting the camera on big hits and explosions; it sells impact as long as it is short."
+see = ["game feel"]
+
+[[term]]
+key = "procedural animation"
+name = "Procedural animation"
+text = "Animation computed at run time from rules instead of drawn by hand: walk cycles from speed, feet planted on the ground, recoil from hits."
+see = ["ik", "squash and stretch"]
+
+[[term]]
+key = "ik"
+name = "Inverse kinematics (IK)"
+text = "Working backwards from where a hand or foot must be to how the joints bend to reach it. Creature feet stay planted on rocks and steps with it."
+see = ["procedural animation"]
+
+[[term]]
+key = "squash and stretch"
+name = "Squash and stretch"
+text = "The oldest animation principle: things squash when they land and stretch when they move fast, keeping their volume."
+see = ["procedural animation"]
+
+[[term]]
+key = "secondary motion"
+name = "Secondary motion"
+text = "Parts that follow the main movement a little late and overshoot: tails, antennae, hair, cloth."
+see = ["verlet"]
+
+[[term]]
+key = "a star"
+name = "A* pathfinding"
+text = "Finding the shortest path on a grid or graph by always exploring the most promising step first (distance so far plus a guess of what remains)."
+see = ["flow field"]
+
+[[term]]
+key = "flow field"
+name = "Flow field"
+text = "A grid where every cell points the way to a goal, computed once for many walkers: crowds of monsters all heading for the player."
+see = ["a star"]
+
+[[term]]
+key = "line of sight"
+name = "Line of sight"
+text = "Whether anything blocks the straight line between two points, tested with a ray cast. Guards see you only when it is clear."
+see = ["raycast"]
+
+[[term]]
+key = "raycast"
+name = "Ray cast"
+text = "Asking the physics engine what a straight line hits first: aiming, line of sight, ground checks, vehicle wheels."
+see = ["line of sight"]
+
+[[term]]
+key = "streaming"
+name = "World streaming"
+text = "Building the world in chunks around the player and putting far ones to sleep, so it can be endless."
+see = []
+
+[[term]]
+key = "procedural generation"
+name = "Procedural generation"
+text = "Making content from rules and random seeds instead of by hand: the wilderness, the dungeon levels, monsters and loot. The same seed always gives the same result."
+see = ["determinism"]

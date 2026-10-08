@@ -37,6 +37,8 @@ struct Globals {
     fog: [f32; 4],
     fog2: [f32; 4],
     cut3: [f32; 4],
+    wind: [f32; 4],
+    push: [f32; 4],
 }
 
 #[repr(C)]
@@ -85,7 +87,15 @@ struct PostUniform {
     tone: [f32; 4],
     misc: [f32; 4],
     fwd: [f32; 4],
-    filt: [[f32; 4]; 7],
+    filt: [[f32; 4]; 9],
+    // Hazy air: unprojecting to world space, the sun's shadow map and the lights.
+    inv_view: [[f32; 4]; 4],
+    light_vp: [[f32; 4]; 4],
+    sun_dir: [f32; 4],
+    sun_color: [f32; 4],
+    sky: [f32; 4],
+    air: [f32; 4],
+    air2: [f32; 4],
 }
 
 struct GpuMesh {
@@ -545,6 +555,33 @@ impl Renderer {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                // Hazy air: the sun's shadow map, its comparison sampler and the point lights.
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 8,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 9,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let post_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -773,20 +810,32 @@ impl Renderer {
         let depth_ms = make("depth ms", DEPTH_FORMAT, SAMPLES, rt | tb);
         self.bloom.resize(&self.device, &self.queue, size, &hdr);
         self.distort.resize(&self.device, size);
-        let post_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let post_bg = self.make_post_bg(&hdr, &depth_ms, &normal_ms);
+        self.targets = Some(FrameTargets { size, hdr_ms, hdr, normal_ms, depth_ms, post_bg });
+    }
+
+    fn make_post_bg(
+        &self,
+        hdr: &wgpu::TextureView,
+        depth_ms: &wgpu::TextureView,
+        normal_ms: &wgpu::TextureView,
+    ) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("post"),
             layout: &self.post_layout,
             entries: &[
                 wgpu::BindGroupEntry { binding: 0, resource: self.post_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&hdr) },
-                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&depth_ms) },
-                wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(&normal_ms) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(hdr) },
+                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(depth_ms) },
+                wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(normal_ms) },
                 wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(self.bloom.view().unwrap()) },
                 wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(self.distort.view().unwrap()) },
                 wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::Sampler(&self.lin_sampler) },
+                wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.shadow_view) },
+                wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::Sampler(&self.shadow_sampler) },
+                wgpu::BindGroupEntry { binding: 9, resource: self.lights.buf.as_entire_binding() },
             ],
-        });
-        self.targets = Some(FrameTargets { size, hdr_ms, hdr, normal_ms, depth_ms, post_bg });
+        })
     }
 
     fn post_pipeline(&mut self, format: wgpu::TextureFormat) -> &wgpu::RenderPipeline {
@@ -901,8 +950,15 @@ impl Renderer {
             fog: scene.fog.color.extend(if scene.fog.enabled { 1.0 } else { 0.0 }).to_array(),
             fog2: [scene.fog.center.x, scene.fog.center.z, scene.fog.start, scene.fog.end.max(scene.fog.start + 0.01)],
             cut3: [cut.front_cut, if cut.front_cut > 0.0 { 1.0 } else { 0.0 }, 0.0, 0.0],
+            wind: {
+                let w = &scene.wind;
+                let d = w.direction.normalize_or(glam::Vec2::X);
+                [d.x, d.y, w.strength, w.gusts]
+            },
+            push: scene.wind.pusher.extend(scene.wind.push_radius).to_array(),
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
+        let globals_sun_dir = globals.sun_dir;
         globals.view_proj = mat(light_vp);
         globals.eye = [0.0, 0.0, 0.0, 0.0];
         globals.forward = sun_dir.extend(0.0).to_array();
@@ -946,6 +1002,11 @@ impl Renderer {
             lights.push(GpuPointLight::zeroed());
         }
         if self.lights.write(&self.device, &self.queue, bytemuck::cast_slice(&lights)) {
+            // A new lights buffer: the composite reads it too (lamp halos).
+            if let Some(t) = &self.targets {
+                let bg = self.make_post_bg(&t.hdr, &t.depth_ms, &t.normal_ms);
+                self.targets.as_mut().unwrap().post_bg = bg;
+            }
             self.globals_bg = Self::make_globals_bg(
                 &self.device,
                 &self.globals_layout,
@@ -1260,9 +1321,18 @@ impl Renderer {
                         f.grade_part as u32 as f32,
                         f.scanline_part as u32 as f32,
                     ],
-                    [f.grain_part as u32 as f32, f.chroma_part as u32 as f32, 0.0, 0.0],
+                    [f.grain_part as u32 as f32, f.chroma_part as u32 as f32, f.stylize_part as u32 as f32, 0.0],
+                    [f.stylize as u32 as f32, f.stylize_size, f.stylize_mix, f.stylize_color],
+                    [f.transition, f.transition_kind as u32 as f32, f.transition_center.x, f.transition_center.y],
                 ]
             },
+            inv_view: mat(cam.view.inverse()),
+            light_vp: mat(light_vp),
+            sun_dir: globals_sun_dir,
+            sun_color: scene.sun.color.extend(n_lights as f32).to_array(),
+            sky: scene.ambient.sky.extend(0.0).to_array(),
+            air: [p.haze, p.haze_height.max(0.1), p.haze_base, p.shafts],
+            air2: [p.shafts_forward.clamp(0.0, 0.95), p.halos, 0.0, 0.0],
         };
         self.queue.write_buffer(&self.post_buf, 0, bytemuck::bytes_of(&post));
         self.post_pipeline(target_format);

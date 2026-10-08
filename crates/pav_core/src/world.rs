@@ -16,7 +16,7 @@ use crate::level::Placement;
 use crate::params::{self, ParamValue, Tunable};
 use crate::physics::entity_tag;
 use crate::room::RoomDef;
-use crate::shape::{Look, Shape, Visual};
+use crate::shape::{Look, Shape, Sway, Visual};
 use crate::sim::{Sim, SimConfig};
 use crate::statics::{Block, CHUNK_SIZE, Decor, Facing, RegionKey, chunk_ivec};
 use crate::terrain::{Footprint, TerrainGen};
@@ -243,6 +243,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         emissive: 0.0,
         solid: true,
         collider: None,
+        sway: Sway::None,
     });
     decor.push(Decor {
         shape: Shape::Cylinder { half_height: 0.05, radius: 2.0 },
@@ -253,6 +254,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         emissive: 0.0,
         solid: false,
         collider: None,
+        sway: Sway::None,
     });
     decor.push(Decor {
         shape: Shape::Sphere { radius: 0.45 },
@@ -263,6 +265,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         emissive: 1.4,
         solid: false,
         collider: None,
+        sway: Sway::None,
     });
     decor.push(Decor {
         shape: Shape::Cylinder { half_height: 0.5, radius: 0.18 },
@@ -273,6 +276,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         emissive: 0.0,
         solid: true,
         collider: None,
+        sway: Sway::None,
     });
     // Plaza perimeter: low walls with openings for the corridors.
     for f in DIRS {
@@ -339,6 +343,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
                     emissive: 0.0,
                     solid: true,
                     collider: None,
+                    sway: Sway::None,
                 });
                 decor.push(Decor {
                     shape: Shape::Sphere { radius: 0.16 },
@@ -349,6 +354,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
                     emissive: 1.0,
                     solid: false,
                     collider: None,
+                    sway: Sway::None,
                 });
             }
             x += 10.0;
@@ -399,6 +405,7 @@ impl Sim {
             v.light = o.light.clone().map(Box::new);
             v.particles = o.particles.clone().map(Box::new);
             v.distortion = o.distortion.clone().map(Box::new);
+            v.sway = o.sway;
             let rot = slot.place.quat() * o.local_rot();
             let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
                 .visual(v)
@@ -1182,6 +1189,7 @@ impl Sim {
                     distortion: v.distortion.as_deref().cloned(),
                     vehicle: e.vehicle.as_ref().map(|x| x.def.clone()),
                     health: e.health.as_ref().map(|x| x.def.clone()),
+                    sway: v.sway,
                     soft: e.soft.as_ref().map(|s| s.def.clone()),
                 })
             })
@@ -1314,6 +1322,9 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         if let Some(v) = v {
             t.push_str(&format!("{k} = {}\n", inline(&v)));
         }
+    }
+    if o.sway != crate::shape::Sway::None {
+        t.push_str(&format!("sway = \"{}\"\n", crate::params::ChoiceParam::name(o.sway)));
     }
     t
 }

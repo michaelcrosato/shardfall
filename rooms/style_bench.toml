@@ -33,6 +33,101 @@ tilt = 55.0
 distance = 20.0
 fov = 40.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "One character, a camera that swings round it, and four looks. The LINE-UP has four bipeds in the same colours drawn CUTOUT, FLAT, CEL and LIT, plus a cutout and a lit spider. On THE STAGE you are the character: LOOK pads switch your look, CAMERA pads fix the angle or swing it, and the YAW SWING and TILT SWING bands sweep the camera while you stand in them. The CHEATS pads add tricks for high cameras: eyes to camera, lean to camera and on twos."
+how = [
+  "Every puppet is a set of rounded cones (capsules with a different radius at each end) placed by the animation. The GPU draws each as a box and, per pixel, intersects the view ray with the exact shape, so limbs stay perfectly round from any angle.",
+  "FLAT, CEL and LIT only change the lighting in the same shader. FLAT shows the colours with shadows darkening them (to 62%); CEL, the default, is lit or unlit in hard bands with soft sky fill and a thin rim light on the edges; LIT has a smooth light gradient and a specular glint.",
+  "CUTOUT is a geometry trick on the CPU: the side view of the pose is laid onto a card that faces the camera (forward becomes screen right, up becomes screen up) and depth is squeezed to a quarter, just enough to keep near limbs in front. When you face the other way the card mirrors, like a flipped sprite; it is shaded FLAT.",
+  "Eyes to camera slides the eyes from the front of the face toward the top of the head as the camera rises, so a top-down view still shows a face. Lean to camera tips the whole body toward the camera by half the camera's elevation angle, pivoting at the feet.",
+  "On twos holds the walk cycle for 1/12 s at a time while position and lean stay smooth. CAMERA pads stay set until another pad; the swing bands ease yaw between -60 and 60 or tilt between 20 and 85 degrees over 8 s and win while you stand in them.",
+]
+uses = [
+  "Paper Mario: flat paper characters in a 3D world that flip over when they turn round.",
+  "Don't Starve: hand-drawn 2D characters standing upright as flat cards in a 3D world.",
+  "Guilty Gear Xrd: 3D fighters with cel shading, held poses instead of smooth blending, and per-shot model tweaks so every frame reads like 2D anime.",
+  "Cel shading: The Legend of Zelda: The Wind Waker, Borderlands and Jet Set Radio.",
+  "Octopath Traveler: 2D pixel sprites standing as cards in a 3D diorama.",
+]
+ask = [
+  "paper cutout characters in a 3D world that flip when they turn",
+  "cel-shaded characters with a rim light",
+  "keep faces readable from a top-down camera",
+  "3D characters animated on twos to look hand-drawn",
+  "a camera that swings round the character to compare looks",
+]
+cost = "The four looks cost the same: one shader with a branch per style, and LIT adds a specular power. Each shape costs the screen pixels it covers (one ray test each) and all puppets share one instanced draw. Cutout, eyes and lean are a few vector operations per shape on the CPU."
+knobs = ["puppet.look", "puppet.eyes_to_camera", "puppet.face_camera", "puppet.anim_fps", "camera.tilt", "camera.yaw"]
+terms = ["cel shading", "flat shading", "rim light", "specular", "sdf", "procedural animation"]
+
+[[learn.code]]
+title = "Cutout: the pose laid on a camera-facing card"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+if def.look == Look::Cutout {
+    // Character space -> card: forward maps to screen right (or left when facing left),
+    // up to the camera's up; depth shrinks to a thin layering offset.
+    let inv = Quat::from_rotation_y(facing).inverse();
+    let fwd_w = Quat::from_rotation_y(facing) * Vec3::Z;
+    let sign = if fwd_w.dot(cam_right) >= 0.0 { 1.0 } else { -1.0 };
+    let cam_up = cam_right.cross(cam_fwd).normalize_or(Vec3::Y);
+    let toward = -cam_fwd;
+    let card = |p: Vec3| -> Vec3 {
+        let l = inv * (p - feet);
+        feet + cam_right * (l.z * sign) + cam_up * l.y + toward * (-l.x * sign * 0.25)
+    };
+    for p in parts.iter_mut() {
+        p.a = card(p.a);
+        p.b = card(p.b);
+    }
+    // ...
+}
+"""
+
+[[learn.code]]
+title = "Lean and eyes toward the camera"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+if def.face_camera > 0.0 {
+    let elev = (-cam_fwd.y).clamp(0.0, 1.0).asin();
+    let q = Quat::from_axis_angle(cam_right, elev * def.face_camera * 0.5);
+    for p in parts.iter_mut() {
+        p.a = feet + q * (p.a - feet);
+        p.b = feet + q * (p.b - feet);
+    }
+}
+// ...
+// Eyes: on the face, pushed toward the camera so they read from high angles.
+let cam_up = (-cam_fwd).dot(up).clamp(0.0, 1.0) * def.eyes_to_camera;
+let face_dir = (Vec3::Z * (1.0 - cam_up) + Vec3::Y * cam_up * 1.2).normalize();
+"""
+
+[[learn.code]]
+title = "Flat, cel and lit in the scene shader"
+file = "crates/pav_render/src/shaders/scene.wgsl"
+lang = "wgsl"
+src = """
+let hemi = mix(g.ground_color.rgb, g.sky_color.rgb, n.y * 0.5 + 0.5);
+var col: vec3<f32>;
+if (style == 0u) {
+    col = albedo * mix(g.style.x, 1.0, sh);
+} else if (style == 1u) {
+    let lit = quantize(clamp(ndl, 0.0, 1.0) * sh, max(g.style.y - 1.0, 1.0));
+    let direct = step(0.02, ndl) * sh;
+    let amount = select(lit, direct, g.style.y <= 2.0);
+    let rim = step(0.72, 1.0 - max(dot(n, v), 0.0)) * g.style.z * (0.4 + 0.6 * amount);
+    col = albedo * (hemi + g.sun_color.rgb * amount) + albedo * rim;
+} else {
+    let dl = max(ndl, 0.0) * sh;
+    let h = normalize(l + v);
+    let spec = pow(max(dot(n, h), 0.0), 40.0) * g.style.w * sh;
+    col = albedo * (hemi + g.sun_color.rgb * dl) + g.sun_color.rgb * spec;
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -110,69 +205,69 @@ zone = { kind = "camera", label = "LINE-UP VIEW: TILT SWING", color = "#d9772e",
 # LOOK pads (west of the stage): puppet.look.
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CUTOUT", color = "#8a52d6", label_size = 0.55, params = { "puppet.look" = "cutout" } }
+zone = { kind = "pad", label = "CUTOUT", color = "#8a52d6", label_size = 0.55, params = { "puppet.look" = "cutout" }, note = "Your pose is laid flat on a card facing the camera and shaded flat, like a paper puppet. Walk east, then west: the card mirrors with your facing." }
 
 [layout.legend.'f']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "FLAT", color = "#4f7be0", label_size = 0.55, params = { "puppet.look" = "flat" } }
+zone = { kind = "pad", label = "FLAT", color = "#4f7be0", label_size = 0.55, params = { "puppet.look" = "flat" }, note = "Flat shading: your own colours with no light gradient, only shadows darkening them to 62%. Crisp and graphic from any angle." }
 
 [layout.legend.'e']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CEL", color = "#2e9e68", label_size = 0.55, params = { "puppet.look" = "cel" } }
+zone = { kind = "pad", label = "CEL", color = "#2e9e68", label_size = 0.55, params = { "puppet.look" = "cel" }, note = "Cel shading, the default: hard light bands (lit or not), soft sky fill and a thin rim light where the surface turns away from you." }
 
 [layout.legend.'l']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "LIT", color = "#d4891c", label_size = 0.55, params = { "puppet.look" = "lit" } }
+zone = { kind = "pad", label = "LIT", color = "#d4891c", label_size = 0.55, params = { "puppet.look" = "lit" }, note = "Smooth lighting: brightness follows the angle to the sun, plus a specular glint. Rounder and more 3D, less like a drawing." }
 
 # CAMERA pads (east of the stage): fixed angles and an auto swing (sticky until another pad).
 [layout.legend.'s']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "SIDE 15", color = "#e0623a", label_size = 0.5, camera = { set = { tilt = 15, yaw = 0, ortho = false } } }
+zone = { kind = "pad", label = "SIDE 15", color = "#e0623a", label_size = 0.5, camera = { set = { tilt = 15, yaw = 0, ortho = false } }, note = "Camera tilt 15 degrees, almost a side view: the cutout card faces you squarely and every look reads as a profile." }
 
 [layout.legend.'t']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "3/4 VIEW 45", color = "#d4891c", label_size = 0.5, camera = { set = { tilt = 45, yaw = 0, ortho = false } } }
+zone = { kind = "pad", label = "3/4 VIEW 45", color = "#d4891c", label_size = 0.5, camera = { set = { tilt = 45, yaw = 0, ortho = false } }, note = "Tilt 45, the classic three-quarter view: you see both the face and the top of the body." }
 
 [layout.legend.'o']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "TOP 85", color = "#4f7be0", label_size = 0.5, camera = { set = { tilt = 85, yaw = 0, ortho = false } } }
+zone = { kind = "pad", label = "TOP 85", color = "#4f7be0", label_size = 0.5, camera = { set = { tilt = 85, yaw = 0, ortho = false } }, note = "Tilt 85, nearly top-down: a 3D puppet shows mostly head and shoulders. Try the eyes and lean cheats here." }
 
 [layout.legend.'w']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "AUTO SWING", color = "#c43fb0", label_size = 0.5, camera = { set = { ortho = false }, sweep = [{ param = "yaw", from = -60, to = 60, period = 8 }, { param = "tilt", from = 20, to = 85, period = 12 }] } }
+zone = { kind = "pad", label = "AUTO SWING", color = "#c43fb0", label_size = 0.5, camera = { set = { ortho = false }, sweep = [{ param = "yaw", from = -60, to = 60, period = 8 }, { param = "tilt", from = 20, to = 85, period = 12 }] }, note = "Sticky sweep: yaw swings -60 to 60 every 8 s and tilt 20 to 85 every 12 s, so you can walk past the line-up and watch each look turn." }
 
 # CHEATS pads (south): eyes_to_camera, face_camera (lean to camera), anim_fps (on twos).
 [layout.legend.'1']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "EYES TO CAMERA ON", color = "#3bb273", label_size = 0.34, params = { "puppet.eyes_to_camera" = 1 } }
+zone = { kind = "pad", label = "EYES TO CAMERA ON", color = "#3bb273", label_size = 0.34, params = { "puppet.eyes_to_camera" = 1 }, note = "Eyes to camera 1: as the camera rises the eyes slide up onto the top of the head, so from above you still see a face." }
 
 [layout.legend.'2']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "EYES TO CAMERA OFF", color = "#e07a5f", label_size = 0.34, params = { "puppet.eyes_to_camera" = 0 } }
+zone = { kind = "pad", label = "EYES TO CAMERA OFF", color = "#e07a5f", label_size = 0.34, params = { "puppet.eyes_to_camera" = 0 }, note = "Eyes to camera 0: the eyes stay on the front of the face, so from a high camera they are hard to see." }
 
 [layout.legend.'3']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "LEAN TO CAMERA ON", color = "#3bb273", label_size = 0.34, params = { "puppet.face_camera" = 1 } }
+zone = { kind = "pad", label = "LEAN TO CAMERA ON", color = "#3bb273", label_size = 0.34, params = { "puppet.face_camera" = 1 }, note = "The body tips toward the camera by half its elevation (about 42 degrees at TOP 85), pivoting at the feet: a 2D cheat that shows your front." }
 
 [layout.legend.'4']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "LEAN TO CAMERA OFF", color = "#e07a5f", label_size = 0.34, params = { "puppet.face_camera" = 0 } }
+zone = { kind = "pad", label = "LEAN TO CAMERA OFF", color = "#e07a5f", label_size = 0.34, params = { "puppet.face_camera" = 0 }, note = "Lean to camera 0: the body stands straight up whatever the camera does." }
 
 [layout.legend.'5']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "ON TWOS: 12 FPS", color = "#3bb273", label_size = 0.4, params = { "puppet.anim_fps" = 12 } }
+zone = { kind = "pad", label = "ON TWOS: 12 FPS", color = "#3bb273", label_size = 0.4, params = { "puppet.anim_fps" = 12 }, note = "The walk cycle holds each pose for 1/12 s, like hand-drawn animation on twos; your position and lean stay smooth." }
 
 [layout.legend.'6']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "SMOOTH ANIMATION", color = "#e07a5f", label_size = 0.4, params = { "puppet.anim_fps" = 0 } }
+zone = { kind = "pad", label = "SMOOTH ANIMATION", color = "#e07a5f", label_size = 0.4, params = { "puppet.anim_fps" = 0 }, note = "Animation rate 0: the walk cycle updates every frame again." }
 
 [layout.legend.'r']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET ALL", color = "#6b7280", label_size = 0.5, params = { "puppet.look" = "cel", "puppet.eyes_to_camera" = 0.6, "puppet.face_camera" = 0, "puppet.anim_fps" = 0 }, camera = { set = { tilt = 55, yaw = 0, distance = 20, ortho = false } } }
+zone = { kind = "pad", label = "RESET ALL", color = "#6b7280", label_size = 0.5, params = { "puppet.look" = "cel", "puppet.eyes_to_camera" = 0.6, "puppet.face_camera" = 0, "puppet.anim_fps" = 0 }, camera = { set = { tilt = 55, yaw = 0, distance = 20, ortho = false } }, note = "Back to cel, eyes to camera 0.6, no lean, smooth animation and the room's camera (tilt 55, distance 20)." }
 
 [layout.legend.'A']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "ALL CHEATS ON", color = "#7a5cff", label_size = 0.45, params = { "puppet.eyes_to_camera" = 1, "puppet.face_camera" = 1, "puppet.anim_fps" = 12 } }
+zone = { kind = "pad", label = "ALL CHEATS ON", color = "#7a5cff", label_size = 0.45, params = { "puppet.eyes_to_camera" = 1, "puppet.face_camera" = 1, "puppet.anim_fps" = 12 }, note = "Eyes to camera, lean to camera and on twos together: the full set of tricks for 3D that reads like a drawing from a high camera." }
 
 # Floor labels (layout space: x = column, z = row).
 

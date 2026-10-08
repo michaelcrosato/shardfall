@@ -38,6 +38,70 @@ bloom = 0.45
 "light.sun_intensity" = 0.3
 "light.ambient" = 0.5
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Light that bounces once more: in the CORNELL BOX the red and green walls tint the white blocks and balls inside, the ORANGE FLOOR warms the white wall beside it and the GLOW STRIP washes its neighbours cyan although it is not a light. Under CONTACT SHADOWS every sphere, crate and stair step sits in a soft dark ring. The GI DIAL pads switch it off, on and strong."
+how = [
+  "It works on the finished frame, not the 3D scene (screen space): for each pixel the composite reads the depth and normal buffers to rebuild where that point is and which way it faces.",
+  "It then looks at 12 nearby pixels laid out in a spiral reaching about 1.6 m, fewer pixels wide the further the point is from the camera. The spiral is turned by a per-pixel noise so the pattern becomes fine grain instead of rings.",
+  "Occlusion: every neighbour that sits in front of the surface (on the side its normal faces) blocks some sky light, less with distance. Corners and contacts collect many and darken, by at most 70%.",
+  "Bounce: the same neighbour's colour is added as light when it faces back towards the point, so a red wall beside a white ball tints the ball pink. Both are scaled by view.gi (bounce by 1.6, occlusion by 1.5).",
+  "Only what is on screen counts: turn the camera until the red wall leaves the view and its pink wash goes with it. Ray-traced GI would not lose it, at many times the cost.",
+]
+uses = [
+  "Grounding: soft contact shadows under props and characters. Crysis introduced screen-space ambient occlusion (SSAO) in 2007 and most 3D games have used some form of it since.",
+  "Cheap bounce light: Unreal Engine (SSGI) and Godot 4 (SSIL) offer the same screen-space trick for when ray tracing is too expensive.",
+  "Full GI: Metro Exodus Enhanced Edition and Cyberpunk 2077's path tracing trace real rays, so off-screen walls bounce light too.",
+  "Stylised games: a little occlusion stops flat-coloured or toon scenes from looking like stickers floating on the floor.",
+]
+ask = [
+  "screen-space ambient occlusion (SSAO)",
+  "colour bleeding from coloured walls",
+  "soft contact shadows under props",
+  "screen-space global illumination (SSGI)",
+  "bounce light that only needs the depth and normal buffers",
+]
+cost = "Twelve neighbour samples per pixel, each reading depth, normal and colour, inside the composite pass: about the price of a small blur, the same for every pixel. It grows with screen resolution, not with the number of objects or lights, and costs nothing when view.gi is 0."
+knobs = ["view.gi", "view.light.sun_intensity", "view.light.ambient", "view.style", "view.exposure"]
+terms = ["global illumination", "ambient occlusion", "screen space", "depth buffer", "normal buffer", "post-process", "hdr"]
+
+[[learn.code]]
+title = "Twelve neighbours: occlusion and bounce"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+let rad = post.gi.y;
+let rad_px = clamp(rad * post.gi.z / max(-p.z, 0.1), 3.0, 90.0);
+// Per-pixel rotation (interleaved gradient noise) hides the sample pattern.
+let ign = fract(52.9829189 * fract(0.06711056 * f32(px.x) + 0.00583715 * f32(px.y) + post.gi.w * 0.618));
+// ...
+for (var i = 0; i < count; i++) {
+    let fi = f32(i);
+    let a = fi * 2.39996 + ign * 6.2831;
+    let r = sqrt((fi + 0.5) / f32(count)) * rad_px;
+    // ...
+    let dir = v / dist;
+    let ndl = max(dot(n, dir) - 0.05, 0.0);
+    let fall = 1.0 / (1.0 + dist * dist / (rad * rad));
+    occ += ndl * fall;
+    let qn = normalize((post.view * vec4<f32>(textureLoad(normal_ms, q, 0).xyz, 0.0)).xyz);
+    let emit = max(dot(qn, -dir), 0.0);
+    bounce += textureLoad(hdr_tex, q, 0).rgb * ndl * emit * fall;
+}
+return vec4<f32>(bounce / f32(count), occ / f32(count));
+"""
+
+[[learn.code]]
+title = "Darken by occlusion, add the bounce"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+if (post.gi.x > 0.0) {
+    let gi = screen_gi(px, dims);
+    col = col * (1.0 - min(gi.a * post.gi.x * 1.5, 0.7)) + gi.rgb * post.gi.x * 1.6;
+}
+"""
+
 [layout]
 origin = [-18.0, 0.0, -14.0]
 
@@ -125,15 +189,15 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d6cfbd", look = "lit" }, { y0 = 0, y1 =
 
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
-zone = { kind = "pad", label = "GI OFF", color = "#8d939c", params = { "view.gi" = 0.0 } }
+zone = { kind = "pad", label = "GI OFF", color = "#8d939c", params = { "view.gi" = 0.0 }, note = "view.gi 0: no bounce and no occlusion. The Cornell box loses its pink and green wash and the balls look pasted onto the floor." }
 
 [layout.legend.'b']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
-zone = { kind = "pad", label = "GI ON", color = "#3bb273", params = { "view.gi" = 1.0 } }
+zone = { kind = "pad", label = "GI ON", color = "#3bb273", params = { "view.gi" = 1.0 }, note = "view.gi 1, the room's default: a faint colour wash beside the red, green and orange surfaces and soft dark rings at every contact." }
 
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#ddd7c9", look = "lit" }]
-zone = { kind = "pad", label = "GI STRONG", color = "#f2b134", params = { "view.gi" = 2.0 } }
+zone = { kind = "pad", label = "GI STRONG", color = "#f2b134", params = { "view.gi" = 2.0 }, note = "view.gi 2: bounce and occlusion doubled (occlusion still stops at 70% darker). Good for seeing the effect; too heavy for most games." }
 
 # Exhibit names (floor text).
 

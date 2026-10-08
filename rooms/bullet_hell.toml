@@ -59,6 +59,130 @@ bloom = 0.9
 use = ["Space", "KeyF"]
 jump = []
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A shoot-'em-up seen straight down. The DRONES of STAGE 1 fire slow aimed shots and small rings, the TURRETS of STAGE 2 fire spirals, a swaying 16-bullet ring and five-bullet fans, and the BOSS switches to a spiral at 66% health and a spiral storm at 33% while its two pods keep shooting. Your blaster always fires north, and the bulkheads (one GATE each) and the pillars stop every bullet, yours too."
+how = [
+  "Every enemy is an object with an emitter: a timer that fires one volley every interval seconds while you are within its range (13 m here, 15 m for the boss), after a start delay that keeps neighbours out of step.",
+  "A volley is a list of directions. Aimed spreads its bullets over a fan centred on you, a ring spaces them evenly round a circle, and a spiral is a ring that turns a few degrees more every volley (the boss's storm: 6 bullets every 0.24 s, turning 7 degrees each time).",
+  "Bullets are plain structs (position, velocity, radius, life), not physics bodies. Each tick (60 a second) they move in a straight line, measure the distance to the line through your body at the middle and the end of the step so fast ones cannot skip through you, and cast one short ray that stops them at walls, barriers and pillars.",
+  "The tiny hitbox keeps it fair: a bullet hits when it comes within movement.hitbox plus its own radius (0.12 + 0.2 m) of that line, while your body's own radius is 0.32 m, so a bullet can sink its whole radius into you and still miss. A hit knocks you back, takes control away for 0.35 s and makes you safe for 0.6 s.",
+  "Your shots are bullets on the player team, fired every 0.1 s at 22 m/s and living for 35 m. Each hit takes 1 hp and flashes the target white; dropping below a phase's share of health swaps in a new emitter, and the boss's death adds 500 points, sends the victory signal (confetti) and stops the clock.",
+  "Each bullet is drawn as one SDF sphere (the pixel shader hits the exact sphere with a ray) in a single instanced draw, placed between ticks by its velocity. It is unlit at 1.6 times its colour, brighter than the bloom threshold, so it glows against the dark floor.",
+]
+uses = [
+  "Danmaku: Touhou Project fills the screen with spell-card patterns and gives you a slow focus move and a hitbox a few pixels wide.",
+  "Arcade shmups: DoDonPachi made dense curtains of slow, readable bullets the heart of the genre.",
+  "Roguelikes: Enter the Gungeon's bosses fire rings, spirals and aimed bursts that you weave between.",
+  "Boss phases: Cuphead's bosses change their attacks as their health runs down; Undertale turns its fights into dodging patterns inside a box.",
+]
+ask = [
+  "bullet hell boss with ring, spiral and aimed fan patterns",
+  "tiny hitbox and a slow focus move for dodging",
+  "boss that changes attack pattern at 66% and 33% health",
+  "thousands of cheap bullets without physics bodies",
+  "top-down shmup where the ship always fires up the screen",
+  "turrets that only shoot while the player is near",
+]
+cost = "CPU: a bullet is a few numbers moved by a few lines of code, but each tick it is tested against every character (your shots against everything with health) and casts one short ray at the walls, so the cost grows with bullets times targets; a hard cap of 6000 bullets stops a runaway emitter. GPU: all bullets are one instanced draw call of SDF spheres, so thousands cost little more than the pixels they cover."
+knobs = ["movement.hitbox", "movement.focus_speed", "movement.hit_stun", "bombs.fire_interval", "bombs.bullet_speed", "bombs.shot_range"]
+terms = ["sdf", "instancing", "draw call", "fixed timestep", "interpolation", "bloom", "game feel"]
+
+[[learn.code]]
+title = "One volley: rings, spirals and aimed fans"
+file = "crates/pav_core/src/behaviors.rs"
+lang = "rust"
+src = """
+let base = match em.pattern {
+    Pattern::Aimed => player.map(|p| flat(p + Vec3::Y * 0.9 - muzzle)).unwrap_or(flat(fwd)),
+    _ => flat(fwd),
+};
+let yaw0 = base.x.atan2(base.z);
+let n = em.count.max(1);
+// ...
+match em.pattern {
+    Pattern::Ring | Pattern::Spiral => {
+        if em.pattern == Pattern::Spiral {
+            em.angle += em.spin;
+        }
+        for i in 0..n {
+            let a = yaw0 + (em.angle + 360.0 * i as f32 / n as f32).to_radians();
+            dirs.push(Vec3::new(a.sin(), 0.0, a.cos()));
+        }
+    }
+    // ...
+    Pattern::Aimed | Pattern::Forward => {
+        for i in 0..n {
+            let f = if n == 1 { 0.0 } else { i as f32 / (n - 1) as f32 - 0.5 };
+            let a = yaw0 + (f * em.spread).to_radians();
+            dirs.push(Vec3::new(a.sin(), 0.0, a.cos()));
+        }
+    }
+"""
+
+[[learn.code]]
+title = "A bullet's tick: move, hit test, wall ray"
+file = "crates/pav_core/src/projectile.rs"
+lang = "rust"
+src = """
+p.vel.y -= p.gravity * dt;
+let step = p.vel * dt;
+let len = step.length();
+let next = p.pos + step;
+// ...
+    for t in targets {
+        if Some(t.id) == p.owner {
+            continue;
+        }
+        let a = t.feet + Vec3::Y * RADIUS;
+        let b = t.feet + Vec3::Y * (t.height - RADIUS).max(RADIUS);
+        // Test the midpoint and the end so fast bullets don't skip through.
+        let d = segment_distance(next, a, b).min(segment_distance(p.pos + step * 0.5, a, b));
+        if d < t.radius + p.radius {
+            out.hits.push((t.id, next, p.vel.normalize_or(Vec3::X), p.knockback));
+            return false;
+        }
+    }
+// ...
+if len > 1e-6 && blocked(p.pos, step / len, len + p.radius * 0.5, p.owner) {
+    out.impacts += 1;
+    return false;
+}
+p.pos = next;
+true
+"""
+
+[[learn.code]]
+title = "Boss phases, and what a kill does"
+file = "crates/pav_core/src/health.rs"
+lang = "rust"
+src = """
+// Attack patterns change as health falls.
+let frac = h.fraction();
+while let Some(p) = h.def.phases.get(h.phase) {
+    if frac >= p.below {
+        break;
+    }
+    e.behavior = p.behavior.clone();
+    h.phase += 1;
+}
+if h.hp > 0.0 {
+    return;
+}
+let def = h.def.clone();
+self.despawn(id);
+events.push(SimEvent::Destroyed { pos, size });
+if let Some(r) = &mut self.state.courses.run {
+    r.score += def.score;
+}
+if !def.signal.is_empty() {
+    self.state.signals.push(def.signal.clone());
+}
+if def.finish && self.state.courses.run.as_ref().is_some_and(|r| r.started) {
+    self.finish_course(pos, events);
+}
+"""
+
 [layout]
 origin = [-15.0, 0.0, -20.0]
 

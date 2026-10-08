@@ -28,6 +28,86 @@ entrance = { at = [16, 27], facing = "south" }
 tilt = 55.0
 distance = 24.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Stacks that stand on their own because the physics engine finds every contact and its friction: the 10-box BOX TOWER, a JENGA tower of 14 crossed layers, a 5-4-3-2-1 PYRAMID, a MIXED SHAPES stack, a curving line of 53 DOMINOES and the LIGHT 20 and HEAVY 400 walls. DROP CRATES rains crates into the CRATE PILE pen."
+how = [
+  "Every box is a Rapier rigid body: a position, rotation and velocity, plus a collider whose mass is density times volume. A 0.7 m tower cube at density 50 weighs about 17 kg.",
+  "Each tick (60 a second) the broad phase finds boxes whose bounding boxes overlap, and the narrow phase works out where they really touch: the contact points and the direction that pushes them apart.",
+  "The solver treats each contact as a constraint: a push that stops the boxes sinking into each other, and friction that resists sliding up to friction times that push. It runs 4 iterations per tick and starts from last tick's pushes (warm starting), which is what keeps a still tower still.",
+  "Contacts are slightly soft, heavily damped springs (30 Hz between props, 60 Hz against fixed ground), so a stack settles a hair into itself instead of buzzing.",
+  "A body slower than 5 cm/s for half a second falls asleep with its island (everything touching it) and costs almost nothing until something hits it.",
+  "You are not a rigid body but a kinematic capsule moved by a character controller. It pushes props as if it weighed movement.push_mass (70 kg), so a heavy-wall cube (137 kg) barely moves while a light-wall cube (7 kg) flies. A bomb, though, gives every body the same kick in speed whatever its mass, so it throws both walls alike.",
+]
+uses = [
+  "Physics puzzles: Angry Birds builds its levels as towers of planks and blocks that collapse under one well-placed shot.",
+  "Props: Half-Life 2 filled its levels with crates and barrels you can stack, knock over and climb.",
+  "Stacking games: Tricky Towers drops falling-block pieces onto a tower that sways and topples with real physics.",
+  "Chain reactions: The Incredible Machine and its descendants are built on one falling thing setting off the next, like the dominoes here.",
+]
+ask = [
+  "stable box stacks that topple when hit",
+  "domino chain reaction with rigid bodies",
+  "Jenga tower with friction and sleeping bodies",
+  "light and heavy props the player can push",
+  "crate shower that piles up in a pen",
+]
+cost = "CPU only. A standing stack is asleep and nearly free; a collapse is the expensive moment, with every touching pair solved 4 times per tick until the pieces settle and sleep again. Drawing is cheap: all the boxes are instances of one cube mesh."
+knobs = ["sim.gravity", "movement.push_mass", "bombs.push", "bombs.radius", "sim.tick_rate"]
+terms = ["rigid body", "fixed timestep", "determinism", "instancing", "draw call"]
+
+[[learn.code]]
+title = "Every prop is a body plus a collider"
+file = "crates/pav_core/src/sim.rs"
+lang = "rust"
+src = """
+let builder = match kind {
+    BodyKind::Fixed => RigidBodyBuilder::fixed(),
+    BodyKind::Kinematic => RigidBodyBuilder::kinematic_velocity_based(),
+    _ => RigidBodyBuilder::dynamic(),
+}
+.pose(Pose::from_parts(s.pos, s.rot))
+.linear_damping(s.damping as Real)
+.angular_damping(s.damping as Real);
+let shape = s.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
+let collider = shape
+    .collider()
+    .density(s.density as Real)
+    .friction(s.friction as Real)
+    .restitution(s.restitution as Real)
+    .user_data(entity_tag(id.0));
+let (b, _) = self.state.physics.insert(builder, collider);
+"""
+
+[[learn.code]]
+title = "A blast kicks every body by speed, not force"
+file = "crates/pav_core/src/sim.rs"
+lang = "rust"
+src = """
+let push = self.config.bombs.push;
+let reach = radius * 2.5;
+for e in self.state.entities.map.values_mut() {
+    let d = e.pos - pos;
+    let dist = d.length();
+    if dist > reach || e.bomb.is_some() {
+        continue;
+    }
+    let fall = 1.0 - dist / reach;
+    let dir = (d + Vec3::Y * 0.5).normalize_or(Vec3::Y);
+    // ...
+    if let Some(ch) = &mut e.character {
+        ch.impulse += dir * push * fall;
+        // ...
+    } else if let Some(b) = e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
+        if b.is_dynamic() {
+            let m = b.mass();
+            b.apply_impulse(dir * push * fall * m, true);
+        }
+    }
+}
+self.state.physics.wake_near(pos, reach + 4.0);
+"""
+
 [layout]
 origin = [-17.0, 0.0, -14.0]
 
@@ -83,11 +163,11 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#bfae92" }, { y0 = 0, y1 = 1.6, color = 
 # Pads: stepping on one sends its signal once. The spawner below listens to both.
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "DROP CRATES", color = "#3bb273", signal = "crates" }
+zone = { kind = "pad", label = "DROP CRATES", color = "#3bb273", signal = "crates", note = "20 crates (0.6 m, about 13 kg) tumble into the pen. Past 120 the oldest vanish, so the pile, its contacts and its cost stay bounded." }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear", note = "Removes every crate the pad dropped. The stacks are not touched: F5 rebuilds those." }
 
 
 # Exhibit names (floor text, layout space: x = column, z = row).

@@ -13,6 +13,7 @@ pub mod entity;
 pub mod feel;
 pub mod frame;
 pub mod fxdef;
+pub mod guide;
 pub mod health;
 pub mod history;
 pub mod input;

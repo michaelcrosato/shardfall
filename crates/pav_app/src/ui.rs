@@ -31,6 +31,10 @@ pub enum MenuAction {
     Tuning,
     /// The Look & Filters window.
     Look,
+    /// How the room you are in works (the station guide; outside rooms the field guide).
+    Guide,
+    /// Every word and every room's ask-for-it phrases.
+    FieldGuide,
     Feel,
     Physics,
     Screenshot,
@@ -131,6 +135,7 @@ pub fn pause_menu(
     difficulty: Option<&mut pav_core::arpg::Difficulty>,
 ) -> Option<MenuAction> {
     let mut action = None;
+    let game = difficulty.is_some();
     egui::Window::new("Paused")
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .collapsible(false)
@@ -159,6 +164,17 @@ pub fn pause_menu(
                     .clicked()
                 {
                     action = Some(MenuAction::Look);
+                }
+                if !game
+                    && ui
+                        .button("How it works (H)")
+                        .on_hover_text("The station guide of the room you are in: how it works, where games use it, how to ask for it")
+                        .clicked()
+                {
+                    action = Some(MenuAction::Guide);
+                }
+                if !game && ui.button("Field guide").on_hover_text("Every word, and what to ask for in every room").clicked() {
+                    action = Some(MenuAction::FieldGuide);
                 }
                 if ui.button("Feel metrics").clicked() {
                     action = Some(MenuAction::Feel);

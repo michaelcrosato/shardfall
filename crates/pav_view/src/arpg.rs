@@ -514,6 +514,13 @@ impl ArpgView {
 /// when the place changes; agent captures apply it every time.
 pub fn place_look(g: &GameFrame, v: &mut crate::build::ViewSettings) {
     v.fog = false;
+    // Air: clear unless the place says otherwise; a gentle draught in the grass.
+    v.haze = 0.0;
+    v.haze_height = 4.0;
+    v.shafts = 1.4;
+    v.shafts_forward = 0.5;
+    v.halos = 0.0;
+    v.wind = 0.4;
     match g.place {
         pav_core::arpg::Place::Level(_) => {
             // The level's own mood (its theme; darkness levels nearly black).
@@ -530,6 +537,10 @@ pub fn place_look(g: &GameFrame, v: &mut crate::build::ViewSettings) {
                 v.fog_start = m.fog * 0.45;
                 v.fog_end = m.fog;
             }
+            // Smoke, dust or spores in the air: the sconces and spells glow in it.
+            v.haze = m.haze;
+            v.haze_height = 3.0;
+            v.halos = m.halos;
         }
         pav_core::arpg::Place::Town => {
             v.sky = "#1a1420".into();
@@ -539,6 +550,11 @@ pub fn place_look(g: &GameFrame, v: &mut crate::build::ViewSettings) {
             v.light.ambient = 0.36;
             v.bloom = 0.7;
             v.saturation = 1.12;
+            // Dusk: a little haze for the low sun to slant through, lamps glowing in it.
+            v.haze = 0.35;
+            v.haze_height = 4.0;
+            v.shafts = 1.8;
+            v.halos = 0.9;
         }
         pav_core::arpg::Place::Lab => {
             v.sky = "#0e0d14".into();

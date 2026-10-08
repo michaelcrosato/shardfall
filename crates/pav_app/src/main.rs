@@ -10,6 +10,7 @@ mod boot;
 mod bridge;
 mod edit;
 mod gfx;
+mod guide_ui;
 mod hud;
 mod input;
 mod look_ui;

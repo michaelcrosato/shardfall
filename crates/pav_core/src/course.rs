@@ -94,6 +94,9 @@ pub struct Courses {
     pub view: BTreeMap<String, ParamValue>,
     #[serde(default)]
     pub view_serial: u64,
+    /// The last pad stepped on that has a note: label, note and the tick it happened.
+    #[serde(default)]
+    pub pad_note: Option<(String, String, u64)>,
 }
 
 impl Courses {
@@ -225,6 +228,7 @@ impl Sim {
             c.view.clear();
             c.view_serial += 1;
         }
+        c.pad_note = None;
         c.checkpoint = entered.and_then(|i| self.state.world.rooms.get(i as usize)).map(|r| (r.inside, yaw_of(r.inward)));
     }
 
@@ -432,6 +436,9 @@ impl Sim {
                     }
                     if !z.label.is_empty() {
                         self.say(z.label.clone());
+                    }
+                    if !z.note.is_empty() {
+                        self.state.courses.pad_note = Some((z.label.clone(), z.note.clone(), self.state.tick));
                     }
                     if !z.signal.is_empty() {
                         self.state.signals.push(z.signal.clone());

@@ -32,6 +32,108 @@ distance = 24.0
 [params]
 "movement.step_height" = 0.45
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Spiders, lizards and beetles whose feet stay planted on the ground and step only when they fall behind. In the SPIDER PEN a normal, a 1.2 m long-legged and a tiny spider wander over rocks and a stepped mound; the LIZARD RUN has two patrolling lizards (the orange one drags a 2.4 m tail) above the BEETLE ROW with 4, 6 and 10 legs, and LEG COUNT lines up spiders with 1 to 6 pairs. The PLAY AS pads turn you into each creature, and two FOLLOWERS trail you round the yard."
+how = [
+  "Each leg has a rest spot beside the body. A planted foot stays fixed in the world while the body moves on, so it falls further and further behind.",
+  "When a foot is more than 30% of the leg's reach from its target (6 cm when standing still), it wants to step. The target is the rest spot pushed ahead along the body's velocity by about one step's time, so feet land where the body is going.",
+  "The furthest-behind foot goes first, but a foot may not lift while its partner on the other side or its neighbour on the same side is in the air, unless it is stretched to 90% of its reach. That one rule makes the gaits: lizards end up stepping in diagonal pairs and spiders never lift more than half their legs.",
+  "A step is a short flight: the foot slides from its old to its new spot over puppet.step_time seconds on an ease-in-out curve, lifted along a half sine wave. A ray cast down at the new spot finds the ground, so feet land on rocks and steps.",
+  "The body rides above the feet: its height follows their average and it pitches and rolls to match front against back and left against right. Each leg is drawn with two-bone IK (inverse kinematics: the knee is worked out from hip and foot), knees up and out. Lizards also have a 6-point spine that follows the head, with the hips riding on it.",
+]
+uses = [
+  "Spore: creatures built in the editor with any number of legs all walk procedurally, because no animator could key every design.",
+  "Rain World: the lizards' bodies, legs and tails are placed by rules every frame rather than played from keyframes.",
+  "Grow Home: the robot BUD's wobbly walk and climb are procedural, placed limb by limb.",
+  "Bestiaries on a budget: one rig gives many leg counts, sizes and step speeds from a few numbers, like the beetles and LEG COUNT spiders here.",
+]
+ask = [
+  "procedural spider legs that plant and step on uneven ground",
+  "creature feet with IK that adapt to rocks and steps",
+  "lizard with a wiggling spine and a diagonal gait",
+  "any number of legs from one rig (4, 6, 10 legs)",
+  "let the player switch body plan and play as a spider",
+]
+cost = "CPU and small: one short ray cast per foot each time it starts a step, and a two-bone IK solve per leg when drawing. The GPU draws two rounded cones per leg in the same instanced draw as everything else, so a 10-legged beetle only adds a few more shapes than a 4-legged one."
+knobs = ["puppet.body", "puppet.legs", "puppet.leg_length", "puppet.step_time", "puppet.step_height", "puppet.body_length"]
+terms = ["procedural animation", "ik", "raycast", "verlet", "secondary motion", "interpolation"]
+
+[[learn.code]]
+title = "Which feet step: the furthest behind, never two neighbours at once"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+let lead = hv * step_time * 1.1;
+let thresh = if speed > 0.2 { reach * 0.3 } else { 0.06 };
+    // ...
+    let target = feet + rot * lay.legs[i].1 + lead;
+    let d = Vec2::new(f.pos.x - target.x, f.pos.z - target.z).length();
+    if d > thresh {
+        want.push((i, d, target));
+    }
+// ...
+want.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+for (i, d, target) in want {
+    let lifted = |j: usize| self.feet.get(j).is_some_and(|f| f.t >= 0.0);
+    let (pair, side) = (i / 2, i % 2);
+    let partner = pair * 2 + (1 - side);
+    let blocked = lifted(partner) || (pair > 0 && lifted((pair - 1) * 2 + side)) || lifted((pair + 1) * 2 + side);
+    if blocked && d < reach * 0.9 {
+        continue;
+    }
+    let y = ground(target).unwrap_or(feet.y);
+    let f = &mut self.feet[i];
+    f.from = f.pos;
+    f.to = Vec3::new(target.x, y, target.z);
+    f.t = 0.0;
+}
+"""
+
+[[learn.code]]
+title = "A step: an eased slide with a half-sine lift"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+if f.t >= 0.0 {
+    f.t += dt / step_time;
+    let s = f.t.min(1.0);
+    let e = s * s * (3.0 - 2.0 * s);
+    f.pos = f.from.lerp(f.to, e) + Vec3::Y * (s * PI).sin() * def.step_height * def.scale * 1.4;
+    if f.t >= 1.0 {
+        f.pos = f.to;
+        f.t = -1.0;
+        landed += 1;
+    }
+}
+"""
+
+[[learn.code]]
+title = "Two-bone IK by the law of cosines"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+/// Two-bone IK: returns the joint (knee/elbow) position.
+pub(crate) fn ik(root: Vec3, target: Vec3, l1: f32, l2: f32, bend: Vec3) -> (Vec3, Vec3) {
+    let mut d = target - root;
+    let dist = d.length().max(1e-4);
+    let reach = (l1 + l2) * 0.999;
+    let target = if dist > reach {
+        d = d / dist * reach;
+        root + d
+    } else {
+        target
+    };
+    let dist = d.length().max(1e-4);
+    let dir = d / dist;
+    // Law of cosines: distance along dir to the joint's projection, and its offset.
+    let a = (l1 * l1 - l2 * l2 + dist * dist) / (2.0 * dist);
+    let h = (l1 * l1 - a * a).max(0.0).sqrt();
+    let side = (bend - dir * bend.dot(dir)).normalize_or(Vec3::Z);
+    (root + dir * a + side * h, target)
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -114,27 +216,27 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#cfe0c4" }]
 
 [layout.legend.'S']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PLAY AS SPIDER", label_size = 0.4, color = "#eba99b", params = { "puppet.body" = "spider", "puppet.leg_length" = 0.8, "puppet.torso_radius" = 0.2, "puppet.head_radius" = 0.12, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.12, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "PLAY AS SPIDER", label_size = 0.4, color = "#eba99b", params = { "puppet.body" = "spider", "puppet.leg_length" = 0.8, "puppet.torso_radius" = 0.2, "puppet.head_radius" = 0.12, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.12, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 }, note = "Spider: 4 leg pairs, 0.8 m legs, 0.12 s steps, and you crawl low. Each foot stays planted until it trails about 26 cm, then steps; neighbours never lift together." }
 
 [layout.legend.'L']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PLAY AS LIZARD", label_size = 0.4, color = "#b9dfa6", params = { "puppet.body" = "lizard", "puppet.leg_length" = 0.42, "puppet.torso_radius" = 0.15, "puppet.head_radius" = 0.14, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.9, "puppet.tail_length" = 1.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "PLAY AS LIZARD", label_size = 0.4, color = "#b9dfa6", params = { "puppet.body" = "lizard", "puppet.leg_length" = 0.42, "puppet.torso_radius" = 0.15, "puppet.head_radius" = 0.14, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.9, "puppet.tail_length" = 1.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 }, note = "Lizard: 2 leg pairs on a 6-point spine that follows your head, and a 1 m tail. Because partners and neighbours cannot lift together, diagonal legs step as pairs." }
 
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PLAY AS BEETLE", label_size = 0.4, color = "#a9d0e4", params = { "puppet.body" = "beetle", "puppet.leg_length" = 0.5, "puppet.torso_radius" = 0.24, "puppet.head_radius" = 0.13, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.75, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.45, "puppet.legs" = 0, "puppet.step_time" = 0.1, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "PLAY AS BEETLE", label_size = 0.4, color = "#a9d0e4", params = { "puppet.body" = "beetle", "puppet.leg_length" = 0.5, "puppet.torso_radius" = 0.24, "puppet.head_radius" = 0.13, "puppet.limb_radius" = 0.035, "puppet.body_length" = 0.75, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.45, "puppet.legs" = 0, "puppet.step_time" = 0.1, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 }, note = "Beetle: 3 leg pairs on short 0.5 m legs with quick 0.1 s steps, plus 0.45 m antennae that swing as springy chains." }
 
 [layout.legend.'O']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PLAY AS BLOB", label_size = 0.4, color = "#9fe3bd", params = { "puppet.body" = "blob", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.42, "puppet.head_radius" = 0.08, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.6, "puppet.stride" = 1.4, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "PLAY AS BLOB", label_size = 0.4, color = "#9fe3bd", params = { "puppet.body" = "blob", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.42, "puppet.head_radius" = 0.08, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.6, "puppet.stride" = 1.4, "puppet.scale" = 1.0 }, note = "Blob: no legs at all. The drawn body hops twice per 1.4 m stride and squashes on each landing (squash 1.6) while your collision shape just glides." }
 
 [layout.legend.'H']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "BACK TO HUMAN", label_size = 0.4, color = "#f6c0a4", params = { "puppet.body" = "biped", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "BACK TO HUMAN", label_size = 0.4, color = "#f6c0a4", params = { "puppet.body" = "biped", "puppet.leg_length" = 0.78, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21, "puppet.limb_radius" = 0.07, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.15, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 }, note = "Back to the biped: its feet are not planted but follow a walk cycle driven by distance, with foot IK only for the ground height." }
 
 [layout.legend.'G']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PLAY AS GIANT SPIDER", label_size = 0.4, color = "#cdbff5", params = { "puppet.body" = "spider", "puppet.leg_length" = 1.3, "puppet.torso_radius" = 0.3, "puppet.head_radius" = 0.17, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 } }
+zone = { kind = "pad", label = "PLAY AS GIANT SPIDER", label_size = 0.4, color = "#cdbff5", params = { "puppet.body" = "spider", "puppet.leg_length" = 1.3, "puppet.torso_radius" = 0.3, "puppet.head_radius" = 0.17, "puppet.limb_radius" = 0.05, "puppet.body_length" = 0.7, "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.legs" = 0, "puppet.step_time" = 0.14, "puppet.squash" = 1.0, "puppet.stride" = 1.5, "puppet.scale" = 1.0 }, note = "1.3 m legs: the reach grows, so each foot trails about 43 cm before it steps. Same rule, fewer and bigger steps." }
 
 [[label]]
 text = "SPIDER PEN"

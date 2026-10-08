@@ -13,7 +13,7 @@ try = [
   "DITHER (4 colour levels) and PICO-8 (pixelate 3 + 16-colour palette): watch the rainbow row and the grey ramp band and dither",
   "PIXELATE: look at the carousel, the tower stripes and the walkers on the right half",
   "WARM GRADE vs COOL GRADE: the same scene, two moods; the lamps keep their glow",
-  "NOIR (no colour, contrast, grain, vignette; saturation is a whole-screen view setting, so both halves go grey) and VHS (colour fringes, grain, scanlines, tint)",
+  "NOIR (no colour, contrast, grain, vignette; the filtered side loses its colour while the left half keeps it) and VHS (colour fringes, grain, scanlines, tint)",
   "FULL SCREEN puts the last filter over the whole picture (no divider); PURE resets everything",
   "Walk into the diorama: follow the NPCs, run round the carousel and watch the filter on moving things",
   "Step on any pad: filters never stack, each pad sets all of them",
@@ -37,6 +37,115 @@ height_offset = 3.0
 "light.ambient" = 0.95
 sky = "#7f98c8"
 bloom = 0.35
+
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A colourful DIORAMA (house, striped tower, carousel, pond, a rainbow row, a grey ramp and two walkers) inside a ring of pads. Each pad splits the screen at the white line: the left half is the plain picture, the right half has one filter, and the camera swings round so the diorama sits across the line. A style decides how surfaces take light; a filter only changes the finished picture."
+how = [
+  "A filter is a post-process: the scene is drawn completely first (shading, shadows, bloom), then one full-screen pass, the composite, reads that picture and changes each pixel on its way to the screen.",
+  "The split is a test per pixel: left of view.filter.split x the screen width the composite skips the whole filter stack, and a 3-pixel white line marks the seam.",
+  "Some filters change where a pixel reads from: CRT curvature bends the lookup outward like the glass of a tube (black beyond it), and pixelate makes every pixel of a block read the block's centre.",
+  "Then the colour changes, always in the same order: grading (temperature raises red and lowers blue, contrast stretches around mid grey, saturation mixes towards grey), scanlines (a cosine stripe every 3 px), vignette, grain.",
+  "Last comes colour reduction: each channel is rounded to a few levels, or snapped to the nearest colour of a fixed palette such as PICO-8's 16. A 4 x 4 Bayer pattern nudges the rounding, so gradients become fine dot patterns (dithering) instead of hard bands.",
+]
+uses = [
+  "Black and white film: Ghost of Tsushima's Kurosawa Mode turns the whole game into grainy black and white.",
+  "VHS and arcade: colour fringes, grain and scanlines for a worn-tape or cabinet feel (Katana Zero leans on VHS effects).",
+  "Mood grading: cold blue for night and horror, warm amber for memories; nearly every modern game grades its final image.",
+  "Fantasy consoles: PICO-8 games live inside its fixed 16-colour palette, the same one the PICO-8 pad snaps to.",
+]
+ask = [
+  "split-screen before/after for a post-process filter",
+  "CRT curvature with scanlines and a vignette",
+  "warm and cool colour grade presets",
+  "noir filter with grain and vignette",
+  "VHS look with chromatic aberration",
+  "PICO-8 palette with ordered dithering",
+]
+cost = "All of these run inside the one composite pass the frame already has, so each filter adds only a few arithmetic steps per pixel. The 16-colour palette search is the dearest (16 comparisons per pixel), and none of it depends on how many objects are in the scene."
+knobs = ["view.filter.split", "view.filter.scanlines", "view.filter.curvature", "view.filter.pixelate", "view.filter.temperature", "view.filter.palette"]
+terms = ["post-process", "scanlines", "crt", "dithering", "palette", "color grading", "vignette", "film grain"]
+
+[[learn.code]]
+title = "Left of the split stays pure; curve and pixelate the rest"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+let split = post.filt1.w;
+let filtered = split <= 0.0 || frag.x >= split * fd.x;
+var s: vec3<f32>;
+if (!filtered) {
+    s = to_srgb(scene_color(frag.xy, dims, 0.0));
+} else {
+    var uvn = frag.xy / fd;
+    // CRT: barrel curvature, black outside the tube.
+    let curv = post.filt0.y;
+    if (curv > 0.0) {
+        var c = uvn * 2.0 - 1.0;
+        c = c * (1.0 + curv * c.yx * c.yx);
+        uvn = c * 0.5 + 0.5;
+        if (uvn.x < 0.0 || uvn.y < 0.0 || uvn.x > 1.0 || uvn.y > 1.0) {
+            return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+        }
+    }
+    var p = uvn * fd;
+    // Pixelation: everything is looked up at the centre of its block.
+    var block = max(post.filt0.x, 1.0);
+    // ...
+    if (block > 1.0) {
+        p = (floor(p / block) + 0.5) * block;
+    }
+"""
+
+[[learn.code]]
+title = "Scanlines, vignette and grain"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+// Scanlines follow the curved tube.
+if (post.filt0.z > 0.0 && aimed(post.filt5.w, obj)) {
+    let period = max(post.filt0.w, 1.0);
+    let w = 0.5 - 0.5 * cos(uvn.y * fd.y / period * 6.2831853);
+    s = s * (1.0 - post.filt0.z * 0.6 * w);
+}
+// Vignette and film grain.
+if (post.filt3.x > 0.0) {
+    let r = length(frag.xy / fd - 0.5) * 1.414;
+    s = s * (1.0 - post.filt3.x * smoothstep(0.35, 1.05, r));
+}
+if (post.filt3.y > 0.0 && aimed(post.filt6.x, obj)) {
+    let h = fract(sin(dot(frag.xy + vec2<f32>(post.filt3.w * 61.0, post.filt3.w * 17.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+    s = s + (h - 0.5) * post.filt3.y * 0.16;
+}
+"""
+
+[[learn.code]]
+title = "The nearest palette colour"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+let c = clamp(c0 + (th - 0.5) * 0.18, vec3<f32>(0.0), vec3<f32>(1.0));
+// ...
+for (var i = 0u; i < n; i++) {
+    var q: vec3<f32>;
+    // ...
+    var d: f32;
+    if (pal == 1u || pal == 4u || pal == 5u) {
+        // Monochrome palettes: match by brightness.
+        let l = dot(c, vec3<f32>(0.299, 0.587, 0.114));
+        let lq = dot(q, vec3<f32>(0.299, 0.587, 0.114));
+        d = abs(l - lq);
+    } else {
+        let e = c - q;
+        d = dot(e, e * vec3<f32>(0.3, 0.59, 0.11));
+    }
+    if (d < bd) {
+        bd = d;
+        best = q;
+    }
+}
+return best;
+"""
 
 [layout]
 origin = [-14.5, 0.0, -13.5]
@@ -97,57 +206,57 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#3fa7d6" }]
 # A: PURE at (10.5, 21.5) yaw 26.6
 [layout.legend.'A']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "PURE", color = "#e9edf5", label_size = 0.7, camera = { set = { yaw = 26.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "PURE", color = "#e9edf5", label_size = 0.7, camera = { set = { yaw = 26.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0 }, note = "Every filter back to neutral and the split to 0: the whole screen shows the plain style, the reference for every other pad." }
 
 # B: SCANLINES at (6.5, 18.5) yaw 58.0
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "SCANLINES", color = "#3c6fd8", camera = { set = { yaw = 58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "SCANLINES", color = "#3c6fd8", camera = { set = { yaw = 58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Scanlines 0.5 with a 3 px period: a dark stripe every third row, up to 30% darker, like the gaps between a CRT's lines. Right half only." }
 
 # C: CRT CURVE at (5.5, 13.5) yaw 90.0
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "CRT CURVE", color = "#2f9e8f", camera = { set = { yaw = 90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.15, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.4, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.5, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "CRT CURVE", color = "#2f9e8f", camera = { set = { yaw = 90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.15, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.4, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.5, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Curvature 0.15 bends the right half like the glass of a tube (black beyond its edge), with scanlines 0.5, vignette 0.4 and chroma 0.5 for colour fringes." }
 
 # D: DITHER at (6.5, 9.5) yaw 116.6
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "DITHER", color = "#8a52d6", camera = { set = { yaw = 116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 4.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "DITHER", color = "#8a52d6", camera = { set = { yaw = 116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 4.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "4 levels per channel (64 colours) with full Bayer dithering: the grey ramp and the rainbow row turn into fine dot patterns instead of hard bands." }
 
 # E: PICO-8 at (10.5, 5.5) yaw 153.4
 [layout.legend.'E']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "PICO-8", color = "#d63a6a", camera = { set = { yaw = 153.4, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 3.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.6, "view.filter.levels" = 0.0, "view.filter.palette" = "pico8", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "PICO-8", color = "#d63a6a", camera = { set = { yaw = 153.4, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 3.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.6, "view.filter.levels" = 0.0, "view.filter.palette" = "pico8", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Pixelate 3 plus the PICO-8 palette: each 3 x 3 block snaps to the nearest of 16 fixed colours, with dither 0.6 faking the shades in between." }
 
 # F: PIXELATE at (14.5, 4.5) yaw 180.0
 [layout.legend.'F']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "PIXELATE", color = "#e0892a", camera = { set = { yaw = 180.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 5.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "PIXELATE", color = "#e0892a", camera = { set = { yaw = 180.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 5.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "5 x 5 pixel blocks, each showing the colour at its centre. The tower stripes and the carousel shimmer as they cross block edges." }
 
 # G: WARM GRADE at (19.5, 5.5) yaw -148.0
 [layout.legend.'G']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "WARM GRADE", color = "#d9622b", camera = { set = { yaw = -148.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.15, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "WARM GRADE", color = "#d9622b", camera = { set = { yaw = -148.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.15, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Temperature 0.6 (red up and blue down about 7%) and contrast 1.15: a golden-hour mood. The lamps keep their glow because bloom comes before grading." }
 
 # H: COOL GRADE at (22.5, 9.5) yaw -116.6
 [layout.legend.'H']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "COOL GRADE", color = "#3a9ad9", camera = { set = { yaw = -116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = -0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "COOL GRADE", color = "#3a9ad9", camera = { set = { yaw = -116.6, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = -0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Temperature -0.6 (blue up and red down about 7%) and contrast 1.1: the same scene in a colder, evening mood." }
 
 # I: NOIR at (23.5, 13.5) yaw -90.0
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "NOIR", color = "#4a4f5c", camera = { set = { yaw = -90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.4, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.6, "view.filter.grain" = 0.5, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "NOIR", color = "#4a4f5c", camera = { set = { yaw = -90.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.4, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.6, "view.filter.grain" = 0.5, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.0, "view.filter.split" = 0.5 }, note = "Saturation 0, contrast 1.4, grain 0.5 and vignette 0.6: black-and-white film. The filter's own saturation, so only the right half goes grey." }
 
 # J: VHS at (22.5, 18.5) yaw -58.0
 [layout.legend.'J']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "VHS", color = "#b03aa8", camera = { set = { yaw = -58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.3, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.2, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.4, "view.filter.chroma" = 1.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "VHS", color = "#b03aa8", camera = { set = { yaw = -58.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.3, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.2, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.4, "view.filter.chroma" = 1.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.5 }, note = "Chroma 1 pulls red and blue apart towards the screen edges, plus grain 0.4, scanlines 0.3 and a faint green tint: a worn video tape." }
 
 # K: FULL SCREEN at (19.5, 21.5) yaw -32.0
 [layout.legend.'K']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a516a" }]
-zone = { kind = "pad", label = "FULL SCREEN", color = "#2f8a52", camera = { set = { yaw = -32.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "FULL SCREEN", color = "#2f8a52", camera = { set = { yaw = -32.0, tilt = 50, distance = 16.5, height_offset = 3.5 } }, params = { "view.filter.split" = 0.0 }, note = "Only sets the split to 0: the filter of the last pad you stood on now covers the whole picture, with no divider." }
 
 # ---- exhibits (labels, then objects: keep at the end of the file) ----
 

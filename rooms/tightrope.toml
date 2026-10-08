@@ -27,6 +27,90 @@ entrance = { at = [4, 28], facing = "south" }
 tilt = 68.0
 distance = 18.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A timed balance course over a 4 m deep pit, from START in the south to FINISH in the north. The beams narrow from 0.6 m to 0.4 m (the zig-zag), 0.25 m and finally 0.15 m, thinner than the character, and two moving pieces bridge the 5 m gaps: the blue SLIDING BEAM and the purple TURNING PLANK. Every platform on the way is a CHECKPOINT."
+how = [
+  "The character is a capsule 0.64 m wide that touches the ground with its rounded bottom, so it can stand on a beam far narrower than itself; drift far enough off the centre line and there is nothing under you. Shift (focus) drops the instant model from 6 m/s to 2.2 m/s for careful steps.",
+  "The sliding beam and the turning plank are kinematic bodies: physics never pushes them, a behaviour drives them. Their pose is a pure function of the simulation time (tick x tick length), so they move the same way on every run and replay exactly after a rewind.",
+  "Each tick the behaviour works out where the body must be at the end of the tick and gives it exactly the velocity that gets it there. The character controller reads the velocity of whatever you stand on and carries you along, which is how you ride the plank as it turns.",
+  "The sliding beam runs on a triangle wave with a hold and an ease: it rests in line with the path for 1.2 s of its 6 s cycle, then slides 4 m south and back. The plank turns at 25° a second, so it lines up with the path every 7.2 s.",
+  "The pit is a kill zone: falling into it puts you back at the centre of the last checkpoint platform, facing the next beam, with 0.5 s of invulnerability, and the course counts the fall.",
+]
+uses = [
+  "Obstacle courses: rotating beams and sliding platforms over a drop (Fall Guys).",
+  "Moving platforms: ride them across a gap, the platformer staple (Super Mario Bros., Donkey Kong Country).",
+  "Short retries: checkpoints right before each hard part keep a tough course fair (Celeste, Super Meat Boy).",
+]
+ask = [
+  "narrow beams over a pit with checkpoints",
+  "moving and rotating platforms the player rides",
+  "kinematic platforms driven by a function of time",
+  "respawn at the last checkpoint after a fall",
+  "slow walk button for precise steps",
+]
+cost = "Tiny: each moving piece is one kinematic body whose target is computed from the time each tick, and riding it is part of the character controller's normal move. The pit is a zone test of your feet position once per tick."
+knobs = ["movement.speed", "movement.focus_speed", "movement.air_control", "movement.jump_height", "movement.coyote_time"]
+terms = ["rigid body", "determinism", "fixed timestep", "game feel", "interpolation"]
+
+[[learn.code]]
+title = "A mover's position is a function of time"
+file = "crates/pav_core/src/entity.rs"
+lang = "rust"
+src = """
+pub fn amount(&self, t: f32) -> f32 {
+    let u = (t / self.period.max(0.05) + self.phase).rem_euclid(1.0);
+    let tri = 1.0 - (2.0 * u - 1.0).abs();
+    let h = self.hold.clamp(0.0, 0.9);
+    let s = ((tri - h * 0.5) / (1.0 - h)).clamp(0.0, 1.0);
+    if self.smooth { s * s * (3.0 - 2.0 * s) } else { s }
+}
+"""
+
+[[learn.code]]
+title = "Kinematic bodies get exactly the velocity they need"
+file = "crates/pav_core/src/behaviors.rs"
+lang = "rust"
+src = """
+fn drive(&mut self, id: EntityId, pos: Vec3, rot: Quat, dt: f32) {
+    let Some(e) = self.state.entities.get_mut(id) else { return };
+    match e.body.and_then(|h| self.state.physics.bodies.get_mut(h)) {
+        Some(b) if !b.is_dynamic() => {
+            let cur = b.translation();
+            let cur_rot = *b.rotation();
+            b.set_linvel((pos - cur) / dt, true);
+            let dq = rot * cur_rot.inverse();
+            let (axis, mut angle) = dq.to_axis_angle();
+            if angle > std::f32::consts::PI {
+                angle -= std::f32::consts::TAU;
+            }
+            b.set_angvel(if angle.abs() > 1e-6 { axis * (angle / dt) } else { Vector::ZERO }, true);
+        }
+        Some(_) => {}
+        None => {
+            e.pos = pos;
+            e.rot = rot;
+        }
+    }
+}
+"""
+
+[[learn.code]]
+title = "Standing still on a mover still rides it"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+// --- hazards, crushing, kinematic floors. Riding and being pushed by moving (kinematic)
+// objects is done by rapier's character controller, which moves the character with the
+// velocity of kinematic bodies it touches.
+// ...
+if desired.length_squared() < 1e-8 && !climbing && !hanging {
+    // A hair of downward motion keeps the controller running its ground checks, which is
+    // where it carries the character along with moving platforms.
+    desired.y -= 1e-3;
+}
+"""
+
 [layout]
 origin = [-17.0, 0.0, -14.5]
 

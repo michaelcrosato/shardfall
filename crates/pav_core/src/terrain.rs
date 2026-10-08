@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::color::Color;
 use crate::params::{ParamVisitor, Tunable};
 use crate::rng::{hash_f32, hash3};
-use crate::shape::{Look, Shape};
+use crate::shape::{Look, Shape, Sway};
 use crate::statics::{CHUNK_SIZE, Decor};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -25,6 +25,8 @@ pub struct TerrainParams {
     pub tree_density: f32,
     pub rock_density: f32,
     pub prop_density: f32,
+    /// Grass tufts per cell (they sway in the wind; drawing only).
+    pub grass_density: f32,
     /// Flattening margin around the pavilion (m).
     pub flatten_margin: f32,
     /// Streaming radius around interest points (chunks); regions beyond `unload` go dormant.
@@ -42,6 +44,7 @@ impl Default for TerrainParams {
             tree_density: 0.014,
             rock_density: 0.006,
             prop_density: 0.0015,
+            grass_density: 0.9,
             flatten_margin: 14.0,
             load_radius: 2,
             unload_radius: 3,
@@ -58,6 +61,7 @@ impl Tunable for TerrainParams {
         v.float("tree_density", &mut self.tree_density, 0.0, 0.2, "Trees per cell");
         v.float("rock_density", &mut self.rock_density, 0.0, 0.1, "Rocks per cell");
         v.float("prop_density", &mut self.prop_density, 0.0, 0.05, "Loose crates per cell");
+        v.float("grass_density", &mut self.grass_density, 0.0, 3.0, "Grass tufts per cell (sway in the wind)");
         v.float("flatten_margin", &mut self.flatten_margin, 0.0, 60.0, "Flat ground around the pavilion (m)");
         v.int("load_radius", &mut self.load_radius, 1, 8, "Chunks loaded around the player");
         v.int("unload_radius", &mut self.unload_radius, 2, 10, "Chunks beyond this go dormant");
@@ -250,6 +254,7 @@ impl TerrainGen<'_> {
                         emissive: 0.0,
                         solid: true,
                         collider: None,
+                        sway: Sway::None,
                     });
                     let leaves = ["#4f9a4a", "#5fae54", "#3f8a46", "#6dbb5c"];
                     let lc = Color::hex(leaves[(hash3(self.seed, x, z, 13) % 4) as usize]);
@@ -267,6 +272,7 @@ impl TerrainGen<'_> {
                             emissive: 0.0,
                             solid: false,
                             collider: None,
+                            sway: Sway::Leaves,
                         });
                     }
                 } else if r > 1.0 - self.p.rock_density {
@@ -281,7 +287,28 @@ impl TerrainGen<'_> {
                         emissive: 0.0,
                         solid: true,
                         collider: None,
+                        sway: Sway::None,
                     });
+                }
+                // Grass tufts on the green ground (not on sand by the water).
+                if h > self.p.water + 0.4 {
+                    let tufts = self.p.grass_density + hash_f32(self.seed, x, z, 40) - 0.5;
+                    for k in 0..(tufts.round().max(0.0) as i32).min(4) {
+                        let j = |a: i32| hash_f32(self.seed, x, z, 41 + k * 4 + a) * 0.9 - 0.45;
+                        let hh = 0.18 + hash_f32(self.seed, x, z, 43 + k * 4) * 0.16;
+                        let shade = 0.9 + 0.3 * hash_f32(self.seed, x, z, 44 + k * 4);
+                        out.push(Decor {
+                            shape: Shape::Box { half: Vec3::new(0.3, hh, 0.3) },
+                            pos: Vec3::new(x as f32 + 0.5 + j(0), h + hh - 0.04, z as f32 + 0.5 + j(1)),
+                            rot: Quat::from_rotation_y(hash_f32(self.seed, x, z, 45 + k * 4) * 6.3),
+                            color: Color::hex("#8fca6a").scale(shade),
+                            look: Look::Cel,
+                            emissive: 0.0,
+                            solid: false,
+                            collider: None,
+                            sway: Sway::Grass,
+                        });
+                    }
                 }
             }
         }

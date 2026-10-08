@@ -41,6 +41,12 @@ pub struct ThemeDef {
     pub sun_angle: f32,
     pub ambient: f32,
     pub particles: String,
+    /// Hazy air (volumetric light: torch halos, sunbeams) and how strongly lamps glow in it.
+    pub haze: f32,
+    pub halos: f32,
+    /// Grass, weeds or seaweed in patches on the floor ("" = none): it sways and parts around
+    /// whoever walks through (drawing only).
+    pub grass: String,
     /// Element weights for grown creatures: physical, fire, cold, lightning, poison.
     pub elements: [f32; 5],
     pub families: Vec<String>,
@@ -180,6 +186,11 @@ pub struct Mood {
     pub ambient: f32,
     /// Fog end (m); 0 = no fog.
     pub fog: f32,
+    /// Hazy air and lamp halos (0 = clear air).
+    #[serde(default)]
+    pub haze: f32,
+    #[serde(default)]
+    pub halos: f32,
 }
 
 /// What a depth is: everything decided before a single block is placed.
@@ -222,6 +233,9 @@ impl LevelPlan {
             sun_angle: t.sun_angle,
             ambient: t.ambient * (1.0 - dark * 0.6),
             fog: if dark >= 1.0 { 26.0 } else { 70.0 },
+            haze: t.haze,
+            // In the dark, the torches' glow is most of what you see.
+            halos: t.halos * (1.0 + dark * 0.8),
         }
     }
     /// "Level 3" or "Depth 17".
@@ -340,6 +354,10 @@ pub fn blend_theme(a: &ThemeDef, b: &ThemeDef, hue: f32) -> ThemeDef {
     t.accent = shift(&b.accent, hue * 0.5);
     t.light = shift(&b.light, hue * 0.5);
     t.particles = b.particles.clone();
+    t.haze = (a.haze + b.haze) * 0.5;
+    t.halos = (a.halos + b.halos) * 0.5;
+    let grass = if a.grass.is_empty() { &b.grass } else { &a.grass };
+    t.grass = if grass.is_empty() { String::new() } else { shift(grass, hue * 0.5) };
     for (i, e) in t.elements.iter_mut().enumerate() {
         *e = (*e + b.elements[i]) * 0.5;
     }
@@ -882,6 +900,44 @@ impl<'a> Builder<'a> {
                 let c = r.center();
                 self.sim.spawn(Spawn::new("~air", Vec3::new(c.x, 2.0, c.y)).visual(v));
             }
+            if !t.grass.is_empty() {
+                self.grass(i, &t.grass);
+            }
+        }
+    }
+
+    /// Patches of grass in a room. Positions come from a hash of the level and room, not the
+    /// level's random stream, so a theme gaining grass builds the same level as before.
+    fn grass(&mut self, room: usize, color: &str) {
+        let r = self.layout.rooms[room].rect;
+        let (c, s) = (r.center(), r.size());
+        let seed = 0x6a55_u64 ^ ((self.plan.depth as u64) << 20) ^ room as u64;
+        let patches = ((s.x * s.y) / 14.0).clamp(2.0, 10.0) as i32;
+        let base = Color::hex(color);
+        let st = &mut self.sim.state;
+        for k in 0..patches {
+            let f = |a: i32| crate::rng::hash_f32(seed, k, a, 7);
+            let centre = c + Vec2::new((f(0) - 0.5) * (s.x - 2.0).max(0.5), (f(1) - 0.5) * (s.y - 2.0).max(0.5));
+            let tufts = 8 + (f(2) * 10.0) as i32;
+            for j in 0..tufts {
+                let g = |a: i32| crate::rng::hash_f32(seed, k * 64 + j, a, 11);
+                let a = g(0) * std::f32::consts::TAU;
+                let p = centre + Vec2::new(a.cos(), a.sin()) * g(1).sqrt() * 1.4;
+                let hh = 0.16 + g(2) * 0.18;
+                let pos = Vec3::new(p.x, hh - 0.03, p.y);
+                let d = crate::statics::Decor {
+                    shape: Shape::Box { half: Vec3::new(0.28, hh, 0.28) },
+                    pos,
+                    rot: Quat::from_rotation_y(g(3) * 6.3),
+                    color: base.scale(0.85 + 0.3 * g(4)),
+                    look: Look::Cel,
+                    emissive: 0.0,
+                    solid: false,
+                    collider: None,
+                    sway: crate::shape::Sway::Grass,
+                };
+                st.statics.add_decor(&mut st.physics, RegionKey::chunk_of(pos), d);
+            }
         }
     }
 
@@ -1337,6 +1393,7 @@ impl<'a> Builder<'a> {
             facing: Some(facing),
             speed: 4.5,
             signal: String::new(),
+            note: String::new(),
         };
         let c = rect.center();
         let st = &mut self.sim.state;

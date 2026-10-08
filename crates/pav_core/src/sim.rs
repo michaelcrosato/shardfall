@@ -869,6 +869,7 @@ impl Sim {
             view: c.view.clone(),
             view_serial: c.view_serial,
             boss: self.boss_bar(),
+            pad_note: c.pad_note.clone(),
         };
         RenderFrame {
             tick: self.state.tick,

@@ -9,7 +9,7 @@ name = "Particle Garden"
 about = "GPU particles by the thousand, all view-only: the ten presets on plinths, snow, rain and fireflies, a campfire that combines fire, smoke, embers and a flickering light, tuning overrides, and a bomb range."
 try = [
   "Walk along the plinths and compare all ten presets (fire, smoke, steam, sparks, embers, fountain, magic, bubbles, dust, confetti)",
-  "Step into the fenced snow and rain patches and look up: the emitters sit 5 and 11 m above the floor",
+  "Step into the fenced snow and rain patches and look up: the emitters sit 5 and 10.5 m above the floor",
   "Wander over the dark blue pond to find the fireflies",
   "Sit by the campfire: fire, smoke, embers and a flickering light together, with logs around it",
   "Compare the three MAGIC and three FOUNTAIN plinths: same preset, different size, speed, rate and colour",
@@ -33,6 +33,97 @@ distance = 17.0
 "light.sun_elevation" = 38
 sky = "#26304a"
 bloom = 0.5
+
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Thousands of small soft or glowing dots, made and moved on the GPU: the ten presets on their plinths (FIRE to CONFETTI), SNOW and RAIN falling from emitters 5 and 10.5 m up, fireflies over the FIREFLY POND, and a CAMPFIRE that layers fire, smoke, embers and a flickering light. Six plinths run the same MAGIC and FOUNTAIN presets with different size, speed, rate and colour. They are view-only: the simulation never sees them."
+how = [
+  "An emitter is a rate: every frame it adds rate x frame time to a running count and births the whole particles in it, so 55 per second at 60 fps is about one a frame. A new emitter starts pre-warmed, with a full lifetime of particles already in flight.",
+  "The CPU writes newborn particles into one GPU ring buffer of 65,536 slots (96 bytes each: position, velocity, two colours, sizes, gravity, drag, floor, bounce, turbulence). When it is full, the oldest slots are reused.",
+  "A compute shader moves every particle each frame, 64 per workgroup: gravity, drag, a sine-based swirl for turbulence, and a bounce off its floor height. Nothing is ever read back to the CPU.",
+  "Drawing is one instanced draw: 6 vertices per particle build a square facing the camera (or a streak along the velocity for rain, sparks and fountains) with a soft round edge. Colour and size blend from birth values to death values.",
+  "Fire, sparks, magic and embers are additive, so overlapping ones add up and their colours (sparks start at 6 times white) feed the bloom; smoke, steam, rain and snow cover what is behind them. Both share one premultiplied blend: additive particles just write zero alpha.",
+  "Particles test depth but write neither depth nor normals: walls hide them, but they never hide each other by depth and never get outlines.",
+]
+uses = [
+  "Fire, smoke and magic: torches, campfires and spell effects in almost every action game.",
+  "Weather: snow and rain that fall only in a box around the camera, as here, instead of over the whole world.",
+  "Hit feedback: sparks, debris and dust on every impact and explosion.",
+  "At scale: Unreal Engine's Niagara and Unity's VFX Graph simulate huge particle counts in compute shaders the same way.",
+  "Ambient life: fireflies, dust motes and pollen that make a still scene feel alive.",
+]
+ask = [
+  "GPU compute particles in a ring buffer",
+  "campfire with fire, smoke, embers and a flickering light",
+  "snow and rain that only fall around the player",
+  "spark burst with stretched streaks that bounce",
+  "fireflies drifting over a pond",
+  "additive glowing magic particles that bloom",
+]
+cost = "The CPU only uploads newborn particles; moving them is one compute dispatch over every slot used so far (up to 65,536) and drawing is one instanced draw. The real cost is fill rate: big, soft, overlapping particles such as smoke and steam, or a camera close to them, shade the same pixels many times."
+knobs = ["view.particles", "view.bloom", "view.bloom_threshold", "bombs.radius"]
+terms = ["particle system", "compute shader", "instancing", "additive blending", "draw call", "gpu", "hdr", "bloom"]
+
+[[learn.code]]
+title = "Moving every particle on the GPU"
+file = "crates/pav_render/src/shaders/particle_update.wgsl"
+lang = "wgsl"
+src = """
+let dt = sim.dt;
+var v = q.p1.xyz;
+var p = q.p0.xyz;
+v.y -= q.s.z * dt;
+v *= max(1.0 - q.s.w * dt, 0.0);
+if (q.t.z > 0.0) {
+    let tt = sim.time;
+    v += vec3<f32>(
+        sin(p.y * 1.7 + tt * 1.3 + p.z * 0.7),
+        sin(p.z * 1.9 + tt * 1.1 + p.x * 0.8) * 0.5,
+        cos(p.x * 1.5 + tt * 1.7 + p.y * 0.9)
+    ) * q.t.z * dt;
+}
+p += v * dt;
+if (p.y < q.t.x) {
+    p.y = q.t.x;
+    v = vec3<f32>(v.x * 0.7, -v.y * q.t.y, v.z * 0.7);
+}
+q.p0 = vec4<f32>(p, q.p0.w - dt);
+q.p1 = vec4<f32>(v, q.p1.w);
+parts[i] = q;
+"""
+
+[[learn.code]]
+title = "Newborns go into a ring buffer"
+file = "crates/pav_render/src/fx.rs"
+lang = "rust"
+src = """
+let stride = std::mem::size_of::<GpuParticle>() as u64;
+let mut rest = &born[..];
+while !rest.is_empty() {
+    let room = (MAX_PARTICLES - self.head) as usize;
+    let n = rest.len().min(room);
+    queue.write_buffer(&self.buf, self.head as u64 * stride, bytemuck::cast_slice(&rest[..n]));
+    self.head = (self.head + n as u32) % MAX_PARTICLES;
+    self.used = (self.used + n as u32).min(MAX_PARTICLES);
+    rest = &rest[n..];
+}
+"""
+
+[[learn.code]]
+title = "Soft discs; additive ones write no alpha"
+file = "crates/pav_render/src/shaders/particle_draw.wgsl"
+lang = "wgsl"
+src = """
+let r2 = dot(in.uv, in.uv);
+if (r2 > 1.0) {
+    discard;
+}
+let a = in.color.a * pow(1.0 - r2, 1.5);
+var o: FsOut;
+o.color = vec4<f32>(in.color.rgb * a, a * (1.0 - in.add));
+o.normal = vec4<f32>(0.0);
+return o;
+"""
 
 [layout]
 origin = [-20.0, 0.0, -15.0]
@@ -102,11 +193,11 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }, { y0 = 0, y1 = 3.0, color = 
 
 [layout.legend.'A']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }]
-zone = { kind = "pad", label = "PARTICLES ON", color = "#3bb273", params = { "view.particles" = true } }
+zone = { kind = "pad", label = "PARTICLES ON", color = "#3bb273", params = { "view.particles" = true }, note = "Particles on: emitters start again pre-warmed, with a full lifetime of particles already in the air, so the room fills back in at once." }
 
 [layout.legend.'O']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#8c8a86" }]
-zone = { kind = "pad", label = "PARTICLES OFF", color = "#e07a5f", params = { "view.particles" = false } }
+zone = { kind = "pad", label = "PARTICLES OFF", color = "#e07a5f", params = { "view.particles" = false }, note = "view.particles off: no new particles are born, the ones in flight finish their short lives, and bombs, crates and lights work exactly the same. Particles are view-only." }
 
 [[label]]
 text = "FIRE"

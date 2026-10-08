@@ -108,6 +108,10 @@ pub struct Zone {
     /// Pads: a signal sent to spawners (and other listeners) when stepped on.
     #[serde(default)]
     pub signal: String,
+    /// Pads: what the pad shows and why (the station guide's note, on screen while you
+    /// stand on it).
+    #[serde(default)]
+    pub note: String,
 }
 
 impl Zone {

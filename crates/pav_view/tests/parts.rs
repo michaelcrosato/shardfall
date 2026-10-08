@@ -6,8 +6,8 @@ use glam::Vec3;
 use pav_core::entity::{BodyKind, Spawn};
 use pav_core::shape::{Shape, Visual};
 use pav_core::{Color, Sim};
-use pav_render::scene::{Part, Scene, Style, flags};
-use pav_view::build::{PartChoice, PixelTarget, StyleOverride, ViewBuilder, ViewSettings};
+use pav_render::scene::{Part, Scene, Style, Stylize, flags};
+use pav_view::build::{PartChoice, PixelTarget, StyleOverride, StylizeChoice, ViewBuilder, ViewSettings};
 use pav_view::camera::CameraRig;
 
 fn build(sim: &mut Sim, view: &ViewSettings) -> Scene {
@@ -96,11 +96,31 @@ fn filter_parts_reach_the_renderer() {
     view.filter.scanlines_on = PartChoice::Environment;
     view.filter.grain_on = PartChoice::Objects;
     view.filter.chroma_on = PartChoice::Environment;
+    view.filter.stylize = StylizeChoice::Halftone;
+    view.filter.stylize_on = PartChoice::Objects;
+    view.haze = 0.8;
+    view.halos = 1.5;
     let s = build(&mut sim, &view);
     assert_eq!(s.post.outline_part, Part::Objects);
     let f = &s.filter;
     assert_eq!(
-        [f.color_part, f.grade_part, f.scanline_part, f.grain_part, f.chroma_part],
-        [Part::Environment, Part::Objects, Part::Environment, Part::Objects, Part::Environment]
+        [f.color_part, f.grade_part, f.scanline_part, f.grain_part, f.chroma_part, f.stylize_part],
+        [Part::Environment, Part::Objects, Part::Environment, Part::Objects, Part::Environment, Part::Objects]
     );
+    assert_eq!(f.stylize, Stylize::Halftone);
+    assert_eq!((s.post.haze, s.post.halos), (0.8, 1.5));
+    // No transition unless one is playing.
+    assert_eq!(f.transition, 0.0);
+}
+
+#[test]
+fn a_transition_loop_closes_and_opens() {
+    use pav_view::build::transition_loop;
+    let samples: Vec<f32> = (0..200).map(|i| transition_loop(i as f32 * 0.02, 0.7)).collect();
+    assert!(samples.iter().all(|c| (0.0..=1.0).contains(c)));
+    assert_eq!(samples[0], 0.0, "it starts open");
+    assert!(samples.contains(&1.0), "it closes fully");
+    // Open again by the end of the period (3 s), then the next one starts open.
+    assert!(transition_loop(2.99, 0.7) < 0.01);
+    assert_eq!(transition_loop(3.1, 0.7), 0.0);
 }

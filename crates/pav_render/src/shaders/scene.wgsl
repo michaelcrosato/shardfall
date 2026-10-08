@@ -18,6 +18,8 @@ struct Globals {
     fog: vec4<f32>,          // rgb colour, w = enabled
     fog2: vec4<f32>,         // x,y centre (xz), z start, w end
     cut3: vec4<f32>,         // x front cut distance, y front cut on
+    wind: vec4<f32>,         // xy direction (world x, z), z strength, w gust speed
+    push: vec4<f32>,         // xyz the pusher's feet (grass bends away), w radius (0 = none)
 };
 
 struct PointLight {
@@ -38,6 +40,48 @@ const FLAG_CUT_VERTEX: u32 = 8u;
 const FLAG_TWO_SIDED: u32 = 16u;
 const FLAG_PIXEL: u32 = 32u;
 const FLAG_OBJECT: u32 = 64u;
+const FLAG_SWAY: u32 = 128u;
+const FLAG_GRASS: u32 = 256u;
+
+// How far wind moves a vertex `h` metres above the bottom of its instance. Gusts roll across
+// the world as a slow wave along the wind (so a field of grass ripples), with a faster flutter
+// on top. Grass bends with the square of its height, much further than foliage, and away from
+// the pusher (the player wading through it); a bent blade also sinks so it keeps its length.
+fn wind_offset(world: vec3<f32>, h: f32, grass: bool) -> vec3<f32> {
+    let w = g.wind;
+    let t = g.params.x;
+    let dir = vec3<f32>(w.x, 0.0, w.y);
+    let along = dot(world.xz, w.xy);
+    let gust = 0.6 + 0.4 * sin(along * 0.25 - t * 1.6 * max(w.w, 0.05)) + 0.25 * sin(along * 0.61 - t * 2.9 * max(w.w, 0.05));
+    let flutter = sin(t * 4.7 + world.x * 1.31 + world.z * 0.93);
+    var k = h * 0.045;
+    if (grass) {
+        k = h * h * 1.6;
+    }
+    var off = dir * (w.z * gust * k) + vec3<f32>(-w.y, 0.0, w.x) * (w.z * flutter * k * 0.18);
+    if (grass) {
+        if (g.push.w > 0.0) {
+            let d = world.xz - g.push.xz;
+            let dist = length(d);
+            if (dist < g.push.w && abs(world.y - g.push.y) < 1.5) {
+                let s = 1.0 - dist / g.push.w;
+                off += vec3<f32>(d.x, 0.0, d.y) / max(dist, 1e-3) * s * s * h * 1.3;
+            }
+        }
+        let l = length(off.xz);
+        off.y -= min(l * l / max(h, 0.05) * 0.5, h * 0.8);
+    }
+    return off;
+}
+
+// Wind on a mesh vertex: `m3` is the instance's position, `ext` its half size in the world.
+fn sway_mesh(world: vec3<f32>, flags: u32, m3: vec3<f32>, ext: vec3<f32>) -> vec3<f32> {
+    if ((flags & (FLAG_SWAY | FLAG_GRASS)) == 0u) {
+        return world;
+    }
+    let h = max(world.y - (m3.y - ext.y), 0.0);
+    return world + wind_offset(world, h, (flags & FLAG_GRASS) != 0u);
+}
 
 struct FsOut {
     @location(0) color: vec4<f32>,
@@ -271,7 +315,7 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
         n = -n;
     }
     var o: MeshOut;
-    var world = wp.xyz;
+    var world = sway_mesh(wp.xyz, i.params.y, i.m3.xyz, 0.5 * (abs(c0) + abs(c1) + abs(c2)));
     if (g.cut2.y > 0.5 && (i.params.y & FLAG_CUT_VERTEX) != 0u) {
         // Large meshes (terrain): lower each vertex near the player instead of the whole mesh.
         if (length(world.xz - g.cut.xz) < g.cut2.x) {
@@ -326,7 +370,9 @@ fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
 @vertex
 fn vs_mesh_shadow(v: MeshIn, i: InstIn) -> @builtin(position) vec4<f32> {
     let model = mat4x4<f32>(i.m0, i.m1, i.m2, i.m3);
-    return g.view_proj * model * vec4<f32>(v.pos, 1.0);
+    let ext = 0.5 * (abs(i.m0.xyz) + abs(i.m1.xyz) + abs(i.m2.xyz));
+    let world = sway_mesh((model * vec4<f32>(v.pos, 1.0)).xyz, i.params.y, i.m3.xyz, ext);
+    return g.view_proj * vec4<f32>(world, 1.0);
 }
 
 // ---------------------------------------------------------------- SDF impostors
@@ -368,8 +414,14 @@ fn cube_corner(vi: u32) -> vec3<f32> {
 @vertex
 fn vs_sdf(@builtin(vertex_index) vi: u32, s: SdfIn) -> SdfOut {
     let c = cube_corner(vi);
-    let a = s.a.xyz;
-    let b = s.b.xyz;
+    var a = s.a.xyz;
+    var b = s.b.xyz;
+    if ((s.params.y & (FLAG_SWAY | FLAG_GRASS)) != 0u) {
+        // Analytic shapes move whole, as if their centre stood 2.5 m above a trunk's root.
+        let off = wind_offset((a + b) * 0.5, 2.5 + max(s.a.w, s.b.w), false);
+        a += off;
+        b += off;
+    }
     let r = max(s.a.w, s.b.w) * 1.02 + 0.001;
     let axis = b - a;
     let len = length(axis);
@@ -385,8 +437,8 @@ fn vs_sdf(@builtin(vertex_index) vi: u32, s: SdfIn) -> SdfOut {
     var o: SdfOut;
     o.clip = g.view_proj * vec4<f32>(w, 1.0);
     o.world = w;
-    o.a = s.a;
-    o.b = s.b;
+    o.a = vec4<f32>(a, s.a.w);
+    o.b = vec4<f32>(b, s.b.w);
     o.color = s.color;
     o.params = s.params;
     return o;

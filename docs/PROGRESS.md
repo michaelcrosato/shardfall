@@ -6,6 +6,97 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Effects from the 2D WebGPU showcase, and a station guide in every room — 2026-10-08
+Reviewed [michaelcrosato/2d-webgpu-demo](https://github.com/michaelcrosato/2d-webgpu-demo) (about 80
+explained 2D GPU scenes, WebGPU and WebGL2). Many of its effects were already in Pavilion (bloom,
+outlines, pixel art, dithering and palettes, CRT, grading, chromatic aberration, distortion,
+screen-space GI, GPU particles, SDF shapes and text, soft bodies, verlet ropes). Purely 2D tricks
+(Mode 7, raycaster, pseudo-3D road, 2D tilemaps, parallax) do not fit a 3D engine and were skipped,
+as were GPU-only simulations (fluids, reaction-diffusion, slime, falling sand), which need a
+texture-based material path this renderer does not have. Taken, and done the 3D way:
+- **Painterly and print styles** (`view.filter.stylize` = paint / halftone / ascii / sketch, with
+  `stylize_on` part, `stylize_size`, `stylize_mix`, `stylize_color`), in the composite on the
+  finished picture: a generalized Kuwahara filter (8 sectors, polynomial weights; samples from the
+  other part of the scene are skipped so paint never bleeds) plus brush streaks and canvas; CMYK
+  halftone (four dot screens at 15/75/0/45 degrees, each dot reading its own centre; black only
+  when no colour is kept); ASCII (12 characters from 5x7 bitmaps packed in integers); pencil
+  sketch (three hatching families by darkness, Sobel contours, lines that redraw 6 times a
+  second, coloured-pencil paper). A cheap picture (`base_color`: no GI/outlines/haze) is what they
+  sample around a pixel; paint adds back what outlines and GI changed at the pixel.
+- **Volumetric light** (`view.haze`, `haze_height`, `shafts`, `shafts_forward`, `halos`): the
+  composite marches each pixel's view ray through height haze in 32 jittered steps, asks the
+  sun's shadow map whether each bit of air is lit (shadows cut dark shafts), weights it by a
+  Henyey-Greenstein phase and dims what lies behind; lamp halos are the closed-form integral of a
+  point light along the ray (an arctangent per light). The post pass now binds the shadow map, its
+  comparison sampler and the point lights. Pixels with no surface (sky, the void round a level)
+  get no haze, and the haze stops a metre under the player's feet.
+- **Screen transitions** (`view.filter.transition` = none / fade / iris / diamonds / dissolve /
+  mosaic / blinds, `transition_time`, `transition_demo` loops one): a per-pixel mask from one
+  number. The app plays the chosen one (default iris, on the player) when you arrive somewhere
+  new: another place in Shardfall, or an F2 teleport. Tool captures never trigger it.
+- **Wind** (`view.wind`, `wind_angle`, `wind_gusts`, `grass_push`): vertex animation in the scene
+  shader for instances flagged `flags::SWAY` (leaves: moves with height above the instance's
+  bottom; SDF spheres move whole) and `flags::GRASS` (bends with the square of height, away from
+  the player's feet within 0.9 m, and sinks as it bends); gusts roll along the wind as a slow
+  wave. Shadows sway too. New `MeshKey::Tuft` (7 two-sided blades). Data: `Sway` (none / leaves /
+  grass) on `Visual`, `Decor`, room `[[object]]`s and legend props; legend `grass = { density,
+  height, color }` scatters tufts per cell. The wilderness grows grass tufts
+  (`terrain.grass_density`, default 0.9 per cell) and its tree canopies sway.
+- **Rippling water** (`view.water_ripples`, `water_speed`, `water_fade` = amplitude half-life,
+  `water_rain`): `pav_view::water` runs the 2D wave equation on a height grid per water zone
+  (cells >= 14 cm, at most 160 x 160, 60 steps/s, reflecting edges, a weak spring back to the
+  waterline). Anything crossing the waterline dents it by its speed, splashes and explosions drop
+  big dents, rain small ones; dents displace without adding velocity (an early version sank the
+  whole pool). Strips of one pool with the same waterline merge into one surface. The mesh's
+  vertex colours carry the slope shading and crest foam, so ripples show in flat style too. The
+  water's own timestep catches up to 0.5 s (tools render now and then).
+- **Teaching (the demo's best idea, extended)**: every room has a station guide: `[learn]` in the
+  room file (what you see, how it works step by step, where games use it, phrases to ask for it,
+  cost, `knobs` = live settings, field-guide `terms`, `[[learn.code]]` excerpts copied from the
+  engine) and a `note` on every pad (shown at the bottom of the screen while you stand on it).
+  In the game: H (or the room card's **How it works**) opens the guide window with live sliders
+  for its knobs; Esc → **Field guide** has ~85 words (`crates/pav_core/src/field_guide.toml`,
+  searchable, cross-referenced) and every room's ask-for-it phrases (click to copy, room name to
+  go there). Tools: `room` prints the guide and pad notes, `guide term= / search= / asks=true`.
+  `pav_view/tests/learn.rs` keeps it honest: words exist, knobs are real settings, code files
+  exist, pads with params have notes. The 34 existing rooms' guides were written by five agents
+  from the engine's code (every snippet checked line by line against its file); bloom.toml is the
+  model. They also found stale text, now fixed (helicopter spin-up, platform speeds, soft-body
+  blasts, NOIR's split, sphere emissives, rain height).
+- **World demo rooms** (generated by scripts kept outside the repo, then hand-editable):
+  *Light Shafts* (vfx 6: a hall lit through west slits and a slatted roof, a colonnade with
+  lanterns and swaying trees; HAZE / BEAMS / SUN pads), *Wind & Water* (vfx 7: a meadow of grass
+  legend cells, trees and banners that sway, reeds, a pond with a step, a wading ring and a deep
+  middle, a ball dropper; WIND / TOWARD / WATER pads), *Paint & Print* (aesthetic 5: each style
+  on OFF / ALL / OBJECTS / WORLD, SIZE and COLOUR rows, the new whole looks; the village diorama),
+  *Screen Transitions* (aesthetic 6: a pad per kind that loops it, speeds, STOP, NONE). Open-air
+  rooms set `cutaway.height_cut = false` so canopies are not cut near the player.
+- **Look & Filters**: new sections *Paint, print & sketch* and *Haze & light shafts* (presets:
+  Oil paint, Gouache, Thick impasto, Underpainting, Comic print, Fine print, Newsprint, Terminal,
+  Colour ASCII, Pencil, Coloured pencil, Loose sketch; Clear air, Light haze, Dusty sunbeams,
+  Morning mist, Smoky hall, Lamplight, Pea soup); the arrival transition is in *Screen*. New whole
+  looks: Oil painting, Painted world crisp heroes, Comic book, Newspaper, Hacker terminal,
+  Sketchbook, Sketched world painted heroes, Sunbeams, Lamplit fog.
+- **Shardfall**: themes have `haze`, `halos` and `grass` (themes.toml): torches glow in the smoke
+  of the Ashen Halls and the dust of the Bone Crypts, spores in the Fungal Hollows; the Overgrown
+  Ruins grow grass and the Sunken Temple seaweed in patches that part around the hero (placed by
+  a hash of level and room, so levels are otherwise built exactly as before); the dusk town has a
+  light haze with lamp halos; a gentle draught everywhere; the iris opens on the hero at every
+  arrival.
+- Checked: captures of every style (town, Mix & Match, Paint & Print), haze/shafts/halos (town,
+  Light Shafts hall and colonnade), wilderness grass in wind, the feel-lab pool and the Wind &
+  Water pond (wakes, splash rings from dropped balls, rain), each transition mid-close, four
+  levels with their themes' air and grass; in the running game under Xvfb: the station guide (H)
+  with live sliders, pad notes (STORM), the field guide and the Look & Filters sections.
+- Not done: GPU compute simulations from the demo (fluids, sand, slime, reaction-diffusion,
+  boids) need a texture material path; halos ignore shadows (a lamp behind a pillar still glows
+  in front of it); the haze is a full-resolution 32-step march without temporal filtering, so it
+  shows fine grain; the water is drawn opaque.
+- Engine quirks the guide writers found (not fixed here): an ICE slide on the momentum model can
+  stop dead at floor-tile seams in Slalom; the Verticality Tower's 0.5 m stairs need small jumps
+  (auto-step is 0.32 m); a treadmill walker's legs barely move (belt push counted as blocked);
+  the stealth room's painted cone is cast from 0.6 m while sight is checked from 1.3 m.
+
 ## Look & Filters: every filter on a part of the scene — 2026-10-08
 - **Parts of the scene.** Every drawn instance is either *characters & objects* or the
   *environment*. The view flags `flags::OBJECT` on everything emitted after the static regions

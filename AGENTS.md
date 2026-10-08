@@ -48,11 +48,18 @@ crates/
               pixel art on part of the scene: objects flagged `flags::PIXEL`, chosen in the view
               by `view.filter.pixel_target` = all/characters/hero/others/world/entity/objects/
               environment; every filter can aim at a part: `flags::OBJECT` marks characters &
-              objects, the normal buffer carries it, `*_on` = all/objects/environment).
+              objects, the normal buffer carries it, `*_on` = all/objects/environment; painterly and
+              print styles: Kuwahara oil paint, CMYK halftone, ASCII, pencil sketch (`filter.stylize`);
+              hazy air: volumetric sun shafts ray-marched through the sun's shadow map and lamp
+              halos in closed form (`view.haze`, `shafts`, `halos`); screen transitions (iris,
+              diamonds, dissolve, mosaic, blinds, fade); wind in the vertex shader for instances
+              flagged `flags::SWAY` (leaves) / `flags::GRASS` (tufts that part around the player)).
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
               the world (text.rs). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
+              water.rs (water zones ripple: a CPU wave equation on a height grid, stirred by
+              whatever crosses the waterline, splashes, blasts and rain; drawn as a dynamic mesh),
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
@@ -62,7 +69,7 @@ crates/
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
               (bridge.rs), egui input (uiinput.rs). Builds natively and for wasm32 (WebGPU).
-rooms/        room data files (TOML: info card, wing, primary device, movement model, camera,
+rooms/        room data files (TOML: info card, station guide `[learn]`, wing, primary device, movement model, camera,
               params, keys, entrance, ASCII tile layers + legend, [[object]]s). Every file
               here is embedded in the exe at build time AND hot-reloaded at runtime.
               `_template.toml` documents every field.
@@ -119,7 +126,7 @@ despawn teleport rewind snapshot_save snapshot_load record_save replay rooms roo
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
 tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature see campaign
-theme_swatch`; looks: `look`
+theme_swatch`; looks: `look`; teaching: `guide`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
@@ -150,6 +157,10 @@ theme_swatch`; looks: `look`
   capture); `look bench=all` renders this moment under every look in one numbered PNG. Filters
   aim at `all`, `objects` (characters & objects) or `environment` through `view.*_on` /
   `view.filter.*_on` / `pixel_target`, and `view.style_objects` / `view.style_environment`.
+- Teaching: `room key=bloom` includes the room's station guide (`learn`) and its pads' notes;
+  `guide term=kuwahara` / `guide search=shadow` read the field guide
+  (crates/pav_core/src/field_guide.toml), `guide asks=true` lists every room's "ask for it"
+  phrases.
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
@@ -170,6 +181,11 @@ Write `fn t_name(s: &mut Session, a: &Args) -> Result<Output>` in `crates/pav_to
 and add a `Tool { .. }` entry to `TOOLS`. It is automatically in the CLI, REPL and MCP.
 
 ### Adding a room (preferred: data only, no rebuild)
+Every room is a station of the world demo and teaches: give it a `[learn]` block (what you see,
+how it works as the engine does it, where games use it, phrases to ask for it, cost, live
+`knobs`, field-guide `terms`, 1-3 `[[learn.code]]` excerpts copied from the engine) and a `note`
+on every pad that changes something (`pav_view/tests/learn.rs` checks words, settings, files and
+notes; `rooms/bloom.toml` is the model).
 Copy `rooms/_template.toml` to `rooms/<key>.toml` and edit (the template documents every
 field: layers, legend blocks, ladders, props, zones, labels, objects with move/rotate/emitter/
 spawner behaviours, hazards, soft bodies, materials, joints and chains; `rooms/feel_lab.toml`
@@ -204,6 +220,9 @@ right-click, hold Y shift, right stick scroll, B close). Controller flows can be
 screenshotted: `shardfall --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y]
 [hold=A,Y] [tap=DPadDown]`, see `PadScript` in input.rs).
 
+H (world demo): how the room you are in works (the station guide: steps, pads, live settings,
+uses, ask-for-it phrases, cost, the engine's code, words); outside rooms the field guide
+(guide_ui.rs). Stepping on a pad with a note shows the note at the bottom for a while.
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
 F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
 F10 edit mode (sandbox) · hold Backspace rewind · F11 fullscreen · F12 screenshot.
@@ -229,7 +248,9 @@ passive tree through commands, keystones, the bot spending points), `tests/monst
 depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
 brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances).
 View: `pav_view/tests/pixel_art.rs`, `parts.rs` (characters & objects vs environment, filters per
-part, styles per part) and `look.rs` (look sections, presets, whole looks).
+part, styles per part, styles/haze reach the renderer, transition loop), `look.rs` (look
+sections, presets, whole looks), `water.rs` (ripples spread and fade, rain, pool strips merge)
+and `learn.rs` (station guides and the field guide stay consistent with the engine).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

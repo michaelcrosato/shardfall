@@ -54,6 +54,114 @@ sky = "#0d1424"
 "movement.grid_step_time" = 0.25    # 4 cells/s; guards use the same model, so they walk at this speed too
 "movement.crouch_mult" = 0.6        # crouched: 2.4 cells/s
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A night heist on the grid in four sections: 1 CORRIDOR PATROL (a guard pacing past alcoves), 2 GUARD HALL (a sweeping sentry and a pacing guard among pillars), 3 JUNCTION (a wide-cone guard and the CROUCH LANE behind low tables and under a duct) and 4 CAMERA HALL (two sweeping cameras in front of the VAULT). The fans on the floor are the guards' vision cones, cut off by walls, and they turn from yellow to red as each guard's alert meter fills."
+how = [
+  "Grid movement: each step walks to the next 1 m tile centre along whichever stick axis is pushed harder (no diagonals), one tile per movement.grid_step_time (0.25 s here) times the crouch multiplier, so 4 tiles a second standing and 2.4 crouched. Guards are characters on the same controller, driven by a brain instead of a keyboard, so they step the same way.",
+  "A guard's brain walks its patrol points and waits at each one; while it waits it looks around, swinging about 52 degrees each way from the direction it arrived in, once every 3.7 s. A sentry is a guard whose only point is 0.25 m away, so it arrives at once and just looks around; the two cameras are sentries too.",
+  "Each tick every guard checks whether you are within its range (60% of it while you crouch) and within half its cone angle of where it faces, measured flat on the floor. Only then does it cast one ray from its eye (1.3 m up) to a point 1.27 m up on a standing player or 0.86 m on a crouching one: anything solid in between hides you, which is why a 1.15 m table hides you only when you crouch.",
+  "While a guard sees you its alert rises by 2.5 a second (full in 0.4 s) and it stops looking around; out of sight it drains by 0.6 a second. A full meter shows SPOTTED!, resets every guard and puts you back on the last checkpoint.",
+  "The painted cone is 21 rays fanned out from 0.6 m above the guard's feet against the fixed geometry, joined into a triangle fan. It is a guide, not the test: it always shows the standing range, and a low table cuts it short although a standing player is still seen over the table.",
+]
+uses = [
+  "Metal Gear Solid: guards walk set routes, their sight cones show on the radar, and being seen sets off an alert.",
+  "Tactics stealth: Commandos and Shadow Tactics paint vision cones on the ground, with a part where a crouching character is not seen.",
+  "Readable stealth: Mark of the Ninja shows what guards can see and hear, so being caught always feels fair.",
+  "Board-game stealth: Hitman GO moves one step at a time on a grid of nodes, and every guard's sight line is a rule you can read.",
+]
+ask = [
+  "guards with vision cones painted on the floor",
+  "line of sight blocked by walls and low cover",
+  "alert meter that fills while seen and drains when hidden",
+  "crouching shortens how far guards can see",
+  "grid movement one tile per step for the player and the guards",
+  "guards that look around at every patrol stop",
+]
+cost = "Cheap, all on the CPU: per guard each tick a distance and angle test, and one ray cast only while you stand inside its cone. Painting the cones costs 21 rays and a 20-triangle fan per guard each tick, so the six watchers here add about 130 short rays; the ray count is fixed, so a wider cone just looks coarser."
+knobs = ["movement.grid_step_time", "movement.crouch_mult", "movement.model", "camera.tilt", "camera.distance"]
+terms = ["line of sight", "raycast", "fixed timestep"]
+
+[[learn.code]]
+title = "Can the guard see you? Range, angle, then one ray"
+file = "crates/pav_core/src/stealth.rs"
+lang = "rust"
+src = """
+let to = target - eye;
+let flat = Vec3::new(to.x, 0.0, to.z);
+let reach = range * if low { 0.6 } else { 1.0 };
+let fwd = Vec3::new(facing.sin(), 0.0, facing.cos());
+let mut seen = flat.length() < reach && fwd.dot(flat.normalize_or(fwd)) >= (angle.to_radians() * 0.5).cos();
+if seen {
+    // ...
+    let dist = to.length();
+    let dir = to / dist.max(1e-4);
+    let start = 0.45;
+    let qp = self.state.physics.query_filtered(filter);
+    if dist > start
+        && qp.cast_ray(&Ray::new(eye + dir * start, dir), (dist - start - 0.2).max(0.0) as Real, true).is_some()
+    {
+        seen = false;
+    }
+}
+// ...
+ai.alert = if seen { ai.alert + dt / 0.4 } else { (ai.alert - dt * 0.6).max(0.0) };
+// Look around while standing at a patrol stop.
+if ai.wait > 0.0 && !seen {
+    if let Some(ch) = e.character.as_mut() {
+        ch.facing = ai.look + (time * 1.7 + id.0 as f32).sin() * 0.9;
+    }
+}
+"""
+
+[[learn.code]]
+title = "The painted cone: 21 rays clipped by walls"
+file = "crates/pav_core/src/stealth.rs"
+lang = "rust"
+src = """
+let eye = feet + Vec3::Y * 0.6;
+let half = angle.to_radians() * 0.5;
+let n = 20;
+let mut filter = QueryFilter::only_fixed().exclude_sensors();
+if let Some(b) = e.body {
+    filter = filter.exclude_rigid_body(b);
+}
+let qp = self.state.physics.query_filtered(filter);
+let points = (0..=n)
+    .map(|i| {
+        let a = ch.facing - half + 2.0 * half * i as f32 / n as f32;
+        let d = Vec3::new(a.sin(), 0.0, a.cos());
+        let len = qp.cast_ray(&Ray::new(eye, d), *range as Real, true).map(|(_, t)| t as f32).unwrap_or(*range);
+        feet + Vec3::Y * 0.04 + d * len
+    })
+    .collect();
+"""
+
+[[learn.code]]
+title = "Grid steps: one tile along the stronger axis"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+MovementModel::Grid => {
+    let tile = |p: Vec3| Vec3::new(p.x.floor() + 0.5, 0.0, p.z.floor() + 0.5);
+    let mut target = ch.grid_target.unwrap_or(tile(feet));
+    let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
+    if d.length() < 0.03 {
+        let w = Vec2::new(wish.x, wish.z);
+        if w.length() > 0.15 {
+            let step = if w.x.abs() > w.y.abs() { Vec3::X * w.x.signum() } else { Vec3::Z * w.y.signum() };
+            target = tile(feet) + step;
+            ch.facing = yaw_of(step);
+            // A half-pushed stick (or a slow NPC) takes slower steps.
+            ch.grid_pace = w.length().min(1.0);
+        }
+    }
+    let speed = mult * ch.grid_pace.clamp(0.15, 1.0) / mp.grid_step_time.max(0.02);
+    let d = Vec3::new(target.x - feet.x, 0.0, target.z - feet.z);
+    let dist = d.length();
+    vh = if dist > 1e-4 { d / dist * speed.min(dist / dt) } else { Vec3::ZERO };
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::color::Color;
 use crate::entity::{BodyKind, Spawn};
 use crate::params::ParamValue;
-use crate::shape::{Look, Shape, Visual};
+use crate::shape::{Look, Shape, Sway, Visual};
 use crate::sim::Sim;
 use crate::statics::{Block, Facing, Ladder, RegionKey, block_flags};
 use crate::zones::{CameraCue, Label, LabelMode, Zone, ZoneKind, default_zone_color};
@@ -149,6 +149,9 @@ pub struct PropDef {
     pub y: Option<f32>,
     #[serde(default)]
     pub name: String,
+    /// Moves in the wind (drawing only).
+    #[serde(default)]
+    pub sway: Sway,
 }
 
 fn dynamic() -> BodyKind {
@@ -186,6 +189,9 @@ pub struct ZoneDef {
     pub speed: f32,
     #[serde(default)]
     pub signal: String,
+    /// Pads: what the pad shows and why (on screen while you stand on it).
+    #[serde(default)]
+    pub note: String,
 }
 
 fn three() -> f32 {
@@ -254,6 +260,47 @@ pub struct TileDef {
     pub zone: Option<ZoneDef>,
     #[serde(default)]
     pub label: Option<LabelDef>,
+    /// Grass tufts on the tile that sway in the wind (drawing only).
+    #[serde(default)]
+    pub grass: Option<GrassDef>,
+}
+
+/// Grass on a tile: tufts that sway in the wind and part around the player (drawing only:
+/// nothing collides with them).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GrassDef {
+    /// Tufts per cell.
+    #[serde(default = "grass_density")]
+    pub density: f32,
+    /// Tuft height (m).
+    #[serde(default = "grass_height")]
+    pub height: f32,
+    #[serde(default = "grass_color")]
+    pub color: String,
+}
+
+fn grass_density() -> f32 {
+    3.0
+}
+
+fn grass_height() -> f32 {
+    0.5
+}
+
+fn grass_color() -> String {
+    "#6dbb5c".into()
+}
+
+/// A repeatable 0..1 number for a map cell (grass placement).
+fn cell_hash(c: usize, r: usize, k: u32, y: f32) -> f32 {
+    let mut h = (c as u32).wrapping_mul(0x9E37_79B1) ^ (r as u32).wrapping_mul(0x85EB_CA77) ^ k.wrapping_mul(0xC2B2_AE3D);
+    h ^= y.to_bits();
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x2C1B_3C6D);
+    h ^= h >> 12;
+    h = h.wrapping_mul(0x297A_2D39);
+    h ^= h >> 15;
+    (h >> 8) as f32 / (1u32 << 24) as f32
 }
 
 impl TileDef {
@@ -379,6 +426,7 @@ impl Layout {
                         let y = p.y.unwrap_or(half.y);
                         let mut v = Visual::new(p.shape, Color::hex(&p.color));
                         v.look = p.look;
+                        v.sway = p.sway;
                         let name = if p.name.is_empty() { "prop".to_string() } else { p.name.clone() };
                         let mut sp = Spawn::new(&name, place.point(cell + Vec3::new(0.5, y, 0.5)))
                             .visual(v)
@@ -387,6 +435,29 @@ impl Layout {
                         sp.region = region;
                         sim.spawn(sp);
                         out.props += 1;
+                    }
+                    if let Some(g) = &def.grass {
+                        let n = g.density.max(0.0);
+                        let count = n.floor() as u32 + u32::from(cell_hash(c, r, 99, layer.y) < n.fract());
+                        for k in 0..count.min(16) {
+                            let rnd = |a: u32| cell_hash(c, r, k * 8 + a, layer.y);
+                            let hh = g.height * (0.35 + 0.3 * rnd(2));
+                            let local = cell + Vec3::new(0.12 + 0.76 * rnd(0), hh - 0.03, 0.12 + 0.76 * rnd(1));
+                            let pos = place.point(local);
+                            let d = crate::statics::Decor {
+                                shape: Shape::Box { half: Vec3::new(0.2, hh, 0.2) },
+                                pos,
+                                rot: Quat::from_rotation_y(rnd(3) * 6.3),
+                                color: Color::hex(&g.color).scale(0.85 + 0.3 * rnd(4)),
+                                look: Look::Cel,
+                                emissive: 0.0,
+                                solid: false,
+                                collider: None,
+                                sway: Sway::Grass,
+                            };
+                            let key = region.unwrap_or(RegionKey::chunk_of(pos));
+                            sim.state.statics.add_decor(&mut sim.state.physics, key, d);
+                        }
                     }
                     if let Some(m) = &def.marker {
                         out.markers.push((m.clone(), place.point(cell + Vec3::new(0.5, 0.0, 0.5))));
@@ -470,6 +541,7 @@ impl Layout {
                     facing: z.facing.map(|f| place.facing(f)),
                     speed: z.speed,
                     signal: z.signal.clone(),
+                    note: z.note.clone(),
                 };
                 let key = region.unwrap_or(RegionKey::chunk_of(zone.center()));
                 sim.state.statics.add_zone_to(key, zone);
