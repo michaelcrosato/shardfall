@@ -29,6 +29,8 @@ pub enum MenuAction {
     /// Shardfall: erase the save, start over in town.
     NewHero,
     Tuning,
+    /// The Look & Filters window.
+    Look,
     Feel,
     Physics,
     Screenshot,
@@ -150,6 +152,13 @@ pub fn pause_menu(
                 }
                 if ui.button("Tuning (F1)").clicked() {
                     action = Some(MenuAction::Tuning);
+                }
+                if ui
+                    .button("Look & filters")
+                    .on_hover_text("Pixel art, cel shading, outlines, palettes, grading and more, on the whole scene, the characters & objects or the environment")
+                    .clicked()
+                {
+                    action = Some(MenuAction::Look);
                 }
                 if ui.button("Feel metrics").clicked() {
                     action = Some(MenuAction::Feel);

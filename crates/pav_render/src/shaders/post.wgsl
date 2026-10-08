@@ -14,6 +14,10 @@ struct Post {
     filt2: vec4<f32>,          // temperature, tint, contrast, brightness
     filt3: vec4<f32>,          // vignette, grain, chromatic aberration, time
     filt4: vec4<f32>,          // saturation (filtered side only), pixel-art block, levels, outline
+    // Parts of the scene (0 all, 1 characters and objects, 2 environment) for outlines, colour
+    // reduction, grading and scanlines; then grain and chromatic aberration.
+    filt5: vec4<f32>,
+    filt6: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> post: Post;
@@ -28,6 +32,18 @@ struct Post {
 fn vs_full(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4<f32> {
     let uv = vec2<f32>(f32((vi << 1u) & 2u), f32(vi & 2u));
     return vec4<f32>(uv * 2.0 - 1.0, 0.0, 1.0);
+}
+
+// The normal buffer's w is 1024 or more (in size) on characters and objects.
+fn object_w(w: f32) -> bool {
+    return abs(w) > 1023.5;
+}
+
+// Whether a filter aimed at `part` (0 whole scene, 1 characters and objects, 2 environment)
+// applies to a pixel of this kind.
+fn aimed(part: f32, obj: bool) -> bool {
+    let t = u32(part + 0.5);
+    return t == 0u || (t == 1u) == obj;
 }
 
 fn view_depth(px: vec2<i32>, sample: i32) -> f32 {
@@ -161,7 +177,7 @@ fn scene_color(p: vec2<f32>, dims: vec2<i32>, chroma: f32) -> vec3<f32> {
         col = col * (1.0 - min(gi.a * post.gi.x * 1.5, 0.7)) + gi.rgb * post.gi.x * 1.6;
     }
 
-    if (post.outline.w > 0.5) {
+    if (post.outline.w > 0.5 && aimed(post.filt5.x, object_w(textureLoad(normal_ms, px, 0).w))) {
         let t = max(i32(post.outline.x + 0.5), 1);
         let samples = i32(textureNumSamples(normal_ms));
         var edge = 0.0;
@@ -326,7 +342,9 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
                 }
             }
         }
-        s = to_srgb(scene_color(p, dims, post.filt3.z));
+        // Which part of the scene this pixel shows (after pixelation, so whole blocks agree).
+        let obj = object_w(group_at(p, dims));
+        s = to_srgb(scene_color(p, dims, select(0.0, post.filt3.z, aimed(post.filt6.y, obj))));
         if (art) {
             let al = post.filt4.z;
             if (al >= 2.0) {
@@ -337,14 +355,16 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
             }
         }
         // Colour grading (display space).
-        let temp = post.filt2.x;
-        s = s * vec3<f32>(1.0 + 0.12 * temp, 1.0 + 0.08 * post.filt2.y, 1.0 - 0.12 * temp);
-        s = (s - 0.5) * post.filt2.z + 0.5;
-        s = s * post.filt2.w;
-        let gray = dot(s, vec3<f32>(0.2126, 0.7152, 0.0722));
-        s = mix(vec3<f32>(gray), s, post.filt4.x);
+        if (aimed(post.filt5.z, obj)) {
+            let temp = post.filt2.x;
+            s = s * vec3<f32>(1.0 + 0.12 * temp, 1.0 + 0.08 * post.filt2.y, 1.0 - 0.12 * temp);
+            s = (s - 0.5) * post.filt2.z + 0.5;
+            s = s * post.filt2.w;
+            let gray = dot(s, vec3<f32>(0.2126, 0.7152, 0.0722));
+            s = mix(vec3<f32>(gray), s, post.filt4.x);
+        }
         // Scanlines follow the curved tube.
-        if (post.filt0.z > 0.0) {
+        if (post.filt0.z > 0.0 && aimed(post.filt5.w, obj)) {
             let period = max(post.filt0.w, 1.0);
             let w = 0.5 - 0.5 * cos(uvn.y * fd.y / period * 6.2831853);
             s = s * (1.0 - post.filt0.z * 0.6 * w);
@@ -354,7 +374,7 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
             let r = length(frag.xy / fd - 0.5) * 1.414;
             s = s * (1.0 - post.filt3.x * smoothstep(0.35, 1.05, r));
         }
-        if (post.filt3.y > 0.0) {
+        if (post.filt3.y > 0.0 && aimed(post.filt6.x, obj)) {
             let h = fract(sin(dot(frag.xy + vec2<f32>(post.filt3.w * 61.0, post.filt3.w * 17.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
             s = s + (h - 0.5) * post.filt3.y * 0.16;
         }
@@ -362,13 +382,16 @@ fn fs_post(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
         // Ordered dithering to a few levels or a fixed palette.
         let pal = u32(post.filt1.z + 0.5);
         let levels = post.filt1.y;
-        let bp = floor(frag.xy / block);
+        // The dither pattern steps with the pixels: pixel-art blocks or the whole screen's.
+        let bp = floor(frag.xy / select(block, art_px, art));
         let th = mix(0.5, bayer4i(bp), clamp(post.filt1.x, 0.0, 1.0));
-        if (pal > 0u) {
-            s = palette_nearest(s, pal, th);
-        } else if (levels >= 2.0) {
-            let l = levels - 1.0;
-            s = floor(s * l + th) / l;
+        if (aimed(post.filt5.y, obj)) {
+            if (pal > 0u) {
+                s = palette_nearest(s, pal, th);
+            } else if (levels >= 2.0) {
+                let l = levels - 1.0;
+                s = floor(s * l + th) / l;
+            }
         }
     }
     if (split > 0.0 && abs(frag.x - split * fd.x) < 1.5) {

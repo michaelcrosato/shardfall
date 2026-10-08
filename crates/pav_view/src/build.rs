@@ -115,6 +115,25 @@ choice_enum! {
         Others => "others",
         World => "world",
         Entity => "entity",
+        Objects => "objects",
+        Environment => "environment",
+    }
+}
+
+choice_enum! {
+    /// Which part of the scene a filter applies to: everything, the characters and objects
+    /// (anything that moves or can be picked up, fought or pushed), or the environment
+    /// (level geometry, fixed scenery and the sky).
+    pub enum PartChoice { All => "all", Objects => "objects", Environment => "environment" }
+}
+
+impl PartChoice {
+    pub fn part(self) -> rs::Part {
+        match self {
+            PartChoice::All => rs::Part::All,
+            PartChoice::Objects => rs::Part::Objects,
+            PartChoice::Environment => rs::Part::Environment,
+        }
     }
 }
 
@@ -145,6 +164,14 @@ pub struct FilterSettings {
     pub pixel_entity: i32,
     pub pixel_levels: f32,
     pub pixel_outline: bool,
+    /// The part of the scene that gets colour reduction (palette, levels, dither), grading
+    /// (temperature, tint, contrast, brightness, saturation), scanlines, grain and chromatic
+    /// aberration.
+    pub color_on: PartChoice,
+    pub grade_on: PartChoice,
+    pub scanlines_on: PartChoice,
+    pub grain_on: PartChoice,
+    pub chroma_on: PartChoice,
 }
 
 impl Default for FilterSettings {
@@ -171,6 +198,11 @@ impl Default for FilterSettings {
             pixel_entity: 0,
             pixel_levels: 0.0,
             pixel_outline: true,
+            color_on: PartChoice::All,
+            grade_on: PartChoice::All,
+            scanlines_on: PartChoice::All,
+            grain_on: PartChoice::All,
+            chroma_on: PartChoice::All,
         }
     }
 }
@@ -197,11 +229,25 @@ impl Tunable for FilterSettings {
         self.pixel_target.visit_choice(
             v,
             "pixel_target",
-            "Pixel art on: all, characters, the hero, other characters, the world, one entity",
+            "Pixel art on: all, characters, the hero, other characters, the world (all but characters), one entity, \
+             objects (characters and objects), environment",
         );
         v.int("pixel_entity", &mut self.pixel_entity, 0, i32::MAX, "Entity id when pixel_target = entity");
         v.float("pixel_levels", &mut self.pixel_levels, 0.0, 32.0, "Pixel-art colour levels per channel (below 2 = unchanged)");
         v.bool("pixel_outline", &mut self.pixel_outline, "Dark one-block outline around pixel art");
+        self.color_on.visit_choice(
+            v,
+            "color_on",
+            "Palette, levels and dither on: all, objects (characters and objects), environment",
+        );
+        self.grade_on.visit_choice(
+            v,
+            "grade_on",
+            "Grading (temperature, tint, contrast, brightness, saturation) on: all, objects, environment",
+        );
+        self.scanlines_on.visit_choice(v, "scanlines_on", "Scanlines on: all, objects, environment");
+        self.grain_on.visit_choice(v, "grain_on", "Film grain on: all, objects, environment");
+        self.chroma_on.visit_choice(v, "chroma_on", "Chromatic aberration on: all, objects, environment");
     }
 }
 
@@ -210,7 +256,13 @@ impl Tunable for FilterSettings {
 #[serde(default)]
 pub struct ViewSettings {
     pub style: StyleOverride,
+    /// Surface style of the characters and objects / of the environment (when `style` is
+    /// per object). Unlit markers, decals and glows keep their style.
+    pub style_objects: StyleOverride,
+    pub style_environment: StyleOverride,
     pub outlines: bool,
+    /// The part of the scene that gets outlines.
+    pub outlines_on: PartChoice,
     pub outline_px: f32,
     pub outline_darken: f32,
     pub cel_bands: f32,
@@ -242,7 +294,10 @@ impl Default for ViewSettings {
     fn default() -> Self {
         Self {
             style: StyleOverride::PerObject,
+            style_objects: StyleOverride::PerObject,
+            style_environment: StyleOverride::PerObject,
             outlines: true,
+            outlines_on: PartChoice::All,
             outline_px: 1.0,
             outline_darken: 0.35,
             cel_bands: 2.0,
@@ -299,7 +354,18 @@ impl ViewSettings {
 impl Tunable for ViewSettings {
     fn visit(&mut self, v: &mut dyn ParamVisitor) {
         self.style.visit_choice(v, "style", "Force one surface style everywhere");
+        self.style_objects.visit_choice(
+            v,
+            "style_objects",
+            "Surface style of the characters and objects (when style is per object)",
+        );
+        self.style_environment.visit_choice(
+            v,
+            "style_environment",
+            "Surface style of the environment (when style is per object)",
+        );
         v.bool("outlines", &mut self.outlines, "Screen-space outlines");
+        self.outlines_on.visit_choice(v, "outlines_on", "Outlines on: all, objects (characters and objects), environment");
         v.float("outline_px", &mut self.outline_px, 1.0, 4.0, "Outline thickness (pixels)");
         v.float("outline_darken", &mut self.outline_darken, 0.0, 1.0, "Outline brightness relative to the surface");
         v.float("cel_bands", &mut self.cel_bands, 2.0, 6.0, "Light bands in cel style");
@@ -609,6 +675,11 @@ impl ViewBuilder {
             pixel_art: f.pixel_art,
             pixel_levels: f.pixel_levels,
             pixel_outline: f.pixel_outline,
+            color_part: f.color_on.part(),
+            grade_part: f.grade_on.part(),
+            scanline_part: f.scanlines_on.part(),
+            grain_part: f.grain_on.part(),
+            chroma_part: f.chroma_on.part(),
         };
         if settings.particles {
             scene.particles = std::mem::take(&mut self.pending_particles);
@@ -645,6 +716,7 @@ impl ViewBuilder {
             specular: settings.specular,
         };
         scene.post.outlines = settings.outlines;
+        scene.post.outline_part = settings.outlines_on.part();
         scene.post.outline_px = settings.outline_px;
         scene.post.outline_darken = settings.outline_darken;
         scene.post.exposure = settings.exposure;
@@ -758,6 +830,8 @@ impl ViewBuilder {
                 });
             }
         }
+        // Everything so far is the environment; objects come next.
+        let env_end = (scene.meshes.len(), scene.sdfs.len(), scene.dynamic.len());
         scene.fog = rs::Fog {
             enabled: settings.fog,
             center: rig.target,
@@ -771,10 +845,14 @@ impl ViewBuilder {
         let now = self.now as f32;
         let mut live = Vec::new();
         let mut puppets = Vec::new();
+        let mut scenery = Vec::new();
         for o in interpolate(prev, curr, alpha) {
             let v = &o.visual;
             if o.puppet.is_some() {
                 puppets.push(o.id.0 + 2);
+            }
+            if o.scenery {
+                scenery.push(o.id.0 + 2);
             }
             if let Some(c) = &o.cone {
                 crate::vehicles::emit_cone(&mut scene, c, 0xfff8);
@@ -858,36 +936,90 @@ impl ViewBuilder {
             scene.sdfs.push(sd);
         }
         self.emit_effects(&mut scene);
+        scenery.sort_unstable();
+        mark_objects(&mut scene, env_end, &scenery);
+        if settings.style == StyleOverride::PerObject {
+            restyle_parts(&mut scene, settings.style_objects, settings.style_environment);
+        }
         if f.pixel_art > 1.0 {
             let hero = curr.player.map(|p| p.0 + 2);
-            mark_pixel_art(&mut scene, |g| match f.pixel_target {
+            mark_pixel_art(&mut scene, |g, flags| match f.pixel_target {
                 PixelTarget::All => true,
                 PixelTarget::Characters => puppets.contains(&g),
                 PixelTarget::Hero => Some(g) == hero,
                 PixelTarget::Others => puppets.contains(&g) && Some(g) != hero,
                 PixelTarget::World => !puppets.contains(&g),
                 PixelTarget::Entity => g == f.pixel_entity as u32 + 2,
+                PixelTarget::Objects => flags & rs::flags::OBJECT != 0,
+                PixelTarget::Environment => flags & rs::flags::OBJECT == 0,
             });
         }
         scene
     }
 }
 
-/// Flags every instance whose outline group passes `pick` as pixel art (groups are the
-/// entity id + 2 for objects and characters, 1 for level geometry).
-fn mark_pixel_art(scene: &mut Scene, pick: impl Fn(u32) -> bool) {
+/// Flags the characters and objects: every instance emitted after the environment (`from`:
+/// meshes, SDFs, dynamic meshes) except fixed scenery (outline groups in `scenery`, sorted).
+fn mark_objects(scene: &mut Scene, from: (usize, usize, usize), scenery: &[u32]) {
+    let object = |g: u32| scenery.binary_search(&g).is_err();
+    for m in &mut scene.meshes[from.0..] {
+        if object(m.group) {
+            m.flags |= rs::flags::OBJECT;
+        }
+    }
+    for s in &mut scene.sdfs[from.1..] {
+        if object(s.group) {
+            s.flags |= rs::flags::OBJECT;
+        }
+    }
+    for d in &mut scene.dynamic[from.2..] {
+        if object(d.group) {
+            d.flags |= rs::flags::OBJECT;
+        }
+    }
+}
+
+/// Gives the characters and objects, and the environment, a surface style of their own
+/// (unlit markers, decals and glows keep theirs).
+fn restyle_parts(scene: &mut Scene, objects: StyleOverride, environment: StyleOverride) {
+    if objects == StyleOverride::PerObject && environment == StyleOverride::PerObject {
+        return;
+    }
+    let pick = |style: Style, flags: u32| -> Style {
+        let ov = if flags & rs::flags::OBJECT != 0 { objects } else { environment };
+        match (style, ov) {
+            (Style::Unlit, _) | (_, StyleOverride::PerObject) => style,
+            (_, StyleOverride::Flat) => Style::Flat,
+            (_, StyleOverride::Cel) => Style::Cel,
+            (_, StyleOverride::Lit) => Style::Lit,
+        }
+    };
     for m in &mut scene.meshes {
-        if pick(m.group) {
+        m.style = pick(m.style, m.flags);
+    }
+    for s in &mut scene.sdfs {
+        s.style = pick(s.style, s.flags);
+    }
+    for d in &mut scene.dynamic {
+        d.style = pick(d.style, d.flags);
+    }
+}
+
+/// Flags every instance that passes `pick` (outline group, flags) as pixel art (groups are
+/// the entity id + 2 for objects and characters, 1 for level geometry).
+fn mark_pixel_art(scene: &mut Scene, pick: impl Fn(u32, u32) -> bool) {
+    for m in &mut scene.meshes {
+        if pick(m.group, m.flags) {
             m.flags |= rs::flags::PIXEL;
         }
     }
     for s in &mut scene.sdfs {
-        if pick(s.group) {
+        if pick(s.group, s.flags) {
             s.flags |= rs::flags::PIXEL;
         }
     }
     for d in &mut scene.dynamic {
-        if pick(d.group) {
+        if pick(d.group, d.flags) {
             d.flags |= rs::flags::PIXEL;
         }
     }

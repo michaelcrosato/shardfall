@@ -9,6 +9,10 @@ pav_core.workspace = true
 pav_render.workspace = true
 glam.workspace = true
 serde.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

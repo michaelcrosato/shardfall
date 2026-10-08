@@ -1,0 +1,499 @@
+# Presets for the Look & Filters menu (and the `look` agent tool).
+#
+# [[preset]]  one filter's settings: `section` is pixel, shading, outlines, palette, grading,
+#             scanlines, grain, screen or glow; `set` holds view paths (as in `pav params
+#             prefix=view`, without `view.`) and only paths of that section. A filter preset
+#             never changes which part of the scene the filter is on (the *_on / *_target keys),
+#             so picking "Chunky" keeps pixel art on the characters if that is where it was.
+# [[look]]    a whole look: it switches on every section it names a path of (starting from the
+#             defaults) and switches the others off, so the scene's own settings show there.
+#
+# Parts of the scene: "all", "objects" (characters and objects: anything that moves, fights or
+# can be picked up) and "environment" (level geometry, fixed scenery, the sky).
+
+# ---------------------------------------------------------------- pixel art
+[[preset]]
+section = "pixel"
+name = "Fine"
+about = "3 px blocks, no outline"
+set = { "filter.pixel_art" = 3.0, "filter.pixel_levels" = 0.0, "filter.pixel_outline" = false }
+
+[[preset]]
+section = "pixel"
+name = "Classic"
+about = "4 px blocks with a dark outline"
+set = { "filter.pixel_art" = 4.0, "filter.pixel_levels" = 0.0, "filter.pixel_outline" = true }
+
+[[preset]]
+section = "pixel"
+name = "Bold"
+about = "5 px blocks with a dark outline"
+set = { "filter.pixel_art" = 5.0, "filter.pixel_levels" = 0.0, "filter.pixel_outline" = true }
+
+[[preset]]
+section = "pixel"
+name = "Chunky"
+about = "6 px blocks with a dark outline"
+set = { "filter.pixel_art" = 6.0, "filter.pixel_levels" = 0.0, "filter.pixel_outline" = true }
+
+[[preset]]
+section = "pixel"
+name = "16-bit"
+about = "4 px blocks, 24 shades per channel"
+set = { "filter.pixel_art" = 4.0, "filter.pixel_levels" = 24.0, "filter.pixel_outline" = true }
+
+[[preset]]
+section = "pixel"
+name = "8-bit"
+about = "6 px blocks, 8 shades per channel"
+set = { "filter.pixel_art" = 6.0, "filter.pixel_levels" = 8.0, "filter.pixel_outline" = true }
+
+[[preset]]
+section = "pixel"
+name = "Giant"
+about = "10 px blocks"
+set = { "filter.pixel_art" = 10.0, "filter.pixel_levels" = 0.0, "filter.pixel_outline" = true }
+
+# ---------------------------------------------------------------- shading
+[[preset]]
+section = "shading"
+name = "As authored"
+about = "Every object keeps its own style"
+set = { style = "per object", style_objects = "per object", style_environment = "per object", cel_bands = 2.0, rim = 0.25, flat_shadow = 0.62, specular = 0.35 }
+
+[[preset]]
+section = "shading"
+name = "Cartoon"
+about = "Cel shading everywhere: two bands and a rim light"
+set = { style = "per object", style_objects = "cel", style_environment = "cel", cel_bands = 2.0, rim = 0.4, flat_shadow = 0.62, specular = 0.35 }
+
+[[preset]]
+section = "shading"
+name = "Toon 3-band"
+about = "Cel shading with three light bands"
+set = { style = "per object", style_objects = "cel", style_environment = "cel", cel_bands = 3.0, rim = 0.25, flat_shadow = 0.62, specular = 0.35 }
+
+[[preset]]
+section = "shading"
+name = "Flat 2D"
+about = "Flat colours with soft shadow tones"
+set = { style = "per object", style_objects = "flat", style_environment = "flat", cel_bands = 2.0, rim = 0.25, flat_shadow = 0.62, specular = 0.35 }
+
+[[preset]]
+section = "shading"
+name = "Smooth lit"
+about = "Smooth lighting with highlights"
+set = { style = "per object", style_objects = "lit", style_environment = "lit", cel_bands = 2.0, rim = 0.25, flat_shadow = 0.62, specular = 0.6 }
+
+[[preset]]
+section = "shading"
+name = "Lit heroes, flat world"
+about = "Characters and objects lit, the environment flat"
+set = { style = "per object", style_objects = "lit", style_environment = "flat", cel_bands = 2.0, rim = 0.25, flat_shadow = 0.55, specular = 0.5 }
+
+[[preset]]
+section = "shading"
+name = "Cel heroes, flat world"
+about = "Characters and objects cel shaded, the environment flat"
+set = { style = "per object", style_objects = "cel", style_environment = "flat", cel_bands = 2.0, rim = 0.45, flat_shadow = 0.6, specular = 0.35 }
+
+# ---------------------------------------------------------------- outlines
+[[preset]]
+section = "outlines"
+name = "None"
+about = "No outlines"
+set = { outlines = false, outline_px = 1.0, outline_darken = 0.35 }
+
+[[preset]]
+section = "outlines"
+name = "Thin"
+about = "1 px, a darker shade of the surface"
+set = { outlines = true, outline_px = 1.0, outline_darken = 0.35 }
+
+[[preset]]
+section = "outlines"
+name = "Bold"
+about = "2 px, dark"
+set = { outlines = true, outline_px = 2.0, outline_darken = 0.18 }
+
+[[preset]]
+section = "outlines"
+name = "Ink"
+about = "2 px, black"
+set = { outlines = true, outline_px = 2.0, outline_darken = 0.0 }
+
+[[preset]]
+section = "outlines"
+name = "Heavy ink"
+about = "3 px, black"
+set = { outlines = true, outline_px = 3.0, outline_darken = 0.0 }
+
+# ---------------------------------------------------------------- palette
+[[preset]]
+section = "palette"
+name = "Full colour"
+about = "No colour reduction"
+set = { "filter.palette" = "none", "filter.levels" = 0.0, "filter.dither" = 0.0 }
+
+[[preset]]
+section = "palette"
+name = "Game Boy"
+about = "Four greens, dithered"
+set = { "filter.palette" = "gameboy", "filter.levels" = 0.0, "filter.dither" = 0.6 }
+
+[[preset]]
+section = "palette"
+name = "PICO-8"
+about = "The sixteen PICO-8 colours"
+set = { "filter.palette" = "pico8", "filter.levels" = 0.0, "filter.dither" = 0.4 }
+
+[[preset]]
+section = "palette"
+name = "CGA"
+about = "Black, cyan, magenta, white"
+set = { "filter.palette" = "cga", "filter.levels" = 0.0, "filter.dither" = 0.7 }
+
+[[preset]]
+section = "palette"
+name = "1-bit"
+about = "Black and white, dithered"
+set = { "filter.palette" = "1bit", "filter.levels" = 0.0, "filter.dither" = 1.0 }
+
+[[preset]]
+section = "palette"
+name = "Amber"
+about = "An amber terminal"
+set = { "filter.palette" = "amber", "filter.levels" = 0.0, "filter.dither" = 0.5 }
+
+[[preset]]
+section = "palette"
+name = "Posterize"
+about = "8 shades per channel, no dither"
+set = { "filter.palette" = "none", "filter.levels" = 8.0, "filter.dither" = 0.0 }
+
+[[preset]]
+section = "palette"
+name = "64 colours"
+about = "4 shades per channel, dithered"
+set = { "filter.palette" = "none", "filter.levels" = 4.0, "filter.dither" = 0.8 }
+
+# ---------------------------------------------------------------- grading
+[[preset]]
+section = "grading"
+name = "Neutral"
+about = "No grading"
+set = { "filter.temperature" = 0.0, "filter.tint" = 0.0, "filter.contrast" = 1.0, "filter.brightness" = 1.0, "filter.saturation" = 1.0 }
+
+[[preset]]
+section = "grading"
+name = "Warm"
+about = "Golden hour"
+set = { "filter.temperature" = 0.5, "filter.tint" = 0.0, "filter.contrast" = 1.05, "filter.brightness" = 1.0, "filter.saturation" = 1.1 }
+
+[[preset]]
+section = "grading"
+name = "Cool"
+about = "Blue and crisp"
+set = { "filter.temperature" = -0.5, "filter.tint" = 0.0, "filter.contrast" = 1.05, "filter.brightness" = 1.0, "filter.saturation" = 0.95 }
+
+[[preset]]
+section = "grading"
+name = "Vivid"
+about = "Saturated and punchy"
+set = { "filter.temperature" = 0.0, "filter.tint" = 0.0, "filter.contrast" = 1.15, "filter.brightness" = 1.0, "filter.saturation" = 1.5 }
+
+[[preset]]
+section = "grading"
+name = "Noir"
+about = "Black and white, hard contrast"
+set = { "filter.temperature" = 0.0, "filter.tint" = 0.0, "filter.contrast" = 1.35, "filter.brightness" = 0.95, "filter.saturation" = 0.0 }
+
+[[preset]]
+section = "grading"
+name = "Faded"
+about = "Washed-out film"
+set = { "filter.temperature" = 0.1, "filter.tint" = 0.0, "filter.contrast" = 0.8, "filter.brightness" = 1.08, "filter.saturation" = 0.65 }
+
+[[preset]]
+section = "grading"
+name = "Sepia"
+about = "An old photograph"
+set = { "filter.temperature" = 0.9, "filter.tint" = 0.1, "filter.contrast" = 1.05, "filter.brightness" = 1.0, "filter.saturation" = 0.25 }
+
+[[preset]]
+section = "grading"
+name = "Night"
+about = "Dark and blue"
+set = { "filter.temperature" = -0.6, "filter.tint" = 0.0, "filter.contrast" = 1.1, "filter.brightness" = 0.7, "filter.saturation" = 0.8 }
+
+# ---------------------------------------------------------------- scanlines
+[[preset]]
+section = "scanlines"
+name = "Fine"
+about = "Thin lines every 2 px"
+set = { "filter.scanlines" = 0.35, "filter.scanline_px" = 2.0 }
+
+[[preset]]
+section = "scanlines"
+name = "Soft"
+about = "Gentle lines every 3 px"
+set = { "filter.scanlines" = 0.25, "filter.scanline_px" = 3.0 }
+
+[[preset]]
+section = "scanlines"
+name = "Arcade"
+about = "Clear lines every 3 px"
+set = { "filter.scanlines" = 0.5, "filter.scanline_px" = 3.0 }
+
+[[preset]]
+section = "scanlines"
+name = "Heavy"
+about = "Dark lines every 4 px"
+set = { "filter.scanlines" = 0.85, "filter.scanline_px" = 4.0 }
+
+# ---------------------------------------------------------------- grain and fringe
+[[preset]]
+section = "grain"
+name = "Clean"
+about = "No grain or colour fringe"
+set = { "filter.grain" = 0.0, "filter.chroma" = 0.0 }
+
+[[preset]]
+section = "grain"
+name = "Film"
+about = "Fine film grain"
+set = { "filter.grain" = 0.35, "filter.chroma" = 0.0 }
+
+[[preset]]
+section = "grain"
+name = "VHS"
+about = "Noise and colour fringes"
+set = { "filter.grain" = 0.5, "filter.chroma" = 0.6 }
+
+[[preset]]
+section = "grain"
+name = "Glitch"
+about = "Strong colour fringes"
+set = { "filter.grain" = 0.25, "filter.chroma" = 1.0 }
+
+# ---------------------------------------------------------------- screen
+[[preset]]
+section = "screen"
+name = "Flat screen"
+about = "No curvature, vignette or low resolution"
+set = { "filter.curvature" = 0.0, "filter.vignette" = 0.0, "filter.pixelate" = 1.0 }
+
+[[preset]]
+section = "screen"
+name = "Soft vignette"
+about = "Darker corners"
+set = { "filter.curvature" = 0.0, "filter.vignette" = 0.4, "filter.pixelate" = 1.0 }
+
+[[preset]]
+section = "screen"
+name = "CRT"
+about = "A gently curved tube"
+set = { "filter.curvature" = 0.12, "filter.vignette" = 0.5, "filter.pixelate" = 1.0 }
+
+[[preset]]
+section = "screen"
+name = "Old TV"
+about = "A round tube with dark corners"
+set = { "filter.curvature" = 0.3, "filter.vignette" = 0.8, "filter.pixelate" = 1.0 }
+
+[[preset]]
+section = "screen"
+name = "Low-res"
+about = "The whole screen at a third of its resolution"
+set = { "filter.curvature" = 0.0, "filter.vignette" = 0.0, "filter.pixelate" = 3.0 }
+
+# ---------------------------------------------------------------- glow and light
+[[preset]]
+section = "glow"
+name = "No glow"
+about = "Bloom off"
+set = { bloom = 0.0, bloom_threshold = 1.2, exposure = 1.0, gi = 0.0 }
+
+[[preset]]
+section = "glow"
+name = "Soft"
+about = "A little glow around bright things"
+set = { bloom = 0.35, bloom_threshold = 1.2, exposure = 1.0, gi = 0.0 }
+
+[[preset]]
+section = "glow"
+name = "Dreamy"
+about = "Wide, soft glow"
+set = { bloom = 1.0, bloom_threshold = 0.6, exposure = 1.0, gi = 0.0 }
+
+[[preset]]
+section = "glow"
+name = "Neon"
+about = "Strong glow on lights and spells"
+set = { bloom = 1.6, bloom_threshold = 0.9, exposure = 1.05, gi = 0.0 }
+
+[[preset]]
+section = "glow"
+name = "Bounce light"
+about = "Screen-space bounce light and soft occlusion"
+set = { bloom = 0.35, bloom_threshold = 1.2, exposure = 1.0, gi = 1.0 }
+
+# ================================================================ whole looks
+[[look]]
+name = "Pixel heroes"
+about = "A clean, sharp world; the characters and objects are outlined pixel art."
+[look.set]
+"filter.pixel_art" = 5.0
+"filter.pixel_target" = "objects"
+"filter.pixel_outline" = true
+
+[[look]]
+name = "HD-2D"
+about = "Pixel-art characters and objects in a soft, glowing 3D world with dark corners."
+[look.set]
+"filter.pixel_art" = 4.0
+"filter.pixel_target" = "objects"
+"filter.pixel_outline" = true
+bloom = 1.0
+bloom_threshold = 0.7
+"filter.vignette" = 0.55
+"filter.temperature" = 0.25
+"filter.saturation" = 1.2
+"filter.contrast" = 1.08
+"filter.grade_on" = "environment"
+
+[[look]]
+name = "Pixel world, crisp heroes"
+about = "The environment is pixel art; the characters and objects stay sharp, lit and inked."
+[look.set]
+"filter.pixel_art" = 5.0
+"filter.pixel_target" = "environment"
+"filter.pixel_outline" = false
+style = "per object"
+style_objects = "lit"
+specular = 0.5
+outlines = true
+outlines_on = "objects"
+outline_px = 2.0
+outline_darken = 0.0
+
+[[look]]
+name = "Game Boy world"
+about = "The environment in four Game Boy greens; the characters and objects in full colour with ink outlines."
+[look.set]
+"filter.palette" = "gameboy"
+"filter.dither" = 0.6
+"filter.color_on" = "environment"
+outlines = true
+outlines_on = "objects"
+outline_px = 2.0
+outline_darken = 0.0
+
+[[look]]
+name = "Game Boy"
+about = "Everything in four greens, pixelated and dithered."
+[look.set]
+"filter.pixel_art" = 4.0
+"filter.pixel_target" = "all"
+"filter.pixel_outline" = false
+"filter.palette" = "gameboy"
+"filter.dither" = 0.6
+
+[[look]]
+name = "16-bit"
+about = "The whole scene as 16-bit pixel art with a slightly vivid grade."
+[look.set]
+"filter.pixel_art" = 4.0
+"filter.pixel_target" = "all"
+"filter.pixel_levels" = 24.0
+"filter.pixel_outline" = true
+"filter.saturation" = 1.15
+"filter.contrast" = 1.05
+
+[[look]]
+name = "Cartoon"
+about = "Cel shading everywhere, bold ink outlines and vivid colour."
+[look.set]
+style = "per object"
+style_objects = "cel"
+style_environment = "cel"
+cel_bands = 2.0
+rim = 0.4
+outlines = true
+outline_px = 2.0
+outline_darken = 0.0
+"filter.saturation" = 1.3
+"filter.contrast" = 1.1
+
+[[look]]
+name = "Comic noir"
+about = "A black-and-white world; the characters and objects keep their colour, inked."
+[look.set]
+"filter.saturation" = 0.0
+"filter.contrast" = 1.35
+"filter.brightness" = 0.95
+"filter.grade_on" = "environment"
+outlines = true
+outline_px = 2.0
+outline_darken = 0.0
+"filter.vignette" = 0.5
+
+[[look]]
+name = "Flat paper"
+about = "Flat colours, thin outlines and a faded grade, like a printed page."
+[look.set]
+style = "per object"
+style_objects = "flat"
+style_environment = "flat"
+flat_shadow = 0.7
+outlines = true
+outline_px = 1.0
+outline_darken = 0.3
+"filter.saturation" = 0.8
+"filter.contrast" = 0.9
+"filter.brightness" = 1.05
+"filter.temperature" = 0.15
+"filter.grain" = 0.15
+
+[[look]]
+name = "Arcade CRT"
+about = "Low resolution on a curved tube with scanlines, glow and colour fringes."
+[look.set]
+"filter.pixelate" = 3.0
+"filter.curvature" = 0.15
+"filter.vignette" = 0.5
+"filter.scanlines" = 0.5
+"filter.scanline_px" = 3.0
+"filter.chroma" = 0.3
+bloom = 0.8
+bloom_threshold = 0.9
+
+[[look]]
+name = "Hologram heroes"
+about = "Characters and objects flicker like holograms: cool, scanlined and fringed. The world stays clean."
+[look.set]
+"filter.scanlines" = 0.7
+"filter.scanline_px" = 3.0
+"filter.scanlines_on" = "objects"
+"filter.grain" = 0.4
+"filter.grain_on" = "objects"
+"filter.chroma" = 0.8
+"filter.chroma_on" = "objects"
+"filter.temperature" = -0.8
+"filter.tint" = 0.3
+"filter.brightness" = 1.15
+"filter.grade_on" = "objects"
+bloom = 0.9
+bloom_threshold = 0.8
+
+[[look]]
+name = "Posterized world"
+about = "The environment in a few flat shades with flat shading; lit characters and objects in full colour."
+[look.set]
+"filter.levels" = 8.0
+"filter.dither" = 0.0
+"filter.color_on" = "environment"
+style = "per object"
+style_environment = "flat"
+style_objects = "lit"
+specular = 0.5

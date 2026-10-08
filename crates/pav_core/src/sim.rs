@@ -912,7 +912,16 @@ impl Sim {
                     });
                     let vehicle = e.vehicle.as_ref().map(|v| v.view());
                     let cone = self.guard_cone(e);
-                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle, cone })
+                    let scenery = e.character.is_none()
+                        && matches!(e.body_kind, BodyKind::None | BodyKind::Fixed)
+                        && matches!(e.behavior, Behavior::None)
+                        && e.bomb.is_none()
+                        && e.health.is_none()
+                        && e.vehicle.is_none()
+                        && e.soft.is_none()
+                        && e.lifetime.is_none()
+                        && !self.state.game.as_ref().is_some_and(|g| g.actors.contains_key(&e.id));
+                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle, cone, scenery })
                 })
                 .collect(),
             statics: self.state.statics.clone(),

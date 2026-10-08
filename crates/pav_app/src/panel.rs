@@ -16,6 +16,8 @@ pub enum PanelAction {
     LoadSnapshot,
     SaveReplay,
     Status(String),
+    /// Open the Look & Filters window.
+    Look,
 }
 
 pub struct Panel {
@@ -89,6 +91,13 @@ impl Panel {
             ui.horizontal(|ui| {
                 ui.heading("Tuning");
                 ui.label(RichText::new("F1").weak());
+                if ui
+                    .button("Look & filters…")
+                    .on_hover_text("Filters on the whole scene, the characters & objects or the environment, with presets")
+                    .clicked()
+                {
+                    actions.push(PanelAction::Look);
+                }
             });
             egui::ScrollArea::vertical().show(ui, |ui| {
                 self.time_section(ui, ctl, stats, &mut actions);
