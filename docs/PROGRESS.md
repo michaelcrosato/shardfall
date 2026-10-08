@@ -6,6 +6,27 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Fix: slides stopping dead on flat floors, treadmill walkers — 2026-10-08
+- **Not floor seams.** Slalom's floor is a single block. Rapier's character controller sometimes
+  drops all of a move's horizontal motion when the move presses down into level ground: the
+  floor's normal comes back as (0, 0.99999994, 0), which leaves its slope handling no horizontal
+  tangent, so it reads the tiny downward remainder as slipping on a non-slip slope and removes
+  everything. On the Slalom ICE run that was 8 ticks in 120. The "blocked by a wall" step
+  then copied the lost motion into the velocity: an ICE slide on the momentum model stopped dead
+  (7.5 to 0 m/s), and the instant model hitched for a tick. Now, when only level ground was hit
+  and motion was lost, `character.rs` redoes the move in two parts, across and then down.
+  Kinematic platforms still carry the character once: the across part never touches the floor.
+- **Treadmills.** The belt's push is subtracted before the blocked check, so walking against a
+  belt keeps the walker's own velocity and stride (Walk Cycles' treadmill walker: -0.3 to
+  -3 m/s, about 2 steps a second). A belt that shoves the character into a wall stops it rather
+  than setting it walking backwards.
+- Tests (tests/movement.rs, on an inline flat-floor room with a belt):
+  `slides_keep_their_speed_across_a_flat_floor` (momentum with the ICE settings and instant: no
+  tick under 95% of top speed, across two floor materials), and
+  `walking_against_a_treadmill_keeps_the_stride` (the walker's speed, steps and creep, the
+  player's full stride against the belt, and no walking backwards into the wall). Both fail
+  without the fix.
+
 ## Verticality Tower stairs you can walk up — 2026-10-08
 The tower's stairs rose 0.5 m a step, above the character controller's 0.32 m auto-step
 (`movement.step_height`), so every step needed a small jump. They were an engine quirk the guide
@@ -103,11 +124,11 @@ texture-based material path this renderer does not have. Taken, and done the 3D 
   boids) need a texture material path; halos ignore shadows (a lamp behind a pillar still glows
   in front of it); the haze is a full-resolution 32-step march without temporal filtering, so it
   shows fine grain; the water is drawn opaque.
-- Engine quirks the guide writers found (not fixed here): an ICE slide on the momentum model can
-  stop dead at floor-tile seams in Slalom; the Verticality Tower's 0.5 m stairs needed small jumps
-  (auto-step is 0.32 m; fixed since, see above); a treadmill walker's legs barely move (belt push
-  counted as blocked); the stealth room's painted cone is cast from 0.6 m while sight is checked
-  from 1.3 m.
+- Engine quirks the guide writers found (not fixed here): the stealth room's painted cone is cast
+  from 0.6 m while sight is checked from 1.3 m. Fixed since (see above): the Verticality Tower's
+  0.5 m stairs needed small jumps (auto-step is 0.32 m); an ICE slide on the momentum model stopped
+  dead in Slalom (not at floor seams, as first thought); a treadmill walker's legs barely moved
+  (belt push counted as blocked).
 
 ## Look & Filters: every filter on a part of the scene — 2026-10-08
 - **Parts of the scene.** Every drawn instance is either *characters & objects* or the

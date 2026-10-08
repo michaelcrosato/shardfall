@@ -980,20 +980,40 @@ pub fn tick(
         desired.x *= f;
         desired.z *= f;
     }
-    if was_grounded && !climbing && !hanging {
-        // Conveyor belts carry whoever stands on them.
-        desired += conveyor * dt;
-    }
+    // Conveyor belts carry whoever stands on them.
+    let belt = if was_grounded && !climbing && !hanging { conveyor * dt } else { Vec3::ZERO };
+    desired += belt;
     if desired.length_squared() < 1e-8 && !climbing && !hanging {
         // A hair of downward motion keeps the controller running its ground checks, which is
         // where it carries the character along with moving platforms.
         desired.y -= 1e-3;
     }
     let mut collisions: Vec<CharacterCollision> = Vec::new();
-    let mv = {
+    let mut mv = {
         let qp = st.physics.query_filtered(filter);
         kcc.move_shape(dt as Real, &qp, shape.as_ref(), &Pose::from_translation(center), desired, |c| collisions.push(c))
     };
+    // Rapier can drop all the horizontal motion of a move that presses down into level ground:
+    // the floor's normal leaves it no horizontal direction to slide along, so the character
+    // stops dead in the middle of a flat floor. Redo such a move in two parts, across and then
+    // down, so neither part mixes the two.
+    let want = Vec2::new(desired.x, desired.z).length();
+    let got = Vec2::new(mv.translation.x, mv.translation.z).length();
+    if desired.y < 0.0
+        && want > 1e-4
+        && got < want * 0.99
+        && !collisions.is_empty()
+        && collisions.iter().all(|c| c.hit.normal1.y > 0.999)
+    {
+        collisions.clear();
+        let qp = st.physics.query_filtered(filter);
+        let across = Vec3::new(desired.x, 0.0, desired.z);
+        let a = kcc.move_shape(dt as Real, &qp, shape.as_ref(), &Pose::from_translation(center), across, |c| collisions.push(c));
+        let at = Pose::from_translation(center + a.translation);
+        let down = Vec3::Y * desired.y;
+        mv = kcc.move_shape(dt as Real, &qp, shape.as_ref(), &at, down, |c| collisions.push(c));
+        mv.translation += a.translation;
+    }
     {
         let ph = &mut st.physics;
         let mut qpm =
@@ -1052,11 +1072,15 @@ pub fn tick(
         }
     }
     if dt > 0.0 && !climbing && !hanging {
-        // Blocked by a wall: keep only the motion that actually happened (sliding along it).
-        let actual = Vec2::new(moved.x - lock_fix.x, moved.z - lock_fix.z) / dt;
-        if actual.length() + 0.01 < Vec2::new(ch.vel.x, ch.vel.z).length() {
-            ch.vel.x = actual.x;
-            ch.vel.z = actual.y;
+        // Blocked by a wall: keep only the motion that actually happened (sliding along it). A
+        // belt's push is not the character's own motion: walking against a treadmill keeps the
+        // stride, and a belt shoving it into a wall never turns that into walking backwards.
+        let own = Vec2::new(moved.x - lock_fix.x - belt.x, moved.z - lock_fix.z - belt.z) / dt;
+        let vel = Vec2::new(ch.vel.x, ch.vel.z);
+        if own.length() + 0.01 < vel.length() {
+            let own = if own.dot(vel) < 0.0 { Vec2::ZERO } else { own };
+            ch.vel.x = own.x;
+            ch.vel.z = own.y;
         }
     }
 

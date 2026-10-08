@@ -5,6 +5,7 @@ use glam::{Quat, Vec2, Vec3};
 use pav_core::character::MovementModel;
 use pav_core::entity::{EmitterDef, Hazard, MoverDef, Pattern};
 use pav_core::input::buttons;
+use pav_core::room::RoomDef;
 use pav_core::{Behavior, BodyKind, Color, InputFrame, Shape, Sim, Spawn, Visual};
 
 fn feet(sim: &Sim) -> Vec3 {
@@ -217,4 +218,116 @@ fn walk_across_a_kinematic_slab() {
     let f = feet(&sim);
     assert!(f.x > 1.5, "walked across the slab: {f}");
     assert!(f.y > 2.05, "on top: {f}");
+}
+
+/// A 42 m flat floor in two materials that meet at x = 0, and beside it an eastward belt
+/// (2.7 m/s) running into the east wall, with a walker on it heading west: a treadmill.
+const FLATS: &str = r##"
+name = "FLATS"
+entrance = { at = [21, 7], facing = "north" }
+[layout]
+origin = [-22.0, 0.0, -4.0]
+[[layout.layer]]
+map = '''
+############################################
+#aaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbb#
+#aaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbb#
+#..........................................#
+#..>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#..>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#..........................................#
+#####################.######################
+'''
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#a8d8ea" }]
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#c5d3b8" }]
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 3, color = "#b9c3cf" }]
+[layout.legend.'>']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a4f57" }]
+zone = { kind = "conveyor", facing = "east", speed = 2.7 }
+
+[[npc]]
+name = "treadmill"
+pos = [41.5, 0, 5.0]
+ai = { type = "patrol", points = [[3.0, 5.0], [41.5, 5.0]], pause = 0.0 }
+speed = 0.5
+"##;
+
+fn flats() -> Sim {
+    let def = RoomDef::parse(FLATS).expect("room parses");
+    let mut sim = Sim::empty(1);
+    pav_core::scenes::build_standalone_room(&mut sim, "flats", def);
+    sim.state.scene = "flats".into();
+    go(&mut sim, Vec2::ZERO, 10);
+    sim
+}
+
+#[test]
+fn slides_keep_their_speed_across_a_flat_floor() {
+    // Rapier's controller now and then dropped a whole tick of motion when a move pressed down
+    // into level ground: an ice slide (momentum) stopped dead mid-floor, a walk (instant) hitched.
+    for model in [MovementModel::Momentum, MovementModel::Instant] {
+        let mut sim = flats();
+        let m = &mut sim.config.movement;
+        m.model = model;
+        (m.accel, m.decel, m.skid_decel) = (10.0, 3.0, 14.0); // the Slalom's ICE pad
+        let top = if model == MovementModel::Momentum { m.max_speed } else { m.speed };
+        put(&mut sim, Vec3::new(-20.0, 0.5, -2.0));
+        let hz = 1.0 / sim.dt();
+        let mut x = feet(&sim).x;
+        let mut slowest = f32::MAX;
+        for t in 0..240 {
+            go(&mut sim, Vec2::new(1.0, 0.0), 1);
+            let nx = feet(&sim).x;
+            if t >= 60 {
+                slowest = slowest.min((nx - x) * hz);
+            }
+            x = nx;
+        }
+        assert!(x > 2.0, "{model:?} crossed where the floors meet: x = {x}");
+        assert!(slowest > top * 0.95, "{model:?} kept its speed: slowest tick {slowest:.2} m/s of {top}");
+    }
+}
+
+#[test]
+fn walking_against_a_treadmill_keeps_the_stride() {
+    let mut sim = flats();
+    go(&mut sim, Vec2::ZERO, 60);
+    let start = sim.state.entities.find("treadmill").unwrap().pos;
+    // The walker strides at its own 3 m/s (legs and all) while the belt holds it nearly still.
+    let mut cycles = 0.0;
+    for _ in 0..60 {
+        let before = sim.state.entities.find("treadmill").unwrap().character.as_ref().unwrap().anim.phase;
+        go(&mut sim, Vec2::ZERO, 1);
+        let w = sim.state.entities.find("treadmill").unwrap();
+        let ch = w.character.as_ref().unwrap();
+        assert!(ch.vel.x < -2.8, "walker strides at its own speed: {}", ch.vel);
+        cycles += (ch.anim.phase - before).rem_euclid(1.0);
+    }
+    assert!(cycles > 1.0, "legs walk: {cycles:.2} cycles in a second");
+    let w = sim.state.entities.find("treadmill").unwrap();
+    let crept = start.x - w.pos.x;
+    assert!(crept > 0.1 && crept < 1.0, "the belt holds it back: crept {crept:.2} m in a second");
+
+    // The player too: full speed against the belt, only the difference over the ground.
+    let top = sim.config.movement.speed;
+    put(&mut sim, Vec3::new(17.0, 0.5, 1.0));
+    let x0 = feet(&sim).x;
+    go(&mut sim, Vec2::new(-1.0, 0.0), 60);
+    let ch = sim.player().unwrap().character.as_ref().unwrap();
+    assert!(ch.vel.x < -top * 0.95, "player strides at full speed: {}", ch.vel);
+    let net = x0 - feet(&sim).x;
+    assert!(net > (top - 2.7) * 0.8 && net < (top - 2.7) * 1.2, "net {net:.2} m in 1 s");
+
+    // Walking with the belt into the wall is blocked, never walking backwards.
+    put(&mut sim, Vec3::new(20.0, 0.5, 1.0));
+    for _ in 0..30 {
+        go(&mut sim, Vec2::new(1.0, 0.0), 1);
+        let v = sim.player().unwrap().character.as_ref().unwrap().vel;
+        assert!(v.x > -0.01, "pinned against the wall, not backing off: {v}");
+    }
 }
