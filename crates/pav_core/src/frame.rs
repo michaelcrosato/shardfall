@@ -244,6 +244,8 @@ pub struct HudFrame {
     pub view_serial: u64,
     /// Boss health bar: name and remaining fraction.
     pub boss: Option<(String, f32)>,
+    /// The last pad with a note the player stepped on: label, note, tick.
+    pub pad_note: Option<(String, String, u64)>,
 }
 
 /// Physics counters for the stats overlay.

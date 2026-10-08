@@ -6,6 +6,7 @@ pub mod camera;
 pub mod fx;
 pub mod look;
 pub mod vehicles;
+pub mod water;
 
 pub use build::{ViewBuilder, ViewSettings};
 pub use camera::{CameraParams, CameraRig};

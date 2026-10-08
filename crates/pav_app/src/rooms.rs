@@ -22,6 +22,8 @@ pub struct RoomEntry {
     pub name: String,
     pub wing: String,
     pub about: String,
+    /// The station guide's "ask for it" phrases (field guide).
+    pub ask: Vec<String>,
 }
 
 pub enum TeleportTarget {
@@ -82,9 +84,11 @@ impl RoomHud {
         self.card_until = Some(Instant::now() + Duration::from_secs(30));
     }
 
-    /// Info card + control guide for the room (top-left).
-    pub fn card(&mut self, ctx: &egui::Context, last_device: Device) {
-        let Some(room) = &self.current else { return };
+    /// Info card + control guide for the room (top-left). Returns true when "How it works"
+    /// was clicked.
+    pub fn card(&mut self, ctx: &egui::Context, last_device: Device) -> bool {
+        let Some(room) = &self.current else { return false };
+        let mut open_guide = false;
         let def = &room.def;
         let mut open = true;
         egui::Window::new(if def.name.is_empty() { room.key.clone() } else { def.name.clone() })
@@ -97,6 +101,14 @@ impl RoomHud {
             .show(ctx, |ui| {
                 if !def.about.is_empty() {
                     ui.label(&def.about);
+                }
+                if !def.learn.is_empty()
+                    && ui
+                        .button(RichText::new("How it works (H) »").strong())
+                        .on_hover_text("How it works, the pads, live settings, where games use it, how to ask for it, the code")
+                        .clicked()
+                {
+                    open_guide = true;
                 }
                 if !def.try_list.is_empty() {
                     ui.add_space(4.0);
@@ -142,11 +154,12 @@ impl RoomHud {
                 if let Some(m) = def.movement_model {
                     ui.label(RichText::new(format!("Movement model: {}", params::ChoiceParam::name(m))).small());
                 }
-                ui.label(RichText::new("F2 rooms · F4 leave · F5 reset room").small().weak());
+                ui.label(RichText::new("H how it works · F2 rooms · F4 leave · F5 reset room").small().weak());
             });
-        if !open {
+        if !open || open_guide {
             self.card_until = None;
         }
+        open_guide
     }
 
     /// The teleport menu (F2). Returns where to go.

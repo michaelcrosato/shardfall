@@ -11,6 +11,105 @@ wing = "misc"
 order = 0
 entrance = { at = [10, 15], facing = "south" }
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "An empty 21 x 16 room with one orange crate, waiting for you to build. Press F10 for edit mode: Place, Move and Delete objects with the mouse, pick a shape, size and colour, and tick physics to make it fall and push. Saving writes your objects into rooms/sandbox.toml, and the room reloads from the file."
+how = [
+  "A room is a data file: a tile map where each character is looked up in a legend of blocks (slabs from y0 to y1 in a colour) and zones (pads, belts, water), plus free-placed [[object]] tables, labels, joints and chains. A new room needs no code.",
+  "Edit mode casts a ray from the mouse through the camera into the physics world every frame, the same kind of query the character uses to find the floor under its feet. Place spawns the chosen shape on the surface the ray hits, Move drags the object along the hit point, Delete removes what it hits.",
+  "Saving asks the simulation for the room's objects, keeps every line of the file outside the [[object]] tables (map, legend, settings), appends one compact [[object]] per object, and refuses to write a file that would not parse.",
+  "Hot reload: the game watches the rooms folder, and 250 ms after the last change to a .toml file it re-reads the rooms and rebuilds the ones that changed; a file with a mistake keeps its room as it was and shows the error. If a room's map size, entrance or wing changed, the whole pavilion is laid out again.",
+  "Room files are also built into the game: a file in rooms/ replaces the built-in copy of the same name, a new file adds a room without rebuilding the game, and names starting with _ are templates.",
+]
+uses = [
+  "Level editors: Super Mario Maker, LittleBigPlanet and Dreams let players build and share levels from parts.",
+  "Data-driven levels: Doom kept its levels in WAD files separate from the engine, which is a big reason modding took off.",
+  "Physics sandboxes: Garry's Mod is a room full of props you spawn, weld and knock over.",
+  "Hot reload: engine editors such as Unity, Godot and Unreal pick up a changed asset without restarting, which keeps iteration fast.",
+]
+ask = [
+  "in-game level editor that saves to a data file",
+  "hot reload of level files while the game runs",
+  "place, move and delete objects with the mouse",
+  "levels as text tile maps with a legend",
+  "sandbox room full of physics props",
+]
+cost = "Nothing while you play: the file watcher waits for the operating system to report a change, and edit mode adds one ray cast per frame. A reload rebuilds only the rooms that changed (their blocks, colliders and objects); a changed footprint lays out the whole pavilion again, which takes a moment."
+knobs = ["sim.gravity", "movement.push_mass", "bombs.push", "camera.tilt", "camera.distance"]
+terms = ["raycast", "rigid body", "instancing", "sdf"]
+
+[[learn.code]]
+title = "Place: spawn the shape where the mouse ray hits"
+file = "crates/pav_app/src/edit.rs"
+lang = "rust"
+src = """
+let (o, d) = rig.screen_ray(cursor, size);
+let exclude = self.dragging;
+self.hover = host.query(move |sim| sim.raycast(o, d, 500.0, exclude)).flatten();
+// ...
+Tool::Place => {
+    if pressed {
+        if let Some(h) = self.hover {
+            let shape = self.shape();
+            let up = shape.half_extents().y;
+            let pos = h.point + h.normal * 0.02 + Vec3::Y * up;
+            let body = if self.dynamic { BodyKind::Dynamic } else { BodyKind::Fixed };
+            // ...
+        }
+    }
+}
+"""
+
+[[learn.code]]
+title = "Save: keep the file, replace the objects"
+file = "crates/pav_core/src/world.rs"
+lang = "rust"
+src = """
+pub fn rewrite_room_objects(text: &str, objects: &[crate::room::ObjectDef]) -> String {
+    let mut keep = String::new();
+    let mut in_obj = false;
+    for line in text.lines() {
+        let t = line.trim_start();
+        if t.starts_with("[[object]]") {
+            in_obj = true;
+            continue;
+        }
+        if in_obj && t.starts_with('[') {
+            in_obj = false;
+        }
+        if !in_obj {
+            keep.push_str(line);
+            keep.push('\\n');
+        }
+    }
+    // ...
+    for o in objects {
+        keep.push('\\n');
+        keep.push_str(&object_toml(o));
+    }
+    keep
+}
+"""
+
+[[learn.code]]
+title = "Hot reload: wait until the files settle"
+file = "crates/pav_app/src/rooms.rs"
+lang = "rust"
+src = """
+pub fn poll(&mut self) -> bool {
+    while self.rx.try_recv().is_ok() {
+        self.dirty_since = Some(Instant::now());
+    }
+    match self.dirty_since {
+        Some(t) if t.elapsed() > Duration::from_millis(250) => {
+            self.dirty_since = None;
+            true
+        }
+        _ => false,
+    }
+}
+"""
+
 [layout]
 [[layout.layer]]
 y = 0

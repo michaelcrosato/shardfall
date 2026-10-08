@@ -36,6 +36,72 @@ sky = "#0e1424"
 bloom = 0.8
 bloom_threshold = 1.2
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Everything brighter than white glows: the brightness ladder shows where glow starts (emissive 0.5 stays plain, 2 and up bloom), the neon tubes and lamps spill light onto the dark wall around them, and the sparkles glow because their particles are drawn brighter than white. The pads change the glow's strength, where it starts and the time of day."
+how = [
+  "The scene is drawn in HDR: colours may go far above 1.0 (white), so a lamp can be eight times brighter than paper.",
+  "Bright pass: a half-size copy keeps only what is brighter than the threshold, with a soft knee so glow fades in instead of switching on.",
+  "Blur by shrinking: the copy is halved four more times (5 levels); every step averages neighbouring pixels, so each level is a wider, softer blur than the last.",
+  "Growing back: each level is enlarged with a tent filter and added onto the next bigger one, which sums the narrow and the wide glow into one soft halo.",
+  "The composite adds that halo onto the picture times the bloom strength, before exposure and tonemapping squeeze everything into the screen's range.",
+]
+uses = [
+  "Neon and sci-fi: signs, lasers and HUDs that buzz with light (Cyberpunk 2077, Tron-likes, Hotline Miami).",
+  "Magic and loot: spells, legendary drops and pickups that glow so you spot them (Diablo, Hades).",
+  "Mood: a dreamy, soft glow on everything for memories, heaven or underwater (Ori, Journey).",
+  "Day and night: the same glow nearly vanishes in sunlight and dominates in the dark, which sells night scenes.",
+]
+ask = [
+  "HDR bloom with a threshold and soft knee",
+  "neon glow on emissive signs at night",
+  "dual-filter (downsample / upsample) bloom",
+  "glowing loot that stands out in the dark",
+  "dreamy wide bloom for a memory scene",
+]
+cost = "Five small passes: the first is half the screen's size and each next one a quarter of the last, so the whole chain costs less than one full-screen pass (well under a millisecond). Lowering the threshold costs nothing extra; it just lets more of the picture glow."
+knobs = ["view.bloom", "view.bloom_threshold", "view.exposure", "view.tonemap", "view.light.sun_intensity"]
+terms = ["hdr", "bloom", "threshold", "emissive", "tonemapping", "exposure", "additive blending"]
+
+[[learn.code]]
+title = "Bright pass with a soft knee"
+file = "crates/pav_render/src/shaders/bloom.wgsl"
+lang = "wgsl"
+src = """
+@fragment
+fn fs_prefilter(@builtin(position) frag: vec4<f32>) -> @location(0) vec4<f32> {
+    let c = min(down(frag.xy * b.dst_texel), vec3<f32>(32.0));
+    let l = max(c.r, max(c.g, c.b));
+    let soft = clamp(l - b.threshold + b.knee, 0.0, 2.0 * b.knee);
+    let s = soft * soft / (4.0 * b.knee + 1e-4);
+    let w = max(s, l - b.threshold) / max(l, 1e-4);
+    return vec4<f32>(c * w, 1.0);
+}
+"""
+
+[[learn.code]]
+title = "Tent filter on the way back up"
+file = "crates/pav_render/src/shaders/bloom.wgsl"
+lang = "wgsl"
+src = """
+var c = tap(uv) * 4.0;
+c += (tap(uv + vec2<f32>(t.x, 0.0)) + tap(uv - vec2<f32>(t.x, 0.0)) + tap(uv + vec2<f32>(0.0, t.y)) + tap(uv - vec2<f32>(0.0, t.y))) * 2.0;
+c += tap(uv + t) + tap(uv - t) + tap(uv + vec2<f32>(t.x, -t.y)) + tap(uv + vec2<f32>(-t.x, t.y));
+return vec4<f32>(c / 16.0, 1.0);
+"""
+
+[[learn.code]]
+title = "The composite adds the glow before tonemapping"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+if (post.misc.y > 0.0) {
+    col += textureSampleLevel(bloom_tex, lin, uv, 0.0).rgb * post.misc.y;
+}
+col = col * post.tone.x;
+col = tonemap(col, post.tone.y);
+"""
+
 [layout]
 origin = [-20.0, 0.0, -13.0]
 
@@ -81,43 +147,43 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#1d3a2a" }]
 
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "BLOOM OFF", color = "#3b4054", params = { "view.bloom" = 0.0 } }
+zone = { kind = "pad", label = "BLOOM OFF", color = "#3b4054", params = { "view.bloom" = 0.0 }, note = "Strength 0: the composite adds no glow. Neon is just its flat colour and the lamps lose their halos, though they are exactly as bright as before." }
 
 [layout.legend.'b']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "SUBTLE", color = "#2f6fa8", params = { "view.bloom" = 0.35 } }
+zone = { kind = "pad", label = "SUBTLE", color = "#2f6fa8", params = { "view.bloom" = 0.35 }, note = "Strength 0.35, the engine's default: a hint of glow on the brightest things only." }
 
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "STRONG", color = "#7a45c8", params = { "view.bloom" = 1.0 } }
+zone = { kind = "pad", label = "STRONG", color = "#7a45c8", params = { "view.bloom" = 1.0 }, note = "Strength 1: the blurred bright pass is added at full weight, so lamps and neon spill wide halos onto the wall." }
 
 [layout.legend.'d']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DREAMY", color = "#c03d96", params = { "view.bloom" = 2.0 } }
+zone = { kind = "pad", label = "DREAMY", color = "#c03d96", params = { "view.bloom" = 2.0 }, note = "Strength 2: the glow is added twice over and starts to wash the room in light, the soft-focus look of dreams and flashbacks." }
 
 [layout.legend.'e']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "THRESHOLD LOW", color = "#9a7a1c", label_size = 0.36, params = { "view.bloom_threshold" = 0.6 } }
+zone = { kind = "pad", label = "THRESHOLD LOW", color = "#9a7a1c", label_size = 0.36, params = { "view.bloom_threshold" = 0.6 }, note = "Threshold 0.6: anything brighter than 60% grey starts to glow, even the bright pads and the 1 sphere. Low thresholds make everything hazy." }
 
 [layout.legend.'g']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "THRESHOLD HIGH", color = "#a8541c", label_size = 0.36, params = { "view.bloom_threshold" = 2.0 } }
+zone = { kind = "pad", label = "THRESHOLD HIGH", color = "#a8541c", label_size = 0.36, params = { "view.bloom_threshold" = 2.0 }, note = "Threshold 2: only things twice as bright as white glow, so the 4 and 8 spheres and the neon keep their halos and the rest stays crisp." }
 
 [layout.legend.'h']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DAYLIGHT", color = "#b08a1c", params = { "view.light.sun_intensity" = 0.7, "view.light.ambient" = 1.0, "view.sky" = "#8fb8d8", "view.light.sun_elevation" = 58.0 } }
+zone = { kind = "pad", label = "DAYLIGHT", color = "#b08a1c", params = { "view.light.sun_intensity" = 0.7, "view.light.ambient" = 1.0, "view.sky" = "#8fb8d8", "view.light.sun_elevation" = 58.0 }, note = "A bright sun and sky: the glow is the same but the picture around it is bright too, so it hardly shows. Bloom sells darkness." }
 
 [layout.legend.'i']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "DUSK", color = "#b0502e", params = { "view.light.sun_intensity" = 0.25, "view.light.ambient" = 0.55, "view.sky" = "#3a2a4e", "view.light.sun_elevation" = 9.0 } }
+zone = { kind = "pad", label = "DUSK", color = "#b0502e", params = { "view.light.sun_intensity" = 0.25, "view.light.ambient" = 0.55, "view.sky" = "#3a2a4e", "view.light.sun_elevation" = 9.0 }, note = "Low sun and dim sky: the glow starts to dominate." }
 
 [layout.legend.'j']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "NIGHT", color = "#3a46a8", params = { "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
+zone = { kind = "pad", label = "NIGHT", color = "#3a46a8", params = { "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 }, note = "The room's own night: dark surroundings make every emissive thing pop." }
 
 [layout.legend.'k']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2f3f" }]
-zone = { kind = "pad", label = "RESET ALL", color = "#2f8a52", label_size = 0.4, params = { "view.bloom" = 0.8, "view.bloom_threshold" = 1.2, "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 } }
+zone = { kind = "pad", label = "RESET ALL", color = "#2f8a52", label_size = 0.4, params = { "view.bloom" = 0.8, "view.bloom_threshold" = 1.2, "view.light.sun_intensity" = 0.06, "view.light.ambient" = 0.32, "view.sky" = "#0e1424", "view.light.sun_elevation" = 20.0 }, note = "Back to the room's starting bloom, threshold and night lighting." }
 
 # ---- exhibits (labels, then objects: keep at the end of the file) ----
 

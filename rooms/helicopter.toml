@@ -1,5 +1,5 @@
 # Helicopter Run: a small city of 5-14 m towers, an arcade helicopter and a timed flight course.
-# Get into the helicopter on the START pad (interact = E), wait for the rotor to spin up (~1.5 s),
+# Get into the helicopter on the START pad (interact = E), wait for the rotor to spin up (under a second),
 # then hold Space to climb, C to descend and move with WASD (it leans into its motion and turns
 # toward where it goes; with no input it hovers). Course "flight": leave the START pad (the clock
 # starts), fly through the 9 floating rings in order (a missed ring adds 2 s) and land on the
@@ -28,7 +28,7 @@
 name = "Helicopter Run"
 about = "A small city of towers to fly through in an arcade helicopter (E to get in): hover and land on the practice pad, then run the 9-ring course from the START pad up the avenue, down the west street and up the east street to a landing on the FINISH roof."
 try = [
-  "Walk onto the START pad and press E at the red helicopter; wait ~1.5 s for the rotor to spin up",
+  "Walk onto the START pad and press E at the red helicopter; wait a moment for the rotor to spin up",
   "Hold Space to climb, C to descend, WASD to fly; let go of everything and it hovers",
   "Practice first: take the green trainer (slower, gentler) from the PRACTICE pad, hover, and land on the TOUCHDOWN bullseye",
   "Run the course: leaving the START pad starts the clock; fly through rings 1-9 in order (a missed ring is +2 s)",
@@ -49,6 +49,86 @@ controls = [["Get in / out", "E (near the helicopter)"], ["Fly", "W A S D"], ["C
 [camera]
 tilt = 50.0
 distance = 24.0
+
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Two helicopters on the south plaza: the red one on the START pad (12 m/s, climbs at 5 m/s) and the slower green trainer on the PRACTICE pad (7 m/s, climbs at 3 m/s), with the LANDING TARGET bullseye beside it. The course climbs and dips through 9 floating rings between towers 5 to 14 m tall, crosses the CHECKPOINT pad on the low teal roof and ends with a touchdown on the checkered FINISH pad on the north-east tower."
+how = [
+  "Getting in spins the rotor up: its speed eases toward full and the helicopter flies once it passes 70%, about 0.8 s later. Until then it is an ordinary rigid body under gravity; while it flies its gravity is switched off, so hovering takes no effort at all.",
+  "The stick sets a wished velocity (stick times top speed), and each tick the real velocity moves toward it by at most the power times the tick length (12 m/s² for the red one, 7 for the trainer). That one limit gives the smooth speed-up, the coast to a stop when you let go, and the hover.",
+  "Space and C set a climb speed that the vertical velocity eases toward. In the last metre below the ceiling (14 m above where it was parked) the climb fades out instead of stopping dead.",
+  "The pose is computed, not simulated: the heading turns toward the direction of travel above 1 m/s, the nose dips with forward acceleration (up to 0.25 rad) plus a little more at top speed, and it rolls into sideways acceleration. The physics body cannot rotate by itself, so towers push it but never spin it.",
+  "Course zones are boxes with a height range, tested against your feet, which are the helicopter's bottom while you sit in it. Rings are gates 3 to 10 m up, START reaches 1.5 m so lifting off starts the clock, FINISH reaches only 0.2 m above the roof so you must touch down, and above 10.4 m (or over a wall) is a kill zone back to your checkpoint.",
+  "From a high camera, height is hard to judge: the helicopter's sun shadow on the street and the roofs is your best cue, which is why it helps to fly with shadows on.",
+]
+uses = [
+  "Arcade choppers: Desert Strike flies an attack helicopter over an isometric map with simple stick controls.",
+  "Rescue runs: Choplifter is all lift-off, hover and landing to pick people up and fly them home.",
+  "Flight courses: Pilotwings scores you on rings flown in order and on landing on a target.",
+  "Readable motion: tilting a flyer toward where it accelerates shows its speed and direction at a glance, even from far above.",
+]
+ask = [
+  "arcade helicopter that hovers when you let go",
+  "helicopter that leans into its acceleration and turns toward its motion",
+  "rotor spin-up before take-off",
+  "flight course of rings with a landing finish",
+  "soft height ceiling that eases off the climb",
+  "kill volume above the map that respawns at a checkpoint",
+]
+cost = "Nearly free: no forces and no ray casts, just a velocity and a rotation written into one physics body each tick, with Rapier handling the bumps against towers. The room costs more than the flying: every ring is 12 fixed boxes on a stand, and the rings, ceiling and finish are box tests of your feet every tick."
+knobs = ["camera.tilt", "camera.distance", "camera.follow_lag", "camera.fov", "view.light.shadows", "view.light.sun_elevation"]
+terms = ["rigid body", "procedural animation", "fixed timestep", "shadow map", "game feel"]
+
+[[learn.code]]
+title = "Hover: no gravity, velocity eased toward the stick"
+file = "crates/pav_core/src/vehicle.rs"
+lang = "rust"
+src = """
+let target_rotor = if v.driver.is_some() { 1.0 } else { 0.0 };
+v.rotor_speed += (target_rotor - v.rotor_speed) * (1.0 - (-1.5 * dt).exp());
+let flying = v.rotor_speed > 0.7;
+b.set_gravity_scale(if flying { 0.0 } else { 1.0 }, true);
+if flying {
+    let vel = b.linvel();
+    let wish = Vec3::new(inp.move_dir.x, 0.0, inp.move_dir.y).clamp_length_max(1.0) * v.def.max_speed;
+    let dvh = (wish - Vec3::new(vel.x, 0.0, vel.z)).clamp_length_max(v.def.power * dt);
+    // Climbing eases off toward the ceiling.
+    let room = v.ground + v.def.ceiling - (b.translation().y - v.base);
+    let climb = if inp.down(buttons::JUMP) {
+        v.def.climb * room.clamp(0.0, 1.0)
+    } else if inp.down(buttons::CROUCH) {
+        -v.def.climb
+    } else {
+        0.0
+    };
+    let vy = vel.y + (climb - vel.y) * (1.0 - (-4.0 * dt).exp());
+    let nv = Vec3::new(vel.x + dvh.x, vy, vel.z + dvh.z);
+    b.set_linvel(nv, true);
+"""
+
+[[learn.code]]
+title = "Lean into the acceleration, turn toward the motion"
+file = "crates/pav_core/src/vehicle.rs"
+lang = "rust"
+src = """
+    // Lean into the motion, turn toward where it is going.
+    let h = Vec2::new(nv.x, nv.z);
+    if h.length() > 1.0 {
+        let want = h.x.atan2(h.y);
+        v.yaw += wrap(want - v.yaw) * (1.0 - (-2.5 * dt).exp());
+    }
+    let accel = dvh / dt.max(1e-4) / v.def.power.max(0.1);
+    let (s, c) = v.yaw.sin_cos();
+    let local = Vec2::new(accel.x * c - accel.z * s, accel.x * s + accel.z * c);
+    let speed_tilt = Vec2::new(h.length() / v.def.max_speed.max(0.1), 0.0);
+    let target = Vec2::new(local.y * 0.25 + speed_tilt.x * 0.18, -local.x * 0.25);
+    v.tilt += (target - v.tilt) * (1.0 - (-5.0 * dt).exp());
+    // ...
+}
+let rot = Quat::from_rotation_y(v.yaw) * Quat::from_rotation_x(v.tilt.x) * Quat::from_rotation_z(v.tilt.y);
+b.set_rotation(rot, true);
+v.rotor = (v.rotor + v.rotor_speed * 28.0 * dt).rem_euclid(std::f32::consts::TAU);
+"""
 
 [layout]
 origin = [-30.0, 0.0, -22.0]
@@ -108,7 +188,7 @@ blocks = [{ color = "#6d7580", y0 = -0.5, y1 = 0 }, { color = "#4f5866", y0 = 0,
 zone = { color = "none", kind = "kill", y0 = 9, y1 = 400 }
 [layout.legend.'+']
 blocks = [{ color = "#f4f1ea", y0 = -0.5, y1 = 0 }]
-zone = { color = "none", kind = "pad", label = "TOUCHDOWN", label_size = 0.3, y0 = 0, y1 = 0.5 }
+zone = { color = "none", kind = "pad", label = "TOUCHDOWN", label_size = 0.3, y0 = 0, y1 = 0.5, note = "The bullseye only counts you once the helicopter is under about 0.4 m: let go of WASD so it stops drifting, then hold C to sink straight onto the centre." }
 [layout.legend.',']
 blocks = [{ color = "#9ba1a9", y0 = -0.5, y1 = 0 }]
 zone = { color = "none", kind = "kill", y0 = 10.4, y1 = 400 }

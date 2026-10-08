@@ -34,6 +34,107 @@ entrance = { at = [3, 29], facing = "south" }
 tilt = 64.0
 distance = 18.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Five turret lanes between START and FINISH, each asking for a different move: 1 JUMP (shots skimming the floor at 0.35 m), 2 DUCK (head height, 1.4 m), 3 CRAWL (shots at 1.1 m between the amber slabs), 4 AIMED (three-shot fans aimed at you, with pillars for cover) and 5 BULLET GARDEN (rings and spirals). The course HUD counts your hits, CP 1 to CP 4 split the run, and the ROLL and INSTANT pads at the start swap the movement model."
+how = [
+  "A turret is a fixed object with an emitter behaviour: it keeps a timer, stays silent until you are within its range (10 to 16 m here) and then fires every interval seconds. A start delay puts neighbours out of step, so the lanes wake up as you arrive.",
+  "Each shot is a set of directions: forward fires along the turret's facing, aimed turns toward where you are right now (it does not lead you, so moving sideways makes it miss), ring spaces bullets evenly round a circle, and spiral is a ring that turns a few degrees every shot.",
+  "Bullets are not physics bodies but plain data moved in a straight line each tick, so thousands are cheap. Each one measures its distance to the centre line of your capsule, and casts a ray against fixed geometry, which is why pillars and slabs stop them.",
+  "Your hitbox is that centre line plus movement.hitbox (0.32 m), and it shrinks with your posture: standing it reaches 1.7 m, crouching 1.15 m, crawling 0.66 m. So the 1.4 m shots pass over a crouch, the 1.1 m shots only over a crawl, and a floor shot misses only while your feet are about 0.5 m up.",
+  "A hit knocks you back, takes away control for hit_stun (0.35 s) and makes you untouchable for 0.6 s, and the course counts it. It never sends you back to a checkpoint; it only costs time.",
+  "On the ROLL pad (committed model) crouch while running is a 0.42 s roll at 8.5 m/s in the crawl posture: it passes under the DUCK and CRAWL shots at speed, but it has no invincibility frames, so it still has to dodge.",
+]
+uses = [
+  "Bullet hell: rings and spirals of slow bullets against a tiny hitbox (Touhou Project, Enter the Gungeon).",
+  "Run-and-gun: jump the low shots, duck the high ones (Contra, Metal Slug).",
+  "Dodge rolls: a quick, low move through danger, usually with invincibility frames (Dark Souls, Enter the Gungeon).",
+  "Cover: put something solid between you and the guns (Gears of War).",
+]
+ask = [
+  "projectile turrets with aimed, ring and spiral patterns",
+  "cheap non-physics bullets that stop at walls",
+  "hitbox that shrinks when crouching or crawling",
+  "dodge roll with a low profile",
+  "knockback and hit stun with brief invulnerability",
+  "turrets that only fire when the player is in range",
+]
+cost = "Bullets are stepped on the CPU: each tick each one does a distance test against every character and one ray cast against fixed geometry, so the cost grows with bullets times characters, and a hard cap of 6000 bullets stops a runaway emitter. Each bullet is drawn as one small SDF sphere on the GPU."
+knobs = ["movement.hitbox", "movement.hit_stun", "movement.model", "movement.roll_time", "movement.roll_speed", "movement.crouch_mult"]
+terms = ["game feel", "raycast", "sdf", "rigid body", "interpolation", "fixed timestep"]
+
+[[learn.code]]
+title = "Turrets wake up when you come near"
+file = "crates/pav_core/src/behaviors.rs"
+lang = "rust"
+src = """
+Behavior::Emitter(mut em) => {
+    let near = player.is_some_and(|p| p.distance(epos) < em.range);
+    em.timer += dt;
+    if near && em.timer >= em.delay {
+        let wait = if em.burst > 0 && em.shots > 0 && em.shots % em.burst == 0 { em.pause } else { 0.0 };
+        if em.timer - em.delay >= em.interval + wait {
+            em.timer = em.delay;
+            self.fire(id, epos, erot, &mut em, player);
+        }
+    } else if !near {
+        em.timer = em.timer.min(em.delay);
+    }
+    if let Some(e) = self.state.entities.get_mut(id) {
+        e.behavior = Behavior::Emitter(em);
+    }
+}
+"""
+
+[[learn.code]]
+title = "Aimed fans, rings and spirals"
+file = "crates/pav_core/src/behaviors.rs"
+lang = "rust"
+src = """
+let base = match em.pattern {
+    Pattern::Aimed => player.map(|p| flat(p + Vec3::Y * 0.9 - muzzle)).unwrap_or(flat(fwd)),
+    _ => flat(fwd),
+};
+    // ...
+    Pattern::Ring | Pattern::Spiral => {
+        if em.pattern == Pattern::Spiral {
+            em.angle += em.spin;
+        }
+        for i in 0..n {
+            let a = yaw0 + (em.angle + 360.0 * i as f32 / n as f32).to_radians();
+            dirs.push(Vec3::new(a.sin(), 0.0, a.cos()));
+        }
+    }
+    // ...
+    Pattern::Aimed | Pattern::Forward => {
+        for i in 0..n {
+            let f = if n == 1 { 0.0 } else { i as f32 / (n - 1) as f32 - 0.5 };
+            let a = yaw0 + (f * em.spread).to_radians();
+            dirs.push(Vec3::new(a.sin(), 0.0, a.cos()));
+        }
+    }
+"""
+
+[[learn.code]]
+title = "A bullet against your capsule"
+file = "crates/pav_core/src/projectile.rs"
+lang = "rust"
+src = """
+for t in targets {
+    if Some(t.id) == p.owner {
+        continue;
+    }
+    let a = t.feet + Vec3::Y * RADIUS;
+    let b = t.feet + Vec3::Y * (t.height - RADIUS).max(RADIUS);
+    // Test the midpoint and the end so fast bullets don't skip through.
+    let d = segment_distance(next, a, b).min(segment_distance(p.pos + step * 0.5, a, b));
+    if d < t.radius + p.radius {
+        out.hits.push((t.id, next, p.vel.normalize_or(Vec3::X), p.knockback));
+        return false;
+    }
+}
+"""
+
 # Map key: # wall (4 m), . floor, S START, F FINISH, 1-4 checkpoints, R/I model pads,
 # j/d/k/a/g floor tints of the JUMP/DUCK/CRAWL/AIMED/GARDEN sections, b crawl slab (0.8 m slot),
 # p cover pillar (AIMED), q pillar (GARDEN). Turrets are the [[object]]s at the end.
@@ -87,11 +188,11 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 4.0, color = 
 # Movement model pads in the hub: ROLL switches to the committed model, INSTANT back.
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "ROLL", color = "#9b5de5", params = { "movement.model" = "committed" } }
+zone = { kind = "pad", label = "ROLL", color = "#9b5de5", params = { "movement.model" = "committed" }, note = "Committed model: C while running is a 0.42 s roll at 8.5 m/s, only 0.66 m tall, under the DUCK and CRAWL shots. Rolls have no invincibility, so time them between bullets." }
 
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" } }
+zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" }, note = "Back to the instant model: C is a crouch-walk at 45% speed again and you can steer in the air. Z toggles crawling in both models." }
 
 # START (leaving it starts the timer) and FINISH (stops it) of the "gauntlet" course.
 [layout.legend.'S']

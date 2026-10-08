@@ -63,14 +63,19 @@ to the address to start in a room.
 | E | get in / out of a vehicle |
 | Backspace (hold) | rewind time |
 | Right-drag · wheel · 1-8 | rotate · zoom · camera presets |
-| Esc | menu (Look & filters: pixel art, cel shading, outlines, palettes, grading... on the whole scene, the characters & objects or the environment) |
+| Esc | menu (Look & filters: pixel art, cel shading, outlines, oil paint, halftone, ASCII, pencil, palettes, grading, haze... on the whole scene, the characters & objects or the environment) |
+| H | how the room works (the station guide); outside rooms the field guide |
 | F1 | tuning panel (every parameter, presets) |
 | F2 | jump to any room |
 | F4 / F5 | leave the room / reset it |
 | F3 · F12 | boot diagnostics · screenshot |
 
 Gamepads work too. Each room shows an info card on entry (what it demonstrates, what to try) and
-its own controls.
+its own controls. Every room is also a lesson: H (or the card's **How it works**) opens its
+station guide with what you are seeing, how the engine does it step by step, live sliders for
+the settings involved, where games use it, phrases to ask for it, what it costs, the engine's
+own code and the words to know; stepping on a pad shows what that pad changed and why. The
+**Field guide** (Esc menu) collects every word and every room's "ask for it" phrases.
 
 ## Rooms
 | Wing (corridor) | Rooms |
@@ -78,8 +83,8 @@ its own controls.
 | Movement & Feel Lab (east) | Playground, Feel Lab, Tightrope, Slalom, Timing Gates, Dodge Gauntlet, Camera Bench, Verticality Tower |
 | Physics Lab (north) | Stacking & Toppling, Springs & Soft Bodies, Chains & Rope Bridges, Conveyors, Bounce & Friction Gallery, Destructible Floors, Stress Test |
 | Animation Lab (west) | Walk Cycles, Jointed Limbs, Impact & Recoil, Squash & Stretch, Secondary Motion, Character Style Bench |
-| Visual Effects (south) | Lights & Shadows, Particle Garden, Bloom & Glow, Heat & Shockwaves, Global Illumination |
-| Styles & Filters (east) | Pure Styles, Style vs Filters, Filter Stack Bench, Mix & Match |
+| Visual Effects (south) | Lights & Shadows, Particle Garden, Bloom & Glow, Heat & Shockwaves, Global Illumination, Light Shafts, Wind & Water |
+| Styles & Filters (east) | Pure Styles, Style vs Filters, Filter Stack Bench, Mix & Match, Paint & Print, Screen Transitions |
 | Genre Wing (north) | Bullet Hell, Grid Stealth, Drift Circuit, Helicopter Run |
 | Workshop (south) | Sandbox (spawn, drag, delete and save objects) |
 

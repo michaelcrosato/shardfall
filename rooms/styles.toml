@@ -17,7 +17,7 @@ try = [
   "Check the row of four spheres under the STYLE pads: each has its own look until a FORCE pad overrides it",
   "OUTLINE pads: OFF, THIN (1 px), THICK (3 px) and INK (black); look at the thin posts below the pads",
   "CEL BANDS pads: 2, 3 and 5 light bands on the smooth spheres, then RIM ON / RIM OFF for the edge glow",
-  "TONE pads: CLAMP, SOFT KNEE and ACES next to the glowing spheres (emissive 1 to 6): watch the colours burn out or hold",
+  "TONE pads: CLAMP, SOFT KNEE and ACES next to the glowing spheres (emissive 0.6 to 4): watch the colours burn out or hold",
   "Combine groups: FORCE LIT plus 5 BANDS plus ACES, or FORCE FLAT plus INK for a comic look",
   "Any RESET pad puts every setting back to the room defaults",
 ]
@@ -39,6 +39,97 @@ distance = 24.0
 "light.sun_intensity" = 0.85
 "light.ambient" = 0.7
 bloom = 0.2
+
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "The same little scene (boxes, spheres, a capsule figure, a slowly turning rounded box and a cylinder) is built four times, once per surface style: FLAT, CEL, LIT and UNLIT. The pad columns below force one style everywhere, change the OUTLINES, set the CEL BANDS and the rim light, and swap the TONEMAP beside five spheres glowing at emissive 0.6 to 4. No screen filter is involved: this is how surfaces themselves take light."
+how = [
+  "Each object carries a style, and the scene's fragment shader runs one branch of the same shade() function per pixel. view.style can force one style on everything, the UNLIT diorama included.",
+  "Flat: the object's own colour, darkened to view.flat_shadow (62%) only where the sun's shadow falls. There is no light direction at all, so a sphere looks like a disc.",
+  "Cel: N.L (how squarely the surface faces the sun) is cut into view.cel_bands hard steps; with 2 bands a surface is simply lit or not. A rim light (view.rim) brightens the edges that turn away from the camera.",
+  "Lit: smooth N.L light plus a Blinn-Phong highlight (power 40) scaled by view.specular. Unlit: the colour as it is, brightened by its emissive value, ignoring every light.",
+  "Outlines are a post-process: the composite compares each pixel's depth, normal and object id with neighbours view.outline_px away, and an edge takes outline_darken times the surface colour (0 = black ink).",
+  "Tonemapping squeezes HDR colour (above 1.0) into the screen's range: CLAMP cuts each channel at 1, SOFT KNEE keeps everything below 0.8 exact and rolls off above, ACES is a film-like S-curve that adds contrast and pushes very bright colours towards white.",
+]
+uses = [
+  "Cel shading: hard light bands and ink lines (The Legend of Zelda: The Wind Waker, Borderlands, Genshin Impact).",
+  "Flat shading: graphic, low-detail looks built from solid colour instead of light (Monument Valley).",
+  "Lit with highlights: the default of realistic and semi-realistic 3D games.",
+  "Unlit: UI markers, glowing signs, holograms and skies that should never change with the lighting.",
+  "Tonemapping: every HDR game has one; Unreal Engine 4 switched its default to a filmic ACES-based curve.",
+]
+ask = [
+  "cel shading with 3 bands, a rim light and ink outlines",
+  "flat-shaded low-poly look with soft shadow tones",
+  "per-object surface style (flat, cel, lit, unlit)",
+  "ACES filmic tonemapping for HDR glow",
+  "screen-space outlines from depth and normals",
+]
+cost = "Styles are nearly free: one branch of the same shader, lit a few operations dearer for its highlight. Outlines are the real cost here: every pixel compares depth, normal and id with 4 neighbours for each of the 4 MSAA samples, whatever the thickness. The three tonemaps are a few operations each."
+knobs = ["view.style", "view.cel_bands", "view.rim", "view.outline_px", "view.outline_darken", "view.tonemap"]
+terms = ["flat shading", "cel shading", "rim light", "specular", "outline", "tonemapping", "hdr", "emissive"]
+
+[[learn.code]]
+title = "Flat, cel, lit and unlit in one function"
+file = "crates/pav_render/src/shaders/scene.wgsl"
+lang = "wgsl"
+src = """
+if (style == 3u) {
+    return apply_fog(p, albedo * max(1.0, 1.0 + emissive));
+}
+// ...
+var col: vec3<f32>;
+if (style == 0u) {
+    col = albedo * mix(g.style.x, 1.0, sh);
+} else if (style == 1u) {
+    let lit = quantize(clamp(ndl, 0.0, 1.0) * sh, max(g.style.y - 1.0, 1.0));
+    let direct = step(0.02, ndl) * sh;
+    let amount = select(lit, direct, g.style.y <= 2.0);
+    let rim = step(0.72, 1.0 - max(dot(n, v), 0.0)) * g.style.z * (0.4 + 0.6 * amount);
+    col = albedo * (hemi + g.sun_color.rgb * amount) + albedo * rim;
+} else {
+    let dl = max(ndl, 0.0) * sh;
+    let h = normalize(l + v);
+    let spec = pow(max(dot(n, h), 0.0), 40.0) * g.style.w * sh;
+    col = albedo * (hemi + g.sun_color.rgb * dl) + g.sun_color.rgb * spec;
+}
+"""
+
+[[learn.code]]
+title = "Hard cel bands"
+file = "crates/pav_render/src/shaders/scene.wgsl"
+lang = "wgsl"
+src = """
+fn quantize(x: f32, bands: f32) -> f32 {
+    // Hard-edged bands with a hair of smoothing to avoid shimmering.
+    let s = x * bands;
+    let f = floor(s);
+    return (f + smoothstep(0.45, 0.55, s - f)) / bands;
+}
+"""
+
+[[learn.code]]
+title = "Three tonemaps"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+fn tonemap(c: vec3<f32>, mode: f32) -> vec3<f32> {
+    if (mode < 0.5) {
+        return clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
+    }
+    if (mode < 1.5) {
+        let k = 0.8;
+        let over = k + (1.0 - k) * (1.0 - exp(-(c - vec3<f32>(k)) / (1.0 - k)));
+        return select(c, over, c > vec3<f32>(k));
+    }
+    let a = 2.51;
+    let b = 0.03;
+    let cc = 2.43;
+    let d = 0.59;
+    let e = 0.14;
+    return clamp((c * (a * c + b)) / (c * (cc * c + d) + e), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+"""
 
 [layout]
 origin = [-20.0, 0.0, -15.0]
@@ -103,79 +194,79 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#e8e3d4", look = "unlit" }]
 # Pads (view settings, sticky until another pad changes them or you leave).
 [layout.legend.'1']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "FORCE FLAT", color = "#4f7be0", params = { "view.style" = "flat" } }
+zone = { kind = "pad", label = "FORCE FLAT", color = "#4f7be0", params = { "view.style" = "flat" }, note = "view.style flat overrides every object, even the UNLIT diorama: own colour, darker only in shadow. Spheres read as flat discs." }
 
 [layout.legend.'2']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "FORCE CEL", color = "#2e9e68", params = { "view.style" = "cel" } }
+zone = { kind = "pad", label = "FORCE CEL", color = "#2e9e68", params = { "view.style" = "cel" }, note = "Everything cel shaded: hard light bands (see CEL BANDS) and a rim light. Even the unlit objects now take light." }
 
 [layout.legend.'3']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "FORCE LIT", color = "#d9772e", params = { "view.style" = "lit" } }
+zone = { kind = "pad", label = "FORCE LIT", color = "#d9772e", params = { "view.style" = "lit" }, note = "Everything smoothly lit with specular highlights: the most solid, 3D look, and the four dioramas become identical." }
 
 [layout.legend.'4']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "PER OBJECT", color = "#8a52d6", params = { "view.style" = "per object" } }
+zone = { kind = "pad", label = "PER OBJECT", color = "#8a52d6", params = { "view.style" = "per object" }, note = "Back to each object's own look, so the four dioramas differ again." }
 
 [layout.legend.'5']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "OUTLINES OFF", color = "#6b7280", params = { "view.outlines" = false } }
+zone = { kind = "pad", label = "OUTLINES OFF", color = "#6b7280", params = { "view.outlines" = false }, note = "No screen-space outlines: shapes of similar colour melt together where they overlap. Check the thin posts." }
 
 [layout.legend.'6']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "THIN", color = "#3d7bd9", params = { "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35 } }
+zone = { kind = "pad", label = "THIN", color = "#3d7bd9", params = { "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35 }, note = "1 px outlines at 35% of the surface's brightness: a soft line in the object's own hue, the engine default." }
 
 [layout.legend.'7']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "THICK", color = "#d9772e", params = { "view.outlines" = true, "view.outline_px" = 3.0, "view.outline_darken" = 0.35 } }
+zone = { kind = "pad", label = "THICK", color = "#d9772e", params = { "view.outlines" = true, "view.outline_px" = 3.0, "view.outline_darken" = 0.35 }, note = "3 px outlines: neighbours are compared 3 px away, so lines get heavy and the thin posts are mostly line." }
 
 [layout.legend.'8']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "INK", color = "#1f2933", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0 } }
+zone = { kind = "pad", label = "INK", color = "#1f2933", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0 }, note = "2 px lines with outline_darken 0: pure black ink, the comic look." }
 
 [layout.legend.'p']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "2 BANDS", color = "#2e9e68", params = { "view.cel_bands" = 2.0 } }
+zone = { kind = "pad", label = "2 BANDS", color = "#2e9e68", params = { "view.cel_bands" = 2.0 }, note = "Cel with 2 bands: a surface is either lit or in shade, nothing between. The engine default." }
 
 [layout.legend.'q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "3 BANDS", color = "#3d7bd9", params = { "view.cel_bands" = 3.0 } }
+zone = { kind = "pad", label = "3 BANDS", color = "#3d7bd9", params = { "view.cel_bands" = 3.0 }, note = "3 bands: lit, half lit and shade; the smooth spheres get a middle ring." }
 
 [layout.legend.'r']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "5 BANDS", color = "#8a52d6", params = { "view.cel_bands" = 5.0 } }
+zone = { kind = "pad", label = "5 BANDS", color = "#8a52d6", params = { "view.cel_bands" = 5.0 }, note = "5 bands: the steps sit close together, halfway back to smooth lighting." }
 
 [layout.legend.'s']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RIM ON", color = "#e07a5f", params = { "view.rim" = 0.6 } }
+zone = { kind = "pad", label = "RIM ON", color = "#e07a5f", params = { "view.rim" = 0.6 }, note = "Rim 0.6: a bright edge where cel-shaded surfaces turn away from the camera, stronger on their sunlit side." }
 
 [layout.legend.'t']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RIM OFF", color = "#6b7280", params = { "view.rim" = 0.0 } }
+zone = { kind = "pad", label = "RIM OFF", color = "#6b7280", params = { "view.rim" = 0.0 }, note = "Rim 0: no edge light; cel spheres look flatter against the floor." }
 
 [layout.legend.'u']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "CLAMP", color = "#d9534f", params = { "view.tonemap" = "clamp" } }
+zone = { kind = "pad", label = "CLAMP", color = "#d9534f", params = { "view.tonemap" = "clamp" }, note = "Clamp: each channel is cut off at 1, so the brighter spheres flatten into one colour and lose their shading; only bloom still shows how bright they are." }
 
 [layout.legend.'v']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "SOFT KNEE", color = "#3d7bd9", params = { "view.tonemap" = "soft knee" } }
+zone = { kind = "pad", label = "SOFT KNEE", color = "#3d7bd9", params = { "view.tonemap" = "soft knee" }, note = "Soft knee, the default: colours below 0.8 stay exactly as authored and brighter ones roll off smoothly towards 1." }
 
 [layout.legend.'w']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "ACES", color = "#8a52d6", params = { "view.tonemap" = "aces" } }
+zone = { kind = "pad", label = "ACES", color = "#8a52d6", params = { "view.tonemap" = "aces" }, note = "ACES: a film-like S-curve with more mid-tone contrast that pushes very bright colours towards white, at the cost of shifting authored colours a little." }
 
 [layout.legend.'x']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" } }
+zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" }, note = "Style, outlines, bands, rim and tonemap back to the room defaults (the sun and bloom stay as they are)." }
 
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" } }
+zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" }, note = "Style, outlines, bands, rim and tonemap back to the room defaults (the sun and bloom stay as they are)." }
 
 [layout.legend.'Q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" } }
+zone = { kind = "pad", label = "RESET", color = "#2b2d35", params = { "view.style" = "per object", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.tonemap" = "soft knee" }, note = "Style, outlines, bands, rim and tonemap back to the room defaults (the sun and bloom stay as they are)." }
 
 # Floor labels (layout space: x = column, z = row).
 [[label]]

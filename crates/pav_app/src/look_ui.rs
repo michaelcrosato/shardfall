@@ -6,7 +6,7 @@
 
 use egui::{RichText, Ui};
 use pav_view::ViewSettings;
-use pav_view::build::{PaletteChoice, PartChoice, PixelTarget, StyleOverride};
+use pav_view::build::{PaletteChoice, PartChoice, PixelTarget, StyleOverride, StylizeChoice, TransitionChoice};
 use pav_view::look::{self, Look, Section};
 use serde::{Deserialize, Serialize};
 use web_time::Instant;
@@ -320,6 +320,7 @@ fn part_label(sec: Section, v: &ViewSettings) -> String {
             }
         }
         Section::Outlines => p(v.outlines_on),
+        Section::Stylize => format!("{} · {}", stylize_name(f.stylize), p(f.stylize_on)),
         Section::Palette => p(f.color_on),
         Section::Grading => p(f.grade_on),
         Section::Scanlines => p(f.scanlines_on),
@@ -330,7 +331,29 @@ fn part_label(sec: Section, v: &ViewSettings) -> String {
                 format!("{} / {}", p(f.grain_on), p(f.chroma_on))
             }
         }
-        Section::Screen | Section::Glow => String::new(),
+        Section::Screen | Section::Glow | Section::Air => String::new(),
+    }
+}
+
+fn stylize_name(s: StylizeChoice) -> &'static str {
+    match s {
+        StylizeChoice::Off => "off",
+        StylizeChoice::Paint => "oil paint",
+        StylizeChoice::Halftone => "halftone print",
+        StylizeChoice::Ascii => "ASCII text",
+        StylizeChoice::Sketch => "pencil sketch",
+    }
+}
+
+fn transition_name(t: TransitionChoice) -> &'static str {
+    match t {
+        TransitionChoice::None => "none",
+        TransitionChoice::Fade => "fade",
+        TransitionChoice::Iris => "iris",
+        TransitionChoice::Diamonds => "diamonds",
+        TransitionChoice::Dissolve => "dissolve",
+        TransitionChoice::Mosaic => "mosaic",
+        TransitionChoice::Blinds => "blinds",
     }
 }
 
@@ -491,6 +514,41 @@ fn body(ui: &mut Ui, sec: Section, v: &mut ViewSettings) -> bool {
                 "Outline brightness relative to the surface (0 = black)",
             );
         }
+        Section::Stylize => {
+            let f = &mut v.filter;
+            c |= part_picker(ui, "On", &mut f.stylize_on);
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Style");
+                for o in [
+                    StylizeChoice::Off,
+                    StylizeChoice::Paint,
+                    StylizeChoice::Halftone,
+                    StylizeChoice::Ascii,
+                    StylizeChoice::Sketch,
+                ] {
+                    c |= ui.selectable_value(&mut f.stylize, o, stylize_name(o)).changed();
+                }
+            });
+            let size_help = match f.stylize {
+                StylizeChoice::Paint => "Brush radius: bigger = broader, flatter strokes",
+                StylizeChoice::Halftone => "Distance between the dots",
+                StylizeChoice::Ascii => "Width of a character cell",
+                StylizeChoice::Sketch => "Distance between pencil lines",
+                StylizeChoice::Off => "Size of the style's marks",
+            };
+            c |= slider(ui, &mut f.stylize_size, 2.0..=24.0, "size (px)", size_help);
+            c |= slider(ui, &mut f.stylize_mix, 0.0..=1.0, "strength", "How much of the style shows over the picture");
+            c |= slider(
+                ui,
+                &mut f.stylize_color,
+                0.0..=1.0,
+                "colour",
+                "How much of the scene's colour the style keeps (0 = ink only: newsprint, terminal green, graphite)",
+            );
+            if f.stylize == StylizeChoice::Off {
+                ui.label(RichText::new("Pick a style or a preset.").small().weak());
+            }
+        }
         Section::Palette => {
             let f = &mut v.filter;
             c |= part_picker(ui, "On", &mut f.color_on);
@@ -550,6 +608,23 @@ fn body(ui: &mut Ui, sec: Section, v: &mut ViewSettings) -> bool {
                 "low resolution (px)",
                 "The whole screen in blocks of this size (1 = off)",
             );
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Arrival transition");
+                egui::ComboBox::from_id_salt("transition").selected_text(transition_name(f.transition)).show_ui(ui, |ui| {
+                    for t in [
+                        TransitionChoice::None,
+                        TransitionChoice::Fade,
+                        TransitionChoice::Iris,
+                        TransitionChoice::Diamonds,
+                        TransitionChoice::Dissolve,
+                        TransitionChoice::Mosaic,
+                        TransitionChoice::Blinds,
+                    ] {
+                        c |= ui.selectable_value(&mut f.transition, t, transition_name(t)).changed();
+                    }
+                });
+            });
+            c |= slider(ui, &mut f.transition_time, 0.2..=3.0, "transition (s)", "How long the screen takes to open on arrival");
         }
         Section::Glow => {
             ui.label(RichText::new("Whole scene.").small().weak());
@@ -557,6 +632,33 @@ fn body(ui: &mut Ui, sec: Section, v: &mut ViewSettings) -> bool {
             c |= slider(ui, &mut v.bloom_threshold, 0.2..=4.0, "bloom threshold", "Brightness where glow starts");
             c |= slider(ui, &mut v.exposure, 0.2..=3.0, "exposure", "Overall exposure");
             c |= slider(ui, &mut v.gi, 0.0..=2.0, "bounce light", "Screen-space bounce light and soft occlusion (0 = off)");
+        }
+        Section::Air => {
+            ui.label(RichText::new("Whole scene: the air between the camera and the ground.").small().weak());
+            c |= slider(ui, &mut v.haze, 0.0..=3.0, "haze", "How thick the air is (0 = clear)");
+            c |= slider(
+                ui,
+                &mut v.haze_height,
+                0.5..=30.0,
+                "haze height (m)",
+                "The haze thins out over this height above your feet",
+            );
+            c |= slider(
+                ui,
+                &mut v.shafts,
+                0.0..=4.0,
+                "sunlight in the haze",
+                "Sun lighting the haze: shadows cut dark shafts through it",
+            );
+            c |= slider(
+                ui,
+                &mut v.shafts_forward,
+                0.0..=0.9,
+                "toward the sun",
+                "Forward scattering: the haze glows more on the sun's side (0 = evenly)",
+            );
+            c |=
+                slider(ui, &mut v.halos, 0.0..=4.0, "lamp halos", "Lamps and glowing things light the air around them (0 = off)");
         }
     }
     c

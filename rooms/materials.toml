@@ -36,6 +36,78 @@ entrance = { at = [18, 29], facing = "south" }
 tilt = 58.0
 distance = 34.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Three material numbers, side by side. In the BOUNCE GALLERY five balls of restitution 0 to 0.95 fall from the same height; on the FRICTION RAMPS four boxes of friction 0 to 1.0 sit on 22 degree slopes; the ICE vs RUBBER lanes and the DENSITY 10 / 100 / 1000 balls show how hard things are to push. The LOW, MID and HIGH BOUNCE PADS and the SEESAW round it off."
+how = [
+  "Every collider carries three numbers: density in kg per cubic metre (mass is density times volume), friction, and restitution, the share of the approach speed kept after an impact.",
+  "When two colliders touch, Rapier combines their numbers, by default as the average. That is why each ball lands on a strip with its own restitution (so the average is the ball's number), and why the ramps have friction 0: averaging with 0 halves the box's friction.",
+  "Friction on a slope: a box slides when the tangent of the slope beats the friction. tan 22 degrees is about 0.40, and after averaging the boxes have 0, 0.1, 0.25 and 0.5, so only the 1.0 box holds.",
+  "Bounce: a ball leaves each impact with about restitution times its landing speed, so each bounce reaches restitution squared of the last height. At 0.5 three quarters of the height is lost per bounce; at 0.95 only a tenth, which is why it keeps going for about 25 s.",
+  "Pushing: your character is a kinematic capsule that pushes as if it weighed movement.push_mass (70 kg) and shares momentum with what it pushes, so you move at 70 / (70 + 268), about a fifth of your speed, behind the 268 kg ball.",
+  "Bounce pads are zones, not materials: anything that lands on one has its upward speed set to the pad's 10, 15 or 22 m/s (you get a quarter more if you hold jump), and gravity decides how high that goes.",
+]
+uses = [
+  "Ice: slippery floors are a staple, from Super Mario's ice levels to the ice-floor puzzles of Pokemon, where you slide until you hit something.",
+  "Sports: Rocket League is built around a ball whose bounce off the floor and walls you learn to read.",
+  "Weight you can feel: Half-Life 2's gravity gun lifts crates and barrels but can only shove the heaviest objects.",
+  "Springs: Sonic's springs and Mario's trampolines set your upward speed outright, and Mario bounces higher if you hold jump, as here.",
+]
+ask = [
+  "restitution and friction per object",
+  "ice floor where boxes keep sliding",
+  "heavy props that slow the player down when pushed",
+  "bounce pads that launch the player to set heights",
+  "seesaw on a hinge that tips under the player",
+]
+cost = "Free: friction, restitution and density are three numbers per collider used in calculations the solver does anyway. Bouncy and slippery things only cost more by staying awake longer: the 0.95 ball and the ice box keep moving, so they skip sleep."
+knobs = ["sim.gravity", "movement.push_mass", "movement.weight", "movement.gravity", "bombs.push"]
+terms = ["rigid body", "joint", "game feel", "fixed timestep"]
+
+[[learn.code]]
+title = "The material numbers go onto each object"
+file = "crates/pav_core/src/world.rs"
+lang = "rust"
+src = """
+let mut sp = Spawn::new(if o.name.is_empty() { "object" } else { &o.name }, slot.place.point(o.pos))
+    .visual(v)
+    .body(o.body)
+    .rot(rot)
+    .behavior(o.behavior.clone())
+    .density(o.density)
+    .friction(o.friction)
+    .restitution(o.restitution)
+    .damping(o.damping);
+"""
+
+[[learn.code]]
+title = "Pushing something heavy shares the momentum"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+if ch.push_load > 1.0 && hang_move.is_none() {
+    // Pushing something heavy: share the momentum (a 70 kg push on a 280 kg ball crawls).
+    let f = mp.push_mass / (mp.push_mass + ch.push_load);
+    desired.x *= f;
+    desired.z *= f;
+}
+"""
+
+[[learn.code]]
+title = "Bounce pads set your upward speed"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+// Trampolines launch you when you land on them.
+if bounce > 0.0 && was_grounded && !climbing && !hanging && ch.vel.y <= 0.1 {
+    ch.vel.y = bounce * if held(buttons::JUMP) { 1.25 } else { 1.0 };
+    ch.grounded = false;
+    ch.jumping = false;
+    ch.air_jumped = true;
+    events.push(SimEvent::Bounce { pos: feet });
+}
+"""
+
 [layout]
 origin = [-19.0, 0.0, -15.0]
 
@@ -87,11 +159,11 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 0.8, color = 
 # Pads.
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "DROP BALLS", color = "#2a8a57", signal = "drop" }
+zone = { kind = "pad", label = "DROP BALLS", color = "#2a8a57", signal = "drop", note = "Each spawner clears its ball and drops a fresh one from the same height. Each bounce reaches restitution squared of the last: 0 stops dead, 0.95 keeps going for about 25 s." }
 
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET BOXES", color = "#c9573a", label_size = 0.4, signal = "ramps" }
+zone = { kind = "pad", label = "RESET BOXES", color = "#c9573a", label_size = 0.4, signal = "ramps", note = "Fresh boxes on the ramp tops. Averaged with the frictionless ramp they have 0, 0.1, 0.25 and 0.5; tan 22 degrees is 0.40, so only the 1.0 box holds." }
 
 # Bounce pads: launch speed in m/s (the character falls at about 29 m/s^2, so heights are ~v^2/58).
 [layout.legend.'1']

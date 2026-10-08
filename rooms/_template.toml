@@ -18,12 +18,38 @@ entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, a
 # tilt = 70.0
 # ortho = false
 
+# Station guide (H in the game, the room card's "How it works" button, `pav room`): what you
+# see, how it works, where games use it, how to ask for it. Every room has one; the test
+# crates/pav_view/tests/learn.rs checks the words, settings and code files it names.
+# [learn]
+# what = "What the visitor is looking at, naming the room's exhibits and pads."
+# how = ["Step one: the technique as the engine does it.", "Step two..."]
+# uses = ["Title: where games use it (real games)."]
+# ask = ["phrases to paste into a request for this"]
+# cost = "What it costs and what makes it cost more."
+# knobs = ["view.bloom", "movement.jump_height"]   # live sliders (paths from `pav params`)
+# terms = ["bloom", "hdr"]                          # keys of crates/pav_core/src/field_guide.toml
+# [[learn.code]]                                    # the engine's own code, copied from the file
+# title = "Bright pass"
+# file = "crates/pav_render/src/shaders/bloom.wgsl"
+# lang = "wgsl"
+# src = '''
+# ...5-25 real lines...
+# '''
+
 # Optional: view settings while inside (`pav params prefix=view`, without "view."), e.g. night:
 # "light.sun_intensity" = 0.06, "light.ambient" = 0.25, sky = "#0e1424", bloom = 0.6, gi = 1.0,
 # "light.sun_elevation" = 20, distortion = true, particles = true, exposure = 1.2
 # Filters can aim at a part of the scene: "filter.pixel_target" = "objects" (characters & objects)
 # or "environment", "filter.color_on" / "grade_on" / "scanlines_on" / "grain_on" / "chroma_on",
 # outlines_on = "objects", style_objects = "lit", style_environment = "flat" (see rooms/mix_match.toml)
+# Painterly and print styles: "filter.stylize" = "paint" | "halftone" | "ascii" | "sketch",
+# "filter.stylize_on", "filter.stylize_size" (px), "filter.stylize_color" (rooms/paint_print.toml).
+# Hazy air: haze, haze_height, shafts, shafts_forward, halos (rooms/light_shafts.toml).
+# Wind and water: wind, wind_angle, wind_gusts, grass_push, water_ripples, water_speed,
+# water_fade, water_rain (rooms/wind_water.toml). Transitions: "filter.transition" = "iris",
+# "filter.transition_demo" = true loops it (rooms/transitions.toml).
+# Rooms without roofs can keep tall things whole near the player: "cutaway.height_cut" = false
 [view]
 
 # Optional: simulation parameter overrides while inside (full paths, see `pav params`).
@@ -74,6 +100,9 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 # prop = { shape = { type = "box", half = [0.35, 0.35, 0.35] }, color = "#e8704a" },
 # marker = "player"
 # label = { text = "HELLO", size = 0.5, color = "#2b2d35", mode = "floor" }   (text on the tile)
+# grass = { density = 4, height = 0.55, color = "#7cbf5a" }   tufts per cell that sway in the wind
+#                   and part around the player (drawing only)
+# prop = { ..., sway = "leaves" }   props (and [[object]]s) can sway: "leaves" | "grass"
 #
 # zone = { kind = "...", ... } makes the tile a trigger (identical neighbours merge):
 #   kind = "start" | "finish" | "gate" | "checkpoint" | "kill" | "water" | "pad" | "camera" |
@@ -90,9 +119,12 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#c8c8c8" }, { y0 = 0, y1 = 1.0, color = 
 #   params = { "movement.model" = "momentum" }       pads: parameter changes until you leave
 #                     ("view.bloom" = 1.5 etc. change view settings the same way)
 #   signal = "drop"   pads: tells spawners listening for "drop" to fire
+#   note = "..."      pads: what it sets and what to look for (on screen while you stand on it;
+#                     required on every pad with params)
 #   camera = { set = { tilt = 90, ortho = true }, sweep = [{ param = "tilt", from = 90,
 #              to = 10, period = 12 }], flip_ortho = 6 }  pads (sticky) / camera zones (inside)
-#   water: swim below y1. kill: back to the last checkpoint.
+#   water: swim below y1 (its surface ripples: a CPU wave simulation; neighbouring water tiles
+#   with the same top that form a rectangle ripple as one surface). kill: back to the last checkpoint.
 
 # Free text anywhere (layout space: x = column, y = height, z = row).
 # [[label]]
@@ -146,6 +178,7 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #     kinds: haze (heat shimmer) | lens (magnify; negative strength shrinks) | ripple | ring
 #     (a shockwave every `period` s). Bombs make shockwaves, sparks and smoke by themselves.
 #   emissive = 2..8 makes an object glow (bloom) and light its surroundings.
+#   sway = "leaves" moves it in the wind (canopies, banners; drawing only), "grass" draws a tuft.
 # Drivable vehicles (E to get in / out; jump = handbrake / climb, crouch = brake / descend):
 #   vehicle = { kind = "car" }   or   vehicle = { kind = "helicopter" }
 #   optional: color, accent, size = [half x, y, z], mass, power, max_speed, grip, drift_grip

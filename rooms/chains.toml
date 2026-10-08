@@ -40,6 +40,94 @@ entrance = { at = [20, 26], facing = "south" }
 tilt = 55.0
 distance = 24.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Rigid bodies tied together by joints: the ROPE BRIDGE 11 M of 7 planks and the LONG SAGGY BRIDGE 16 M of 12, a WRECKING BALL on an 8-link chain next to a stack of light boxes, a HINGE DOOR, five HANGING CHAINS, a NEWTONS CRADLE of five hinged balls and a SEESAW. Nothing is scripted: it all moves because of gravity, your weight and the joints."
+how = [
+  "A joint ties two bodies together and takes away some of the ways they could move apart. A ball joint keeps two anchor points together but lets them turn freely; a hinge also keeps one axis lined up, leaving a single rotation. Rapier solves joints in the same step as contacts.",
+  "A [[chain]] entry is cut into links laid along a curve that dips sag times the span in the middle (a parabola). Each link is a dynamic capsule, and neighbours are joined by a ball joint where they meet; the wrecking-ball chain ends on the ball itself.",
+  "Bridges use planks instead of capsules and two ball joints per seam, one at each edge. Two ball joints side by side act as a hinge across the bridge, so the planks pitch but cannot twist. Both ends are fixed to the world.",
+  "You are not a physics body, so the character controller presses down on whatever dynamic body is under your feet with your weight (movement.weight, 70 kg, times 9.81) every tick, at the point you stand on. That is what makes the bridge sag and the seesaw tip.",
+  "Hinges with extras: the door's hinge motor has a target speed of 0 and a force of 30, which makes it a damper, so the door stays where you push it. Each cradle ball hangs on its own hinge whose axis crosses the row, so it can only swing along it, and the seesaw's hinge is limited to 12 degrees each way.",
+]
+uses = [
+  "Bridge building: Poly Bridge and Bridge Constructor are whole games about beams joined at their ends that bend and break under load.",
+  "Physics puzzles: Half-Life 2 has a seesaw puzzle where you stack cinder blocks on one end to tip a ramp up.",
+  "Doors you push: Amnesia: The Dark Descent opens doors and drawers as hinged physics objects you drag with the mouse.",
+  "Ragdolls: Hitman: Codename 47 helped make ragdoll bodies, limbs joined at shoulders and knees, standard in games.",
+]
+ask = [
+  "rope bridge made of jointed planks",
+  "wrecking ball on a chain of capsule links",
+  "physics door on a damped hinge",
+  "Newton's cradle with hinged balls",
+  "seesaw that tips under the player's weight",
+  "hanging chains the player can walk through",
+]
+cost = "CPU only, and modest: this room has about 90 joints (the 11 m bridge alone uses 16), each one more constraint in the solver. Long chains of light links under a heavy load are the hard case, because each solver pass only carries the pull a little way along the chain, so they stretch and bounce; fat links and fewer, longer planks keep them steady here."
+knobs = ["movement.weight", "sim.gravity", "movement.push_mass", "bombs.push", "sim.tick_rate"]
+terms = ["joint", "rigid body", "secondary motion", "fixed timestep", "raycast"]
+
+[[learn.code]]
+title = "A chain hangs along a parabola"
+file = "crates/pav_core/src/world.rs"
+lang = "rust"
+src = """
+let span = (to - from).length();
+let dip = c.sag * span;
+let point = |t: f32| from.lerp(to, t) - Vec3::Y * 4.0 * dip * t * (1.0 - t);
+let pts: Vec<Vec3> = (0..=n).map(|i| point(i as f32 / n as f32)).collect();
+// ...
+// Anchors: one in the middle for chains, two (left/right edges) for bridges.
+let anchors = |p: Vec3| if bridge { vec![p - side, p + side] } else { vec![p] };
+for i in 0..n.saturating_sub(1) {
+    let (a, b) = (ids[i], ids[i + 1]);
+    for p in anchors(pts[i + 1]) {
+        let link = JointLink::at(JointKind::Ball, p, pose(self, a), Some((b, pose(self, b).0, pose(self, b).1)));
+        self.add_joint(a, link);
+    }
+}
+"""
+
+[[learn.code]]
+title = "Hinges: limits, a motor or a spring"
+file = "crates/pav_core/src/joints.rs"
+lang = "rust"
+src = """
+JointKind::Hinge { limits, motor_speed, motor_force, spring, damping, .. } => {
+    let mut j = RevoluteJointBuilder::new(link.axis_a.normalize_or(Vec3::X)).local_anchor1(a).local_anchor2(b);
+    if let Some([lo, hi]) = limits {
+        j = j.limits([lo.to_radians(), hi.to_radians()]);
+    }
+    if *spring > 0.0 {
+        j = j.motor_position(0.0, *spring, *damping);
+    } else if *motor_force > 0.0 {
+        j = j.motor_velocity(motor_speed.to_radians(), *motor_force);
+    }
+    // ...
+}
+"""
+
+[[learn.code]]
+title = "Your weight presses on what you stand on"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+// --- weight: press down on movable things underfoot (rope bridges, seesaws)
+if mp.weight > 0.0 && !climbing && !hanging {
+    let ray = Ray::new(new_center, Vec3::NEG_Y);
+    let hit = st.physics.query_filtered(filter).cast_ray(&ray, (height * 0.5 + 0.15) as Real, true);
+    if let Some((h, toi)) = hit {
+        let point = new_center - Vec3::Y * toi as f32;
+        if let Some(b) = st.physics.colliders.get(h).and_then(|c| c.parent()).and_then(|p| st.physics.bodies.get_mut(p)) {
+            if b.is_dynamic() {
+                b.apply_impulse_at_point(Vec3::NEG_Y * mp.weight * 9.81 * dt, point, true);
+            }
+        }
+    }
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 

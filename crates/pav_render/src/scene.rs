@@ -49,6 +49,25 @@ pub mod flags {
     /// Part of the characters and objects (not the environment): filters aimed at one part
     /// of the scene (`Part`) tell the two apart by this flag.
     pub const OBJECT: u32 = 64;
+    /// Sways in the wind like leaves (canopies, bushes, banners): vertices move more the
+    /// higher they are above the bottom of the instance.
+    pub const SWAY: u32 = 128;
+    /// Bends like grass: far in gusts, and away from the wind's pusher (the player).
+    pub const GRASS: u32 = 256;
+}
+
+/// Wind for swaying foliage and grass (vertex shader).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Wind {
+    /// Horizontal direction the wind blows toward (x, z).
+    pub direction: glam::Vec2,
+    /// 0 = still air.
+    pub strength: f32,
+    /// How quickly gusts roll across (1 = normal).
+    pub gusts: f32,
+    /// Grass bends away from this point (the player's feet) within `push_radius` (0 = off).
+    pub pusher: Vec3,
+    pub push_radius: f32,
 }
 
 /// Which part of the scene a filter applies to.
@@ -62,6 +81,40 @@ pub enum Part {
     Objects = 1,
     /// Everything else: level geometry, fixed scenery and the sky.
     Environment = 2,
+}
+
+/// Painterly and print looks redrawn from the finished picture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[repr(u32)]
+pub enum Stylize {
+    #[default]
+    Off = 0,
+    /// Oil paint: a generalized Kuwahara filter (flat strokes that keep their edges) on canvas.
+    Paint = 1,
+    /// Print: rotated dot screens (CMYK comics, or black dots for newsprint).
+    Halftone = 2,
+    /// Text mode: each cell becomes a character picked by its brightness.
+    Ascii = 3,
+    /// Pencil on paper: hatching that thickens with darkness, plus contour lines.
+    Sketch = 4,
+}
+
+/// How a screen transition covers the picture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[repr(u32)]
+pub enum Transition {
+    #[default]
+    Fade = 0,
+    /// A circle closing on `transition_center`.
+    Iris = 1,
+    /// Diamonds growing in a wave across the screen.
+    Diamonds = 2,
+    /// Random blocks.
+    Dissolve = 3,
+    /// Pixels growing into big blocks, then black.
+    Mosaic = 4,
+    /// Horizontal blinds.
+    Blinds = 5,
 }
 
 /// A mesh rebuilt every frame (soft bodies), in world space.
@@ -231,6 +284,17 @@ pub struct PostSettings {
     pub gi: f32,
     /// Which part of the scene gets outlines.
     pub outline_part: Part,
+    /// Hazy air (volumetric light): density at the haze's base height (0 = off), the height
+    /// (m) over which it thins out and the base height itself; sunlight scattered toward the
+    /// camera where the sun's shadow map lets it through (light shafts), how strongly that
+    /// light scatters forward (0 = evenly .. 0.9 = mostly toward the sun) and lamp halos (point
+    /// lights glowing in the air, 0 = off).
+    pub haze: f32,
+    pub haze_height: f32,
+    pub haze_base: f32,
+    pub shafts: f32,
+    pub shafts_forward: f32,
+    pub halos: f32,
 }
 
 impl Default for PostSettings {
@@ -250,6 +314,12 @@ impl Default for PostSettings {
             distortion: true,
             gi: 0.0,
             outline_part: Part::All,
+            haze: 0.0,
+            haze_height: 4.0,
+            haze_base: 0.0,
+            shafts: 1.0,
+            shafts_forward: 0.5,
+            halos: 0.0,
         }
     }
 }
@@ -374,6 +444,19 @@ pub struct FilterSettings {
     pub scanline_part: Part,
     pub grain_part: Part,
     pub chroma_part: Part,
+    /// A painterly or print look over the picture, its size in pixels (brush radius, dot
+    /// cell, character width, hatching spacing), how much of it shows (0..1), how much of the
+    /// scene's colour it keeps (0 = ink only, 1 = full colour) and the part it applies to.
+    pub stylize: Stylize,
+    pub stylize_size: f32,
+    pub stylize_mix: f32,
+    pub stylize_color: f32,
+    pub stylize_part: Part,
+    /// Screen transition: how covered the screen is (0 = clear, 1 = covered), its kind and
+    /// its centre (screen fraction, 0..1 from the top left; the iris closes on it).
+    pub transition: f32,
+    pub transition_kind: Transition,
+    pub transition_center: glam::Vec2,
 }
 
 impl Default for FilterSettings {
@@ -403,6 +486,14 @@ impl Default for FilterSettings {
             scanline_part: Part::All,
             grain_part: Part::All,
             chroma_part: Part::All,
+            stylize: Stylize::Off,
+            stylize_size: 4.0,
+            stylize_mix: 1.0,
+            stylize_color: 1.0,
+            stylize_part: Part::All,
+            transition: 0.0,
+            transition_kind: Transition::Fade,
+            transition_center: glam::Vec2::splat(0.5),
         }
     }
 }
@@ -466,6 +557,7 @@ pub struct Scene {
     /// Particles born this frame.
     pub particles: Vec<ParticleBurst>,
     pub distortions: Vec<Distortion>,
+    pub wind: Wind,
     pub time: f32,
 }
 
@@ -489,6 +581,7 @@ impl Default for Scene {
             dynamic: Vec::new(),
             particles: Vec::new(),
             distortions: Vec::new(),
+            wind: Wind::default(),
             time: 0.0,
         }
     }

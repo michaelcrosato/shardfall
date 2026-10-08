@@ -29,6 +29,8 @@ pub enum MeshKey {
     Cylinder,
     Cone,
     Plane,
+    /// A tuft of grass: seven tapered, curving blades in the unit box (two-sided).
+    Tuft,
     /// Rounded box with absolute half extents and corner radius, in millimetres.
     RoundedBox {
         half_mm: [u32; 3],
@@ -50,6 +52,7 @@ impl MeshKey {
             MeshKey::Cylinder => MeshData::cylinder(32),
             MeshKey::Cone => MeshData::cone(32),
             MeshKey::Plane => MeshData::plane(),
+            MeshKey::Tuft => MeshData::tuft(),
             MeshKey::RoundedBox { half_mm, radius_mm } => {
                 let h = Vec3::new(half_mm[0] as f32, half_mm[1] as f32, half_mm[2] as f32) / 1000.0;
                 MeshData::rounded_box(h, radius_mm as f32 / 1000.0, 4)
@@ -118,6 +121,43 @@ impl MeshData {
                 let a = i * row + j;
                 let b = a + row;
                 m.indices.extend_from_slice(&[a, a + 1, b + 1, a, b + 1, b]);
+            }
+        }
+        m
+    }
+
+    /// Grass blades fanning out from the bottom centre of the unit box, darker at the root
+    /// (vertex colour). Normals lean up so blades take light like the ground they stand on.
+    pub fn tuft() -> Self {
+        let mut m = MeshData::default();
+        const BLADES: u32 = 7;
+        const SEGS: u32 = 3;
+        for b in 0..BLADES {
+            let yaw = b as f32 * 2.399 + 0.3;
+            let (sy, cy) = yaw.sin_cos();
+            let out = Vec3::new(cy, 0.0, sy);
+            let side = Vec3::new(-sy, 0.0, cy);
+            let lean = 0.12 + 0.05 * (b % 3) as f32;
+            let height = 0.8 + 0.2 * ((b * 7 % 5) as f32 / 4.0);
+            let normal = (out * 0.45 + Vec3::Y).normalize();
+            let first = m.vertices.len() as u32;
+            for k in 0..=SEGS {
+                let t = k as f32 / SEGS as f32;
+                let centre = out * (0.08 + lean * t * t) * 1.0 + Vec3::Y * (-0.5 + height * t);
+                let w = 0.2 * (1.0 - t * t) + 0.015;
+                let shade = 0.7 + 0.55 * t;
+                for s in [-1.0f32, 1.0] {
+                    m.vertices.push(Vertex {
+                        pos: (centre + side * w * s).to_array(),
+                        normal: normal.to_array(),
+                        uv: [(s + 1.0) * 0.5, t],
+                        color: [shade, shade, shade, 1.0],
+                    });
+                }
+            }
+            for k in 0..SEGS {
+                let a = first + k * 2;
+                m.indices.extend_from_slice(&[a, a + 1, a + 3, a, a + 3, a + 2]);
             }
         }
         m

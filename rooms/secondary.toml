@@ -31,6 +31,97 @@ entrance = { at = [19, 29], facing = "south" }
 tilt = 58.0
 distance = 24.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Tails and antennae that trail behind the body and swing back to rest. The WOBBLE DIAL runs three identical bipeds with a tail and antennae round the same square at wobble 0.2, 1.0 and 2.0; TAIL LENGTHS has lizards with 0.4, 1.2 and 2.2 m tails, and ANTENNAE has beetles with 0.2, 0.5 and 0.9 m antennae. Riders go round on the SPIN ZONE platforms, PETS follow you in the fenced yard, and the PLAYER PADS give you a tail of your own."
+how = [
+  "A tail is a chain of points: one per 15 cm (3 to 9 points); antennae always have 4. The first point is pinned to the body and the rest are simulated every tick.",
+  "Verlet integration: each point moves by the difference between its last two positions (its velocity, kept at 94% per tick so it calms down) plus a little gravity. No velocity is stored, which keeps it simple and stable.",
+  "Then each point is pulled part of the way toward where it would hang at rest (back and slightly up for tails, up and forward for antennae) and put back at exactly one segment length from the point before it. That distance rule is what makes the chain bend instead of stretch.",
+  "puppet.wobble sets how hard the pull is: a tail is pulled 10% of the way per tick at wobble 1, a third at 0 and about 6% at 2, so a floppy tail lags and overshoots at every stop. Tails also wag a little, more when floppy and when moving.",
+  "Lizards use the same chain as a spine: 6 points that follow the head (follow-the-leader), with the hips riding on it and the tail hanging off its end. Spiders get a 2-point chain for the abdomen, so it jiggles.",
+]
+uses = [
+  "Hair and cloth: Lara Croft's hair in Tomb Raider (2013) was simulated strand by strand with AMD TressFX.",
+  "Creature tails: Rain World's lizards and slugcat drag tails that swing and follow the body's turns.",
+  "Scarves and capes: the traveller's scarf in Journey trails and flutters behind every move.",
+  "Avatars: VRM models used by VTubers hang hair, ears and ribbons on spring bones, the same lag-and-settle idea.",
+]
+ask = [
+  "verlet tail that trails behind and settles",
+  "floppy antennae that bob when the character stops",
+  "follow-the-leader spine for a lizard or snake",
+  "a stiffness setting for secondary motion, stiff to floppy",
+  "pet that follows the player with a swinging tail",
+]
+cost = "A handful of points per chain per tick on the CPU; even a 9-point tail is a few hundred arithmetic operations. The only collision is a floor the points cannot sink through, which keeps it cheap; real hair or cloth needs far more points and collision tests."
+knobs = ["puppet.tail_length", "puppet.antenna_length", "puppet.wobble", "puppet.body"]
+terms = ["secondary motion", "verlet", "procedural animation", "fixed timestep", "interpolation"]
+
+[[learn.code]]
+title = "One verlet step of a chain"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+/// One verlet step: the root follows `root`; every other point keeps its distance to the
+/// previous one and bends back toward `rest` (a direction) by `stiff` (0..1 per tick).
+fn step(&mut self, root: Vec3, rest: Vec3, stiff: f32, gravity: f32, floor: f32, dt: f32) {
+    if self.pts.is_empty() {
+        return;
+    }
+    self.prev[0] = self.pts[0];
+    self.pts[0] = root;
+    for i in 1..self.pts.len() {
+        let p = self.pts[i];
+        let v = (p - self.prev[i]) * 0.94;
+        self.prev[i] = p;
+        let anchor = self.pts[i - 1];
+        let mut q = p + v - Vec3::Y * gravity * dt * dt;
+        q = q.lerp(anchor + rest * self.seg, stiff);
+        q = anchor + (q - anchor).normalize_or(rest) * self.seg;
+        q.y = q.y.max(floor);
+        self.pts[i] = q;
+    }
+}
+"""
+
+[[learn.code]]
+title = "Wobble sets how hard each chain is pulled back"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+let wobble = def.wobble.max(0.0);
+let soft = |base: f32| (base / (0.3 + wobble * 0.7)).clamp(0.02, 1.0);
+    // ...
+    let (stiff, gravity) = match kind {
+        ChainKind::Spine => (0.35, 0.0),
+        ChainKind::Tail => (soft(0.1), 6.0),
+        ChainKind::AntennaL | ChainKind::AntennaR => (soft(0.25), 2.0),
+        ChainKind::Abdomen => (soft(0.35), 4.0),
+    };
+    // Tails wag (more when floppy, faster when moving); antennae bob a little.
+    let lively = 0.4 + (speed / 3.0).min(1.0);
+    let sway = match kind {
+        ChainKind::Tail => Quat::from_rotation_y((anim.time * 3.2).sin() * 0.28 * wobble * lively),
+        ChainKind::AntennaL | ChainKind::AntennaR => Quat::from_rotation_x((anim.time * 4.1).sin() * 0.12 * wobble),
+        _ => Quat::IDENTITY,
+    };
+    c.step(root_w, frame * (sway * dir), stiff, gravity, floor, dt);
+"""
+
+[[learn.code]]
+title = "A tail: one point per 15 cm"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+if def.tail_length > 0.01 {
+    let segs = ((def.tail_length * k / 0.15) as usize).clamp(3, 9);
+    // Hounds carry their tails up.
+    let dir = if def.body == BodyPlan::Quadruped { Vec3::new(0.0, 0.8, -1.0) } else { Vec3::new(0.0, 0.25, -1.0) };
+    out.push((ChainKind::Tail, tail_root, dir.normalize(), def.tail_length * k, segs));
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -115,23 +206,23 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d0dcc4" }, { y0 = 0, y1 = 0.7, color = 
 # Pads: the changes apply to your own puppet and last until you leave the room.
 [layout.legend.'G']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "GROW A TAIL", color = "#3bb273", params = { "puppet.tail_length" = 1.0 } }
+zone = { kind = "pad", label = "GROW A TAIL", color = "#3bb273", params = { "puppet.tail_length" = 1.0 }, note = "A 1 m tail: a chain of 6 points pinned behind your hips. Run and stop sharply: it lags, overshoots and swings back to rest." }
 
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "ANTENNAE", color = "#8a6fd8", params = { "puppet.antenna_length" = 0.4 } }
+zone = { kind = "pad", label = "ANTENNAE", color = "#8a6fd8", params = { "puppet.antenna_length" = 0.4 }, note = "Two 0.4 m antennae of 4 points each. They are pulled back to rest harder than a tail (25% per tick at wobble 1), so they bob rather than swing." }
 
 [layout.legend.'F']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "FLOPPY", color = "#e8a23c", params = { "puppet.wobble" = 2.0 } }
+zone = { kind = "pad", label = "FLOPPY", color = "#e8a23c", params = { "puppet.wobble" = 2.0 }, note = "Wobble 2: tails are pulled back only about 6% per tick and wag twice as far, so your tail and antennae lag and overshoot a lot." }
 
 [layout.legend.'S']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "STIFF", color = "#4a86c8", params = { "puppet.wobble" = 0.1 } }
+zone = { kind = "pad", label = "STIFF", color = "#4a86c8", params = { "puppet.wobble" = 0.1 }, note = "Wobble 0.1: the tail is pulled 27% of the way back every tick, so it barely trails and hardly wags." }
 
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RESET", color = "#e07a5f", params = { "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.wobble" = 1.0 } }
+zone = { kind = "pad", label = "RESET", color = "#e07a5f", params = { "puppet.tail_length" = 0.0, "puppet.antenna_length" = 0.0, "puppet.wobble" = 1.0 }, note = "No tail, no antennae, and wobble back to 1." }
 
 # ---- floor labels (layout space: x = column, z = row) ----
 
@@ -335,7 +426,7 @@ look = { tail_length = 1.6 }
 
 # ---- objects (keep at the end of the file) ----
 
-# Rotating kinematic platforms (45 deg/s and -60 deg/s about Y). 0.24 m high: you can step on.
+# Rotating kinematic platforms (80 deg/s and -100 deg/s about Y). 0.24 m high: you can step on.
 [[object]]
 name = "carousel_critter"
 shape = { type = "cylinder", half_height = 0.12, radius = 2.8 }

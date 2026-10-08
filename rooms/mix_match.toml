@@ -26,6 +26,87 @@ tilt = 58.0
 distance = 22.0
 fov = 40.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A little village with four walkers (two people, a spider and a lizard), crates and balls. On the west, each row is one filter (PIXEL ART, INK OUTLINES, GAME BOY, NOIR GRADE, SCANLINES) with OFF, ALL, OBJECTS and WORLD pads, then OBJECT STYLE and WORLD STYLE rows; row pads stack, so you mix by walking. The WHOLE LOOKS pads on the east set every look setting at once, the same looks as the Look & Filters menu."
+how = [
+  "Every pixel knows which part of the scene it shows. While the scene is drawn, characters and anything that moves or can be pushed write an id of 1024 or more into a spare channel of the normal buffer; level geometry and fixed scenery, like the statue in the pond, write less.",
+  "Each filter has an on-setting (outlines_on, color_on, grade_on, scanlines_on, grain_on, chroma_on): all, objects or environment. In the composite one small test, aimed(), checks the pixel's part before the filter touches it.",
+  "Pixel art is picked earlier, on the CPU: view.filter.pixel_target marks the chosen instances by making their id negative, and the composite snaps only those pixels to blocks.",
+  "Surface styles work per part too: OBJECT STYLE and WORLD STYLE re-style meshes to flat, cel or lit before drawing; unlit glows and markers keep their own look.",
+  "The WHOLE LOOKS come from looks.toml, the file behind the Look & Filters menu. A section switched on in that menu replaces what rooms and pads set until Scene default hands it back.",
+]
+uses = [
+  "HD-2D: pixel-art characters in a soft, glowing 3D world (Octopath Traveler, Triangle Strategy).",
+  "Readability: ink outlines or full colour on characters and pickups only, so they stand out from busy scenery.",
+  "Selective colour: Mirror's Edge paints the useful route red in an otherwise white city; a grey world with coloured heroes works the same way.",
+  "Holograms and ghosts: scanlines, fringes and a cold tint on one character while the world stays clean.",
+]
+ask = [
+  "pixel-art characters in a sharp 3D world",
+  "filters that apply only to characters or only to the environment",
+  "black-and-white world with characters in colour",
+  "hologram effect on characters with scanlines",
+  "cel-shaded heroes in a flat-shaded world",
+  "per-object mask in the normal buffer for post effects",
+]
+cost = "Aiming a filter is almost free: the part is one read of the normal buffer the composite already has, and the test is a comparison. Per-part styles cost nothing on the GPU (the CPU picks the style before drawing). Pixel art's outline adds a few extra reads per pixel."
+knobs = ["view.filter.pixel_target", "view.outlines_on", "view.filter.color_on", "view.filter.grade_on", "view.filter.scanlines_on", "view.style_objects"]
+terms = ["parts of the scene", "normal buffer", "pixel art", "outline", "palette", "color grading", "cel shading", "flat shading"]
+
+[[learn.code]]
+title = "Objects mark themselves in the normal buffer"
+file = "crates/pav_render/src/shaders/scene.wgsl"
+lang = "wgsl"
+src = """
+fn group_out(n: vec3<f32>, group: u32, flags: u32) -> vec4<f32> {
+    var gi = select(0u, (group - 1u) % 1023u + 1u, group != 0u);
+    if ((flags & FLAG_OBJECT) != 0u) {
+        gi = gi + 1024u;
+    }
+    let g = f32(gi);
+    return vec4<f32>(n, select(g, -g, (flags & FLAG_PIXEL) != 0u));
+}
+"""
+
+[[learn.code]]
+title = "Is this filter aimed at this pixel?"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+// The normal buffer's w is 1024 or more (in size) on characters and objects.
+fn object_w(w: f32) -> bool {
+    return abs(w) > 1023.5;
+}
+
+// Whether a filter aimed at `part` (0 whole scene, 1 characters and objects, 2 environment)
+// applies to a pixel of this kind.
+fn aimed(part: f32, obj: bool) -> bool {
+    let t = u32(part + 0.5);
+    return t == 0u || (t == 1u) == obj;
+}
+"""
+
+[[learn.code]]
+title = "Choosing what turns into pixel art"
+file = "crates/pav_view/src/build.rs"
+lang = "rust"
+src = """
+if f.pixel_art > 1.0 {
+    let hero = curr.player.map(|p| p.0 + 2);
+    mark_pixel_art(&mut scene, |g, flags| match f.pixel_target {
+        PixelTarget::All => true,
+        PixelTarget::Characters => puppets.contains(&g),
+        PixelTarget::Hero => Some(g) == hero,
+        PixelTarget::Others => puppets.contains(&g) && Some(g) != hero,
+        PixelTarget::World => !puppets.contains(&g),
+        PixelTarget::Entity => g == f.pixel_entity as u32 + 2,
+        PixelTarget::Objects => flags & rs::flags::OBJECT != 0,
+        PixelTarget::Environment => flags & rs::flags::OBJECT == 0,
+    });
+}
+"""
+
 [layout]
 origin = [-22.0, 0.0, -13.5]
 
@@ -93,167 +174,167 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c8a0" }, { y0 = 0, y1 = 3.2, color = 
 
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.pixel_art" = 1.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.pixel_art" = 1.0 }, note = "Pixel art off (block size 1): everything sharp." }
 
 [layout.legend.'b']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ALL", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "all" } }
+zone = { kind = "pad", label = "ALL", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "all" }, note = "5 px pixel art with a dark one-block outline on the whole scene." }
 
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OBJECTS", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "objects" } }
+zone = { kind = "pad", label = "OBJECTS", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "objects" }, note = "5 px pixel art only on the walkers, crates and balls; the village and the statue stay sharp." }
 
 [layout.legend.'d']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WORLD", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "environment" } }
+zone = { kind = "pad", label = "WORLD", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "environment" }, note = "5 px pixel art only on the environment: the village goes blocky while walkers, crates and balls stay sharp." }
 
 [layout.legend.'e']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.outlines_on" = "all" } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.outlines_on" = "all" }, note = "Back to the engine's default outline: 1 px at 35% of the surface brightness, everywhere." }
 
 [layout.legend.'h']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ALL", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "all" } }
+zone = { kind = "pad", label = "ALL", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "all" }, note = "2 px black ink (outline_darken 0) on every silhouette and crease: a cartoon look." }
 
 [layout.legend.'i']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OBJECTS", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "objects" } }
+zone = { kind = "pad", label = "OBJECTS", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "objects" }, note = "2 px black ink on the characters and objects only; the village has no outlines at all, so the movers pop." }
 
 [layout.legend.'j']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WORLD", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "environment" } }
+zone = { kind = "pad", label = "WORLD", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "environment" }, note = "Black ink on the environment only: houses and trees look drawn while the movers have no lines." }
 
 [layout.legend.'k']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0 }, note = "No palette, levels or dither: full colour." }
 
 [layout.legend.'l']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ALL", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "all" } }
+zone = { kind = "pad", label = "ALL", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "all" }, note = "The four Game Boy greens with dither 0.6 over the whole screen." }
 
 [layout.legend.'m']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OBJECTS", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "objects" } }
+zone = { kind = "pad", label = "OBJECTS", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "objects" }, note = "Game Boy greens on the movers only: green walkers in a full-colour village." }
 
 [layout.legend.'n']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WORLD", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "environment" } }
+zone = { kind = "pad", label = "WORLD", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "environment" }, note = "Game Boy greens on the village only; the walkers, crates and balls keep their colour." }
 
 [layout.legend.'o']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.saturation" = 1.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.saturation" = 1.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0 }, note = "Grade back to neutral: saturation, contrast and brightness 1, no temperature or tint." }
 
 [layout.legend.'p']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ALL", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "all" } }
+zone = { kind = "pad", label = "ALL", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "all" }, note = "Saturation 0, contrast 1.35, brightness 0.95: the whole scene in hard black and white." }
 
 [layout.legend.'q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OBJECTS", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "objects" } }
+zone = { kind = "pad", label = "OBJECTS", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "objects" }, note = "Black and white on the movers only: grey walkers in a colourful village." }
 
 [layout.legend.'r']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WORLD", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "environment" } }
+zone = { kind = "pad", label = "WORLD", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "environment" }, note = "Black-and-white village, walkers in colour: the classic memory or vision look." }
 
 [layout.legend.'t']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.scanlines" = 0.0, "view.filter.grain" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.scanlines" = 0.0, "view.filter.grain" = 0.0 }, note = "Scanlines and grain off." }
 
 [layout.legend.'u']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ALL", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "all", "view.filter.grain" = 0.3, "view.filter.grain_on" = "all" } }
+zone = { kind = "pad", label = "ALL", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "all", "view.filter.grain" = 0.3, "view.filter.grain_on" = "all" }, note = "Scanlines 0.7 every 3 px and grain 0.3 over everything: an old monitor." }
 
 [layout.legend.'v']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OBJECTS", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "objects", "view.filter.grain" = 0.3, "view.filter.grain_on" = "objects" } }
+zone = { kind = "pad", label = "OBJECTS", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "objects", "view.filter.grain" = 0.3, "view.filter.grain_on" = "objects" }, note = "Scanlines and grain only on the movers: they flicker like holograms in a clean village." }
 
 [layout.legend.'x']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WORLD", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "environment", "view.filter.grain" = 0.3, "view.filter.grain_on" = "environment" } }
+zone = { kind = "pad", label = "WORLD", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "environment", "view.filter.grain" = 0.3, "view.filter.grain_on" = "environment" }, note = "Scanlines and grain only on the village; the movers stay clean, as if walking in front of a screen." }
 
 [layout.legend.'y']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_objects" = "per object" } }
+zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_objects" = "per object" }, note = "Characters and objects keep their own authored style." }
 
 [layout.legend.'z']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "FLAT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "flat" } }
+zone = { kind = "pad", label = "FLAT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "flat" }, note = "Movers in flat style: their own colour, darker only in shadow, no light direction." }
 
 [layout.legend.'A']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "CEL", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "cel" } }
+zone = { kind = "pad", label = "CEL", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "cel" }, note = "Movers cel shaded: hard light bands and a rim light along their edges." }
 
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "LIT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "lit" } }
+zone = { kind = "pad", label = "LIT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "lit" }, note = "Movers smoothly lit with specular highlights." }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_environment" = "per object" } }
+zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_environment" = "per object" }, note = "The environment keeps its own authored style." }
 
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "FLAT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "flat" } }
+zone = { kind = "pad", label = "FLAT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "flat" }, note = "The village in flat style: no shading from the sun, just colour and shadow tone. Try it with LIT objects." }
 
 [layout.legend.'E']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "CEL", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "cel" } }
+zone = { kind = "pad", label = "CEL", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "cel" }, note = "The village cel shaded: hard light bands on walls, roofs and trees." }
 
 [layout.legend.'F']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "LIT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "lit" } }
+zone = { kind = "pad", label = "LIT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "lit" }, note = "The village smoothly lit with highlights." }
 
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "CLEAN", color = "#2f9e5a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "CLEAN", color = "#2f9e5a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Every look setting back to the engine defaults: no filters, each object's own style, thin outlines." }
 
 [layout.legend.'J']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "PIXEL HEROES", label_size = 0.50, color = "#c0569a", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "PIXEL HEROES", label_size = 0.50, color = "#c0569a", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "5 px outlined pixel art on characters and objects; the world stays clean and sharp." }
 
 [layout.legend.'K']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "HD-2D", color = "#e0a040", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.25, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.08, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.2, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.55, "view.filter.pixelate" = 1.0, "view.bloom" = 1.0, "view.bloom_threshold" = 0.7, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "HD-2D", color = "#e0a040", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.25, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.08, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.2, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.55, "view.filter.pixelate" = 1.0, "view.bloom" = 1.0, "view.bloom_threshold" = 0.7, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "4 px pixel-art movers, a warm saturated grade on the world only, vignette 0.55 and strong bloom (1.0 from threshold 0.7): a glowing diorama." }
 
 [layout.legend.'L']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "PIXEL WORLD", label_size = 0.50, color = "#3f8f6a", params = { "view.filter.pixel_target" = "environment", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "PIXEL WORLD", label_size = 0.50, color = "#3f8f6a", params = { "view.filter.pixel_target" = "environment", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "The environment as 5 px pixel art; the movers lit, with 2 px ink outlines on them only." }
 
 [layout.legend.'M']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GAME BOY WORLD", label_size = 0.47, color = "#8bac0f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "environment", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "GAME BOY WORLD", label_size = 0.47, color = "#8bac0f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "environment", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Game Boy greens with dither on the environment; the movers in full colour with 2 px ink." }
 
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GAME BOY", color = "#5f7f2f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "GAME BOY", color = "#5f7f2f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Everything in 4 px blocks and the four Game Boy greens with dither 0.6." }
 
 [layout.legend.'O']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "16-BIT", color = "#4f7df3", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 24.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.05, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.15, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "16-BIT", color = "#4f7df3", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 24.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.05, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.15, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "4 px pixel art everywhere with 24 shades per channel and a slightly vivid grade (saturation 1.15)." }
 
 [layout.legend.'Q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "CARTOON", color = "#e5484d", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "cel", "view.style_environment" = "cel", "view.cel_bands" = 2.0, "view.rim" = 0.4, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.3, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "CARTOON", color = "#e5484d", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "cel", "view.style_environment" = "cel", "view.cel_bands" = 2.0, "view.rim" = 0.4, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.3, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Cel shading everywhere with a stronger rim (0.4), 2 px black ink and saturation 1.3." }
 
 [layout.legend.'S']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "COMIC NOIR", label_size = 0.50, color = "#6b6f78", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.saturation" = 0.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "COMIC NOIR", label_size = 0.50, color = "#6b6f78", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.saturation" = 0.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "A black-and-white world (saturation 0, contrast 1.35) with a vignette; the movers keep their colour, all inked 2 px." }
 
 [layout.legend.'U']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "FLAT PAPER", label_size = 0.50, color = "#c8b48a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "flat", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.7, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.3, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.15, "view.filter.tint" = 0.0, "view.filter.contrast" = 0.9, "view.filter.brightness" = 1.05, "view.filter.saturation" = 0.8, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.15, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "FLAT PAPER", label_size = 0.50, color = "#c8b48a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "flat", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.7, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.3, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.15, "view.filter.tint" = 0.0, "view.filter.contrast" = 0.9, "view.filter.brightness" = 1.05, "view.filter.saturation" = 0.8, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.15, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Flat shading everywhere, thin outlines, a faded warm grade (contrast 0.9, saturation 0.8) and light grain: a printed page." }
 
 [layout.legend.'V']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ARCADE CRT", label_size = 0.50, color = "#9b51e0", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.3, "view.filter.curvature" = 0.15, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 3.0, "view.bloom" = 0.8, "view.bloom_threshold" = 0.9, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "ARCADE CRT", label_size = 0.50, color = "#9b51e0", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.3, "view.filter.curvature" = 0.15, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 3.0, "view.bloom" = 0.8, "view.bloom_threshold" = 0.9, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "3 px blocks on a curved tube (0.15) with scanlines 0.5, chroma 0.3, vignette 0.5 and bloom 0.8." }
 
 [layout.legend.'W']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "HOLOGRAM HEROES", label_size = 0.44, color = "#56ccf2", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "objects", "view.filter.temperature" = -0.8, "view.filter.tint" = 0.3, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.15, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "objects", "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "objects", "view.filter.chroma_on" = "objects", "view.filter.grain" = 0.4, "view.filter.chroma" = 0.8, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.9, "view.bloom_threshold" = 0.8, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "HOLOGRAM HEROES", label_size = 0.44, color = "#56ccf2", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "objects", "view.filter.temperature" = -0.8, "view.filter.tint" = 0.3, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.15, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "objects", "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "objects", "view.filter.chroma_on" = "objects", "view.filter.grain" = 0.4, "view.filter.chroma" = 0.8, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.9, "view.bloom_threshold" = 0.8, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "Movers only: a cold blue grade, brighter, with scanlines 0.7, grain 0.4 and colour fringe 0.8, plus bloom. The world stays clean." }
 
 [layout.legend.'X']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "POSTERIZED WORLD", label_size = 0.41, color = "#d9733a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "environment", "view.filter.palette" = "none", "view.filter.levels" = 8.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "POSTERIZED WORLD", label_size = 0.41, color = "#d9733a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "environment", "view.filter.palette" = "none", "view.filter.levels" = 8.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 }, note = "The world flat shaded and cut to 8 levels per channel; the movers lit, in full colour." }
 
 [[label]]
 text = "PIXEL ART"

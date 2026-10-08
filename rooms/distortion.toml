@@ -36,6 +36,93 @@ bloom = 0.55
 distortion = true
 particles = true
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Every warp here moves the picture, not the objects: heat shimmers over the LAVA STRIP + HAZE and the FORGE, the glass orbs magnify (+0.15, +0.3, +0.6) or shrink (-0.2, -0.5) the checker behind them, the RIPPLE POOL wobbles its tiles and RING 1 s, 2 s and 3 s send out shockwaves on a timer. Each bomb on the range makes its own ring. Every source stands over bricks, checkers or stripes because a warped plain floor looks exactly like an unwarped one."
+how = [
+  "Each source (haze, lens, ripple or ring) is drawn as a disc that always faces the camera, into a screen-sized buffer of offsets: two numbers per pixel saying how far to shift the picture sideways and up. Overlapping discs simply add (additive blending).",
+  "The disc's fragment shader works out the shift from where the pixel sits in the disc: a lens pulls towards the middle by (1 - r*r), haze is sine noise that rises over time, a ripple is sin(26 r - 7 t) rings, and a ring is a narrow band of outward push at a growing radius.",
+  "Rings repeat: progress = (time / period) mod 1, so the band grows from the centre to the rim and fades as it goes. A bomb adds a one-off ring 3.5 times its blast radius that lives 0.7 s.",
+  "The shift is scaled by the disc's size on screen, so a lens bends the same amount near or far from the camera.",
+  "The composite then reads the offset at each pixel and samples the finished picture that much further along. Outlines and GI follow the warped image; if no source is on screen the lookup is skipped.",
+]
+uses = [
+  "Heat and fire: shimmering air over lava, torches, jet exhausts and hot desert roads.",
+  "Cloaking: the see-through shimmer of Halo's active camouflage and the Crysis nanosuit's cloak bend what is behind them.",
+  "Shockwaves: a ring of warped air that sweeps out of big explosions, ground slams and boss roars.",
+  "Water and glass: refraction behind water surfaces and glass panes (Half-Life 2's water), magnifying lenses and gravity wells.",
+]
+ask = [
+  "heat haze over fire and lava",
+  "shockwave ring when a bomb explodes",
+  "magnifying glass orb / refraction bubble",
+  "screen-space distortion buffer",
+  "Predator-style cloak shimmer",
+  "water ripples that bend the floor below",
+]
+cost = "One cheap extra pass: every source is a single quad drawn into a two-channel half-float buffer, then the composite does one more texture read per pixel. Cost grows with how much screen the discs cover (big, close or overlapping sources), not with what is behind them, and with no source on screen it is skipped."
+knobs = ["view.distortion", "bombs.radius", "bombs.push", "view.particles"]
+terms = ["distortion", "render target", "screen space", "post-process", "fragment shader", "additive blending", "instancing"]
+
+[[learn.code]]
+title = "Four kinds of warp in one disc shader"
+file = "crates/pav_render/src/shaders/distort.wgsl"
+lang = "wgsl"
+src = """
+var off = vec2<f32>(0.0);
+if (kind == 0u) {
+    // Shockwave: a ring pushing outward, fading as it grows.
+    let p = d.params.y;
+    let f = exp(-pow((r - p) / 0.13, 2.0)) * (1.0 - p);
+    off = dir_uv * f * s;
+} else if (kind == 1u) {
+    // Heat haze: wobbling noise rising upward.
+    let q = in.l * 6.0 + vec2<f32>(0.0, -t * 2.5);
+    let n = vec2<f32>(sin(q.x * 1.7 + q.y * 2.3 + t * 3.1), cos(q.y * 2.1 - q.x * 1.3 + t * 2.7));
+    off = n * s * (1.0 - r) * 0.35;
+} else if (kind == 2u) {
+    // Lens: magnify the middle.
+    off = -vec2<f32>(in.l.x, -in.l.y) * s * (1.0 - r * r);
+} else {
+    // Ripple: rings travelling outward.
+    off = dir_uv * sin(r * 26.0 - t * 7.0) * s * (1.0 - r) * 0.4;
+}
+return vec4<f32>(off * in.ruv, 0.0, 0.0);
+"""
+
+[[learn.code]]
+title = "Rings repeat on a timer"
+file = "crates/pav_view/src/fx.rs"
+lang = "rust"
+src = """
+/// An object's distortion at time `t`.
+pub fn distortion(def: &DistortDef, pos: Vec3, t: f32) -> Distortion {
+    let kind = match def.kind.as_str() {
+        "lens" => DistortKind::Lens,
+        "ripple" => DistortKind::Ripple,
+        "ring" | "shockwave" => DistortKind::Ring,
+        _ => DistortKind::Haze,
+    };
+    let progress = if kind == DistortKind::Ring { (t / def.period.max(0.1)).fract() } else { 0.0 };
+    Distortion { pos: pos + def.offset, radius: def.radius, strength: def.strength, kind, progress }
+}
+"""
+
+[[learn.code]]
+title = "The composite samples the scene through the offsets"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+var px = clamp(vec2<i32>(p), vec2<i32>(0), dims - vec2<i32>(1));
+var uv = p / vec2<f32>(dims);
+if (post.misc.z > 0.5) {
+    uv += textureLoad(distort_tex, px, 0).xy;
+    // Outlines and GI follow the warped image.
+    px = clamp(vec2<i32>(uv * vec2<f32>(dims)), vec2<i32>(0), dims - vec2<i32>(1));
+}
+var col = textureSampleLevel(hdr_tex, lin, uv, 0.0).rgb;
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -111,10 +198,10 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }, { y0 = 0, y1 = 1.0, color = 
 # The switch: view settings from a pad stay until you leave the room.
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }]
-zone = { kind = "pad", label = "DISTORTION ON", color = "#3bb273", params = { "view.distortion" = true } }
+zone = { kind = "pad", label = "DISTORTION ON", color = "#3bb273", params = { "view.distortion" = true }, note = "Distortion back on: the sources draw their offsets again and the composite reads the picture through them, so the ring demo, lenses and lava shimmer return." }
 [layout.legend.'F']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#3d424e" }]
-zone = { kind = "pad", label = "DISTORTION OFF", color = "#e07a5f", params = { "view.distortion" = false } }
+zone = { kind = "pad", label = "DISTORTION OFF", color = "#e07a5f", params = { "view.distortion" = false }, note = "view.distortion off: the offset pass is skipped, so the rings, lenses and haze vanish while the fire, embers and glowing lava stay. Nothing in the simulation changes." }
 
 # Exhibit names (light text on the plain dark floor strips).
 [[label]]

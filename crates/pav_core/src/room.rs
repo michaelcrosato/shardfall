@@ -91,6 +91,9 @@ pub struct ObjectDef {
     /// Shootable (enemies, bosses): hp, score, signal, finish, bar, sway, phases.
     #[serde(default)]
     pub health: Option<crate::entity::HealthDef>,
+    /// Moves in the wind (drawing only): "leaves" for canopies and banners, "grass" for tufts.
+    #[serde(default)]
+    pub sway: crate::shape::Sway,
 }
 
 impl ObjectDef {
@@ -198,6 +201,61 @@ fn misc() -> String {
     "misc".into()
 }
 
+/// A station guide (`[learn]` in a room file). Plain words; explain jargon the first time
+/// (or list it in `terms`, the field guide explains it).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Learn {
+    /// What you are looking at, in a few sentences.
+    pub what: String,
+    /// How it works, step by step.
+    pub how: Vec<String>,
+    /// Where games use it: "Title: text" (name real games where it is well known).
+    pub uses: Vec<String>,
+    /// Phrases to ask for it ("normal-mapped 2D lights with soft shadows").
+    pub ask: Vec<String>,
+    /// What it costs and what makes it cost more.
+    pub cost: String,
+    /// Settings that drive it (paths as in `pav params`, e.g. "view.bloom" or
+    /// "movement.jump_height"): live controls on the guide.
+    pub knobs: Vec<String>,
+    /// The key code, quoted from the engine.
+    pub code: Vec<CodeSnippet>,
+    /// Field guide words this station uses (`pav guide` / the in-game field guide).
+    pub terms: Vec<String>,
+}
+
+impl Learn {
+    pub fn is_empty(&self) -> bool {
+        *self == Learn::default()
+    }
+}
+
+impl RoomDef {
+    /// The room's pads in legend order: label and note.
+    pub fn pads(&self) -> Vec<(&str, &str)> {
+        self.layout
+            .legend
+            .values()
+            .filter_map(|t| t.zone.as_ref())
+            .filter(|z| z.kind == crate::zones::ZoneKind::Pad && !z.label.is_empty())
+            .map(|z| (z.label.as_str(), z.note.as_str()))
+            .collect()
+    }
+}
+
+/// A piece of engine code on a station guide.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CodeSnippet {
+    pub title: String,
+    /// Where it lives (repository path), e.g. "crates/pav_render/src/shaders/post.wgsl".
+    pub file: String,
+    /// "wgsl" or "rust".
+    pub lang: String,
+    pub src: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoomDef {
     #[serde(default)]
@@ -242,6 +300,10 @@ pub struct RoomDef {
     /// HUD overlays opened while inside: "feel" (feel metrics).
     #[serde(default)]
     pub overlays: Vec<String>,
+    /// The station guide: what you are looking at, how it works, where games use it and how
+    /// to ask for it (H in the game; the `room` tool prints it).
+    #[serde(default)]
+    pub learn: Learn,
     /// Height of the room's volume (m): above it (plus a margin) you count as outside, which
     /// cancels its courses. Raise it for rooms you fly in.
     #[serde(default = "room_height")]

@@ -70,6 +70,19 @@ choice_enum! {
     }
 }
 
+crate::choice_enum! {
+    /// How something moves in the wind (drawing only: the shape's collider never moves).
+    #[derive(Default)]
+    pub enum Sway {
+        #[default]
+        None => "none",
+        /// Canopies, bushes, banners: a gentle sway, more toward the top.
+        Leaves => "leaves",
+        /// Grass and reeds: bend far in gusts and part around the player.
+        Grass => "grass",
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Visual {
     pub shape: Shape,
@@ -85,10 +98,13 @@ pub struct Visual {
     pub particles: Option<Box<crate::fxdef::EmitterDef>>,
     #[serde(default)]
     pub distortion: Option<Box<crate::fxdef::DistortDef>>,
+    /// Moves in the wind (drawing only).
+    #[serde(default)]
+    pub sway: Sway,
 }
 
 impl Visual {
     pub fn new(shape: Shape, color: Color) -> Self {
-        Self { shape, color, look: Look::Cel, emissive: 0.0, light: None, particles: None, distortion: None }
+        Self { shape, color, look: Look::Cel, emissive: 0.0, light: None, particles: None, distortion: None, sway: Sway::None }
     }
 }

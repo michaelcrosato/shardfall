@@ -1,7 +1,7 @@
 # Presets for the Look & Filters menu (and the `look` agent tool).
 #
-# [[preset]]  one filter's settings: `section` is pixel, shading, outlines, palette, grading,
-#             scanlines, grain, screen or glow; `set` holds view paths (as in `pav params
+# [[preset]]  one filter's settings: `section` is pixel, shading, outlines, stylize, palette,
+#             grading, scanlines, grain, screen, glow or air; `set` holds view paths (as in `pav params
 #             prefix=view`, without `view.`) and only paths of that section. A filter preset
 #             never changes which part of the scene the filter is on (the *_on / *_target keys),
 #             so picking "Chunky" keeps pixel art on the characters if that is where it was.
@@ -127,6 +127,85 @@ section = "outlines"
 name = "Heavy ink"
 about = "3 px, black"
 set = { outlines = true, outline_px = 3.0, outline_darken = 0.0 }
+
+# ---------------------------------------------------------------- paint, print and sketch
+[[preset]]
+section = "stylize"
+name = "Off"
+about = "No painterly or print style"
+set = { "filter.stylize" = "off", "filter.stylize_size" = 4.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Oil paint"
+about = "Flat strokes that keep their edges (Kuwahara filter), brush streaks and canvas"
+set = { "filter.stylize" = "paint", "filter.stylize_size" = 6.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Gouache"
+about = "Small, crisp strokes"
+set = { "filter.stylize" = "paint", "filter.stylize_size" = 3.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Thick impasto"
+about = "Broad strokes that flatten detail away"
+set = { "filter.stylize" = "paint", "filter.stylize_size" = 8.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Underpainting"
+about = "Brown paint before the colour goes on"
+set = { "filter.stylize" = "paint", "filter.stylize_size" = 6.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 0.15 }
+
+[[preset]]
+section = "stylize"
+name = "Comic print"
+about = "Cyan, magenta, yellow and black dot screens on cream paper"
+set = { "filter.stylize" = "halftone", "filter.stylize_size" = 7.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Fine print"
+about = "Small process-colour dots, like a magazine"
+set = { "filter.stylize" = "halftone", "filter.stylize_size" = 4.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Newsprint"
+about = "Black dots only"
+set = { "filter.stylize" = "halftone", "filter.stylize_size" = 6.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 0.0 }
+
+[[preset]]
+section = "stylize"
+name = "Terminal"
+about = "Green characters on black, picked by brightness"
+set = { "filter.stylize" = "ascii", "filter.stylize_size" = 8.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 0.0 }
+
+[[preset]]
+section = "stylize"
+name = "Colour ASCII"
+about = "Characters in the scene's colours"
+set = { "filter.stylize" = "ascii", "filter.stylize_size" = 8.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Pencil"
+about = "Graphite hatching and contours on paper"
+set = { "filter.stylize" = "sketch", "filter.stylize_size" = 4.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 0.0 }
+
+[[preset]]
+section = "stylize"
+name = "Coloured pencil"
+about = "Hatching over paper tinted with the scene's colours"
+set = { "filter.stylize" = "sketch", "filter.stylize_size" = 4.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 1.0 }
+
+[[preset]]
+section = "stylize"
+name = "Loose sketch"
+about = "Wide, quick hatching"
+set = { "filter.stylize" = "sketch", "filter.stylize_size" = 7.0, "filter.stylize_mix" = 1.0, "filter.stylize_color" = 0.5 }
 
 # ---------------------------------------------------------------- palette
 [[preset]]
@@ -338,6 +417,49 @@ name = "Bounce light"
 about = "Screen-space bounce light and soft occlusion"
 set = { bloom = 0.35, bloom_threshold = 1.2, exposure = 1.0, gi = 1.0 }
 
+# ---------------------------------------------------------------- haze and light shafts
+[[preset]]
+section = "air"
+name = "Clear air"
+about = "No haze, no halos"
+set = { haze = 0.0, haze_height = 4.0, shafts = 1.0, shafts_forward = 0.4, halos = 0.0 }
+
+[[preset]]
+section = "air"
+name = "Light haze"
+about = "A touch of atmosphere"
+set = { haze = 0.35, haze_height = 4.0, shafts = 1.0, shafts_forward = 0.4, halos = 0.3 }
+
+[[preset]]
+section = "air"
+name = "Dusty sunbeams"
+about = "Bright dusty air; shadows cut dark shafts through it"
+set = { haze = 0.7, haze_height = 6.0, shafts = 2.4, shafts_forward = 0.6, halos = 0.3 }
+
+[[preset]]
+section = "air"
+name = "Morning mist"
+about = "Low mist hugging the ground"
+set = { haze = 1.4, haze_height = 1.2, shafts = 0.8, shafts_forward = 0.3, halos = 0.3 }
+
+[[preset]]
+section = "air"
+name = "Smoky hall"
+about = "Thick smoke: lamps glow in it and the sun streaks through"
+set = { haze = 1.0, haze_height = 8.0, shafts = 1.6, shafts_forward = 0.5, halos = 1.2 }
+
+[[preset]]
+section = "air"
+name = "Lamplight"
+about = "Clear air, big glowing halos around every light"
+set = { haze = 0.15, haze_height = 4.0, shafts = 0.5, shafts_forward = 0.4, halos = 1.6 }
+
+[[preset]]
+section = "air"
+name = "Pea soup"
+about = "Fog so thick you lose the far side of the room"
+set = { haze = 2.6, haze_height = 6.0, shafts = 0.6, shafts_forward = 0.3, halos = 0.6 }
+
 # ================================================================ whole looks
 [[look]]
 name = "Pixel heroes"
@@ -497,3 +619,118 @@ style = "per object"
 style_environment = "flat"
 style_objects = "lit"
 specular = 0.5
+
+[[look]]
+name = "Oil painting"
+about = "The whole scene in oil paint: flat strokes, brush streaks, canvas."
+[look.set]
+"filter.stylize" = "paint"
+"filter.stylize_on" = "all"
+"filter.stylize_size" = 6.0
+"filter.stylize_color" = 1.0
+"filter.saturation" = 1.15
+"filter.grade_on" = "all"
+
+[[look]]
+name = "Painted world, crisp heroes"
+about = "A painted backdrop; the characters and objects stay sharp, lit and inked on top of it."
+[look.set]
+"filter.stylize" = "paint"
+"filter.stylize_on" = "environment"
+"filter.stylize_size" = 7.0
+"filter.stylize_color" = 1.0
+outlines = true
+outlines_on = "objects"
+outline_px = 2.0
+outline_darken = 0.15
+style_objects = "lit"
+
+[[look]]
+name = "Comic book"
+about = "Printed dots on the world, inked cel-shaded heroes, punchy colour."
+[look.set]
+"filter.stylize" = "halftone"
+"filter.stylize_on" = "environment"
+"filter.stylize_size" = 6.0
+"filter.stylize_color" = 1.0
+outlines = true
+outlines_on = "all"
+outline_px = 2.0
+outline_darken = 0.08
+style_objects = "cel"
+cel_bands = 2.0
+rim = 0.4
+"filter.saturation" = 1.3
+"filter.contrast" = 1.1
+"filter.grade_on" = "objects"
+
+[[look]]
+name = "Newspaper"
+about = "Black dots on cream paper, everything."
+[look.set]
+"filter.stylize" = "halftone"
+"filter.stylize_on" = "all"
+"filter.stylize_size" = 5.0
+"filter.stylize_color" = 0.0
+
+[[look]]
+name = "Hacker terminal"
+about = "The game as green characters on a curved, scanlined screen."
+[look.set]
+"filter.stylize" = "ascii"
+"filter.stylize_on" = "all"
+"filter.stylize_size" = 8.0
+"filter.stylize_color" = 0.0
+"filter.curvature" = 0.1
+"filter.vignette" = 0.5
+"filter.scanlines" = 0.3
+"filter.scanline_px" = 3.0
+
+[[look]]
+name = "Sketchbook"
+about = "Pencil hatching and contours on paper."
+[look.set]
+"filter.stylize" = "sketch"
+"filter.stylize_on" = "all"
+"filter.stylize_size" = 4.0
+"filter.stylize_color" = 0.0
+
+[[look]]
+name = "Sketched world, painted heroes"
+about = "A coloured-pencil world; the characters and objects in oil paint."
+[look.set]
+"filter.stylize" = "sketch"
+"filter.stylize_on" = "environment"
+"filter.stylize_size" = 4.0
+"filter.stylize_color" = 1.0
+outlines = true
+outlines_on = "objects"
+outline_px = 2.0
+outline_darken = 0.1
+
+[[look]]
+name = "Sunbeams"
+about = "Dusty air, sunlight streaming through the gaps, a soft glow."
+[look.set]
+haze = 0.7
+haze_height = 6.0
+shafts = 2.4
+shafts_forward = 0.6
+halos = 0.3
+bloom = 0.6
+bloom_threshold = 1.0
+exposure = 1.0
+gi = 0.0
+
+[[look]]
+name = "Lamplit fog"
+about = "A foggy night where every lamp glows in the air."
+[look.set]
+haze = 0.9
+haze_height = 3.0
+shafts = 0.4
+shafts_forward = 0.3
+halos = 1.8
+"filter.temperature" = -0.25
+"filter.brightness" = 0.9
+"filter.grade_on" = "all"

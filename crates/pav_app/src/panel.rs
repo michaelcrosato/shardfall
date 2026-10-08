@@ -282,7 +282,7 @@ fn label_of(path: &str) -> &str {
     path.rsplit('.').next().unwrap_or(path)
 }
 
-fn param_widget(ui: &mut egui::Ui, p: &ParamInfo, changes: &mut Vec<(String, ParamValue)>) {
+pub(crate) fn param_widget(ui: &mut egui::Ui, p: &ParamInfo, changes: &mut Vec<(String, ParamValue)>) {
     let name = label_of(&p.path).replace('_', " ");
     ui.horizontal(|ui| {
         let resp = match (&p.kind, &p.value) {

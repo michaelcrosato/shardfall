@@ -29,6 +29,92 @@ entrance = { at = [19, 29], facing = "south" }
 tilt = 55.0
 distance = 26.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Things that bend and spring back. The JELLY CUBES (SOFT 3, MEDIUM 8, STIFF 25) and BALLOONS (10, 18, 32) are soft bodies, and so are the CURTAIN, the BANNER and the ROPES. The SPRING PLATFORMS, WOBBLY POSTS and the SPRING BALL are ordinary rigid bodies held by springy joints."
+how = [
+  "A soft body is a cloud of particles held together by elastic constraints. Rapier solves them in the same step as rigid bodies, contacts and joints, so jelly and crates push each other properly.",
+  "Shapes: a jelly cube is a 4 x 4 x 4 grid of 64 particles cut into tetrahedra (five per small cube); a balloon is a hollow icosphere of 162 particles with bending constraints and volume preservation, so it keeps its air; cloth is a grid with edges along, across and diagonally; a rope is a line of particles linked to their neighbours, plus a bending link to the particle two along.",
+  "Stiffness is a frequency: each constraint acts like a spring that snaps back at that many hertz (3 is a slow wobble, 25 nearly firm). Damping (0.3 here) is the damping ratio: 0 keeps wobbling, 1 does not wobble at all.",
+  "Pins and ties: pinned particles never move (the curtain's top row, the banner's top corners, each rope's first particle). The right-hand rope's last particle is attached to the box, so the box hangs from it.",
+  "The rest are joints with springs: each platform slides on a vertical slider joint with a spring motor (110, 160, 240), each post stands on a ball joint with a zero-length spring from its top to the world (200, 300, 500 N/m), and the ball is tied to its spot by one spring (300 N/m).",
+  "Drawing: every frame the particle positions become a fresh mesh whose normals are averaged from the triangles around each point; ropes are drawn as capsules between their particles.",
+]
+uses = [
+  "Jelly physics: JellyCar drives a car made of squishy soft-body shapes.",
+  "Springy structures: World of Goo builds towers and bridges from goo balls joined by springs.",
+  "Ropes: Cut the Rope swings its candy on ropes made of linked points you slice.",
+  "Soft-body crashes: BeamNG.drive models whole vehicles as nodes and beams that bend and crumple.",
+]
+ask = [
+  "jelly cube soft body with adjustable stiffness",
+  "balloon that keeps its volume when squashed",
+  "cloth curtain the player can walk through",
+  "rope with a weight swinging on the end",
+  "spring platform that sinks under the player",
+  "wobbly post on a spring joint",
+]
+cost = "CPU for the solver, plus a little for drawing. This room holds about a thousand particles (64 per jelly cube, 162 per balloon, 56 to 80 per cloth), every one solved each tick with its constraints and collisions. More resolution costs more (each extra balloon subdivision quadruples its triangles), and very stiff settings (around 50 Hz and up) start to jitter. Each frame the surfaces are rebuilt on the CPU and uploaded as new meshes."
+knobs = ["sim.gravity", "movement.weight", "movement.push_mass", "bombs.push", "sim.tick_rate"]
+terms = ["soft body", "joint", "rigid body", "secondary motion", "fixed timestep"]
+
+[[learn.code]]
+title = "A soft body from particles, springs and pins"
+file = "crates/pav_core/src/softbody.rs"
+lang = "rust"
+src = """
+// Into the world: rotate and move the particles.
+let positions: Vec<Vec3> = b.positions.iter().map(|p| pos + rot * *p).collect();
+let pins = pinned(def, &positions, grid);
+let n = positions.len().max(1);
+let mut b = b
+    .positions(positions)
+    .particle_mass(def.mass / n as f32)
+    .softness(SpringCoefficients::new(def.stiffness.max(0.1), def.damping.max(0.0)))
+    .pinned_particles(pins);
+if def.tear > 0.0 {
+    b = b.tear_strain(def.tear);
+}
+"""
+
+[[learn.code]]
+title = "Springy joints: a slider with a spring, and a spring joint"
+file = "crates/pav_core/src/joints.rs"
+lang = "rust"
+src = """
+JointKind::Slider { limits, spring, damping, .. } => {
+    let mut j = PrismaticJointBuilder::new(link.axis_a.normalize_or(Vec3::Y)).local_anchor1(a).local_anchor2(b);
+    if let Some([lo, hi]) = limits {
+        j = j.limits([*lo, *hi]);
+    }
+    if *spring > 0.0 {
+        j = j.motor_position(0.0, *spring, *damping);
+    }
+    // ...
+}
+JointKind::Spring { length, stiffness, damping } => {
+    SpringJointBuilder::new(*length, *stiffness, *damping).local_anchor1(a).local_anchor2(b).build().into()
+}
+"""
+
+[[learn.code]]
+title = "Drawing: smooth normals from the particles"
+file = "crates/pav_view/src/build.rs"
+lang = "rust"
+src = """
+let mut normals = vec![Vec3::ZERO; s.points.len()];
+for t in s.surface.iter() {
+    let [a, b, c] = t.map(|i| i as usize);
+    if a >= s.points.len() || b >= s.points.len() || c >= s.points.len() {
+        continue;
+    }
+    let n = (s.points[b] - s.points[a]).cross(s.points[c] - s.points[a]);
+    normals[a] += n;
+    normals[b] += n;
+    normals[c] += n;
+}
+"""
+
 [layout]
 origin = [-19.0, 0.0, -15.0]
 
@@ -201,7 +287,7 @@ color = "#9b5de5"
 soft = { shape = { type = "sphere", radius = 0.7, subdivisions = 2 }, stiffness = 32 }
 
 # Banner: cloth hung from its top corners on a crossbar. tear = 0.55 rips it when stretched 55%
-# (bomb blasts do not reach soft bodies yet, so for now only a big stretch would tear it).
+# (bomb blasts kick soft-body particles too, so a close blast can tear it as well as a big stretch).
 [[object]]
 name = "banner_bar"
 shape = { type = "box", half = [1.75, 0.06, 0.06] }

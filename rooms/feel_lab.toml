@@ -25,6 +25,110 @@ distance = 20.0
 [params]
 "movement.ledge_grab" = true
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Four pads, INSTANT, MOMENTUM, GRID and COMMITTED, swap the movement model: the rule that turns your keys into motion. The feel overlay (bottom right) measures each one live: response, time to top speed, stopping, turnaround and the last jump. The SPRINT 26 m lane, the jump poles (0.5 m to 2.5 m), the 1 m, 2 m and 3 m gaps, the LEDGE 2.4 m wall and the POOL are the same tests for every model."
+how = [
+  "Every tick (60 a second) each model turns the stick into a velocity its own way: INSTANT sets it outright, MOMENTUM steers toward it at a limited acceleration, GRID walks to the centre of the next 1 m tile, and COMMITTED turns at a limited rate and only runs the way it faces.",
+  "Rapier's kinematic character controller then moves your capsule (0.64 m wide, 1.7 m tall): it slides along walls, climbs anything up to 0.32 m by itself and keeps you glued to the ground over small drops instead of letting you take off.",
+  "A jump launches at the square root of 2 x gravity x jump_height, so jump_height (1.35 m) sets the apex; the 60 Hz steps overshoot it a little. Coyote time still lets you jump 0.1 s after running off an edge, the jump buffer keeps a press made up to 0.12 s before landing, and letting go of Space early keeps only 45% of the upward speed for a short hop.",
+  "Ledge grab is on in this room. Falling against a wall while pressing toward it casts rays at chest and waist height to find the wall, then one straight down behind its face to find the top: a top less than 1.32 m above your feet is mantled at once, one up to 2.1 m leaves you hanging (Space or toward the wall pulls up, C drops).",
+  "Water over 1.25 m deep at your feet makes you swim: you float with your feet 1.3 m under the surface, C sinks and Space at the surface jumps you out. The pool also ripples where you move: a CPU wave simulation pushes dents into a grid of heights, and they spread as rings, bounce off the edges and fade.",
+  "The feel meter watches the player every tick: a run-up counts as steady once the speed has stopped growing for 10 ticks, and time to top speed is the first tick that reached 90% of it. Stops and turnarounds are timed from the tick you change the input, jumps from take-off to landing.",
+]
+uses = [
+  "Precision platformers: coyote time and jump buffering quietly forgive presses a few frames late or early (Celeste).",
+  "Momentum and skids: running builds up speed and reversing skids before you turn (Super Mario Bros.).",
+  "Instant, fixed speed: one run speed with almost no slide, so every jump is exact (Mega Man).",
+  "Tile steps: grid movement for puzzle games and classic RPG towns (Pokemon, Crypt of the NecroDancer).",
+  "Committed actions: fixed jump arcs and rolls you cannot cancel make every press a decision (Castlevania, Dark Souls).",
+]
+ask = [
+  "coyote time and jump buffering",
+  "variable jump height with a jump cut",
+  "momentum movement with acceleration, friction and skid braking",
+  "grid-based tile movement",
+  "ledge grab with mantle and shimmy",
+  "live game-feel metrics overlay",
+]
+cost = "All CPU, per character per tick: one character-controller move (a few shape casts against nearby colliders) plus a handful of ray casts for ledges and feet, a tiny share of the tick. The pool's ripple grid (cells of about 0.14 m) is stepped 60 times a second on the CPU and rebuilt as a mesh every frame, so a bigger pool costs more."
+knobs = ["movement.model", "movement.accel", "movement.jump_height", "movement.coyote_time", "movement.jump_buffer", "view.water_ripples"]
+terms = ["game feel", "coyote time", "jump buffer", "fixed timestep", "raycast", "wave equation", "heightfield"]
+
+[[learn.code]]
+title = "Coyote time, jump buffer and the jump cut"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+let can_jump = (ch.grounded || ch.air_time < mp.coyote_time)
+    && (ch.posture != Posture::Crawl || creature)
+    && mp.allow_jump
+    && !rolling;
+if ch.since_jump_press <= mp.jump_buffer && can_jump && !ch.jumping {
+    ch.vel.y = (2.0 * mp.gravity * mp.jump_height).sqrt();
+    ch.jumping = true;
+    ch.grounded = false;
+    ch.air_time = mp.coyote_time + 1.0;
+    ch.since_jump_press = 10.0;
+    jumped = true;
+}
+let variable = mp.model != MovementModel::Committed;
+if variable && ch.jumping && !held(buttons::JUMP) && ch.vel.y > 0.0 {
+    ch.vel.y *= mp.jump_cut;
+    ch.jumping = false;
+}
+"""
+
+[[learn.code]]
+title = "When a fall turns into a ledge hang"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+// --- ledges: grab while falling against a wall top, then hang / shimmy / pull up / drop
+if !climbing
+    && ch.hang.is_none()
+    && mp.ledge_grab
+    && !ch.grounded
+    && !ch.swimming
+    && ch.posture == Posture::Stand
+    && ch.vel.y < 1.0
+    && ch.hang_cooldown <= 0.0
+    && wish.length() > 0.3
+{
+    let dir = wish.normalize();
+    if let Some((wall, n, top)) = find_ledge(st, filter, feet, dir) {
+        if top - feet.y <= 2.1 && (ch.air_jumped || top > ch.air_from + 0.3) {
+            // Close to the top: mantle straight up instead of hanging.
+            let climb = if top - feet.y < HANG_DROP - 0.3 { 0.0 } else { -1.0 };
+            ch.hang = Some(Hang { normal: n, wall, top, climb });
+            ch.vel = Vec3::ZERO;
+            ch.jumping = false;
+            ch.facing = yaw_of(-n);
+            events.push(SimEvent::Grab { pos: Vec3::new(wall.x, top, wall.z) });
+        }
+    }
+}
+"""
+
+[[learn.code]]
+title = "The feel meter decides when you reached top speed"
+file = "crates/pav_core/src/feel.rs"
+lang = "rust"
+src = """
+if n > 12 {
+    let recent = self.run[n - 10..].iter().map(|s| s.1).fold(0.0, f32::max);
+    let before = self.run[n - 11].1;
+    if recent <= before * 1.005 + 0.01 && before > 0.3 {
+        let steady = before;
+        r.top_speed = steady;
+        if let Some(first) = self.run.iter().find(|s| s.1 >= steady * 0.9) {
+            r.accel_ms = ms(first.0 as u64 + 1);
+        }
+        self.accel_done = true;
+    }
+}
+"""
+
 [layout]
 origin = [-16.0, 0.0, -13.0]
 
@@ -122,16 +226,16 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }, { y0 = 0, y1 = 4.2, color = 
 # Movement model pads.
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" } }
+zone = { kind = "pad", label = "INSTANT", color = "#5b8def", params = { "movement.model" = "instant" }, note = "Velocity is set to 6 m/s on the very tick you press and to zero when you let go: no run-up, no slide. Precise but weightless." }
 [layout.legend.'M']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" } }
+zone = { kind = "pad", label = "MOMENTUM", color = "#e07a5f", params = { "movement.model" = "momentum" }, note = "Speeds up at 45 m/s² to 7.5 m/s, coasts down at 32 and brakes at 90 when you reverse. The overlay shows about 0.15 s to top speed and a stop that slides 0.7 m." }
 [layout.legend.'G']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "GRID", color = "#3bb273", params = { "movement.model" = "grid" } }
+zone = { kind = "pad", label = "GRID", color = "#3bb273", params = { "movement.model" = "grid" }, note = "One 1 m tile every 0.16 s (6.25 m/s). A step always finishes, so you stop on tile centres, and you only move in four directions." }
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cfd6c4" }]
-zone = { kind = "pad", label = "COMMITTED", color = "#9b5de5", params = { "movement.model" = "committed" } }
+zone = { kind = "pad", label = "COMMITTED", color = "#9b5de5", params = { "movement.model" = "committed" }, note = "Turns at 540°/s and only runs the way it faces; jumps keep their take-off speed (no steering, no short hop), and C while running is a dodge roll." }
 
 # Signs.
 [[label]]

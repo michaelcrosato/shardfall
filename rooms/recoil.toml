@@ -38,6 +38,100 @@ distance = 13.0
 "bombs.push" = 14.0
 "bombs.radius" = 2.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Characters flinch away from hits and get shoved back. Four turrets in the SHOOTING GALLERY fire at idle dummies with knockback 2, 5, 9 and 14, the BOMB RING puts people and four creatures round a spot you bomb, and WALK THE GAUNTLET lets you take the hits yourself. In the south, STUN vs BOUNCE BACK compares a light and a heavy hit and a machine gun with a cannon (24), and SIZES & BODIES shows tiny, giant, spider and lizard targets."
+how = [
+  "A hit does two separate things: it shoves the body (knockback, movement) and kicks the pose (recoil, animation). A turret shot uses its knockback value; a bomb shoves everything within 2.5 times bombs.radius (5 m here) with bombs.push (14 here), weaker further out.",
+  "Knockback is a velocity added in one go: the shot's knockback sideways plus a hop of 0.35 of it plus 1.5 m/s upward. For movement.hit_stun (0.35 s) the character has no control and slides to a stop; then the idle dummies walk back to their spot and turn to face their start direction.",
+  "Recoil is a damped spring (stiffness 150, damping 9) on two lean angles, sideways and forward. The hit kicks the spring's speed away from the shot by 7 times its strength (knockback / 6, kept between 0.4 and 3); the spring swings back upright, overshooting once, and the lean is capped at about 50 degrees.",
+  "The pose reads those angles: the torso tips by them, the head snaps 60% further, the arms fling up and out (IK then finds the elbows) and the hands jerk back for a moment. Creatures have no torso to bend, so their whole body jolts instead.",
+  "After a hit a character is untouchable for 0.6 s, and shots that arrive sooner are absorbed, so the MACHINE GUN (a shot every 0.25 s) lands about one shot in three. Light and heavy hits get the same 0.35 s stun; the HEAVY HIT just throws harder.",
+]
+uses = [
+  "Physical hit reactions: GTA IV, Red Dead Redemption and Max Payne 3 use NaturalMotion's Euphoria so bodies react to each bullet.",
+  "Knockback that grows: Super Smash Bros. sends fighters further the more damage they carry.",
+  "Hit stun: fighting games such as Street Fighter take away the victim's control for a set number of frames after each hit.",
+  "Action games: enemies flinch on every blow so you can read your hits landing, and a short invulnerability after a hit stops one burst from locking a character down.",
+]
+ask = [
+  "hit reactions: flinch away from the shot on a damped spring",
+  "knockback with hit stun and invulnerability frames",
+  "bomb blast that shoves and staggers everyone nearby",
+  "enemies that walk back to their post after being knocked away",
+  "head snap and arm fling on a heavy hit",
+]
+cost = "Practically free: two spring values per character, a velocity change and two timers. The shots are CPU projectiles tested against every character's capsule each tick, so the cost grows with shots times characters; nothing extra is drawn."
+knobs = ["movement.hit_stun", "bombs.push", "bombs.radius", "puppet.look", "puppet.anim_fps"]
+terms = ["procedural animation", "game feel", "ik", "interpolation", "flat shading", "cel shading"]
+
+[[learn.code]]
+title = "A hit: shove, stun and kick the pose"
+file = "crates/pav_core/src/course.rs"
+lang = "rust"
+src = """
+let stun = self.config.movement.hit_stun;
+// ...
+if ch.invuln > 0.0 {
+    return;
+}
+ch.invuln = 0.6;
+ch.stun = stun;
+ch.hang = None;
+ch.climbing = None;
+let flat = Vec3::new(dir.x, 0.0, dir.z).normalize_or(Vec3::X);
+ch.impulse += flat * knockback + Vec3::Y * (knockback * 0.35 + 1.5);
+ch.anim.recoil = 1.0;
+ch.anim.hit(dir, (knockback / 6.0).clamp(0.4, 3.0));
+"""
+
+[[learn.code]]
+title = "The flinch spring and the kick"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+    // Hit recoil: a damped spring pulls the flinch back upright.
+    let (k, c) = (150.0, 9.0);
+    self.hit_vs += (-self.hit_side * k - self.hit_vs * c) * dt;
+    self.hit_vf += (-self.hit_fwd * k - self.hit_vf * c) * dt;
+    self.hit_side = (self.hit_side + self.hit_vs * dt).clamp(-0.9, 0.9);
+    self.hit_fwd = (self.hit_fwd + self.hit_vf * dt).clamp(-0.9, 0.9);
+// ...
+/// Flinch away from a hit coming along `dir` (world), `strength` ~ 1 for a normal hit.
+pub fn hit(&mut self, dir: Vec3, strength: f32) {
+    let (s, c) = self.facing.sin_cos();
+    let fwd = Vec3::new(s, 0.0, c);
+    let right = Vec3::new(c, 0.0, -s);
+    let d = Vec3::new(dir.x, 0.0, dir.z).normalize_or(-fwd);
+    let kick = 7.0 * strength.clamp(0.2, 3.0);
+    self.hit_vs += d.dot(right) * kick;
+    self.hit_vf += d.dot(fwd) * kick;
+    self.recoil = self.recoil.max(0.6 * strength.min(1.5));
+}
+"""
+
+[[learn.code]]
+title = "Torso, head and arms read the flinch"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd + act.lean * act.w;
+// ...
+// Torso direction: upright, leaning, or horizontal when crawling.
+let torso_dir = Vec3::new(st.lean_side + st.hit_side, 1.0, lean_f)
+    .normalize()
+    .lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl)
+    .lerp(Vec3::new(0.0, 0.45, 1.0).normalize(), swim)
+    .normalize();
+// ...
+// The head snaps a little further than the torso on a hit.
+let head_dir = (torso_dir + Vec3::new(st.hit_side, 0.0, st.hit_fwd) * 0.6).normalize();
+    // ...
+    // Arms fling out on a hit.
+    let fling = (st.hit_side.abs() + st.hit_fwd.abs()).min(0.8);
+    hand += Vec3::new(s * 0.5, 0.6, 0.0) * fling * arm;
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -109,15 +203,15 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }, { y0 = 0, y1 = 1.6, color = 
 
 [layout.legend.'P']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
-zone = { kind = "pad", label = "CUTOUT", label_size = 0.35, color = "#9b5de5", params = { "puppet.look" = "cutout" } }
+zone = { kind = "pad", label = "CUTOUT", label_size = 0.35, color = "#9b5de5", params = { "puppet.look" = "cutout" }, note = "You become a flat side-view card turned to the camera. Hits still bend the torso and fling the arms, now read like a 2D paper puppet." }
 
 [layout.legend.'Q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
-zone = { kind = "pad", label = "ON TWOS", label_size = 0.35, color = "#f2a33a", params = { "puppet.anim_fps" = 12.0 } }
+zone = { kind = "pad", label = "ON TWOS", label_size = 0.35, color = "#f2a33a", params = { "puppet.anim_fps" = 12.0 }, note = "Your walk cycle updates 12 times a second, like hand-drawn animation on twos. Only the walk phase steps: flinches and knockback stay smooth." }
 
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cdd9e6" }]
-zone = { kind = "pad", label = "NORMAL", label_size = 0.35, color = "#3bb273", params = { "puppet.look" = "cel", "puppet.anim_fps" = 0.0 } }
+zone = { kind = "pad", label = "NORMAL", label_size = 0.35, color = "#3bb273", params = { "puppet.look" = "cel", "puppet.anim_fps" = 0.0 }, note = "Back to the default cel look and smooth animation." }
 
 # Floor names (layout space).
 

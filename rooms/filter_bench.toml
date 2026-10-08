@@ -29,6 +29,89 @@ tilt = 55.0
 distance = 18.0
 fov = 40.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "A bench of pads in rows, one row per filter: PIXELS, CRT CURVE, SCANLINES, DITHER + LEVELS, two PALETTE rows and GRADE on the west; TINT, BRIGHTNESS, CONTRAST, VIGNETTE, GRAIN, CHROMA and SATURATION on the east. Row pads set only their own filter, so they stack as you walk over the FILTER GARDEN and its rainbow and grey strips. PRESETS set the whole stack, SPLIT compares it with the clean picture and the ART pads turn only part of the scene into pixel art."
+how = [
+  "Every pad writes view.filter.* settings into one block of uniforms (constants the shader reads each frame), so ten stacked filters are still one composite pass.",
+  "The order is fixed in the shader: curvature, pixelate and pixel art first decide where each pixel reads the scene, then grading (temperature, tint, contrast, brightness, saturation), scanlines, vignette and grain, and last the reduction to colour levels or a palette.",
+  "Order matters: because the palette comes last, GAMEBOY over a WARM grade still shows only four greens, and the grain gets snapped to the palette too.",
+  "Pixel art on part of the scene: chosen objects write a negative id into the normal buffer while the scene is drawn. The composite moves only those pixels to their block's centre and darkens a one-block rim where a marked object stands in front of another, so ART HERO turns just you into 4 px blocks.",
+  "Chroma reads red and blue from slightly different spots, further apart towards the screen edges; grain adds per-pixel noise that changes every frame; the vignette darkens with distance from the centre.",
+]
+uses = [
+  "Tributes: Game Boy greens, PICO-8's 16 colours or 1-bit black and white over a modern scene.",
+  "Film looks: grain, vignette and colour fringes for horror (Alien: Isolation offers film grain and chromatic aberration).",
+  "Photo modes: big games ship these very sliders for players' screenshots (Ghost of Tsushima, Marvel's Spider-Man).",
+  "Pixel heroes in a 3D world: sprites in a sharp, lit scene, the HD-2D look of Octopath Traveler.",
+]
+ask = [
+  "stackable post-process filter chain",
+  "Game Boy palette with ordered dithering",
+  "arcade CRT: curvature, scanlines, vignette, colour fringe",
+  "pixel-art filter on only the characters",
+  "sepia or noir grade with film grain",
+  "before/after split for tuning filters",
+]
+cost = "Every filter lives in the single composite pass, so turning more on adds arithmetic, not passes: a few operations each, the 16-colour palette search being the largest. Part-of-scene pixel art adds a handful of normal-buffer and depth reads per pixel for its outline."
+knobs = ["view.filter.pixelate", "view.filter.palette", "view.filter.dither", "view.filter.temperature", "view.filter.chroma", "view.filter.pixel_art"]
+terms = ["post-process", "uniform", "pixel art", "dithering", "palette", "posterize", "color grading", "chromatic aberration"]
+
+[[learn.code]]
+title = "The grade, in display colour"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+// Colour grading (display space).
+if (aimed(post.filt5.z, obj)) {
+    let temp = post.filt2.x;
+    s = s * vec3<f32>(1.0 + 0.12 * temp, 1.0 + 0.08 * post.filt2.y, 1.0 - 0.12 * temp);
+    s = (s - 0.5) * post.filt2.z + 0.5;
+    s = s * post.filt2.w;
+    let gray = dot(s, vec3<f32>(0.2126, 0.7152, 0.0722));
+    s = mix(vec3<f32>(gray), s, post.filt4.x);
+}
+"""
+
+[[learn.code]]
+title = "Levels or a palette, nudged by a Bayer pattern"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+let pal = u32(post.filt1.z + 0.5);
+let levels = post.filt1.y;
+// The dither pattern steps with the pixels: pixel-art blocks or the whole screen's.
+let bp = floor(frag.xy / select(block, art_px, art));
+let th = mix(0.5, bayer4i(bp), clamp(post.filt1.x, 0.0, 1.0));
+if (aimed(post.filt5.y, obj)) {
+    if (pal > 0u) {
+        s = palette_nearest(s, pal, th);
+    } else if (levels >= 2.0) {
+        let l = levels - 1.0;
+        s = floor(s * l + th) / l;
+    }
+}
+"""
+
+[[learn.code]]
+title = "Pixel art only where the mark is"
+file = "crates/pav_render/src/shaders/post.wgsl"
+lang = "wgsl"
+src = """
+let art_px = post.filt4.y;
+var art = false;
+var art_edge = false;
+if (art_px > 1.0) {
+    let c = (floor(p / art_px) + 0.5) * art_px;
+    let gc = group_at(c, dims);
+    if (gc < 0.0 || group_at(p, dims) < 0.0) {
+        p = c;
+        art = true;
+    }
+    // ...
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -114,235 +197,235 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#4aa8e0" }]
 
 [layout.legend.'a']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.pixelate" = 1.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.pixelate" = 1.0 }, note = "Pixel size 1: pixelation off, the picture at full resolution." }
 
 [layout.legend.'b']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "3 PX", color = "#4f9ce3", params = { "view.filter.pixelate" = 3.0 } }
+zone = { kind = "pad", label = "3 PX", color = "#4f9ce3", params = { "view.filter.pixelate" = 3.0 }, note = "Every 3 x 3 block shows the colour at its centre: the whole screen at a third of its resolution." }
 
 [layout.legend.'c']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "6 PX", color = "#2a82d4", params = { "view.filter.pixelate" = 6.0 } }
+zone = { kind = "pad", label = "6 PX", color = "#2a82d4", params = { "view.filter.pixelate" = 6.0 }, note = "6 px blocks: chunky. Thin things like flower stems vanish or flicker as they cross block edges." }
 
 [layout.legend.'d']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.curvature" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.curvature" = 0.0 }, note = "Curvature 0: a flat screen." }
 
 [layout.legend.'e']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.1", color = "#e3964f", params = { "view.filter.curvature" = 0.1 } }
+zone = { kind = "pad", label = "0.1", color = "#e3964f", params = { "view.filter.curvature" = 0.1 }, note = "Curvature 0.1: the picture bows outward like an old tube and the corners, now outside the glass, turn black." }
 
 [layout.legend.'f']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.25", color = "#d47c2a", params = { "view.filter.curvature" = 0.25 } }
+zone = { kind = "pad", label = "0.25", color = "#d47c2a", params = { "view.filter.curvature" = 0.25 }, note = "Curvature 0.25: a strongly curved tube; more of each corner falls outside it and goes black." }
 
 [layout.legend.'h']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.scanlines" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.scanlines" = 0.0 }, note = "Scanlines 0: no dark rows." }
 
 [layout.legend.'i']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.4", color = "#994fe3", params = { "view.filter.scanlines" = 0.4 } }
+zone = { kind = "pad", label = "0.4", color = "#994fe3", params = { "view.filter.scanlines" = 0.4 }, note = "Scanlines 0.4: a dark stripe every 3 px (view.filter.scanline_px), up to 24% darker, like the gaps between a CRT's lines." }
 
 [layout.legend.'j']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.8", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.8 } }
+zone = { kind = "pad", label = "0.8", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.8 }, note = "Scanlines 0.8: stripes up to 48% darker, so the whole picture dims; arcade looks add brightness or bloom to make up for it." }
 
 [layout.legend.'k']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.dither" = 0.0, "view.filter.levels" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.dither" = 0.0, "view.filter.levels" = 0.0 }, note = "Dither and levels off: smooth colour." }
 
 [layout.legend.'l']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "8 LEVELS", color = "#e34f96", params = { "view.filter.dither" = 1.0, "view.filter.levels" = 8.0 } }
+zone = { kind = "pad", label = "8 LEVELS", color = "#e34f96", params = { "view.filter.dither" = 1.0, "view.filter.levels" = 8.0 }, note = "8 levels per channel (512 colours) with a 4 x 4 Bayer dither: barely visible except on the grey strips." }
 
 [layout.legend.'m']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "3 LEVELS", color = "#d42a7c", params = { "view.filter.dither" = 1.0, "view.filter.levels" = 3.0 } }
+zone = { kind = "pad", label = "3 LEVELS", color = "#d42a7c", params = { "view.filter.dither" = 1.0, "view.filter.levels" = 3.0 }, note = "3 levels per channel (27 colours): strips and sky break into dot patterns as the dither trades bands for texture." }
 
 [layout.legend.'n']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "NONE", color = "#2f3441", params = { "view.filter.palette" = "none" } }
+zone = { kind = "pad", label = "NONE", color = "#2f3441", params = { "view.filter.palette" = "none" }, note = "No palette: full colour (levels from the dither row still apply)." }
 
 [layout.legend.'o']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GAMEBOY", color = "#52e34f", params = { "view.filter.palette" = "gameboy" } }
+zone = { kind = "pad", label = "GAMEBOY", color = "#52e34f", params = { "view.filter.palette" = "gameboy" }, note = "Four Game Boy greens chosen by brightness alone: hue disappears and only light and shade remain. Add a DITHER pad for in-between tones." }
 
 [layout.legend.'r']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "PICO-8", color = "#2ed42a", params = { "view.filter.palette" = "pico8" } }
+zone = { kind = "pad", label = "PICO-8", color = "#2ed42a", params = { "view.filter.palette" = "pico8" }, note = "The nearest of PICO-8's 16 fixed colours, by a brightness-weighted distance: hues jump to the closest swatch." }
 
 [layout.legend.'s']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "CGA", color = "#7cf279", params = { "view.filter.palette" = "cga" } }
+zone = { kind = "pad", label = "CGA", color = "#7cf279", params = { "view.filter.palette" = "cga" }, note = "Only black, cyan, magenta and white, the 1980s CGA palette: everything is pushed to the nearest of the four." }
 
 [layout.legend.'t']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1-BIT", color = "#52e34f", params = { "view.filter.palette" = "1bit" } }
+zone = { kind = "pad", label = "1-BIT", color = "#52e34f", params = { "view.filter.palette" = "1bit" }, note = "Black or white by brightness. With a DITHER pad on, greys turn into checker patterns." }
 
 [layout.legend.'u']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "AMBER", color = "#2ed42a", params = { "view.filter.palette" = "amber" } }
+zone = { kind = "pad", label = "AMBER", color = "#2ed42a", params = { "view.filter.palette" = "amber" }, note = "Four amber shades by brightness, like a monochrome terminal." }
 
 [layout.legend.'v']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "WARM", color = "#f29679", params = { "view.filter.temperature" = 0.8 } }
+zone = { kind = "pad", label = "WARM", color = "#f29679", params = { "view.filter.temperature" = 0.8 }, note = "Temperature 0.8: red up and blue down by about 10%, a sunset warmth." }
 
 [layout.legend.'x']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "COOL", color = "#e3734f", params = { "view.filter.temperature" = -0.8 } }
+zone = { kind = "pad", label = "COOL", color = "#e3734f", params = { "view.filter.temperature" = -0.8 }, note = "Temperature -0.8: blue up and red down by about 10%, cold and wintry." }
 
 [layout.legend.'y']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "NEUTRAL", color = "#2f3441", params = { "view.filter.temperature" = 0.0 } }
+zone = { kind = "pad", label = "NEUTRAL", color = "#2f3441", params = { "view.filter.temperature" = 0.0 }, note = "Temperature 0: no colour shift." }
 
 [layout.legend.'z']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GREEN", color = "#79f2aa", params = { "view.filter.tint" = 0.7 } }
+zone = { kind = "pad", label = "GREEN", color = "#79f2aa", params = { "view.filter.tint" = 0.7 }, note = "Tint 0.7: green raised by about 6%, the sickly cast of fluorescent tubes." }
 
 [layout.legend.'A']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "MAGENTA", color = "#4fe38a", params = { "view.filter.tint" = -0.7 } }
+zone = { kind = "pad", label = "MAGENTA", color = "#4fe38a", params = { "view.filter.tint" = -0.7 }, note = "Tint -0.7: green lowered by about 6%, so everything leans pink and purple." }
 
 [layout.legend.'B']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "NEUTRAL", color = "#2f3441", params = { "view.filter.tint" = 0.0 } }
+zone = { kind = "pad", label = "NEUTRAL", color = "#2f3441", params = { "view.filter.tint" = 0.0 }, note = "Tint 0: no tint." }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.7", color = "#f2df79", params = { "view.filter.brightness" = 0.7 } }
+zone = { kind = "pad", label = "0.7", color = "#f2df79", params = { "view.filter.brightness" = 0.7 }, note = "Brightness 0.7: every colour times 0.7, darker overall." }
 
 [layout.legend.'D']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.brightness" = 1.0 } }
+zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.brightness" = 1.0 }, note = "Brightness 1: unchanged." }
 
 [layout.legend.'E']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1.4", color = "#d4b92a", params = { "view.filter.brightness" = 1.4 } }
+zone = { kind = "pad", label = "1.4", color = "#d4b92a", params = { "view.filter.brightness" = 1.4 }, note = "Brightness 1.4: colours times 1.4; bright areas clip to white and lose their detail." }
 
 [layout.legend.'F']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.8", color = "#799bf2", params = { "view.filter.contrast" = 0.8 } }
+zone = { kind = "pad", label = "0.8", color = "#799bf2", params = { "view.filter.contrast" = 0.8 }, note = "Contrast 0.8: colours pulled towards mid grey, a flat, foggy look." }
 
 [layout.legend.'H']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.contrast" = 1.0 } }
+zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.contrast" = 1.0 }, note = "Contrast 1: unchanged." }
 
 [layout.legend.'I']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1.4", color = "#2a5ad4", params = { "view.filter.contrast" = 1.4 } }
+zone = { kind = "pad", label = "1.4", color = "#2a5ad4", params = { "view.filter.contrast" = 1.4 }, note = "Contrast 1.4: colours pushed away from mid grey: darker darks, lighter lights." }
 
 [layout.legend.'J']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.vignette" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.vignette" = 0.0 }, note = "Vignette 0: even brightness right into the corners." }
 
 [layout.legend.'K']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.5", color = "#b44fe3", params = { "view.filter.vignette" = 0.5 } }
+zone = { kind = "pad", label = "0.5", color = "#b44fe3", params = { "view.filter.vignette" = 0.5 }, note = "Vignette 0.5: the corners darken by about half, which pulls the eye to the middle." }
 
 [layout.legend.'L']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.9", color = "#9d2ad4", params = { "view.filter.vignette" = 0.9 } }
+zone = { kind = "pad", label = "0.9", color = "#9d2ad4", params = { "view.filter.vignette" = 0.9 }, note = "Vignette 0.9: corners almost black, a tunnel or keyhole feel." }
 
 [layout.legend.'M']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.grain" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.grain" = 0.0 }, note = "Grain 0: clean." }
 
 [layout.legend.'N']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.3", color = "#e3a84f", params = { "view.filter.grain" = 0.3 } }
+zone = { kind = "pad", label = "0.3", color = "#e3a84f", params = { "view.filter.grain" = 0.3 }, note = "Grain 0.3: per-pixel noise of up to about 2% either way that changes every frame, like film." }
 
 [layout.legend.'O']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.7", color = "#d4902a", params = { "view.filter.grain" = 0.7 } }
+zone = { kind = "pad", label = "0.7", color = "#d4902a", params = { "view.filter.grain" = 0.7 }, note = "Grain 0.7: noise of up to about 6% either way: a gritty, high-ISO look." }
 
 [layout.legend.'P']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.chroma" = 0.0 } }
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.chroma" = 0.0 }, note = "No fringe: red, green and blue are read from the same spot." }
 
 [layout.legend.'Q']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "0.5", color = "#e34f7c", params = { "view.filter.chroma" = 0.5 } }
+zone = { kind = "pad", label = "0.5", color = "#e34f7c", params = { "view.filter.chroma" = 0.5 }, note = "Chroma 0.5: red and blue are read a little off-centre, so edges near the screen sides get coloured fringes; the middle stays clean." }
 
 [layout.legend.'R']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.chroma" = 1.0 } }
+zone = { kind = "pad", label = "1.0", color = "#2f3441", params = { "view.filter.chroma" = 1.0 }, note = "Chroma 1: stronger fringes, about 0.6% of the screen width at the edges, like a cheap lens." }
 
 [layout.legend.'S']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GREY 0", color = "#79f2e4", params = { "view.filter.saturation" = 0.0 } }
+zone = { kind = "pad", label = "GREY 0", color = "#79f2e4", params = { "view.filter.saturation" = 0.0 }, note = "Saturation 0: every pixel mixed fully to its grey: a black-and-white picture." }
 
 [layout.legend.'T']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "NORMAL", color = "#2f3441", params = { "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "NORMAL", color = "#2f3441", params = { "view.filter.saturation" = 1.0 }, note = "Saturation 1: unchanged." }
 
 [layout.legend.'U']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "VIVID 1.6", color = "#2ad4bf", params = { "view.filter.saturation" = 1.6 } }
+zone = { kind = "pad", label = "VIVID 1.6", color = "#2ad4bf", params = { "view.filter.saturation" = 1.6 }, note = "Saturation 1.6: colours pushed 60% further from grey; already strong colours clip." }
 
 [layout.legend.'V']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "GAME BOY", color = "#8bac0f", params = { "view.filter.pixelate" = 4.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 0.0, "view.filter.palette" = "gameboy", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "GAME BOY", color = "#8bac0f", params = { "view.filter.pixelate" = 4.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 0.0, "view.filter.palette" = "gameboy", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 }, note = "The whole stack: 4 px blocks, the four Game Boy greens and full dither, everything else neutral." }
 
 [layout.legend.'W']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ARCADE", color = "#d94c4c", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.12, "view.filter.scanlines" = 0.6, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.4, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.4, "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "ARCADE", color = "#d94c4c", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.12, "view.filter.scanlines" = 0.6, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.4, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.4, "view.filter.saturation" = 1.0 }, note = "Curvature 0.12, scanlines 0.6, vignette 0.4, chroma 0.4 and contrast 1.1: an arcade cabinet's tube." }
 
 [layout.legend.'X']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "VHS", color = "#7a63d6", params = { "view.filter.pixelate" = 2.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.3, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.15, "view.filter.tint" = 0.05, "view.filter.contrast" = 0.9, "view.filter.brightness" = 1.05, "view.filter.vignette" = 0.3, "view.filter.grain" = 0.4, "view.filter.chroma" = 0.8, "view.filter.saturation" = 1.25 } }
+zone = { kind = "pad", label = "VHS", color = "#7a63d6", params = { "view.filter.pixelate" = 2.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.3, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.15, "view.filter.tint" = 0.05, "view.filter.contrast" = 0.9, "view.filter.brightness" = 1.05, "view.filter.vignette" = 0.3, "view.filter.grain" = 0.4, "view.filter.chroma" = 0.8, "view.filter.saturation" = 1.25 }, note = "2 px blocks, scanlines 0.3, chroma 0.8, grain 0.4 and a warm, low-contrast, saturated grade: a worn tape." }
 
 [layout.legend.'Y']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "NOIR", color = "#3d4048", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.4, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.6, "view.filter.grain" = 0.6, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.0 } }
+zone = { kind = "pad", label = "NOIR", color = "#3d4048", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.4, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.6, "view.filter.grain" = 0.6, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.0 }, note = "Saturation 0, contrast 1.4, vignette 0.6 and grain 0.6: black-and-white film." }
 
 [layout.legend.'Z']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "PICO-8", color = "#ff77a8", params = { "view.filter.pixelate" = 3.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.4, "view.filter.levels" = 0.0, "view.filter.palette" = "pico8", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "PICO-8", color = "#ff77a8", params = { "view.filter.pixelate" = 3.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.4, "view.filter.levels" = 0.0, "view.filter.palette" = "pico8", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 }, note = "3 px blocks in the 16-colour PICO-8 palette with a light dither of 0.4." }
 
 [layout.legend.'0']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "1-BIT", color = "#e9e9e9", params = { "view.filter.pixelate" = 2.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 0.0, "view.filter.palette" = "1bit", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "1-BIT", color = "#e9e9e9", params = { "view.filter.pixelate" = 2.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 1.0, "view.filter.levels" = 0.0, "view.filter.palette" = "1bit", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 }, note = "2 px blocks in pure black and white with full dither: greys become patterns." }
 
 [layout.legend.'9']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "AMBER TERM", color = "#ffb000", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.08, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "amber", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 } }
+zone = { kind = "pad", label = "AMBER TERM", color = "#ffb000", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.08, "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "amber", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0 }, note = "The four amber shades on a slightly curved tube (0.08) with scanlines 0.5: an old monochrome terminal." }
 
 [layout.legend.'%']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "SEPIA", color = "#b07a45", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.15, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.5, "view.filter.grain" = 0.3, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.25 } }
+zone = { kind = "pad", label = "SEPIA", color = "#b07a45", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.6, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.15, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.5, "view.filter.grain" = 0.3, "view.filter.chroma" = 0.0, "view.filter.saturation" = 0.25 }, note = "Saturation 0.25, temperature 0.6, contrast 1.15, vignette 0.5 and grain 0.3: a faded brown photograph." }
 
 [layout.legend.'<']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ART OFF", color = "#2f3441", params = { "view.filter.pixel_art" = 1.0 } }
+zone = { kind = "pad", label = "ART OFF", color = "#2f3441", params = { "view.filter.pixel_art" = 1.0 }, note = "Pixel-art block size 1: part-of-scene pixel art off." }
 
 [layout.legend.'>']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ART CHARACTERS", color = "#c0569a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "characters" } }
+zone = { kind = "pad", label = "ART CHARACTERS", color = "#c0569a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "characters" }, note = "4 px pixel art on the characters only (you, the kid and the slime) with a dark one-block outline; the garden stays sharp." }
 
 [layout.legend.'^']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ART HERO", color = "#d9733a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "hero" } }
+zone = { kind = "pad", label = "ART HERO", color = "#d9733a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "hero" }, note = "4 px pixel art on you alone: the other walkers and the garden stay sharp." }
 
 [layout.legend.'~']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "ART WORLD", color = "#3f8f6a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "world" } }
+zone = { kind = "pad", label = "ART WORLD", color = "#3f8f6a", params = { "view.filter.pixel_art" = 4.0, "view.filter.pixel_target" = "world" }, note = "4 px pixel art on everything except the characters: sharp heroes in a pixel world." }
 
 [layout.legend.'&']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "SPLIT 0.5", color = "#f2f2f2", params = { "view.filter.split" = 0.5 } }
+zone = { kind = "pad", label = "SPLIT 0.5", color = "#f2f2f2", params = { "view.filter.split" = 0.5 }, note = "Filters only right of the screen's middle: the left half stays clean, so you can judge the stack." }
 
 [layout.legend.'*']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "SPLIT OFF", color = "#2f3441", params = { "view.filter.split" = 0.0 } }
+zone = { kind = "pad", label = "SPLIT OFF", color = "#2f3441", params = { "view.filter.split" = 0.0 }, note = "Split 0: the stack covers the whole screen again." }
 
 [layout.legend.'+']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "RESET", color = "#2f9e5a", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0, "view.filter.pixel_art" = 1.0 } }
+zone = { kind = "pad", label = "RESET", color = "#2f9e5a", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0, "view.filter.pixel_art" = 1.0 }, note = "Every filter back to neutral, the split off and pixel art off: the clean picture." }
 
 [layout.legend.'=']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
-zone = { kind = "pad", label = "RESET", color = "#2f9e5a", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0, "view.filter.pixel_art" = 1.0 } }
+zone = { kind = "pad", label = "RESET", color = "#2f9e5a", params = { "view.filter.pixelate" = 1.0, "view.filter.curvature" = 0.0, "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.dither" = 0.0, "view.filter.levels" = 0.0, "view.filter.palette" = "none", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.vignette" = 0.0, "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.saturation" = 1.0, "view.filter.split" = 0.0, "view.filter.pixel_art" = 1.0 }, note = "Every filter back to neutral, the split off and pixel art off: the clean picture." }
 
 # ---- exhibit labels, then objects (keep at the end of the file) ----
 

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::physics::{PhysicsState, TAG_BLOCK};
-use crate::shape::{Look, Shape};
+use crate::shape::{Look, Shape, Sway};
 use crate::terrain::TerrainPatch;
 use crate::zones::{Label, Zone};
 
@@ -212,6 +212,9 @@ pub struct Decor {
     pub solid: bool,
     #[serde(default)]
     pub collider: Option<ColliderHandle>,
+    /// Moves in the wind (drawing only).
+    #[serde(default)]
+    pub sway: Sway,
 }
 
 fn quat_id() -> Quat {

@@ -29,6 +29,91 @@ entrance = { at = [19, 29], facing = "south" }
 tilt = 55.0
 distance = 20.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Puppets squash when they land and stretch as they rise, and one number, puppet.squash, says how much. Six blobs of different sizes hop round the BLOB POND, the SQUASH DIAL has three identical hoppers at squash 0, 1 and 2.5, the TRAMPOLINES launch at 10, 15 and 20 m/s, and the HIGH DROP is a 2.4 m platform above the LAND HERE mat. The PLAYER PADS change your own squash or turn you into a blob."
+how = [
+  "Squash is one number per character on a spring: 0 is rest, above 0 is taller (stretch), below 0 is flatter (squash). It never goes past 45% either way.",
+  "Events kick the spring's speed: a jump kicks it up by 6, a landing kicks it down by 0.9 times the landing speed (at most 12), both times puppet.squash. So at squash 0 the shape never changes, and 3 is rubber.",
+  "In the air the spring's rest point follows vertical speed: rising pulls it toward 20% taller, falling toward slightly flatter (up to 12%). On the ground it is back to 0.",
+  "The spring has stiffness 260 and damping 18, a bit over half of what would stop it without overshoot, so after a landing it rebounds once past rest before it settles: squash, stretch, settle.",
+  "Drawing keeps the volume: the height is scaled by 1 + squash and the width by one over its square root, about the feet so they stay on the floor. Blobs also hop as they walk, two hops per stride.",
+]
+uses = [
+  "Celeste: Madeline's sprite stretches on every jump and squashes on landing, part of why the controls feel so crisp.",
+  "Slime Rancher: the slimes squish and wobble as they bounce around.",
+  "Cuphead: 1930s rubber-hose cartoon animation, with squash and stretch drawn into every move.",
+  "Platformers in general: a short landing squash sells weight and impact without slowing the controls down.",
+]
+ask = [
+  "squash and stretch on jump and landing, driven by a spring",
+  "volume-preserving squash about the feet",
+  "rubbery cartoon character that wobbles on landing",
+  "hopping slime enemies that squash on every bounce",
+  "trampoline launch that stretches the character",
+]
+cost = "Free: one spring per character, stepped with the rest of the puppet each tick. It only changes where the same shapes are drawn, so the GPU does no extra work."
+knobs = ["puppet.squash", "puppet.body", "movement.jump_height", "movement.gravity"]
+terms = ["squash and stretch", "procedural animation", "game feel", "fixed timestep", "interpolation"]
+
+[[learn.code]]
+title = "The squash spring and its kicks"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+// Squash & stretch spring.
+if i.landed > 0.0 {
+    self.squash_vel -= (i.landed * 0.9).min(12.0) * def.squash;
+}
+if i.jumped {
+    self.squash_vel += 6.0 * def.squash;
+}
+let target = if i.grounded { 0.0 } else { (i.vel.y * 0.02 * def.squash).clamp(-0.12, 0.2) };
+let k = 260.0;
+let damp = 18.0;
+self.squash_vel += ((target - self.squash) * k - self.squash_vel * damp) * dt;
+self.squash = (self.squash + self.squash_vel * dt).clamp(-0.45, 0.45);
+"""
+
+[[learn.code]]
+title = "Scale about the feet, keeping the volume"
+file = "crates/pav_core/src/puppet.rs"
+lang = "rust"
+src = """
+// Squash & stretch about the feet.
+let sq = st.squash;
+let sy = 1.0 + sq;
+let sxz = 1.0 / sy.max(0.3).sqrt();
+let local = |v: Vec3| -> Vec3 {
+    // v is in character space (x right, y up, z forward) relative to feet.
+    let w = right * v.x * sxz + up * v.y * sy + fwd * v.z * sxz;
+    feet + w
+};
+"""
+
+[[learn.code]]
+title = "A blob: hop and squash in one shape"
+file = "crates/pav_core/src/rig.rs"
+lang = "rust"
+src = """
+// Hops as it goes: stretched in the air, squashed on landing.
+let hop = (st.phase * TAU).sin().abs();
+let lift = hop * 0.28 * k * walk + st.air * 0.1 * k;
+let s = (1.0 + st.squash * 1.2 + (hop - 0.4) * 0.45 * walk * def.squash).clamp(0.45, 1.8);
+let r = rb;
+let h = 2.0 * r * s;
+let w = 2.0 * r / s.sqrt();
+let c = feet + hit + Vec3::Y * (h * 0.5 + lift);
+if h >= w {
+    let half = (h - w) * 0.5;
+    push(&mut parts, c - Vec3::Y * half, c + Vec3::Y * half, w * 0.5, w * 0.5, shirt);
+} else {
+    let half = (w - h) * 0.5;
+    push(&mut parts, c - right * half, c + right * half, h * 0.5, h * 0.5, shirt);
+    push(&mut parts, c - fwd * half, c + fwd * half, h * 0.5, h * 0.5, shirt);
+}
+"""
+
 [layout]
 origin = [-20.0, 0.0, -15.0]
 
@@ -131,19 +216,19 @@ blocks = [{ y0 = -0.5, y1 = 2.4, color = "#8fb4d9" }]
 # Player pads: puppet settings change until you leave the room.
 [layout.legend.R]
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "RUBBER YOU", color = "#f4a3c4", params = { "puppet.squash" = 3.0 } }
+zone = { kind = "pad", label = "RUBBER YOU", color = "#f4a3c4", params = { "puppet.squash" = 3.0 }, note = "Squash 3: jumps and landings kick the spring three times as hard, so you stretch tall going up and splat to the 45% limit on a hard landing." }
 
 [layout.legend.S]
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "STIFF YOU", color = "#c9d1da", params = { "puppet.squash" = 0.0 } }
+zone = { kind = "pad", label = "STIFF YOU", color = "#c9d1da", params = { "puppet.squash" = 0.0 }, note = "Squash 0: the spring is never kicked and you keep your shape exactly. Land once like this and once as RUBBER YOU to feel the difference." }
 
 [layout.legend.B]
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "BLOB YOU", color = "#8fe0a8", params = { "puppet.body" = "blob", "puppet.torso_radius" = 0.42, "puppet.squash" = 1.6, "puppet.head_radius" = 0.0 } }
+zone = { kind = "pad", label = "BLOB YOU", color = "#8fe0a8", params = { "puppet.body" = "blob", "puppet.torso_radius" = 0.42, "puppet.squash" = 1.6, "puppet.head_radius" = 0.0 }, note = "A 0.42 m blob with squash 1.6: it hops as it walks, twice per 1.5 m stride, and squashes wide on every landing while keeping its volume." }
 
 [layout.legend.N]
 blocks = [{ y0 = -0.5, y1 = 0, color = "#d9d6cc" }]
-zone = { kind = "pad", label = "BACK TO NORMAL", color = "#9dbcf5", label_size = 0.45, params = { "puppet.body" = "biped", "puppet.squash" = 1.0, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21 } }
+zone = { kind = "pad", label = "BACK TO NORMAL", color = "#9dbcf5", label_size = 0.45, params = { "puppet.body" = "biped", "puppet.squash" = 1.0, "puppet.torso_radius" = 0.19, "puppet.head_radius" = 0.21 }, note = "The biped again, with the default squash of 1." }
 
 # ---- labels (layout space) ----
 

@@ -26,6 +26,95 @@ entrance = { at = [3, 29], facing = "south" }
 tilt = 64.0
 distance = 18.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Five corridors of moving obstacles, each with its own floor tint: 1 DOORS that lift and drop, 2 CRUSHERS that stamp down, 3 SWEEPERS turning at knee height, 4 PLATFORMS shuttling over a pit and 5 PENDULUMS swinging across the corridor. The clock runs from leaving START to the checkered FINISH, and the CHECKPOINT between two sections is where a crush or a fall puts you back."
+how = [
+  "Every obstacle is a kinematic body driven by a behaviour whose pose is a pure function of the simulation time, t = (tick + 1) x tick length. Nothing is random and nothing reacts to you, so the rhythm is the same on every run, after a rewind and in a replay.",
+  "A move goes back and forth along an offset on a triangle wave, and hold is the share of the cycle spent resting at the two ends: the doors (3 s, hold 0.4) rest fully down and fully up for 0.6 s each, the platforms (6 s, hold 0.3) wait 0.9 s at each dock.",
+  "A rotate either spins at a steady speed (the sweepers: 90, -75 and 105° a second) or swings as a sine wave (the pendulums: 60° to either side every 2.2 s, about a pivot 3 m above the bob). Phase offsets put neighbours half a cycle apart.",
+  "Each tick the body is given exactly the velocity that lands it on that pose, so the physics engine knows how fast it moves: you ride the platforms, and whatever it pushes is pushed at the right speed.",
+  "Touching a hazard (a sweeper or a pendulum) knocks you back with a short stun. The crushers are hazards that send you back to the checkpoint, and so is being squeezed more than 0.12 m into any moving body.",
+]
+uses = [
+  "Obstacle courses: spinning bars to jump and gaps to time (Fall Guys).",
+  "Timed traps: blades and crushers on a fixed beat you learn, then run (Prince of Persia, Crash Bandicoot).",
+  "Moving platforms over a pit: board, ride, step off (Super Mario Bros.).",
+  "Swinging hazards: pendulums in temple and castle levels that you cross between swings.",
+]
+ask = [
+  "moving obstacles on fixed, deterministic timers",
+  "crusher that sends the player back to a checkpoint",
+  "rotating sweeper bar to jump over",
+  "pendulum hazard with knockback",
+  "moving platform shuttle over a pit",
+  "timed obstacle course with checkpoints",
+]
+cost = "About 20 kinematic bodies, each a few lines of maths per tick plus the physics engine's usual contact work. Hazard and crush checks are one shape test around the character per tick."
+knobs = ["movement.speed", "movement.jump_height", "movement.gravity", "movement.hit_stun", "movement.coyote_time"]
+terms = ["determinism", "fixed timestep", "rigid body", "game feel", "interpolation"]
+
+[[learn.code]]
+title = "Movers follow the clock, not the physics"
+file = "crates/pav_core/src/behaviors.rs"
+lang = "rust"
+src = """
+// Time at the end of this tick: movers arrive there after the physics step.
+let t = (self.state.tick + 1) as f32 * dt;
+// ...
+Behavior::Move(mut m) => {
+    let (o, q) = *m.origin.get_or_insert((epos, erot));
+    let target = o + q * m.offset * m.amount(t);
+    self.drive(id, target, q, dt);
+    if let Some(e) = self.state.entities.get_mut(id) {
+        e.behavior = Behavior::Move(m);
+    }
+}
+"""
+
+[[learn.code]]
+title = "Pendulum swing or steady spin"
+file = "crates/pav_core/src/entity.rs"
+lang = "rust"
+src = """
+pub fn angle(&self, t: f32) -> f32 {
+    if self.swing > 0.0 {
+        self.swing.to_radians() * ((t / self.period.max(0.05) + self.phase) * std::f32::consts::TAU).sin()
+    } else {
+        (self.speed * t + self.phase * 360.0).to_radians()
+    }
+}
+"""
+
+[[learn.code]]
+title = "Hazards and being crushed"
+file = "crates/pav_core/src/character.rs"
+lang = "rust"
+src = """
+for (_, c) in qp.intersect_shape(pose, fat.as_ref()) {
+    let Some(e) = entity_from_tag(c.user_data).and_then(|i| st.entities.get(EntityId(i))) else { continue };
+    if let Some(hz) = &e.hazard {
+        hazard.get_or_insert((e.pos, hz.knockback, hz.respawn));
+    }
+    // ...
+    if let Ok(Some(ct)) = rapier::parry::query::contact(&pose, shape.as_ref(), c.position(), c.shape(), 0.05) {
+        if ct.normal2.y >= 0.6 {
+            // Standing on it: keep the controller's small gap, or it cannot slide.
+            lift = lift.max(0.025 - ct.dist);
+        } else if ct.dist < -0.12 {
+            // Squeezed into it (a mover pushed us against a wall).
+            crushed = Some(ct.normal2);
+        }
+    }
+}
+// ...
+if let Some(n) = crushed {
+    if ch.invuln <= 0.0 {
+        actions.push(Action::Hit { id, at: center, dir: n, knockback: 2.0, respawn: true });
+    }
+}
+"""
+
 [layout]
 origin = [-18.0, 0.0, -15.0]
 

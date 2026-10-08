@@ -18,25 +18,29 @@ pub enum Section {
     Pixel,
     Shading,
     Outlines,
+    Stylize,
     Palette,
     Grading,
     Scanlines,
     Grain,
     Screen,
     Glow,
+    Air,
 }
 
 impl Section {
-    pub const ALL: [Section; 9] = [
+    pub const ALL: [Section; 11] = [
         Section::Pixel,
         Section::Shading,
         Section::Outlines,
+        Section::Stylize,
         Section::Palette,
         Section::Grading,
         Section::Scanlines,
         Section::Grain,
         Section::Screen,
         Section::Glow,
+        Section::Air,
     ];
 
     pub fn key(self) -> &'static str {
@@ -44,12 +48,14 @@ impl Section {
             Section::Pixel => "pixel",
             Section::Shading => "shading",
             Section::Outlines => "outlines",
+            Section::Stylize => "stylize",
             Section::Palette => "palette",
             Section::Grading => "grading",
             Section::Scanlines => "scanlines",
             Section::Grain => "grain",
             Section::Screen => "screen",
             Section::Glow => "glow",
+            Section::Air => "air",
         }
     }
 
@@ -58,12 +64,14 @@ impl Section {
             Section::Pixel => "Pixel art",
             Section::Shading => "Shading (cel, flat, lit)",
             Section::Outlines => "Outlines",
+            Section::Stylize => "Paint, print & sketch",
             Section::Palette => "Palette & colour depth",
             Section::Grading => "Colour grading",
             Section::Scanlines => "Scanlines",
             Section::Grain => "Grain & colour fringe",
             Section::Screen => "Screen (CRT)",
             Section::Glow => "Glow & light",
+            Section::Air => "Haze & light shafts",
         }
     }
 
@@ -72,12 +80,16 @@ impl Section {
             Section::Pixel => "Turns part of the scene into pixel art while the rest stays sharp.",
             Section::Shading => "How surfaces take light: cel bands, flat colour or smooth lighting, for each part.",
             Section::Outlines => "Lines along silhouettes and creases.",
+            Section::Stylize => "Redraws the picture as oil paint, printed dots, text characters or pencil hatching.",
             Section::Palette => "Fewer colours: a fixed retro palette or a few shades per channel, with dithering.",
             Section::Grading => "Temperature, tint, contrast, brightness and saturation.",
             Section::Scanlines => "Dark horizontal lines, like a CRT.",
             Section::Grain => "Film grain and chromatic aberration.",
-            Section::Screen => "Whole-screen effects: tube curvature, vignette and a lower resolution.",
+            Section::Screen => {
+                "Whole-screen effects: tube curvature, vignette, a lower resolution and the transition when you arrive somewhere."
+            }
             Section::Glow => "Bloom, exposure and bounce light (whole scene).",
+            Section::Air => "Hazy air lit by the sun (dark shafts where shadows cut it) and halos around lamps.",
         }
     }
 
@@ -94,6 +106,9 @@ impl Section {
             }
             Section::Shading => &["style", "style_objects", "style_environment", "cel_bands", "rim", "flat_shadow", "specular"],
             Section::Outlines => &["outlines_on", "outlines", "outline_px", "outline_darken"],
+            Section::Stylize => {
+                &["filter.stylize_on", "filter.stylize", "filter.stylize_size", "filter.stylize_mix", "filter.stylize_color"]
+            }
             Section::Palette => &["filter.color_on", "filter.palette", "filter.levels", "filter.dither"],
             Section::Grading => &[
                 "filter.grade_on",
@@ -105,8 +120,11 @@ impl Section {
             ],
             Section::Scanlines => &["filter.scanlines_on", "filter.scanlines", "filter.scanline_px"],
             Section::Grain => &["filter.grain_on", "filter.chroma_on", "filter.grain", "filter.chroma"],
-            Section::Screen => &["filter.curvature", "filter.vignette", "filter.pixelate"],
+            Section::Screen => {
+                &["filter.curvature", "filter.vignette", "filter.pixelate", "filter.transition", "filter.transition_time"]
+            }
             Section::Glow => &["bloom", "bloom_threshold", "exposure", "gi"],
+            Section::Air => &["haze", "haze_height", "shafts", "shafts_forward", "halos"],
         }
     }
 
@@ -146,6 +164,13 @@ impl Section {
                 to.outline_px = from.outline_px;
                 to.outline_darken = from.outline_darken;
             }
+            Section::Stylize => {
+                t.stylize_on = f.stylize_on;
+                t.stylize = f.stylize;
+                t.stylize_size = f.stylize_size;
+                t.stylize_mix = f.stylize_mix;
+                t.stylize_color = f.stylize_color;
+            }
             Section::Palette => {
                 t.color_on = f.color_on;
                 t.palette = f.palette;
@@ -175,12 +200,21 @@ impl Section {
                 t.curvature = f.curvature;
                 t.vignette = f.vignette;
                 t.pixelate = f.pixelate;
+                t.transition = f.transition;
+                t.transition_time = f.transition_time;
             }
             Section::Glow => {
                 to.bloom = from.bloom;
                 to.bloom_threshold = from.bloom_threshold;
                 to.exposure = from.exposure;
                 to.gi = from.gi;
+            }
+            Section::Air => {
+                to.haze = from.haze;
+                to.haze_height = from.haze_height;
+                to.shafts = from.shafts;
+                to.shafts_forward = from.shafts_forward;
+                to.halos = from.halos;
             }
         }
     }

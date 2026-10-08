@@ -161,6 +161,16 @@ pub static TOOLS: &[Tool] = &[
         run: t_room,
     },
     Tool {
+        name: "guide",
+        help: "The field guide: words the station guides use (term=, search=), or every room's ask-for-it phrases (asks=true).",
+        args: &[
+            arg("term", "string", "a word, e.g. bloom"),
+            arg("search", "string", "find words mentioning this"),
+            arg("asks", "boolean", "every room's ask-for-it phrases"),
+        ],
+        run: t_guide,
+    },
+    Tool {
         name: "goto",
         help: "Teleport the player into a room (room=key), to the plaza (room=hub) or to a position.",
         args: &[arg("room", "string", "room key or 'hub'"), arg("pos", "array", "[x, y, z] feet position")],
@@ -971,7 +981,40 @@ fn t_room(s: &mut Session, a: &Args) -> Result<Output> {
     v["try"] = json!(slot.def.try_list);
     v["params"] = serde_json::to_value(&slot.def.params)?;
     v["camera"] = serde_json::to_value(&slot.def.camera)?;
+    if !slot.def.learn.is_empty() {
+        v["learn"] = serde_json::to_value(&slot.def.learn)?;
+    }
+    let pads: Vec<Value> = slot.def.pads().into_iter().map(|(l, n)| json!({ "label": l, "note": n })).collect();
+    if !pads.is_empty() {
+        v["pads"] = json!(pads);
+    }
     Ok(Output::Json(v))
+}
+
+/// The field guide: words (`term=`, `search=`), or every room's "ask for it" phrases.
+fn t_guide(_s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_core::guide;
+    let term_json = |t: &guide::Term| json!({ "key": t.key, "name": t.name, "text": t.text, "see": t.see });
+    if let Some(k) = get_str(a, "term") {
+        let t = guide::term(k).with_context(|| format!("no term '{k}' (try search=)"))?;
+        return Ok(Output::Json(term_json(t)));
+    }
+    if let Some(q) = get_str(a, "search") {
+        return Ok(Output::Json(json!(guide::search(q).into_iter().map(term_json).collect::<Vec<_>>())));
+    }
+    if a.get("asks").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let (defs, _) = pav_core::room::parse_all(&pav_core::room::load_sources(None));
+        let rooms: Vec<Value> = defs
+            .iter()
+            .filter(|(_, d)| !d.learn.ask.is_empty())
+            .map(|(k, d)| json!({ "room": k, "name": d.name, "ask": d.learn.ask }))
+            .collect();
+        return Ok(Output::Json(json!(rooms)));
+    }
+    Ok(Output::Json(json!({
+        "terms": guide::terms().iter().map(|t| t.key.as_str()).collect::<Vec<_>>(),
+        "hint": "term=<key> explains one, search=<text> finds some, asks=true lists every room's ask-for-it phrases",
+    })))
 }
 
 fn t_goto(s: &mut Session, a: &Args) -> Result<Output> {

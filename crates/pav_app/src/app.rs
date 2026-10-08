@@ -162,6 +162,11 @@ pub struct App {
     game_saved: Option<(CameraParams, ViewSettings)>,
     /// The Look & Filters window and the look layer over `view`.
     look_ui: crate::look_ui::LookUi,
+    /// Station guide (H) and field guide.
+    guide: crate::guide_ui::GuideUi,
+    /// When the player last arrived somewhere new (another place, a teleport): the screen
+    /// transition opens from then.
+    arrival: Option<Instant>,
     /// Shardfall windows (inventory, vendor...), the latest game frame and the place whose
     /// look is applied.
     game_ui: crate::arpg_items::GameUi,
@@ -230,6 +235,8 @@ impl App {
             quit: false,
             game_saved: None,
             look_ui: crate::look_ui::LookUi::load(),
+            guide: Default::default(),
+            arrival: None,
             game_ui: Default::default(),
             last_save: Instant::now(),
             pad_cursor: None,
@@ -356,7 +363,8 @@ impl App {
 
     /// Whether the gamepad drives a menu cursor now (a game window or the pause menu is open).
     fn pad_ui_active(&self) -> bool {
-        self.input.last_device == Device::Gamepad && (self.menu_open || self.game_ui.any_open() || self.look_ui.open)
+        self.input.last_device == Device::Gamepad
+            && (self.menu_open || self.game_ui.any_open() || self.look_ui.open || self.guide.station || self.guide.field)
     }
 
     /// Gamepad in menus: D-pad down opens the hero's panels (LB / RB switch them), B closes;
@@ -400,6 +408,9 @@ impl App {
             } else if self.look_ui.open && !self.menu_open {
                 self.look_ui.open = false;
                 self.look_ui.save_if_dirty(true);
+            } else if (self.guide.station || self.guide.field) && !self.menu_open {
+                self.guide.station = false;
+                self.guide.field = false;
             } else {
                 self.set_menu(false);
             }
@@ -509,6 +520,7 @@ impl App {
 
     fn teleport(&mut self, t: TeleportTarget) {
         let Some(host) = &self.host else { return };
+        self.arrival = Some(Instant::now());
         let msg = match t {
             TeleportTarget::Room(key) => {
                 let k = key.clone();
@@ -637,6 +649,14 @@ impl App {
                 self.set_menu(open);
             }
             KeyCode::F1 => self.panel.open = !self.panel.open,
+            // How the room you are in works (outside the rooms: the field guide).
+            KeyCode::KeyH if !self.input.game => {
+                if self.hud.current.is_some() {
+                    self.guide.station = !self.guide.station;
+                } else {
+                    self.guide.field = !self.guide.field;
+                }
+            }
             KeyCode::F2 => {
                 if self.hud.teleport_open {
                     self.hud.teleport_open = false;
@@ -843,6 +863,7 @@ impl App {
         if let Some(g) = &curr.game {
             if self.game_place != Some(g.place) {
                 self.game_place = Some(g.place);
+                self.arrival = Some(Instant::now());
                 self.game_ui.panel = None;
                 pav_view::arpg::place_look(g, &mut self.view);
             }
@@ -934,6 +955,18 @@ impl App {
         let mut view = self.view.clone();
         self.look_ui.apply(&mut view);
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
+        // Arriving somewhere new: the screen opens with the chosen transition, on the player.
+        if let Some(t0) = self.arrival {
+            let t = t0.elapsed().as_secs_f32() / view.filter.transition_time.max(0.05);
+            match view.filter.transition.kind() {
+                Some(kind) if t < 1.0 => {
+                    scene.filter.transition = 1.0 - t * t * (3.0 - 2.0 * t);
+                    scene.filter.transition_kind = kind;
+                    scene.filter.transition_center = pav_view::build::screen_uv(&scene.camera, feet + Vec3::Y * 0.9);
+                }
+                _ => self.arrival = None,
+            }
+        }
         self.editor.draw_preview(&mut scene);
         if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on && curr.game.is_none() {
             if let Some(a) = aim {
@@ -1026,6 +1059,8 @@ impl App {
         let game_ui = &mut self.game_ui;
         let look_ui = &mut self.look_ui;
         let mut look_msg = None;
+        let guide = &mut self.guide;
+        let mut guide_out = Vec::new();
         let mut game_cmds = Vec::new();
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
@@ -1048,8 +1083,11 @@ impl App {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
                 }
             }
-            if card_visible && !menu_open {
-                hud.card(&ctx, device);
+            if card_visible && !menu_open && hud.card(&ctx, device) {
+                guide.station = true;
+            }
+            if !menu_open {
+                crate::guide_ui::pad_note(&ctx, hud_ctx.hud, hud_ctx.tick, hud_ctx.dt);
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             if let Some(p) = pad_cursor {
@@ -1080,6 +1118,9 @@ impl App {
             hud.error_panel(&ctx);
             save_room = editor.ui(&ctx, room_name.as_deref());
             look_msg = look_ui.window(&ctx, root.view);
+            let here = hud.current.clone();
+            guide_out.extend(guide.station(&ctx, here.as_ref(), &mut root));
+            guide_out.extend(guide.field_guide(&ctx, &hud.entries));
             if menu_open {
                 menu_action = ui::pause_menu(&ctx, device, &scene_name, game_frame.is_some().then_some(&mut root.sim.difficulty));
             }
@@ -1098,6 +1139,12 @@ impl App {
             );
         });
         self.show_boot = show_boot;
+        for a in guide_out {
+            match a {
+                crate::guide_ui::GuideAction::Go(key) => teleport = Some(crate::rooms::TeleportTarget::Room(key)),
+                crate::guide_ui::GuideAction::Toast(m) => self.toast = Some((m, Instant::now())),
+            }
+        }
         if let Some(m) = look_msg {
             self.toast = Some((m, Instant::now()));
         }
@@ -1300,6 +1347,18 @@ impl App {
                 self.set_menu(false);
                 self.look_ui.open = true;
             }
+            MenuAction::Guide => {
+                self.set_menu(false);
+                if self.hud.current.is_some() {
+                    self.guide.station = true;
+                } else {
+                    self.guide.field = true;
+                }
+            }
+            MenuAction::FieldGuide => {
+                self.set_menu(false);
+                self.guide.field = true;
+            }
             MenuAction::Rooms => {
                 self.set_menu(false);
                 self.open_teleport();
@@ -1484,6 +1543,7 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
             name: if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() },
             wing: r.def.wing.clone(),
             about: r.def.about.clone(),
+            ask: r.def.learn.ask.clone(),
         })
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));

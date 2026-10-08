@@ -35,6 +35,111 @@ entrance = { at = [16, 44], facing = "south" }
 tilt = 60.0
 distance = 22.0
 
+# Station guide (H in the game): what you see, how it works, where games use it, how to ask.
+[learn]
+what = "Two cars wait in the pit apron: GRIPPY (blue, grip 4, drift grip 1.2) holds its line and DRIFTY (red, grip 2.5, drift grip 0.4) swings its tail out under the handbrake. The lap runs counter-clockwise through 10 gold gates, blue checkpoints and sand-coloured gravel traps between 0.9 m barriers. The paddock has a DRIFT PAD for donuts round a post and a SKID PAD with cones, a crate pyramid and the CRATE SHOWER and CLEAR pads."
+how = [
+  "The car is one dynamic rigid body, a box of about 900 kg that is only allowed to turn about its up axis, so it can slide and spin but never roll over.",
+  "Rapier's raycast vehicle casts one ray down from each of the four wheel spots every tick. Where a ray hits, a spring (stiffness 40, 0.3 m of travel) holds the body up against gravity and the tyre pushes back against sideways sliding as hard as its grip allows; the wheels you see are drawn where the rays say.",
+  "You push the way you want to go: the car turns its front wheels by the difference from its heading, up to its steering lock (40 degrees on GRIPPY, 44 on DRIFTY), and only the rear wheels push (2600 N each, cut above 22 m/s). Pointing more than about 110 degrees behind it below 3 m/s reverses.",
+  "The handbrake (Space) swaps the rear tyres' side grip for the drift grip and adds a light rear brake, so the back loses its hold and swings out: GRIPPY keeps 30% of its grip, DRIFTY only 16%. C brakes all four wheels hard.",
+  "The car's sideways speed is measured every tick and smoothed; above 2.5 m/s the rear wheels puff out GPU smoke particles, more the faster it slides.",
+  "The time trial is zones on the floor tested against your feet, which are the car's bottom while you sit in it. Leaving START starts the clock, gates count only in order (each skipped one adds 2 s at the end), and gravel is a kill zone that puts the car down, stopped, at the last checkpoint.",
+]
+uses = [
+  "Arcade racing: Ridge Racer made the long, easy drift started with a tap of the brake its signature.",
+  "Time trials: Trackmania has checkpoints, a respawn at the last one, and gold, silver and bronze medal times.",
+  "Top-down rally: Art of Rally rotates the car into hairpins with the handbrake, seen from high above.",
+  "Engines: Unity's WheelCollider and Godot's VehicleBody3D work the same way, a ray and a spring per wheel on one rigid body.",
+]
+ask = [
+  "raycast vehicle with spring suspension",
+  "handbrake drift that cuts the rear tyre grip",
+  "arcade car that steers toward the stick direction",
+  "time trial with ordered gates and a missed-gate penalty",
+  "gravel traps that respawn the car at the last checkpoint",
+  "tyre smoke while the car slides sideways",
+]
+cost = "Tiny, all on the CPU: per car one rigid body and four short ray casts each tick, solved by Rapier with the rest of the physics. The smoke is 1 to 6 GPU particles per rear wheel per frame while sliding, and the course is a box test of your feet against the room's zones each tick."
+knobs = ["sim.gravity", "camera.tilt", "camera.distance", "camera.follow_lag", "view.particles"]
+terms = ["raycast", "rigid body", "fixed timestep", "particle system", "game feel"]
+
+[[learn.code]]
+title = "Four sprung ray-cast wheels on one body"
+file = "crates/pav_core/src/vehicle.rs"
+lang = "rust"
+src = """
+let car = (def.kind == VehicleKind::Car).then(|| {
+    let mut c = DynamicRayCastVehicleController::new(body);
+    c.index_forward_axis = 2;
+    let tuning = WheelTuning {
+        suspension_stiffness: 40.0,
+        suspension_compression: 0.83 * 4.0,
+        suspension_damping: 0.88 * 4.0,
+        max_suspension_travel: 0.3,
+        side_friction_stiffness: def.grip,
+        friction_slip: 3.0,
+        max_suspension_force: 60000.0,
+    };
+    let (x, z) = (half.x - 0.08, half.z * 0.68);
+    for (wx, wz) in [(-x, z), (x, z), (-x, -z), (x, -z)] {
+        c.add_wheel(Vec3::new(wx, -half.y * 0.4, wz), Vec3::NEG_Y, Vec3::NEG_X, wheel_r * 0.9, wheel_r, &tuning);
+    }
+    c
+});
+"""
+
+[[learn.code]]
+title = "The handbrake takes grip from the rear tyres"
+file = "crates/pav_core/src/vehicle.rs"
+lang = "rust"
+src = """
+let handbrake = inp.down(buttons::JUMP);
+let brake = inp.down(buttons::CROUCH);
+let lock = v.def.steer.to_radians();
+if let Some(c) = &mut v.car {
+    let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
+    for (i, w) in c.wheels_mut().iter_mut().enumerate() {
+        let front = i < 2;
+        w.steering = if front { (v.steer * lock) as Real } else { 0.0 };
+        w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power) as Real };
+        w.brake = if brake {
+            40.0
+        } else if handbrake && !front {
+            12.0
+        } else if throttle == 0.0 {
+            2.0
+        } else {
+            0.0
+        };
+        w.side_friction_stiffness = if handbrake && !front { v.def.drift_grip } else { v.def.grip } as Real;
+    }
+    // ...
+    c.update_vehicle(dt as Real, qpm);
+}
+"""
+
+[[learn.code]]
+title = "Gates count in order; skipped ones cost 2 s"
+file = "crates/pav_core/src/course.rs"
+lang = "rust"
+src = """
+if let Some(pos) = run.gates.iter().position(|g| *g == z.index) {
+    if pos >= run.next {
+        let skipped = (pos - run.next) as u32;
+        run.missed += skipped;
+        run.passed += 1;
+        run.next = pos + 1;
+        events.push(SimEvent::Gate { pos: feet, ok: skipped == 0 });
+        // ...
+    }
+}
+// ... and at the FINISH:
+let missed = run.missed + (run.gates.len() - run.next.min(run.gates.len())) as u32;
+let raw = (tick - run.start_tick) as f32 * dt;
+let time = raw + missed as f32 * GATE_PENALTY;
+"""
+
 [layout]
 origin = [-30.0, 0.0, -22.0]
 
@@ -204,11 +309,11 @@ zone = { kind = "gate", course = "drift", index = 10, color = "#e9c46a" }
 
 [layout.legend.'C']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#737984" }]
-zone = { kind = "pad", label = "CRATE SHOWER", color = "#3bb273", signal = "shower" }
+zone = { kind = "pad", label = "CRATE SHOWER", color = "#3bb273", signal = "shower", note = "Sends the signal shower: the spawner 6 m above the skid pad drops 12 tumbling crates, ordinary dynamic bodies to drive into (60 at most; the oldest vanish first)." }
 
 [layout.legend.'X']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#737984" }]
-zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear" }
+zone = { kind = "pad", label = "CLEAR", color = "#e07a5f", signal = "clear", note = "Sends the signal clear: the spawner deletes every crate it dropped. The cones and the crate pyramid are room objects, so they stay where you knocked them (F5 resets them)." }
 
 # Floor text.
 [[label]]

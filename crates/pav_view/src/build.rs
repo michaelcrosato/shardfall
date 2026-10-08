@@ -7,6 +7,7 @@ use glam::{Mat4, Quat, Vec3};
 use pav_core::frame::{PuppetFrame, SimEvent};
 use pav_core::params::{ChoiceParam, ParamVisitor, Tunable, nested};
 use pav_core::puppet::PuppetDef;
+use pav_core::shape::Sway;
 use pav_core::statics::Ladder;
 use pav_core::statics::{ChunkKey, block_flags};
 use pav_core::zones::{Label, LabelMode, Zone, ZoneKind};
@@ -137,6 +138,51 @@ impl PartChoice {
     }
 }
 
+choice_enum! {
+    /// A painterly or print style redrawn from the picture.
+    pub enum StylizeChoice { Off => "off", Paint => "paint", Halftone => "halftone", Ascii => "ascii", Sketch => "sketch" }
+}
+
+impl StylizeChoice {
+    pub fn stylize(self) -> rs::Stylize {
+        match self {
+            StylizeChoice::Off => rs::Stylize::Off,
+            StylizeChoice::Paint => rs::Stylize::Paint,
+            StylizeChoice::Halftone => rs::Stylize::Halftone,
+            StylizeChoice::Ascii => rs::Stylize::Ascii,
+            StylizeChoice::Sketch => rs::Stylize::Sketch,
+        }
+    }
+}
+
+choice_enum! {
+    /// How the screen covers and uncovers when you arrive somewhere new.
+    pub enum TransitionChoice {
+        None => "none",
+        Fade => "fade",
+        Iris => "iris",
+        Diamonds => "diamonds",
+        Dissolve => "dissolve",
+        Mosaic => "mosaic",
+        Blinds => "blinds",
+    }
+}
+
+impl TransitionChoice {
+    /// The renderer's transition (None for no transition).
+    pub fn kind(self) -> Option<rs::Transition> {
+        Some(match self {
+            TransitionChoice::None => return None,
+            TransitionChoice::Fade => rs::Transition::Fade,
+            TransitionChoice::Iris => rs::Transition::Iris,
+            TransitionChoice::Diamonds => rs::Transition::Diamonds,
+            TransitionChoice::Dissolve => rs::Transition::Dissolve,
+            TransitionChoice::Mosaic => rs::Transition::Mosaic,
+            TransitionChoice::Blinds => rs::Transition::Blinds,
+        })
+    }
+}
+
 /// Screen filters (retro looks, grading) applied after tonemapping.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -172,6 +218,18 @@ pub struct FilterSettings {
     pub scanlines_on: PartChoice,
     pub grain_on: PartChoice,
     pub chroma_on: PartChoice,
+    /// A painterly or print style over the picture: which, on which part of the scene, its
+    /// size in pixels, how much of it shows and how much of the scene's colour it keeps.
+    pub stylize: StylizeChoice,
+    pub stylize_on: PartChoice,
+    pub stylize_size: f32,
+    pub stylize_mix: f32,
+    pub stylize_color: f32,
+    /// The screen transition played when you arrive somewhere new (another place in the
+    /// game, a teleport), how long it takes to open, and a loop that plays it over and over.
+    pub transition: TransitionChoice,
+    pub transition_time: f32,
+    pub transition_demo: bool,
 }
 
 impl Default for FilterSettings {
@@ -203,6 +261,14 @@ impl Default for FilterSettings {
             scanlines_on: PartChoice::All,
             grain_on: PartChoice::All,
             chroma_on: PartChoice::All,
+            stylize: StylizeChoice::Off,
+            stylize_on: PartChoice::All,
+            stylize_size: 4.0,
+            stylize_mix: 1.0,
+            stylize_color: 1.0,
+            transition: TransitionChoice::Iris,
+            transition_time: 0.7,
+            transition_demo: false,
         }
     }
 }
@@ -248,6 +314,24 @@ impl Tunable for FilterSettings {
         self.scanlines_on.visit_choice(v, "scanlines_on", "Scanlines on: all, objects, environment");
         self.grain_on.visit_choice(v, "grain_on", "Film grain on: all, objects, environment");
         self.chroma_on.visit_choice(v, "chroma_on", "Chromatic aberration on: all, objects, environment");
+        self.stylize.visit_choice(v, "stylize", "Painterly or print style: off, paint, halftone, ascii, sketch");
+        self.stylize_on.visit_choice(v, "stylize_on", "Style on: all, objects (characters and objects), environment");
+        v.float(
+            "stylize_size",
+            &mut self.stylize_size,
+            2.0,
+            24.0,
+            "Style size (pixels): brush radius, dot spacing, character width, hatching spacing",
+        );
+        v.float("stylize_mix", &mut self.stylize_mix, 0.0, 1.0, "How much of the style shows over the picture");
+        v.float("stylize_color", &mut self.stylize_color, 0.0, 1.0, "Colour the style keeps (0 = ink only, 1 = full colour)");
+        self.transition.visit_choice(
+            v,
+            "transition",
+            "Screen transition on arriving somewhere new: none, fade, iris, diamonds, dissolve, mosaic, blinds",
+        );
+        v.float("transition_time", &mut self.transition_time, 0.2, 3.0, "Transition length (s)");
+        v.bool("transition_demo", &mut self.transition_demo, "Play the transition over and over (to look at it)");
     }
 }
 
@@ -281,6 +365,26 @@ pub struct ViewSettings {
     pub particles: bool,
     /// Screen-space global illumination (bounce light + ambient occlusion), 0 = off.
     pub gi: f32,
+    /// Hazy air (volumetric light): density at the player's feet (0 = off), the height over
+    /// which it thins out, sunlight scattered in it (light shafts where shadows cut it), how
+    /// much of that light heads on toward the sun's side, and lamp halos.
+    pub haze: f32,
+    pub haze_height: f32,
+    pub shafts: f32,
+    pub shafts_forward: f32,
+    pub halos: f32,
+    /// Wind for foliage and grass: strength (0 = still), the compass direction it blows
+    /// toward (degrees), how fast gusts roll across, and grass parting around the player.
+    pub wind: f32,
+    pub wind_angle: f32,
+    pub wind_gusts: f32,
+    pub grass_push: bool,
+    /// Rippling water: on, wave speed (m/s), seconds for a ripple to halve, raindrops per m²
+    /// per second.
+    pub water_ripples: bool,
+    pub water_speed: f32,
+    pub water_fade: f32,
+    pub water_rain: f32,
     pub sky: String,
     pub fog: bool,
     pub fog_start: f32,
@@ -312,6 +416,19 @@ impl Default for ViewSettings {
             distortion: true,
             particles: true,
             gi: 0.0,
+            haze: 0.0,
+            haze_height: 4.0,
+            shafts: 1.0,
+            shafts_forward: 0.4,
+            halos: 0.0,
+            wind: 0.6,
+            wind_angle: 60.0,
+            wind_gusts: 1.0,
+            grass_push: true,
+            water_ripples: true,
+            water_speed: 1.6,
+            water_fade: 1.4,
+            water_rain: 0.0,
             sky: "#8fb8d8".into(),
             fog: true,
             fog_start: 48.0,
@@ -380,12 +497,59 @@ impl Tunable for ViewSettings {
         v.bool("distortion", &mut self.distortion, "Screen distortion (shockwaves, heat haze)");
         v.bool("particles", &mut self.particles, "GPU particles");
         v.float("gi", &mut self.gi, 0.0, 2.0, "Screen-space global illumination: bounce light and occlusion (0 = off)");
+        v.float("haze", &mut self.haze, 0.0, 3.0, "Hazy air: volumetric light (0 = off)");
+        v.float("haze_height", &mut self.haze_height, 0.5, 30.0, "Haze thins out over this height above the player's feet (m)");
+        v.float("shafts", &mut self.shafts, 0.0, 4.0, "Sunlight in the haze: light shafts where shadows cut it");
+        v.float(
+            "shafts_forward",
+            &mut self.shafts_forward,
+            0.0,
+            0.9,
+            "Forward scattering: haze glows toward the sun (0 = evenly)",
+        );
+        v.float("halos", &mut self.halos, 0.0, 4.0, "Lamp halos: lights glowing in the air (0 = off)");
+        v.float("wind", &mut self.wind, 0.0, 3.0, "Wind in foliage and grass (0 = still)");
+        v.float("wind_angle", &mut self.wind_angle, 0.0, 360.0, "Compass direction the wind blows toward (degrees)");
+        v.float("wind_gusts", &mut self.wind_gusts, 0.0, 3.0, "How fast gusts roll across");
+        v.bool("grass_push", &mut self.grass_push, "Grass parts around the player");
+        v.bool("water_ripples", &mut self.water_ripples, "Water ripples where things move through it (a CPU wave simulation)");
+        v.float("water_speed", &mut self.water_speed, 0.3, 4.0, "Ripple speed (m/s)");
+        v.float("water_fade", &mut self.water_fade, 0.2, 8.0, "Seconds for a ripple to lose half its height");
+        v.float("water_rain", &mut self.water_rain, 0.0, 3.0, "Raindrops per square metre per second on water");
         v.bool("fog", &mut self.fog, "Distance fog (hides streaming edges)");
         v.float("fog_start", &mut self.fog_start, 5.0, 300.0, "Fog starts at this distance from the camera target (m)");
         v.float("fog_end", &mut self.fog_end, 10.0, 400.0, "Fog is complete at this distance (m)");
         nested(v, "light", &mut self.light);
         nested(v, "cutaway", &mut self.cutaway);
         nested(v, "filter", &mut self.filter);
+    }
+}
+
+/// Where world point `p` is on screen (0..1 from the top left).
+pub fn screen_uv(cam: &rs::CameraData, p: Vec3) -> glam::Vec2 {
+    let c = cam.proj * cam.view * p.extend(1.0);
+    if c.w.abs() < 1e-6 {
+        return glam::Vec2::splat(0.5);
+    }
+    let ndc = c.truncate() / c.w;
+    glam::Vec2::new(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5).clamp(glam::Vec2::splat(-0.5), glam::Vec2::splat(1.5))
+}
+
+/// A transition looping for show: closes over `secs`, stays covered a moment, opens over
+/// `secs`, stays open a moment. Returns how covered the screen is (0..1).
+pub fn transition_loop(time: f32, secs: f32) -> f32 {
+    let secs = secs.max(0.1);
+    let period = secs * 2.0 + 1.6;
+    let t = time.rem_euclid(period);
+    let ease = |x: f32| x * x * (3.0 - 2.0 * x);
+    if t < 1.2 {
+        0.0
+    } else if t < 1.2 + secs {
+        ease((t - 1.2) / secs)
+    } else if t < 1.6 + secs {
+        1.0
+    } else {
+        ease(1.0 - (t - 1.6 - secs) / secs)
     }
 }
 
@@ -455,6 +619,10 @@ pub struct ViewBuilder {
     last_time: Option<f32>,
     /// Shardfall drawing state (swing trails, emission carry).
     arpg: crate::arpg::ArpgView,
+    /// Rippling water surfaces by zone, and dents waiting to drop into them (splashes and
+    /// blasts: centre, radius, depth).
+    water: HashMap<[i32; 6], crate::water::WaterSurface>,
+    water_dents: Vec<(Vec3, f32, f32)>,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -508,6 +676,10 @@ impl ViewBuilder {
             crate::fx::event_bursts(e, &mut self.pending_particles);
             if let SimEvent::Explosion { pos, radius } = e {
                 self.shocks.push((*pos, radius * 3.5, self.last_time.unwrap_or(0.0)));
+                self.water_dents.push((*pos, radius * 1.2, 0.22));
+            }
+            if let SimEvent::Splash { pos } = e {
+                self.water_dents.push((*pos, 0.7, 0.12));
             }
             if let SimEvent::Destroyed { pos, size } = e {
                 self.shocks.push((*pos, size.max(0.5) * 5.0, self.last_time.unwrap_or(0.0)));
@@ -625,6 +797,65 @@ impl ViewBuilder {
         }
     }
 
+    /// Water zones' surfaces: rippling meshes (stepped by `dt`), or flat slabs when ripples
+    /// are off.
+    fn water_surfaces(&mut self, scene: &mut Scene, curr: &RenderFrame, settings: &ViewSettings, dt: f32, to_sun: Vec3) {
+        for w in self.water.values_mut() {
+            w.used = false;
+        }
+        let ws =
+            crate::water::WaterSettings { speed: settings.water_speed, fade: settings.water_fade, rain: settings.water_rain };
+        let dents = std::mem::take(&mut self.water_dents);
+        let zones: Vec<&Zone> = curr
+            .statics
+            .chunks
+            .values()
+            .flat_map(|c| c.zones.iter())
+            .filter(|z| z.kind == ZoneKind::Water && z.color.is_some())
+            .collect();
+        for z in crate::water::merge_zones(&zones) {
+            let Some(color) = z.color else { continue };
+            let style = style_of(Look::Flat, settings.style);
+            if !settings.water_ripples {
+                let size = z.max - z.min;
+                let top = Vec3::new((z.min.x + z.max.x) * 0.5, z.max.y - 0.04, (z.min.z + z.max.z) * 0.5);
+                scene.meshes.push(MeshInstance {
+                    mesh: MeshKey::Cube,
+                    transform: Mat4::from_scale_rotation_translation(Vec3::new(size.x, 0.06, size.z), Quat::IDENTITY, top),
+                    color: v3(color),
+                    emissive: 0.0,
+                    style,
+                    flags: rs::flags::NO_SHADOW,
+                    group: 1,
+                });
+                continue;
+            }
+            let w = self.water.entry(crate::water::zone_key(&z)).or_insert_with(|| crate::water::WaterSurface::new(&z));
+            w.used = true;
+            for &(p, r, d) in &dents {
+                if (p.y - w.level()).abs() < r + 1.0 {
+                    w.dent(p, r, d);
+                }
+            }
+            w.step(dt, &ws, &curr.objects);
+            scene.dynamic.push(rs::DynamicMesh {
+                data: w.mesh(v3(color), to_sun),
+                color: Vec3::ONE,
+                emissive: 0.0,
+                style,
+                flags: rs::flags::NO_SHADOW,
+                group: 1,
+            });
+        }
+        self.water.retain(|_, w| w.used);
+    }
+
+    /// The rippling water surface of the water zone around `p`, if there is one (tests,
+    /// tools).
+    pub fn water_at(&self, p: Vec3) -> Option<&crate::water::WaterSurface> {
+        self.water.values().find(|w| (w.level() - p.y).abs() < 3.0 && w.contains(p))
+    }
+
     /// Builds the render scene. `alpha` in [0,1] blends `prev` -> `curr`.
     pub fn build(
         &mut self,
@@ -648,7 +879,8 @@ impl ViewBuilder {
                 scene.camera = shaken.data(aspect);
             }
         }
-        let dt = self.last_time.map(|t| (time - t).clamp(0.0, 0.1)).unwrap_or(0.0);
+        let since = self.last_time.map(|t| (time - t).max(0.0)).unwrap_or(0.0);
+        let dt = since.min(0.1);
         self.last_time = Some(time);
         scene.post.bloom = settings.bloom;
         scene.post.bloom_threshold = settings.bloom_threshold;
@@ -680,7 +912,18 @@ impl ViewBuilder {
             scanline_part: f.scanlines_on.part(),
             grain_part: f.grain_on.part(),
             chroma_part: f.chroma_on.part(),
+            stylize: f.stylize.stylize(),
+            stylize_size: f.stylize_size,
+            stylize_mix: f.stylize_mix,
+            stylize_color: f.stylize_color,
+            stylize_part: f.stylize_on.part(),
+            ..Default::default()
         };
+        scene.post.haze = settings.haze;
+        scene.post.haze_height = settings.haze_height;
+        scene.post.shafts = settings.shafts;
+        scene.post.shafts_forward = settings.shafts_forward;
+        scene.post.halos = settings.halos;
         if settings.particles {
             scene.particles = std::mem::take(&mut self.pending_particles);
         } else {
@@ -742,6 +985,23 @@ impl ViewBuilder {
             // Low cameras look through walls: cut away everything in front of the player.
             front_cut: if c.front_cut && curr.focus_is_player && rig.current().tilt < c.front_cut_below { 0.9 } else { 0.0 },
         };
+        // The haze lies on the ground the player stands on.
+        scene.post.haze_base = feet.y;
+        let wa = settings.wind_angle.to_radians();
+        scene.wind = rs::Wind {
+            direction: glam::Vec2::new(wa.sin(), -wa.cos()),
+            strength: settings.wind,
+            gusts: settings.wind_gusts,
+            pusher: feet,
+            push_radius: if settings.grass_push && curr.focus_is_player { 0.9 } else { 0.0 },
+        };
+        // A transition playing over and over (to look at one): it closes on the player.
+        let tf = &settings.filter;
+        if let (true, Some(kind)) = (tf.transition_demo, tf.transition.kind()) {
+            scene.filter.transition = transition_loop(time, tf.transition_time);
+            scene.filter.transition_kind = kind;
+            scene.filter.transition_center = screen_uv(&scene.camera, feet + Vec3::Y * 0.9);
+        }
 
         // Static geometry (cached per region version).
         self.static_cache.retain(|k, _| curr.statics.chunks.contains_key(k));
@@ -773,7 +1033,25 @@ impl ViewBuilder {
                 }
                 for d in &chunk.decor {
                     let style = style_of(d.look, settings.style);
-                    emit_shape(&mut list, &mut sdfs, &mut lights, &d.shape, d.pos, d.rot, v3(d.color), d.emissive, style, 1, 0);
+                    match d.sway {
+                        Sway::Grass => list.push(grass_tuft(&d.shape, d.pos, d.rot, v3(d.color), style)),
+                        sway => {
+                            let flags = if sway == Sway::Leaves { rs::flags::SWAY } else { 0 };
+                            emit_shape(
+                                &mut list,
+                                &mut sdfs,
+                                &mut lights,
+                                &d.shape,
+                                d.pos,
+                                d.rot,
+                                v3(d.color),
+                                d.emissive,
+                                style,
+                                1,
+                                flags,
+                            );
+                        }
+                    }
                 }
                 for z in &chunk.zones {
                     emit_zone(&mut list, z, settings.style);
@@ -830,6 +1108,8 @@ impl ViewBuilder {
                 });
             }
         }
+        // Water catches up on longer gaps too (tools render a frame now and then).
+        self.water_surfaces(&mut scene, curr, settings, since.min(0.5), to_sun);
         // Everything so far is the environment; objects come next.
         let env_end = (scene.meshes.len(), scene.sdfs.len(), scene.dynamic.len());
         scene.fog = rs::Fog {
@@ -1100,10 +1380,8 @@ fn emit_zone(list: &mut Vec<MeshInstance>, z: &Zone, ov: StyleOverride) {
     let floor = Vec3::new((z.min.x + z.max.x) * 0.5, z.min.y + 0.012, (z.min.z + z.max.z) * 0.5);
     let decal = Vec3::new(size.x - 0.08, 0.02, size.z - 0.08);
     match z.kind {
-        ZoneKind::Water => {
-            let top = Vec3::new(floor.x, z.max.y - 0.04, floor.z);
-            push(top, Vec3::new(size.x, 0.06, size.z), v3(color), style_of(Look::Flat, ov), rs::flags::NO_SHADOW);
-        }
+        // Water surfaces ripple: `ViewBuilder::water_surfaces` draws them every frame.
+        ZoneKind::Water => {}
         ZoneKind::Finish => {
             // Checkerboard.
             let n = ((size.x / 0.5).round() as i32).max(1);
@@ -1235,8 +1513,40 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
     }
     let v = &v;
     let mut lights = Vec::new();
-    emit_shape(&mut scene.meshes, &mut scene.sdfs, &mut lights, &v.shape, o.pos, o.rot, color, v.emissive, style, group, 0);
+    match v.sway {
+        Sway::Grass => scene.meshes.push(grass_tuft(&v.shape, o.pos, o.rot, color, style)),
+        sway => {
+            let flags = if sway == Sway::Leaves { rs::flags::SWAY } else { 0 };
+            emit_shape(
+                &mut scene.meshes,
+                &mut scene.sdfs,
+                &mut lights,
+                &v.shape,
+                o.pos,
+                o.rot,
+                color,
+                v.emissive,
+                style,
+                group,
+                flags,
+            );
+        }
+    }
     scene.point_lights.extend(lights);
+}
+
+/// A grass tuft filling a shape's box (it bends in the wind and away from the player; no
+/// outline group, so a meadow does not turn into a mesh of outlines).
+fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) -> MeshInstance {
+    MeshInstance {
+        mesh: MeshKey::Tuft,
+        transform: Mat4::from_scale_rotation_translation(shape.half_extents() * 2.0, rot, pos),
+        color,
+        emissive: 0.0,
+        style,
+        flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
+        group: 0,
+    }
 }
 
 /// Instances for one shape (meshes for boxes/cylinders, SDF impostors for spheres/capsules).
