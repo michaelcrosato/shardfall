@@ -6,6 +6,17 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Verticality Tower stairs you can walk up — 2026-10-08
+The tower's stairs rose 0.5 m a step, above the character controller's 0.32 m auto-step
+(`movement.step_height`), so every step needed a small jump. They were an engine quirk the guide
+writers noted, not a design choice. Decision: re-cut them in data rather than raise the step
+height (0.32 m keeps crates and curbs as jumps everywhere else). They are now 14 steps of 0.25 m
+(the playground's rise) with the same 3.5 m total: five steps west along the lobby's south wall to
+a corner, then nine north to the landing, since 14 one-metre treads don't fit in the old 7-row
+stairwell. Legend `1`-`9`, `A`-`D` = step n at n x 0.25 m. The station guide's stair line and the
+STAIRS sign moved with them. Checked in the REPL: from the lobby floor to the first-floor
+checkpoint (y 3.52) with move input only, grounded all the way.
+
 ## Effects from the 2D WebGPU showcase, and a station guide in every room — 2026-10-08
 Reviewed [michaelcrosato/2d-webgpu-demo](https://github.com/michaelcrosato/2d-webgpu-demo) (about 80
 explained 2D GPU scenes, WebGPU and WebGL2). Many of its effects were already in Pavilion (bloom,
@@ -93,9 +104,10 @@ texture-based material path this renderer does not have. Taken, and done the 3D 
   in front of it); the haze is a full-resolution 32-step march without temporal filtering, so it
   shows fine grain; the water is drawn opaque.
 - Engine quirks the guide writers found (not fixed here): an ICE slide on the momentum model can
-  stop dead at floor-tile seams in Slalom; the Verticality Tower's 0.5 m stairs need small jumps
-  (auto-step is 0.32 m); a treadmill walker's legs barely move (belt push counted as blocked);
-  the stealth room's painted cone is cast from 0.6 m while sight is checked from 1.3 m.
+  stop dead at floor-tile seams in Slalom; the Verticality Tower's 0.5 m stairs needed small jumps
+  (auto-step is 0.32 m; fixed since, see above); a treadmill walker's legs barely move (belt push
+  counted as blocked); the stealth room's painted cone is cast from 0.6 m while sight is checked
+  from 1.3 m.
 
 ## Look & Filters: every filter on a part of the scene — 2026-10-08
 - **Parts of the scene.** Every drawn instance is either *characters & objects* or the

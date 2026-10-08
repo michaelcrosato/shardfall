@@ -30,7 +30,7 @@ what = "A three-storey building to race from START in the lobby to FINISH on the
 how = [
   "Walls down: every frame the vertex shader lowers anything within 9 m of you to 2.4 m above your feet and hides pieces that sit entirely above that, so walls become low outlines and the floors overhead vanish. The cut follows your feet, so climbing a floor brings that floor back.",
   "When something still stands between the camera and you, a see-through tunnel opens: pixels near the line from the lens to you (1.6 m radius) are thrown away, all of them in the middle and a 4x4 Bayer dither pattern at the rim, so the hole has a soft edge.",
-  "The stairs rise 0.5 m a step, more than the 0.32 m the controller climbs by itself, so each step is a small jump. The ladder (3.5 m) and the lift (rises 3.2 m on a 9 s cycle and waits about 1.6 s at each end) are the no-jump routes.",
+  "The stairs rise 3.5 m in 14 steps of 0.25 m with one corner: five steps west, then nine north. Each step is under the 0.32 m the character controller climbs by itself (auto-step), so you walk straight up. The ladder (3.5 m) climbs the same height, and the lift rises 3.2 m on a 9 s cycle and waits about 1.6 s at each end.",
   "Ledge grab is on in this room: falling against a wall while pressing toward it casts rays at chest and waist height to find the wall, one down behind its face to find the top, and checks there is room to stand up there before you hang.",
   "The cracked tiles are destructible static blocks: a bomb removes every one within 1.35 m of the blast (collider and all) and throws debris boxes, opening a hole down to the ground floor.",
   "The corridor turrets fire west along it, every 0.9 s at 1.4 m and every 1.35 s at 0.35 m above the floor: crouch under the first, jump the second.",
@@ -143,7 +143,8 @@ if top < feet.y + 0.4 {
 [layout]
 origin = [-13.0, 0.0, -11.0]
 
-# Ground floor: lobby, stairs (west), ladder, lift (east), two rooms under the first floor.
+# Ground floor: lobby, stairs (south-west corner, turning north), ladder, lift (east), two rooms
+# under the first floor.
 [[layout.layer]]
 y = 0
 map = '''
@@ -158,16 +159,16 @@ map = '''
 #..........W.............#
 #PPPPP..PPPPPPPP..PPPPPPP#
 #LLL..........l..........#
-#LLL.....................#
+#DD......................#
+#CC......................#
+#BB......................#
+#AA......................#
+#99......................#
+#88......................#
 #77......................#
-#66......................#
-#55......................#
-#44......................#
-#33......................#
-#22......................#
-#11........SSSS..........#
-#..........SSSS..........#
-#........................#
+#66........SSSS..........#
+#554321....SSSS..........#
+#554321..................#
 ############..############
 '''
 
@@ -218,20 +219,34 @@ blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.2, color = 
 [layout.legend.'v']
 blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0.8, y1 = 3.2, color = "#d6c7ad" }]
 
+# Stairs: step n is n x 0.25 m (1-9, then A-D = 10-13), under the 0.32 m auto-step, so you
+# walk up. Five steps west along the south wall to the corner, then nine north to the landing.
 [layout.legend.'1']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 0.5, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 0.25, color = "#c99f74" }]
 [layout.legend.'2']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.0, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 0.5, color = "#c99f74" }]
 [layout.legend.'3']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.5, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 0.75, color = "#c99f74" }]
 [layout.legend.'4']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.0, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.0, color = "#c99f74" }]
 [layout.legend.'5']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.5, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.25, color = "#c99f74" }]
 [layout.legend.'6']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.0, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.5, color = "#c99f74" }]
 [layout.legend.'7']
-blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.5, color = "#c99f74" }]
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 1.75, color = "#c99f74" }]
+[layout.legend.'8']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.0, color = "#c99f74" }]
+[layout.legend.'9']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.25, color = "#c99f74" }]
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.5, color = "#c99f74" }]
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 2.75, color = "#c99f74" }]
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.0, color = "#c99f74" }]
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#cdbfa8" }, { y0 = 0, y1 = 3.25, color = "#c99f74" }]
 
 # Stair landing, level with the first floor.
 [layout.legend.'L']
@@ -281,7 +296,7 @@ zone = { kind = "finish", course = "climb" }
 # Signs.
 [[label]]
 text = "STAIRS"
-pos = [3.6, 0.03, 15.0]
+pos = [5.0, 0.03, 17.6]
 size = 0.45
 
 [[label]]
