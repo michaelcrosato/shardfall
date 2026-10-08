@@ -1,0 +1,410 @@
+# Mix & Match (aesthetic wing): filters on the whole scene, only the characters & objects, or only the environment.
+# GENERATED from crates/pav_view/src/looks.toml by a small script (kept outside the repo); hand-check after edits.
+#   WEST   a row per filter (PIXEL ART, INK OUTLINES, GAME BOY, NOIR GRADE, SCANLINES) with OFF / ALL / OBJECTS /
+#          WORLD pads, then OBJECT STYLE and WORLD STYLE rows. These pads set only their own filter, so they stack.
+#   CENTRE a village diorama: grass, a path, two cottages, trees, flowers, a pond with a fixed statue (environment),
+#          four walkers, crates and balls (characters & objects)
+#   EAST   whole looks (the Look & Filters menu's looks): each sets every look setting, so they never stack; CLEAN resets
+name = "Mix & Match"
+about = "Mix and match filters between the characters & objects and the environment: a diorama of walkers, crates and balls in a little village, a grid of pads that puts one filter on ALL, only the OBJECTS or only the WORLD (they stack, so you mix by walking), and a row of whole looks, the same ones as the Look & Filters menu."
+try = [
+  "Step on PIXEL ART > OBJECTS: the walkers, crates and balls turn into outlined pixel art while the village stays sharp; WORLD does the opposite",
+  "Stack them: PIXEL ART > OBJECTS, then GAME BOY > WORLD, then INK OUTLINES > OBJECTS: crisp retro heroes in a Game Boy world",
+  "NOIR GRADE > WORLD keeps the characters in colour in a black-and-white village; SCANLINES > OBJECTS makes them holograms",
+  "OBJECT STYLE and WORLD STYLE pick flat, cel or lit shading for each part (try LIT objects in a FLAT world)",
+  "The east pads are whole looks: PIXEL HEROES, HD-2D, GAME BOY WORLD, CARTOON, COMIC NOIR, HOLOGRAM HEROES...; CLEAN resets",
+  "Esc > Look & filters has every filter with sliders and presets; its switched-on filters win over the pads (Scene default hands them back)",
+  "The white statue in the pond is fixed scenery, so it belongs to the environment; anything that moves is an object",
+]
+wing = "aesthetic"
+order = 4
+primary_device = "keyboard_mouse"
+entrance = { at = [22, 26], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 22.0
+fov = 40.0
+
+[layout]
+origin = [-22.0, 0.0, -13.5]
+
+[[layout.layer]]
+y = 0
+map = '''
+############################################
+#..........................................#
+#.aaa.bbb.ccc.ddd..............IIIII.JJJJJ.#
+#.aaa.bbb.ccc.ddd..GgGPssPgGg..IIIII.JJJJJ.#
+#..................gHHGssgHHG..............#
+#.eee.hhh.iii.jjj..GHHgssGHHg..KKKKK.LLLLL.#
+#.eee.hhh.iii.jjj..gGgGssgGgG..KKKKK.LLLLL.#
+#..................GgGgssGgGg..............#
+#.kkk.lll.mmm.nnn..gGgGssgTgG..MMMMM.NNNNN.#
+#.kkk.lll.mmm.nnn..wwwgssGgGg..MMMMM.NNNNN.#
+#..................wwwGssgGgG..............#
+#.ooo.ppp.qqq.rrr..wwwgssGgGg..OOOOO.QQQQQ.#
+#.ooo.ppp.qqq.rrr..wwwGssPGgG..OOOOO.QQQQQ.#
+#..................GgGgssGgGg..............#
+#.ttt.uuu.vvv.xxx..gTgGssgGgG..SSSSS.UUUUU.#
+#.ttt.uuu.vvv.xxx..GgGgssGffg..SSSSS.UUUUU.#
+#..................gGgGssgfgG..............#
+#.yyy.zzz.AAA.BBB..GgGgssGgTg..VVVVV.WWWWW.#
+#.yyy.zzz.AAA.BBB..gGgGssgGgG..VVVVV.WWWWW.#
+#..................GgGPssGgGg..............#
+#.CCC.DDD.EEE.FFF..TGgGssgGgG..XXXXX.......#
+#.CCC.DDD.EEE.FFF..GgGgssGgGg..XXXXX.......#
+#..................gGgGssgGgG..............#
+#..........................................#
+#..........................................#
+#..........................................#
+######################..####################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }, { y0 = 0, y1 = 3.0, color = "#394258" }]
+
+[layout.legend.'g']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7cc66f" }]
+
+[layout.legend.'G']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#72bb66" }]
+
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c8a0" }]
+
+[layout.legend.'w']
+blocks = [{ y0 = -0.5, y1 = -0.08, color = "#3f8fd4" }]
+
+[layout.legend.'H']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7cc66f" }, { y0 = 0, y1 = 2.2, color = "#e8b04a" }, { y0 = 2.2, y1 = 2.6, color = "#c0452f" }]
+
+[layout.legend.'T']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7cc66f" }, { y0 = 0, y1 = 1.4, color = "#7a4f2a", inset = 0.35 }, { y0 = 1.4, y1 = 3.0, color = "#2f9e5a", rounded = true }]
+
+[layout.legend.'f']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#7cc66f" }, { y0 = 0, y1 = 0.35, color = "#e15fb4", inset = 0.15 }]
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#d8c8a0" }, { y0 = 0, y1 = 3.2, color = "#e8e2d4", rounded = true, inset = 0.2 }]
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.pixel_art" = 1.0 } }
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ALL", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "all" } }
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OBJECTS", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "objects" } }
+
+[layout.legend.'d']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "WORLD", color = "#c0569a", params = { "view.filter.pixel_art" = 5.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.filter.pixel_target" = "environment" } }
+
+[layout.legend.'e']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.outlines_on" = "all" } }
+
+[layout.legend.'h']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ALL", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "all" } }
+
+[layout.legend.'i']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OBJECTS", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "objects" } }
+
+[layout.legend.'j']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "WORLD", color = "#3a3f4b", params = { "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.outlines_on" = "environment" } }
+
+[layout.legend.'k']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0 } }
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ALL", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "all" } }
+
+[layout.legend.'m']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OBJECTS", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "objects" } }
+
+[layout.legend.'n']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "WORLD", color = "#8bac0f", params = { "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.color_on" = "environment" } }
+
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.saturation" = 1.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0 } }
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ALL", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "all" } }
+
+[layout.legend.'q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OBJECTS", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "objects" } }
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "WORLD", color = "#6b6f78", params = { "view.filter.saturation" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.grade_on" = "environment" } }
+
+[layout.legend.'t']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OFF", color = "#2f3441", params = { "view.filter.scanlines" = 0.0, "view.filter.grain" = 0.0 } }
+
+[layout.legend.'u']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ALL", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "all", "view.filter.grain" = 0.3, "view.filter.grain_on" = "all" } }
+
+[layout.legend.'v']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "OBJECTS", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "objects", "view.filter.grain" = 0.3, "view.filter.grain_on" = "objects" } }
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "WORLD", color = "#7f2ad4", params = { "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.scanlines_on" = "environment", "view.filter.grain" = 0.3, "view.filter.grain_on" = "environment" } }
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_objects" = "per object" } }
+
+[layout.legend.'z']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "FLAT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "flat" } }
+
+[layout.legend.'A']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "CEL", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "cel" } }
+
+[layout.legend.'B']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "LIT", color = "#d9733a", params = { "view.style" = "per object", "view.style_objects" = "lit" } }
+
+[layout.legend.'C']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "AS IS", color = "#2f3441", params = { "view.style" = "per object", "view.style_environment" = "per object" } }
+
+[layout.legend.'D']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "FLAT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "flat" } }
+
+[layout.legend.'E']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "CEL", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "cel" } }
+
+[layout.legend.'F']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "LIT", color = "#3f8f6a", params = { "view.style" = "per object", "view.style_environment" = "lit" } }
+
+[layout.legend.'I']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "CLEAN", color = "#2f9e5a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'J']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "PIXEL HEROES", label_size = 0.50, color = "#c0569a", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'K']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "HD-2D", color = "#e0a040", params = { "view.filter.pixel_target" = "objects", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.25, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.08, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.2, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.55, "view.filter.pixelate" = 1.0, "view.bloom" = 1.0, "view.bloom_threshold" = 0.7, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'L']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "PIXEL WORLD", label_size = 0.50, color = "#3f8f6a", params = { "view.filter.pixel_target" = "environment", "view.filter.pixel_art" = 5.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'M']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "GAME BOY WORLD", label_size = 0.47, color = "#8bac0f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "objects", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "environment", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'N']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "GAME BOY", color = "#5f7f2f", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = false, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "gameboy", "view.filter.levels" = 0.0, "view.filter.dither" = 0.6, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'O']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "16-BIT", color = "#4f7df3", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 4.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 24.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.05, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.15, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'Q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "CARTOON", color = "#e5484d", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "cel", "view.style_environment" = "cel", "view.cel_bands" = 2.0, "view.rim" = 0.4, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.1, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.3, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'S']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "COMIC NOIR", label_size = 0.50, color = "#6b6f78", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 2.0, "view.outline_darken" = 0.0, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "environment", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.35, "view.filter.brightness" = 0.95, "view.filter.saturation" = 0.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'U']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "FLAT PAPER", label_size = 0.50, color = "#c8b48a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "flat", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.7, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.3, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.15, "view.filter.tint" = 0.0, "view.filter.contrast" = 0.9, "view.filter.brightness" = 1.05, "view.filter.saturation" = 0.8, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.15, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'V']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "ARCADE CRT", label_size = 0.50, color = "#9b51e0", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.5, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.3, "view.filter.curvature" = 0.15, "view.filter.vignette" = 0.5, "view.filter.pixelate" = 3.0, "view.bloom" = 0.8, "view.bloom_threshold" = 0.9, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'W']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "HOLOGRAM HEROES", label_size = 0.44, color = "#56ccf2", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "per object", "view.style_environment" = "per object", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.35, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "all", "view.filter.palette" = "none", "view.filter.levels" = 0.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "objects", "view.filter.temperature" = -0.8, "view.filter.tint" = 0.3, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.15, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "objects", "view.filter.scanlines" = 0.7, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "objects", "view.filter.chroma_on" = "objects", "view.filter.grain" = 0.4, "view.filter.chroma" = 0.8, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.9, "view.bloom_threshold" = 0.8, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[layout.legend.'X']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a5368" }]
+zone = { kind = "pad", label = "POSTERIZED WORLD", label_size = 0.41, color = "#d9733a", params = { "view.filter.pixel_target" = "all", "view.filter.pixel_art" = 1.0, "view.filter.pixel_entity" = 0.0, "view.filter.pixel_levels" = 0.0, "view.filter.pixel_outline" = true, "view.style" = "per object", "view.style_objects" = "lit", "view.style_environment" = "flat", "view.cel_bands" = 2.0, "view.rim" = 0.25, "view.flat_shadow" = 0.62, "view.specular" = 0.5, "view.outlines_on" = "all", "view.outlines" = true, "view.outline_px" = 1.0, "view.outline_darken" = 0.35, "view.filter.color_on" = "environment", "view.filter.palette" = "none", "view.filter.levels" = 8.0, "view.filter.dither" = 0.0, "view.filter.grade_on" = "all", "view.filter.temperature" = 0.0, "view.filter.tint" = 0.0, "view.filter.contrast" = 1.0, "view.filter.brightness" = 1.0, "view.filter.saturation" = 1.0, "view.filter.scanlines_on" = "all", "view.filter.scanlines" = 0.0, "view.filter.scanline_px" = 3.0, "view.filter.grain_on" = "all", "view.filter.chroma_on" = "all", "view.filter.grain" = 0.0, "view.filter.chroma" = 0.0, "view.filter.curvature" = 0.0, "view.filter.vignette" = 0.0, "view.filter.pixelate" = 1.0, "view.bloom" = 0.35, "view.bloom_threshold" = 1.2, "view.exposure" = 1.0, "view.gi" = 0.0, "view.filter.split" = 0.0 } }
+
+[[label]]
+text = "PIXEL ART"
+pos = [8.50, 0.03, 1.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "INK OUTLINES"
+pos = [8.50, 0.03, 4.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "GAME BOY"
+pos = [8.50, 0.03, 7.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "NOIR GRADE"
+pos = [8.50, 0.03, 10.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "SCANLINES"
+pos = [8.50, 0.03, 13.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "OBJECT STYLE"
+pos = [8.50, 0.03, 16.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "WORLD STYLE"
+pos = [8.50, 0.03, 19.55]
+size = 0.42
+color = "#f1f4fa"
+
+[[label]]
+text = "WHOLE LOOKS"
+pos = [36.50, 0.03, 1.55]
+size = 0.5
+color = "#f1f4fa"
+
+[[label]]
+text = "MIX & MATCH"
+pos = [24.00, 0.03, 1.6]
+size = 0.6
+color = "#f1f4fa"
+
+[[label]]
+text = "ESC > LOOK & FILTERS"
+pos = [24.00, 0.03, 24.40]
+size = 0.36
+color = "#f1f4fa"
+
+[[npc]]
+name = "walker_red"
+kind = "biped"
+pos = [21.5, 0, 15.5]
+ai = { type = "wander", radius = 2.5, pause = [0.5, 2.0] }
+speed = 0.45
+look = { shirt = "#e5484d", pants = "#2f4a7a", skin = "#f2c9a0", shoes = "#262a33" }
+
+[[npc]]
+name = "walker_blue"
+kind = "biped"
+pos = [26.5, 0, 11.5]
+ai = { type = "wander", radius = 2.5, pause = [0.5, 2.0] }
+speed = 0.45
+look = { shirt = "#4f7df3", pants = "#3a3f4b", skin = "#c98e62", shoes = "#262a33" }
+
+[[npc]]
+name = "spider"
+kind = "spider"
+pos = [25.5, 0, 19.5]
+ai = { type = "wander", radius = 2.5, pause = [0.5, 2.0] }
+speed = 0.45
+look = { accent = "#f2c94c" }
+
+[[npc]]
+name = "lizard"
+kind = "lizard"
+pos = [21.5, 0, 7.5]
+ai = { type = "wander", radius = 2.5, pause = [0.5, 2.0] }
+speed = 0.45
+look = { accent = "#56ccf2" }
+
+[[object]]
+name = "crate_1"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [25.5, 0.4, 6.5]
+color = "#c86a3c"
+body = "dynamic"
+density = 60
+
+[[object]]
+name = "crate_2"
+shape = { type = "box", half = [0.35, 0.35, 0.35] }
+pos = [26.4, 0.4, 6.6]
+color = "#d98a4a"
+body = "dynamic"
+density = 60
+
+[[object]]
+name = "crate_3"
+shape = { type = "box", half = [0.3, 0.3, 0.3] }
+pos = [25.9, 1.1, 6.6]
+color = "#e8a65a"
+body = "dynamic"
+density = 60
+
+[[object]]
+name = "ball_1"
+shape = { type = "sphere", radius = 0.35 }
+pos = [20.5, 0.4, 18.5]
+color = "#9b51e0"
+body = "dynamic"
+density = 30
+
+[[object]]
+name = "ball_2"
+shape = { type = "sphere", radius = 0.3 }
+pos = [27.0, 0.4, 13.5]
+color = "#56ccf2"
+body = "dynamic"
+density = 30
+
+[[object]]
+name = "ball_3"
+shape = { type = "sphere", radius = 0.25 }
+pos = [22.0, 0.4, 21.0]
+color = "#f2c94c"
+body = "dynamic"
+density = 30
+
+[[object]]
+name = "statue"
+shape = { type = "capsule", radius = 0.35, half_height = 0.6 }
+pos = [20.5, 0.95, 10.5]
+color = "#f4f1ea"
+body = "fixed"
+
+[[object]]
+name = "statue_base"
+shape = { type = "box", half = [0.5, 0.15, 0.5] }
+pos = [20.5, 0.07, 10.5]
+color = "#b8b2a4"
+body = "fixed"

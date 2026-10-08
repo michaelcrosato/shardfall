@@ -12,6 +12,7 @@ mod edit;
 mod gfx;
 mod hud;
 mod input;
+mod look_ui;
 mod panel;
 mod platform;
 mod rooms;

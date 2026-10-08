@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 
 use pav_core::params::ChoiceParam;
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use glam::{Mat4, Vec3};
 use pav_core::arpg::combat::{Rarity, Team};
 use pav_core::arpg::data::data;
@@ -367,6 +367,154 @@ pub fn anatomy(def: &pav_core::puppet::PuppetDef) -> Value {
         "colors": { "skin": def.skin, "body": def.shirt, "accent": def.accent, "eyes": def.eyes },
         "legs": def.leg_pairs() * 2,
         "tail": round3(def.tail_length * def.scale),
+    })
+}
+
+/// Looks and filter presets (the game's Look & Filters menu) on the session's look layer.
+pub fn t_look(s: &mut Session, a: &Args) -> Result<Output> {
+    use pav_core::params::ParamValue;
+    use pav_view::look::{self, Look, Section};
+    let flag = |k: &str| a.get(k).is_some_and(|v| v.as_bool() == Some(true) || v.as_str() == Some("true"));
+    let mut did = Vec::new();
+    if flag("reset") {
+        s.look = Look::default();
+        did.push("reset: every section shows the scene's own settings".to_string());
+    }
+    if let Some(name) = get_str(a, "name") {
+        let p = look::look_preset(name).ok_or_else(|| {
+            anyhow!(
+                "unknown look '{name}' (looks: {})",
+                look::looks().iter().map(|l| l.name.as_str()).collect::<Vec<_>>().join(", ")
+            )
+        })?;
+        let compare = s.look.compare;
+        s.look = Look::from_preset(p);
+        s.look.compare = compare;
+        did.push(format!("look '{}': {}", p.name, p.about));
+    }
+    let frame = s.sim.frame();
+    let shown = s.view_for(&frame);
+    if let Some(key) = get_str(a, "section") {
+        let sec = Section::from_key(key)
+            .ok_or_else(|| anyhow!("unknown section '{key}' (sections: {})", Section::ALL.map(|s| s.key()).join(", ")))?;
+        if let Some(name) = get_str(a, "preset") {
+            let p = look::preset(sec, name).ok_or_else(|| {
+                anyhow!(
+                    "no preset '{name}' in {key} (presets: {})",
+                    look::presets(sec).map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")
+                )
+            })?;
+            s.look.apply_preset(p, &shown);
+            did.push(format!("{key}: preset '{}' ({})", p.name, p.about));
+        }
+        if let Some(part) = get_str(a, "on") {
+            let paths: Vec<&str> = sec.paths().iter().copied().filter(|p| p.ends_with("_on") || p.ends_with("_target")).collect();
+            if paths.is_empty() {
+                bail!(
+                    "{key} has no part to choose ({})",
+                    if sec == Section::Shading {
+                        "set view.style_objects / view.style_environment instead"
+                    } else {
+                        "it is whole-screen"
+                    }
+                );
+            }
+            s.look.set_on(sec, true, &shown);
+            let map = paths.iter().map(|p| (p.to_string(), ParamValue::Text(part.to_string()))).collect();
+            let bad = s.look.values.apply(&map);
+            if !bad.is_empty()
+                || !paths.iter().all(|p| pav_core::params::get(&mut s.look.values, p) == Some(ParamValue::Text(part.to_string())))
+            {
+                bail!(
+                    "'{part}' is not a part for {key} (all, objects, environment; pixel art also characters, hero, others, world, entity)"
+                );
+            }
+            did.push(format!("{key}: on {part}"));
+        }
+        if a.get("enabled").is_some() {
+            let on = flag("enabled");
+            s.look.set_on(sec, on, &shown);
+            did.push(format!("{key}: {}", if on { "on" } else { "off (the scene's own settings)" }));
+        }
+    }
+    if let Some(c) = a.get("compare").and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|t| t.parse().ok()))) {
+        s.look.compare = (c as f32).clamp(0.0, 0.9);
+        did.push(format!("compare: filters right of {:.0}% of the screen", s.look.compare * 100.0));
+    }
+    let state = json!({
+        "on": s.look.on.iter().map(|sec| json!({
+            "section": sec.key(),
+            "preset": s.look.matching_preset(*sec).map(|p| p.name.clone()),
+        })).collect::<Vec<_>>(),
+        "settings": s.look.to_map(),
+    });
+    if let Some(list) = get_str(a, "bench") {
+        return look_bench(s, a, list, did, state);
+    }
+    if did.is_empty() {
+        let sections: Vec<Value> = Section::ALL
+            .iter()
+            .map(|sec| {
+                json!({
+                    "section": sec.key(),
+                    "title": sec.title(),
+                    "about": sec.about(),
+                    "paths": sec.paths(),
+                    "presets": look::presets(*sec).map(|p| json!({ "name": p.name, "about": p.about })).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        let looks: Vec<Value> = look::looks().iter().map(|l| json!({ "name": l.name, "about": l.about })).collect();
+        return Ok(Output::Json(json!({ "current": state, "sections": sections, "looks": looks })));
+    }
+    Ok(Output::Json(json!({ "did": did, "current": state })))
+}
+
+/// The current moment under several looks, tiled and numbered (1 = the first in the list).
+fn look_bench(s: &mut Session, a: &Args, list: &str, did: Vec<String>, state: Value) -> Result<Output> {
+    use pav_view::look::{self, Look};
+    let w = get_u64(a, "width", 400)?.clamp(80, 1920) as u32;
+    let h = get_u64(a, "height", 225)?.clamp(60, 1080) as u32;
+    let cols = get_u64(a, "columns", 3)?.max(1) as u32;
+    let mut names: Vec<String> = if list == "all" {
+        std::iter::once("scene".to_string()).chain(look::looks().iter().map(|l| l.name.clone())).collect()
+    } else {
+        list.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect()
+    };
+    names.truncate(24);
+    let keep = s.look.clone();
+    let mut shots = Vec::with_capacity(names.len());
+    let mut tiles = Vec::new();
+    let r = (|| -> Result<()> {
+        for name in &names {
+            s.look = match name.as_str() {
+                "scene" | "none" | "off" => Look::default(),
+                "current" => keep.clone(),
+                n => Look::from_preset(look::look_preset(n).ok_or_else(|| anyhow!("unknown look '{n}'"))?),
+            };
+            let mut c = Canvas { w, h, px: s.render(w, h)? };
+            let n = shots.len() + 1;
+            c.rect((4.0, 4.0), (c.number_width(n, 3.0) + 12.0, 27.0), [10, 10, 14], 0.8);
+            c.number(8.0, 8.0, n, 3.0, [255, 255, 255]);
+            shots.push(c.px);
+            tiles.push(json!({ "n": n, "look": name }));
+        }
+        Ok(())
+    })();
+    s.look = keep;
+    r?;
+    let (tw, th, px) = pav_render::capture::tile_frames(&shots, w, h, cols);
+    let png = pav_render::capture::encode_png(tw, th, &px)?;
+    let path =
+        std::path::PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/looks-{}.png", s.sim.state.tick)));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    Ok(Output::Image {
+        png,
+        path: Some(path.clone()),
+        meta: json!({ "path": path, "tiles": tiles, "did": did, "current": state }),
     })
 }
 

@@ -21,6 +21,9 @@ entrance = { at = [5, 9], facing = "south" }   # a gap cell in the outer wall, a
 # Optional: view settings while inside (`pav params prefix=view`, without "view."), e.g. night:
 # "light.sun_intensity" = 0.06, "light.ambient" = 0.25, sky = "#0e1424", bloom = 0.6, gi = 1.0,
 # "light.sun_elevation" = 20, distortion = true, particles = true, exposure = 1.2
+# Filters can aim at a part of the scene: "filter.pixel_target" = "objects" (characters & objects)
+# or "environment", "filter.color_on" / "grade_on" / "scanlines_on" / "grain_on" / "chroma_on",
+# outlines_on = "objects", style_objects = "lit", style_environment = "flat" (see rooms/mix_match.toml)
 [view]
 
 # Optional: simulation parameter overrides while inside (full paths, see `pav params`).

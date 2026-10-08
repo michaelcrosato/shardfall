@@ -46,10 +46,13 @@ crates/
               bloom chain and distortion (fx.rs) -> composite (outlines, screen-space GI,
               tonemap, filter stack: pixelate/CRT/scanlines/dither/palettes/grading, split;
               pixel art on part of the scene: objects flagged `flags::PIXEL`, chosen in the view
-              by `view.filter.pixel_target` = all/characters/hero/others/world/entity).
+              by `view.filter.pixel_target` = all/characters/hero/others/world/entity/objects/
+              environment; every filter can aim at a part: `flags::OBJECT` marks characters &
+              objects, the normal buffer carries it, `*_on` = all/objects/environment).
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
               the world (text.rs). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
+              look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
@@ -116,7 +119,7 @@ despawn teleport rewind snapshot_save snapshot_load record_save replay rooms roo
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
 tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature see campaign
-theme_swatch`
+theme_swatch`; looks: `look`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
@@ -142,6 +145,11 @@ theme_swatch`
   shows what the AI thinks is walkable and its planned way out. Game data lives in `game/*.toml`
   (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`; levels from
   `themes.toml` and `levels.toml`).
+- Looks: `look` lists the Look & Filters sections, presets and whole looks; `look name=HD-2D`,
+  `look section=pixel preset=Chunky on=objects` set the session's look layer (applied in every
+  capture); `look bench=all` renders this moment under every look in one numbered PNG. Filters
+  aim at `all`, `objects` (characters & objects) or `environment` through `view.*_on` /
+  `view.filter.*_on` / `pixel_target`, and `view.style_objects` / `view.style_environment`.
 - `course` shows the running course timer, gates, hits, falls, last result and best times;
   `feel` shows feel metrics (response ticks, time to top speed, stopping, turnaround, jump).
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
@@ -199,6 +207,9 @@ screenshotted: `shardfall --pad-script FILE` (lines `<frames> [left=x,y] [right=
 Fixed system layer (never rebinds): Esc pause menu · F1 tuning panel · F2 rooms (teleport) ·
 F3 boot diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 slower/faster ·
 F10 edit mode (sandbox) · hold Backspace rewind · F11 fullscreen · F12 screenshot.
+The pause menu's *Look & filters* window (also atop the F1 panel) puts every filter on the whole
+scene, the characters & objects or the environment, with sliders, presets and whole looks; it
+is a layer over the scene's own settings, saved to `shardfall_looks.json` (look_ui.rs).
 Rooms may remap game keys while you are inside (`[keys]` in the room file); system keys never change.
 
 ## Tests
@@ -217,6 +228,8 @@ passive tree through commands, keystones, the bot spending points), `tests/monst
 `tests/levels.rs` (every designed level has its mechanics, each mechanic works, endless
 depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
 brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances).
+View: `pav_view/tests/pixel_art.rs`, `parts.rs` (characters & objects vs environment, filters per
+part, styles per part) and `look.rs` (look sections, presets, whole looks).
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

@@ -2348,6 +2348,8 @@ dependencies = [
  "pav_core",
  "pav_render",
  "serde",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

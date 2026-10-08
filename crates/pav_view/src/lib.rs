@@ -4,6 +4,7 @@ pub mod arpg;
 pub mod build;
 pub mod camera;
 pub mod fx;
+pub mod look;
 pub mod vehicles;
 
 pub use build::{ViewBuilder, ViewSettings};

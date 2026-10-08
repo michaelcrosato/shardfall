@@ -37,7 +37,7 @@ still there: Esc menu → Load scene → `world` (or `shardfall.exe --scene worl
 | G | use: trade, stash, portal, gamble, brew, the way down, cursed chests |
 | I (Tab) · P · C · K · M | inventory · passive tree · character · skill bar · map |
 | T | town portal |
-| Esc | menu (difficulty sliders for play-testing, new hero) |
+| Esc | menu (difficulty sliders for play-testing, new hero, Look & filters) |
 
 Items drop as you fight (walk over magic+ items or click their names); hover an item to compare
 it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use,
@@ -63,7 +63,7 @@ to the address to start in a room.
 | E | get in / out of a vehicle |
 | Backspace (hold) | rewind time |
 | Right-drag · wheel · 1-8 | rotate · zoom · camera presets |
-| Esc | menu |
+| Esc | menu (Look & filters: pixel art, cel shading, outlines, palettes, grading... on the whole scene, the characters & objects or the environment) |
 | F1 | tuning panel (every parameter, presets) |
 | F2 | jump to any room |
 | F4 / F5 | leave the room / reset it |
@@ -79,7 +79,7 @@ its own controls.
 | Physics Lab (north) | Stacking & Toppling, Springs & Soft Bodies, Chains & Rope Bridges, Conveyors, Bounce & Friction Gallery, Destructible Floors, Stress Test |
 | Animation Lab (west) | Walk Cycles, Jointed Limbs, Impact & Recoil, Squash & Stretch, Secondary Motion, Character Style Bench |
 | Visual Effects (south) | Lights & Shadows, Particle Garden, Bloom & Glow, Heat & Shockwaves, Global Illumination |
-| Styles & Filters (east) | Pure Styles, Style vs Filters, Filter Stack Bench |
+| Styles & Filters (east) | Pure Styles, Style vs Filters, Filter Stack Bench, Mix & Match |
 | Genre Wing (north) | Bullet Hell, Grid Stealth, Drift Circuit, Helicopter Run |
 | Workshop (south) | Sandbox (spawn, drag, delete and save objects) |
 

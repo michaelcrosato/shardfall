@@ -31,6 +31,9 @@ pub struct Session {
     view_serial: u64,
     /// Running inside the game (live bridge): the game applies room cameras and views itself.
     pub(crate) live: bool,
+    /// The look layer (`look` tool, the game's Look & Filters menu): its sections that are on
+    /// replace the view settings in captures.
+    pub look: pav_view::look::Look,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -69,6 +72,7 @@ impl Session {
             view_room: None,
             view_serial: 0,
             live: false,
+            look: Default::default(),
         };
         s.sync_camera();
         Ok(s)
@@ -92,6 +96,7 @@ impl Session {
             view_room: None,
             view_serial: 0,
             live: true,
+            look: Default::default(),
         }
     }
 
@@ -241,16 +246,24 @@ impl Session {
         self.view.apply(&pads);
     }
 
+    /// The view settings captures use: the session's, the game place's look, then the look
+    /// layer.
+    pub fn view_for(&self, frame: &pav_core::RenderFrame) -> ViewSettings {
+        let mut view = self.view.clone();
+        if let Some(g) = &frame.game {
+            pav_view::arpg::place_look(g, &mut view);
+        }
+        self.look.apply(&mut view);
+        view
+    }
+
     /// Renders the current state to RGBA8 pixels.
     pub fn render(&mut self, width: u32, height: u32) -> Result<Vec<u8>> {
         let frame = self.sim.frame();
         let focus = frame.focus;
         self.camera.snap(focus);
         let camera = self.camera.clone();
-        let mut view = self.view.clone();
-        if let Some(g) = &frame.game {
-            pav_view::arpg::place_look(g, &mut view);
-        }
+        let view = self.view_for(&frame);
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.builder.add_events(&events);
@@ -264,10 +277,7 @@ impl Session {
         let focus = frame.focus;
         self.camera.snap(focus);
         let camera = self.camera.clone();
-        let mut view = self.view.clone();
-        if let Some(g) = &frame.game {
-            pav_view::arpg::place_look(g, &mut view);
-        }
+        let view = self.view_for(&frame);
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.builder.add_events(&events);

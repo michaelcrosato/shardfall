@@ -539,6 +539,25 @@ pub static TOOLS: &[Tool] = &[
         args: &[arg("depths", "string", "a range of endless depths, e.g. 13-20"), arg("out", "string", "PNG path")],
         run: crate::agent_tools::t_theme_swatch,
     },
+    Tool {
+        name: "look",
+        help: "Looks and filter presets (the game's Look & Filters menu): name= a whole look, section= with preset= / on= (all, objects = characters and objects, environment) / enabled=, reset=true, compare=0.5 (filters only on the right). bench=all or a comma list of looks renders this moment under each, numbered. No args lists sections, presets and looks.",
+        args: &[
+            arg("name", "string", "a whole look (e.g. Pixel heroes, HD-2D, Game Boy world)"),
+            arg("section", "string", "pixel, shading, outlines, palette, grading, scanlines, grain, screen, glow"),
+            arg("preset", "string", "a preset of that section (e.g. Chunky, Ink, Game Boy, Noir)"),
+            arg("on", "string", "the part of the scene that section's filter is on: all, objects, environment"),
+            arg("enabled", "boolean", "switch that section on (true) or back to the scene's own settings (false)"),
+            arg("reset", "boolean", "switch every section off"),
+            arg("compare", "number", "filters only right of this screen fraction (0 = whole screen)"),
+            arg("bench", "string", "all, or a comma list of looks (plus scene, current) to render side by side"),
+            arg("columns", "integer", "bench tiles per row (default 3)"),
+            arg("width", "integer", "bench tile width (default 400)"),
+            arg("height", "integer", "bench tile height (default 225)"),
+            arg("out", "string", "bench PNG path"),
+        ],
+        run: crate::agent_tools::t_look,
+    },
 ];
 
 pub fn find(name: &str) -> Option<&'static Tool> {
@@ -588,8 +607,10 @@ fn t_load(s: &mut Session, a: &Args) -> Result<Output> {
     // Keep the caller's camera and view settings, minus any room's own view table.
     let (camera, view) = (s.camera_base_or_current(), s.view_base_or_current());
     let live = s.live.then(|| s.sim.config.clone());
+    let look = std::mem::take(&mut s.look);
     *s = Session::new(scene, seed)?;
     s.gpu = gpu;
+    s.look = look;
     if let Some(config) = live {
         // Inside the game: keep its tuning, and leave room cameras and views to it.
         s.sim.config = config;

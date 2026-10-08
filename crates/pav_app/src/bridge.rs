@@ -13,6 +13,7 @@ use anyhow::Result;
 use pav_core::Sim;
 use pav_tools::Session;
 use pav_tools::session::Gpu;
+use pav_view::look::Look;
 use pav_view::{CameraParams, CameraRig, ViewSettings};
 use serde_json::{Value, json};
 
@@ -24,10 +25,11 @@ pub struct Request {
     pub reply: Sender<Value>,
 }
 
-/// Camera and view settings after a tool ran (the game adopts the ones that changed).
+/// Camera, view settings and look after a tool ran (the game adopts the ones that changed).
 pub struct Changes {
     pub camera: Option<CameraParams>,
     pub view: Option<ViewSettings>,
+    pub look: Option<Look>,
 }
 
 pub struct Bridge {
@@ -61,7 +63,9 @@ impl Bridge {
     /// Adopts the camera/view changes earlier tools made, then hands waiting requests to the
     /// simulation thread. (A client waits for each reply, and changes are sent before replies,
     /// so the next request always sees the previous one's changes.)
-    pub fn poll(&self, host: &SimHost, rig: &mut CameraRig, view: &mut ViewSettings) {
+    /// Returns the look when a tool changed it.
+    pub fn poll(&self, host: &SimHost, rig: &mut CameraRig, view: &mut ViewSettings, look: &Look) -> Option<Look> {
+        let mut new_look = None;
         for c in self.changes.try_iter() {
             if let Some(p) = c.camera {
                 rig.params = p;
@@ -69,25 +73,34 @@ impl Bridge {
             if let Some(v) = c.view {
                 *view = v;
             }
+            if let Some(l) = c.look {
+                new_look = Some(l);
+            }
         }
         while let Ok(req) = self.requests.try_recv() {
             let (rig, view, changes) = (rig.clone(), view.clone(), self.changes_tx.clone());
+            let look = new_look.clone().unwrap_or_else(|| look.clone());
             host.exec(move |sim| {
                 let live = std::mem::replace(sim, Sim::empty(1));
                 let gpu = GPU.with(|g| g.borrow_mut().take());
                 let (cam0, view0) = (rig.params.clone(), serde_json::to_value(&view).ok());
+                let look0 = serde_json::to_value(&look).ok();
                 let mut session = Session::from_live(live, rig, view, gpu);
+                session.look = look;
                 let reply = pav_tools::bridge::handle(&mut session, &req.msg);
+                let look = std::mem::take(&mut session.look);
                 let (live, rig, view, gpu) = session.into_live();
                 *sim = live;
                 GPU.with(|g| *g.borrow_mut() = gpu);
                 let _ = changes.send(Changes {
                     camera: (rig.params != cam0).then_some(rig.params),
                     view: (serde_json::to_value(&view).ok() != view0).then_some(view),
+                    look: (serde_json::to_value(&look).ok() != look0).then_some(look),
                 });
                 let _ = req.reply.send(reply);
             });
         }
+        new_look
     }
 }
 

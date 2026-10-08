@@ -37,6 +37,7 @@ const FLAG_NO_RECEIVE_SHADOW: u32 = 4u;
 const FLAG_CUT_VERTEX: u32 = 8u;
 const FLAG_TWO_SIDED: u32 = 16u;
 const FLAG_PIXEL: u32 = 32u;
+const FLAG_OBJECT: u32 = 64u;
 
 struct FsOut {
     @location(0) color: vec4<f32>,
@@ -219,10 +220,15 @@ fn apply_fog(p: vec3<f32>, col: vec3<f32>) -> vec3<f32> {
     return mix(col, g.fog.rgb, smoothstep(g.fog2.z, g.fog2.w, d));
 }
 
-// The normal buffer's w is the outline group, negative for pixel-art objects (the
-// composite reads the sign as the pixel-art mask).
+// The normal buffer's w is the outline group (folded into 1..1023, 0 = background) plus 1024
+// on characters and objects, negative for pixel-art objects: the composite reads the sign as
+// the pixel-art mask and the size as the part of the scene (exact in 16-bit floats).
 fn group_out(n: vec3<f32>, group: u32, flags: u32) -> vec4<f32> {
-    let g = f32(group & 2047u);
+    var gi = select(0u, (group - 1u) % 1023u + 1u, group != 0u);
+    if ((flags & FLAG_OBJECT) != 0u) {
+        gi = gi + 1024u;
+    }
+    let g = f32(gi);
     return vec4<f32>(n, select(g, -g, (flags & FLAG_PIXEL) != 0u));
 }
 

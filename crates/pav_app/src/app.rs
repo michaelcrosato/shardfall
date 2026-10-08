@@ -160,6 +160,8 @@ pub struct App {
     quit: bool,
     /// Camera and look from before the game started (restored when leaving it).
     game_saved: Option<(CameraParams, ViewSettings)>,
+    /// The Look & Filters window and the look layer over `view`.
+    look_ui: crate::look_ui::LookUi,
     /// Shardfall windows (inventory, vendor...), the latest game frame and the place whose
     /// look is applied.
     game_ui: crate::arpg_items::GameUi,
@@ -227,6 +229,7 @@ impl App {
             physics: PhysicsOverlay::default(),
             quit: false,
             game_saved: None,
+            look_ui: crate::look_ui::LookUi::load(),
             game_ui: Default::default(),
             last_save: Instant::now(),
             pad_cursor: None,
@@ -353,7 +356,7 @@ impl App {
 
     /// Whether the gamepad drives a menu cursor now (a game window or the pause menu is open).
     fn pad_ui_active(&self) -> bool {
-        self.input.last_device == Device::Gamepad && (self.menu_open || self.game_ui.any_open())
+        self.input.last_device == Device::Gamepad && (self.menu_open || self.game_ui.any_open() || self.look_ui.open)
     }
 
     /// Gamepad in menus: D-pad down opens the hero's panels (LB / RB switch them), B closes;
@@ -394,6 +397,9 @@ impl App {
         if taps.contains(&B::East) {
             if ui.any_open() {
                 ui.close_all();
+            } else if self.look_ui.open && !self.menu_open {
+                self.look_ui.open = false;
+                self.look_ui.save_if_dirty(true);
             } else {
                 self.set_menu(false);
             }
@@ -728,8 +734,10 @@ impl App {
         host.pump();
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(b) = &self.bridge {
-            // Agent tools run on the simulation thread and can change the camera and view.
-            b.poll(host, &mut self.rig, &mut self.view);
+            // Agent tools run on the simulation thread and can change the camera, view and look.
+            if let Some(l) = b.poll(host, &mut self.rig, &mut self.view, self.look_ui.look()) {
+                self.look_ui.set_look(l);
+            }
         }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
         let game_input = !self.menu_open && !ui_wants_keys;
@@ -922,7 +930,10 @@ impl App {
                 a.play_event(e, &l, self.audio_settings.sfx);
             }
         }
-        let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &self.view, focus);
+        // The look layer (Look & Filters) over the scene's own settings.
+        let mut view = self.view.clone();
+        self.look_ui.apply(&mut view);
+        let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
         self.editor.draw_preview(&mut scene);
         if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on && curr.game.is_none() {
             if let Some(a) = aim {
@@ -1013,6 +1024,8 @@ impl App {
         let hud_ctx = HudCtx { hud: &curr.hud, tick: curr.tick, dt: curr.dt };
         let game_frame = curr.game.clone();
         let game_ui = &mut self.game_ui;
+        let look_ui = &mut self.look_ui;
+        let mut look_msg = None;
         let mut game_cmds = Vec::new();
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
@@ -1066,6 +1079,7 @@ impl App {
             teleport = hud.teleport_menu(&ctx);
             hud.error_panel(&ctx);
             save_room = editor.ui(&ctx, room_name.as_deref());
+            look_msg = look_ui.window(&ctx, root.view);
             if menu_open {
                 menu_action = ui::pause_menu(&ctx, device, &scene_name, game_frame.is_some().then_some(&mut root.sim.difficulty));
             }
@@ -1084,6 +1098,10 @@ impl App {
             );
         });
         self.show_boot = show_boot;
+        if let Some(m) = look_msg {
+            self.toast = Some((m, Instant::now()));
+        }
+        self.look_ui.save_if_dirty(false);
         for c in game_cmds {
             host.shared.command(c);
         }
@@ -1240,6 +1258,7 @@ impl App {
                     None => self.toast("replay timed out"),
                 }
             }
+            PanelAction::Look => self.look_ui.open = true,
             PanelAction::Status(s) => {
                 self.panel.status(s.clone());
                 self.toast(s);
@@ -1277,6 +1296,10 @@ impl App {
                 self.set_menu(false);
                 self.panel.open = true;
             }
+            MenuAction::Look => {
+                self.set_menu(false);
+                self.look_ui.open = true;
+            }
             MenuAction::Rooms => {
                 self.set_menu(false);
                 self.open_teleport();
@@ -1299,7 +1322,10 @@ impl App {
                 self.physics.open = !self.physics.open;
                 self.physics.auto = false;
             }
-            MenuAction::Quit => self.quit = true,
+            MenuAction::Quit => {
+                self.look_ui.save_if_dirty(true);
+                self.quit = true;
+            }
         }
     }
 }
@@ -1347,6 +1373,7 @@ impl ApplicationHandler for App {
                 if let Some(host) = &self.host {
                     host.exec(|sim| crate::save::save_from(sim));
                 }
+                self.look_ui.save_if_dirty(true);
                 el.exit()
             }
             WindowEvent::Focused(false) => self.input.clear(),

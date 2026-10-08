@@ -6,6 +6,56 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Look & Filters: every filter on a part of the scene — 2026-10-08
+- **Parts of the scene.** Every drawn instance is either *characters & objects* or the
+  *environment*. The view flags `flags::OBJECT` on everything emitted after the static regions
+  (characters, props, loot, projectiles, effects, game decals) except fixed scenery:
+  `RenderObject::scenery` (from `Sim::frame`) is an entity with no character, a fixed or no
+  body, no behaviour, bomb, health, vehicle, soft body or lifetime, and not a game actor
+  (town buildings' props, braziers, columns, lava pools, sconces). The scene shader adds 1024
+  to the normal buffer's w on objects (groups now fold into 1..1023; still exact in 16-bit
+  floats; negative = pixel art as before), so the composite knows each pixel's part.
+- **Targets per filter** (`all` / `objects` / `environment`): `view.outlines_on`,
+  `view.filter.color_on` (palette, levels, dither), `grade_on` (temperature, tint, contrast,
+  brightness, saturation), `scanlines_on`, `grain_on`, `chroma_on`; `pixel_target` gained
+  `objects` and `environment`. Shading per part: `view.style_objects` /
+  `view.style_environment` (flat / cel / lit; unlit markers and glows keep theirs; the old
+  `view.style` still forces one style everywhere). Curvature, vignette, `pixelate` and the glow
+  settings stay whole-screen. A pixel's part is read at the pixel-art block centre, so blocks
+  agree; the dither pattern now steps with pixel-art blocks.
+- **The look layer** (`pav_view::look`): nine sections (pixel art, shading, outlines, palette,
+  grading, scanlines, grain & fringe, screen, glow) own fixed view paths; a section that is on
+  replaces the scene's own settings (rooms, pads, places, the F1 panel), off hands them back.
+  `looks.toml` (embedded) holds 3-8 presets per section (they never change the part a filter
+  is on) and 12 whole looks: Pixel heroes, HD-2D, Pixel world crisp heroes, Game Boy world,
+  Game Boy, 16-bit, Cartoon, Comic noir, Flat paper, Arcade CRT, Hologram heroes, Posterized
+  world. Per-channel posterize shifts the hue of dull colours (the town's grey floor went pink
+  and olive at 5-6 levels), so presets use 8+ levels and 24 for pixel-art levels.
+- **Menu**: Esc → *Look & filters* (also a button at the top of the F1 panel): whole looks,
+  *Scene default*, a before/after *Compare* line, *My looks* (save / use / delete), then a
+  collapsible section per filter with an on switch, the part picker (whole scene / characters
+  & objects / environment; pixel art also characters only, the hero, other characters, all but
+  characters, one entity), preset chips (the matching one is highlighted) and sliders. Moving
+  a slider switches its section on, starting from what was on screen. Works with the gamepad
+  cursor (B closes). The look is saved to `shardfall_looks.json` next to the exe (browser:
+  local storage) a moment after changes and on quit; agent tools over the live bridge see and
+  change it.
+- **World demo**: new room *Mix & Match* (aesthetic wing, order 4, `rooms/mix_match.toml`,
+  generated from looks.toml by a script kept outside the repo): a village diorama with walkers,
+  crates and balls and a fixed statue; west, a row per filter (PIXEL ART, INK OUTLINES, GAME
+  BOY, NOIR GRADE, SCANLINES) with OFF / ALL / OBJECTS / WORLD pads that stack, then OBJECT
+  STYLE and WORLD STYLE rows; east, a pad per whole look (they set every look path) and CLEAN.
+- **Tool**: `look` (`name=` a whole look, `section=` + `preset=` / `on=` / `enabled=`,
+  `reset=true`, `compare=`, `bench=all` renders this moment under every look, numbered).
+  Sessions keep a look layer (`Session::look`) applied in every capture and across `load`.
+- Tests: `pav_view/tests/parts.rs` (objects vs environment flags in town incl. a spawned crate
+  and fixed scenery, pixel art on either part, styles per part, parts reach the renderer) and
+  `tests/look.rs` (each section copies exactly its paths and no path has two owners, presets
+  stay in their section and apply cleanly, looks switch on what they name, presets keep the
+  part, JSON round trip). Checked visually with `look bench=all` in town, pad stacking and
+  whole-look pads in the room, and the window in the running game under Xvfb.
+- Not done: bloom is whole-scene (it is computed from the HDR image before the composite);
+  a pixel's part comes from MSAA sample 0, so part edges are not anti-aliased.
 ## Turntable/animsheet frame tall creatures — 2026-10-08
 - `turntable` and `animsheet` (`creature_frames` in `game_tools.rs`) cut off tall creatures.
   The Hollow King (5.26 m) lost its head and horns in every frame because the camera aimed at

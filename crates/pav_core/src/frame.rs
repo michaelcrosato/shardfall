@@ -38,6 +38,9 @@ pub struct RenderObject {
     pub vehicle: Option<crate::vehicle::VehicleView>,
     /// A guard's vision cone.
     pub cone: Option<crate::stealth::ConeView>,
+    /// Fixed scenery (no character, never moves, not a game actor): view filters treat it
+    /// as part of the environment rather than the characters and objects.
+    pub scenery: bool,
 }
 
 #[derive(Clone, Debug)]

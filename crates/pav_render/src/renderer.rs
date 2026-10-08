@@ -85,7 +85,7 @@ struct PostUniform {
     tone: [f32; 4],
     misc: [f32; 4],
     fwd: [f32; 4],
-    filt: [[f32; 4]; 5],
+    filt: [[f32; 4]; 7],
 }
 
 struct GpuMesh {
@@ -1254,6 +1254,13 @@ impl Renderer {
                     [f.temperature, f.tint, f.contrast, f.brightness],
                     [f.vignette, f.grain, f.chroma, scene.time],
                     [f.saturation, f.pixel_art, f.pixel_levels, if f.pixel_outline { 1.0 } else { 0.0 }],
+                    [
+                        p.outline_part as u32 as f32,
+                        f.color_part as u32 as f32,
+                        f.grade_part as u32 as f32,
+                        f.scanline_part as u32 as f32,
+                    ],
+                    [f.grain_part as u32 as f32, f.chroma_part as u32 as f32, 0.0, 0.0],
                 ]
             },
         };

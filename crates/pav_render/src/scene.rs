@@ -46,6 +46,22 @@ pub mod flags {
     /// Drawn as pixel art (in blocks of `FilterSettings::pixel_art` pixels) when that is
     /// above 1; the rest of the screen stays sharp.
     pub const PIXEL: u32 = 32;
+    /// Part of the characters and objects (not the environment): filters aimed at one part
+    /// of the scene (`Part`) tell the two apart by this flag.
+    pub const OBJECT: u32 = 64;
+}
+
+/// Which part of the scene a filter applies to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[repr(u32)]
+pub enum Part {
+    /// Everything on screen.
+    #[default]
+    All = 0,
+    /// Instances flagged `flags::OBJECT` (characters, props, loot, projectiles, effects).
+    Objects = 1,
+    /// Everything else: level geometry, fixed scenery and the sky.
+    Environment = 2,
 }
 
 /// A mesh rebuilt every frame (soft bodies), in world space.
@@ -213,6 +229,8 @@ pub struct PostSettings {
     pub distortion: bool,
     /// Screen-space global illumination: bounce light and ambient occlusion (0 = off).
     pub gi: f32,
+    /// Which part of the scene gets outlines.
+    pub outline_part: Part,
 }
 
 impl Default for PostSettings {
@@ -231,6 +249,7 @@ impl Default for PostSettings {
             bloom_threshold: 1.2,
             distortion: true,
             gi: 0.0,
+            outline_part: Part::All,
         }
     }
 }
@@ -347,6 +366,14 @@ pub struct FilterSettings {
     pub pixel_art: f32,
     pub pixel_levels: f32,
     pub pixel_outline: bool,
+    /// The part of the scene each filter applies to: colour reduction (palette, levels,
+    /// dither), grading (temperature, tint, contrast, brightness, saturation), scanlines,
+    /// grain and chromatic aberration. Curvature, vignette and `pixelate` are whole-screen.
+    pub color_part: Part,
+    pub grade_part: Part,
+    pub scanline_part: Part,
+    pub grain_part: Part,
+    pub chroma_part: Part,
 }
 
 impl Default for FilterSettings {
@@ -371,6 +398,11 @@ impl Default for FilterSettings {
             pixel_art: 1.0,
             pixel_levels: 0.0,
             pixel_outline: true,
+            color_part: Part::All,
+            grade_part: Part::All,
+            scanline_part: Part::All,
+            grain_part: Part::All,
+            chroma_part: Part::All,
         }
     }
 }
