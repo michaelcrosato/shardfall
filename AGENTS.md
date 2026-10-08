@@ -241,5 +241,7 @@ incremental cache; if the disk fills up anyway, delete stale binaries in `target
 - Rust stable pinned in `rust-toolchain.toml`; `Cargo.lock` committed; edition 2024.
 - Keep `docs/PROGRESS.md` current enough to resume from after a context reset.
 - Decide anything that isn't genuinely the user's call; record the decision in `docs/PROGRESS.md`.
+- Finishing a task or milestone: commit, push, open a PR into `main`, merge it and delete the
+  branch. This is standard procedure (the user's standing instruction); don't ask first.
 - The user plays the Windows build; the log file `shardfall.log` and `shardfall.toml` (startup
   settings, e.g. `backend = "dx12"`) sit next to the `.exe`.
