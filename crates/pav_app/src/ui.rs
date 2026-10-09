@@ -18,6 +18,8 @@ pub struct OverlayInfo<'a> {
     pub paused: bool,
     pub speed: f32,
     pub rewinding: bool,
+    /// The scene's resolution as a fraction of the screen's.
+    pub render_scale: f32,
 }
 
 pub enum MenuAction {
@@ -39,6 +41,10 @@ pub enum MenuAction {
     Physics,
     Screenshot,
     Quit,
+    /// Shardfall: home to town (touch screens have no T key).
+    TownPortal,
+    /// The browser's full screen.
+    Fullscreen,
 }
 
 pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
@@ -68,8 +74,30 @@ pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
     );
 }
 
-/// `free` = screen area not covered by side panels.
-pub fn stats_panel(ctx: &egui::Context, i: &OverlayInfo, free: egui::Rect) {
+/// `free` = screen area not covered by side panels. `compact`: one line at the bottom (touch
+/// screens, whose top corners hold the controls).
+pub fn stats_panel(ctx: &egui::Context, i: &OverlayInfo, free: egui::Rect, compact: bool) {
+    if compact {
+        egui::Area::new(egui::Id::new("stats")).anchor(egui::Align2::CENTER_BOTTOM, [0.0, -4.0]).interactable(false).show(
+            ctx,
+            |ui| {
+                ui.label(
+                    RichText::new(format!(
+                        "{:.0} fps  {:.1} ms  ·  sim {:.2} ms  ·  {:.0}% res",
+                        i.fps,
+                        i.frame_ms,
+                        i.tick_ms,
+                        i.render_scale * 100.0
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(Color32::from_white_alpha(200))
+                    .background_color(Color32::from_black_alpha(120)),
+                );
+            },
+        );
+        return;
+    }
     let pos = free.right_top() + egui::vec2(-10.0, 10.0);
     egui::Area::new(egui::Id::new("stats")).pivot(egui::Align2::RIGHT_TOP).fixed_pos(pos).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
@@ -85,6 +113,9 @@ pub fn stats_panel(ctx: &egui::Context, i: &OverlayInfo, free: egui::Rect) {
             }
             if i.gpu_errors > 0 {
                 ui.label(RichText::new(format!("{} GPU errors (see log)", i.gpu_errors)).color(Color32::RED));
+            }
+            if i.render_scale < 0.999 {
+                ui.label(RichText::new(format!("scene at {:.0}% resolution", i.render_scale * 100.0)).small());
             }
             ui.label(RichText::new(i.adapter).small().weak());
         });
@@ -114,6 +145,7 @@ pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
                 RichText::new(match device {
                     Device::KeyboardMouse => "Controls (keyboard + mouse)",
                     Device::Gamepad => "Controls (gamepad)",
+                    Device::Touch => "Controls (touch)",
                 })
                 .strong(),
             );
@@ -229,5 +261,203 @@ pub fn toast(ctx: &egui::Context, msg: &str) {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.label(msg);
         });
+    });
+}
+
+/// Touch screens: bigger targets, a little bigger text, thicker scroll bars, and dragging
+/// scrolls. `on = false` puts the desktop sizes back.
+pub fn touch_style(ctx: &egui::Context, on: bool) {
+    use egui::{FontId, TextStyle};
+    ctx.all_styles_mut(|s| {
+        s.spacing = egui::style::Spacing::default();
+        s.text_styles = egui::style::default_text_styles();
+        if on {
+            let sp = &mut s.spacing;
+            sp.interact_size = egui::vec2(44.0, 34.0);
+            sp.button_padding = egui::vec2(12.0, 7.0);
+            sp.item_spacing = egui::vec2(10.0, 8.0);
+            sp.slider_width = 170.0;
+            sp.icon_width = 20.0;
+            sp.icon_width_inner = 12.0;
+            sp.combo_height = 320.0;
+            sp.scroll = egui::style::ScrollStyle::solid();
+            sp.scroll.bar_width = 8.0;
+            for (style, size) in
+                [(TextStyle::Body, 15.0), (TextStyle::Button, 15.0), (TextStyle::Small, 12.0), (TextStyle::Heading, 20.0)]
+            {
+                s.text_styles.insert(style, FontId::proportional(size));
+            }
+            s.interaction.tooltip_delay = 0.35;
+        }
+    });
+}
+
+/// Touch screens: a message that swipes away (top centre).
+pub fn toast_touch(ctx: &egui::Context, msg: &str, swipes: &mut crate::touch::Swipes) {
+    crate::touch::swipe_area(
+        ctx,
+        Some(swipes),
+        "toast",
+        crate::touch::key(msg),
+        egui::Align2::CENTER_TOP,
+        egui::vec2(0.0, 64.0),
+        egui::Order::Foreground,
+        |ui| {
+            egui::Frame::popup(ui.style()).corner_radius(18.0).inner_margin(egui::vec2(14.0, 8.0)).show(ui, |ui| {
+                ui.label(msg);
+            });
+        },
+    );
+}
+
+/// Touch screens: the first-time tips, until swiped away.
+pub fn touch_tips(ctx: &egui::Context, game: bool, swipes: &mut crate::touch::Swipes) {
+    crate::touch::swipe_area(
+        ctx,
+        Some(swipes),
+        "touch_tips",
+        0,
+        egui::Align2::CENTER_CENTER,
+        egui::vec2(0.0, -20.0),
+        egui::Order::Foreground,
+        |ui| {
+            egui::Frame::popup(ui.style()).corner_radius(14.0).inner_margin(14.0).show(ui, |ui| {
+                ui.set_max_width(300.0);
+                ui.label(RichText::new("Playing by touch").strong().size(17.0));
+                let tips: &[(&str, &str)] = if game {
+                    &[
+                        ("Move", "drag anywhere"),
+                        ("Attack", "automatic"),
+                        ("Skills", "tap, or drag to aim"),
+                        ("Messages", "swipe away"),
+                        ("Windows", "tap outside to close"),
+                    ]
+                } else {
+                    &[("Move", "drag anywhere"), ("Jump, bomb, duck", "the corner buttons"), ("Messages", "swipe away")]
+                };
+                egui::Grid::new("touch_tips_grid").spacing([12.0, 4.0]).show(ui, |ui| {
+                    for (a, k) in tips {
+                        ui.label(RichText::new(*a).strong());
+                        ui.label(RichText::new(*k).weak());
+                        ui.end_row();
+                    }
+                });
+                ui.label(RichText::new("Swipe this away to play").small().color(Color32::from_rgb(255, 214, 150)));
+            });
+        },
+    );
+}
+
+/// Settings the touch menu changes in place.
+pub struct TouchMenu<'a> {
+    pub prefs: &'a mut crate::save::Prefs,
+    pub show_fps: &'a mut bool,
+    /// Shardfall's difficulty (None outside the game).
+    pub difficulty: Option<&'a mut pav_core::arpg::Difficulty>,
+    /// Somewhere a town portal can leave from.
+    pub portal: bool,
+    /// The scene's resolution now (percent of the screen's).
+    pub scale: f32,
+}
+
+/// The pause menu on touch screens: a column of big buttons, the settings that matter on a
+/// phone, and the rest folded away.
+pub fn touch_menu(ctx: &egui::Context, scene: &str, m: TouchMenu) -> Option<MenuAction> {
+    let mut action = None;
+    let screen = ctx.content_rect();
+    let w = (screen.width() - 32.0).min(380.0);
+    let game = m.difficulty.is_some();
+    egui::Window::new("Paused")
+        .title_bar(false)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .collapsible(false)
+        .resizable(false)
+        .min_width(w)
+        .max_width(w)
+        .show(ctx, |ui| {
+            // (A scroll area that shrinks to fit: the window's own would keep its full height.)
+            egui::ScrollArea::vertical()
+                .max_height(screen.height() - 40.0)
+                .show(ui, |ui| touch_menu_body(ui, w, scene, game, m, &mut action));
+        });
+    action
+}
+
+fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchMenu, action: &mut Option<MenuAction>) {
+    ui.set_width(w);
+    let big = |ui: &mut egui::Ui, text: &str| ui.add_sized([w, 42.0], egui::Button::new(RichText::new(text).size(16.0)));
+    ui.vertical_centered(|ui| ui.label(RichText::new("Paused").heading()));
+    if big(ui, "Resume").clicked() {
+        *action = Some(MenuAction::Resume);
+    }
+    if m.portal && big(ui, "Town portal").clicked() {
+        *action = Some(MenuAction::TownPortal);
+    }
+    ui.separator();
+    if game {
+        let on = m.prefs.auto_attack;
+        let label = if on { "Auto-attack: on" } else { "Auto-attack: off" };
+        if ui.add_sized([w, 38.0], egui::Button::new(label).selected(on)).clicked() {
+            m.prefs.auto_attack = !on;
+        }
+    }
+    ui.label(RichText::new(format!("Graphics (drawing {:.0}% of the screen's pixels)", m.scale * m.scale * 100.0)).small());
+    ui.horizontal(|ui| {
+        let bw = (w - 3.0 * ui.spacing().item_spacing.x) / 4.0;
+        for q in crate::quality::Quality::ALL {
+            if ui.add_sized([bw, 36.0], egui::Button::new(q.name()).selected(m.prefs.quality == q)).clicked() {
+                m.prefs.quality = q;
+            }
+        }
+    });
+    ui.horizontal(|ui| {
+        let bw = (w - ui.spacing().item_spacing.x) / 2.0;
+        if ui.add_sized([bw, 36.0], egui::Button::new("Show FPS").selected(*m.show_fps)).clicked() {
+            *m.show_fps = !*m.show_fps;
+        }
+        if ui.add_sized([bw, 36.0], egui::Button::new("Full screen")).clicked() {
+            *action = Some(MenuAction::Fullscreen);
+        }
+    });
+    ui.separator();
+    egui::CollapsingHeader::new("More").show(ui, |ui| {
+        if let Some(d) = m.difficulty {
+            crate::arpg_ui::difficulty_ui(ui, d);
+            if ui.button("New hero").clicked() {
+                *action = Some(MenuAction::NewHero);
+            }
+            ui.separator();
+        }
+        ui.horizontal_wrapped(|ui| {
+            for (label, a) in [
+                ("Look & filters", MenuAction::Look),
+                ("Rooms", MenuAction::Rooms),
+                ("Reset scene", MenuAction::Reset),
+                ("Tuning", MenuAction::Tuning),
+                ("Feel metrics", MenuAction::Feel),
+            ] {
+                if ui.button(label).clicked() {
+                    *action = Some(a);
+                }
+            }
+            if !game && ui.button("How it works").clicked() {
+                *action = Some(MenuAction::Guide);
+            }
+        });
+        ui.label(RichText::new(format!("Load scene (now: {scene})")).strong());
+        ui.horizontal_wrapped(|ui| {
+            for (name, about) in pav_core::scenes::SCENES {
+                if ui.button(*name).on_hover_text(*about).clicked() {
+                    *action = Some(MenuAction::LoadScene(name.to_string()));
+                }
+            }
+        });
+        ui.label(RichText::new("Controls").strong());
+        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { guide(Device::Touch) } {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(*a).strong());
+                ui.label(*k);
+            });
+        }
     });
 }

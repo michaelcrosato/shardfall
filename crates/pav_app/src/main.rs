@@ -16,10 +16,12 @@ mod input;
 mod look_ui;
 mod panel;
 mod platform;
+mod quality;
 mod rooms;
 mod save;
 mod settings;
 mod simhost;
+mod touch;
 mod ui;
 mod uiinput;
 

@@ -196,8 +196,15 @@ pub struct Renderer {
     particles: crate::fx::Particles,
     lin_sampler: wgpu::Sampler,
     point_shadows: crate::shadows::PointShadows,
+    upscale: crate::upscale::Upscale,
     frame: u64,
     pub stats: RenderStats,
+    /// The scene is drawn at this fraction of the target's size and stretched over it
+    /// (phones: a fraction of their device pixels). 1 = full resolution.
+    pub render_scale: f32,
+    /// Point lights that may cast shadows (each costs six depth passes), at most
+    /// `shadows::MAX_SHADOW_LIGHTS`.
+    pub max_shadow_lights: usize,
 }
 
 fn vertex_layouts() -> [wgpu::VertexBufferLayout<'static>; 2] {
@@ -724,8 +731,11 @@ impl Renderer {
             particles: crate::fx::Particles::new(device),
             lin_sampler: crate::fx::linear_sampler(device),
             point_shadows,
+            upscale: crate::upscale::Upscale::new(device),
             frame: 0,
             stats: RenderStats::default(),
+            render_scale: 1.0,
+            max_shadow_lights: crate::shadows::MAX_SHADOW_LIGHTS,
         }
     }
 
@@ -883,6 +893,15 @@ impl Renderer {
         (proj * view, texel)
     }
 
+    /// The size the scene is drawn at for a target of `size` (see `render_scale`).
+    pub fn internal_size(&self, size: (u32, u32)) -> (u32, u32) {
+        let s = self.render_scale.clamp(0.1, 1.0);
+        if s >= 0.999 {
+            return size;
+        }
+        (((size.0 as f32 * s).round() as u32).max(1), ((size.1 as f32 * s).round() as u32).max(1))
+    }
+
     /// Records the whole frame into `encoder`, writing the final image into `target`.
     pub fn render(
         &mut self,
@@ -892,6 +911,8 @@ impl Renderer {
         target_format: wgpu::TextureFormat,
         size: (u32, u32),
     ) {
+        let full = size;
+        let size = self.internal_size(full);
         self.ensure_targets(size);
         self.frame += 1;
 
@@ -972,7 +993,7 @@ impl Renderer {
             let d = |i: usize| scene.point_lights[i].position.distance_squared(scene.cutaway.focus);
             d(a).total_cmp(&d(b))
         });
-        casters.truncate(crate::shadows::MAX_SHADOW_LIGHTS);
+        casters.truncate(crate::shadows::MAX_SHADOW_LIGHTS.min(self.max_shadow_lights));
         let shadow_slots = casters.len();
         let mut mats: Vec<[[f32; 4]; 4]> = Vec::with_capacity(shadow_slots * 6);
         for (slot, &i) in casters.iter().enumerate() {
@@ -1336,12 +1357,14 @@ impl Renderer {
         };
         self.queue.write_buffer(&self.post_buf, 0, bytemuck::bytes_of(&post));
         self.post_pipeline(target_format);
+        // Below full resolution the composite writes a smaller image, stretched over the target.
+        let small = (size != full).then(|| self.upscale.target(&self.device, target_format, size));
         let t = self.targets.as_ref().expect("targets");
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("post"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: target,
+                    view: small.as_ref().unwrap_or(target),
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
@@ -1354,6 +1377,10 @@ impl Renderer {
             pass.set_pipeline(&self.post_pipelines[&target_format]);
             pass.set_bind_group(0, &t.post_bg, &[]);
             pass.draw(0..3, 0..1);
+            draw_calls += 1;
+        }
+        if small.is_some() {
+            self.upscale.draw(&self.device, encoder, target);
             draw_calls += 1;
         }
 

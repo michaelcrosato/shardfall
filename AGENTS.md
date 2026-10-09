@@ -62,7 +62,8 @@ crates/
               diamonds, dissolve, mosaic, blinds, fade); wind in the vertex shader for instances
               flagged `flags::SWAY` (leaves) / `flags::GRASS` (tufts that part around the player)).
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
-              the world (text.rs). Offscreen capture -> PNG.
+              the world (text.rs). `render_scale` draws below the target's resolution and
+              upscale.rs stretches it over (phones). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
               water.rs (water zones ripple: a CPU wave equation on a height grid, stirred by
@@ -79,7 +80,10 @@ crates/
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
-              (bridge.rs), egui input (uiinput.rs). Builds natively and for wasm32 (WebGPU).
+              (bridge.rs), egui input (uiinput.rs), touch screens (touch.rs: finger routing,
+              invisible stick, button fan, auto-attack, swipe-to-dismiss), graphics quality
+              (quality.rs: render scale, dynamic resolution). Builds natively and for wasm32
+              (WebGPU).
 anim/         animation data, embedded and hot-reloadable (`anim_reload`): moves.toml (the moves table)
               and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, STYLE100: 423 clips with credits).
               anim/cmu/ holds every take of the CMU database (4,770 clips) and anim/100style/ the
@@ -126,6 +130,10 @@ scripts/build-web.sh               # browser build -> target/web/ (serve over HT
 ```
 Browser build: `cfg(target_arch = "wasm32")` branches live in `pav_app` only (no threads, async
 GPU setup, no files). Check it with `cargo clippy -p pav_app --target wasm32-unknown-unknown`.
+Phones: emulate one in headless Chromium with Playwright (`viewport 844x390, isMobile, hasTouch,
+deviceScaleFactor: 1`; Chrome's DPR emulation leaves the canvas at CSS size) and drive it with
+CDP `Input.dispatchTouchEvent`; SwiftShader frames take about a second, so send a tap's start and
+end back to back.
 Headless Chromium can run it (WebGPU on SwiftShader): launch with `--enable-unsafe-webgpu
 --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader` (other flag sets
 show a blank canvas). `?room=NAME&seed=N` picks the start room.
@@ -272,6 +280,14 @@ panels (LB/RB switch); in any window or the menu the stick drives a cursor (A cl
 right-click, hold Y shift, right stick scroll, B close). Controller flows can be scripted and
 screenshotted: `shardfall --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y]
 [hold=A,Y] [tap=DPadDown]`, see `PadScript` in input.rs).
+
+Touch (phones, tablets; the browser build): put a thumb down anywhere and drag to move (an
+invisible stick); attacks are automatic (the nearest foe in reach; a menu setting); the fan in
+the bottom right: dodge (big button), skills (tap: at the nearest foe · drag: aim, let go to
+cast, back onto the button to cancel · hold: keep casting), potion, and a "use" button that
+appears when something is in reach; top right: menu and bag. Swipe messages, banners and the
+minimap away; tap the minimap for the big map; tap the game outside a window to close it.
+Graphics quality (Auto/Low/Medium/High) and auto-attack are in the touch pause menu.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,
 uses, ask-for-it phrases, cost, the engine's code, words); outside rooms the field guide

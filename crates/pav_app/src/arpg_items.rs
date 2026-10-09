@@ -28,6 +28,20 @@ pub struct GameUi {
     pub map: bool,
     /// The player is on a gamepad: hints name its buttons.
     pub pad: bool,
+    /// The player is on a touch screen: a tap picks an item and shows what to do with it.
+    pub touch: bool,
+    /// Touch: the item picked, and where it is.
+    picked: Option<(u32, Picked)>,
+}
+
+/// Where a picked item is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Picked {
+    Bag,
+    Worn(usize),
+    Vendor,
+    Buyback,
+    Stash,
 }
 
 /// A mouse hint in gamepad words when the player is on a pad (A click, X right-click, hold Y for
@@ -54,6 +68,20 @@ pub fn hint(pad: bool, s: &str) -> String {
     }
     t
 }
+
+/// Touch screens: windows fit the screen and scroll (a finger drags the content).
+fn fit<'a>(w: egui::Window<'a>, ctx: &egui::Context, touch: bool) -> egui::Window<'a> {
+    if !touch {
+        return w;
+    }
+    let s = ctx.content_rect();
+    w.vscroll(true).max_height((s.height() - 66.0).max(120.0)).max_width(s.width() - 16.0)
+}
+
+/// Touch screens: windows sit below the buttons in the top right (`TOUCH_DROP` down from where
+/// they would be centred, or this far from the top).
+const TOUCH_DROP: f32 = 25.0;
+const TOUCH_TOP: f32 = 58.0;
 
 pub fn rarity_color(r: Rarity) -> Color32 {
     match r {
@@ -382,19 +410,19 @@ impl GameUi {
                 self.panel = None;
             }
         }
-        labels(ctx, g, proj, &mut out);
+        labels(ctx, g, proj, &mut out, self.touch);
         let Some(inv) = g.inv.clone() else { return out };
         if self.inventory {
             self.inventory_window(ctx, &d, &inv, &mut out);
         }
         if self.character {
-            character_window(ctx, &mut self.character, &inv, g);
+            character_window(ctx, &mut self.character, &inv, g, self.touch);
         }
         if self.skills {
-            skills_window(ctx, &mut self.skills, &d, &inv, &mut out);
+            skills_window(ctx, &mut self.skills, &d, &inv, &mut out, self.touch);
         }
         self.tree.ui(ctx, &inv, &mut out);
-        if inv.points > 0 && !self.tree.open {
+        if inv.points > 0 && !self.tree.open && !self.touch {
             // A nudge above the experience bar.
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("points_hint")));
@@ -416,18 +444,129 @@ impl GameUi {
             Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
             Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
+        if self.touch {
+            self.picked_card(ctx, &d, &inv, &mut out);
+        }
         out
+    }
+
+    /// Touch: the item tapped, what it is and what can be done with it.
+    fn picked_card(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let Some((id, from)) = self.picked else { return };
+        let vendor = self.panel == Some(SpotKind::Vendor);
+        let stash = self.panel == Some(SpotKind::Stash);
+        let find = |list: &[Item]| list.iter().find(|i| i.id == id).cloned();
+        let item = match from {
+            Picked::Bag if self.inventory => find(&inv.inventory),
+            Picked::Worn(slot) if self.inventory => inv.equipment.get(slot).and_then(|e| e.clone()).filter(|i| i.id == id),
+            Picked::Vendor if vendor => find(&inv.vendor),
+            Picked::Buyback if vendor => find(&inv.buyback),
+            Picked::Stash if stash => find(&inv.stash),
+            _ => None,
+        };
+        let Some(it) = item else {
+            self.picked = None;
+            return;
+        };
+        let screen = ctx.content_rect();
+        let mut keep = true;
+        let mut act = |c: GameCmd, keep: &mut bool| {
+            out.push(c);
+            *keep = false;
+        };
+        egui::Window::new("item")
+            .id(egui::Id::new("picked_item"))
+            .title_bar(false)
+            .collapsible(false)
+            .resizable(false)
+            .order(egui::Order::Foreground)
+            .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+            .max_width((screen.width() - 24.0).min(380.0))
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().max_height(screen.height() - 40.0).show(ui, |ui| {
+                    let worn = worn_for(inv, d, &it);
+                    item_tooltip(
+                        ui,
+                        d,
+                        &it,
+                        if let Picked::Worn(s) = from { EquipSlot::from_index(s).map(|e| e.name()) } else { None },
+                    );
+                    if !matches!(from, Picked::Worn(_)) {
+                        compare(ui, d, &it, worn);
+                    }
+                    ui.separator();
+                    ui.horizontal_wrapped(|ui| {
+                        match from {
+                            Picked::Bag => {
+                                if ui.button("Wear").clicked() {
+                                    act(GameCmd::Equip(id), &mut keep);
+                                }
+                                if it.slot(d) == Slot::Ring && ui.button("Wear on the right hand").clicked() {
+                                    act(GameCmd::EquipTo(id, EquipSlot::Ring2.index() as u8), &mut keep);
+                                }
+                                if vendor && ui.button(format!("Sell ({} gold)", it.value())).clicked() {
+                                    act(GameCmd::Sell(id), &mut keep);
+                                }
+                                if stash && ui.button("Put in the stash").clicked() {
+                                    act(GameCmd::Stash(id), &mut keep);
+                                }
+                                if ui.button("Drop").clicked() {
+                                    act(GameCmd::Drop(id), &mut keep);
+                                }
+                            }
+                            Picked::Worn(slot) => {
+                                if ui.button("Take off").clicked() {
+                                    act(GameCmd::Unequip(slot as u8), &mut keep);
+                                }
+                            }
+                            Picked::Vendor => {
+                                let price = pav_core::arpg::cmd::buy_price(&it);
+                                if ui.add_enabled(inv.gold >= price, egui::Button::new(format!("Buy ({price} gold)"))).clicked() {
+                                    act(GameCmd::Buy(id), &mut keep);
+                                }
+                            }
+                            Picked::Buyback => {
+                                if ui
+                                    .add_enabled(
+                                        inv.gold >= it.value(),
+                                        egui::Button::new(format!("Buy back ({} gold)", it.value())),
+                                    )
+                                    .clicked()
+                                {
+                                    act(GameCmd::Buy(id), &mut keep);
+                                }
+                            }
+                            Picked::Stash => {
+                                if ui.button("Take into the bag").clicked() {
+                                    act(GameCmd::Take(id), &mut keep);
+                                }
+                            }
+                        }
+                        if ui.button("Close").clicked() {
+                            keep = false;
+                        }
+                    });
+                    if let Some(w) = worn.filter(|_| matches!(from, Picked::Bag | Picked::Vendor | Picked::Stash)) {
+                        ui.separator();
+                        item_tooltip(ui, d, w, Some("Wearing"));
+                    }
+                })
+            });
+        if !keep {
+            self.picked = None;
+        }
     }
 
     fn inventory_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
         let vendor = self.panel == Some(SpotKind::Vendor);
         let stash = self.panel == Some(SpotKind::Stash);
-        egui::Window::new("Inventory")
+        let touch = self.touch;
+        fit(egui::Window::new("Inventory"), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::RIGHT_CENTER, EVec2::new(-16.0, -40.0))
+            .anchor(Align2::RIGHT_CENTER, if touch { EVec2::new(-8.0, TOUCH_DROP) } else { EVec2::new(-16.0, -40.0) })
             .show(ctx, |ui| {
                 // Paper doll.
                 let size = 54.0;
@@ -439,9 +578,14 @@ impl GameUi {
                         EquipSlot::Ring1 | EquipSlot::Ring2 => "ring",
                         s => s.key(),
                     };
-                    let resp = ui.put(r, |ui: &mut egui::Ui| cell(ui, d, item, size, label, false));
+                    let picked = item.is_some_and(|it| self.picked == Some((it.id, Picked::Worn(slot.index()))));
+                    let resp = ui.put(r, |ui: &mut egui::Ui| cell(ui, d, item, size, label, picked));
                     if let Some(it) = item {
-                        if resp.clicked() || resp.secondary_clicked() {
+                        if touch {
+                            if resp.clicked() {
+                                self.picked = Some((it.id, Picked::Worn(slot.index())));
+                            }
+                        } else if resp.clicked() || resp.secondary_clicked() {
                             out.push(GameCmd::Unequip(slot.index() as u8));
                         }
                         resp.on_hover_ui(|ui| {
@@ -455,7 +599,9 @@ impl GameUi {
                 ui.label(RichText::new(format!("{} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
                 ui.separator();
                 // The bag: 8 x 5.
-                let hint_text = if vendor {
+                let hint_text = if touch {
+                    "Tap an item: what it is and what to do with it"
+                } else if vendor {
                     "Click: sell · Right-click: more"
                 } else if stash {
                     "Click: stash · Right-click: more"
@@ -466,9 +612,11 @@ impl GameUi {
                     for i in 0..pav_core::arpg::hero::INVENTORY_SIZE {
                         let it = inv.inventory.get(i);
                         let better = it.is_some_and(|it| is_upgrade(d, inv, it));
-                        let resp = cell(ui, d, it, 42.0, "", better);
+                        let resp = cell(ui, d, it, if touch { 40.0 } else { 42.0 }, "", better);
                         if let Some(it) = it {
-                            if resp.clicked() {
+                            if touch && resp.clicked() {
+                                self.picked = Some((it.id, Picked::Bag));
+                            } else if resp.clicked() {
                                 out.push(if vendor {
                                     GameCmd::Sell(it.id)
                                 } else if stash {
@@ -501,18 +649,20 @@ impl GameUi {
                                     ui.close();
                                 }
                             });
-                            resp.on_hover_ui(|ui| {
-                                ui.horizontal_top(|ui| {
-                                    ui.vertical(|ui| {
-                                        item_tooltip(ui, d, it, None);
-                                        compare(ui, d, it, worn_for(inv, d, it));
+                            if !touch {
+                                resp.on_hover_ui(|ui| {
+                                    ui.horizontal_top(|ui| {
+                                        ui.vertical(|ui| {
+                                            item_tooltip(ui, d, it, None);
+                                            compare(ui, d, it, worn_for(inv, d, it));
+                                        });
+                                        if let Some(w) = worn_for(inv, d, it) {
+                                            ui.separator();
+                                            ui.vertical(|ui| item_tooltip(ui, d, w, Some("Wearing")));
+                                        }
                                     });
-                                    if let Some(w) = worn_for(inv, d, it) {
-                                        ui.separator();
-                                        ui.vertical(|ui| item_tooltip(ui, d, w, Some("Wearing")));
-                                    }
                                 });
-                            });
+                            }
                         }
                         if (i + 1) % 8 == 0 {
                             ui.end_row();
@@ -534,8 +684,9 @@ impl GameUi {
                         }
                     });
                 });
+                let close = if touch { "" } else { "   ·   I to close" };
                 ui.label(
-                    RichText::new(hint(self.pad, &format!("{}   ·   green frame: an upgrade   ·   I to close", hint_text)))
+                    RichText::new(hint(self.pad, &format!("{hint_text}   ·   green frame: an upgrade{close}")))
                         .small()
                         .color(Color32::from_white_alpha(120)),
                 );
@@ -547,11 +698,12 @@ impl GameUi {
 
     fn vendor_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        egui::Window::new("Hilda the Smith")
+        let touch = self.touch;
+        fit(egui::Window::new("Hilda the Smith"), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::LEFT_CENTER, EVec2::new(16.0, -40.0))
+            .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
                 ui.label(
                     RichText::new("\"Steel for coin. Bring me what you don't need.\"")
@@ -570,6 +722,12 @@ impl GameUi {
                             } else {
                                 Color32::from_rgb(160, 80, 70)
                             }));
+                            if touch {
+                                if resp.clicked() {
+                                    self.picked = Some((it.id, Picked::Vendor));
+                                }
+                                return;
+                            }
                             if resp.clicked() {
                                 out.push(GameCmd::Buy(it.id));
                             }
@@ -593,6 +751,12 @@ impl GameUi {
                     ui.horizontal(|ui| {
                         for it in &inv.buyback {
                             let resp = cell(ui, d, Some(it), 40.0, "", false);
+                            if touch {
+                                if resp.clicked() {
+                                    self.picked = Some((it.id, Picked::Buyback));
+                                }
+                                continue;
+                            }
                             if resp.clicked() {
                                 out.push(GameCmd::Buy(it.id));
                             }
@@ -623,11 +787,12 @@ impl GameUi {
 
     fn stash_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        egui::Window::new(format!("Stash ({}/{})", inv.stash.len(), pav_core::arpg::hero::STASH_SIZE))
+        let touch = self.touch;
+        fit(egui::Window::new(format!("Stash ({}/{})", inv.stash.len(), pav_core::arpg::hero::STASH_SIZE)), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::LEFT_CENTER, EVec2::new(16.0, -40.0))
+            .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                     egui::Grid::new("stash").spacing(EVec2::splat(4.0)).show(ui, |ui| {
@@ -635,7 +800,11 @@ impl GameUi {
                             let it = inv.stash.get(i);
                             let resp = cell(ui, d, it, 40.0, "", false);
                             if let Some(it) = it {
-                                if resp.clicked() {
+                                if touch {
+                                    if resp.clicked() {
+                                        self.picked = Some((it.id, Picked::Stash));
+                                    }
+                                } else if resp.clicked() {
                                     out.push(GameCmd::Take(it.id));
                                 }
                                 resp.on_hover_ui(|ui| {
@@ -649,7 +818,8 @@ impl GameUi {
                         }
                     });
                 });
-                ui.label(RichText::new(hint(self.pad, "Click: take into the bag")).small().color(Color32::from_white_alpha(120)));
+                let help = if touch { "Tap an item: what it is, and take it" } else { "Click: take into the bag" };
+                ui.label(RichText::new(hint(self.pad, help)).small().color(Color32::from_white_alpha(120)));
             });
         if !open {
             self.panel = None;
@@ -658,11 +828,11 @@ impl GameUi {
 
     fn gamble_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        egui::Window::new("Odo the Gambler")
+        fit(egui::Window::new("Odo the Gambler"), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::LEFT_CENTER, EVec2::new(16.0, -40.0))
+            .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
                 ui.label(RichText::new("A sealed box for every slot. What's inside? Pay and see.").italics());
                 ui.label(
@@ -696,11 +866,11 @@ impl GameUi {
 
     fn alchemist_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        egui::Window::new("Mother Wren's Brews")
+        fit(egui::Window::new("Mother Wren's Brews"), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+            .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
             .show(ctx, |ui| {
                 ui.label(RichText::new("Stronger potions for deeper places.").italics());
                 ui.add_space(4.0);
@@ -743,7 +913,7 @@ impl GameUi {
         let Some(i) = self.panel_spot else { return };
         let Some(s) = g.spots.get(i) else { return };
         let mut open = true;
-        egui::Window::new(&s.name)
+        fit(egui::Window::new(&s.name), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
@@ -773,11 +943,11 @@ impl GameUi {
         let mut open = true;
         let deepest = g.inv.as_ref().map(|i| i.max_depth).unwrap_or(0).max(1);
         let d = data();
-        egui::Window::new("Portal")
+        fit(egui::Window::new("Portal"), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
-            .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+            .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
             .show(ctx, |ui| {
                 ui.label(RichText::new("Where to?").strong());
                 for p in [Place::Town, Place::Arena, Place::Lab] {
@@ -834,13 +1004,13 @@ fn is_upgrade(d: &Data, inv: &InvView, it: &Item) -> bool {
     }
 }
 
-fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &GameFrame) {
+fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &GameFrame, touch: bool) {
     let s = &inv.sheet;
-    egui::Window::new("Character")
+    fit(egui::Window::new("Character"), ctx, touch)
         .open(open)
         .resizable(false)
         .collapsible(false)
-        .anchor(Align2::LEFT_TOP, EVec2::new(16.0, 60.0))
+        .anchor(Align2::LEFT_TOP, if touch { EVec2::new(8.0, TOUCH_TOP) } else { EVec2::new(16.0, 60.0) })
         .show(ctx, |ui| {
             if let Some(h) = &g.hero {
                 ui.label(RichText::new(format!("{}  ·  Level {}", h.name, h.level)).size(17.0).strong());
@@ -903,15 +1073,22 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
         });
 }
 
-fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
-    egui::Window::new("Skills")
+fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>, touch: bool) {
+    fit(egui::Window::new("Skills"), ctx, touch)
         .open(open)
         .resizable(false)
         .collapsible(false)
-        .anchor(Align2::CENTER_BOTTOM, EVec2::new(0.0, -140.0))
+        .anchor(
+            if touch { Align2::CENTER_CENTER } else { Align2::CENTER_BOTTOM },
+            EVec2::new(0.0, if touch { TOUCH_DROP } else { -140.0 }),
+        )
         .show(ctx, |ui| {
             ui.label("Choose what each button does.");
-            let keys = ["Left mouse", "Right mouse", "Q", "E", "R", "F"];
+            let keys = if touch {
+                ["Auto-attack", "Button 1", "Button 2", "Button 3", "Button 4", "Button 5"]
+            } else {
+                ["Left mouse", "Right mouse", "Q", "E", "R", "F"]
+            };
             let skills = d.hero_skills();
             egui::Grid::new("bar").num_columns(2).show(ui, |ui| {
                 for (slot, key) in keys.iter().enumerate() {
@@ -945,7 +1122,7 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
 }
 
 /// Names over items on the ground (click to pick up) and over usable spots.
-fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<GameCmd>) {
+fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<GameCmd>, touch: bool) {
     let mut placed: Vec<Rect> = Vec::new();
     let mut loot: Vec<_> = g.loot.iter().filter(|l| l.rest || l.age > 0.4).collect();
     loot.sort_by_key(|l| std::cmp::Reverse(l.rarity));
@@ -991,7 +1168,7 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
             Color32::from_black_alpha(200),
         );
         p.text(at, Align2::CENTER_CENTER, &s.name, FontId::proportional(15.0), c);
-        if near {
+        if near && !touch {
             let what = match s.kind {
                 SpotKind::Vendor => "trade",
                 SpotKind::Stash => "open the stash",

@@ -8,6 +8,7 @@ pub mod renderer;
 pub mod scene;
 pub mod shadows;
 pub mod text;
+mod upscale;
 
 pub use mesh::{MeshData, MeshKey};
 pub use renderer::{RenderStats, Renderer};

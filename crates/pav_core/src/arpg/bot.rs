@@ -193,15 +193,11 @@ impl Bot {
             if hero.cooldown(id) > 0.0 || hero.mana < s.cost * hero.sheet.mana_cost {
                 continue;
             }
-            let reach = match s.behavior {
-                Behavior::Projectile => s.range * 0.7,
-                Behavior::Nova | Behavior::Channel | Behavior::Buff => s.radius,
-                Behavior::Wave => 1.2 + s.count as f32 * s.radius * 1.2,
-                Behavior::Leap | Behavior::Dash | Behavior::Meteor | Behavior::Field | Behavior::Rain => s.range,
-                // Blink only to close a long gap.
-                Behavior::Blink if dist < 7.0 => continue,
-                _ => s.range,
-            } + r;
+            // Blink only to close a long gap.
+            if s.behavior == Behavior::Blink && dist < 7.0 {
+                continue;
+            }
+            let reach = super::skills::reach(&s) + r;
             if dist <= reach && best.is_none_or(|b| s.cooldown + s.cost * 0.01 > b.1) {
                 best = Some((slot, s.cooldown + s.cost * 0.01));
             }

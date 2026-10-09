@@ -302,24 +302,27 @@ fn knobs(ui: &mut Ui, paths: &[String], root: &mut dyn Tunable) {
 }
 
 /// The note of the last pad stepped on, for a while after (bottom centre).
-pub fn pad_note(ctx: &egui::Context, hud: &HudFrame, tick: u64, dt: f32) {
+/// The note of the pad the player stepped on. On touch screens (`swipes`) it sits at the top
+/// (the bottom is for thumbs) and swipes away.
+pub fn pad_note(ctx: &egui::Context, hud: &HudFrame, tick: u64, dt: f32, swipes: Option<&mut crate::touch::Swipes>) {
     let Some((label, note, at)) = &hud.pad_note else { return };
     let age = tick.saturating_sub(*at) as f32 * dt.max(1e-3);
     if age > 14.0 {
         return;
     }
     let fade = (1.0 - (age - 12.0).max(0.0) / 2.0).clamp(0.0, 1.0);
-    egui::Area::new(egui::Id::new("pad_note")).anchor(egui::Align2::CENTER_BOTTOM, [0.0, -64.0]).interactable(false).show(
-        ctx,
-        |ui| {
-            ui.set_max_width(560.0);
-            ui.multiply_opacity(fade);
-            egui::Frame::popup(ui.style()).fill(Color32::from_rgba_unmultiplied(18, 20, 28, 225)).show(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    ui.label(RichText::new(label).strong().color(ACCENT));
-                    ui.label(note);
-                });
+    let (anchor, offset) = match swipes {
+        Some(_) => (egui::Align2::CENTER_TOP, egui::vec2(0.0, 110.0)),
+        None => (egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -64.0)),
+    };
+    crate::touch::swipe_area(ctx, swipes, "pad_note", crate::touch::key(at), anchor, offset, egui::Order::Middle, |ui| {
+        ui.set_max_width(560.0f32.min(ctx.content_rect().width() - 24.0));
+        ui.multiply_opacity(fade);
+        egui::Frame::popup(ui.style()).fill(Color32::from_rgba_unmultiplied(18, 20, 28, 225)).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(label).strong().color(ACCENT));
+                ui.label(note);
             });
-        },
-    );
+        });
+    });
 }

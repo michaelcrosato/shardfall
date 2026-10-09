@@ -80,6 +80,10 @@ impl RoomHud {
         self.current.is_some() && self.card_until.is_some_and(|t| Instant::now() < t)
     }
 
+    pub fn hide_card(&mut self) {
+        self.card_until = None;
+    }
+
     pub fn show_card(&mut self) {
         self.card_until = Some(Instant::now() + Duration::from_secs(30));
     }

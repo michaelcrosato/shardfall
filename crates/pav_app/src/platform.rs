@@ -40,3 +40,32 @@ pub fn attach_console() {
 
 #[cfg(not(windows))]
 pub fn attach_console() {}
+
+/// Whether this is a phone or tablet: the browser says its main pointer is a finger.
+#[cfg(target_arch = "wasm32")]
+pub fn touch_screen() -> bool {
+    web_sys::window().and_then(|w| w.match_media("(pointer: coarse)").ok().flatten()).is_some_and(|m| m.matches())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn touch_screen() -> bool {
+    false
+}
+
+/// Full screen on or off. In the browser the whole page goes full screen (the game's own
+/// overlays stay on top of the canvas).
+#[cfg(target_arch = "wasm32")]
+pub fn toggle_fullscreen(_window: &winit::window::Window) {
+    let Some(doc) = web_sys::window().and_then(|w| w.document()) else { return };
+    if doc.fullscreen_element().is_some() {
+        doc.exit_fullscreen();
+    } else if let Some(el) = doc.document_element() {
+        let _ = el.request_fullscreen();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn toggle_fullscreen(window: &winit::window::Window) {
+    let on = window.fullscreen().is_some();
+    window.set_fullscreen(if on { None } else { Some(winit::window::Fullscreen::Borderless(None)) });
+}
