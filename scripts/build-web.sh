@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the browser version (WebAssembly + WebGPU). Output: target/web/{index.html,shardfall.js,shardfall_bg.wasm}
+# Builds the browser version (WebAssembly + WebGPU). Output: target/web/{index.html,manifest.webmanifest,shardfall.js,shardfall_bg.wasm}
 # Serve that folder over HTTP (e.g. `python3 -m http.server -d target/web`) and open it in Chrome or Edge.
 # Needs: rustup target add wasm32-unknown-unknown
 #        cargo install wasm-bindgen-cli --version <the wasm-bindgen version in Cargo.lock>
@@ -10,5 +10,5 @@ out=target/web
 rm -rf "$out"
 mkdir -p "$out"
 wasm-bindgen --target web --no-typescript --out-dir "$out" --out-name shardfall target/wasm32-unknown-unknown/dist/shardfall.wasm
-cp web/index.html "$out/"
+cp web/index.html web/manifest.webmanifest "$out/"
 ls -la "$out"

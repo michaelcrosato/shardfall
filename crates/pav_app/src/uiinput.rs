@@ -43,6 +43,8 @@ pub struct UiInput {
     start: web_time::Instant,
     max_texture: usize,
     cursor: egui::CursorIcon,
+    /// The finger that is egui's pointer (the first one down).
+    touch_pointer: Option<u64>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -56,6 +58,7 @@ impl UiInput {
             start: web_time::Instant::now(),
             max_texture,
             cursor: egui::CursorIcon::Default,
+            touch_pointer: None,
         }
     }
 
@@ -135,6 +138,54 @@ impl UiInput {
                     }
                 }
                 self.ctx.egui_wants_keyboard_input()
+            }
+            WindowEvent::Touch(t) => {
+                // Like egui-winit: every finger as a touch (pinches), the first also as the pointer.
+                use winit::event::TouchPhase as P;
+                let pos = egui::pos2(t.location.x as f32 / ppp, t.location.y as f32 / ppp);
+                let phase = match t.phase {
+                    P::Started => egui::TouchPhase::Start,
+                    P::Moved => egui::TouchPhase::Move,
+                    P::Ended => egui::TouchPhase::End,
+                    P::Cancelled => egui::TouchPhase::Cancel,
+                };
+                ev.push(Event::Touch {
+                    device_id: egui::TouchDeviceId(0),
+                    id: egui::TouchId::from(t.id),
+                    phase,
+                    pos,
+                    force: None,
+                });
+                if self.touch_pointer.is_none_or(|id| id == t.id) {
+                    let button = |pressed| Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::default(),
+                    };
+                    match t.phase {
+                        P::Started => {
+                            self.touch_pointer = Some(t.id);
+                            self.pointer = pos;
+                            ev.push(Event::PointerMoved(pos));
+                            ev.push(button(true));
+                        }
+                        P::Moved => {
+                            self.pointer = pos;
+                            ev.push(Event::PointerMoved(pos));
+                        }
+                        P::Ended => {
+                            self.touch_pointer = None;
+                            ev.push(button(false));
+                            ev.push(Event::PointerGone);
+                        }
+                        P::Cancelled => {
+                            self.touch_pointer = None;
+                            ev.push(Event::PointerGone);
+                        }
+                    }
+                }
+                true
             }
             WindowEvent::Focused(f) => {
                 ev.push(Event::WindowFocused(*f));

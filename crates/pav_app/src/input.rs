@@ -13,6 +13,8 @@ pub enum Device {
     #[default]
     KeyboardMouse,
     Gamepad,
+    /// A phone or tablet (touch.rs).
+    Touch,
 }
 
 /// Game-action bindings (defaults; rooms may override in the future).
@@ -188,6 +190,16 @@ pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("In menus", "stick: cursor · A click · X right-click · hold Y: shift · right stick scroll · B close"),
             ("Menu", "Start"),
         ],
+        Device::Touch => &[
+            ("Move", "put a thumb down anywhere and drag"),
+            ("Attack", "automatic: the nearest foe in reach"),
+            ("Skills", "tap: at the nearest foe · drag: aim, let go to cast · hold: keep casting"),
+            ("Dodge roll · potion", "the big button · the flask"),
+            ("Use (trade, portal, way down, chests)", "the button that appears"),
+            ("Bag, hero, skills, passives", "the bag (top right)"),
+            ("Messages and the minimap", "swipe them away"),
+            ("Close a window", "tap the game outside it"),
+        ],
     }
 }
 
@@ -226,6 +238,11 @@ pub fn guide(device: Device) -> &'static [(&'static str, &'static str)] {
             ("Vehicles", "D-pad right: get in / out"),
             ("Rewind", "hold Back/View"),
             ("Menu", "Start"),
+        ],
+        Device::Touch => &[
+            ("Move", "put a thumb down anywhere and drag"),
+            ("Jump · bomb · crouch · use", "the buttons in the corner"),
+            ("Menu", "top right"),
         ],
     }
 }

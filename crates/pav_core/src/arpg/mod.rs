@@ -1367,6 +1367,13 @@ pub struct SlotHud {
     pub affordable: bool,
     pub element: u8,
     pub spell: bool,
+    /// How far it hits (`skills::reach`), how far it can be aimed, whether it is held (a
+    /// channel) and whether it lands on a spot (`skills::ground_target`): touch controls aim
+    /// with these.
+    pub reach: f32,
+    pub range: f32,
+    pub channel: bool,
+    pub ground: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1573,6 +1580,10 @@ impl Game {
                             affordable: a.mana >= cost,
                             element: s.element as u8,
                             spell: s.has("spell"),
+                            reach: skills::reach(s),
+                            range: s.range,
+                            channel: s.behavior == Behavior::Channel,
+                            ground: skills::ground_target(s),
                         }
                     }
                     None => SlotHud::default(),

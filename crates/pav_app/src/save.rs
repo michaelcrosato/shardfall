@@ -84,3 +84,48 @@ pub fn restore_into(sim: &mut pav_core::Sim) -> Option<u32> {
     let level = hero.level;
     sim.load_hero(hero).then_some(level)
 }
+
+/// Preferences that outlive a session: the touch controls and the graphics quality.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Prefs {
+    /// Touch screens: the first skill strikes the nearest foe by itself.
+    pub auto_attack: bool,
+    pub quality: crate::quality::Quality,
+    /// The touch tips were swiped away (they do not come back).
+    pub tips_seen: bool,
+}
+
+impl Default for Prefs {
+    fn default() -> Self {
+        Self { auto_attack: true, quality: Default::default(), tips_seen: false }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn prefs_path() -> std::path::PathBuf {
+    crate::boot::exe_dir().join("shardfall_prefs.json")
+}
+
+#[cfg(target_arch = "wasm32")]
+const PREFS_KEY: &str = "shardfall_prefs";
+
+pub fn load_prefs() -> Prefs {
+    #[cfg(not(target_arch = "wasm32"))]
+    let text = std::fs::read_to_string(prefs_path()).ok();
+    #[cfg(target_arch = "wasm32")]
+    let text = storage().and_then(|s| s.get_item(PREFS_KEY).ok().flatten());
+    text.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+pub fn save_prefs(p: &Prefs) {
+    let Ok(text) = serde_json::to_string(p) else { return };
+    #[cfg(not(target_arch = "wasm32"))]
+    if std::fs::write(prefs_path(), text).is_err() {
+        log::warn!("could not write {}", prefs_path().display());
+    }
+    #[cfg(target_arch = "wasm32")]
+    if storage().and_then(|s| s.set_item(PREFS_KEY, &text).ok()).is_none() {
+        log::warn!("could not save preferences");
+    }
+}

@@ -161,6 +161,22 @@ pub fn skill_of(a: &Actor, id: u16) -> SkillDef {
     tuned(d.skill(id), &a.tweaks)
 }
 
+/// How far from its user a skill hits (add the target's radius): bots and auto-targeting use
+/// it to tell whether a foe is in range.
+pub fn reach(s: &SkillDef) -> f32 {
+    match s.behavior {
+        Behavior::Projectile => s.range * 0.7,
+        Behavior::Nova | Behavior::Channel | Behavior::Buff => s.radius,
+        Behavior::Wave => 1.2 + s.count as f32 * s.radius * 1.2,
+        _ => s.range,
+    }
+}
+
+/// Skills cast at a spot on the ground (up to their range) rather than in a direction.
+pub fn ground_target(s: &SkillDef) -> bool {
+    matches!(s.behavior, Behavior::Leap | Behavior::Blink | Behavior::Meteor | Behavior::Field | Behavior::Rain)
+}
+
 /// Starts `skill` toward `target` if the actor can (alive, off cooldown, enough mana).
 pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: Vec3) -> bool {
     let Some(def) = g.actors.get(&id).map(|a| skill_of(a, skill)) else { return false };

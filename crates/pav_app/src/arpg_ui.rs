@@ -10,6 +10,7 @@ use pav_core::arpg::mechanics::{LevelView, MarkKind};
 use pav_core::arpg::{Difficulty, GameFrame, HeroHud};
 
 use crate::input::Device;
+use crate::touch::Swipes;
 
 /// World -> screen (egui points).
 pub struct Projector {
@@ -36,7 +37,7 @@ fn rgb(c: [f32; 3], a: f32) -> Color32 {
     Color32::from_rgba_unmultiplied(to(c[0]), to(c[1]), to(c[2]), (a.clamp(0.0, 1.0) * 255.0) as u8)
 }
 
-fn element_color(e: u8, a: f32) -> Color32 {
+pub(crate) fn element_color(e: u8, a: f32) -> Color32 {
     rgb(Element::ALL[(e as usize).min(4)].color(), a)
 }
 
@@ -81,7 +82,7 @@ fn orb(p: &egui::Painter, c: Pos2, r: f32, frac: f32, fill: Color32, label: &str
 }
 
 /// A tiny vector icon for a skill.
-fn skill_icon(p: &egui::Painter, rect: Rect, key: &str, color: Color32) {
+pub(crate) fn skill_icon(p: &egui::Painter, rect: Rect, key: &str, color: Color32) {
     let d = data();
     let Some(id) = d.skill_id(key) else { return };
     let s = d.skill(id);
@@ -257,17 +258,33 @@ fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device
     }
 }
 
-/// The whole in-game HUD.
-pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device, big_map: bool) {
+/// Touch screens: the HUD's scale (1 on a phone held sideways) and margin.
+pub fn touch_scale(screen: Rect) -> (f32, f32) {
+    let k = (screen.width().min(screen.height()) / 390.0).clamp(0.8, 1.25);
+    (k, 14.0 * k)
+}
+
+/// The whole in-game HUD. On touch screens it is pared down: slim bars in the top left, the
+/// controls (touch.rs) instead of the skill bar and orbs, and banners that swipe away.
+pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device, big_map: bool, swipes: &mut Swipes) {
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("arpg_hud")));
     let screen = ctx.content_rect();
+    let touch = device == Device::Touch;
+    let (k, m) = touch_scale(screen);
     if let Some(l) = &g.level {
-        level_hud(&p, g, l, proj, screen, big_map);
+        level_hud(&p, g, l, proj, screen, big_map, touch.then_some(&mut *swipes));
     }
     // The boss bar.
     if let Some(b) = &g.boss {
-        let w = 640.0f32.min(screen.width() * 0.6);
-        let r = Rect::from_center_size(screen.center_top() + EVec2::new(0.0, 64.0), EVec2::new(w, 14.0));
+        let (w, y) = if !touch {
+            (640.0f32.min(screen.width() * 0.6), 64.0)
+        } else if screen.width() > 600.0 {
+            // Between the bars in the top left and the buttons in the top right.
+            ((screen.width() - 2.0 * 250.0 * k).min(420.0), m + 30.0 * k)
+        } else {
+            (screen.width() - 2.0 * m, m + 104.0 * k)
+        };
+        let r = Rect::from_center_size(screen.center_top() + EVec2::new(0.0, y), EVec2::new(w, if touch { 10.0 } else { 14.0 }));
         p.rect_filled(r.expand(3.0), 4.0, Color32::from_black_alpha(220));
         let mut fill = r;
         fill.set_width(w * b.life);
@@ -281,13 +298,13 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         }
         p.rect_stroke(r, 3.0, Stroke::new(1.5, Color32::from_rgb(200, 150, 80)), egui::StrokeKind::Outside);
         p.text(
-            r.center_top() - EVec2::new(0.0, 6.0),
+            r.center_top() - EVec2::new(0.0, if touch { 3.0 } else { 6.0 }),
             Align2::CENTER_BOTTOM,
             &b.name,
-            FontId::proportional(20.0),
+            FontId::proportional(if touch { 15.0 } else { 20.0 }),
             Color32::from_rgb(255, 160, 70),
         );
-        if !b.title.is_empty() {
+        if !b.title.is_empty() && !touch {
             p.text(
                 r.center_bottom() + EVec2::new(0.0, 5.0),
                 Align2::CENTER_TOP,
@@ -381,6 +398,11 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
             p.rect_filled(r, 0.0, edge);
         }
     }
+    if touch {
+        touch_vitals(&p, g, h, screen, k, m);
+        banners(&p, g, h, screen, k, Some(swipes));
+        return;
+    }
     // Bottom: orbs, skills, experience.
     let bottom = screen.center_bottom() - EVec2::new(0.0, 34.0);
     let r = 52.0;
@@ -434,19 +456,41 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         text += &format!("   Wave {}  ({} left)", g.wave, g.monsters);
     }
     p.text(Pos2::new(14.0, 12.0), Align2::LEFT_TOP, text, FontId::proportional(15.0), Color32::from_rgb(240, 228, 200));
-    // Banners.
+    banners(&p, g, h, screen, 1.0, None);
+}
+
+/// Text with a drop shadow, faded by the painter's opacity.
+fn shadowed(p: &egui::Painter, at: Pos2, text: &str, size: f32, color: Color32) {
+    p.text(at + EVec2::new(1.5, 1.5), Align2::CENTER_CENTER, text, FontId::proportional(size), Color32::from_black_alpha(200));
+    p.text(at, Align2::CENTER_CENTER, text, FontId::proportional(size), color);
+}
+
+/// The message banner, LEVEL UP and the death count. On touch screens the banner swipes away.
+fn banners(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: f32, swipes: Option<&mut Swipes>) {
     if let Some(m) = &g.message {
-        let c = screen.center_top() + EVec2::new(0.0, 120.0);
-        p.text(c + EVec2::new(2.0, 2.0), Align2::CENTER_CENTER, m, FontId::proportional(30.0), Color32::from_black_alpha(200));
-        p.text(c, Align2::CENTER_CENTER, m, FontId::proportional(30.0), Color32::from_rgb(255, 225, 160));
+        let size = if swipes.is_some() { 22.0 * k } else { 30.0 };
+        // (Touch screens: above a level's intro banner.)
+        let c = screen.center_top() + EVec2::new(0.0, if swipes.is_some() { screen.height() * 0.2 } else { 120.0 });
+        let w = (m.len() as f32 * size * 0.55).min(screen.width() - 20.0);
+        let place = match swipes {
+            Some(s) => {
+                s.place(egui::Id::new("banner"), crate::touch::key(m), Rect::from_center_size(c, EVec2::new(w, size * 1.8)))
+            }
+            None => Some(crate::touch::Place { offset: EVec2::ZERO, alpha: 1.0 }),
+        };
+        if let Some(pl) = place {
+            let mut q = p.clone();
+            q.multiply_opacity(pl.alpha);
+            shadowed(&q, c + pl.offset, m, size, Color32::from_rgb(255, 225, 160));
+        }
     }
     if h.level_flash < 2.0 {
         let a = (1.0 - h.level_flash / 2.0).clamp(0.0, 1.0);
         p.text(
-            screen.center() - EVec2::new(0.0, 60.0),
+            screen.center() - EVec2::new(0.0, 60.0 * k),
             Align2::CENTER_CENTER,
             "LEVEL UP",
-            FontId::proportional(44.0 + 10.0 * a),
+            FontId::proportional((44.0 + 10.0 * a) * k),
             Color32::from_rgba_unmultiplied(255, 215, 120, (a * 255.0) as u8),
         );
     }
@@ -455,55 +499,143 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
             screen.center(),
             Align2::CENTER_CENTER,
             format!("You fell   {:.0}", h.respawn.ceil().max(0.0)),
-            FontId::proportional(36.0),
+            FontId::proportional(36.0 * k),
             Color32::from_rgb(230, 80, 70),
         );
+    }
+}
+
+/// Touch screens: the level badge and slim life, mana and experience bars in the top left,
+/// the place below them.
+fn touch_vitals(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: f32, m: f32) {
+    let badge = Pos2::new(screen.left() + m + 18.0 * k, screen.top() + m + 18.0 * k);
+    p.circle(badge, 18.0 * k, Color32::from_black_alpha(170), Stroke::new(1.5, Color32::from_rgb(200, 160, 90)));
+    p.text(
+        badge,
+        Align2::CENTER_CENTER,
+        format!("{}", h.level),
+        FontId::proportional(15.0 * k),
+        Color32::from_rgb(255, 228, 180),
+    );
+    let x0 = badge.x + 26.0 * k;
+    let w = (190.0 * k).min(screen.width() * 0.34);
+    let bar = |y: f32, ht: f32, frac: f32, col: Color32| {
+        let r = Rect::from_min_size(Pos2::new(x0, y), EVec2::new(w, ht));
+        p.rect_filled(r.expand(1.0), ht * 0.5, Color32::from_black_alpha(170));
+        let mut f = r;
+        f.set_width(w * frac.clamp(0.0, 1.0));
+        if f.width() > 0.5 {
+            p.rect_filled(f, ht * 0.5, col);
+        }
+        r
+    };
+    let top = screen.top() + m + 4.0 * k;
+    let life = bar(top, 11.0 * k, h.life / h.life_max.max(1.0), Color32::from_rgb(196, 34, 38));
+    p.text(
+        life.right_center() - EVec2::new(4.0, 0.0),
+        Align2::RIGHT_CENTER,
+        format!("{:.0}", h.life.max(0.0)),
+        FontId::proportional(9.5 * k),
+        Color32::from_white_alpha(225),
+    );
+    bar(top + 15.0 * k, 6.0 * k, h.mana / h.mana_max.max(1.0), Color32::from_rgb(52, 92, 210));
+    bar(top + 25.0 * k, 3.0 * k, (h.xp / h.xp_next.max(1.0)) as f32, Color32::from_rgb(150, 120, 255));
+    // Where: the level's name (and what seals its way down), or the arena's wave.
+    let mut y = screen.top() + m + 44.0 * k;
+    let line = |y: f32, text: String, col: Color32| {
+        p.text(Pos2::new(screen.left() + m, y), Align2::LEFT_TOP, text, FontId::proportional(11.5 * k), col);
+    };
+    if let Some(l) = &g.level {
+        line(y, format!("{} · {}", l.label, l.name), Color32::from_rgba_unmultiplied(255, 214, 150, 200));
+        y += 15.0 * k;
+        if !l.exit_open && !l.boss_name.is_empty() {
+            line(y, format!("Sealed: slay {}", l.boss_name), Color32::from_rgb(255, 120, 90));
+        }
+    } else if g.wave > 0 {
+        line(y, format!("Wave {} · {} left", g.wave, g.monsters), Color32::from_rgba_unmultiplied(255, 214, 150, 210));
     }
 }
 
 /// The level: its card (top left), the intro banner, and the map (top right; M for a big one).
 /// The map turns with the camera, shows only rooms the hero has been in, and marks shrines,
 /// gates, chests, wells, totems, the portal and the way down.
-fn level_hud(p: &egui::Painter, g: &GameFrame, l: &LevelView, proj: &Projector, screen: Rect, big: bool) {
-    // Card.
-    let mut y = 34.0;
-    p.text(
-        Pos2::new(14.0, y),
-        Align2::LEFT_TOP,
-        format!("{} · {}", l.label, l.name),
-        FontId::proportional(14.0),
-        if l.endless { Color32::from_rgb(205, 175, 255) } else { Color32::from_rgb(255, 214, 150) },
-    );
-    y += 18.0;
-    for (name, hint) in &l.mechanics {
+fn level_hud(
+    p: &egui::Painter,
+    g: &GameFrame,
+    l: &LevelView,
+    proj: &Projector,
+    screen: Rect,
+    big: bool,
+    mut swipes: Option<&mut Swipes>,
+) {
+    let touch = swipes.is_some();
+    let (k, m) = if touch { touch_scale(screen) } else { (1.0, 14.0) };
+    // Card (on touch screens the place is under the bars and the mechanics are in the banner).
+    if !touch {
+        let mut y = 34.0;
         p.text(
-            Pos2::new(16.0, y),
+            Pos2::new(14.0, y),
             Align2::LEFT_TOP,
-            format!("{name}: {hint}"),
-            FontId::proportional(11.5),
-            Color32::from_white_alpha(170),
+            format!("{} · {}", l.label, l.name),
+            FontId::proportional(14.0),
+            if l.endless { Color32::from_rgb(205, 175, 255) } else { Color32::from_rgb(255, 214, 150) },
         );
-        y += 14.0;
+        y += 18.0;
+        for (name, hint) in &l.mechanics {
+            p.text(
+                Pos2::new(16.0, y),
+                Align2::LEFT_TOP,
+                format!("{name}: {hint}"),
+                FontId::proportional(11.5),
+                Color32::from_white_alpha(170),
+            );
+            y += 14.0;
+        }
+        if !l.exit_open && !l.boss_name.is_empty() {
+            p.text(
+                Pos2::new(16.0, y + 2.0),
+                Align2::LEFT_TOP,
+                format!("The way down is sealed: slay {}", l.boss_name),
+                FontId::proportional(11.5),
+                Color32::from_rgb(255, 120, 90),
+            );
+        }
     }
-    if !l.exit_open && !l.boss_name.is_empty() {
-        p.text(
-            Pos2::new(16.0, y + 2.0),
-            Align2::LEFT_TOP,
-            format!("The way down is sealed: slay {}", l.boss_name),
-            FontId::proportional(11.5),
-            Color32::from_rgb(255, 120, 90),
+    // Intro banner for the first seconds (touch screens: a little longer, with the level's
+    // mechanics, and it swipes away).
+    let shown = if touch { 9.0 } else { 6.0 };
+    if l.time < shown {
+        let a = ((shown - l.time) / 1.5).clamp(0.0, 1.0) * (l.time / 0.4).clamp(0.0, 1.0);
+        let (title, sub_size) = if touch { (28.0 * k, 13.0 * k) } else { (40.0, 16.0) };
+        let mut c = screen.center_top() + EVec2::new(0.0, if touch { screen.height() * 0.38 } else { 190.0 });
+        let mut q = p.clone();
+        let rows = if touch { l.mechanics.len() as f32 } else { 0.0 };
+        let rect = Rect::from_center_size(
+            c + EVec2::new(0.0, 14.0 * k + rows * 8.0 * k),
+            EVec2::new((screen.width() - 40.0).min(560.0 * k), 64.0 * k + rows * 16.0 * k),
         );
-    }
-    // Intro banner for the first seconds.
-    if l.time < 6.0 {
-        let a = ((6.0 - l.time) / 1.5).clamp(0.0, 1.0) * (l.time / 0.4).clamp(0.0, 1.0);
-        let c = screen.center_top() + EVec2::new(0.0, 190.0);
-        let gold = Color32::from_rgba_unmultiplied(255, 220, 160, (a * 255.0) as u8);
-        let shadow = Color32::from_black_alpha((a * 200.0) as u8);
-        p.text(c + EVec2::new(2.0, 2.0), Align2::CENTER_CENTER, &l.name, FontId::proportional(40.0), shadow);
-        p.text(c, Align2::CENTER_CENTER, &l.name, FontId::proportional(40.0), gold);
-        let sub = Color32::from_rgba_unmultiplied(235, 225, 210, (a * 230.0) as u8);
-        p.text(c + EVec2::new(0.0, 34.0), Align2::CENTER_CENTER, &l.about, FontId::proportional(16.0), sub);
+        let place = match swipes.as_deref_mut() {
+            Some(s) => s.place(egui::Id::new("level_intro"), crate::touch::key((&l.name, &l.label)), rect),
+            None => Some(crate::touch::Place { offset: EVec2::ZERO, alpha: 1.0 }),
+        };
+        if let Some(pl) = place {
+            q.multiply_opacity(pl.alpha * a);
+            c += pl.offset;
+            shadowed(&q, c, &l.name, title, Color32::from_rgb(255, 220, 160));
+            let sub = Color32::from_rgba_unmultiplied(235, 225, 210, 230);
+            q.text(c + EVec2::new(0.0, title * 0.85), Align2::CENTER_CENTER, &l.about, FontId::proportional(sub_size), sub);
+            if touch {
+                for (i, (name, hint)) in l.mechanics.iter().enumerate() {
+                    q.text(
+                        c + EVec2::new(0.0, title * 0.85 + (i as f32 + 1.2) * 16.0 * k),
+                        Align2::CENTER_CENTER,
+                        format!("{name}: {hint}"),
+                        FontId::proportional(11.5 * k),
+                        Color32::from_white_alpha(190),
+                    );
+                }
+            }
+        }
     }
     // The map: turned like the camera (world axes projected around the hero).
     let Some(hero) = g.actors.iter().find(|a| a.team == Team::Hero) else { return };
@@ -514,12 +646,26 @@ fn level_hud(p: &egui::Painter, g: &GameFrame, l: &LevelView, proj: &Projector, 
     };
     let ax = (ex - o).normalized();
     let az = (ez - o).normalized();
-    let (size, center) = if big {
-        let s = (screen.height() * 0.7).min(screen.width() * 0.6);
+    let (size, mut center) = if big {
+        let s = (screen.height() * if touch { 0.82 } else { 0.7 }).min(screen.width() * 0.6);
         (s, screen.center())
+    } else if touch {
+        // Under the buttons in the top right, clear of the buttons round the corner below.
+        let s = 100.0 * k;
+        (s, Pos2::new(screen.right() - m - s * 0.5, screen.top() + m + 44.0 * k + s * 0.5))
     } else {
         (210.0, Pos2::new(screen.right() - 125.0, 125.0))
     };
+    let mut p = p.clone();
+    if let Some(s) = swipes {
+        // The minimap swipes away (a map button brings it back); a tap opens the big map, and
+        // the big map closes with a tap or a swipe.
+        let id = egui::Id::new(if big { "big_map" } else { "minimap" });
+        let Some(pl) = s.place(id, 0, Rect::from_center_size(center, EVec2::splat(size))) else { return };
+        center += pl.offset;
+        p.multiply_opacity(pl.alpha);
+    }
+    let p = &p;
     let area = Rect::from_center_size(center, EVec2::splat(size));
     p.rect_filled(area, 8.0, Color32::from_black_alpha(if big { 150 } else { 120 }));
     // Scale: the whole level fits the big map; the minimap shows 90 m around the hero.
@@ -579,7 +725,7 @@ fn level_hud(p: &egui::Painter, g: &GameFrame, l: &LevelView, proj: &Projector, 
     let h = to(hero.feet.x, hero.feet.z);
     clip.circle(h, 4.0, Color32::WHITE, Stroke::new(1.5, Color32::BLACK));
     p.rect_stroke(area, 8.0, Stroke::new(1.0, Color32::from_white_alpha(60)), egui::StrokeKind::Inside);
-    if !big {
+    if !big && !touch {
         p.text(
             area.center_bottom() + EVec2::new(0.0, 4.0),
             Align2::CENTER_TOP,

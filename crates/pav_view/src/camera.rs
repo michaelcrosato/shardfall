@@ -165,7 +165,12 @@ impl CameraRig {
         let fwd = self.forward();
         let eye = self.eye();
         let view = glam::camera::rh::view::look_to_mat4(eye, fwd, self.up());
-        let fov = p.fov.clamp(1.0, 170.0).to_radians();
+        let mut fov = p.fov.clamp(1.0, 170.0).to_radians();
+        if aspect < 1.0 && aspect > 0.0 {
+            // Taller than wide (a phone held upright): the field of view is the width's, so the
+            // sides are not cut down to a sliver.
+            fov = (2.0 * ((fov * 0.5).tan() / aspect).atan()).min(150f32.to_radians());
+        }
         let far = (p.distance * 4.0 + 200.0).max(300.0);
         let proj = if p.ortho {
             let half_h = p.distance * (fov * 0.5).tan();

@@ -178,6 +178,17 @@ pub struct App {
     pad_buttons: (bool, bool, bool),
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
     game_place: Option<pav_core::arpg::Place>,
+    /// Phones and tablets: fingers, the on-screen controls and swipes (touch.rs).
+    touch: crate::touch::Touch,
+    /// The browser says this is a touch screen (or a finger has touched it).
+    touch_screen: bool,
+    /// The egui style has the touch sizes.
+    touch_styled: bool,
+    /// Touch screens draw at most 60 frames a second: when the next one is due.
+    next_draw: Instant,
+    /// Auto-attack, graphics quality, tips seen (saved).
+    prefs: crate::save::Prefs,
+    scaler: crate::quality::Scaler,
     #[cfg(not(target_arch = "wasm32"))]
     bridge: Option<crate::bridge::Bridge>,
     #[cfg(target_arch = "wasm32")]
@@ -191,7 +202,8 @@ pub struct App {
 impl App {
     fn new(settings: Settings) -> Self {
         let scene_name = settings.scene.clone();
-        Self {
+        let touch_screen = crate::platform::touch_screen();
+        let mut app = Self {
             gfx: None,
             egui_ctx: egui::Context::default(),
             egui_state: None,
@@ -244,6 +256,12 @@ impl App {
             pad_buttons: (false, false, false),
             game_frame: None,
             game_place: None,
+            touch: Default::default(),
+            touch_screen,
+            touch_styled: false,
+            next_draw: Instant::now(),
+            prefs: crate::save::load_prefs(),
+            scaler: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             bridge: None,
             #[cfg(target_arch = "wasm32")]
@@ -253,6 +271,62 @@ impl App {
             init_started: false,
             fatal: None,
             settings,
+        };
+        if touch_screen {
+            // Phones: touch controls from the start, none of the desktop's diagnostics.
+            app.input.last_device = Device::Touch;
+            app.show_boot = false;
+            app.app_settings.show_stats = false;
+        }
+        app
+    }
+
+    /// A finger on the screen: the touch layer decides whether it is the stick, a control, a
+    /// swipe or egui's (and then egui gets the event).
+    fn on_touch(&mut self, t: &winit::event::Touch, event: &WindowEvent) {
+        #[cfg(target_arch = "wasm32")]
+        self.resume_audio();
+        let Some(g) = &self.gfx else { return };
+        let ppp = self.egui_ctx.zoom_factor() * g.window.scale_factor() as f32;
+        let pos = egui::pos2(t.location.x as f32 / ppp, t.location.y as f32 / ppp);
+        self.input.last_device = Device::Touch;
+        self.touch_screen = true;
+        use winit::event::TouchPhase as P;
+        let to_egui = match t.phase {
+            P::Started => {
+                // (The root layer is everywhere; only windows and labels over the game count.)
+                let under = self.egui_ctx.layer_id_at(pos).filter(|l| *l != egui::LayerId::background()).map(|l| l.order);
+                self.touch.down(t.id, pos, under)
+            }
+            P::Moved => self.touch.moved(t.id, pos),
+            P::Ended => self.touch.up(t.id, pos, false),
+            P::Cancelled => self.touch.up(t.id, pos, true),
+        };
+        if to_egui {
+            if let (Some(st), Some(g)) = (&mut self.egui_state, &self.gfx) {
+                st.on_window_event(&g.window, event);
+            }
+        }
+    }
+
+    /// A tap on the open game closes what is open over it, one thing at a time.
+    fn close_on_tap(&mut self) {
+        if self.menu_open {
+            self.set_menu(false);
+        } else if self.game_ui.any_open() {
+            self.game_ui.close_all();
+        } else if self.game_ui.map {
+            self.game_ui.map = false;
+        } else if self.look_ui.open {
+            self.look_ui.open = false;
+            self.look_ui.save_if_dirty(true);
+        } else if self.guide.station || self.guide.field {
+            self.guide.station = false;
+            self.guide.field = false;
+        } else if self.hud.teleport_open {
+            self.hud.teleport_open = false;
+        } else if self.hud.card_visible() {
+            self.hud.hide_card();
         }
     }
 
@@ -722,6 +796,16 @@ impl App {
         if self.gfx.is_none() || self.host.is_none() {
             return;
         }
+        // Touch screens draw at most 60 frames a second (a phone with a faster screen would
+        // spend battery and heat on the rest).
+        if self.touch_screen {
+            let now = Instant::now();
+            let step = std::time::Duration::from_micros(16_667);
+            if now + std::time::Duration::from_micros(2_500) < self.next_draw {
+                return;
+            }
+            self.next_draw = if now > self.next_draw + step { now + step } else { self.next_draw + step };
+        }
         let now = Instant::now();
         let dt = (now - self.last).as_secs_f32().min(0.1);
         self.last = now;
@@ -884,6 +968,14 @@ impl App {
             self.input.mouse_taps.clear();
         }
         let (mut held, mut pressed) = self.input.buttons();
+        // Touch: the stick, the buttons and auto-attack.
+        let touch_game = curr.game.as_deref().filter(|_| game_input).map(|g| (g, feet, facing));
+        let rig = &self.rig;
+        let intent = self.touch.intent(touch_game, |v| rig.relative_move(v), self.prefs.auto_attack);
+        if game_input {
+            held |= intent.held;
+            pressed |= intent.pressed;
+        }
         if pressed & pav_core::input::buttons::INTERACT != 0 {
             if let Some(g) = &curr.game {
                 if let Some(c) = self.game_ui.interact(g) {
@@ -915,11 +1007,17 @@ impl App {
                     Some(feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0)
                 }
             }
+            Device::Touch => intent.aim.or(Some(feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0)),
         };
         {
             let mut i = host.shared.input.lock().unwrap();
             if game_input {
-                i.move_dir = self.rig.relative_move(self.input.move_axis());
+                let axis = (self.input.move_axis() + intent.move_axis).clamp_length_max(1.0);
+                i.move_dir = match intent.move_world {
+                    // Auto-attack stepping in to a foe (only while the stick is still).
+                    Some(m) if axis == Vec2::ZERO => m,
+                    _ => self.rig.relative_move(axis),
+                };
                 i.held = held;
                 i.pressed |= pressed;
                 i.aim = aim;
@@ -954,6 +1052,7 @@ impl App {
         // The look layer (Look & Filters) over the scene's own settings.
         let mut view = self.view.clone();
         self.look_ui.apply(&mut view);
+        self.prefs.quality.trim(self.touch_screen, &mut view);
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
         // Arriving somewhere new: the screen opens with the chosen transition, on the player.
         if let Some(t0) = self.arrival {
@@ -968,6 +1067,24 @@ impl App {
             }
         }
         self.editor.draw_preview(&mut scene);
+        if let Some(a) = intent.aiming.filter(|_| game_input) {
+            // A skill aimed by hand: a ring where it lands and dots on the way there.
+            let mark = |at: Vec3, s: f32, color: Vec3| MeshInstance {
+                mesh: MeshKey::Cylinder,
+                transform: Mat4::from_scale_rotation_translation(Vec3::new(s, 0.02, s), Quat::IDENTITY, at + Vec3::Y * 0.04),
+                color,
+                emissive: 0.6,
+                style: Style::Unlit,
+                flags: rflags::NO_SHADOW | rflags::NO_CUT,
+                group: 0,
+            };
+            let a = Vec3::new(a.x, feet.y, a.z);
+            scene.meshes.push(mark(a, 0.9, Vec3::new(1.0, 0.78, 0.4)));
+            let n = ((a - feet).length() / 0.8) as usize;
+            for k in 1..n {
+                scene.meshes.push(mark(feet.lerp(a, k as f32 / n as f32), 0.14, Vec3::new(1.0, 0.9, 0.7)));
+            }
+        }
         if self.app_settings.aim_marker && game_input && curr.player.is_some() && !self.editor.on && curr.game.is_none() {
             if let Some(a) = aim {
                 let d = Vec2::new(a.x - feet.x, a.z - feet.z);
@@ -1000,6 +1117,10 @@ impl App {
         let crash = host.shared.crashed.lock().unwrap().clone();
         self.panel.record_timing(dt * 1000.0, stats.tick_ms);
         let gfx = self.gfx.as_mut().unwrap();
+        let (render_scale, lights) =
+            self.scaler.update(self.prefs.quality, self.touch_screen, dt * 1000.0, gfx.size(), gfx.window.scale_factor() as f32);
+        gfx.renderer.render_scale = render_scale;
+        gfx.renderer.max_shadow_lights = lights;
         let info = ui::OverlayInfo {
             fps: self.fps.fps,
             frame_ms: self.fps.frame_ms,
@@ -1013,6 +1134,7 @@ impl App {
             paused: ctl.paused,
             speed: ctl.speed,
             rewinding,
+            render_scale,
         };
         if let Some(t) = self.boot_done_at {
             if t.elapsed().as_secs_f32() > 10.0 && self.show_boot {
@@ -1024,6 +1146,19 @@ impl App {
         let card_visible = self.hud.card_visible();
         let guide_visible = self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
+        let touch_ui = device == Device::Touch;
+        if touch_ui != self.touch_styled {
+            self.touch_styled = touch_ui;
+            ui::touch_style(&self.egui_ctx, touch_ui);
+        }
+        self.game_ui.touch = touch_ui;
+        self.game_ui.tree.touch = touch_ui;
+        self.touch.swipes.begin_frame();
+        let touch = &mut self.touch;
+        let auto_attack = self.prefs.auto_attack;
+        let tips = touch_ui && !self.prefs.tips_seen && self.started.elapsed().as_secs_f32() < 45.0;
+        let mut prefs = self.prefs.clone();
+        let portal = self.game_frame.as_ref().is_some_and(|g| g.place != pav_core::arpg::Place::Town);
         let state = self.egui_state.as_mut().unwrap();
         let mut raw = state.take(&gfx.window);
         raw.events.append(&mut self.pad_events);
@@ -1071,23 +1206,32 @@ impl App {
             let free = ui.available_rect_before_wrap();
             ui::boot_panel(&ctx, &mut show_boot);
             if show_stats {
-                ui::stats_panel(&ctx, &info, free);
+                ui::stats_panel(&ctx, &info, free, touch_ui);
             }
-            if guide_visible && !menu_open {
+            if guide_visible && !menu_open && !touch_ui {
                 ui::guide_panel(&ctx, device, game_frame.is_some());
             }
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
-                crate::arpg_ui::hud(&ctx, g, &proj, device, game_ui.map);
+                crate::arpg_ui::hud(&ctx, g, &proj, device, game_ui.map, &mut touch.swipes);
                 if !menu_open {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
+                }
+            }
+            if touch_ui {
+                let map_hidden = touch.swipes.is_gone(egui::Id::new("minimap"), 0);
+                let covered = menu_open || game_ui.any_open() || look_ui.open || guide.station || guide.field;
+                let points = game_frame.as_ref().and_then(|g| g.inv.as_ref()).map(|i| i.points).unwrap_or(0);
+                touch.draw(&ctx, &crate::touch::View { game: game_frame.as_deref(), auto_attack, map_hidden, points, covered });
+                if tips && !covered {
+                    ui::touch_tips(&ctx, game_frame.is_some(), &mut touch.swipes);
                 }
             }
             if card_visible && !menu_open && hud.card(&ctx, device) {
                 guide.station = true;
             }
             if !menu_open {
-                crate::guide_ui::pad_note(&ctx, hud_ctx.hud, hud_ctx.tick, hud_ctx.dt);
+                crate::guide_ui::pad_note(&ctx, hud_ctx.hud, hud_ctx.tick, hud_ctx.dt, touch_ui.then_some(&mut touch.swipes));
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             if let Some(p) = pad_cursor {
@@ -1122,22 +1266,53 @@ impl App {
             guide_out.extend(guide.station(&ctx, here.as_ref(), &mut root));
             guide_out.extend(guide.field_guide(&ctx, &hud.entries));
             if menu_open {
-                menu_action = ui::pause_menu(&ctx, device, &scene_name, game_frame.is_some().then_some(&mut root.sim.difficulty));
+                let difficulty = game_frame.is_some().then_some(&mut root.sim.difficulty);
+                menu_action = if touch_ui {
+                    let show_fps = &mut root.app.show_stats;
+                    let m = ui::TouchMenu { prefs: &mut prefs, show_fps, difficulty, portal, scale: render_scale };
+                    ui::touch_menu(&ctx, &scene_name, m)
+                } else {
+                    ui::pause_menu(&ctx, device, &scene_name, difficulty)
+                };
             }
             if let Some(t) = &toast {
-                ui::toast(&ctx, t);
+                if touch_ui {
+                    ui::toast_touch(&ctx, t, &mut touch.swipes);
+                } else {
+                    ui::toast(&ctx, t);
+                }
             }
-            ui::hint_bar(
-                &ctx,
-                match (device, game_frame.is_some()) {
-                    (Device::Gamepad, _) => "Start: menu",
-                    (_, true) => {
-                        "Esc menu · I inventory · P passives · C character · K skills · T town · G use · Space dodge · 1 potion"
-                    }
-                    _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
-                },
-            );
+            if !touch_ui {
+                const GAME_KEYS: &str =
+                    "Esc menu · I inventory · P passives · C character · K skills · T town · G use · Space dodge · 1 potion";
+                ui::hint_bar(
+                    &ctx,
+                    match (device, game_frame.is_some()) {
+                        (Device::Gamepad, _) => "Start: menu",
+                        (_, true) => GAME_KEYS,
+                        _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
+                    },
+                );
+            }
         });
+        if prefs != self.prefs {
+            self.prefs = prefs;
+            crate::save::save_prefs(&self.prefs);
+        }
+        // The map: a tap on the minimap opens the big one; a tap or a swipe closes that.
+        let sw = &mut self.touch.swipes;
+        if sw.take_tap(egui::Id::new("minimap")) {
+            self.game_ui.map = true;
+        }
+        let big = egui::Id::new("big_map");
+        if sw.take_tap(big) || sw.is_gone(big, 0) {
+            self.game_ui.map = false;
+            sw.restore(big);
+        }
+        if !self.prefs.tips_seen && sw.is_gone(egui::Id::new("touch_tips"), 0) {
+            self.prefs.tips_seen = true;
+            crate::save::save_prefs(&self.prefs);
+        }
         self.show_boot = show_boot;
         for a in guide_out {
             match a {
@@ -1260,6 +1435,28 @@ impl App {
         }
         if let Some(a) = menu_action {
             self.menu_action(a);
+        }
+        // Touch: the bag, the menu, the map button, and taps on the open game.
+        for c in &intent.ui {
+            match c {
+                crate::touch::Control::Bag => {
+                    let ui = &mut self.game_ui;
+                    if ui.any_open() {
+                        ui.close_all();
+                    } else {
+                        ui.inventory = true;
+                    }
+                }
+                crate::touch::Control::Menu => {
+                    let open = !self.menu_open;
+                    self.set_menu(open);
+                }
+                crate::touch::Control::Map => self.touch.swipes.restore(egui::Id::new("minimap")),
+                _ => {}
+            }
+        }
+        if intent.world_tap {
+            self.close_on_tap();
         }
     }
 
@@ -1385,6 +1582,17 @@ impl App {
                 self.look_ui.save_if_dirty(true);
                 self.quit = true;
             }
+            MenuAction::TownPortal => {
+                self.set_menu(false);
+                if let Some(host) = &self.host {
+                    host.shared.command(pav_core::arpg::GameCmd::Travel(pav_core::arpg::Place::Town.code()));
+                }
+            }
+            MenuAction::Fullscreen => {
+                if let Some(g) = &self.gfx {
+                    crate::platform::toggle_fullscreen(&g.window);
+                }
+            }
         }
     }
 }
@@ -1423,6 +1631,10 @@ impl ApplicationHandler for App {
     }
 
     fn window_event(&mut self, el: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        if let WindowEvent::Touch(t) = &event {
+            self.on_touch(t, &event);
+            return;
+        }
         let consumed = match (&mut self.egui_state, &self.gfx) {
             (Some(st), Some(g)) => st.on_window_event(&g.window, &event),
             _ => false,
@@ -1435,7 +1647,10 @@ impl ApplicationHandler for App {
                 self.look_ui.save_if_dirty(true);
                 el.exit()
             }
-            WindowEvent::Focused(false) => self.input.clear(),
+            WindowEvent::Focused(false) => {
+                self.input.clear();
+                self.touch.clear();
+            }
             WindowEvent::Resized(sz) => {
                 if let Some(g) = &mut self.gfx {
                     g.resize(sz.width, sz.height);

@@ -8,7 +8,9 @@ the game through the same tools a person uses.
 
 Play [Shardfall](https://shardfall-eight.vercel.app), or open the
 [Pavilion tech demo](https://shardfall-eight.vercel.app/?scene=world). Use recent Chrome
-or Edge with WebGPU and hardware acceleration enabled.
+or Edge with WebGPU and hardware acceleration enabled. Phones and tablets play by touch (Chrome
+on Android, Safari on iOS 26 or later): drag anywhere to move, attacks are automatic, and the
+buttons in the corner dodge, cast and drink.
 
 - Compact engine for AI agents: [`pavilion-lite/`](pavilion-lite/) (one Cargo package, CPU
   renderer, agent tools, sample games; `pavilion-lite/package.sh` makes the handoff archive).

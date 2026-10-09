@@ -6,6 +6,66 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Mobile: touch controls, a pared-down HUD, swipes and performance — 2026-10-09
+The browser build had no touch input at all (winit turns a finger into `WindowEvent::Touch`,
+which nothing read, so on a phone neither the game nor its windows responded) and drew the desktop
+HUD at full device resolution. Now phones and tablets are a first-class device (`Device::Touch`,
+detected from `(pointer: coarse)` at start or from the first finger):
+- **Controls** (`pav_app/src/touch.rs`): every finger is routed when it lands: the corner
+  buttons first, then windows (egui gets it as its pointer, the first finger only, plus every
+  finger as a touch for pinches), then the on-screen buttons, then swipeable things, then labels;
+  anything else is the move stick. The stick is invisible until a thumb lands anywhere on the
+  open game; a faint ring then shows where, and it follows a thumb that runs past its edge.
+  The right thumb has a fan round the corner: dodge (the big button), skills on two arcs (tap:
+  at the nearest foe it can reach, or the nearest at all for missiles; drag: aim by hand with a
+  ring and dots on the ground, let go to cast, drag back onto the button to cancel; hold: keep
+  casting; channels last while held), the potion with its charges, and a "use" pill named for
+  what is in reach (Trade, Travel, Descend, Open...). Top right: the menu, the bag (a badge
+  counts unspent passive points) and, when the minimap was swiped away, a map button.
+- **Auto-attack** (`touch::pick_target`, a setting, on by default): the first skill strikes the
+  nearest foe in its reach (`skills::reach`, now shared with the bot; `SlotHud` carries reach,
+  range, channel and ground-target) unless the player is running away from it; with the stick
+  still, the hero steps in to a foe that is fighting it a little out of reach. Its button is
+  hidden; with auto-attack off it takes the corner and dodge moves to the bottom row. All of it
+  rides in the input frame, so replays and the simulation are untouched.
+- **Less on screen** (`arpg_ui::hud` on touch): slim life, mana and experience bars with a level
+  badge in the top left (no orbs, no skill bar, no key letters), the level's name under them, a
+  smaller minimap under the corner buttons, banners placed for a short screen. No boot panel, FPS
+  overlay, key hints or keyboard guide; a short "Playing by touch" card instead, until swiped.
+- **Swipe away** (`touch::Swipes`): toasts, the arrival banner, a level's intro (now with its
+  mechanics), the station guide's pad notes, the tips card and the minimap follow the finger and
+  fly off when swiped; they stay away until their content changes (the minimap until the map
+  button). A tap on the minimap opens the big map; a tap or swipe closes it. A tap on the open
+  game closes what is open over it (menu, windows, map, guides), one at a time.
+- **Windows for fingers**: bigger hit targets and text (`ui::touch_style`, only while on touch),
+  windows that fit the screen below the corner buttons and scroll by dragging; in the bag, shop
+  and stash a tap shows the item's card (what it is, what it changes, and buttons: Wear, Wear on
+  the right hand, Sell, Stash, Drop, Take off, Buy, Buy back, Take) instead of acting blind; the
+  passive tree shows a tapped node with Take / Take the path / Refund / mastery buttons (a second
+  tap takes it) and zooms with two fingers. A pause menu made for phones: Resume, Town portal,
+  Auto-attack, Graphics (Auto/Low/Medium/High), Show FPS, Full screen, the rest under "More".
+- **Performance**: `Renderer::render_scale` draws the scene below the window's resolution and a
+  bilinear pass (`pav_render/src/upscale.rs`) stretches it over the window, so the UI stays sharp;
+  `max_shadow_lights` caps point-light shadow casters (six depth passes each). `quality.rs`:
+  Auto is High on a desktop (unchanged: every pixel, every effect) and Medium on a touch screen
+  (about a megapixel, one shadowed lamp, no screen-space GI or sun shafts) with dynamic
+  resolution (slower than 50 fps drops a step, a few smooth seconds raise one); Low halves the
+  pixels and drops haze, halos, bloom and distortion. Touch screens draw at most 60 frames a
+  second. Saved with auto-attack and "tips seen" in `shardfall_prefs.json` / local storage.
+- **The page**: no browser zoom, scrolling, callouts or tap flashes over the game; `100dvh` so
+  the canvas follows a phone's browser bars; the first tap goes full screen and turns sideways
+  where the browser allows it (Android); a web manifest (full screen, landscape) for "Add to
+  Home Screen"; a hint to turn the phone sideways that fades. Held upright, the camera's field
+  of view becomes the width's, so the sides are not a sliver.
+- Checked in headless Chromium with phone emulation (844x390, touch, `pointer: coarse`) driven
+  by CDP touch events: the stick walks, the bag opens, a tapped item shows its card, a tap
+  outside closes it, the menu, tips, intro banner and minimap swipe away, the map button brings
+  the minimap back, auto-attack fights an arena wave, a hand-aimed skill fires where aimed.
+  Unit tests: routing, auto-attack targets, swipes, a quick tap clicking in egui, quality scale.
+- Not done: no real phone was available (SwiftShader only); Chrome's DPR emulation sizes the
+  canvas at CSS pixels (a real phone gives CSS x DPR), so layouts were checked at DPR 1. No
+  camera rotation or pinch-zoom of the world on touch (the camera is fixed in the game anyway).
+
 ## Animation: every open library through the engine's own tools — 2026-10-09
 The follow-up that brings the rest of the libraries in, and the formats they ship in:
 - **The whole CMU database, natively** (`mocap/cmu.rs`, a port of cmu.mjs's survey): `mocap
