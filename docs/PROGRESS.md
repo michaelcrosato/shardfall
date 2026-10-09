@@ -6,6 +6,60 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Animation: the engine translates open motion libraries itself — 2026-10-09
+my-3D2dge's raw-capture importer (tools/anim-import.mjs, asf-amc.mjs, cmu.mjs and the encoding
+half of readable.js), ported into `pav_tools::mocap`, so the libraries come in through this
+engine's own tools instead of through the other engine's conversions:
+- **Readers.** glTF binary (`glb.rs`: accessors, node hierarchy, skinned mesh for the tip bones,
+  linear/step/cubic-spline tracks; Rigify `DEF-` and Unreal-style rigs), CMU's Acclaim files
+  (`acclaim.rs`: the skeleton's axes and degrees of freedom, M = M_parent · C · R · C⁻¹), BVH
+  (`bvh.rs`: hierarchy, channels, forward kinematics; bone maps for 100STYLE and the
+  MotionBuilder names Mixamo and LaFAN1 use (that one tested on a synthetic skeleton only), as
+  tables with fallbacks; units found from the legs).
+- **Cutting takes** (`takes.rs`): a stretch of seconds; a loop at its best cycle (pose and speed
+  match, a span that keeps moving), played in place facing the way it walked and closed exactly;
+  the rest pose stood on the floor the takes stand on. New: a loop with no stretch given finds the
+  take's longest straight run (every hip position within 12 cm of a line) or, for an idle, its
+  longest still stretch, inside the frames a dataset marks as the style.
+- **Encoding** (`readable.rs`): the body's rest measurements and spine shares, key poses from
+  captured points, decoding on the captured body, Ramer–Douglas–Peucker keys and the fit that
+  adds the frame the in-betweening misses most. Ported step for step: f64 in the reference's order,
+  captured points stored as f32 like its Float32Arrays, fdlibm's trigonometry (`libm`, as V8),
+  V8's `Math.hypot`, JavaScript's rounding and `toFixed`.
+- **Verified number for number.** The three Mesh2Motion GLBs → MESH2MOTION: 177 clips, all
+  119,432 numbers identical to my-3D2dge's own run, the rest bodies too (2.3 s against its 5.4 s).
+  The CMU catalog → CMU: 60 clips from 25 subjects, the takes downloaded by the tool, all 104,101
+  numbers identical. `tests/mocap.rs` keeps it so: a small Unreal-style rig and a CMU take
+  (fixtures, with my-3D2dge's output for them).
+- **Downloads** (`fetch.rs`, through curl, so cloud proxies just work): CMU takes from
+  mocap.cs.cmu.edu, Mesh2Motion's GLBs from GitHub, and single files out of a zip archive on the
+  web by ranged requests (100STYLE's 1.5 GB archive: one take costs its own bytes). Into
+  .cache/mocap, git-ignored.
+- **A new library: 100STYLE** (one performer, 100 styles of walking, CC BY 4.0). Its forward walks
+  cut and fitted into STYLE100: 98 styles (the two spins left out: they cannot loop in place),
+  1,550 key poses, 12 mm off on average, 440 KB, the dataset's own descriptions. The catalog
+  (`anim/catalogs/100style.json`) was written from its Dataset_List.csv; picks play inside its
+  Frame_Cuts.csv. A walk's shortest cycle is 0.8 s (a whole stride), so a loop never leads with
+  the same foot twice; hops and two-footed jumps repeat after one.
+- **Loops know their speed.** A clip's `speed` (percent of standing hip height a second, how far
+  the cycle carried the hips) is new in the format (the legend says so; other readers ignore it).
+  `walk_clip` on a look plays such a loop while the character heads forward on the ground, at its
+  ground speed over the clip's own, so the stride matches the ground (`clips::walk_rate`, `pace`).
+  The CMU set was rebuilt by the native importer to add speeds to its loops: nothing else changed.
+- **Tools:** `clip_import` reads .glb, .bvh, set files and catalogs (`$pick` cuts from CMU or
+  100STYLE, downloading the takes; `list=true` shows a file's rig and clips); `mocap` describes the
+  databases, finds takes (CMU's ledger, 100STYLE's styles and descriptions), downloads them and
+  cuts one moment into a set (`mocap cut=13_17 at=1.5-2.6 name=Jab set=MINE`). Catalogs for every
+  embedded set in anim/catalogs/.
+- **Where it shows:** a new station, **Walk Styles** (sixteen walkers on lanes, each in its style
+  at its own pace; station guide), and Shardfall's villagers: Tomas strolls with his hands
+  clasped behind his back, Elsie bounces along. NPCs can now move as slowly as an old man's
+  shuffle (2% of full speed). New field-guide words: gait cycle, foot sliding.
+- Not done: FBX (RancidMilk's CMU retargets; convert to glTF first); a Mixamo map for glTF;
+  100STYLE's other gaits (backward, sideways, running, idles): `mocap cut=Old_FR loop=true` cuts
+  any of them; the whole-database CMU survey (the ledger, anim/cmu's 4,770 clips) is still the one
+  my-3D2dge's cmu.mjs made, while single takes and catalogs go through the native tools.
+
 ## Animation: moves as data, and motion clips from open libraries — 2026-10-09
 Compared the puppet with my-3D2dge's (the same approach: a skeleton posed by math, two-bone IK,
 no animation files) and took what it does better, rebuilt on this engine's foundation (pure pose

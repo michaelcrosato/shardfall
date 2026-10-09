@@ -7,6 +7,7 @@ pub mod anim_tools;
 pub mod bridge;
 pub mod game_tools;
 pub mod mcp;
+pub mod mocap;
 pub mod session;
 pub mod tools;
 

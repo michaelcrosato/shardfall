@@ -475,6 +475,18 @@ text = "One pose an animation is built from, with the in-between frames worked o
 see = ["interpolation", "motion capture"]
 
 [[term]]
+key = "gait cycle"
+name = "Gait cycle (stride)"
+text = "One whole stride, each foot stepping once, after which a walk or run repeats. A captured walk becomes a loop by cutting it at the cycle whose end matches its start in pose and in speed; a gait whose feet meet between steps (a limp) matches itself after one step, so the shortest cycle is set longer."
+see = ["motion capture", "foot sliding"]
+
+[[term]]
+key = "foot sliding"
+name = "Foot sliding"
+text = "Feet skating over the ground because the animation's stride does not match how fast the character moves. Playing the walk as fast as the ground goes by (ground speed over the clip's own) keeps the feet planted; so does moving the character at the clip's pace."
+see = ["gait cycle", "procedural animation"]
+
+[[term]]
 key = "anticipation"
 name = "Anticipation and follow-through"
 text = "Two of the classic principles of animation: a wind-up before an action (the arm drawn back, the body coiling) that tells you it is coming, and a follow-through after it (the swing carrying on, held for a moment) that sells its weight. Every move in anim/moves.toml has both."

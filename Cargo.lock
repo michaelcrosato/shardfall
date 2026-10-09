@@ -2331,7 +2331,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "glam 0.33.11",
+ "libm",
  "log",
+ "miniz_oxide 0.8.9",
  "pav_audio",
  "pav_core",
  "pav_render",

@@ -34,7 +34,7 @@ crates/
               follow-through; skills name a move), clips.rs (motion clips: readable key poses
               translated from open animation libraries, retargeted onto the biped with IK,
               crossfaded over the procedural animation, upper body only or mirrored; performers,
-              idle clips), anim.rs (the /anim files: embedded, live reload), rig.rs (creature feet that plant and step,
+              idle clips, walk clips played as fast as the character moves), anim.rs (the /anim files: embedded, live reload), rig.rs (creature feet that plant and step,
               follow-the-leader spines, verlet tails/antennae), ai.rs (NPC brains: idle,
               wander, patrol, circle, follow; they drive characters through InputFrames),
               nav.rs (walkable grid from blocks and props, A* paths, flow fields),
@@ -71,14 +71,18 @@ crates/
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
   pav_tools   agent layer: tool registry + `pav` CLI (one-shot, REPL) + MCP stdio server +
-              live bridge client (bridge.rs)
+              live bridge client (bridge.rs), and the motion importer (mocap/: glTF libraries,
+              CMU's ASF/AMC, BVH; loops cut at their best cycle; fitted into readable key poses,
+              number for number what my-3D2dge's own importer writes)
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
               (bridge.rs), egui input (uiinput.rs). Builds natively and for wasm32 (WebGPU).
 anim/         animation data, embedded and hot-reloadable (`anim_reload`): moves.toml (the moves table)
-              and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, 325 clips with credits). anim/cmu/
-              holds every take of the CMU database (4,770 clips) on disk only: `clips load=cmu`.
+              and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, STYLE100: 423 clips with credits).
+              anim/cmu/ holds every take of the CMU database (4,770 clips) on disk only: `clips
+              load=cmu`. anim/catalogs/ says how each set is made (tags, descriptions, sources,
+              picks): `clip_import catalog=...` rebuilds it from the libraries.
 rooms/        room data files (TOML: info card, station guide `[learn]`, wing, primary device, movement model, camera,
               params, keys, entrance, ASCII tile layers + legend, [[object]]s). Every file
               here is embedded in the exe at build time AND hot-reloaded at runtime.
@@ -97,6 +101,7 @@ Key rules:
   Animation clips are allowed as readable key poses (anim/*.json, the format `clips.rs`
   documents): plain text a model can read and edit, translated from openly licensed libraries
   with `clip_import`. Keep each set's credit and licence; never add binary animation files.
+  Downloaded captures (.glb, .amc, .bvh) go to .cache/mocap (git-ignored), never into the repo.
 - Physics precision switch: in `crates/pav_core/Cargo.toml` change `package = "rapier3d"` to
   `"rapier3d-f64"`.
 
@@ -139,7 +144,7 @@ despawn teleport rewind snapshot_save snapshot_load record_save replay rooms roo
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
 tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature see campaign
-theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import anim_reload`
+theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import mocap anim_reload`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
@@ -181,9 +186,18 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import a
   `travel=`; on the hero by default, `def=` for another look). `clips` lists the sets, `clips
   find=dance` searches names, tags and descriptions, `clips name=SET/Clip` shows one as readable
   key poses with its source and licence, `clips load=cmu` adds the on-disk CMU library.
-  `clip_import from=<set.js|set.json|folder>` translates a library (it checks the result reads
-  back and reports the fit). Room NPCs perform with `clips = [...]` / `moves = [...]`; any look's
-  `idle_clip` plays while standing still; `anim.tempo` / `anim.mirror` steer performers.
+  `clip_import from=<set.js|set.json|folder>` translates a set, `from=a.glb,b.glb sources=A,B
+  catalog=anim/catalogs/mesh2motion.json set=MESH2MOTION` a glTF library (Rigify or Unreal-style
+  rigs), `from=take.bvh at=2-9 loop=true set=X` a BVH take, and `catalog=anim/catalogs/cmu.json
+  set=CMU` (a catalog with "$pick") cuts its moments out of a capture database, downloading the
+  takes; it checks the result reads back and reports the fit. `mocap` describes the open
+  databases (CMU, 100STYLE, Mesh2Motion, Quaternius), `mocap find=limp` searches their takes,
+  `mocap get=02_01,Zombie_FW` downloads (a 100STYLE take alone out of its 1.5 GB archive) and
+  `mocap cut=13_17 at=1.5-2.6 name=Jab set=MINE` (or `loop=true`: the best cycle) fits one
+  moment into anim/<set>.json. Room NPCs perform with `clips = [...]` / `moves = [...]`; any
+  look's `idle_clip` plays while standing still and `walk_clip` (a walk loop that records its
+  `speed`, e.g. STYLE100/Old_Walk) while walking, at the rate its stride matches the ground;
+  `anim.tempo` / `anim.mirror` steer performers.
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
 - `signal name=drop` fires spawners listening for a pad signal (no need to walk onto the pad).
 - `filmstrip` tiles N frames (optionally while driving the player) into one PNG: the cheapest
@@ -263,7 +277,9 @@ spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a 
 of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
 `tests/motion.rs` (clips decode like the format's reference player, every embedded clip plays
 cleanly, a set file round-trips, fades, chained moves, kicks, performers, idle clips, the hero's
-captured death).
+captured death, walkers and villagers keeping their styles' pace); `crates/pav_tools/tests/mocap.rs`
+(a glTF rig and a CMU take translate number for number like my-3D2dge's importer, whose output is
+in tests/fixtures/mocap; a BVH walk cuts into a loop that closes).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`

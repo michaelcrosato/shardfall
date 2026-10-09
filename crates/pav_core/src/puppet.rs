@@ -200,6 +200,10 @@ pub struct PuppetDef {
     /// A motion clip (`SET/Clip`, see the `clips` tool) the character plays while it stands
     /// still with nothing to do, in place of the procedural idle (bipeds). Empty = none.
     pub idle_clip: String,
+    /// A walk loop (`STYLE100/Old_Walk`...) the character walks with in place of the
+    /// procedural walk while it heads forward on the ground, played as fast as it moves
+    /// (bipeds). Empty = none.
+    pub walk_clip: String,
 }
 
 impl Default for PuppetDef {
@@ -241,6 +245,7 @@ impl Default for PuppetDef {
             gear: GearLook::default(),
             parts: Vec::new(),
             idle_clip: String::new(),
+            walk_clip: String::new(),
         }
     }
 }

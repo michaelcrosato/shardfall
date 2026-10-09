@@ -30,7 +30,7 @@ how = [
   "Between keys every number is in-betweened in a straight line; loops wrap and one-shots hold their last pose. A pose that would go through the floor is lifted until its lowest point stands on it.",
   "A clip fades in over the procedural animation in a quarter of a second, the one before held underneath until it has. A clip can also drive only the upper body while the legs keep walking, or play mirrored.",
   "Animation state stores only the clip's id and time, so rewind and replays play it exactly; the view decodes the pose every frame.",
-  "clip_import translated 325 clips (6,469 key poses) from the three libraries. Each set file carries its credits and licence, the legend, and how closely every clip follows its capture: about 15 mm on average.",
+  "clip_import translates the libraries themselves: glTF files (Quaternius, Mesh2Motion), the CMU database's skeleton and motion files, BVH datasets. It measures each body, fits every clip with as few key poses as stay within 30 mm of the capture and writes the set with its credits and licence, the legend, and how closely every clip follows its capture: about 15 mm on average. Its output matches my-3D2dge's own importer number for number.",
 ]
 uses = [
   "Animation libraries shared across games: Mixamo, the Unity Asset Store and Unreal Marketplace packs, Quaternius' free libraries.",
@@ -45,7 +45,7 @@ ask = [
   "a captured death animation for the hero",
   "townsfolk that idle with captured animation",
 ]
-cost = "Decoding a key pose is a few dozen trig operations and four IK solves per character per frame, on the CPU; nothing changes on the GPU. The three embedded sets add 2.2 MB of readable text to the build; the full CMU database (2,548 takes) stays on disk and loads when a tool asks for it."
+cost = "Decoding a key pose is a few dozen trig operations and four IK solves per character per frame, on the CPU; nothing changes on the GPU. The four embedded sets (423 clips) add 2.4 MB of readable text to the build; the full CMU database (2,548 takes) stays on disk and loads when a tool asks for it."
 knobs = ["anim.tempo", "anim.mirror"]
 terms = ["motion capture", "retargeting", "key pose", "ik", "interpolation", "determinism"]
 

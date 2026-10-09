@@ -812,7 +812,14 @@ pub(crate) fn npc_inputs(
                 }
             }
         }
+        let base = sim.config.movement.speed.max(0.1);
         if let Some(ch) = sim.state.entities.get_mut(n.id).and_then(|e| e.character.as_mut()) {
+            // A villager with a captured walk walks at its pace, so the feet keep to the ground.
+            if n.role == NpcRole::Villager {
+                if let Some(pace) = ch.puppet.as_deref().and_then(crate::clips::walk_pace) {
+                    haste = pace / base - 1.0;
+                }
+            }
             ch.haste = haste;
         }
         out.insert(n.id, crate::input::InputFrame { move_dir: glam::Vec2::new(mv.x, mv.z), ..Default::default() });
@@ -950,11 +957,13 @@ fn townsfolk(sim: &mut Sim, table: Vec3, cauldron: Vec3, post: Vec3) -> Vec<Npc>
             "#8a5a3a",
         ),
     ];
-    for ((route, name, skin, shirt), idle) in rounds.into_iter().zip(["MESH2MOTION/Idle Listening", "MESH2MOTION/Idle_A"]) {
+    for ((route, name, skin, shirt), (idle, walk)) in rounds.into_iter().zip(VILLAGER_CLIPS) {
         let start = route[0];
-        // When they stop on their rounds they stand like people do (captured idles).
+        // When they stop on their rounds they stand like people do (captured idles), and they
+        // walk in their own styles (100STYLE captures) at those walks' own pace.
         let mut look = biped(skin, shirt, "#3a3028", 0.95, WeaponKind::None, "#000000");
         look.idle_clip = idle.into();
+        look.walk_clip = walk.into();
         let id = sim.spawn_npc(name, start, 0.0, look, None, None);
         let mut n = Npc::new(id, NpcRole::Villager, name, 0.0, start);
         n.route = route;
@@ -976,6 +985,10 @@ fn townsfolk(sim: &mut Sim, table: Vec3, cauldron: Vec3, post: Vec3) -> Vec<Npc>
 
 /// The greeting townsfolk give the hero (anim/*.json).
 pub const TOWN_GREETING: &str = "MESH2MOTION/Greeting";
+/// The villagers' idles and walks: Tomas strolls with his hands clasped behind his back, Elsie
+/// bounces along swinging her arms.
+pub const VILLAGER_CLIPS: [(&str, &str); 2] =
+    [("MESH2MOTION/Idle Listening", "STYLE100/ArmsBehindBack_Walk"), ("MESH2MOTION/Idle_A", "STYLE100/Elated_Walk")];
 
 const FAMILIES: &[(&str, u32)] =
     &[("ghoul", 5), ("skitterer", 4), ("spitter", 3), ("ashdrake", 2), ("bile_ooze", 2), ("bonecrusher", 1)];

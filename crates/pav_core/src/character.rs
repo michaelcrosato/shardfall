@@ -1171,21 +1171,34 @@ pub fn tick(
     if hanging {
         ch.anim.climb_phase = 0.25;
     }
-    // An idle clip plays while the character stands still with nothing to do.
-    if !puppet.idle_clip.is_empty() && puppet.body == crate::puppet::BodyPlan::Biped {
-        let id = crate::clips::find_cached(&puppet.idle_clip);
-        let still = ch.grounded
-            && Vec2::new(ch.vel.x, ch.vel.z).length() < 0.3
+    // An idle clip plays while the character stands still with nothing to do; a walk clip
+    // while it heads forward on the ground, as fast as it moves.
+    if (!puppet.idle_clip.is_empty() || !puppet.walk_clip.is_empty()) && puppet.body == crate::puppet::BodyPlan::Biped {
+        let id_of = |n: &str| if n.is_empty() { 0 } else { crate::clips::find_cached(n) };
+        let (idle, walk) = (id_of(&puppet.idle_clip), id_of(&puppet.walk_clip));
+        let ground = Vec2::new(ch.vel.x, ch.vel.z).length();
+        let free = ch.grounded
             && ch.anim.act_kind == 0
             && !climbing
             && !hanging
             && !ch.swimming
             && ch.posture == Posture::Stand
             && ch.anim.down <= 0.0;
-        if id != 0 && (ch.anim.clip == 0 || ch.anim.clip == id) {
-            if still {
-                ch.anim.play_clip(id, 0, 1.0);
-            } else if ch.anim.clip == id {
+        // A styled walk may be slow (an old man's shuffle is under 0.2 m/s): still is slower.
+        let still = if walk != 0 { 0.1 } else { 0.3 };
+        let want = if free && ground < still {
+            idle
+        } else if free && ch.anim.travel.abs() < 0.6 {
+            walk
+        } else {
+            0
+        };
+        let ours = ch.anim.clip == 0 || (ch.anim.clip == idle && idle != 0) || (ch.anim.clip == walk && walk != 0);
+        if ours {
+            if want != 0 {
+                let rate = if want == walk { crate::clips::walk_rate(puppet, walk, ground) } else { 1.0 };
+                ch.anim.play_clip(want, 0, rate);
+            } else if ch.anim.clip != 0 {
                 ch.anim.stop_clip();
             }
         }

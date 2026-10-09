@@ -31,6 +31,10 @@ toml = "1"
 notify = "8"
 ciborium = "0.2"
 anyhow = "1"
+# The motion importer (pav_tools): fdlibm's trigonometry, as JavaScript engines use it, and
+# inflate for single files out of zip archives on the web.
+libm = "0.2"
+miniz_oxide = "0.8"
 log = "0.4"
 bytemuck = { version = "1", features = ["derive"] }
 pollster = "1"

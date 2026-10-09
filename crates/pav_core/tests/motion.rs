@@ -209,3 +209,44 @@ fn the_hero_falls_with_a_captured_death() {
     let a = sim.player().unwrap().character.as_ref().unwrap().anim;
     assert!(a.clip != death || a.clip_flags & clips::STOP != 0, "the fall ends when the hero rises");
 }
+
+#[test]
+fn walkers_play_their_style_as_fast_as_they_move() {
+    let mut sim = Sim::new("walk_styles", 1).unwrap();
+    sim.run(60 * 3, &InputFrame::default());
+    let def = PuppetDef::default();
+    for (name, clip) in [("old", "STYLE100/Old_Walk"), ("zombie", "STYLE100/Zombie_Walk"), ("elated", "STYLE100/Elated_Walk")] {
+        let e = sim.state.entities.iter().find(|e| e.name == name).unwrap();
+        let ch = e.character.as_ref().unwrap();
+        let ground = glam::Vec2::new(ch.vel.x, ch.vel.z).length();
+        assert_eq!(ch.anim.clip, clips::find(clip).unwrap(), "{name} walks in its style");
+        // Each walker moves at its style's own pace, so the clip plays at about its own speed.
+        let pace = clips::pace(&def, ch.anim.clip).expect("a walk loop knows its pace");
+        assert!((ground / pace - 1.0).abs() < 0.3, "{name}: moving {ground} m/s, the style's pace {pace}");
+        assert!((ch.anim.clip_speed - ground / pace).abs() < 1e-3, "{name}: played at {}", ch.anim.clip_speed);
+    }
+    // The slowest and the quickest: an old man a seventh of an elated walker's pace.
+    let pace = |c: &str| clips::pace(&def, clips::find(c).unwrap()).unwrap();
+    assert!(pace("STYLE100/Old_Walk") * 5.0 < pace("STYLE100/Elated_Walk"));
+}
+
+#[test]
+fn the_villagers_walk_their_rounds_in_style() {
+    let mut sim = Sim::new("town", 1).unwrap();
+    let styles: Vec<u32> = pav_core::arpg::scene::VILLAGER_CLIPS.iter().map(|(_, w)| clips::find(w).unwrap()).collect();
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..60 * 20 {
+        sim.step(&InputFrame::default());
+        for e in sim.state.entities.iter() {
+            if let Some(ch) = e.character.as_ref() {
+                if styles.contains(&ch.anim.clip) && ch.anim.clip_w > 0.99 {
+                    let pace = clips::pace(&PuppetDef::default(), ch.anim.clip).unwrap();
+                    let ground = glam::Vec2::new(ch.vel.x, ch.vel.z).length();
+                    assert!(ground < pace * 1.6, "{} walks at about its style's pace: {ground} vs {pace}", e.name);
+                    seen.insert(e.name.clone());
+                }
+            }
+        }
+    }
+    assert_eq!(seen.len(), 2, "both villagers walked in style: {seen:?}");
+}
