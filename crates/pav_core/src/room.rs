@@ -430,8 +430,10 @@ impl RoomDef {
     pub fn validate(&self) -> Result<(), String> {
         for n in &self.npcs {
             let p = n.puppet()?;
-            if !p.idle_clip.is_empty() && crate::clips::find(&p.idle_clip).is_none() {
-                return Err(format!("npc '{}': no clip '{}' for idle_clip (the clips tool lists them)", n.name, p.idle_clip));
+            for (field, clip) in [("idle_clip", &p.idle_clip), ("walk_clip", &p.walk_clip)] {
+                if !clip.is_empty() && crate::clips::find(clip).is_none() {
+                    return Err(format!("npc '{}': no clip '{clip}' for {field} (the clips tool lists them)", n.name));
+                }
             }
             n.perform()?;
         }

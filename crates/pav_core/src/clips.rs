@@ -112,6 +112,7 @@ pub const LEGEND: &[&str] = &[
     "footL footR [down, out, toes]   degrees the foot points down from standing, turns outward, and the toes bend up",
     "blade  [forward, right, up]   (sword clips) the direction of a blade held in the right fist, in chest space",
     "root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height",
+    "speed  (a clip's header: loops that walk or run in place) how fast the capture travelled, percent of standing hip height a second",
 ];
 
 /// One clip.
@@ -131,6 +132,10 @@ pub struct Clip {
     pub dur: f32,
     #[serde(rename = "loop", default)]
     pub looping: bool,
+    /// A loop that walks or runs in place: how fast its capture travelled, in percent of
+    /// standing hip height a second (`walk_rate` matches it to a character's ground speed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed: Option<f32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -241,6 +246,9 @@ impl Clip {
         }
         head.push(format!("\"dur\": {}", num(self.dur)));
         head.push(format!("\"loop\": {}", self.looping));
+        if let Some(v) = self.speed {
+            head.push(format!("\"speed\": {}", num(v)));
+        }
         if !self.tags.is_empty() {
             head.push(format!("\"tags\": {}", json(&self.tags)));
         }
@@ -427,6 +435,32 @@ fn pole(d: Vec3, hint: Vec3, deg: f32) -> Vec3 {
 
 /// The puppet's skeleton for key pose `k` (character space, feet at the origin), at the
 /// puppet's own proportions. `travel` moves it by the clip's own travel.
+/// The puppet's standing hip height: what a clip's percentages are shares of.
+pub fn hip_height(def: &PuppetDef) -> f32 {
+    def.leg_length * def.scale * 0.97
+}
+
+/// How fast to play a clip that walks or runs in place so its feet keep pace with the ground:
+/// the character's ground speed over the clip's own (1 when the clip doesn't say), kept
+/// within 0.4..2.5.
+pub fn walk_rate(def: &PuppetDef, id: u32, ground_speed: f32) -> f32 {
+    pace(def, id).map_or(1.0, |p| (ground_speed / p).clamp(0.4, 2.5))
+}
+
+/// The ground speed (m/s) a clip that walks or runs in place moves at as captured, on this
+/// puppet: its `speed` in hip heights at the puppet's own hip height.
+pub fn pace(def: &PuppetDef, id: u32) -> Option<f32> {
+    with(id, |c| c.speed).flatten().filter(|s| *s > 1.0).map(|s| s / 100.0 * hip_height(def))
+}
+
+/// The pace of a puppet's walk clip (m/s), when it has one that says.
+pub fn walk_pace(def: &PuppetDef) -> Option<f32> {
+    if def.walk_clip.is_empty() {
+        return None;
+    }
+    pace(def, find_cached(&def.walk_clip))
+}
+
 pub fn skel(def: &PuppetDef, k: &Key, travel: bool) -> Skel {
     let sc = def.scale;
     let leg = def.leg_length * sc;
@@ -434,7 +468,7 @@ pub fn skel(def: &PuppetDef, k: &Key, travel: bool) -> Skel {
     let hr = def.head_radius * sc;
     let tr = def.torso_radius * sc;
     let lr = def.limb_radius * sc;
-    let hip_h = leg * 0.97;
+    let hip_h = hip_height(def);
     let qp = euler(k.body);
     let qc = qp * euler(k.chest);
     let qh = qc * euler(k.head);

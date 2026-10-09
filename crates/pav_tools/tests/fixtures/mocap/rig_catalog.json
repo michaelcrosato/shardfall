@@ -1,0 +1,6 @@
+{
+  "$sources": { "RIG": { "label": "A test rig", "origin": "Built by the importer's tests", "license": "CC0 1.0", "url": "https://example.com/rig" } },
+  "A_TPose": ["pose", "stands in a T-pose"],
+  "Wave_Loop": ["gesture loop", "waves the right arm, bobbing and turning"],
+  "Step_RM": ["travel", "slides a step forward"]
+}

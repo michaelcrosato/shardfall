@@ -306,7 +306,8 @@ impl Ai {
             self.stuck = (self.stuck - dt).max(0.0);
         }
         self.last = feet;
-        out.move_dir = dir * self.speed.clamp(0.05, 1.0);
+        // As slow as a styled walk's own pace (an old man's shuffle is a few percent of full speed).
+        out.move_dir = dir * self.speed.clamp(0.02, 1.0);
         if self.hop > 0.0 {
             self.hop_timer -= dt;
             if self.hop_timer <= 0.0 {

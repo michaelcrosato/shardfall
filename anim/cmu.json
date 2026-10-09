@@ -14,7 +14,8 @@
   "legL legR  [forward, out, up, bend, twist]  hip to ankle in pelvis space; bend: the knee; twist: from pointing forward",
   "footL footR [down, out, toes]   degrees the foot points down from standing, turns outward, and the toes bend up",
   "blade  [forward, right, up]   (sword clips) the direction of a blade held in the right fist, in chest space",
-  "root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height"
+  "root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height",
+  "speed  (a clip's header: loops that walk or run in place) how fast the capture travelled, percent of standing hip height a second"
 ],
 "fps": 30,
 "sources": {
@@ -784,7 +785,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[79,-41,-46,115,3], "armR":[95,24,21,101,-34],
    "legL":[-2,18,-98,12,-16], "legR":[20,22,-96,28,5], "footL":[-8,14,12], "footR":[-4,24,12]}
 ]},
-"Boxing_Guard_Loop": {"clip": "Boxing_Guard_Loop", "src": "CMU_13", "take": "13_17 12.87-13.91", "dur": 1.033, "loop": true, "tags": ["stance","unarmed"], "desc": "A boxer's guard: fists up by the face, bouncing light on the feet, weaving a little. In place", "keys": [
+"Boxing_Guard_Loop": {"clip": "Boxing_Guard_Loop", "src": "CMU_13", "take": "13_17 12.87-13.91", "dur": 1.033, "loop": true, "speed": 12, "tags": ["stance","unarmed"], "desc": "A boxer's guard: fists up by the face, bouncing light on the feet, weaving a little. In place", "keys": [
   {"t":0,
    "hips":[0,0,97], "body":[3,-2,3], "chest":[-12,19,-2], "head":[-10,15,9],
    "shL":[1,1], "shR":[0,0], "armL":[92,-31,23,129,32], "armR":[98,-7,17,125,-43],
@@ -2292,7 +2293,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[100,-3,1,76,18], "armR":[88,14,-45,91,-34],
    "legL":[18,-4,-98,105,28], "legR":[-1,2,-100,43,18], "footL":[22,-11,16], "footR":[7,4,-3]}
 ]},
-"Crouch_Walk_Loop": {"clip": "Crouch_Walk_Loop", "src": "CMU_136", "take": "136_09 7.48-8.69", "dur": 1.2, "loop": true, "tags": ["walk","crouch"], "desc": "Walking crouched low on deeply bent knees. One cycle, in place", "keys": [
+"Crouch_Walk_Loop": {"clip": "Crouch_Walk_Loop", "src": "CMU_136", "take": "136_09 7.48-8.69", "dur": 1.2, "loop": true, "speed": 94, "tags": ["walk","crouch"], "desc": "Walking crouched low on deeply bent knees. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,85], "body":[-3,12,-2], "chest":[-2,32,4], "head":[2,-21,2],
    "shL":[0,0], "shR":[0,0], "armL":[57,9,-82,30,26], "armR":[60,16,-78,27,-31],
@@ -4184,7 +4185,7 @@
    "shL":[0,0], "shR":[1,0], "armL":[90,-42,-11,92,12], "armR":[96,-24,-17,86,-1],
    "legL":[-9,16,-98,20,-12], "legR":[-13,5,-99,0,635], "footL":[-5,9,55], "footR":[-14,12,1]}
 ]},
-"Frankenstein_Walk_Loop": {"clip": "Frankenstein_Walk_Loop", "src": "CMU_104", "take": "104_03 3.08-5.58", "dur": 2.5, "loop": true, "tags": ["walk","monster","zombie"], "desc": "Frankenstein's monster: stiff legs, arms held straight out ahead, a heavy lurching walk. One cycle, in place", "keys": [
+"Frankenstein_Walk_Loop": {"clip": "Frankenstein_Walk_Loop", "src": "CMU_104", "take": "104_03 3.08-5.58", "dur": 2.5, "loop": true, "speed": 45, "tags": ["walk","monster","zombie"], "desc": "Frankenstein's monster: stiff legs, arms held straight out ahead, a heavy lurching walk. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,102], "body":[0,-2,3], "chest":[-8,7,1], "head":[-1,13,5],
    "shL":[1,0], "shR":[0,0], "armL":[99,11,1,45,-6], "armR":[96,28,-1,51,-10],
@@ -5212,7 +5213,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[1,95,-32,51,31], "armR":[24,86,44,28,-5],
    "legL":[33,-6,-94,28,-5], "legR":[-2,-16,-99,30,5], "footL":[0,32,-56], "footR":[54,-5,21]}
 ]},
-"Gorilla_Walk_Loop": {"clip": "Gorilla_Walk_Loop", "src": "CMU_120", "take": "120_02 2.47-3.35", "dur": 0.9, "loop": true, "tags": ["walk","monster"], "desc": "A gorilla: hunched, knuckles low, a rolling heavy walk. One cycle, in place", "keys": [
+"Gorilla_Walk_Loop": {"clip": "Gorilla_Walk_Loop", "src": "CMU_120", "take": "120_02 2.47-3.35", "dur": 0.9, "loop": true, "speed": 186, "tags": ["walk","monster"], "desc": "A gorilla: hunched, knuckles low, a rolling heavy walk. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,67], "body":[75,37,-4], "chest":[4,58,-19], "head":[-19,-36,-19],
    "shL":[0,1], "shR":[0,0], "armL":[92,-36,16,49,38], "armR":[95,30,8,20,6],
@@ -5286,7 +5287,7 @@
    "shL":[0,1], "shR":[0,0], "armL":[92,-36,16,49,38], "armR":[95,30,8,20,6],
    "legL":[72,58,-38,93,22], "legR":[68,51,-53,96,-30], "footL":[-34,43,13], "footR":[-31,34,25]}
 ]},
-"Hop_One_Foot_Loop": {"clip": "Hop_One_Foot_Loop", "src": "CMU_132", "take": "132_23 3.11-4.12", "dur": 1, "loop": true, "tags": ["jump"], "desc": "Hopping on the left foot, the right held up, arms out for balance. One hop, in place", "keys": [
+"Hop_One_Foot_Loop": {"clip": "Hop_One_Foot_Loop", "src": "CMU_132", "take": "132_23 3.11-4.12", "dur": 1, "loop": true, "speed": 119, "tags": ["jump"], "desc": "Hopping on the left foot, the right held up, arms out for balance. One hop, in place", "keys": [
   {"t":0,
    "hips":[0,0,99], "body":[5,2,-7], "chest":[-3,11,0], "head":[-9,6,6],
    "shL":[-1,0], "shR":[0,0], "armL":[57,35,-74,61,26], "armR":[18,12,-98,28,-36],
@@ -5356,7 +5357,7 @@
    "shL":[-1,0], "shR":[0,0], "armL":[57,35,-74,61,26], "armR":[18,12,-98,28,-36],
    "legL":[0,0,-100,54,2], "legR":[-15,-1,-99,74,-1], "footL":[11,22,14], "footR":[26,36,14]}
 ]},
-"Hurt_Stomach_Walk_Loop": {"clip": "Hurt_Stomach_Walk_Loop", "src": "CMU_91", "take": "91_26 6.13-7.39", "dur": 1.267, "loop": true, "tags": ["walk","hurt"], "desc": "Walking hunched over, a hand clutching the stomach. One cycle, in place", "keys": [
+"Hurt_Stomach_Walk_Loop": {"clip": "Hurt_Stomach_Walk_Loop", "src": "CMU_91", "take": "91_26 6.13-7.39", "dur": 1.267, "loop": true, "speed": 109, "tags": ["walk","hurt"], "desc": "Walking hunched over, a hand clutching the stomach. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,103], "body":[-3,1,-5], "chest":[-2,7,-12], "head":[6,1,17],
    "shL":[0,0], "shR":[0,0], "armL":[29,-88,-37,107,-39], "armR":[51,-32,-80,47,16],
@@ -7536,7 +7537,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[12,20,-97,92,6], "armR":[79,-33,-51,117,-6],
    "legL":[59,0,-81,37,-6], "legR":[-54,-17,-82,38,7], "footL":[-16,-345,-63], "footR":[61,-365,34]}
 ]},
-"Run_Loop": {"clip": "Run_Loop", "src": "CMU_09", "take": "09_01 0.01-0.74", "dur": 0.733, "loop": true, "tags": ["run"], "desc": "A steady run, arms pumping. One stride cycle, in place", "keys": [
+"Run_Loop": {"clip": "Run_Loop", "src": "CMU_09", "take": "09_01 0.01-0.74", "dur": 0.733, "loop": true, "speed": 375, "tags": ["run"], "desc": "A steady run, arms pumping. One stride cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,102], "body":[-2,2,-4], "chest":[-2,14,1], "head":[1,-18,-2],
    "shL":[0,0], "shR":[0,0], "armL":[75,-5,-66,105,25], "armR":[59,5,-81,77,-15],
@@ -8602,7 +8603,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[24,5,-97,25,28], "armR":[30,7,-95,39,-23],
    "legL":[-21,2,-98,24,-22], "legR":[-16,-8,-98,21,23], "footL":[-11,14,-12], "footR":[-9,9,3]}
 ]},
-"Sneak_Loop": {"clip": "Sneak_Loop", "src": "CMU_139", "take": "139_29 11.71-13.16", "dur": 1.433, "loop": true, "tags": ["walk","crouch"], "desc": "Sneaking: crouched low, stepping carefully, arms held in close. One cycle, in place", "keys": [
+"Sneak_Loop": {"clip": "Sneak_Loop", "src": "CMU_139", "take": "139_29 11.71-13.16", "dur": 1.433, "loop": true, "speed": 62, "tags": ["walk","crouch"], "desc": "Sneaking: crouched low, stepping carefully, arms held in close. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,98], "body":[0,2,10], "chest":[-10,35,8], "head":[-20,17,-20],
    "shL":[0,0], "shR":[0,0], "armL":[63,8,-77,54,26], "armR":[68,28,-68,56,-39],
@@ -9128,7 +9129,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[94,-32,13,42,33], "armR":[97,-21,-8,55,-34], "blade":[-50,-68,53],
    "legL":[-14,-9,-99,34,31], "legR":[-2,25,-97,42,36], "footL":[0,67,-13], "footR":[12,-29,16]}
 ]},
-"Waiting_Loop": {"clip": "Waiting_Loop", "src": "CMU_141", "take": "141_20 3.64-4.58", "dur": 0.933, "loop": true, "tags": ["idle"], "desc": "Waiting impatiently: shifting weight from foot to foot, looking about", "keys": [
+"Waiting_Loop": {"clip": "Waiting_Loop", "src": "CMU_141", "take": "141_20 3.64-4.58", "dur": 0.933, "loop": true, "speed": 91, "tags": ["idle"], "desc": "Waiting impatiently: shifting weight from foot to foot, looking about", "keys": [
   {"t":0,
    "hips":[0,0,102], "body":[-15,9,-10], "chest":[-11,-10,7], "head":[-24,23,0],
    "shL":[0,0], "shR":[0,0], "armL":[-3,24,-97,37,65], "armR":[26,27,-93,13,13],
@@ -9202,7 +9203,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[-3,24,-97,37,65], "armR":[26,27,-93,13,13],
    "legL":[42,23,-88,28,-9], "legR":[-5,-42,-91,19,190], "footL":[-32,23,50], "footR":[-15,3,-4]}
 ]},
-"Walk_Backwards_Loop": {"clip": "Walk_Backwards_Loop", "src": "CMU_136", "take": "136_25 8.13-9.77", "dur": 1.633, "loop": true, "tags": ["walk"], "desc": "Walking backwards at an easy pace. One cycle, in place", "keys": [
+"Walk_Backwards_Loop": {"clip": "Walk_Backwards_Loop", "src": "CMU_136", "take": "136_25 8.13-9.77", "dur": 1.633, "loop": true, "speed": 58, "tags": ["walk"], "desc": "Walking backwards at an easy pace. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,104], "body":[-177,0,-1], "chest":[-1,9,-1], "head":[-2,4,4],
    "shL":[0,0], "shR":[0,0], "armL":[30,7,-95,28,36], "armR":[31,8,-95,24,-35],
@@ -9256,7 +9257,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[30,7,-95,28,36], "armR":[31,8,-95,24,-35],
    "legL":[-25,-8,-96,0,26], "legR":[15,-2,-99,31,11], "footL":[7,0,-4], "footR":[-8,5,14]}
 ]},
-"Walk_Loop": {"clip": "Walk_Loop", "src": "CMU_02", "take": "02_01 0.91-2.01", "dur": 1.1, "loop": true, "tags": ["walk"], "desc": "An everyday walk at a steady pace, arms swinging loosely. One stride cycle, in place", "keys": [
+"Walk_Loop": {"clip": "Walk_Loop", "src": "CMU_02", "take": "02_01 0.91-2.01", "dur": 1.1, "loop": true, "speed": 124, "tags": ["walk"], "desc": "An everyday walk at a steady pace, arms swinging loosely. One stride cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,101], "body":[4,-5,-2], "chest":[-5,9,5], "head":[-8,-14,-5],
    "shL":[0,0], "shR":[0,0], "armL":[4,5,-100,18,60], "armR":[35,10,-93,16,-34],
@@ -9526,7 +9527,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[12,16,-98,35,58], "armR":[18,32,-93,31,-2],
    "legL":[23,29,-93,11,-38], "legR":[-7,-40,-91,15,-130], "footL":[-18,-8,52], "footR":[-57,29,-24]}
 ]},
-"Wounded_Walk_Loop": {"clip": "Wounded_Walk_Loop", "src": "CMU_139", "take": "139_19 6.01-7.07", "dur": 1.067, "loop": true, "tags": ["walk","hurt"], "desc": "Limping on a wounded leg: a short careful step on the bad leg, a longer one on the good. One cycle, in place", "keys": [
+"Wounded_Walk_Loop": {"clip": "Wounded_Walk_Loop", "src": "CMU_139", "take": "139_19 6.01-7.07", "dur": 1.067, "loop": true, "speed": 71, "tags": ["walk","hurt"], "desc": "Limping on a wounded leg: a short careful step on the bad leg, a longer one on the good. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,86], "body":[-35,17,5], "chest":[-18,47,3], "head":[14,-2,-9],
    "shL":[0,0], "shR":[0,0], "armL":[66,-8,-75,66,-2], "armR":[67,-37,-64,46,31],
@@ -9596,7 +9597,7 @@
    "shL":[0,0], "shR":[0,0], "armL":[66,-8,-75,66,-2], "armR":[67,-37,-64,46,31],
    "legL":[9,26,-96,70,-1], "legR":[56,33,-76,70,-6], "footL":[-10,25,33], "footR":[-18,22,0]}
 ]},
-"Zombie_Walk_Loop": {"clip": "Zombie_Walk_Loop", "src": "CMU_120", "take": "120_22 5.65-7.05", "dur": 1.4, "loop": true, "tags": ["walk","zombie"], "desc": "A zombie's shamble: head and shoulders slumped forward, a dragging step, arms hanging. One cycle, in place", "keys": [
+"Zombie_Walk_Loop": {"clip": "Zombie_Walk_Loop", "src": "CMU_120", "take": "120_22 5.65-7.05", "dur": 1.4, "loop": true, "speed": 68, "tags": ["walk","zombie"], "desc": "A zombie's shamble: head and shoulders slumped forward, a dragging step, arms hanging. One cycle, in place", "keys": [
   {"t":0,
    "hips":[0,0,99], "body":[-5,11,-2], "chest":[4,-12,2], "head":[21,25,17],
    "shL":[0,-1], "shR":[0,1], "armL":[45,5,-89,44,16], "armR":[40,4,-92,60,6],
