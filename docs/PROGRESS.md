@@ -25,9 +25,6 @@ New content or polish: add data (themes, levels, families, affixes, uniques, tre
 check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
 ## Open issues
-- Vercel: PR #17's preview deployment failed within seconds, before building anything (a Markdown-only
-  change). The reason is only in the Vercel dashboard; until a deployment succeeds, the live
-  site stays on the last good build.
 - The HUD, inventory, passive tree and touch controls are invisible to the tools and headless
   captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
 - Older known issues and limits (engine rooms, browser build) are listed under "Known issues and
