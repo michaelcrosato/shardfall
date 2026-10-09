@@ -1,3 +1,4 @@
 # CLAUDE.md
 
-Read `AGENTS.md` (rules, architecture, tools) and `docs/PROGRESS.md` (current state) first.
+Read `docs/DOCTRINE.md` (principles), `AGENTS.md` (rules, architecture, tools) and
+`docs/PROGRESS.md` (current state) first.

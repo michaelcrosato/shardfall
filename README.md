@@ -17,7 +17,8 @@ buttons in the corner dodge, cast and drink.
 - Linux agent handoff: [`START_HERE.md`](START_HERE.md). Run `scripts/package-agent.sh`
   to create a standalone source archive and checksum in `out/agent/`.
 - Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state and decisions:
-  [`docs/PROGRESS.md`](docs/PROGRESS.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).
+  [`docs/PROGRESS.md`](docs/PROGRESS.md). Principles: [`docs/DOCTRINE.md`](docs/DOCTRINE.md).
+  Rules for agents working here: [`AGENTS.md`](AGENTS.md).
 
 ## The adventure
 A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `shardfall.exe`
