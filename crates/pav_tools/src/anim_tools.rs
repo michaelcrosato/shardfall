@@ -767,6 +767,9 @@ pub fn t_clips(_: &mut Session, a: &Args) -> Result<Output> {
             "tags": c.tags,
             "desc": c.desc,
             "keys": c.keys.len(),
+            "speed": c.speed,
+            // When a one-off's strike lands: what a captured attack is timed by.
+            "strike": (!c.looping).then(|| clips::strike_time(id)).flatten().map(|t| (t * 1000.0).round() / 1000.0),
             "fit_mm": set.fit.get(&c.clip),
             "source": { "label": src.get("label"), "license": src.get("license"), "url": src.get("url"), "origin": src.get("origin") },
             "credit": set.credit,

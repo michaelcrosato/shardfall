@@ -1172,10 +1172,13 @@ pub fn tick(
         ch.anim.climb_phase = 0.25;
     }
     // An idle clip plays while the character stands still with nothing to do; a walk clip
-    // while it heads forward on the ground, as fast as it moves.
-    if (!puppet.idle_clip.is_empty() || !puppet.walk_clip.is_empty()) && puppet.body == crate::puppet::BodyPlan::Biped {
+    // while it heads forward on the ground, as fast as it moves; a run clip instead once the
+    // walk would have to hurry (a monster giving chase).
+    if (!puppet.idle_clip.is_empty() || !puppet.walk_clip.is_empty() || !puppet.run_clip.is_empty())
+        && puppet.body == crate::puppet::BodyPlan::Biped
+    {
         let id_of = |n: &str| if n.is_empty() { 0 } else { crate::clips::find_cached(n) };
-        let (idle, walk) = (id_of(&puppet.idle_clip), id_of(&puppet.walk_clip));
+        let (idle, walk, run) = (id_of(&puppet.idle_clip), id_of(&puppet.walk_clip), id_of(&puppet.run_clip));
         let ground = Vec2::new(ch.vel.x, ch.vel.z).length();
         let free = ch.grounded
             && ch.anim.act_kind == 0
@@ -1185,20 +1188,37 @@ pub fn tick(
             && ch.posture == Posture::Stand
             && ch.anim.down <= 0.0;
         // A styled walk may be slow (an old man's shuffle is under 0.2 m/s): still is slower.
-        let still = if walk != 0 { 0.1 } else { 0.3 };
+        let still = if walk != 0 || run != 0 { 0.1 } else { 0.3 };
+        let moving = match (walk, run) {
+            // A run alone runs (a walk is the procedural one).
+            (0, r) => {
+                let p = crate::clips::pace(puppet, r).unwrap_or(4.0 * crate::clips::hip_height(puppet));
+                if ground > 0.6 * p { r } else { 0 }
+            }
+            (w, 0) => w,
+            (w, r) => {
+                if crate::clips::run_over_walk(puppet, w, r, ground, ch.anim.clip == r) {
+                    r
+                } else {
+                    w
+                }
+            }
+        };
         let want = if free && ground < still {
             idle
         } else if free && ch.anim.travel.abs() < 0.6 {
-            walk
+            moving
         } else {
             0
         };
-        let ours = ch.anim.clip == 0 || (ch.anim.clip == idle && idle != 0) || (ch.anim.clip == walk && walk != 0);
+        let mine = |c: u32| c != 0 && (c == idle || c == walk || c == run);
+        // Its own clips, and one fading out (an attack, a gesture) a walk can take over from.
+        let ours = ch.anim.clip == 0 || mine(ch.anim.clip) || ch.anim.clip_flags & crate::clips::STOP != 0;
         if ours {
             if want != 0 {
-                let rate = if want == walk { crate::clips::walk_rate(puppet, walk, ground) } else { 1.0 };
+                let rate = if want == walk || want == run { crate::clips::walk_rate(puppet, want, ground) } else { 1.0 };
                 ch.anim.play_clip(want, 0, rate);
-            } else if ch.anim.clip != 0 {
+            } else if mine(ch.anim.clip) {
                 ch.anim.stop_clip();
             }
         }

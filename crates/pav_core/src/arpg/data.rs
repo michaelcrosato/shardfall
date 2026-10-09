@@ -301,6 +301,15 @@ pub fn puppet_with(plan: BodyPlan, look: &toml::Table, scale: f32) -> Result<Pup
     toml::Value::Table(table).try_into().map_err(|e: toml::de::Error| e.to_string())
 }
 
+/// Every motion clip a look names is in the library (a misspelt one would quietly leave the
+/// procedural animation in its place).
+pub fn clips_known(owner: &str, def: &PuppetDef) -> Result<(), String> {
+    match crate::clips::missing(def).as_slice() {
+        [] => Ok(()),
+        names => Err(format!("{owner}: no clip {} (the clips tool lists them)", names.join(", "))),
+    }
+}
+
 /// Everything loaded.
 #[derive(Debug)]
 pub struct Data {
@@ -383,6 +392,7 @@ pub fn load() -> Result<Data, String> {
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
         f.puppet = puppet_with(f.body, &f.look, f.scale).map_err(|e| format!("monster '{k}': {e}"))?;
+        clips_known(&format!("monster '{k}'"), &f.puppet)?;
         for s in &f.skills {
             f.skill_ids.push(d.skill_id(s).ok_or_else(|| format!("monster '{k}': unknown skill '{s}'"))?);
         }
@@ -440,6 +450,19 @@ pub fn load() -> Result<Data, String> {
     d.tree = super::tree::Tree::build(&file, &names)?;
     let text = source("genome").ok_or("game/genome.toml is missing")?;
     d.genome = toml::from_str(&text).map_err(|e| format!("game/genome.toml: {e}"))?;
+    for (plan, g) in &d.genome.body {
+        let owner = format!("game/genome.toml [body.{plan}]");
+        let named =
+            g.idle_clips.iter().chain(g.gaits.iter().flatten()).chain(&g.death_clips).chain(g.attack_clips.values().flatten());
+        for n in named.map(|n| n.rsplit_once('@').map_or(n.as_str(), |(c, _)| c).trim()).filter(|n| !n.is_empty()) {
+            if crate::clips::find(n).is_none() {
+                return Err(format!("{owner}: no clip {n} (the clips tool lists them)"));
+            }
+        }
+        for skill in g.attack_clips.keys() {
+            d.skill_id(skill).ok_or_else(|| format!("{owner}: attack_clips for unknown skill '{skill}'"))?;
+        }
+    }
     for (k, mut a) in table::<super::genome::MonsterAffix>("monster_affixes")? {
         a.key = k.clone();
         for (s, v) in &a.mods {
@@ -465,7 +488,8 @@ pub fn load() -> Result<Data, String> {
         d.bosses.push(b);
     }
     for b in &d.bosses {
-        super::boss::boss_spec(&d, b, 10)?;
+        let spec = super::boss::boss_spec(&d, b, 10)?;
+        clips_known(&format!("boss '{}'", b.key), &spec.puppet)?;
     }
     for (k, mut t) in table::<super::world::ThemeDef>("themes")? {
         t.key = k.clone();

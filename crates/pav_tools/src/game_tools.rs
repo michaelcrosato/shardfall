@@ -1033,7 +1033,18 @@ pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
             Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
             None => first.ok_or_else(|| anyhow!("no skill to show"))?,
         };
-        (Motion::Act { anim: def.anim, hit: def.hit, side }, json!({ "skill": def.key, "move": def.anim.name() }))
+        // A biped with a captured attack for the skill strikes with it, as in the game.
+        let captured = (look.body == pav_core::puppet::BodyPlan::Biped)
+            .then(|| pav_core::clips::attack_clip(&look, &def.key))
+            .flatten()
+            .and_then(|(id, strike)| pav_core::clips::with(id, |c| (id, strike, c.dur)));
+        match captured {
+            Some((id, strike, dur)) => (
+                Motion::Clip { id, dur, flags: 0 },
+                json!({ "skill": def.key, "clip": pav_core::clips::library().name_of(id), "strike": strike, "seconds": dur }),
+            ),
+            None => (Motion::Act { anim: def.anim, hit: def.hit, side }, json!({ "skill": def.key, "move": def.anim.name() })),
+        }
     };
     let shots = creature_frames(s, look, frames, size, motion)?;
     let cols = get_u64(a, "columns", 8)? as u32;

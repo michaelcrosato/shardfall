@@ -88,6 +88,20 @@ pub const DODGE_TIME: f32 = 0.26;
 pub const DODGE_RECOVERY: f32 = 0.75;
 /// Hero base movement speed comes from `movement.speed`; monsters move at this share of it.
 pub const MONSTER_PACE: f32 = 0.78;
+/// Seconds a dead monster lies before it clears; one with a captured fall lies that long once
+/// down, sinking for `CORPSE_SINK` of them.
+pub const CORPSE_TIME: f32 = 1.7;
+pub const CORPSE_SINK: f32 = 0.4;
+
+/// How long a dead monster's body stays: 1.7 s, or a captured fall's time to the ground and a
+/// moment to sink.
+fn corpse_time(sim: &Sim, id: EntityId) -> f32 {
+    let def = sim.state.entities.get(id).and_then(|e| e.character.as_ref()).and_then(|c| c.puppet.as_deref());
+    match def.filter(|p| p.body == crate::puppet::BodyPlan::Biped).and_then(crate::clips::death_clip) {
+        Some((_, _, land)) => (land + CORPSE_SINK + 0.1).max(CORPSE_TIME),
+        None => CORPSE_TIME,
+    }
+}
 
 /// Captured falls the hero dies with, in turn (anim/*.json, from open motion libraries).
 pub const HERO_DEATHS: &[&str] =
@@ -649,6 +663,15 @@ impl Game {
                         }
                     }
                 }
+                // Wandering, a monster with a captured walk strolls at the walk's own pace, so its
+                // feet keep to the ground (giving chase, it runs flat out: a run loop keeps up).
+                let wandering = !a.brain.as_ref().is_some_and(|b| b.aggro) && inp.move_dir.length() > 0.01;
+                let pace = sim.state.entities.get(id).and_then(|e| e.character.as_ref()).and_then(|c| c.puppet.as_deref());
+                if let Some(p) = pace.and_then(crate::clips::walk_pace).filter(|_| wandering) {
+                    let top = sim.config.movement.speed * a.speed * a.sheet.move_speed * speed_k;
+                    let m = inp.move_dir.length();
+                    inp.move_dir *= (p / top.max(0.1)).clamp(m * 0.6, m * 1.6) / m;
+                }
                 if let Some((skill, target)) = dec.cast {
                     skills::try_cast(self, sim, id, skill, target);
                 }
@@ -816,7 +839,7 @@ impl Game {
         for (id, a) in self.actors.iter_mut() {
             if a.dead {
                 a.death_t += dt;
-                if a.team != Team::Hero && a.death_t > 1.7 {
+                if a.team != Team::Hero && a.death_t > corpse_time(sim, *id) {
                     gone.push(*id);
                 }
             }
@@ -861,13 +884,54 @@ impl Game {
                     } else {
                         0.0
                     };
+                    // A biped with a captured attack for the skill plays it over the move, timed
+                    // so the clip's strike lands on the hit (not channels and leaps: they keep
+                    // their moves).
+                    let attack = ch
+                        .puppet
+                        .as_deref()
+                        .filter(|p| p.body == crate::puppet::BodyPlan::Biped)
+                        .filter(|_| !matches!(def.behavior, Behavior::Channel | Behavior::Leap))
+                        .and_then(|p| crate::clips::attack_clip(p, &def.key));
+                    if let Some((clip, strike)) = attack {
+                        // Nearly its own speed: a short clip starts late (the move winds up
+                        // first), a long one part-way in, so the strike still lands on the hit.
+                        let rate = (strike / c.hit_at.max(0.05)).clamp(0.8, 1.6);
+                        let at = (c.t - c.hit_at) * rate + strike;
+                        let left = crate::clips::with(clip, |k| k.dur - crate::clips::FADE / 3.0 - at).unwrap_or(0.0);
+                        if at >= 0.0 && left > 0.0 && (ch.anim.clip != clip || (ch.anim.clip_t - at).abs() > 0.15) {
+                            ch.anim.replay_clip(clip, crate::clips::ONCE | crate::clips::QUICK, rate);
+                            ch.anim.clip_t = at;
+                        }
+                    }
                 }
                 None => {
                     ch.anim.set_action(crate::moves::MoveId::NONE, 0.0, 0.0, 1.0);
                     ch.anim.lift = 0.0;
+                    // The cast is over: a captured attack gives way (a walk takes over from it).
+                    if ch.puppet.as_deref().is_some_and(|p| crate::clips::is_attack(p, ch.anim.clip)) {
+                        ch.anim.stop_clip();
+                    }
                 }
             }
             ch.anim.down = if a.dead { (a.death_t / 0.9).min(1.0) } else { 0.0 };
+            // A monster with a captured fall dies with it: down as it falls (the clip lays the
+            // body down, no topple), then sinking as a toppled one does before it clears.
+            let fall = (a.team != Team::Hero)
+                .then(|| {
+                    ch.puppet.as_deref().filter(|p| p.body == crate::puppet::BodyPlan::Biped).and_then(crate::clips::death_clip)
+                })
+                .flatten();
+            if let (true, Some((clip, rate, land))) = (a.dead, fall) {
+                if ch.anim.clip != clip {
+                    ch.anim.play_clip(clip, crate::clips::QUICK, rate);
+                }
+                ch.anim.down = if a.death_t < land {
+                    0.5 * a.death_t / land
+                } else {
+                    0.5 + 0.5 * ((a.death_t - land) / CORPSE_SINK).min(1.0)
+                };
+            }
             // The hero falls with a captured death and lies still until rising again (monsters
             // topple: their bodies have to clear quickly).
             if a.team == Team::Hero && ch.puppet.as_ref().is_none_or(|p| p.body == crate::puppet::BodyPlan::Biped) {
@@ -878,6 +942,10 @@ impl Game {
                     ch.anim.play_clip(death, 0, 1.0);
                 } else if !a.dead && HERO_DEATHS.iter().any(|d| crate::clips::find_cached(d) == ch.anim.clip) {
                     ch.anim.stop_clip();
+                }
+                if a.dead && death != 0 {
+                    // Lying where it fell (the procedural sink is for bodies that clear).
+                    ch.anim.down = ch.anim.down.min(0.5);
                 }
             }
         }

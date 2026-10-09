@@ -53,6 +53,19 @@ The follow-up that brings the rest of the libraries in, and the formats they shi
   and LaFAN1 takes; `mocap cut ... way=`; `clip_import` reads .fbx, `log=N` for all its notes,
   `way=` and `whole` (a take that is one cycle already) in catalog picks; a catalog import leaves
   a pick it cannot cut out, with the reason, rather than failing.
+- **Monsters move in captured motion** (humanoid ones: the clips are human). A look's `run_clip`
+  takes over from its `walk_clip` above the pace between them, so a monster shambles while it
+  wanders (at its walk's own pace) and runs when it gives chase, its stride matched to the
+  ground either way. `attack_clips` names a captured attack per skill, played over the skill's
+  move and timed so the clip's strike (the moment a hand, or the blade's tip, reaches furthest
+  ahead; `clips name=` shows it) lands on the hit, at near its own speed. `death_clip` is a
+  captured fall: down within about 1.2 s, the body sinking and clearing after it. The ghoul
+  sways hunched, shambles, runs, rakes with both hands and is thrown off its feet; the
+  bonecrusher struts, brings its maul down overhead or sweeps it low; the Hollow King marches,
+  slashes and splits the earth with captured swordplay. Generated bipeds draw a gait (a walk
+  and its run), an idle, a fall and their skills' attacks from the genome (`game/genome.toml`),
+  out of a stream of their own so every other gene stays as it was. Game data names only clips
+  that exist (checked on load); `animsheet skill=` shows the captured attack.
 
 ## Animation: the engine translates open motion libraries itself — 2026-10-09
 my-3D2dge's raw-capture importer (tools/anim-import.mjs, asf-amc.mjs, cmu.mjs and the encoding
@@ -107,6 +120,7 @@ engine's own tools instead of through the other engine's conversions:
   100STYLE's other gaits (backward, sideways, running, idles): `mocap cut=Old_FR loop=true` cuts
   any of them; the whole-database CMU survey (the ledger, anim/cmu's 4,770 clips) is still the one
   my-3D2dge's cmu.mjs made, while single takes and catalogs go through the native tools.
+  (All of it done in the follow-up above.)
 
 ## Animation: moves as data, and motion clips from open libraries — 2026-10-09
 Compared the puppet with my-3D2dge's (the same approach: a skeleton posed by math, two-bone IK,
@@ -159,7 +173,8 @@ functions, state saved with the simulation, tools):
 - New field-guide words: motion capture, retargeting, key pose, anticipation.
 - Tests: `tests/motion.rs` (9), unit tests in moves.rs and clips.rs.
 - Not done: a native importer for raw captures (BVH, glTF, ASF/AMC: the sets were translated from
-  my-3D2dge's fitted conversions); cloth capes (still three cones); monsters with clips.
+  my-3D2dge's fitted conversions); cloth capes (still three cones); monsters with clips. (The
+  importer and monsters in captured motion came after: see above.)
 
 ## Fix: slides stopping dead on flat floors, treadmill walkers — 2026-10-08
 - **Not floor seams.** Slalom's floor is a single block. Rapier's character controller sometimes

@@ -33,6 +33,8 @@ pub const TRAVEL: u8 = 4;
 pub const STOP: u8 = 8;
 /// Fades out by itself when the clip ends (one-shot gestures over the procedural animation).
 pub const ONCE: u8 = 16;
+/// Play flag: fade in and out three times as fast (an attack's wind-up is short).
+pub const QUICK: u8 = 32;
 
 /// Seconds a clip takes to fade in or out.
 pub const FADE: f32 = 0.25;
@@ -461,6 +463,99 @@ pub fn walk_pace(def: &PuppetDef) -> Option<f32> {
     pace(def, find_cached(&def.walk_clip))
 }
 
+/// Which of a walk and a run loop keeps pace with `ground_speed` (m/s): the run above the pace
+/// between theirs (their geometric mean, so each covers the same share of speeds), a little
+/// past it once one is playing (`running`), so a speed near the line doesn't flicker. A clip
+/// that doesn't say how fast it went counts as an ordinary walk (1.4 hip heights a second) or
+/// run (4).
+pub fn run_over_walk(def: &PuppetDef, walk: u32, run: u32, ground_speed: f32, running: bool) -> bool {
+    let hh = hip_height(def);
+    let (w, r) = (pace(def, walk).unwrap_or(1.4 * hh), pace(def, run).unwrap_or(4.0 * hh));
+    let mid = (w * r).sqrt();
+    ground_speed > mid * if running { 0.87 } else { 1.15 }
+}
+
+static STRIKES: std::sync::Mutex<Option<HashMap<u32, f32>>> = std::sync::Mutex::new(None);
+
+/// When a clip's strike lands (seconds): the moment a hand reaches furthest ahead of the
+/// hips (the weapon's tip, for a clip that holds a blade; a foot, for a clip tagged `kick`).
+/// Measured once a clip.
+pub fn strike_time(id: u32) -> Option<f32> {
+    if let Some(&t) = STRIKES.lock().unwrap().as_ref().and_then(|m| m.get(&id)) {
+        return Some(t);
+    }
+    let t = measure_strike(id)?;
+    STRIKES.lock().unwrap().get_or_insert_with(HashMap::new).insert(id, t);
+    Some(t)
+}
+
+fn measure_strike(id: u32) -> Option<f32> {
+    with(id, |c| {
+        let def = PuppetDef::default();
+        let kick = c.tags.iter().any(|t| t == "kick");
+        let blade = c.keys.iter().any(|k| k.blade.is_some());
+        let (mut best, mut at) = (f32::NEG_INFINITY, 0.0);
+        let n = (c.dur * 60.0).ceil().max(1.0) as usize;
+        for i in 0..=n {
+            let t = c.dur * i as f32 / n as f32;
+            let s = skel(&def, &c.key_at(t), false);
+            let ends = if kick { s.ankle } else { s.hand };
+            let mut reach = ends.iter().map(|p| p.z - s.pelvis.z).fold(f32::NEG_INFINITY, f32::max);
+            if blade {
+                reach = reach.max((s.hand[1] + s.weapon * 0.9).z - s.pelvis.z);
+            }
+            if reach > best {
+                (best, at) = (reach, t);
+            }
+        }
+        at
+    })
+}
+
+/// A clip name and the strike time written after it (`SET/Clip@0.4`).
+fn split_at_sign(name: &str) -> (&str, Option<f32>) {
+    match name.rsplit_once('@') {
+        Some((n, t)) => (n.trim(), t.trim().parse::<f32>().ok()),
+        None => (name.trim(), None),
+    }
+}
+
+/// A puppet's captured attack for skill `skill`: the clip and when its strike lands (seconds;
+/// `SET/Clip@0.4` says so outright).
+pub fn attack_clip(def: &PuppetDef, skill: &str) -> Option<(u32, f32)> {
+    let (clip, at) = split_at_sign(def.attack_clips.get(skill)?);
+    let id = find_cached(clip);
+    if id == 0 {
+        return None;
+    }
+    Some((id, at.or_else(|| strike_time(id))?))
+}
+
+/// Whether clip `id` is one of a puppet's captured attacks.
+pub fn is_attack(def: &PuppetDef, id: u32) -> bool {
+    id != 0 && def.attack_clips.values().any(|n| find_cached(split_at_sign(n).0) == id)
+}
+
+/// A puppet's captured death: the clip, how fast to play it, and when it has the body down
+/// (seconds). A monster's body clears soon after it falls, so a long fall plays up to half as
+/// fast again, to be down within about 1.2 s.
+pub fn death_clip(def: &PuppetDef) -> Option<(u32, f32, f32)> {
+    if def.death_clip.is_empty() {
+        return None;
+    }
+    let id = find_cached(&def.death_clip);
+    let dur = with(id, |c| c.dur)?;
+    let rate = (dur / 1.2).clamp(1.0, 1.5);
+    Some((id, rate, dur / rate))
+}
+
+/// Every clip a puppet names that the library doesn't have (data checks).
+pub fn missing(def: &PuppetDef) -> Vec<String> {
+    let mut names: Vec<&str> = vec![&def.idle_clip, &def.walk_clip, &def.run_clip, &def.death_clip];
+    names.extend(def.attack_clips.values().map(|n| split_at_sign(n).0));
+    names.into_iter().map(str::trim).filter(|n| !n.is_empty() && find(n).is_none()).map(str::to_string).collect()
+}
+
 pub fn skel(def: &PuppetDef, k: &Key, travel: bool) -> Skel {
     let sc = def.scale;
     let leg = def.leg_length * sc;
@@ -740,6 +835,7 @@ pub fn reload() -> Result<(usize, usize), String> {
     let n = (l.sets.len(), l.len());
     *LIB.write().unwrap() = Some(Arc::new(l));
     *NAMES.lock().unwrap() = None;
+    *STRIKES.lock().unwrap() = None;
     Ok(n)
 }
 
@@ -772,6 +868,8 @@ pub fn load_folder(sub: &str) -> Result<(usize, usize), String> {
     }
     let added = lib.len() - before;
     *LIB.write().unwrap() = Some(Arc::new(lib));
+    *NAMES.lock().unwrap() = None;
+    *STRIKES.lock().unwrap() = None;
     Ok((sets, added))
 }
 

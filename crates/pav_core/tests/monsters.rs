@@ -1,6 +1,7 @@
 //! Shardfall monsters: generated creatures of every archetype spawn and fight, bombers burst,
 //! summoners call broods, rares carry affixes, bosses move through their phases, the arena's
 //! tenth wave is a boss, the Menagerie shows and releases creatures, and rewind stays exact.
+//! Humanoid monsters move, strike and fall in captured motion.
 
 use glam::Vec3;
 use pav_core::arpg::combat::{Rarity, Team};
@@ -189,4 +190,107 @@ fn rewind_is_exact_with_generated_monsters() {
     assert!(sim.rewind_to(tick));
     assert_eq!(sim.state_hash(), hash);
     assert!(game(&sim).actors.values().filter(|a| a.team == Team::Monster).count() >= 4);
+}
+
+/// A ghoul in its captured motion: shambling as it wanders, at about the walk's own pace;
+/// running when it gives chase, as fast as it goes; clawing with the clip's strike on the hit;
+/// falling with its captured death, and clearing only once down.
+#[test]
+fn a_ghoul_moves_and_fights_in_captured_motion() {
+    use pav_core::clips;
+    let d = data();
+    let spec = d.family("ghoul").unwrap().spec();
+    let def = spec.puppet.clone();
+    let id_of = |n: &str| clips::find(n).unwrap_or_else(|| panic!("no clip {n}"));
+    let (idle, walk, run) = (id_of(&def.idle_clip), id_of(&def.walk_clip), id_of(&def.run_clip));
+    let (scratch, strike) = clips::attack_clip(&def, "claw").expect("a captured claw");
+    let mut sim = arena(84);
+    // Out of the hero's sight: it wanders.
+    let home = hero_feet(&sim) + Vec3::new(0.0, 0.0, -17.0);
+    let mut gm = sim.state.game.take().unwrap();
+    let id = pav_core::arpg::spawn_spec_into(&mut sim, &mut gm, &spec, 10, Rarity::Normal, home, 11).unwrap();
+    sim.state.game = Some(gm);
+    let ch = |sim: &Sim| sim.state.entities.get(id).and_then(|e| e.character.clone());
+    let ground = |c: &pav_core::character::Character| glam::Vec2::new(c.vel.x, c.vel.z).length();
+    let (mut rates, mut idled) = (Vec::new(), 0);
+    for _ in 0..60 * 12 {
+        sim.step(&InputFrame::default());
+        let c = ch(&sim).unwrap();
+        let g = ground(&c);
+        if c.anim.clip == walk && c.anim.clip_w > 0.99 && g > 0.5 {
+            let rate = c.anim.clip_speed;
+            assert!((rate - g / clips::pace(&def, walk).unwrap()).abs() < 0.05, "as fast as it moves: {rate} at {g} m/s");
+            rates.push(rate);
+        }
+        idled += (c.anim.clip == idle) as u32;
+    }
+    rates.sort_by(f32::total_cmp);
+    let typical = rates.get(rates.len() / 2).copied().unwrap_or(0.0);
+    assert!(rates.len() > 30 && idled > 30, "wanders and waits: walked {} ticks, idled {idled}", rates.len());
+    assert!((0.9..1.4).contains(&typical), "wandering near the walk's own pace: {typical}");
+    // Woken (inside the ring of pillars, where nothing stands between them), it gives chase
+    // at a run and claws.
+    let near = hero_feet(&sim) + Vec3::new(0.0, 1.0, -9.0);
+    sim.set_position(id, near);
+    sim.state.game.as_mut().unwrap().actors.get_mut(&id).unwrap().brain.as_mut().unwrap().aggro = true;
+    let (mut ran, mut struck) = (0, 0);
+    for _ in 0..60 * 10 {
+        sim.step(&InputFrame::default());
+        let c = ch(&sim).unwrap();
+        let g = ground(&c);
+        if c.anim.clip == run && c.anim.clip_w > 0.99 && g > 3.0 {
+            ran += 1;
+            assert!((c.anim.clip_speed - g / clips::pace(&def, run).unwrap()).abs() < 0.05, "runs as fast as it goes");
+        }
+        let a = &game(&sim).actors[&id];
+        if let Some(cast) = a.cast.as_ref().filter(|k| d.skill(k.skill).key == "claw") {
+            if c.anim.clip == scratch && c.anim.clip_flags & clips::STOP == 0 {
+                // The clip keeps to the cast: its strike is due when the hit is.
+                let rate = (strike / cast.hit_at).clamp(0.8, 1.6);
+                let want = (cast.t - cast.hit_at) * rate + strike;
+                assert!((c.anim.clip_t - want).abs() < 0.06, "clip at {} s, due at {want} s", c.anim.clip_t);
+                struck += ((cast.t - cast.hit_at).abs() < 1.0 / 60.0) as u32;
+            }
+        }
+    }
+    assert!(ran > 20 && struck > 0, "gives chase at a run ({ran} ticks) and claws ({struck} strikes on the hit)");
+    // Killed, it falls with its captured death and clears only once down, sunk.
+    let (fall, _, land) = clips::death_clip(&def).unwrap();
+    sim.state.game.as_mut().unwrap().actors.get_mut(&id).unwrap().life = -1e6;
+    let (mut t, mut down) = (0.0f32, 0.0f32);
+    while game(&sim).actors.contains_key(&id) {
+        sim.step(&InputFrame::default());
+        t += 1.0 / 60.0;
+        if let Some(c) = ch(&sim) {
+            if t < land {
+                assert_eq!(c.anim.clip, fall, "falling at {t} s");
+            }
+            down = c.anim.down;
+        }
+        assert!(t < 5.0, "the body clears");
+    }
+    assert!(t > land && down > 0.9, "clears once down ({t} s, down at {land} s) and sunk ({down})");
+}
+
+/// Generated humanoid monsters draw captured motion from the genome: a walk with the run it
+/// breaks into, or neither; every clip a real one.
+#[test]
+fn generated_bipeds_move_in_captured_motion() {
+    use pav_core::clips;
+    use pav_core::puppet::BodyPlan;
+    let d = data();
+    let (mut walking, mut striking, mut falling) = (0, 0, 0);
+    for seed in 0..40 {
+        let opts = GenomeOpts { body: Some(BodyPlan::Biped), ..Default::default() };
+        let p = Genome::generate(&d, seed, 10, &opts).unwrap().spec(&d).puppet;
+        assert!(clips::missing(&p).is_empty(), "seed {seed}: {:?}", clips::missing(&p));
+        assert_eq!(p.walk_clip.is_empty(), p.run_clip.is_empty(), "seed {seed}: a walk and its run");
+        walking += !p.walk_clip.is_empty() as u32;
+        striking += !p.attack_clips.is_empty() as u32;
+        falling += !p.death_clip.is_empty() as u32;
+    }
+    assert!(walking > 20 && striking > 10 && falling > 25, "walking {walking}, striking {striking}, falling {falling}");
+    let spider = Genome::generate(&d, 3, 10, &GenomeOpts { body: Some(BodyPlan::Spider), ..Default::default() }).unwrap();
+    let p = spider.spec(&d).puppet;
+    assert!(p.walk_clip.is_empty() && p.attack_clips.is_empty(), "only bipeds wear human motion");
 }

@@ -209,7 +209,12 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import m
   at=1.5-2.6 name=Jab set=MINE` (or `loop=true`: the best cycle; `way=`) fits one moment into
   anim/<set>.json. Room NPCs perform with `clips = [...]` / `moves = [...]`; any
   look's `idle_clip` plays while standing still and `walk_clip` (a walk loop that records its
-  `speed`, e.g. STYLE100/Old_Walk) while walking, at the rate its stride matches the ground;
+  `speed`, e.g. STYLE100/Old_Walk) while walking, at the rate its stride matches the ground,
+  `run_clip` above the pace between the two; `death_clip` is a captured fall and `attack_clips
+  = { claw = "QUATERNIUS/Zombie_Scratch" }` captured attacks by skill, timed so the clip's
+  strike (shown by `clips name=`; `@seconds` after the name overrides it) lands on the hit
+  (bipeds: game/monsters.toml and bosses.toml looks, and the genome's biped `gaits`,
+  `idle_clips`, `death_clips`, `attack_clips`; `animsheet family=ghoul skill=claw` shows one);
   `anim.tempo` / `anim.mirror` steer performers.
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
 - `signal name=drop` fires spawners listening for a pad signal (no need to walk onto the pad).
@@ -290,7 +295,9 @@ spawner pads, rewind with soft bodies; its room is `tests/physics_room.toml`, a 
 of every physics feature) and `tests/rooms.rs` (every room file builds; courses complete).
 `tests/motion.rs` (clips decode like the format's reference player, every embedded clip plays
 cleanly, a set file round-trips, fades, chained moves, kicks, performers, idle clips, the hero's
-captured death, walkers and villagers keeping their styles' pace); `crates/pav_tools/tests/mocap.rs`
+captured death, walkers and villagers keeping their styles' pace); `tests/monsters.rs` also has
+a ghoul shambling, running, clawing and falling in captured motion and generated bipeds drawing
+theirs from the genome; `crates/pav_tools/tests/mocap.rs`
 (a glTF rig and a CMU take translate number for number like my-3D2dge's importer, whose output is
 in tests/fixtures/mocap; the CMU survey measures a take as the committed ledger says; a BVH walk
 cuts into a loop that closes; a sidestep take gives a loop each way, facing forward; an FBX file

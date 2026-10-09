@@ -14,7 +14,23 @@ body = "biped"
 archetype = "melee"
 skills = ["claw"]
 speed = 1.05
-look = { skin = "#9aa883", shirt = "#3e4a33", pants = "#2a3024", shoes = "#1d211a", eyes = "#ffe066", lean = 1.6, arm_swing = 1.2, head_radius = 0.19 }
+
+[ghoul.look]
+skin = "#9aa883"
+shirt = "#3e4a33"
+pants = "#2a3024"
+shoes = "#1d211a"
+eyes = "#ffe066"
+lean = 1.6
+arm_swing = 1.2
+head_radius = 0.19
+# Captured motion (anim/*.json): it sways hunched, shambles while it wanders, breaks into a
+# run to chase, claws with both hands and is thrown off its feet when it dies.
+idle_clip = "QUATERNIUS/Zombie_Idle_Loop"
+walk_clip = "QUATERNIUS/Zombie_Walk_Fwd_Loop"
+run_clip = "QUATERNIUS/Jog_Fwd_Loop"
+death_clip = "MESH2MOTION/Death_B"
+attack_clips = { claw = "QUATERNIUS/Zombie_Scratch" }
 
 [bonecrusher]
 name = "Bonecrusher"
@@ -26,7 +42,22 @@ life = 2.8
 damage = 1.7
 speed = 0.75
 xp = 2.5
-look = { skin = "#c9b79a", shirt = "#5a3a2a", pants = "#3a2a20", eyes = "#ff5a3a", torso_radius = 0.26, shoulder_width = 0.3, weapon = { kind = "maul", color = "#6a6a72", grip = "#3a2a1a" } }
+
+[bonecrusher.look]
+skin = "#c9b79a"
+shirt = "#5a3a2a"
+pants = "#3a2a20"
+eyes = "#ff5a3a"
+torso_radius = 0.26
+shoulder_width = 0.3
+weapon = { kind = "maul", color = "#6a6a72", grip = "#3a2a1a" }
+# A muscle-bound strut, a heavy run, the maul brought down overhead (smash) or swept low
+# (claw), and a stagger before it falls.
+idle_clip = "QUATERNIUS/Sword_Idle"
+walk_clip = "STYLE100/Heavyset_Walk"
+run_clip = "CMU/Run_Loop"
+death_clip = "MESH2MOTION/Death_D"
+attack_clips = { smash = "QUATERNIUS/Sword_Regular_C", claw = "QUATERNIUS/Sword_Regular_B" }
 
 [skitterer]
 name = "Skitterer"
