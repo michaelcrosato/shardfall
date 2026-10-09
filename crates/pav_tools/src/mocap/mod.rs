@@ -5,7 +5,11 @@
 //! - `readable`: the encoder: a body's measurements, key poses from captured points, fitting.
 //! - `glb`: libraries in glTF binary (Quaternius, Mesh2Motion: Rigify and Unreal-style rigs).
 //! - `acclaim`: the CMU database's skeleton and motion files (.asf, .amc).
-//! - `bvh`: BioVision files (100STYLE; the MotionBuilder names Mixamo and LaFAN1 use).
+//! - `cmu`: the whole CMU database: every take downloaded, measured into the ledger, and
+//!   translated into a set a subject.
+//! - `bvh`: BioVision files (100STYLE; the MotionBuilder names Mixamo and LaFAN1 use; Bandai
+//!   Namco's; Unreal and Rigify names).
+//! - `fbx`: Autodesk FBX, binary: a skeleton's animation stacks, read as BVH takes.
 //! - `takes`: moments cut out of long captures (loops cut at their best cycle).
 //! - `fetch`: downloads, including single files out of a zip archive on the web.
 //!
@@ -14,6 +18,8 @@
 
 pub mod acclaim;
 pub mod bvh;
+pub mod cmu;
+pub mod fbx;
 pub mod fetch;
 pub mod glb;
 pub mod readable;
@@ -318,20 +324,51 @@ fn file_name(p: &Path) -> String {
 }
 
 /// Libraries in glTF binary files (`ids`: each one's source id, else its file name; `rests`:
-/// each one's rest-pose clip).
+/// each one's rest-pose clip; `rm`: each one's root-motion twin, the same clips with the root's
+/// travel baked in, as Quaternius ships them: its loops lend the in-place loops their speed, and
+/// its other clips that travel are added as `<clip>_RM`).
 pub fn glb_libraries(
     files: &[PathBuf],
     ids: &[String],
     rests: &[String],
+    rm: &[PathBuf],
     cat: &Catalog,
     fps: f64,
     log: &mut Vec<String>,
 ) -> Result<Vec<Library>> {
     let mut out = Vec::new();
     for (i, f) in files.iter().enumerate() {
-        let lib = glb::read(f, fps)?;
-        log.extend(lib.notes);
+        let mut lib = glb::read(f, fps)?;
+        log.extend(std::mem::take(&mut lib.notes));
         let file = file_name(f);
+        if let Some(twin) = rm.get(i).filter(|p| !p.as_os_str().is_empty()) {
+            let t = glb::read(twin, fps)?;
+            // How far a clip's root travels from its first frame to its last (mm).
+            let dist = |c: &Cap| {
+                c.travel.as_ref().map_or(0.0, |m| {
+                    let n = m.len() / 2;
+                    readable::hypot(&[(m[2 * n - 2] - m[0]) as f64, (m[2 * n - 1] - m[1]) as f64])
+                })
+            };
+            let (mut speeds, mut added) = (0, 0);
+            for tc in &t.clips {
+                let Some(main) = lib.clips.iter_mut().find(|c| c.name == tc.name) else { continue };
+                let d = dist(tc);
+                if main.looping {
+                    if d > 0.0 {
+                        main.stride = Some(d);
+                        speeds += 1;
+                    }
+                } else if d > 50.0 {
+                    added += 1;
+                    lib.clips.push(Cap { name: format!("{}_RM", tc.name), ..tc.clone() });
+                }
+            }
+            log.push(format!(
+                "{file}: {speeds} loops take their speed from {}, {added} clips that travel added as _RM",
+                file_name(twin)
+            ));
+        }
         let id = ids.get(i).filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| {
             let lower = file.to_lowercase();
             if lower.ends_with(".glb") { file[..file.len() - 4].to_string() } else { file.clone() }
@@ -384,6 +421,14 @@ impl Ledger {
 /// The databases the importer cuts moments from.
 pub const CMU: &str = "cmu";
 pub const STYLE100: &str = "100style";
+pub const BANDAI: &str = "bandai";
+pub const LAFAN1: &str = "lafan1";
+
+/// Libraries whose licences forbid sharing what is made from them (non-commercial; LaFAN1 no
+/// derivatives either): translated for this machine only, into anim/local (not committed).
+pub fn local_only(library: &str) -> bool {
+    matches!(library, BANDAI | LAFAN1)
+}
 
 /// Where a library came from, for the sources of a set made with `mocap cut`.
 pub fn about(library: &str) -> Map<String, Value> {
@@ -393,6 +438,18 @@ pub fn about(library: &str) -> Map<String, Value> {
             "origin": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu). The database was created with funding from NSF EIA-0196217.",
             "license": "free for all uses (may be copied, modified, or redistributed without permission)",
             "url": "http://mocap.cs.cmu.edu/",
+        }),
+        BANDAI => serde_json::json!({
+            "label": "Bandai Namco Research motion dataset",
+            "origin": "Bandai-Namco-Research-Motiondataset (Bandai Namco Research Inc.): three professional actors captured in 15 styles (Kobayashi et al., Motion Capture Dataset for Practical Use of AI-based Motion Editing and Stylization, 2023)",
+            "license": "CC BY-NC 4.0 (non-commercial use only; credit Bandai Namco Research Inc.): translated for this machine, not shared",
+            "url": "https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset",
+        }),
+        LAFAN1 => serde_json::json!({
+            "label": "LaFAN1",
+            "origin": "Ubisoft La Forge Animation Dataset (LaFAN1): 5 subjects, 77 sequences, 4.6 hours (Harvey et al., Robust Motion In-Betweening, SIGGRAPH 2020)",
+            "license": "CC BY-NC-ND 4.0 (non-commercial use only, nothing made from it shared; credit Ubisoft La Forge): translated for this machine, not shared",
+            "url": "https://github.com/ubisoft/ubisoft-laforge-animation-dataset",
         }),
         _ => serde_json::json!({
             "label": "100STYLE",
@@ -404,9 +461,16 @@ pub fn about(library: &str) -> Map<String, Value> {
     v.as_object().cloned().unwrap_or_default()
 }
 
-/// The database a take belongs to: CMU takes are SUBJECT_TRIAL (`13_29`), 100STYLE's
-/// STYLE_GAIT (`Neutral_FW`).
+/// The database a take belongs to: CMU takes are SUBJECT_TRIAL (`13_29`), Bandai Namco's
+/// dataset-N_CONTENT_STYLE_ID (`dataset-1_walk_happy_001`), LaFAN1's THEMEn_subjectN
+/// (`walk1_subject1`), 100STYLE's STYLE_GAIT (`Neutral_FW`).
 pub fn library_of(take: &str) -> &'static str {
+    if take.starts_with("dataset-1_") || take.starts_with("dataset-2_") {
+        return BANDAI;
+    }
+    if take.rsplit_once("_subject").is_some_and(|(_, n)| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit())) {
+        return LAFAN1;
+    }
     match take.split_once('_') {
         Some((a, b)) if a.bytes().all(|c| c.is_ascii_digit()) && b.bytes().all(|c| c.is_ascii_digit()) => CMU,
         _ => STYLE100,
@@ -449,6 +513,42 @@ pub fn style100_get(takes: &[String], dir: &Path) -> Result<Vec<PathBuf>> {
             .find(|e| e.name == name)
             .ok_or_else(|| anyhow!("100STYLE has no take {t} (styles hold BR BW FR FW ID SR SW TR1 TR2 TR3 ...)"))?;
         std::fs::write(p, zip.read(e)?)?;
+    }
+    Ok(want.into_iter().map(|(_, p)| p).collect())
+}
+
+const BANDAI_RAW: &str =
+    "https://raw.githubusercontent.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset/master/dataset";
+pub const LAFAN1_ZIP: &str =
+    "https://media.githubusercontent.com/media/ubisoft/ubisoft-laforge-animation-dataset/master/lafan1/lafan1.zip";
+
+/// Downloads BVH takes of a database (100STYLE, Bandai Namco, LaFAN1) into `dir`, kept when
+/// already there. Returns their paths.
+pub fn bvh_get(library: &str, takes: &[String], dir: &Path) -> Result<Vec<PathBuf>> {
+    let want: Vec<(String, PathBuf)> = takes.iter().map(|t| (t.clone(), dir.join(format!("{t}.bvh")))).collect();
+    match library {
+        BANDAI => {
+            for (t, p) in &want {
+                let n = if t.starts_with("dataset-2_") { 2 } else { 1 };
+                fetch::get(&format!("{BANDAI_RAW}/Bandai-Namco-Research-Motiondataset-{n}/data/{t}.bvh"), p)?;
+            }
+        }
+        LAFAN1 if want.iter().any(|(_, p)| !p.exists()) => {
+            // One take's bytes out of the 144 MB archive.
+            let zip = fetch::RemoteZip::open(LAFAN1_ZIP)?;
+            std::fs::create_dir_all(dir)?;
+            for (t, p) in want.iter().filter(|(_, p)| !p.exists()) {
+                let file = format!("{t}.bvh");
+                let e = zip
+                    .entries
+                    .iter()
+                    .find(|e| e.name.rsplit('/').next() == Some(file.as_str()))
+                    .ok_or_else(|| anyhow!("LaFAN1 has no take {t} (THEMEn_subjectN: walk1_subject1, run2_subject4 ...)"))?;
+                std::fs::write(p, zip.read(e)?)?;
+            }
+        }
+        LAFAN1 => {}
+        _ => return style100_get(takes, dir),
     }
     Ok(want.into_iter().map(|(_, p)| p).collect())
 }
@@ -552,8 +652,9 @@ pub fn style100_takes(dir: &Path) -> Result<Vec<String>> {
     Ok(names)
 }
 
-/// A pick from a catalog line `[take, from, to, shortest cycle]`; a take alone plays the
-/// stretch where it moves (the ledger's `active`).
+/// A pick from a catalog line `[take, from, to, shortest cycle, way]`; a take alone plays the
+/// stretch where it moves (the ledger's `active`). `way` (forward, back, left, right) finds a
+/// loop's stretch going that way of where the hips face; `whole`: the stretch is the loop.
 pub fn pick_of(name: &str, v: &Value, cat: &Catalog, ledger: &Ledger) -> Result<Pick> {
     let a = v.as_array().ok_or_else(|| anyhow!("$pick {name}: [take, from, to] expected"))?;
     let take = a.first().and_then(|t| t.as_str()).ok_or_else(|| anyhow!("$pick {name}: no take"))?.to_string();
@@ -571,7 +672,13 @@ pub fn pick_of(name: &str, v: &Value, cat: &Catalog, ledger: &Ledger) -> Result<
     let fps =
         ledger.get(&take, "fps").and_then(|f| f.parse().ok()).unwrap_or(if library_of(&take) == CMU { 120.0 } else { 60.0 });
     let looping = cat.entry(name).is_some_and(|e| e.tags.iter().any(|t| t == "loop"));
-    let find = style100_find(&take, looping);
+    // A way to go (forward, back, left, right), or `whole`: the take is one cycle already.
+    let way = a.get(4).and_then(|w| w.as_str());
+    let find = match way {
+        Some("whole") => Some(Find::Whole),
+        Some(w) => Some(Find::Going(takes::Way::parse(w).ok_or_else(|| anyhow!("$pick {name}: way {w}?"))?)),
+        None => style100_find(&take, looping),
+    };
     let min_cycle = num(3).or(style100_min_cycle(&take, looping));
     Ok(Pick { name: name.to_string(), take, from, to, min_cycle, fps, looping, find })
 }
@@ -582,13 +689,15 @@ pub fn style100_min_cycle(take: &str, looping: bool) -> Option<f64> {
 }
 
 /// How a 100STYLE loop with no stretch given finds one: an idle (`_ID`) its still stretch, a
-/// gait its longest straight run (the performer walks back and forth, turning at each end).
+/// gait its longest straight run (the performer walks back and forth, turning at each end;
+/// backward, `_BW` and `_BR`, and never doubling back).
 pub fn style100_find(take: &str, looping: bool) -> Option<Find> {
     if !looping || library_of(take) != STYLE100 {
         return None;
     }
     match take.rsplit_once('_').map(|(_, g)| g) {
         Some("ID") => Some(Find::Still),
+        Some("BW" | "BR") => Some(Find::Going(takes::Way::Back)),
         Some(g) if g.starts_with("TR") => None,
         _ => Some(Find::Straight),
     }
@@ -631,7 +740,8 @@ pub fn cmu_libraries(
         for (t, (_, amc)) in &paths {
             takes.insert(t.clone(), Box::new(subject.take(&read(amc)?).map_err(|e| anyhow!("{t}.amc: {e}"))?));
         }
-        let clips = takes::cut(&subject.body, &takes, &picks, fps, log)?;
+        // A catalog's many picks: one that cannot be cut is left out (logged), not all of them.
+        let clips = if picks.len() > 1 { takes::cut_lenient } else { takes::cut }(&subject.body, &takes, &picks, fps, log)?;
         let n: u64 = s.parse().unwrap_or(0);
         let id = format!("CMU_{n:02}");
         let about = cat.sources.get("CMU").and_then(|v| v.as_object()).map(|base| {
@@ -663,17 +773,53 @@ pub fn bvh_library(
     fps: f64,
     log: &mut Vec<String>,
 ) -> Result<Library> {
-    let mut rigged: Vec<(String, bvh::Rigged)> = Vec::new();
+    let mut parsed: Vec<(String, bvh::Bvh)> = Vec::new();
     for p in picks {
-        if rigged.iter().any(|(t, _)| *t == p.take) {
+        if parsed.iter().any(|(t, _)| *t == p.take) {
             continue;
         }
         let path = files.get(&p.take).ok_or_else(|| anyhow!("{}: no file for take {}", p.name, p.take))?;
         let text = std::fs::read_to_string(path).map_err(|e| anyhow!("{}: {e}", path.display()))?;
-        let r = bvh::Rigged::new(bvh::Bvh::parse(&text).map_err(|e| anyhow!("{}: {e}", path.display()))?, units)?;
-        rigged.push((p.take.clone(), r));
+        parsed.push((p.take.clone(), bvh::Bvh::parse(&text).map_err(|e| anyhow!("{}: {e}", path.display()))?));
     }
-    let Some(first) = rigged.first().map(|(_, r)| r) else { bail!("no takes") };
+    takes_library(id, &format!("{id}.bvh"), picks, parsed, about, units, fps, log)
+}
+
+/// Parsed takes of one skeleton (BVH files, an FBX file's stacks) as a library: the body placed
+/// on each, measured standing, and the picks cut.
+#[allow(clippy::too_many_arguments)]
+pub fn takes_library(
+    id: &str,
+    file: &str,
+    picks: &[Pick],
+    parsed: Vec<(String, bvh::Bvh)>,
+    about: Option<Map<String, Value>>,
+    units: Option<f64>,
+    fps: f64,
+    log: &mut Vec<String>,
+) -> Result<Library> {
+    let mut rigged: Vec<(String, bvh::Rigged)> = Vec::new();
+    for (t, b) in parsed {
+        rigged.push((t.clone(), bvh::Rigged::new(b, units).map_err(|e| anyhow!("{t}: {e}"))?));
+    }
+    if rigged.is_empty() {
+        bail!("no takes");
+    }
+    // Takes of one skeleton share the rest of the take that stands straightest (a run never
+    // stands still; a bow does), when their zero pose is not a body standing.
+    let mut k = 0;
+    if let Some(best) = (0..rigged.len())
+        .filter(|&i| rigged[i].1.rest_frame.is_some())
+        .max_by(|&a, &b| rigged[a].1.stands.total_cmp(&rigged[b].1.stands))
+    {
+        let reference = rigged.remove(best);
+        for (_, r) in rigged.iter_mut() {
+            r.adopt(&reference.1);
+        }
+        rigged.insert(best, reference);
+        k = best;
+    }
+    let first = &rigged[k].1;
     let body = takes::Body { rest: first.body.rest.clone(), fwd: first.body.fwd, right: first.body.right };
     let (map, scale) = (first.map, first.scale);
     let picks: Vec<Pick> = picks
@@ -686,7 +832,51 @@ pub fn bvh_library(
         .collect();
     let takes: HashMap<String, Box<dyn Take + '_>> =
         rigged.iter().map(|(t, r)| (t.clone(), Box::new(bvh::BvhTake(r)) as Box<dyn Take>)).collect();
-    let clips = takes::cut(&body, &takes, &picks, fps, log)?;
-    log.push(format!("{id}: the {map} map, {scale} m a unit"));
-    Ok(Library { id: id.into(), file: format!("{id}.bvh"), rig: map.into(), clips, rest: Some("_rest".into()), about })
+    let clips = if picks.len() > 1 { takes::cut_lenient } else { takes::cut }(&body, &takes, &picks, fps, log)?;
+    let stood = first.rest_frame.map(|f| {
+        format!("; measured standing as in {} at {} s", rigged[k].0, takes::to_fixed(f as f64 * first.bvh.frame_time, 2))
+    });
+    log.push(format!("{id}: the {map} map, {scale} m a unit{}", stood.unwrap_or_default()));
+    Ok(Library { id: id.into(), file: file.into(), rig: map.into(), clips, rest: Some("_rest".into()), about })
+}
+
+/// FBX files as libraries (`ids`: each one's source id, else its file name): every animation
+/// stack a clip, whole (a loop as it is: the catalog's `loop` tag or a name ending in `_Loop`
+/// or `Idle` says which loop).
+pub fn fbx_libraries(
+    files: &[PathBuf],
+    ids: &[String],
+    cat: &Catalog,
+    units: Option<f64>,
+    fps: f64,
+    log: &mut Vec<String>,
+) -> Result<Vec<Library>> {
+    let mut out = Vec::new();
+    for (k, f) in files.iter().enumerate() {
+        let name = file_name(f);
+        let id = ids.get(k).filter(|s| !s.is_empty()).cloned().unwrap_or_else(|| name.clone());
+        let stacks = fbx::read(f, fps)?;
+        let picks: Vec<Pick> = stacks
+            .iter()
+            .map(|(n, b)| {
+                let looping = cat
+                    .entry(n)
+                    .map_or(n.ends_with("_Loop") || n == "Idle" || n.ends_with("_Idle"), |e| e.tags.iter().any(|t| t == "loop"));
+                Pick {
+                    name: n.clone(),
+                    take: n.clone(),
+                    from: None,
+                    to: None,
+                    min_cycle: None,
+                    fps: 1.0 / b.frame_time,
+                    looping,
+                    find: looping.then_some(Find::Whole),
+                }
+            })
+            .collect();
+        log.push(format!("{name}: {} animation stacks", stacks.len()));
+        let about = cat.sources.get(&id).and_then(|v| v.as_object()).cloned();
+        out.push(takes_library(&id, &name, &picks, stacks, about, units, fps, log)?);
+    }
+    Ok(out)
 }

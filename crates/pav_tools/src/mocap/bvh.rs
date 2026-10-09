@@ -4,11 +4,21 @@
 //! the joints by a bone map, so the takes are cut like the CMU database's (`super::takes`).
 //!
 //! Maps: 100STYLE's skeleton (Hips, Chest .. Chest4, Neck, Head, RightCollar, RightShoulder,
-//! RightElbow, RightWrist, RightHip, RightKnee, RightAnkle, RightToe), and the MotionBuilder
-//! names Mixamo, LaFAN1 and many converters use (Hips, Spine, Spine1, Spine2, Neck, Head,
-//! LeftShoulder, LeftArm, LeftForeArm, LeftHand, LeftUpLeg, LeftLeg, LeftFoot, LeftToeBase).
-//! A map is a table of joint names per body point, with fallbacks: another skeleton is one more
-//! table in `MAPS`.
+//! RightElbow, RightWrist, RightHip, RightKnee, RightAnkle, RightToe); the MotionBuilder names
+//! Mixamo, LaFAN1 and many converters use (Hips, Spine, Spine1, Spine2, Neck, Head, LeftShoulder,
+//! LeftArm, LeftForeArm, LeftHand, LeftUpLeg, LeftLeg, LeftFoot, LeftToeBase or LeftToe); and the
+//! Bandai Namco Research motion datasets' (Hips, Spine, Chest, Neck, Head, Shoulder_L,
+//! UpperArm_L, LowerArm_L, Hand_L, UpperLeg_L, LowerLeg_L, Foot_L, Toes_L); and the Unreal and
+//! Rigify names FBX files from Unreal and Blender carry (pelvis, spine_01, upperarm_l, thigh_l;
+//! DEF-hips, DEF-upper_arm.L). A map is a table of joint names per body point, with fallbacks:
+//! another skeleton is one more table in `MAPS`.
+//!
+//! Files differ in two ways the reader allows for. Position channels give a joint's place
+//! relative to its parent outright (as three.js reads them): exporters that key every joint's
+//! translation repeat its offset there. And a skeleton's zero pose (every rotation zero) is not
+//! always a body standing: MotionBuilder exports lay each bone along its own x axis, so the
+//! spine and legs point sideways until the first frame turns them. The rest the body is measured
+//! on is then the frame where it stands straightest.
 
 use anyhow::{Result, anyhow, bail};
 use glam::{DMat3, DVec3};
@@ -36,6 +46,11 @@ pub struct Bvh {
     pub frame_time: f64,
     width: usize,
     values: Vec<f64>,
+    /// The joints' rest transforms (rotation, and place in the parent's frame), when a file
+    /// gives them outright (an FBX skeleton's bind pose); else the zero pose.
+    bind: Vec<(DMat3, DVec3)>,
+    /// Every frame's joint transforms given outright (an FBX stack), frame after frame.
+    local: Vec<(DMat3, DVec3)>,
 }
 
 impl Bvh {
@@ -51,6 +66,8 @@ impl Bvh {
             frame_time: 0.0,
             width: 0,
             values: Vec::new(),
+            bind: Vec::new(),
+            local: Vec::new(),
         };
         let num = |t: Option<&str>| -> Result<f64> {
             t.ok_or_else(|| anyhow!("the file ends early"))?.parse::<f64>().map_err(|e| anyhow!("a number: {e}"))
@@ -138,8 +155,33 @@ impl Bvh {
         Ok(b)
     }
 
+    /// A skeleton and its frames given as transforms (`bind`: each joint's at rest; `local`:
+    /// each frame's, frame after frame), as an FBX file's stack is read.
+    pub fn from_poses(
+        names: Vec<String>,
+        parent: Vec<Option<usize>>,
+        bind: Vec<(DMat3, DVec3)>,
+        local: Vec<(DMat3, DVec3)>,
+        frame_time: f64,
+    ) -> Bvh {
+        let n = names.len();
+        Bvh {
+            offset: bind.iter().map(|b| b.1).collect(),
+            chans: vec![Vec::new(); n],
+            first: vec![0; n],
+            end: vec![None; n],
+            names,
+            parent,
+            frame_time,
+            width: 0,
+            values: Vec::new(),
+            bind,
+            local,
+        }
+    }
+
     pub fn frames(&self) -> usize {
-        self.values.len() / self.width
+        self.values.len().checked_div(self.width).unwrap_or_else(|| self.local.len() / self.names.len().max(1))
     }
 
     pub fn joints(&self) -> &[String] {
@@ -149,14 +191,19 @@ impl Bvh {
     /// Each joint's world rotation and position (file units) at a frame (`None`: the rest pose).
     fn pose(&self, frame: Option<usize>) -> Vec<(DMat3, DVec3)> {
         let mut out: Vec<(DMat3, DVec3)> = Vec::with_capacity(self.names.len());
-        for j in 0..self.names.len() {
-            let (mut r, mut t) = (DMat3::IDENTITY, self.offset[j]);
-            if let Some(f) = frame {
+        let n = self.names.len();
+        for j in 0..n {
+            let (mut r, mut t) = match frame {
+                None if !self.bind.is_empty() => self.bind[j],
+                Some(f) if !self.local.is_empty() => self.local[f * n + j],
+                _ => (DMat3::IDENTITY, self.offset[j]),
+            };
+            if let Some(f) = frame.filter(|_| self.local.is_empty()) {
                 let v = &self.values[f * self.width..];
                 for (k, c) in self.chans[j].iter().enumerate() {
                     let x = v[self.first[j] + k];
                     match *c {
-                        Chan::Pos(a) => t[a] += x,
+                        Chan::Pos(a) => t[a] = x,
                         Chan::Rot(0) => r *= DMat3::from_rotation_x(x.to_radians()),
                         Chan::Rot(1) => r *= DMat3::from_rotation_y(x.to_radians()),
                         Chan::Rot(_) => r *= DMat3::from_rotation_z(x.to_radians()),
@@ -201,20 +248,23 @@ enum Place {
 }
 
 /// A bone map: for each body point, the joints that may give it, the first a file has winning.
-/// `{S}` is the side: Left or Right.
+/// `{S}` is the side (`sides`).
 struct Map {
     name: &'static str,
     /// Joints only this skeleton has.
     test: &'static [&'static str],
+    /// What `{S}` is on the left and on the right.
+    sides: [&'static str; 2],
     points: [&'static [(&'static str, Place)]; 23],
 }
 
 use Place::*;
 
-const MAPS: [Map; 2] = [
+const MAPS: [Map; 5] = [
     Map {
         name: "100style",
         test: &["Chest4", "RightCollar"],
+        sides: ["Left", "Right"],
         points: [
             &[("Hips", Joint)],
             &[("Chest", Joint)],
@@ -245,6 +295,7 @@ const MAPS: [Map; 2] = [
     Map {
         name: "motionbuilder",
         test: &["LeftUpLeg", "LeftForeArm"],
+        sides: ["Left", "Right"],
         points: [
             &[("Hips", Joint)],
             &[("Spine", Joint)],
@@ -271,6 +322,96 @@ const MAPS: [Map; 2] = [
             &[("{S}Toe_End", Joint), ("{S}ToeBase", Tip), ("{S}Toe", Tip)],
         ],
     },
+    Map {
+        name: "bandai-namco",
+        test: &["UpperLeg_L", "LowerArm_L"],
+        sides: ["_L", "_R"],
+        points: [
+            &[("Hips", Joint)],
+            &[("Spine", Joint)],
+            &[("Spine", Along(0.5))],
+            &[("Chest", Joint)],
+            &[("Neck", Joint)],
+            &[("Head", Joint)],
+            &[("Head", Tip)],
+            &[("Head", Ahead)],
+            &[("Chest", Ahead)],
+            &[("Hips", Ahead)],
+            &[("Shoulder{S}", Joint)],
+            &[("UpperArm{S}", Joint)],
+            &[("LowerArm{S}", Joint)],
+            &[("Hand{S}", Joint)],
+            &[("Hand{S}", Across(0.75, 1.0))],
+            &[("Hand{S}", Along(0.5))],
+            &[("Hand{S}", Across(0.75, -1.0))],
+            &[("Hand{S}", Along(0.75))],
+            &[("UpperLeg{S}", Joint)],
+            &[("LowerLeg{S}", Joint)],
+            &[("Foot{S}", Joint)],
+            &[("Toes{S}", Joint)],
+            &[("Toes{S}", Tip)],
+        ],
+    },
+    Map {
+        name: "unreal",
+        test: &["spine_01", "upperarm_l"],
+        sides: ["_l", "_r"],
+        points: [
+            &[("pelvis", Joint)],
+            &[("spine_01", Joint)],
+            &[("spine_02", Joint)],
+            &[("spine_03", Joint)],
+            &[("neck_01", Joint)],
+            &[("head", Joint)],
+            &[("head", Tip)],
+            &[("head", Ahead)],
+            &[("spine_03", Ahead)],
+            &[("pelvis", Ahead)],
+            &[("clavicle{S}", Joint)],
+            &[("upperarm{S}", Joint)],
+            &[("lowerarm{S}", Joint)],
+            &[("hand{S}", Joint)],
+            &[("index_01{S}", Joint), ("hand{S}", Across(0.75, 1.0))],
+            &[("middle_01{S}", Joint), ("hand{S}", Along(0.5))],
+            &[("pinky_01{S}", Joint), ("hand{S}", Across(0.75, -1.0))],
+            &[("middle_02{S}", Joint), ("hand{S}", Along(0.75))],
+            &[("thigh{S}", Joint)],
+            &[("calf{S}", Joint)],
+            &[("foot{S}", Joint)],
+            &[("ball{S}", Joint)],
+            &[("ball_leaf{S}", Joint), ("ball{S}", Tip)],
+        ],
+    },
+    Map {
+        name: "rigify",
+        test: &["DEF-hips", "DEF-upper_arm.L"],
+        sides: [".L", ".R"],
+        points: [
+            &[("DEF-hips", Joint)],
+            &[("DEF-spine.001", Joint)],
+            &[("DEF-spine.002", Joint)],
+            &[("DEF-spine.003", Joint)],
+            &[("DEF-neck", Joint)],
+            &[("DEF-head", Joint)],
+            &[("DEF-head", Tip)],
+            &[("DEF-head", Ahead)],
+            &[("DEF-spine.003", Ahead)],
+            &[("DEF-hips", Ahead)],
+            &[("DEF-shoulder{S}", Joint)],
+            &[("DEF-upper_arm{S}", Joint)],
+            &[("DEF-forearm{S}", Joint)],
+            &[("DEF-hand{S}", Joint)],
+            &[("DEF-f_index.01{S}", Joint), ("DEF-hand{S}", Across(0.75, 1.0))],
+            &[("DEF-f_middle.01{S}", Joint), ("DEF-hand{S}", Along(0.5))],
+            &[("DEF-f_pinky.01{S}", Joint), ("DEF-hand{S}", Across(0.75, -1.0))],
+            &[("DEF-f_middle.02{S}", Joint), ("DEF-hand{S}", Along(0.75))],
+            &[("DEF-thigh{S}", Joint)],
+            &[("DEF-shin{S}", Joint)],
+            &[("DEF-foot{S}", Joint)],
+            &[("DEF-toe{S}", Joint)],
+            &[("DEF-toe{S}", Tip)],
+        ],
+    },
 ];
 
 /// A BVH skeleton with its body points placed: the takes it reads and its rest body.
@@ -279,9 +420,35 @@ pub struct Rigged {
     pub map: &'static str,
     /// Metres per file unit.
     pub scale: f64,
-    at: Vec<(usize, Place)>,
-    fwd_local: DVec3,
+    /// Each body point: its joint, and where it sits in the joint's own frame (file units).
+    at: Vec<(usize, DVec3)>,
+    /// The frame the body was measured standing in (`None`: the zero pose).
+    pub rest_frame: Option<usize>,
+    /// How straight it stands there (1: legs straight down, feet level).
+    pub stands: f64,
     pub body: Body,
+}
+
+/// How far past a joint whose bone has no length in the file (an end site of zero) its far end
+/// is taken to be, along the bone leading to it: the head's top, a hand's fingertips, the toes'
+/// tips (metres).
+fn reach(point: usize) -> f64 {
+    use super::readable::{BALL, FIST, HEAD_TOP, INDEX, KNUCK, PINKY, TOE};
+    match point {
+        HEAD_TOP => 0.18,
+        _ if point >= 10 && [INDEX, KNUCK, PINKY, FIST].contains(&((point - 10) % 13)) => 0.18,
+        _ if point >= 10 && [BALL, TOE].contains(&((point - 10) % 13)) => 0.06,
+        _ => 0.1,
+    }
+}
+
+/// How straight a body stands in a pose: both legs straight down (1 when they are), the feet
+/// level, the head above the hips.
+fn standing(pose: &[(DMat3, DVec3)], hips: [usize; 2], ankles: [usize; 2], legs: [f64; 2], pelvis: usize, head: usize) -> f64 {
+    let down = |s: usize| (pose[hips[s]].1.y - pose[ankles[s]].1.y) / legs[s].max(1e-9);
+    let level = (pose[ankles[0]].1.y - pose[ankles[1]].1.y).abs() / legs[0].max(1e-9);
+    let upright = if pose[head].1.y > pose[pelvis].1.y { 0.0 } else { 1.0 };
+    down(0).min(down(1)) - level - upright
 }
 
 impl Rigged {
@@ -290,7 +457,7 @@ impl Rigged {
     pub fn new(bvh: Bvh, units: Option<f64>) -> Result<Rigged> {
         let map = MAPS.iter().find(|m| m.test.iter().all(|t| bvh.find(t).is_some())).ok_or_else(|| {
             anyhow!(
-                "the skeleton is not one the BVH reader knows (100STYLE's, or MotionBuilder names: Hips, Spine, LeftUpLeg ...); its joints: {}",
+                "the skeleton is not one the BVH reader knows (100STYLE's, MotionBuilder names: Hips, Spine, LeftUpLeg ..., or Bandai Namco's: UpperLeg_L ...); its joints: {}",
                 bvh.names.join(", ")
             )
         })?;
@@ -299,7 +466,7 @@ impl Rigged {
         for (i, p) in POINTS.iter().enumerate() {
             let (alts, s) = match i {
                 0..10 => (map.points[i], ""),
-                _ => (map.points[10 + (i - 10) % 13], if p.ends_with('L') { "Left" } else { "Right" }),
+                _ => (map.points[10 + (i - 10) % 13], map.sides[if p.ends_with('L') { 0 } else { 1 }]),
             };
             match alts.iter().find_map(|(n, pl)| bvh.find(&n.replace("{S}", s)).map(|j| (j, *pl))) {
                 Some(x) => at.push(x),
@@ -309,59 +476,128 @@ impl Rigged {
         if !missing.is_empty() {
             bail!("the {} map needs joints the file lacks: {}", map.name, missing.join(", "));
         }
-        let rest = bvh.pose(None);
-        // Units: the legs' length at rest, read as a person's (about 85 cm).
-        let leg = |s: usize| {
-            let (h, a) =
-                (at[super::readable::side(s, super::readable::HIP)].0, at[super::readable::side(s, super::readable::ANKLE)].0);
-            (rest[h].1 - rest[a].1).length()
+        // The legs' length, joint to joint: the units, and how straight a pose stands.
+        let zero = bvh.pose(None);
+        let (hip, knee, ankle) = (super::readable::HIP, super::readable::KNEE, super::readable::ANKLE);
+        let j = |s: usize, part: usize| at[super::readable::side(s, part)].0;
+        let leg =
+            |s: usize| (zero[j(s, hip)].1 - zero[j(s, knee)].1).length() + (zero[j(s, knee)].1 - zero[j(s, ankle)].1).length();
+        let legs = [leg(0), leg(1)];
+        let stands = |pose: &[(DMat3, DVec3)]| {
+            standing(pose, [j(0, hip), j(1, hip)], [j(0, ankle), j(1, ankle)], legs, at[0].0, at[super::readable::HEAD].0)
         };
+        // The rest: the zero pose when the body stands in it, else the frame it stands
+        // straightest in (every tenth looked at, then the frames around the best).
+        let zero_stands = stands(&zero);
+        let (stood, rest_frame) = if zero_stands > 0.9 {
+            (zero_stands, None)
+        } else {
+            let n = bvh.frames();
+            let best = |frames: &mut dyn Iterator<Item = usize>| {
+                frames.map(|f| (stands(&bvh.pose(Some(f))), f)).fold((f64::NEG_INFINITY, 0), |a, b| if b.0 > a.0 { b } else { a })
+            };
+            let (_, f) = best(&mut (0..n).step_by(10));
+            let (score, f) = best(&mut (f.saturating_sub(9)..(f + 10).min(n)));
+            (score, Some(f))
+        };
+        let rest = bvh.pose(rest_frame);
+        // Units: the legs' length, read as a person's (about 85 cm).
         let scale = units.unwrap_or_else(|| {
-            let l = (leg(0) + leg(1)) / 2.0;
+            let l = (legs[0] + legs[1]) / 2.0;
             [1.0, 0.01, 0.001, 0.0254, 0.0254 / 0.45]
                 .into_iter()
                 .min_by(|a, b| (a * l / 0.85).ln().abs().total_cmp(&(b * l / 0.85).ln().abs()))
                 .unwrap_or(0.01)
         });
+        // A joint's far end in its own frame: the file's, else `reach` metres along the bone
+        // leading to it, as it lies at rest.
+        let tip_of = |jt: usize, point: usize| -> DVec3 {
+            let t = bvh.tip(jt);
+            if t.length() > 1e-9 {
+                return t;
+            }
+            let mut p = bvh.parent[jt];
+            while let Some(q) = p.filter(|&q| (rest[jt].1 - rest[q].1).length() < 1e-9) {
+                p = bvh.parent[q];
+            }
+            let dir = p.map_or(DVec3::Y, |q| (rest[jt].1 - rest[q].1).normalize_or(DVec3::Y));
+            rest[jt].0.transpose() * dir * (reach(point) / scale)
+        };
+        // Forward from the heel toward the toes, right toward the right hip.
+        let world = |i: usize| -> DVec3 {
+            let (jt, pl) = at[i];
+            let (m, p) = rest[jt];
+            let local = match pl {
+                Tip => tip_of(jt, i),
+                _ => DVec3::ZERO,
+            };
+            p + m * local
+        };
+        let (ankle_p, toe_p) =
+            (world(super::readable::side(0, super::readable::ANKLE)), world(super::readable::side(0, super::readable::TOE)));
+        let mut f = DVec3::new(toe_p.x - ankle_p.x, 0.0, toe_p.z - ankle_p.z).normalize_or(DVec3::Z);
+        let (hl, hr) = (world(super::readable::side(0, hip)), world(super::readable::side(1, hip)));
+        if rest_frame.is_some() {
+            // A captured frame: a foot can point anywhere mid-stride, the hips cannot. Forward
+            // is square to the hips, the foot only saying which way.
+            let across = DVec3::new(hr.x - hl.x, 0.0, hr.z - hl.z);
+            let square = DVec3::new(-across.z, 0.0, across.x).normalize_or(f);
+            f = if square.dot(f) < 0.0 { -square } else { square };
+        }
+        let mut right = DVec3::new(f.z, 0.0, -f.x);
+        if (hr.x - hl.x) * right.x + (hr.z - hl.z) * right.z < 0.0 {
+            right = -right;
+        }
+        // Each point's place in its joint's frame: forward, written in that frame at rest.
+        let at: Vec<(usize, DVec3)> = at
+            .iter()
+            .enumerate()
+            .map(|(i, &(jt, pl))| {
+                let ahead = rest[jt].0.transpose() * f / scale;
+                let local = match pl {
+                    Joint => DVec3::ZERO,
+                    Tip => tip_of(jt, i),
+                    Along(t) => tip_of(jt, i) * t,
+                    Ahead => ahead * 0.12,
+                    Across(t, sd) => tip_of(jt, i) * t + ahead * (0.035 * sd),
+                };
+                (jt, local)
+            })
+            .collect();
         let mut r = Rigged {
             bvh,
             map: map.name,
             scale,
             at,
-            fwd_local: DVec3::Z,
+            rest_frame,
+            stands: stood,
             body: Body { rest: Vec::new(), fwd: [0.0; 3], right: [0.0; 3] },
         };
-        // Forward from the heel toward the toes, right toward the right hip.
-        let pts = r.place(&rest);
-        let (ankle, toe) =
-            (pts[super::readable::side(0, super::readable::ANKLE)], pts[super::readable::side(0, super::readable::TOE)]);
-        let f = DVec3::new(toe[0] - ankle[0], 0.0, toe[2] - ankle[2]).normalize_or(DVec3::Z);
-        let mut right = DVec3::new(f.z, 0.0, -f.x);
-        let (hl, hr) = (pts[super::readable::side(0, super::readable::HIP)], pts[super::readable::side(1, super::readable::HIP)]);
-        if (hr[0] - hl[0]) * right.x + (hr[2] - hl[2]) * right.z < 0.0 {
-            right = -right;
-        }
-        r.fwd_local = f;
         r.body = Body { rest: r.place(&rest), fwd: f.to_array(), right: right.to_array() };
         Ok(r)
     }
 
+    /// Places and measures the body as `like` does, when it is the same skeleton (the take that
+    /// stands straightest gives every take of a library its rest). Returns whether it did.
+    pub fn adopt(&mut self, like: &Rigged) -> bool {
+        if self.bvh.names != like.bvh.names || self.bvh.offset != like.bvh.offset {
+            return false;
+        }
+        self.map = like.map;
+        self.scale = like.scale;
+        self.at = like.at.clone();
+        self.rest_frame = like.rest_frame;
+        self.stands = like.stands;
+        self.body = Body { rest: like.body.rest.clone(), fwd: like.body.fwd, right: like.body.right };
+        true
+    }
+
     /// The body points (metres) from a pose of the joints.
     fn place(&self, pose: &[(DMat3, DVec3)]) -> Vec<V> {
-        let ahead = self.fwd_local * (0.12 / self.scale);
-        let across = self.fwd_local * (0.035 / self.scale);
         self.at
             .iter()
-            .map(|&(j, pl)| {
+            .map(|&(j, local)| {
                 let (m, p) = pose[j];
-                let tip = self.bvh.tip(j);
-                let local = match pl {
-                    Joint => DVec3::ZERO,
-                    Tip => tip,
-                    Along(t) => tip * t,
-                    Ahead => ahead,
-                    Across(t, s) => tip * t + across * s,
-                };
                 ((p + m * local) * self.scale).to_array()
             })
             .collect()

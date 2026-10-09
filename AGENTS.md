@@ -71,18 +71,24 @@ crates/
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
   pav_tools   agent layer: tool registry + `pav` CLI (one-shot, REPL) + MCP stdio server +
-              live bridge client (bridge.rs), and the motion importer (mocap/: glTF libraries,
-              CMU's ASF/AMC, BVH; loops cut at their best cycle; fitted into readable key poses,
-              number for number what my-3D2dge's own importer writes)
+              live bridge client (bridge.rs), and the motion importer (mocap/: glTF and FBX
+              libraries, CMU's ASF/AMC, BVH; Rigify, Unreal, Mixamo/MotionBuilder, 100STYLE and
+              Bandai Namco skeletons; loops cut at their best cycle; fitted into readable key
+              poses, number for number what my-3D2dge's own importer writes; the whole CMU
+              database surveyed and translated)
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
               (bridge.rs), egui input (uiinput.rs). Builds natively and for wasm32 (WebGPU).
 anim/         animation data, embedded and hot-reloadable (`anim_reload`): moves.toml (the moves table)
               and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, STYLE100: 423 clips with credits).
-              anim/cmu/ holds every take of the CMU database (4,770 clips) on disk only: `clips
-              load=cmu`. anim/catalogs/ says how each set is made (tags, descriptions, sources,
-              picks): `clip_import catalog=...` rebuilds it from the libraries.
+              anim/cmu/ holds every take of the CMU database (4,770 clips) and anim/100style/ the
+              100STYLE runs, backward walks and runs, sidesteps and idles (780 loops), on disk
+              only: `clips load=cmu`, `clips load=100style`. anim/local/ (git-ignored) holds what
+              is translated from libraries whose licences forbid sharing it (Bandai Namco, LaFAN1,
+              Mixamo): `clips load=local`. anim/catalogs/ says how each set is made (tags,
+              descriptions, sources, picks): `clip_import catalog=...` rebuilds it from the
+              libraries.
 rooms/        room data files (TOML: info card, station guide `[learn]`, wing, primary device, movement model, camera,
               params, keys, entrance, ASCII tile layers + legend, [[object]]s). Every file
               here is embedded in the exe at build time AND hot-reloaded at runtime.
@@ -101,7 +107,9 @@ Key rules:
   Animation clips are allowed as readable key poses (anim/*.json, the format `clips.rs`
   documents): plain text a model can read and edit, translated from openly licensed libraries
   with `clip_import`. Keep each set's credit and licence; never add binary animation files.
-  Downloaded captures (.glb, .amc, .bvh) go to .cache/mocap (git-ignored), never into the repo.
+  Downloaded captures (.glb, .fbx, .amc, .bvh) go to .cache/mocap (git-ignored), never into the
+  repo. A library whose licence is non-commercial or forbids sharing what is made from it
+  (Bandai Namco, LaFAN1, Mixamo) is translated into anim/local only: never commit it.
 - Physics precision switch: in `crates/pav_core/Cargo.toml` change `package = "rapier3d"` to
   `"rapier3d-f64"`.
 
@@ -187,14 +195,19 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import m
   find=dance` searches names, tags and descriptions, `clips name=SET/Clip` shows one as readable
   key poses with its source and licence, `clips load=cmu` adds the on-disk CMU library.
   `clip_import from=<set.js|set.json|folder>` translates a set, `from=a.glb,b.glb sources=A,B
-  catalog=anim/catalogs/mesh2motion.json set=MESH2MOTION` a glTF library (Rigify or Unreal-style
-  rigs), `from=take.bvh at=2-9 loop=true set=X` a BVH take, and `catalog=anim/catalogs/cmu.json
-  set=CMU` (a catalog with "$pick") cuts its moments out of a capture database, downloading the
-  takes; it checks the result reads back and reports the fit. `mocap` describes the open
-  databases (CMU, 100STYLE, Mesh2Motion, Quaternius), `mocap find=limp` searches their takes,
-  `mocap get=02_01,Zombie_FW` downloads (a 100STYLE take alone out of its 1.5 GB archive) and
-  `mocap cut=13_17 at=1.5-2.6 name=Jab set=MINE` (or `loop=true`: the best cycle) fits one
-  moment into anim/<set>.json. Room NPCs perform with `clips = [...]` / `moves = [...]`; any
+  catalog=anim/catalogs/mesh2motion.json set=MESH2MOTION` a glTF library (Rigify, Unreal-style or
+  Mixamo rigs; `rm=` each file's root-motion twin, as Quaternius ships them, gives loops their
+  speed), `from=lib.fbx` an FBX file (every animation stack a clip), `from=take.bvh at=2-9
+  loop=true set=X` a BVH take (`way=back|left|right` for a loop that goes that way), and
+  `catalog=anim/catalogs/cmu.json set=CMU` (a catalog with "$pick": cmu, 100style, bandai or
+  lafan1) cuts its moments out of a capture database, downloading the takes; it checks the result
+  reads back and reports the fit (`log=N` notes). `mocap` describes the open databases (CMU,
+  100STYLE, Bandai Namco, LaFAN1, Mesh2Motion, Quaternius, Mixamo), `mocap find=limp` searches
+  their takes, `mocap get=02_01,Zombie_FW` downloads (a 100STYLE or LaFAN1 take alone out of its
+  archive; `get=cmu`: all 2,548 CMU takes), `mocap survey=ledger` / `survey=library` measures
+  every CMU take into anim/cmu/takes.tsv / translates them into anim/cmu, and `mocap cut=13_17
+  at=1.5-2.6 name=Jab set=MINE` (or `loop=true`: the best cycle; `way=`) fits one moment into
+  anim/<set>.json. Room NPCs perform with `clips = [...]` / `moves = [...]`; any
   look's `idle_clip` plays while standing still and `walk_clip` (a walk loop that records its
   `speed`, e.g. STYLE100/Old_Walk) while walking, at the rate its stride matches the ground;
   `anim.tempo` / `anim.mirror` steer performers.
@@ -279,7 +292,9 @@ of every physics feature) and `tests/rooms.rs` (every room file builds; courses 
 cleanly, a set file round-trips, fades, chained moves, kicks, performers, idle clips, the hero's
 captured death, walkers and villagers keeping their styles' pace); `crates/pav_tools/tests/mocap.rs`
 (a glTF rig and a CMU take translate number for number like my-3D2dge's importer, whose output is
-in tests/fixtures/mocap; a BVH walk cuts into a loop that closes).
+in tests/fixtures/mocap; the CMU survey measures a take as the committed ledger says; a BVH walk
+cuts into a loop that closes; a sidestep take gives a loop each way, facing forward; an FBX file
+written by the test reads as a take).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`
