@@ -5,8 +5,10 @@
 //!
 //! A port of the glTF half of my-3D2dge's tools/anim-import.mjs. Its rigs: the Rigify `DEF-`
 //! deform bones (Quaternius' Universal Animation Library) and Unreal-style names (`pelvis`,
-//! `spine_01`, `upperarm_l`: the Library 2, Mesh2Motion's humans), in any case. A rig is a short
-//! table of bone names (`bones`): another skeleton is one more table.
+//! `spine_01`, `upperarm_l`: the Library 2, Mesh2Motion's humans), in any case; and the
+//! MotionBuilder names Mixamo's characters use (`Hips`, `LeftUpLeg`, `LeftForeArm`), a namespace
+//! (`mixamorig:`) or not. A rig is a short table of bone names (`bones`): another skeleton is one
+//! more table.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -31,12 +33,13 @@ enum At {
 }
 
 /// The rigs this reader knows, by a bone only each has.
-const RIGS: [(&str, &str); 2] = [("rigify", "DEF-hips"), ("unreal", "spine_01")];
+const RIGS: [(&str, &str); 3] = [("rigify", "DEF-hips"), ("unreal", "spine_01"), ("mixamo", "LeftUpLeg")];
 
 /// Which bone gives each body point (in `POINTS` order).
 fn bones(rig: &str) -> Vec<(String, At)> {
     let core: [&str; 6] = match rig {
         "rigify" => ["DEF-hips", "DEF-spine.001", "DEF-spine.002", "DEF-spine.003", "DEF-neck", "DEF-head"],
+        "mixamo" => ["Hips", "Spine", "Spine1", "Spine2", "Neck", "Head"],
         _ => ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head"],
     };
     let side = |s: char| -> Vec<(String, At)> {
@@ -57,6 +60,25 @@ fn bones(rig: &str) -> Vec<(String, At)> {
                     b("foot"),
                     b("toe"),
                     (format!("DEF-toe.{s}"), At::Tip),
+                ]
+            }
+            "mixamo" => {
+                let w = if s == 'L' { "Left" } else { "Right" };
+                let b = |n: &str| (format!("{w}{n}"), At::Joint);
+                vec![
+                    b("Shoulder"),
+                    b("Arm"),
+                    b("ForeArm"),
+                    b("Hand"),
+                    b("HandIndex1"),
+                    b("HandMiddle1"),
+                    b("HandPinky1"),
+                    b("HandMiddle2"),
+                    b("UpLeg"),
+                    b("Leg"),
+                    b("Foot"),
+                    b("ToeBase"),
+                    b("Toe_End"),
                 ]
             }
             _ => {
@@ -238,10 +260,11 @@ impl Gltf {
 }
 
 /// Bone names, matched whatever their case (Quaternius' Library 2 says `Head`, Mesh2Motion's
-/// copy of the rig `head`).
+/// copy of the rig `head`) and namespace (Mixamo's `mixamorig:Hips`).
 struct Names {
     exact: HashMap<String, usize>,
     lower: HashMap<String, usize>,
+    bare: HashMap<String, usize>,
 }
 
 impl Names {
@@ -254,14 +277,18 @@ impl Names {
                 }
             }
         }
-        let mut lower = HashMap::new();
+        let (mut lower, mut bare) = (HashMap::new(), HashMap::new());
         for k in &order {
             lower.entry(k.to_lowercase()).or_insert(exact[k]);
+            if let Some((_, b)) = k.rsplit_once(':') {
+                bare.entry(b.to_lowercase()).or_insert(exact[k]);
+            }
         }
-        Names { exact, lower }
+        Names { exact, lower, bare }
     }
     fn get(&self, k: &str) -> Option<usize> {
-        self.exact.get(k).or_else(|| self.lower.get(&k.to_lowercase())).copied()
+        let l = k.to_lowercase();
+        self.exact.get(k).or_else(|| self.lower.get(&l)).or_else(|| self.bare.get(&l)).copied()
     }
 }
 
@@ -316,11 +343,9 @@ pub fn read(path: &Path, fps: f64) -> Result<Library> {
         }
     }
     let names = Names::new(&nodes);
-    let rig = RIGS
-        .iter()
-        .find(|(_, test)| names.get(test).is_some())
-        .map(|(r, _)| *r)
-        .ok_or_else(|| anyhow!("{file}: the rig is not one the importer knows (Rigify DEF- bones or Unreal-style names)"))?;
+    let rig = RIGS.iter().find(|(_, test)| names.get(test).is_some()).map(|(r, _)| *r).ok_or_else(|| {
+        anyhow!("{file}: the rig is not one the importer knows (Rigify DEF- bones, Unreal-style names or Mixamo's)")
+    })?;
     let map = bones(rig);
     let mut missing: Vec<&str> = map.iter().filter(|(b, _)| names.get(b).is_none()).map(|(b, _)| b.as_str()).collect();
     missing.dedup();
@@ -376,38 +401,41 @@ pub fn read(path: &Path, fps: f64) -> Result<Library> {
     // the bones alone.
     let mut notes = Vec::new();
     let mut ys: HashMap<usize, Vec<f64>> = HashMap::new();
-    let skin = &g.json["skins"][0];
-    let mesh_node = nodes.iter().position(|n| n.get("mesh").is_some() && n.get("skin").is_some());
-    match (skin.is_object(), mesh_node) {
-        (true, Some(mn)) => {
-            let joints: Vec<usize> =
-                skin["joints"].as_array().into_iter().flatten().filter_map(|j| j.as_u64()).map(|j| j as usize).collect();
-            let ibm = match skin.get("inverseBindMatrices") {
-                Some(i) => g.accessor(i)?,
-                None => vec![mat([0.0; 3], [0.0, 0.0, 0.0, 1.0], [1.0; 3]).to_vec(); joints.len()],
+    // Every skinned mesh counts (Mixamo's characters have two: the body and a set of joint
+    // spheres).
+    let skinned: Vec<usize> =
+        (0..nodes.len()).filter(|&i| nodes[i].get("mesh").is_some() && nodes[i].get("skin").is_some()).collect();
+    if skinned.is_empty() {
+        notes.push(format!("{file}: no skinned mesh: the body is measured from the bones alone"));
+    }
+    for &mn in &skinned {
+        let skin = &g.json["skins"][nodes[mn]["skin"].as_u64().unwrap_or(0) as usize];
+        let joints: Vec<usize> =
+            skin["joints"].as_array().into_iter().flatten().filter_map(|j| j.as_u64()).map(|j| j as usize).collect();
+        let ibm = match skin.get("inverseBindMatrices") {
+            Some(i) => g.accessor(i)?,
+            None => vec![mat([0.0; 3], [0.0, 0.0, 0.0, 1.0], [1.0; 3]).to_vec(); joints.len()],
+        };
+        let mesh = &g.json["meshes"][nodes[mn]["mesh"].as_u64().unwrap_or(0) as usize];
+        for prim in mesh["primitives"].as_array().into_iter().flatten() {
+            let at = &prim["attributes"];
+            let (Some(pos), Some(jn), Some(wt)) = (at.get("POSITION"), at.get("JOINTS_0"), at.get("WEIGHTS_0")) else {
+                continue;
             };
-            let mesh = &g.json["meshes"][nodes[mn]["mesh"].as_u64().unwrap_or(0) as usize];
-            for prim in mesh["primitives"].as_array().into_iter().flatten() {
-                let at = &prim["attributes"];
-                let (Some(pos), Some(jn), Some(wt)) = (at.get("POSITION"), at.get("JOINTS_0"), at.get("WEIGHTS_0")) else {
-                    continue;
-                };
-                let (pos, jn, wt) = (g.accessor(pos)?, g.accessor(jn)?, g.accessor(wt)?);
-                for v in 0..pos.len() {
-                    let mut best = 0;
-                    for k in 1..4 {
-                        if wt[v][k] > wt[v][best] {
-                            best = k;
-                        }
+            let (pos, jn, wt) = (g.accessor(pos)?, g.accessor(jn)?, g.accessor(wt)?);
+            for v in 0..pos.len() {
+                let mut best = 0;
+                for k in 1..4 {
+                    if wt[v][k] > wt[v][best] {
+                        best = k;
                     }
-                    let ji = jn[v][best] as usize;
-                    let (Some(&bone), Some(m)) = (joints.get(ji), ibm.get(ji)) else { continue };
-                    let m: M4 = std::array::from_fn(|i| m[i]);
-                    ys.entry(bone).or_default().push(xf(&m, [pos[v][0], pos[v][1], pos[v][2]])[1]);
                 }
+                let ji = jn[v][best] as usize;
+                let (Some(&bone), Some(m)) = (joints.get(ji), ibm.get(ji)) else { continue };
+                let m: M4 = std::array::from_fn(|i| m[i]);
+                ys.entry(bone).or_default().push(xf(&m, [pos[v][0], pos[v][1], pos[v][2]])[1]);
             }
         }
-        _ => notes.push(format!("{file}: no skinned mesh: the body is measured from the bones alone")),
     }
     let bind = world(&rest);
     let origin = |w: &[M4], i: usize| xf(&w[i], [0.0; 3]);

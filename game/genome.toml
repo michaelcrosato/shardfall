@@ -19,6 +19,22 @@ tail = [0.5, 1.1]
 tail_chance = 0.25
 weapons = ["none", "none", "claw", "axe", "mace", "sword", "spear", "maul", "dagger"]
 radius = 0.42
+# Captured motion (anim/*.json), one of each picked ("": the procedural animation): how it
+# stands, walks and breaks into a run, dies, and strikes with each skill.
+idle_clips = ["QUATERNIUS/Zombie_Idle_Loop", "MESH2MOTION/Zombie_Idle_Crouch", "MESH2MOTION/Idle Hurt", "MESH2MOTION/Dizzy", "MESH2MOTION/Fighting Idle", "", ""]
+gaits = [
+    ["QUATERNIUS/Zombie_Walk_Fwd_Loop", "QUATERNIUS/Jog_Fwd_Loop"],
+    ["CMU/Zombie_Walk_Loop", "CMU/Run_Loop"],
+    ["CMU/Gorilla_Walk_Loop", "CMU/Run_Loop"],
+    ["CMU/Frankenstein_Walk_Loop", "CMU/Run_Loop"],
+    ["CMU/Hurt_Stomach_Walk_Loop", "CMU/Run_Loop"],
+    ["STYLE100/Dinosaur_Walk", "QUATERNIUS/Sprint_Loop"],
+    ["STYLE100/Heavyset_Walk", "QUATERNIUS/Jog_Fwd_Loop"],
+    ["", ""],
+    ["", ""],
+]
+death_clips = ["MESH2MOTION/Death_B", "MESH2MOTION/Death_C", "MESH2MOTION/Death_D", "QUATERNIUS/Death01", "CMU/Fall_On_Face", ""]
+attack_clips = { claw = ["QUATERNIUS/Zombie_Scratch", "QUATERNIUS/Melee_Hook", "MESH2MOTION/Fighting Left Jab", ""], smash = ["QUATERNIUS/Sword_Regular_C", "QUATERNIUS/Sword_Attack", ""], cleave = ["QUATERNIUS/Sword_Regular_B", "MESH2MOTION/Sword_Attack", ""], rend = ["QUATERNIUS/Punch_Jab", "QUATERNIUS/Sword_Regular_A", ""], bite = ["QUATERNIUS/Melee_Hook", ""] }
 
 [body.spider]
 weight = 2

@@ -1,12 +1,12 @@
 # Every take of the CMU motion capture database (mocap.cs.cmu.edu; free for all uses), one a line. Written by
-# node tools/cmu.mjs survey, which converts each take into the readable format and measures it; edit only "note".
+# the mocap tool (mocap survey=ledger), which converts each take into the readable format and measures it; edit only "note".
 # sec: length in seconds. category: what a game would use it for (from the words of its description). active: the
 # seconds where it moves (still stretches at either end left out). fit: the readable format's average and worst
 # body-point error against the capture (mm). travel: metres the hips cover. hips: lowest and highest hip height, in
 # percent of standing (under 60: crouching or lying; over 115: in the air or up on something). flags: inverted (upside
 # down at some point), floats (feet off the floor most of the time: stairs, a ladder, a bench), loose (fit over 30 mm),
 # short (under a second), fps? (not on the site's list: 120 assumed), error. used: the CMU set's clips cut from it
-# (src/mocap/catalogs/cmu.json). note: yours, kept when the survey runs again: "pick" (next to import), "skip: why".
+# (anim/catalogs/cmu.json). note: yours, kept when the survey runs again: "pick" (next to import), "skip: why".
 id	subject	fps	sec	category	active	fit	travel	hips	flags	used	note	desc	about
 01_01	1	120	22.9	jump	0.1-22.9	19/96	11.2	84-133				playground - forward jumps, turn around	climb, swing, hang on playground equipment
 01_02	1	120	36.2	climb	0.0-36.2	26/212	17.0	100-182				playground - climb	climb, swing, hang on playground equipment

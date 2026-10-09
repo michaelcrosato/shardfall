@@ -57,7 +57,7 @@ pub fn t_clip_import(_: &mut Session, a: &Args) -> Result<Output> {
         if !cat.pick.is_empty() {
             return import_picks(a, &cat);
         }
-        bail!("from= a .glb, .bvh or set file (or a folder of sets), or catalog= with \"$pick\"");
+        bail!("from= a .glb, .fbx, .bvh or set file (or a folder of sets), or catalog= with \"$pick\"");
     }
     if from.iter().all(|p| ext(p) == "glb") {
         if get_bool(a, "list", false)? {
@@ -67,6 +67,9 @@ pub fn t_clip_import(_: &mut Session, a: &Args) -> Result<Output> {
     }
     if from.iter().all(|p| ext(p) == "bvh") {
         return import_bvh(a, &from, &cat);
+    }
+    if from.iter().all(|p| ext(p) == "fbx") {
+        return import_fbx(a, &from, &cat);
     }
     import_sets(a, &from)
 }
@@ -99,12 +102,16 @@ fn options(a: &Args, cat: &Catalog) -> Result<Options> {
 
 /// Writes a set where `out=` says (else anim/<set>.json) once it reads back.
 fn write_set(set: &ClipSet, a: &Args) -> Result<(PathBuf, usize)> {
+    write_set_to(set, &set_out(a, &set.set, false))
+}
+
+fn write_set_to(set: &ClipSet, out: &Path) -> Result<(PathBuf, usize)> {
     let text = set.to_text();
     let back = ClipSet::parse(&text).map_err(|e| anyhow!("{}: the translated set does not read back: {e}", set.set))?;
     if back.clips.len() != set.clips.len() {
         bail!("{}: clips lost in translation", set.set);
     }
-    let out = get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| anim_dir().join(format!("{}.json", set.set.to_lowercase())));
+    let out = out.to_path_buf();
     if let Some(d) = out.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(d)?;
     }
@@ -112,11 +119,11 @@ fn write_set(set: &ClipSet, a: &Args) -> Result<(PathBuf, usize)> {
     Ok((out, text.len()))
 }
 
-fn report(set: &ClipSet, done: &[Done], file: &Path, bytes: usize, log: Vec<String>) -> Output {
+fn report(a: &Args, set: &ClipSet, done: &[Done], file: &Path, bytes: usize, log: Vec<String>) -> Output {
     let n = done.len().max(1) as f64;
     let mean = done.iter().map(|d| d.mean).sum::<f64>() / n;
     let worst = done.iter().max_by(|x, y| x.max.total_cmp(&y.max));
-    let shown = 60;
+    let shown = get_u64(a, "log", 60).unwrap_or(60) as usize;
     Output::Json(json!({
         "set": set.set,
         "clips": done.len(),
@@ -135,10 +142,11 @@ fn report(set: &ClipSet, done: &[Done], file: &Path, bytes: usize, log: Vec<Stri
 fn import_glb(a: &Args, files: &[PathBuf], cat: &Catalog) -> Result<Output> {
     let o = options(a, cat)?;
     let mut log = Vec::new();
-    let libs = mocap::glb_libraries(files, &list_arg(a, "sources"), &list_arg(a, "rest"), cat, o.fps, &mut log)?;
+    let rm: Vec<PathBuf> = list_arg(a, "rm").into_iter().map(PathBuf::from).collect();
+    let libs = mocap::glb_libraries(files, &list_arg(a, "sources"), &list_arg(a, "rest"), &rm, cat, o.fps, &mut log)?;
     let (set, done) = mocap::assemble(libs, cat, &o, &mut log);
     let (file, bytes) = write_set(&set, a)?;
-    Ok(report(&set, &done, &file, bytes, log))
+    Ok(report(a, &set, &done, &file, bytes, log))
 }
 
 /// BVH files, each a take: the whole take (one file: `at=FROM-TO` seconds), looped when `loop=`
@@ -167,7 +175,9 @@ fn import_bvh(a: &Args, files: &[PathBuf], cat: &Catalog) -> Result<Output> {
             _ => take.clone(),
         };
         let looping = get_bool(a, "loop", cat.entry(&name).is_some_and(|e| e.tags.iter().any(|t| t == "loop")))?;
-        let find = looping.then_some(mocap::takes::Find::Straight).filter(|_| from.is_none() && to.is_none());
+        let find = looping
+            .then_some(way(a)?.map_or(mocap::takes::Find::Straight, mocap::takes::Find::Going))
+            .filter(|_| from.is_none() && to.is_none());
         picks.push(Pick { name, take: take.clone(), from, to, min_cycle: min_cycle(a)?, fps: 0.0, looping, find });
         paths.insert(take, f.clone());
     }
@@ -178,7 +188,35 @@ fn import_bvh(a: &Args, files: &[PathBuf], cat: &Catalog) -> Result<Output> {
     let lib = mocap::bvh_library(&id, &picks, &paths, about, units, o.fps, &mut log)?;
     let (set, done) = mocap::assemble(vec![lib], cat, &o, &mut log);
     let (file, bytes) = write_set(&set, a)?;
-    Ok(report(&set, &done, &file, bytes, log))
+    Ok(report(a, &set, &done, &file, bytes, log))
+}
+
+/// FBX files: every animation stack a clip (`list=true`: their stacks and bones).
+fn import_fbx(a: &Args, files: &[PathBuf], cat: &Catalog) -> Result<Output> {
+    let fps = get_f32(a, "fps", 30.0)? as f64;
+    if get_bool(a, "list", false)? {
+        let mut out = Vec::new();
+        for f in files {
+            let stacks = mocap::fbx::read(f, fps)?;
+            let names: Vec<String> = stacks.iter().map(|(n, b)| format!("{n} ({} frames)", b.frames())).collect();
+            let joints = stacks.first().map(|(_, b)| b.joints().to_vec()).unwrap_or_default();
+            let rig = match stacks.into_iter().next().map(|(_, b)| mocap::bvh::Rigged::new(b, None)) {
+                Some(Ok(r)) => json!({ "map": r.map, "metres_per_unit": r.scale }),
+                Some(Err(e)) => json!({ "map": e.to_string() }),
+                None => Value::Null,
+            };
+            out.push(json!({ "file": f.display().to_string(), "stacks": names, "joints": joints, "rig": rig }));
+        }
+        return Ok(Output::Json(Value::Array(out)));
+    }
+    let o = options(a, cat)?;
+    let ids = list_arg(a, "sources");
+    let units = get_str(a, "units").and_then(|u| u.parse().ok());
+    let mut log = Vec::new();
+    let libs = mocap::fbx_libraries(files, &ids, cat, units, o.fps, &mut log)?;
+    let (set, done) = mocap::assemble(libs, cat, &o, &mut log);
+    let (file, bytes) = write_set(&set, a)?;
+    Ok(report(a, &set, &done, &file, bytes, log))
 }
 
 /// `at=FROM-TO` (seconds).
@@ -198,6 +236,13 @@ fn min_cycle(a: &Args) -> Result<Option<f64>> {
     Ok(a.get("min_cycle").map(|_| get_f32(a, "min_cycle", 0.5)).transpose()?.map(|v| v as f64))
 }
 
+/// `way=`: which way a loop's stretch travels, seen from the hips.
+fn way(a: &Args) -> Result<Option<mocap::takes::Way>> {
+    get_str(a, "way")
+        .map(|w| mocap::takes::Way::parse(w).ok_or_else(|| anyhow!("way= is forward, back, left or right, not {w}")))
+        .transpose()
+}
+
 /// A catalog's picked moments, cut from its database (`$library`: cmu or 100style), the takes
 /// downloaded when missing.
 fn import_picks(a: &Args, cat: &Catalog) -> Result<Output> {
@@ -213,14 +258,15 @@ fn import_picks(a: &Args, cat: &Catalog) -> Result<Output> {
     let picks = if cat.library == mocap::STYLE100 { styled(picks, &cache)? } else { picks };
     let libs = match cat.library.as_str() {
         mocap::CMU => mocap::cmu_libraries(&picks, cat, &ledger, &cache.join(mocap::CMU), o.fps, &mut log)?,
-        mocap::STYLE100 => {
-            vec![style100_library(&picks, cat.sources.get("100STYLE").and_then(|v| v.as_object()).cloned(), o.fps, &mut log)?]
+        lib @ (mocap::STYLE100 | mocap::BANDAI | mocap::LAFAN1) => {
+            let about = cat.sources.values().next().and_then(|v| v.as_object()).cloned();
+            vec![bvh_db_library(lib, &picks, about, o.fps, &mut log)?]
         }
-        other => bail!("$library {other}: the databases are cmu and 100style"),
+        other => bail!("$library {other}: the databases are cmu, 100style, bandai and lafan1"),
     };
     let (set, done) = mocap::assemble(libs, cat, &o, &mut log);
-    let (file, bytes) = write_set(&set, a)?;
-    Ok(report(&set, &done, &file, bytes, log))
+    let (file, bytes) = write_set_to(&set, &set_out(a, &set.set, mocap::local_only(&cat.library)))?;
+    Ok(report(a, &set, &done, &file, bytes, log))
 }
 
 /// 100STYLE picks with no stretch given play the frames the dataset marks as the style.
@@ -235,17 +281,35 @@ fn styled(picks: Vec<Pick>, cache: &Path) -> Result<Vec<Pick>> {
         .collect())
 }
 
-fn style100_library(
+/// A BVH database's picks as one library (100STYLE, Bandai Namco, LaFAN1), the takes downloaded
+/// into the cache when missing.
+fn bvh_db_library(
+    library: &str,
     picks: &[Pick],
     about: Option<serde_json::Map<String, Value>>,
     fps: f64,
     log: &mut Vec<String>,
 ) -> Result<Library> {
-    let dir = fetch::cache_dir().join(mocap::STYLE100);
+    let dir = fetch::cache_dir().join(library);
     let mut takes: Vec<String> = picks.iter().map(|p| p.take.clone()).collect();
+    takes.sort();
     takes.dedup();
-    let files: HashMap<String, PathBuf> = takes.iter().cloned().zip(mocap::style100_get(&takes, &dir)?).collect();
-    mocap::bvh_library("100STYLE", picks, &files, Some(about.unwrap_or_else(|| mocap::about(mocap::STYLE100))), None, fps, log)
+    let files: HashMap<String, PathBuf> = takes.iter().cloned().zip(mocap::bvh_get(library, &takes, &dir)?).collect();
+    let id = match library {
+        mocap::BANDAI => "BANDAI_NAMCO",
+        mocap::LAFAN1 => "LAFAN1",
+        _ => "100STYLE",
+    };
+    mocap::bvh_library(id, picks, &files, Some(about.unwrap_or_else(|| mocap::about(library))), None, fps, log)
+}
+
+/// Where a set goes: `out=`, else anim/<set>.json (a library whose licence forbids sharing
+/// what is made from it: anim/local, which is not committed).
+fn set_out(a: &Args, set: &str, local: bool) -> PathBuf {
+    get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| {
+        let dir = if local { anim_dir().join("local") } else { anim_dir() };
+        dir.join(format!("{}.json", set.to_lowercase()))
+    })
 }
 
 /// Set files (my-3D2dge set scripts or readable sets), or a folder of them.
@@ -444,10 +508,18 @@ pub fn t_mocap(_: &mut Session, a: &Args) -> Result<Output> {
         }
         return Ok(Output::Json(Value::Object(out)));
     }
+    if let Some(what) = get_str(a, "survey") {
+        return survey(a, what, &ledger, &cache);
+    }
     if let Some(ids) = get_str(a, "get") {
         let mut got = Vec::new();
         for id in ids.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-            if id.eq_ignore_ascii_case("mesh2motion") {
+            if id.eq_ignore_ascii_case(mocap::CMU) {
+                // The whole database.
+                let mut log = Vec::new();
+                let n = mocap::cmu::get_all(&cache.join(mocap::CMU), &ledger, &mut log)?;
+                got.push(format!("{n} CMU takes in {} ({})", cache.join(mocap::CMU).display(), log.join("; ")));
+            } else if id.eq_ignore_ascii_case("mesh2motion") {
                 for f in ["human-base-animations.glb", "human-addon-animations.glb", "human-mocap-animations.glb"] {
                     let p = cache.join("mesh2motion").join(f);
                     fetch::get(
@@ -460,7 +532,8 @@ pub fn t_mocap(_: &mut Session, a: &Args) -> Result<Output> {
                 let (asf, amc) = mocap::cmu_get(id, &cache.join(mocap::CMU))?;
                 got.extend([asf.display().to_string(), amc.display().to_string()]);
             } else {
-                for p in mocap::style100_get(&[id.to_string()], &cache.join(mocap::STYLE100))? {
+                let lib = mocap::library_of(id);
+                for p in mocap::bvh_get(lib, &[id.to_string()], &cache.join(lib))? {
                     got.push(p.display().to_string());
                 }
             }
@@ -480,6 +553,7 @@ pub fn t_mocap(_: &mut Session, a: &Args) -> Result<Output> {
                 "ledger": "anim/cmu/takes.tsv: every take with its category, length, the stretch where it moves and how well it converts",
                 "files_cached": cached(mocap::CMU),
                 "use": "mocap find=kick lib=cmu, then mocap cut=13_17 at=1.5-2.6 name=Boxing_Jab set=MINE (a loop: loop=true finds its best cycle in the stretch)",
+                "whole": "mocap get=cmu downloads every take (the site's 1.08 GB archive, unpacked); mocap survey=ledger measures them all into the ledger; mocap survey=library translates them into a set a subject (anim/cmu, 50 mm, for browsing; subjects=5,13 for some)",
             },
             {
                 "name": "100STYLE",
@@ -487,6 +561,27 @@ pub fn t_mocap(_: &mut Session, a: &Args) -> Result<Output> {
                 "license": "CC BY 4.0 (credit required: every set records it)",
                 "files_cached": cached(mocap::STYLE100),
                 "use": "mocap find=zombie lib=100style, then mocap cut=Zombie_FW loop=true name=Zombie_Walk set=MINE (a take is fetched alone out of the 1.5 GB archive)",
+                "sets": "STYLE100 (anim/style100.json: the forward walks, embedded); anim/100style: runs, backward walks and runs, sidesteps and sideways runs each way, idles (clips load=100style; catalogs anim/catalogs/100style_*.json)",
+            },
+            {
+                "name": "Bandai Namco Research motion dataset",
+                "what": "three professional actors walking, running, dashing, gesturing (bow, wave, guide, call), fighting (kick, punch, slash) and dancing in 15 styles: dataset 1, 175 takes (dataset 2: 2,902 more, mostly walks and hand actions)",
+                "license": "CC BY-NC 4.0: non-commercial only, so translated into anim/local (git-ignored), never committed",
+                "files_cached": cached(mocap::BANDAI),
+                "use": "clip_import catalog=anim/catalogs/bandai.json set=BANDAI_NAMCO_1 (every take of dataset 1, into anim/local), or mocap cut=dataset-1_walk_happy_001 loop=true",
+            },
+            {
+                "name": "LaFAN1",
+                "what": "Ubisoft La Forge's 77 sequences by 5 subjects, 4.6 hours: walks, runs, sprints, jumps, crawls, falls and getting up, fights, dances, obstacle courses",
+                "license": "CC BY-NC-ND 4.0: non-commercial, nothing made from it shared, so translated into anim/local (git-ignored), never committed",
+                "files_cached": cached(mocap::LAFAN1),
+                "use": "clip_import catalog=anim/catalogs/lafan1.json set=LAFAN1 (a loop out of every walk, run and sprint), or mocap cut=fallAndGetUp1_subject1 at=12-16 (a take alone out of the 144 MB archive)",
+            },
+            {
+                "name": "Mixamo",
+                "what": "Adobe's character animation library: thousands of moves on a MotionBuilder-named rig (mixamorig:Hips ...), downloaded by hand as FBX (or glTF)",
+                "license": "free to use in projects, not to redistribute: translate your downloads into anim/local",
+                "use": "clip_import from=Walking.fbx,Jab.fbx set=MIXAMO out=anim/local/mixamo.json (every animation stack a clip; .glb works too)",
             },
             {
                 "name": "Mesh2Motion",
@@ -500,8 +595,67 @@ pub fn t_mocap(_: &mut Session, a: &Args) -> Result<Output> {
                 "use": "download from quaternius.com (itch.io), then clip_import from=UAL1.glb,UAL2.glb sources=UAL1,UAL2 catalog=anim/catalogs/quaternius.json set=QUATERNIUS",
             },
         ],
-        "formats": "clip_import reads .glb (Rigify and Unreal-style rigs), .bvh (100STYLE, MotionBuilder names), CMU's .asf/.amc and readable set files",
+        "formats": "clip_import reads .glb (Rigify, Unreal-style and Mixamo rigs), .fbx (binary, version 7: Mixamo, Blender, Unreal, Maya exports), .bvh (100STYLE, MotionBuilder names: Mixamo, LaFAN1; Bandai Namco; Unreal and Rigify names), CMU's .asf/.amc and readable set files",
         "cache": cache.display().to_string(),
+    })))
+}
+
+/// `mocap survey=ledger|library`: every downloaded CMU take (`mocap get=cmu`) measured into the
+/// ledger, or translated into a set a subject for browsing (anim/cmu/cmu_NN.json).
+fn survey(a: &Args, what: &str, ledger: &Ledger, cache: &Path) -> Result<Output> {
+    let lib = match what {
+        "ledger" => false,
+        "library" => true,
+        _ => bail!(
+            "survey=ledger measures every take into anim/cmu/takes.tsv; survey=library translates them, a set a subject, into anim/cmu"
+        ),
+    };
+    // `subjects=5` arrives as a number, `subjects=5,13` as text.
+    let subjects: Option<Vec<u32>> = a
+        .get("subjects")
+        .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_string))
+        .map(|s| s.split(',').filter_map(|x| x.trim().parse().ok()).collect());
+    let tol = get_f32(a, "tol", if lib { 50.0 } else { 30.0 })? as f64;
+    let cat = Catalog::read(&anim_dir().join("catalogs").join("cmu.json")).unwrap_or_default();
+    let used = mocap::cmu::used_by(&cat);
+    let dir = cache.join(mocap::CMU);
+    let mut log = Vec::new();
+    let s = mocap::cmu::survey(&dir, ledger, &used, subjects.as_deref(), !lib, tol, lib.then_some(tol), &mut log)?;
+    if s.takes == 0 {
+        bail!("no CMU takes in {} (mocap get=cmu downloads them all)", dir.display());
+    }
+    let hours = (s.seconds / 360.0).round() / 10.0;
+    if !lib {
+        let path = get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| anim_dir().join("cmu").join("takes.tsv"));
+        mocap::cmu::write_ledger(&s.rows, &path)?;
+        return Ok(Output::Json(json!({
+            "measured": s.takes,
+            "hours": hours,
+            "rows": s.rows.len(),
+            "file": path.display().to_string(),
+            "log": log,
+        })));
+    }
+    let out = get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| anim_dir().join("cmu"));
+    std::fs::create_dir_all(&out)?;
+    let (mut bytes, mut clips) = (0, 0);
+    for set in &s.sets {
+        let text = set.to_text();
+        ClipSet::parse(&text).map_err(|e| anyhow!("{}: the translated set does not read back: {e}", set.set))?;
+        std::fs::write(mocap::cmu::set_path(&out, set), &text)?;
+        bytes += text.len();
+        clips += set.clips.len();
+    }
+    Ok(Output::Json(json!({
+        "takes": s.takes,
+        "hours": hours,
+        "sets": s.sets.len(),
+        "clips": clips,
+        "bytes": bytes,
+        "tol_mm": tol,
+        "dir": out.display().to_string(),
+        "log": log,
+        "next": "anim_reload picks the sets up; clips load=cmu lists them",
     })))
 }
 
@@ -514,7 +668,10 @@ fn cut(a: &Args, take: &str, ledger: &Ledger, cache: &Path) -> Result<Output> {
         get_str(a, "name").map(str::to_string).unwrap_or_else(|| if looping { format!("{take}_Loop") } else { take.to_string() });
     let set_name = get_str(a, "set").unwrap_or("MOCAP").to_string();
     let fps = get_f32(a, "fps", 30.0)? as f64;
-    let find = mocap::style100_find(take, looping);
+    let find = match way(a)? {
+        Some(w) => Some(mocap::takes::Find::Going(w)),
+        None => mocap::style100_find(take, looping),
+    };
     let min_cycle = min_cycle(a)?.or(mocap::style100_min_cycle(take, looping));
     let mut pick = Pick { name: name.clone(), take: take.to_string(), from, to, min_cycle, fps: 120.0, looping, find };
     let mut log = Vec::new();
@@ -530,11 +687,10 @@ fn cut(a: &Args, take: &str, ledger: &Ledger, cache: &Path) -> Result<Output> {
         cat.sources.insert("CMU".into(), Value::Object(mocap::about(mocap::CMU)));
         mocap::cmu_libraries(&[pick], &cat, ledger, &cache.join(mocap::CMU), fps, &mut log)?.remove(0)
     } else {
-        let pick = styled(vec![pick], cache)?.remove(0);
-        style100_library(&[pick], None, fps, &mut log)?
+        let pick = if lib == mocap::STYLE100 { styled(vec![pick], cache)?.remove(0) } else { pick };
+        bvh_db_library(lib, &[pick], None, fps, &mut log)?
     };
-    let path =
-        get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| anim_dir().join(format!("{}.json", set_name.to_lowercase())));
+    let path = set_out(a, &set_name, mocap::local_only(lib));
     let mut set = if path.exists() {
         read_set(&path)?
     } else {
@@ -611,6 +767,9 @@ pub fn t_clips(_: &mut Session, a: &Args) -> Result<Output> {
             "tags": c.tags,
             "desc": c.desc,
             "keys": c.keys.len(),
+            "speed": c.speed,
+            // When a one-off's strike lands: what a captured attack is timed by.
+            "strike": (!c.looping).then(|| clips::strike_time(id)).flatten().map(|t| (t * 1000.0).round() / 1000.0),
             "fit_mm": set.fit.get(&c.clip),
             "source": { "label": src.get("label"), "license": src.get("license"), "url": src.get("url"), "origin": src.get("origin") },
             "credit": set.credit,

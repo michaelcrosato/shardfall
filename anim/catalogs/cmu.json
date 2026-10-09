@@ -16,7 +16,7 @@
     "Sneak_Loop": ["139_29"],
     "Wounded_Walk_Loop": ["139_19", 3.0, 8.0, 0.9],
     "Hurt_Stomach_Walk_Loop": ["91_26"],
-    "Walk_Backwards_Loop": ["136_25", 3.0, 14.0],
+    "Walk_Backwards_Loop": ["136_25", 3.0, 14.0, null, "back"],
     "Crouch_Walk_Loop": ["136_09"],
     "Hop_One_Foot_Loop": ["132_23"],
     "Run_Quick_Stop": ["127_05"],

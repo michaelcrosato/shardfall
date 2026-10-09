@@ -61,10 +61,40 @@ pub struct Entry {
     local: u64,
 }
 
-/// A zip archive on the web, read by ranges.
+/// A zip archive, on the web (read by ranges) or on disk.
 pub struct RemoteZip {
-    url: String,
+    src: Src,
     pub entries: Vec<Entry>,
+}
+
+enum Src {
+    Url(String),
+    File(PathBuf),
+}
+
+impl Src {
+    /// Bytes `from..=to` (`from` < 0: the last `-from` bytes).
+    fn bytes(&self, from: i64, to: i64) -> Result<Vec<u8>> {
+        match self {
+            Src::Url(u) => range(u, from, to),
+            Src::File(p) => {
+                use std::io::{Read, Seek, SeekFrom};
+                let mut f = std::fs::File::open(p)?;
+                let len = f.metadata()?.len() as i64;
+                let (a, b) = if from < 0 { ((len + from).max(0), len - 1) } else { (from, to.min(len - 1)) };
+                f.seek(SeekFrom::Start(a as u64))?;
+                let mut out = vec![0u8; (b - a + 1).max(0) as usize];
+                f.read_exact(&mut out)?;
+                Ok(out)
+            }
+        }
+    }
+    fn name(&self) -> String {
+        match self {
+            Src::Url(u) => u.clone(),
+            Src::File(p) => p.display().to_string(),
+        }
+    }
 }
 
 fn u16le(b: &[u8], o: usize) -> u16 {
@@ -75,18 +105,29 @@ fn u32le(b: &[u8], o: usize) -> u32 {
 }
 
 impl RemoteZip {
-    /// Reads the archive's list of files (its end record, then its central directory).
+    /// Reads the list of files of an archive on the web (its end record, then its central
+    /// directory).
     pub fn open(url: &str) -> Result<RemoteZip> {
-        let tail = range(url, -65_557, 0)?;
+        Self::list(Src::Url(url.to_string()))
+    }
+
+    /// The same, for an archive on disk.
+    pub fn open_file(path: &Path) -> Result<RemoteZip> {
+        Self::list(Src::File(path.to_path_buf()))
+    }
+
+    fn list(src: Src) -> Result<RemoteZip> {
+        let name = src.name();
+        let tail = src.bytes(-65_557, 0)?;
         let eocd =
-            tail.windows(4).rposition(|w| w == [0x50, 0x4b, 0x05, 0x06]).ok_or_else(|| anyhow!("{url} is not a zip archive"))?;
+            tail.windows(4).rposition(|w| w == [0x50, 0x4b, 0x05, 0x06]).ok_or_else(|| anyhow!("{name} is not a zip archive"))?;
         let n = u16le(&tail, eocd + 10) as usize;
         let size = u32le(&tail, eocd + 12) as u64;
         let off = u32le(&tail, eocd + 16) as u64;
         if off == u32::MAX as u64 || size == u32::MAX as u64 {
-            bail!("{url}: a zip64 archive (over 4 GB) is not read");
+            bail!("{name}: a zip64 archive (over 4 GB) is not read");
         }
-        let cd = range(url, off as i64, (off + size - 1) as i64)?;
+        let cd = src.bytes(off as i64, (off + size - 1) as i64)?;
         let mut entries = Vec::with_capacity(n);
         let mut p = 0;
         while p + 46 <= cd.len() && u32le(&cd, p) == 0x0201_4b50 {
@@ -100,17 +141,17 @@ impl RemoteZip {
             });
             p += 46 + nl + xl + cl;
         }
-        Ok(RemoteZip { url: url.to_string(), entries })
+        Ok(RemoteZip { src, entries })
     }
 
     /// One file's bytes.
     pub fn read(&self, e: &Entry) -> Result<Vec<u8>> {
-        let head = range(&self.url, e.local as i64, e.local as i64 + 29)?;
+        let head = self.src.bytes(e.local as i64, e.local as i64 + 29)?;
         if head.len() < 30 || u32le(&head, 0) != 0x0403_4b50 {
             bail!("{}: no local header", e.name);
         }
         let start = e.local + 30 + u16le(&head, 26) as u64 + u16le(&head, 28) as u64;
-        let packed = if e.packed > 0 { range(&self.url, start as i64, (start + e.packed - 1) as i64)? } else { Vec::new() };
+        let packed = if e.packed > 0 { self.src.bytes(start as i64, (start + e.packed - 1) as i64)? } else { Vec::new() };
         match e.method {
             0 => Ok(packed),
             8 => miniz_oxide::inflate::decompress_to_vec(&packed).map_err(|err| anyhow!("{}: inflate: {err:?}", e.name)),

@@ -6,6 +6,67 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Animation: every open library through the engine's own tools — 2026-10-09
+The follow-up that brings the rest of the libraries in, and the formats they ship in:
+- **The whole CMU database, natively** (`mocap/cmu.rs`, a port of cmu.mjs's survey): `mocap
+  get=cmu` downloads the site's 1.08 GB archive and unpacks every take (2,514 from it, 32 more one
+  by one: 2,548); `mocap survey=ledger` measures each into anim/cmu/takes.tsv (length, where it
+  moves, fit, travel, hip heights, flags) and `mocap survey=library` translates them, a set a
+  subject, into anim/cmu (10.7 hours of motion, 4,770 clips, about 80 s each). Run over the
+  whole database, all 2,548 ledger rows and all 113 sets came out identical to the committed ones
+  my-3D2dge's tool made; the files differ only in the legend's line for `speed`, so anim/cmu is
+  now the native tool's output.
+- **100STYLE's other gaits** (`anim/100style`, on disk, `clips load=100style`): runs, backward
+  walks and runs, sidesteps and sideways runs each way, and idles for every style: 780 loops, 9,779
+  key poses, 2.8 MB, catalogs `anim/catalogs/100style_*.json` written from the dataset's lists.
+  The cutter learned what they need. A loop can go a way (`way=back|left|right|forward`): every
+  straight pass of the take going that way of where the hips face, never doubling back, is
+  searched, and the loop is cut from the pass that holds the cleanest cycle, the body facing
+  forward. A turn inside the cycle costs too, so it is not taken just after the performer comes
+  round. Sidesteps swing the legs out, backward walks fore and aft, every body faces forward
+  (median turn 0); the four styles that drag the leg they would lead with are left out, with the
+  reason in the catalog. The forward walks, CMU and Mesh2Motion sets come out byte for byte as
+  before; CMU's Walk_Backwards_Loop now steps back facing forward (`way` in its catalog line).
+- **Quaternius' Universal Animation Libraries 1 and 2** fetched from itch.io and translated
+  natively from version 2 (June 2026): 102 clips. `rm=` reads each file's root-motion twin: loops
+  take their speed from it, clips that travel are added as `<clip>_RM`.
+- **FBX** (`mocap/fbx.rs`): binary FBX 7 (Mixamo, Blender, Maya, Unreal exports): the node tree
+  (zlib arrays), the skeleton with the SDK's transform (pre- and post-rotation, pivots, offsets,
+  six rotation orders, scale), each animation stack's curves sampled into a take, z-up files
+  turned y-up. `clip_import from=x.fbx` makes every stack a clip. Quaternius' own FBX of Library 1
+  agrees with the glTF translation of the same clips (median 1.4 degrees off; the rest is where
+  each route roots and faces a clip). `tests/mocap.rs` writes an FBX file and reads it back.
+- **Rigs:** Mixamo's (MotionBuilder names, `mixamorig:` or not) for glTF too; Bandai Namco's;
+  Unreal and Rigify names for BVH and FBX. Exporters that key every bone's translation, and
+  skeletons whose zero pose is not a body standing (MotionBuilder lays bones along x), are read:
+  position channels place a joint outright, and the body is measured in the frame where it
+  stands straightest, every take of a library sharing the take that stands best. A bone end the
+  file gives no length gets a typical one. A glTF file with more than one skinned mesh measures
+  its tips on all of them.
+- **Non-commercial libraries, translated for this machine** (git-ignored `anim/local`, `clips
+  load=local`; never committed): the Bandai Namco Research motion dataset 1 (`$library: bandai`,
+  175 takes in 15 styles: walks, runs, dashes and backward walks looped, gestures, fights and
+  dances whole; 13.6 mm), LaFAN1 (`$library: lafan1`, a loop out of each of its 18 walks, runs and
+  sprints, read one take at a time out of its 144 MB archive), and Mixamo downloads (.fbx or
+  .glb).
+- **Tools:** `mocap` describes seven libraries; `mocap get=` fetches CMU, 100STYLE, Bandai Namco
+  and LaFAN1 takes; `mocap cut ... way=`; `clip_import` reads .fbx, `log=N` for all its notes,
+  `way=` and `whole` (a take that is one cycle already) in catalog picks; a catalog import leaves
+  a pick it cannot cut out, with the reason, rather than failing.
+- **Monsters move in captured motion** (humanoid ones: the clips are human). A look's `run_clip`
+  takes over from its `walk_clip` above the pace between them, so a monster shambles while it
+  wanders (at its walk's own pace) and runs when it gives chase, its stride matched to the
+  ground either way. `attack_clips` names a captured attack per skill, played over the skill's
+  move and timed so the clip's strike (the moment a hand, or the blade's tip, reaches furthest
+  ahead; `clips name=` shows it) lands on the hit, at near its own speed. `death_clip` is a
+  captured fall: down within about 1.2 s, the body sinking and clearing after it. The ghoul
+  sways hunched, shambles, runs, rakes with both hands and is thrown off its feet; the
+  bonecrusher struts, brings its maul down overhead or sweeps it low; the Hollow King marches,
+  slashes and splits the earth with captured swordplay. Generated bipeds draw a gait (a walk
+  and its run), an idle, a fall and their skills' attacks from the genome (`game/genome.toml`),
+  out of a stream of their own so every other gene stays as it was. Game data names only clips
+  that exist (checked on load); `animsheet skill=` shows the captured attack.
+
 ## Animation: the engine translates open motion libraries itself — 2026-10-09
 my-3D2dge's raw-capture importer (tools/anim-import.mjs, asf-amc.mjs, cmu.mjs and the encoding
 half of readable.js), ported into `pav_tools::mocap`, so the libraries come in through this
@@ -59,6 +120,7 @@ engine's own tools instead of through the other engine's conversions:
   100STYLE's other gaits (backward, sideways, running, idles): `mocap cut=Old_FR loop=true` cuts
   any of them; the whole-database CMU survey (the ledger, anim/cmu's 4,770 clips) is still the one
   my-3D2dge's cmu.mjs made, while single takes and catalogs go through the native tools.
+  (All of it done in the follow-up above.)
 
 ## Animation: moves as data, and motion clips from open libraries — 2026-10-09
 Compared the puppet with my-3D2dge's (the same approach: a skeleton posed by math, two-bone IK,
@@ -111,7 +173,8 @@ functions, state saved with the simulation, tools):
 - New field-guide words: motion capture, retargeting, key pose, anticipation.
 - Tests: `tests/motion.rs` (9), unit tests in moves.rs and clips.rs.
 - Not done: a native importer for raw captures (BVH, glTF, ASF/AMC: the sets were translated from
-  my-3D2dge's fitted conversions); cloth capes (still three cones); monsters with clips.
+  my-3D2dge's fitted conversions); cloth capes (still three cones); monsters with clips. (The
+  importer and monsters in captured motion came after: see above.)
 
 ## Fix: slides stopping dead on flat floors, treadmill walkers — 2026-10-08
 - **Not floor seams.** Slalom's floor is a single block. Rapier's character controller sometimes

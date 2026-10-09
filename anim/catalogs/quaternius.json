@@ -1,7 +1,7 @@
 {
   "$sources": {
-    "UAL1": {"label": "Quaternius Universal Animation Library 1", "origin": "Universal Animation Library by Quaternius: the free Standard edition (45 clips and a T-pose), as Quaternius exports it for Godot", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary.html"},
-    "UAL2": {"label": "Quaternius Universal Animation Library 2", "origin": "Universal Animation Library 2 by Quaternius: the free Standard edition (42 clips), as Quaternius exports it for Unreal and Godot", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary2.html"}
+    "UAL1": {"label": "Quaternius Universal Animation Library 1", "origin": "Universal Animation Library by Quaternius: the free Standard edition, version 2 (June 2026), as Quaternius exports it for Unreal and Godot: UAL1_Standard.glb, its clips in place, and UAL1_Standard_RM.glb, the same clips with root motion (clips that travel are kept from it as <clip>_RM; loops take their speed from it)", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary.html"},
+    "UAL2": {"label": "Quaternius Universal Animation Library 2", "origin": "Universal Animation Library 2 by Quaternius: the free Standard edition, version 2 (June 2026), as Quaternius exports it for Unreal and Godot: UAL2_Standard.glb, its clips in place, and UAL2_Standard_RM.glb, the same clips with root motion (clips that travel are kept from it as <clip>_RM; loops take their speed from it)", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary2.html"}
   },
   "A_TPose": ["reference","T-pose, arms straight out: the rest pose every clip is measured from"],
   "Idle_Loop": ["idle","standing at rest, breathing and shifting weight"],
@@ -67,12 +67,12 @@
   "Slide_Start": ["slide dodge","drops from a run into a feet-first slide on the back"],
   "Slide_Loop": ["slide","sliding feet first, leaning back on one hand"],
   "Slide_Exit": ["slide","springs up out of the slide into a run"],
-  "Sword_Regular_A": ["sword attack root-motion","the combo's first strike: crouches and thrusts forward"],
-  "Sword_Regular_A_Rec": ["sword stance root-motion","recovers from the first strike back to standing"],
-  "Sword_Regular_B": ["sword attack root-motion","the combo's second strike: a low, wide sweeping slash"],
-  "Sword_Regular_B_Rec": ["sword stance root-motion","recovers from the second strike back to standing"],
-  "Sword_Regular_C": ["sword attack root-motion","the combo's finisher: a big overhead slash down to the ground, then stands"],
-  "Sword_Regular_Combo": ["sword attack root-motion","the three strikes chained: thrust, sweep, finisher"],
+  "Sword_Regular_A": ["sword attack","the combo's first strike: crouches and thrusts forward, in place"],
+  "Sword_Regular_A_Rec": ["sword stance","recovers from the first strike back to standing, in place"],
+  "Sword_Regular_B": ["sword attack","the combo's second strike: a low, wide sweeping slash, in place"],
+  "Sword_Regular_B_Rec": ["sword stance","recovers from the second strike back to standing, in place"],
+  "Sword_Regular_C": ["sword attack","the combo's finisher: a big overhead slash down to the ground, then stands, in place"],
+  "Sword_Regular_Combo": ["sword attack","the three strikes chained: thrust, sweep, finisher, in place"],
   "Sword_Dash_RM": ["sword attack dodge root-motion","dashes forward low and slashes (travels)"],
   "Sword_Block": ["sword block","braces and raises the sword to block, then recovers"],
   "Idle_Shield_Loop": ["shield idle stance","guarding: the left forearm held across the chest behind a shield"],
@@ -90,5 +90,20 @@
   "Farm_Harvest": ["farm work","bends down and pulls a crop up out of the ground"],
   "Farm_PlantSeed": ["farm work","kneels, presses a seed into the soil, stands"],
   "Farm_Watering": ["farm work","tips a watering can held in the right hand, sweeping it over the ground"],
-  "TreeChopping_Loop": ["work","chops with an axe: swings from over the shoulder down into a tree"]
+  "TreeChopping_Loop": ["work","chops with an axe: swings from over the shoulder down into a tree"],
+  "Sword_Regular_A_RM": ["sword attack root-motion","the combo's first strike: crouches and thrusts forward (travels)"],
+  "Sword_Regular_A_Rec_RM": ["sword stance root-motion","recovers from the first strike back to standing (travels)"],
+  "Sword_Regular_B_RM": ["sword attack root-motion","the combo's second strike: a low, wide sweeping slash (travels)"],
+  "Sword_Regular_B_Rec_RM": ["sword stance root-motion","recovers from the second strike back to standing (travels)"],
+  "Sword_Regular_C_RM": ["sword attack root-motion","the combo's finisher: a big overhead slash down to the ground, then stands (travels)"],
+  "Sword_Regular_Combo_RM": ["sword attack root-motion","the three strikes chained: thrust, sweep, finisher (travels)"],
+  "Death01_RM": ["death root-motion","staggers and falls flat on the back (travels)"],
+  "Melee_Hook_RM": ["unarmed attack root-motion","a big lunging hook swing that carries low to the ground (travels)"],
+  "Slide_Start_RM": ["slide dodge root-motion","drops from a run into a feet-first slide on the back (travels)"],
+  "Slide_Exit_RM": ["slide root-motion","springs up out of the slide into a run (travels)"],
+  "ClimbUp_1m": ["climb","grabs a ledge about 1 m high and hauls up onto it, in place"],
+  "Shield_Dash": ["shield attack","charges forward behind a shield, in place"],
+  "Sword_Dash": ["sword attack dodge","dashes forward low and slashes, in place"],
+  "Sword_Heavy_Combo": ["sword attack","a heavy chain: a low lunging thrust, a wide rising slash, then a big chop down to the ground and back to standing, in place"],
+  "Sword_Heavy_Combo_RM": ["sword attack root-motion","a heavy chain: a low lunging thrust, a wide rising slash, then a big chop down to the ground and back to standing (travels)"]
 }

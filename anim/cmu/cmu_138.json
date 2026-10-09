@@ -14,7 +14,8 @@
   "legL legR  [forward, out, up, bend, twist]  hip to ankle in pelvis space; bend: the knee; twist: from pointing forward",
   "footL footR [down, out, toes]   degrees the foot points down from standing, turns outward, and the toes bend up",
   "blade  [forward, right, up]   (sword clips) the direction of a blade held in the right fist, in chest space",
-  "root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height"
+  "root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height",
+  "speed  (a clip's header: loops that walk or run in place) how fast the capture travelled, percent of standing hip height a second"
 ],
 "fps": 30,
 "sources": {

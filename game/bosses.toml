@@ -14,13 +14,26 @@ scale = 2.3
 skills = ["smash", "earthsplitter"]
 life = 1.6
 parts = [{ kind = "horns", size = 1.6, color = "#e8c45a", glow = 0.6 }, { kind = "spikes", size = 1.2, count = 5 }]
-look = { skin = "#8a8478", shirt = "#3a2a3a", pants = "#2a2030", eyes = "#ff4a2a", weapon = { kind = "greatsword", color = "#c0c4cc", glow = 0.4 } }
 lore = "He was crowned in the first fall, and never stopped falling."
 phases = [
     { at = 0.7, say = "Kneel before your king!", summon = { family = "ghoul", count = 4 } },
     { at = 0.4, say = "The crown demands blood!", skills = ["leap_slam", "war_cry"], mods = { attack_speed = 20 } },
     { at = 0.15, say = "I... will not... fall!", mods = { damage_more = 40 } },
 ]
+
+[hollow_king.look]
+skin = "#8a8478"
+shirt = "#3a2a3a"
+pants = "#2a2030"
+eyes = "#ff4a2a"
+weapon = { kind = "greatsword", color = "#c0c4cc", glow = 0.4 }
+# Captured swordplay: he waits sword in hand, marches upright, slashes stepping in (smash),
+# brings the blade down overhead to split the earth, and staggers and falls flat when beaten.
+idle_clip = "QUATERNIUS/Sword_Idle"
+walk_clip = "STYLE100/Proud_Walk"
+run_clip = ""
+death_clip = "QUATERNIUS/Death01"
+attack_clips = { smash = "QUATERNIUS/Sword_Attack", earthsplitter = "QUATERNIUS/Sword_Regular_C" }
 
 [mother_of_swarms]
 name = "Mother of Swarms"

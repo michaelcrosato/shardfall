@@ -204,6 +204,18 @@ pub struct PuppetDef {
     /// procedural walk while it heads forward on the ground, played as fast as it moves
     /// (bipeds). Empty = none.
     pub walk_clip: String,
+    /// A run loop for speeds the walk loop would have to hurry through (a monster giving
+    /// chase): it plays instead of the walk above the pace between the two (bipeds). Empty =
+    /// none.
+    pub run_clip: String,
+    /// A captured fall the character dies with, in place of the procedural topple (bipeds;
+    /// the hero has falls of its own). Empty = none.
+    pub death_clip: String,
+    /// Captured attacks by skill (`claw = "QUATERNIUS/Zombie_Scratch"`), played in place of the
+    /// skill's move and timed so the clip's strike lands on the hit: the moment a hand reaches
+    /// furthest ahead of the hips (a foot, for a clip tagged `kick`), or `@seconds` written
+    /// after the name (bipeds).
+    pub attack_clips: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for PuppetDef {
@@ -246,6 +258,9 @@ impl Default for PuppetDef {
             parts: Vec::new(),
             idle_clip: String::new(),
             walk_clip: String::new(),
+            run_clip: String::new(),
+            death_clip: String::new(),
+            attack_clips: Default::default(),
         }
     }
 }
@@ -573,7 +588,8 @@ impl PuppetState {
             {
                 self.clip_flags |= crate::clips::STOP;
             }
-            let step = dt / crate::clips::FADE;
+            let step =
+                dt / if self.clip_flags & crate::clips::QUICK != 0 { crate::clips::FADE / 3.0 } else { crate::clips::FADE };
             if self.clip_flags & crate::clips::STOP != 0 {
                 self.clip_w = (self.clip_w - step).max(0.0);
                 self.clip2_w = (self.clip2_w - step).max(0.0);
@@ -658,6 +674,20 @@ impl PuppetState {
         self.clip_w = 0.0;
         self.clip_flags = flags & !crate::clips::STOP;
         self.clip_speed = speed;
+    }
+
+    /// Plays clip `id` from its start even when it is the one playing (a second swing of the
+    /// same attack), the playing one fading out underneath.
+    pub fn replay_clip(&mut self, id: u32, flags: u8, speed: f32) {
+        if id != 0 && id == self.clip {
+            // Under itself: what plays now stays beneath while the new start fades in.
+            self.clip2 = self.clip;
+            self.clip2_t = self.clip_t;
+            self.clip2_w = self.clip_w;
+            self.clip2_flags = self.clip_flags & !crate::clips::STOP;
+            self.clip = 0;
+        }
+        self.play_clip(id, flags, speed);
     }
 
     /// Fades the clip out; the procedural animation takes over again.
@@ -830,8 +860,9 @@ fn motion(def: &PuppetDef, st: &PuppetState, feet: Vec3, parts: &mut [PuppetPart
     let spin = (st.spin.abs() > 1e-4).then(|| Quat::from_rotation_y(st.spin));
     let down = st.down.clamp(0.0, 1.0);
     // A clip (a death fall) lays the body down itself; the procedural topple gives way to it.
+    // The sink comes after either (a body that lies where it fell, the hero's, stays at half).
     let topple = (down > 0.0).then(|| Quat::from_axis_angle(right, -1.45 * smooth(0.0, 0.45, down) * (1.0 - st.clip_w)));
-    let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down) * (1.0 - st.clip_w));
+    let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down));
     for p in parts.iter_mut() {
         for v in [&mut p.a, &mut p.b] {
             let mut x = *v - feet;

@@ -37,6 +37,13 @@ pub struct BodyGene {
     pub body_length: [f32; 2],
     pub weapons: Vec<String>,
     pub radius: f32,
+    /// Motion clips a biped may move with, one of each picked ("" keeps the procedural
+    /// animation): idles, gaits (a walk and the run it breaks into), deaths, and attacks by
+    /// skill.
+    pub idle_clips: Vec<String>,
+    pub gaits: Vec<[String; 2]>,
+    pub death_clips: Vec<String>,
+    pub attack_clips: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -323,6 +330,19 @@ impl Genome {
                     WeaponKind::NAMES.iter().position(|n| n == w).map(WeaponKind::from_index).unwrap_or(WeaponKind::None);
                 p.weapon.color = p.accent.clone();
                 p.weapon.glow = pal.glow * 0.5;
+            }
+            // Captured motion, drawn from a stream of its own so the genome's other genes stay
+            // what they were.
+            let mut cr = Rng::new(seed ^ 0x636c_6970_735f_6d76);
+            p.idle_clip = pick(&mut cr, &bg.idle_clips).cloned().unwrap_or_default();
+            if let Some([walk, run]) = pick(&mut cr, &bg.gaits) {
+                (p.walk_clip, p.run_clip) = (walk.clone(), run.clone());
+            }
+            p.death_clip = pick(&mut cr, &bg.death_clips).cloned().unwrap_or_default();
+            for (skill, clips) in &bg.attack_clips {
+                if let Some(c) = pick(&mut cr, clips).filter(|c| !c.is_empty()) {
+                    p.attack_clips.insert(skill.clone(), c.clone());
+                }
             }
         }
         // Parts: 0-3 (more deeper down).
