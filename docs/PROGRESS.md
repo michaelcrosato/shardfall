@@ -6,6 +6,29 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Doctrine adopted — 2026-10-09
+`docs/DOCTRINE.md` (the user's agent-first engine doctrine) now sits above DESIGN.md and
+AGENTS.md. Nothing in the code changed; AGENTS.md says how each principle applies here.
+- **Kept as working rules** under it: gameplay first, use tools, run well on a modern PC,
+  approximations that feel right, check selectively, token efficiency.
+- **Dropped** "never paint the engine into a corner; keep options open": the doctrine says to
+  solve problems when they surface, not in anticipation.
+
+## Decisions (doctrine)
+- **Mid-development adoption:** existing code isn't rewritten to fit; mismatches are fixed when
+  they get in the way. The two known ones (UI invisible to the tools, a replay hash that covers
+  only positions) are listed in AGENTS.md.
+- **Versions (9):** current pins are kept; the 12-month rule applies to new dependencies and
+  upgrades. wgpu, rapier and cpal are internals anyway; glam and egui appear in game code.
+- **Platform (5, 10):** the user confirmed their Windows `.exe` and the browser count as part of
+  the target. Cross-machine replays aren't promised; the user judged the risk too small to plan
+  for, and the change (software maths, rapier's `enhanced-determinism`) is mechanical if needed.
+- **No escape hatch (8):** game code reaches internals only through the API; gaps are filled by
+  extending the API.
+- **API (7, 8):** the 18 engine modules `pav_core/src/arpg/` uses are the API; the rest is
+  internals. The game isn't split into its own crate yet.
+- **Escalations** go to `docs/ESCALATIONS.md`.
+
 ## Mobile: touch controls, a pared-down HUD, swipes and performance — 2026-10-09
 The browser build had no touch input at all (winit turns a finger into `WindowEvent::Touch`,
 which nothing read, so on a phone neither the game nor its windows responded) and drew the desktop

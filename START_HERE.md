@@ -9,7 +9,8 @@ Give the receiving agent this instruction:
 > Extract the archive, read START_HERE.md and AGENTS.md, then build the headless `pav`
 > CLI. Use its simulation, capture, and content tools to inspect and work on the game.
 
-Read `AGENTS.md`, `docs/DESIGN.md`, and `docs/PROGRESS.md` before changing the project.
+Read `docs/DOCTRINE.md`, `AGENTS.md`, `docs/DESIGN.md`, and `docs/PROGRESS.md` before changing
+the project.
 `docs/GAME.md` describes Shardfall. The archive has no remote or checked-out branch;
 initialize a local Git repository if you want to track your changes.
 

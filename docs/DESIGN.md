@@ -1,7 +1,7 @@
 # Shardfall — Engine & Showcase Design Plan
 
 "Shardfall" is the game and repository name. "Pavilion" is the engine's playable tech demo.
-This document is the source of truth for what we are building and why.
+This document is the source of truth for what we are building and why; the principles are in `docs/DOCTRINE.md`.
 If a pasted version of this plan in chat differs from this file, the pasted version wins; update this file to match.
 
 ## 1. What we're building
@@ -11,13 +11,11 @@ The showcase is a continuous pavilion of themed wings and test rooms set inside 
 
 The engine is meant to be reused for many different games. We don't know yet what game we're making, so flexibility wins over polish.
 
-## 2. Principles (in priority order; these also go into AGENTS.md)
-1. **Gameplay first, then robustness.** Never paint ourselves into a corner; keep design options open.
-2. **Use tools.** If a tool can do a job faster, more accurately or more cheaply over time, use one or build one.
-3. **Optimization and compatibility come later.** It still has to run well on a normal modern PC.
-4. **Approximations are fine if they feel right.** Feel beats physical accuracy.
-5. **Check selectively.** Check what often breaks or is expensive to debug. Skip routine checks of things that almost never break. "If it's broken, the user will say so" is a valid strategy.
-6. **Token efficiency over speed.**
+## 2. Principles
+`docs/DOCTRINE.md` sets the principles and the escalation process, and outranks this document.
+`AGENTS.md` says how the doctrine applies to this repo and lists the working rules under it:
+gameplay first, use tools, run well on a modern PC, approximations that feel right, check
+selectively, token efficiency.
 
 ## 3. Platform & tech
 - **Where it runs:**
@@ -174,7 +172,7 @@ The engine is meant to be reused for many different games. We don't know yet wha
 - **Windows build:** the `.exe` is cross-compiled in the cloud and sent in chat at the end of each milestone. Local WSL2 agents can build the `.exe` and launch it directly on Windows.
 - **Progress log:** `docs/PROGRESS.md` records the current milestone, what's done, what's next, and decisions made, so any agent can resume.
 - **Build order:** sequential. Once the foundation and rulebook exist, self-contained rooms can be handed to cheaper helper agents and reviewed. This also tests the goal that smaller models can extend the engine.
-- **Decisions:** ask the user only about decisions that are genuinely theirs. Otherwise decide, record the decision in this document, and continue.
+- **Decisions:** ask the user only about decisions that are genuinely theirs. Otherwise decide, record the decision in this document, and continue. Escalations follow the doctrine and are logged in `docs/ESCALATIONS.md`.
 
 ## 15. Milestones (each ends with a working `.exe`)
 1. **M1 Foundation:**

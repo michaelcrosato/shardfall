@@ -1,15 +1,50 @@
 # AGENTS.md — rulebook for coding agents
 
-Shardfall is a procedural hack-and-slash game built on the Pavilion engine, written in Rust. The design is in
-`docs/DESIGN.md` (source of truth); progress and decisions are in `docs/PROGRESS.md`. Read both
-before starting; update `docs/PROGRESS.md` when you finish something.
+Shardfall is a procedural hack-and-slash game built on the Pavilion engine, written in Rust. The
+principles are in `docs/DOCTRINE.md`, which outranks everything else here. The design is in
+`docs/DESIGN.md` (source of truth for what we build); progress and decisions are in
+`docs/PROGRESS.md`. Read all three before starting; update `docs/PROGRESS.md` when you finish
+something.
 
 For a standalone Linux source handoff, `START_HERE.md` covers setup and headless CLI examples.
 
-## Principles (priority order)
-1. **Gameplay first, then robustness.** Never paint the engine into a corner; keep options open.
+## How the doctrine applies here
+Adopted 2026-10-09, partway through development. Code from before then isn't rewritten to fit;
+fix a mismatch when it gets in the way.
+- **Platform (5, 10):** the development platform is Linux, where agents build and test. The
+  user's Windows `.exe` and the browser build count as part of the target too: a problem the user
+  can see gets fixed now. Replays are promised to match only on the machine that recorded them; to
+  chase something the user saw, start from a snapshot taken just before it.
+- **Renderer (6):** wgpu is the WebGPU implementation: Vulkan on Linux and Windows (DX12 as a
+  Windows option), the browser's own WebGPU on the web, lavapipe where there's no GPU. GPU compute
+  stays cosmetic. The game UI is egui.
+- **API and internals (7, 8):** the game (`pav_core/src/arpg/`) still lives inside the engine
+  crate, so the compiler doesn't enforce the line. The engine modules the game uses are its API:
+  `sim`, `entity`, `frame`, `rng`, `input`, `params`, `statics`, `nav`, `zones`, `character`,
+  `projectile`, `puppet`, `parts`, `moves`, `clips`, `shape`, `color`, `fxdef`. Everything else
+  (renderer, physics wiring, synth, importers) is internals. If game work means reading
+  internals, fix the API or the error message.
+- **Versions (9):** current pins stay (Rust 1.98.1, wgpu 30, rapier 0.36, egui 0.36, glam 0.33,
+  cpal 0.18). The rule applies to new dependencies and to upgrades.
+- **Assets (4):** no image, model, texture or audio files; fonts are allowed; animation is
+  readable text. Animation libraries whose licences forbid redistribution are translated only into
+  the git-ignored `anim/local`.
+- **Escalation:** ask in chat and log it in `docs/ESCALATIONS.md`. If you can schedule a check-in
+  (e.g. `send_later`), set one for 15 minutes and carry on with other work; if not, make the call,
+  log it and continue.
+
+Known gaps, to fix when they get in the way:
+- The HUD, inventory, passive tree and touch controls (egui in `pav_app`) are invisible to the
+  tools and headless captures (2, 3). Game actions are reachable through `game_cmd`.
+- `Sim::state_hash` covers the tick, entity positions and rotations and the block count, not
+  life, items, gold or random-number state, so a replay can match while the game has diverged (5).
+
+## Working rules
+Under the doctrine, in priority order:
+1. **Gameplay first, then robustness.**
 2. **Use tools.** If a tool does a job faster, more accurately or cheaper over time, use or build one.
-3. **Optimization and compatibility come later.** It must still run well on a modern PC.
+3. **It must still run well on a modern PC** (the user's RTX 3060 Ti and 4070 Super). Other
+   optimization and compatibility wait (10).
 4. **Approximations are fine if they feel right.** Feel beats physical accuracy.
 5. **Check selectively.** Verify what often breaks or is expensive to debug; skip routine checks
    of things that almost never break. "If it's broken, the user will say so" is valid.
@@ -340,6 +375,7 @@ incremental cache; if the disk fills up anyway, delete stale binaries in `target
 - Rust stable pinned in `rust-toolchain.toml`; `Cargo.lock` committed; edition 2024.
 - Keep `docs/PROGRESS.md` current enough to resume from after a context reset.
 - Decide anything that isn't genuinely the user's call; record the decision in `docs/PROGRESS.md`.
+  Escalate what the doctrine says to escalate, and log it in `docs/ESCALATIONS.md`.
 - Finishing a task or milestone: commit, push, open a PR into `main`, merge it and delete the
   branch. This is standard procedure (the user's standing instruction); don't ask first.
 - The user plays the Windows build; the log file `shardfall.log` and `shardfall.toml` (startup
