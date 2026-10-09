@@ -170,9 +170,9 @@ selectively, token efficiency.
   the root `vercel.json` defines the build and static output.
 - **Branch:** work on `main` (the GitHub default). Commit and push often, because cloud containers are temporary.
 - **Windows build:** the `.exe` is cross-compiled in the cloud and sent in chat at the end of each milestone. Local WSL2 agents can build the `.exe` and launch it directly on Windows.
-- **Progress log:** `docs/PROGRESS.md` records the current milestone, what's done, what's next, and decisions made, so any agent can resume.
+- **Progress log:** `docs/PROGRESS.md` is one page of current state (where things stand, what's next, open issues), so any agent can resume; `docs/HISTORY.md` is the full journal of what was built and the decisions made.
 - **Build order:** sequential. Once the foundation and rulebook exist, self-contained rooms can be handed to cheaper helper agents and reviewed. This also tests the goal that smaller models can extend the engine.
-- **Decisions:** ask the user only about decisions that are genuinely theirs. Otherwise decide, record the decision in this document, and continue. Escalations follow the doctrine and are logged in `docs/ESCALATIONS.md`.
+- **Decisions:** ask the user only about decisions that are genuinely theirs. Otherwise decide, record the decision (in this document if it changes the design, otherwise in `docs/HISTORY.md`), and continue. Escalations follow the doctrine and are logged in `docs/ESCALATIONS.md`.
 
 ## 15. Milestones (each ends with a working `.exe`)
 1. **M1 Foundation:**

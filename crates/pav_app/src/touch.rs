@@ -891,13 +891,15 @@ mod tests {
 
     #[test]
     fn fingers_find_their_jobs() {
-        let mut t = Touch::default();
-        t.placed = vec![Placed {
-            control: Control::Dodge,
-            rect: Rect::from_center_size(Pos2::new(700.0, 340.0), EVec2::splat(60.0)),
-            round: true,
-            top: false,
-        }];
+        let mut t = Touch {
+            placed: vec![Placed {
+                control: Control::Dodge,
+                rect: Rect::from_center_size(Pos2::new(700.0, 340.0), EVec2::splat(60.0)),
+                round: true,
+                top: false,
+            }],
+            ..Default::default()
+        };
         // A thumb on the open game is the stick; it follows the thumb past its edge.
         assert!(!t.down(1, Pos2::new(100.0, 300.0), None));
         t.moved(1, Pos2::new(100.0 + STICK_R * 3.0, 300.0));
