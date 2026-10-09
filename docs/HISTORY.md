@@ -16,7 +16,9 @@ Follow-ups to adopting the doctrine.
   the random numbers had diverged. It now hashes the random numbers, every entity, rigid and soft
   bodies (pose and velocity), projectiles, courses, signals, crumbling tiles and the whole game
   (the same CBOR as snapshot files; the state keeps its maps ordered, so the bytes repeat).
-  `tests/arpg.rs` checks that gold, potions and the random numbers each change it.
+  `tests/arpg.rs` checks that gold, potions and the random numbers each change it. Replays
+  recorded in one process still match in another (arena, playground, world, soft bodies,
+  destruction, stress, test).
 - **Pavilion Lite frozen** (principle 6): its renderer runs on the CPU, not WebGPU. It stays as a
   finished experiment and handoff package and isn't developed further (`docs/ESCALATIONS.md`).
 
