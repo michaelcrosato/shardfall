@@ -465,17 +465,57 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "animsheet",
-        help: "Render a creature through one of its actions frame by frame (skill= or its first skill) into one PNG: check attack poses.",
+        help: "Render a creature (the hero by default) through an action or a motion clip frame by frame into one PNG: skill= (or its first skill), any move= from anim/moves.toml, or clip= from the clip library.",
         args: &[
             arg("seed", "integer", "genome seed"),
             arg("family", "string", "designed family"),
             arg("boss", "string", "boss key"),
             arg("skill", "string", "skill to perform"),
+            arg("move", "string", "any move by name (anim/moves.toml), at its own timing"),
+            arg("hit", "number", "where the hit lands, 0..1 (move=)"),
+            arg("side", "number", "-1 plays the move's alternate swing"),
+            arg("clip", "string", "a motion clip (SET/Clip or Clip): played start to end"),
+            arg("mirror", "boolean", "clip= mirrored left to right"),
+            arg("upper", "boolean", "clip= on the upper body only"),
+            arg("travel", "boolean", "clip= moving the body as it travels"),
+            arg("def", "object", "puppet fields over the subject (JSON)"),
             arg("frames", "integer", "frames (default 8)"),
             arg("size", "integer", "pixels per frame"),
             arg("out", "string", "PNG path"),
         ],
         run: crate::game_tools::t_animsheet,
+    },
+    Tool {
+        name: "clips",
+        help: "The motion clip library (anim/*.json: animation translated from open libraries, as readable key poses): no args lists the sets; find=WORDS searches names, tags and descriptions; name=SET/Clip shows one clip as readable text with its source and license; set=NAME lists a set; load=FOLDER adds an on-disk library (load=cmu: every take of the CMU database). Play one with animsheet clip=.",
+        args: &[
+            arg("find", "string", "words to search for"),
+            arg("name", "string", "SET/Clip (or Clip) to show"),
+            arg("set", "string", "a set to list"),
+            arg("load", "string", "an on-disk folder of sets under anim/ to add (cmu)"),
+            arg("limit", "integer", "results (default 40)"),
+        ],
+        run: crate::anim_tools::t_clips,
+    },
+    Tool {
+        name: "clip_import",
+        help: "Translate an animation library into clip sets: from= a set file (a my-3D2dge set script .js or a readable .json) or a folder of them. Writes anim/<set>.json (a folder goes to anim/<folder>/), checks it reads back, reports clips, key poses and fit. set=, title=, credit= rename or credit; clips=A,B keeps only those; ledger= copies a takes ledger beside a folder.",
+        args: &[
+            arg("from", "string", "set file or folder"),
+            arg("out", "string", "output file (or folder for a folder)"),
+            arg("set", "string", "rename the set"),
+            arg("title", "string", "set title"),
+            arg("credit", "string", "credit line"),
+            arg("clips", "string", "only these clips, comma separated"),
+            arg("ledger", "string", "a takes ledger (.tsv) to copy beside a folder"),
+        ],
+        run: crate::anim_tools::t_clip_import,
+    },
+    Tool {
+        name: "anim_reload",
+        help: "Re-read anim/ from disk: the moves table (moves.toml) and the clip sets. Invalid files keep the old data and report the error.",
+        args: &[],
+        run: crate::anim_tools::t_anim_reload,
     },
     Tool {
         name: "level",
@@ -601,6 +641,29 @@ pub(crate) fn get_u64(a: &Args, k: &str, default: u64) -> Result<u64> {
 
 pub(crate) fn get_str<'a>(a: &'a Args, k: &str) -> Option<&'a str> {
     a.get(k).and_then(|v| v.as_str())
+}
+
+pub(crate) fn get_f32(a: &Args, k: &str, default: f32) -> Result<f32> {
+    match a.get(k) {
+        None => Ok(default),
+        Some(v) => v
+            .as_f64()
+            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+            .map(|f| f as f32)
+            .ok_or_else(|| anyhow!("argument '{k}' must be a number")),
+    }
+}
+
+pub(crate) fn get_bool(a: &Args, k: &str, default: bool) -> Result<bool> {
+    match a.get(k) {
+        None => Ok(default),
+        Some(Value::Bool(b)) => Ok(*b),
+        Some(v) => match v.as_str().or_else(|| v.as_u64().map(|n| if n == 0 { "false" } else { "true" })) {
+            Some("true" | "yes" | "1" | "on") => Ok(true),
+            Some("false" | "no" | "0" | "off") => Ok(false),
+            _ => Err(anyhow!("argument '{k}' must be true or false")),
+        },
+    }
 }
 
 fn t_scenes(_: &mut Session, _: &Args) -> Result<Output> {

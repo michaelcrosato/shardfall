@@ -13,8 +13,9 @@ use crate::color::Color;
 use crate::entity::{BodyKind, EntityId, Spawn};
 use crate::frame::SimEvent;
 use crate::fxdef::{DistortDef, EmitterDef, LightDef};
+use crate::moves::MoveId;
 use crate::params::ChoiceParam;
-use crate::puppet::{ActKind, PuppetDef, WeaponKind};
+use crate::puppet::{PuppetDef, WeaponKind};
 use crate::shape::{Look, Shape, Visual};
 use crate::sim::Sim;
 use crate::statics::Block;
@@ -677,12 +678,18 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 ch.face = Some(to.x.atan2(to.z));
             }
             if !walker {
-                ch.anim.act_kind = 0;
-                ch.anim.act = 0.0;
+                ch.anim.set_action(MoveId::NONE, 0.0, 0.0, 1.0);
                 n.t = 0.0;
             }
             if !n.greeted {
                 n.greeted = true;
+                if n.role != NpcRole::Dog {
+                    // A bow, hand on the chest (a captured greeting on the upper body).
+                    let bow = crate::clips::find_cached(TOWN_GREETING);
+                    if bow != 0 {
+                        ch.anim.play_clip(bow, crate::clips::UPPER | crate::clips::ONCE, 1.0);
+                    }
+                }
                 let lines = n.role.lines();
                 let i = sim.state.rng.below(lines.len() as u32) as usize;
                 let mut line = lines[i].to_string();
@@ -703,10 +710,7 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 let period = 1.5;
                 let before = n.t;
                 n.t = (n.t + dt) % period;
-                ch.anim.act_kind = ActKind::Overhead.index();
-                ch.anim.act = n.t / period;
-                ch.anim.act_hit = 0.5;
-                ch.anim.act_side = 1.0;
+                ch.anim.set_action(MoveId::of("overhead"), n.t / period, 0.5, 1.0);
                 if before < period * 0.5 && n.t >= period * 0.5 {
                     events.push(SimEvent::Strike { pos: n.work, power: 3.0, element: 0, crit: false });
                 }
@@ -717,10 +721,8 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 let period = 3.2;
                 n.t = (n.t + dt) % period;
                 let flick = (n.t / 0.5).min(1.0);
-                ch.anim.act_kind = if n.t < 0.5 { ActKind::Throw.index() } else { 0 };
-                ch.anim.act = flick;
-                ch.anim.act_hit = 0.4;
-                ch.anim.act_side = 1.0;
+                let mv = if n.t < 0.5 { MoveId::of("flick") } else { MoveId::NONE };
+                ch.anim.set_action(mv, flick, 0.4, 1.0);
                 if let Some(c) = n.prop.and_then(|c| sim.state.entities.get_mut(c)) {
                     let s = ((n.t - 0.2) / 1.0).clamp(0.0, 1.0);
                     c.pos = n.work + Vec3::Y * (4.0 * 1.1 * s * (1.0 - s));
@@ -734,10 +736,7 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 let before = n.t;
                 n.t = (n.t + dt) % (period * 2.0);
                 let half = n.t % period;
-                ch.anim.act_kind = ActKind::Slash.index();
-                ch.anim.act = 0.15 + 0.7 * (half / period);
-                ch.anim.act_hit = 0.9;
-                ch.anim.act_side = if n.t < period { 1.0 } else { -1.0 };
+                ch.anim.set_action(MoveId::of("stir"), half / period, 0.05, if n.t < period { 1.0 } else { -1.0 });
                 if before < period && n.t >= period {
                     events.push(SimEvent::Spell { pos: n.work, element: 4 });
                 }
@@ -747,7 +746,7 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 n.t += dt;
             }
             NpcRole::Villager => {
-                ch.anim.act_kind = 0;
+                ch.anim.set_action(MoveId::NONE, 0.0, 0.0, 1.0);
                 if n.wait > 0.0 {
                     // Standing about, looking around.
                     n.t += dt;
@@ -951,9 +950,12 @@ fn townsfolk(sim: &mut Sim, table: Vec3, cauldron: Vec3, post: Vec3) -> Vec<Npc>
             "#8a5a3a",
         ),
     ];
-    for (route, name, skin, shirt) in rounds {
+    for ((route, name, skin, shirt), idle) in rounds.into_iter().zip(["MESH2MOTION/Idle Listening", "MESH2MOTION/Idle_A"]) {
         let start = route[0];
-        let id = sim.spawn_npc(name, start, 0.0, biped(skin, shirt, "#3a3028", 0.95, WeaponKind::None, "#000000"), None, None);
+        // When they stop on their rounds they stand like people do (captured idles).
+        let mut look = biped(skin, shirt, "#3a3028", 0.95, WeaponKind::None, "#000000");
+        look.idle_clip = idle.into();
+        let id = sim.spawn_npc(name, start, 0.0, look, None, None);
         let mut n = Npc::new(id, NpcRole::Villager, name, 0.0, start);
         n.route = route;
         n.leg = 1;
@@ -971,6 +973,9 @@ fn townsfolk(sim: &mut Sim, table: Vec3, cauldron: Vec3, post: Vec3) -> Vec<Npc>
     out.push(Npc::new(id, NpcRole::Dog, "Biscuit", PI, Vec3::ZERO));
     out
 }
+
+/// The greeting townsfolk give the hero (anim/*.json).
+pub const TOWN_GREETING: &str = "MESH2MOTION/Greeting";
 
 const FAMILIES: &[(&str, u32)] =
     &[("ghoul", 5), ("skitterer", 4), ("spitter", 3), ("ashdrake", 2), ("bile_ooze", 2), ("bonecrusher", 1)];

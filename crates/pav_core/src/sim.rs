@@ -53,6 +53,8 @@ pub struct SimConfig {
     pub terrain: TerrainParams,
     /// Shardfall difficulty multipliers.
     pub difficulty: crate::arpg::Difficulty,
+    /// Performers: tempo and mirroring of their clips and moves.
+    pub anim: crate::clips::AnimParams,
 }
 
 impl Default for SimConfig {
@@ -66,6 +68,7 @@ impl Default for SimConfig {
             puppet: PuppetDef::default(),
             terrain: TerrainParams::default(),
             difficulty: crate::arpg::Difficulty::default(),
+            anim: crate::clips::AnimParams::default(),
         }
     }
 }
@@ -80,7 +83,8 @@ impl Tunable for SimConfig {
 }
 
 impl SimConfig {
-    /// Visits every simulation tunable as top-level groups: sim, movement, bombs, puppet.
+    /// Visits every simulation tunable as top-level groups: sim, movement, bombs, puppet, world,
+    /// difficulty, anim.
     pub fn visit_groups(&mut self, v: &mut dyn ParamVisitor) {
         nested(v, "sim", self);
         nested(v, "movement", &mut self.movement);
@@ -88,6 +92,7 @@ impl SimConfig {
         nested(v, "puppet", &mut self.puppet);
         nested(v, "world", &mut self.terrain);
         nested(v, "difficulty", &mut self.difficulty);
+        nested(v, "anim", &mut self.anim);
     }
 }
 
@@ -477,6 +482,9 @@ impl Sim {
                             if ch.stun <= 0.0 {
                                 ch.facing = f;
                             }
+                        }
+                        if let (Some(p), Some(ch)) = (ai.perform.as_mut(), e.character.as_mut()) {
+                            p.tick(&mut ch.anim, dt, &self.config.anim);
                         }
                         &npc_input
                     }

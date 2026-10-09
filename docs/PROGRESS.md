@@ -6,6 +6,59 @@ the showcase hack-and-slash built on the engine; design: `docs/GAME.md`; progres
 add data (themes, levels, families, affixes, uniques, tree clusters) and check it with the
 tools (`levelmap`, `see`, `campaign`, `turntable def=`).
 
+## Animation: moves as data, and motion clips from open libraries — 2026-10-09
+Compared the puppet with my-3D2dge's (the same approach: a skeleton posed by math, two-bone IK,
+no animation files) and took what it does better, rebuilt on this engine's foundation (pure pose
+functions, state saved with the simulation, tools):
+- **One skeleton.** The biped is now a `Skel` (pelvis, chest, head and their frames, shoulders,
+  elbows, hands, hips, knees, ankles, toes, weapon direction). `procedural` builds it from the
+  walk, crouch, crawl, climb, swim, air, hits and the current move; `clips::over` lays clips on
+  it; `dress` turns it into parts (gear, helmets, capes and attachments follow its frames).
+- **Moves as data** (`anim/moves.toml`, `moves.rs`): 31 moves, each an arc the hand or foot
+  sweeps around the shoulders (from/to degrees, height and reach in arm lengths), timing (wind,
+  active, recover, where the hit lands, hold) and body motion (lunge, hop, crouch, lean, twist,
+  spin). The nine original actions keep their names and order (slash, overhead, thrust, cast and
+  throw now take my-3D2dge's numbers); its other moves were converted to these units (radians to
+  degrees, its units to arm lengths, hip heights and metres; its spin is `spinslash` here, ours
+  stays the whirlwind); plus stir, stir_back and flick for townsfolk. A skill's hit lands where the skill says; the phases stretch
+  around it. `PuppetState::set_action` remembers where the hands were when a new action starts
+  (`chain_*`), so chained attacks wind up from there. The whirlwind now turns the body; kicks lift
+  the foot through its wind-up; the weapon and its trail follow the arc. `MoveId` is written by
+  name in data (an unknown name lists the moves).
+- **Legs follow travel** (`PuppetState::travel`), **idle breathing, weight shift and blinks**
+  (each character on its own beat: `seed`, from its id on the first tick).
+- **Motion clips** (`clips.rs`): the readable key-pose format, kept as is so clips move between the
+  engines (hips in percent of standing hip height; body/chest/head turn, lean, tilt; shoulder
+  reach and shrug; each limb a direction plus a bend and a twist; feet; blade; root travel).
+  Decoding is a port of the reference decoder onto the puppet's own proportions: no source body
+  is needed. Checked against it: every limb within a few degrees on sword, dance, breakdance and
+  death clips (the spine is one segment here, so a curled spine differs by up to ~14°; lying
+  down the thicker torso keeps the pelvis higher). Clips fade in and out over 0.25 s, the old
+  one held under the new; `UPPER` keeps the walking legs, `MIRROR`, `TRAVEL`, `ONCE` (fade out at
+  the end; any action ends it). State holds only ids and times, so rewind and replays are exact.
+- **The libraries, translated with tools.** `clip_import` reads a my-3D2dge set script or a
+  readable set (or a folder of them), writes `anim/<set>.json` with the legend and credits,
+  checks it reads back and reports the fit. Embedded: QUATERNIUS (88 clips, Universal Animation
+  Library 1 and 2, CC0), MESH2MOTION (177, CC0), CMU (60 curated moments, free for all uses):
+  325 clips, 6,469 key poses, 1.9 MB. On disk only: anim/cmu/ with every take of the CMU database
+  (113 subjects, 4,770 clips, 241,740 key poses, 68 MB, ledger `takes.tsv`), `clips load=cmu`.
+  Decision: readable key-pose text counts as data, not an asset file (AGENTS.md updated).
+- **Tools:** `clips` (list, find, show as readable text with source and licence, load a folder),
+  `clip_import`, `anim_reload`, `animsheet move=` / `clip=` (`mirror`, `upper`, `travel`, `hit`,
+  `side`, `def`).
+- **Where it shows:** room NPCs perform (`clips = [...]`, `moves = [...]`, `hold`, `mirror`,
+  `upper`, `tempo`); any look can have an `idle_clip`; `anim.tempo` and `anim.mirror` settings.
+  New stations in the animation wing: **Motion Library** (seven performers: dance, fight, sword,
+  everyday, acrobatics, falls, monsters; tempo and mirror pads) and **Action Moves** (blades,
+  fists, kicks, magic and more). Shardfall: the hero dies with a captured fall (a different one
+  each time) and lies still until rising; cheers on level-up and when a boss falls (upper body,
+  never blocking); villagers idle like people when they stop; townsfolk bow when greeted.
+  Monsters keep the quick procedural topple (corpses clear in 1.7 s).
+- New field-guide words: motion capture, retargeting, key pose, anticipation.
+- Tests: `tests/motion.rs` (9), unit tests in moves.rs and clips.rs.
+- Not done: a native importer for raw captures (BVH, glTF, ASF/AMC: the sets were translated from
+  my-3D2dge's fitted conversions); cloth capes (still three cones); monsters with clips.
+
 ## Fix: slides stopping dead on flat floors, treadmill walkers — 2026-10-08
 - **Not floor seams.** Slalom's floor is a single block. Rapier's character controller sometimes
   drops all of a move's horizontal motion when the move presses down into level ground: the

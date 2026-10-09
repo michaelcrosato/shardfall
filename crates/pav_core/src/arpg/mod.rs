@@ -89,6 +89,13 @@ pub const DODGE_RECOVERY: f32 = 0.75;
 /// Hero base movement speed comes from `movement.speed`; monsters move at this share of it.
 pub const MONSTER_PACE: f32 = 0.78;
 
+/// Captured falls the hero dies with, in turn (anim/*.json, from open motion libraries).
+pub const HERO_DEATHS: &[&str] =
+    &["QUATERNIUS/Death01", "MESH2MOTION/Death_D", "MESH2MOTION/Death_C", "CMU/Fall_On_Face", "MESH2MOTION/Death_A"];
+/// Captured gestures for the hero's big moments (upper body, so they never stop the hero).
+pub const HERO_LEVEL_UP: &str = "MESH2MOTION/Cheer_One_arm";
+pub const HERO_BOSS_DOWN: &str = "MESH2MOTION/Cheering_Two_Hands";
+
 /// The wave arena (G1 test ground; later the Proving Grounds in town).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ArenaState {
@@ -840,15 +847,13 @@ impl Game {
             match &a.cast {
                 Some(c) => {
                     let def = d.skill(c.skill);
-                    ch.anim.act_kind = def.anim.index();
-                    ch.anim.act = if def.behavior == Behavior::Channel {
+                    let t = if def.behavior == Behavior::Channel {
                         // Spinning: one turn per pulse.
                         ((c.t - c.hit_at).max(0.0) / def.interval.max(0.05)).fract()
                     } else {
                         (c.t / c.dur.max(1e-3)).clamp(0.0, 1.0)
                     };
-                    ch.anim.act_hit = def.hit;
-                    ch.anim.act_side = c.side;
+                    ch.anim.set_action(def.anim, t, def.hit, c.side);
                     ch.anim.lift = if def.behavior == Behavior::Leap {
                         let start = c.dur * 0.15;
                         let p = ((c.t - start) / (c.hit_at - start).max(1e-3)).clamp(0.0, 1.0);
@@ -858,12 +863,23 @@ impl Game {
                     };
                 }
                 None => {
-                    ch.anim.act_kind = 0;
-                    ch.anim.act = 0.0;
+                    ch.anim.set_action(crate::moves::MoveId::NONE, 0.0, 0.0, 1.0);
                     ch.anim.lift = 0.0;
                 }
             }
             ch.anim.down = if a.dead { (a.death_t / 0.9).min(1.0) } else { 0.0 };
+            // The hero falls with a captured death and lies still until rising again (monsters
+            // topple: their bodies have to clear quickly).
+            if a.team == Team::Hero && ch.puppet.as_ref().is_none_or(|p| p.body == crate::puppet::BodyPlan::Biped) {
+                // (The count already includes this death.)
+                let death =
+                    crate::clips::find_cached(HERO_DEATHS[(self.hero.deaths as usize).saturating_sub(1) % HERO_DEATHS.len()]);
+                if a.dead && death != 0 && ch.anim.clip != death {
+                    ch.anim.play_clip(death, 0, 1.0);
+                } else if !a.dead && HERO_DEATHS.iter().any(|d| crate::clips::find_cached(d) == ch.anim.clip) {
+                    ch.anim.stop_clip();
+                }
+            }
         }
         // Floating numbers and banners run on real time.
         for f in &mut self.floaters {
@@ -1145,6 +1161,7 @@ impl Game {
                 refresh_hero(sim, self, true);
                 self.level_flash = 0.0;
                 events.push(SimEvent::LevelUp { pos: hf });
+                self.hero_gesture(sim, HERO_LEVEL_UP);
             }
         }
     }
@@ -1199,6 +1216,7 @@ impl Game {
         a.ailments = Ailments::default();
         let (team, xp, level, rarity, radius, life_max, killer) =
             (a.team, a.xp, a.level, a.rarity, a.radius, a.sheet.life_max, a.last_hit);
+        let was_boss = a.boss.is_some();
         let burst = a.power(powers::PowerKind::DeathBurst);
         events.push(SimEvent::Slain { pos: feet, size: radius });
         if let Some(p) = burst {
@@ -1215,6 +1233,9 @@ impl Game {
         }
         // Rewards.
         self.hero.kills += 1;
+        if was_boss {
+            self.hero_gesture(sim, HERO_BOSS_DOWN);
+        }
         if let Some(k) = killer {
             self.power_on_kill(sim, k, feet, life_max, events);
         }
@@ -1248,6 +1269,19 @@ impl Game {
                 2.5,
             );
             events.push(SimEvent::LevelUp { pos: hf });
+            self.hero_gesture(sim, HERO_LEVEL_UP);
+        }
+    }
+
+    /// The hero acts out a moment with a captured gesture on the upper body (it fades out at its
+    /// end, and any action interrupts it).
+    fn hero_gesture(&self, sim: &mut Sim, name: &str) {
+        let Some(hid) = self.hero_id else { return };
+        let id = crate::clips::find_cached(name);
+        if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
+            if id != 0 && ch.anim.act_kind == 0 && ch.anim.down <= 0.0 {
+                ch.anim.play_clip(id, crate::clips::UPPER | crate::clips::ONCE, 1.0);
+            }
         }
     }
 }

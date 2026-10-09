@@ -8,7 +8,7 @@ use glam::{Vec3, Vec4};
 use pav_core::arpg::combat::{EffectKind, Rarity, Team};
 use pav_core::arpg::{GameFrame, TeleShape};
 use pav_core::frame::RenderFrame;
-use pav_core::puppet::{ActKind, PuppetDef, WeaponKind};
+use pav_core::puppet::{PuppetDef, WeaponKind};
 use pav_render::mesh::{MeshData, Vertex};
 use pav_render::scene::{self as rs, ParticleBurst, Scene, Style};
 
@@ -468,6 +468,7 @@ impl ArpgView {
         }
         // Weapon swing trails: glowing streaks from the blade's last position.
         let mut live = Vec::new();
+        let moves = pav_core::moves::table();
         for o in &curr.objects {
             let Some(p) = &o.puppet else { continue };
             let def: &PuppetDef = p.def.as_deref().unwrap_or(&curr.puppet_def);
@@ -475,10 +476,8 @@ impl ArpgView {
                 continue;
             }
             let st = &p.state;
-            let kind = ActKind::from_u8(st.act_kind);
-            let striking = matches!(kind, ActKind::Slash | ActKind::Overhead | ActKind::Thrust | ActKind::Spin | ActKind::Leap)
-                && st.act >= st.act_hit - 0.06
-                && st.act <= st.act_hit + 0.2;
+            // The move draws a trail while it strikes (anim/moves.toml: trail).
+            let striking = pav_core::moves::frame(&moves, st.act_kind, st.act, st.act_hit, st.act_side).is_some_and(|f| f.trail);
             if !striking || !particles {
                 continue;
             }

@@ -123,117 +123,9 @@ impl Default for GearLook {
     }
 }
 
-choice_enum! {
-    /// Action animations (attacks, casts, ...), played by `PuppetState::act`.
-    #[derive(Default)]
-    pub enum ActKind {
-        #[default]
-        None => "none",
-        Slash => "slash",
-        Overhead => "overhead",
-        Thrust => "thrust",
-        Spin => "spin",
-        Cast => "cast",
-        Throw => "throw",
-        Roar => "roar",
-        Leap => "leap",
-        Lunge => "lunge",
-    }
-}
-
-impl ActKind {
-    pub fn index(self) -> u8 {
-        self as u8
-    }
-    pub fn from_u8(i: u8) -> Self {
-        <Self as ChoiceParam>::from_index(i as usize)
-    }
-}
-
 fn smooth(a: f32, b: f32, x: f32) -> f32 {
     let t = ((x - a) / (b - a).max(1e-4)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
-}
-
-/// An action's pose at progress `t`: hand targets relative to the shoulders (in arm lengths,
-/// character space), torso twist and lean, extra crouch, and how much it overrides the walk.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ActPose {
-    pub w: f32,
-    pub right: Option<Vec3>,
-    pub left: Option<Vec3>,
-    pub twist: f32,
-    pub lean: f32,
-    pub crouch: f32,
-    /// Forward lunge (creatures) 0..1.
-    pub lunge: f32,
-}
-
-/// Wind-up until `hit`, a fast strike just after it, then recovery to the walk pose.
-pub fn act_pose(kind: ActKind, t: f32, hit: f32, side: f32) -> ActPose {
-    let hit = hit.clamp(0.05, 0.95);
-    let wind = smooth(0.0, hit, t);
-    let strike = smooth(hit - 0.03, hit + 0.1, t);
-    let rec = smooth(hit + 0.12, 1.0, t);
-    let w = wind * (1.0 - rec);
-    let key = |a: Vec3, b: Vec3| a.lerp(b, strike);
-    let s = if side < 0.0 { -1.0 } else { 1.0 };
-    let mut p = ActPose { w, ..Default::default() };
-    match kind {
-        ActKind::None => p.w = 0.0,
-        ActKind::Slash => {
-            if s > 0.0 {
-                p.right = Some(key(Vec3::new(0.7, 0.42, -0.3), Vec3::new(-0.55, -0.12, 0.62)));
-                p.twist = 0.6 + (-0.7 - 0.6) * strike;
-            } else {
-                p.right = Some(key(Vec3::new(-0.45, 0.38, 0.35), Vec3::new(0.78, 0.02, 0.38)));
-                p.twist = -0.5 + (0.6 + 0.5) * strike;
-            }
-            p.lean = 0.12 * strike;
-        }
-        ActKind::Overhead | ActKind::Leap => {
-            let r = key(Vec3::new(0.1, 1.0, -0.12), Vec3::new(0.06, -0.55, 0.85));
-            p.right = Some(r);
-            p.left = Some(Vec3::new(-r.x, r.y, r.z) + Vec3::new(0.12, -0.05, 0.0));
-            p.lean = -0.25 * wind * (1.0 - strike) + 0.45 * strike;
-            p.crouch =
-                if kind == ActKind::Leap { 0.55 * (1.0 - wind) * smooth(0.0, 0.1, t) + 0.5 * strike } else { 0.45 * strike };
-        }
-        ActKind::Thrust => {
-            p.right = Some(key(Vec3::new(0.35, 0.05, -0.35), Vec3::new(0.1, 0.05, 1.05)));
-            p.twist = 0.4 + (-0.3 - 0.4) * strike;
-            p.lean = -0.1 + 0.4 * strike;
-        }
-        ActKind::Spin => {
-            p.w = smooth(0.0, 0.08, t) * (1.0 - smooth(0.92, 1.0, t));
-            p.right = Some(Vec3::new(0.95, 0.05, 0.2));
-            p.left = Some(Vec3::new(-0.95, 0.05, 0.2));
-            p.lean = 0.1;
-        }
-        ActKind::Cast => {
-            p.right = Some(key(Vec3::new(0.15, -0.25, 0.35), Vec3::new(0.3, 0.15, 0.95)));
-            p.left = Some(key(Vec3::new(-0.15, -0.25, 0.35), Vec3::new(-0.3, 0.15, 0.95)));
-            p.lean = 0.15 * strike;
-        }
-        ActKind::Throw => {
-            p.right = Some(key(Vec3::new(0.5, 0.65, -0.45), Vec3::new(0.05, 0.05, 0.95)));
-            p.twist = 0.7 + (-0.5 - 0.7) * strike;
-            p.lean = 0.2 * strike;
-        }
-        ActKind::Roar => {
-            p.right = Some(Vec3::new(0.85, 0.55, 0.05));
-            p.left = Some(Vec3::new(-0.85, 0.55, 0.05));
-            p.lean = -0.3;
-            p.w = wind * (1.0 - rec);
-        }
-        ActKind::Lunge => {
-            p.lunge = strike * (1.0 - rec);
-            p.right = Some(key(Vec3::new(0.4, 0.3, 0.1), Vec3::new(0.2, 0.0, 0.9)));
-            p.left = Some(key(Vec3::new(-0.4, 0.3, 0.1), Vec3::new(-0.2, 0.0, 0.9)));
-            p.lean = -0.15 * wind + 0.5 * strike;
-        }
-    }
-    p
 }
 
 choice_enum! {
@@ -305,6 +197,9 @@ pub struct PuppetDef {
     pub gear: GearLook,
     /// Horns, spikes, wings... (any body plan).
     pub parts: Vec<crate::parts::Attach>,
+    /// A motion clip (`SET/Clip`, see the `clips` tool) the character plays while it stands
+    /// still with nothing to do, in place of the procedural idle (bipeds). Empty = none.
+    pub idle_clip: String,
 }
 
 impl Default for PuppetDef {
@@ -345,6 +240,7 @@ impl Default for PuppetDef {
             weapon: WeaponLook::default(),
             gear: GearLook::default(),
             parts: Vec::new(),
+            idle_clip: String::new(),
         }
     }
 }
@@ -520,7 +416,7 @@ pub struct PuppetState {
     pub foot_l: f32,
     #[serde(default)]
     pub foot_r: f32,
-    /// Action animation: kind (`ActKind` index), progress 0..1, side (alternating swings, ±1)
+    /// Action animation: kind (`crate::moves` index), progress 0..1, side (alternating swings, ±1)
     /// and where the strike lands within the action (0..1).
     #[serde(default)]
     pub act_kind: u8,
@@ -538,6 +434,42 @@ pub struct PuppetState {
     pub spin: f32,
     #[serde(default)]
     pub down: f32,
+    /// Where the hands were when this action began (relative to the centre of the shoulders,
+    /// in arm lengths, character space) and how firmly: a chained attack winds up from there
+    /// instead of snapping back to the walk first.
+    #[serde(default)]
+    pub chain_l: [f32; 3],
+    #[serde(default)]
+    pub chain_r: [f32; 3],
+    #[serde(default)]
+    pub chain_w: f32,
+    /// Direction of travel relative to facing (radians): the legs stride along it.
+    #[serde(default)]
+    pub travel: f32,
+    /// This character's own beat (0..1), so idle breathing and blinks don't march in step.
+    #[serde(default)]
+    pub seed: f32,
+    /// Motion clip (`crate::clips`): id (0 = none), time (seconds, not wrapped), how much of the
+    /// body it holds (fades in and out), play flags (`clips::UPPER`...) and speed (0 = 1).
+    #[serde(default)]
+    pub clip: u32,
+    #[serde(default)]
+    pub clip_t: f32,
+    #[serde(default)]
+    pub clip_w: f32,
+    #[serde(default)]
+    pub clip_flags: u8,
+    #[serde(default)]
+    pub clip_speed: f32,
+    /// The clip before, held under the new one while it fades in.
+    #[serde(default)]
+    pub clip2: u32,
+    #[serde(default)]
+    pub clip2_t: f32,
+    #[serde(default)]
+    pub clip2_w: f32,
+    #[serde(default)]
+    pub clip2_flags: u8,
 }
 
 /// What the character is doing this tick (input to the animator).
@@ -619,6 +551,115 @@ impl PuppetState {
         self.hit_vf += (-self.hit_fwd * k - self.hit_vf * c) * dt;
         self.hit_side = (self.hit_side + self.hit_vs * dt).clamp(-0.9, 0.9);
         self.hit_fwd = (self.hit_fwd + self.hit_vf * dt).clamp(-0.9, 0.9);
+        // Direction of travel relative to facing: the legs stride along it (backwards, sideways).
+        if hspeed > 0.4 && !i.climbing {
+            let local = Quat::from_rotation_y(-self.facing) * Vec3::new(i.vel.x, 0.0, i.vel.z);
+            let d = wrap_angle(local.x.atan2(local.z) - self.travel);
+            self.travel = wrap_angle(self.travel + d * (1.0 - (-12.0 * dt).exp()));
+        } else {
+            self.travel *= (-6.0 * dt).exp();
+        }
+        // Clips: time runs on, the current one fades in (or out once stopped); the one before
+        // stays under it until it is fully in.
+        if self.clip != 0 {
+            self.clip_t += dt * if self.clip_speed > 0.0 { self.clip_speed } else { 1.0 };
+            if self.clip_flags & crate::clips::ONCE != 0
+                && crate::clips::with(self.clip, |c| self.clip_t >= c.dur - crate::clips::FADE).unwrap_or(true)
+            {
+                self.clip_flags |= crate::clips::STOP;
+            }
+            let step = dt / crate::clips::FADE;
+            if self.clip_flags & crate::clips::STOP != 0 {
+                self.clip_w = (self.clip_w - step).max(0.0);
+                self.clip2_w = (self.clip2_w - step).max(0.0);
+                if self.clip_w <= 0.0 {
+                    self.clip = 0;
+                    self.clip_flags = 0;
+                }
+            } else {
+                self.clip_w = (self.clip_w + step).min(1.0);
+            }
+            if self.clip_w >= 1.0 {
+                self.clip2 = 0;
+            }
+        } else {
+            self.clip_w = 0.0;
+        }
+        if self.clip2 != 0 {
+            self.clip2_t += dt;
+            if self.clip2_w <= 0.0 {
+                self.clip2 = 0;
+            }
+        }
+    }
+
+    /// Starts (or continues) an action: move `id` at progress `t` (0..1), its hit landing at
+    /// `hit`, alternate swings on `side < 0`. An action that begins while another still holds
+    /// the arms remembers where the hands were, so it winds up from there.
+    pub fn set_action(&mut self, id: crate::moves::MoveId, t: f32, hit: f32, side: f32) {
+        let id = id.index();
+        if id == 0 {
+            self.act_kind = 0;
+            self.act = 0.0;
+            self.chain_w = 0.0;
+            return;
+        }
+        if id != self.act_kind || t + 0.02 < self.act {
+            // An action ends a gesture clip (a cheer never holds up an attack).
+            if self.clip_flags & crate::clips::ONCE != 0 {
+                self.stop_clip();
+            }
+            let table = crate::moves::table();
+            let was = crate::moves::frame(&table, self.act_kind, self.act, self.act_hit, self.act_side);
+            let (old_w, from) = (self.chain_w, [Vec3::from(self.chain_l), Vec3::from(self.chain_r)]);
+            self.chain_w = 0.0;
+            if let Some(f) = was.filter(|f| f.hand != crate::moves::Hand::Kick && f.w > 0.3) {
+                // Where the old move had the hands: on its arc, or still winding up from its own
+                // starting point.
+                let hands = f.hands(!f.trail);
+                let at = |i: usize| if old_w > 0.0 { from[i].lerp(hands[i].0, f.wind_k) } else { hands[i].0 };
+                self.chain_l = at(0).into();
+                self.chain_r = at(1).into();
+                self.chain_w = f.w * if old_w > 0.0 { 1.0 } else { f.wind_k.max(0.5) };
+            }
+        }
+        self.act_kind = id;
+        self.act = t;
+        self.act_hit = hit;
+        self.act_side = side;
+    }
+
+    /// Plays motion clip `id` (`crate::clips::find`) with play `flags` at `speed` (0 = 1). The
+    /// clip playing before stays underneath while the new one fades in. Asking for the clip
+    /// already playing only updates its flags and speed.
+    pub fn play_clip(&mut self, id: u32, flags: u8, speed: f32) {
+        if id == 0 {
+            self.stop_clip();
+            return;
+        }
+        if id == self.clip && self.clip_flags & crate::clips::STOP == 0 {
+            self.clip_flags = flags & !crate::clips::STOP;
+            self.clip_speed = speed;
+            return;
+        }
+        if self.clip != 0 && self.clip_w > 0.0 {
+            self.clip2 = self.clip;
+            self.clip2_t = self.clip_t;
+            self.clip2_w = self.clip_w;
+            self.clip2_flags = self.clip_flags & !crate::clips::STOP;
+        }
+        self.clip = id;
+        self.clip_t = 0.0;
+        self.clip_w = 0.0;
+        self.clip_flags = flags & !crate::clips::STOP;
+        self.clip_speed = speed;
+    }
+
+    /// Fades the clip out; the procedural animation takes over again.
+    pub fn stop_clip(&mut self) {
+        if self.clip != 0 {
+            self.clip_flags |= crate::clips::STOP;
+        }
     }
 
     /// Flinch away from a hit coming along `dir` (world), `strength` ~ 1 for a normal hit.
@@ -678,6 +719,20 @@ impl PuppetState {
             lift: l(self.lift, o.lift),
             spin: l(self.spin, o.spin),
             down: l(self.down, o.down),
+            chain_l: o.chain_l,
+            chain_r: o.chain_r,
+            chain_w: o.chain_w,
+            travel: self.travel + wrap_angle(o.travel - self.travel) * t,
+            seed: o.seed,
+            clip: o.clip,
+            clip_t: if o.clip == self.clip && o.clip_t >= self.clip_t { l(self.clip_t, o.clip_t) } else { o.clip_t },
+            clip_w: if o.clip == self.clip { l(self.clip_w, o.clip_w) } else { o.clip_w },
+            clip_flags: o.clip_flags,
+            clip_speed: o.clip_speed,
+            clip2: o.clip2,
+            clip2_t: if o.clip2 == self.clip2 && o.clip2_t >= self.clip2_t { l(self.clip2_t, o.clip2_t) } else { o.clip2_t },
+            clip2_w: if o.clip2 == self.clip2 { l(self.clip2_w, o.clip2_w) } else { o.clip2_w },
+            clip2_flags: o.clip2_flags,
         }
     }
 }
@@ -757,15 +812,21 @@ fn motion(def: &PuppetDef, st: &PuppetState, feet: Vec3, parts: &mut [PuppetPart
     let k = def.scale;
     let fwd = Quat::from_rotation_y(st.facing) * Vec3::Z;
     let right = Quat::from_rotation_y(st.facing) * Vec3::X;
-    let kind = ActKind::from_u8(st.act_kind);
     let mut shift = Vec3::Y * st.lift;
-    if kind == ActKind::Lunge && def.body != BodyPlan::Biped {
-        shift += fwd * act_pose(kind, st.act, st.act_hit, st.act_side).lunge * 0.45 * k;
+    if def.body != BodyPlan::Biped && st.act_kind != 0 {
+        // A creature's "lunge" springs the whole body forward (other moves lunge through the rig).
+        let table = crate::moves::table();
+        if table.get(st.act_kind).is_some_and(|m| m.name == "lunge") {
+            if let Some(f) = crate::moves::frame(&table, st.act_kind, st.act, st.act_hit, st.act_side) {
+                shift += fwd * (f.lunge / 0.25).clamp(-0.4, 1.0) * 0.45 * k;
+            }
+        }
     }
     let spin = (st.spin.abs() > 1e-4).then(|| Quat::from_rotation_y(st.spin));
     let down = st.down.clamp(0.0, 1.0);
-    let topple = (down > 0.0).then(|| Quat::from_axis_angle(right, -1.45 * smooth(0.0, 0.45, down)));
-    let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down));
+    // A clip (a death fall) lays the body down itself; the procedural topple gives way to it.
+    let topple = (down > 0.0).then(|| Quat::from_axis_angle(right, -1.45 * smooth(0.0, 0.45, down) * (1.0 - st.clip_w)));
+    let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down) * (1.0 - st.clip_w));
     for p in parts.iter_mut() {
         for v in [&mut p.a, &mut p.b] {
             let mut x = *v - feet;
@@ -823,6 +884,68 @@ fn camera_rules(def: &PuppetDef, facing: f32, feet: Vec3, cam_fwd: Vec3, parts: 
     }
 }
 
+/// The biped's joints for one frame, in character space (x right, y up, z forward, the feet at
+/// the origin; squash and stretch come when it is dressed). The procedural animation (walking,
+/// moves, hits), motion clips and named poses each make one; `crate::clips` crossfades them; and
+/// `dress` turns the result into parts.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Skel {
+    pub pelvis: Vec3,
+    /// Centre of the shoulder line.
+    pub chest: Vec3,
+    pub neck: Vec3,
+    pub head: Vec3,
+    /// How the pelvis, chest and head are turned (character space): belts and hips, the back
+    /// (capes, wings, pauldrons), the face (eyes, helmets).
+    pub pelvis_rot: Quat,
+    pub chest_rot: Quat,
+    pub head_rot: Quat,
+    /// The top of the head points this way (helmets and hats sit along it).
+    pub crown: Vec3,
+    /// `[left, right]`.
+    pub shoulder: [Vec3; 2],
+    pub elbow: [Vec3; 2],
+    pub hand: [Vec3; 2],
+    pub hip: [Vec3; 2],
+    pub knee: [Vec3; 2],
+    pub ankle: [Vec3; 2],
+    /// Which way each shoe points (unit).
+    pub toe: [Vec3; 2],
+    /// Which way the held weapon points from the right hand (unit).
+    pub weapon: Vec3,
+    /// Eyes shut (blinks): 0..1.
+    pub blink: f32,
+}
+
+impl Skel {
+    /// Every point turned by `q` about the feet and moved by `lift`; every direction turned by `q`
+    /// (whole-body turns and hops).
+    pub fn transform(&mut self, q: Quat, lift: Vec3) {
+        let p = |v: &mut Vec3| *v = q * *v + lift;
+        for v in [&mut self.pelvis, &mut self.chest, &mut self.neck, &mut self.head] {
+            p(v);
+        }
+        for i in 0..2 {
+            for v in [
+                &mut self.shoulder[i],
+                &mut self.elbow[i],
+                &mut self.hand[i],
+                &mut self.hip[i],
+                &mut self.knee[i],
+                &mut self.ankle[i],
+            ] {
+                p(v);
+            }
+            self.toe[i] = q * self.toe[i];
+        }
+        self.pelvis_rot = q * self.pelvis_rot;
+        self.chest_rot = q * self.chest_rot;
+        self.head_rot = q * self.head_rot;
+        self.crown = q * self.crown;
+        self.weapon = q * self.weapon;
+    }
+}
+
 fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
     let mut st = *st;
     if def.anim_fps > 0.5 {
@@ -831,7 +954,193 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         let q = (st.time / step).floor() * step;
         let dt = st.time - q;
         st.phase = (st.phase - dt * st.speed / (def.stride * def.scale).max(0.1)).rem_euclid(1.0);
+        st.clip_t -= dt * if st.clip_speed > 0.0 { st.clip_speed } else { 1.0 };
     }
+    let table = crate::moves::table();
+    let skel = crate::clips::over(def, &st, procedural(def, &st, &table));
+    dress(def, &st, &skel, feet, cam_fwd)
+}
+
+/// The procedural pose: standing, walking and running (the legs stride the way the body
+/// travels), crouch, crawl, climb, swim, air, hit flinches, idle breathing and the current move.
+pub fn procedural(def: &PuppetDef, st: &PuppetState, table: &crate::moves::MoveTable) -> Skel {
+    use std::f32::consts::{PI, TAU};
+    let k = def.scale;
+    let leg = def.leg_length * k;
+    let arm = def.arm_length * k;
+    let hr = def.head_radius * k;
+    let walk = (st.speed / 5.0).min(1.0) * (1.0 - st.air) * (1.0 - st.climb);
+    let cyc = st.phase * TAU;
+    let bob = (cyc * 2.0).cos().abs() * def.bob * k * walk;
+    let mv = crate::moves::frame(table, st.act_kind, st.act, st.act_hit, st.act_side);
+    let mw = mv.map_or(0.0, |m| m.w);
+    let crouch = st.crouch.max(st.roll).max(mv.map_or(0.0, |m| m.crouch));
+    let crawl = st.crawl;
+    let climb = st.climb;
+    let swim = st.swim;
+    let stroke = st.time * 5.0;
+
+    // Idle life while standing still with nothing to do: breathing and a slow shift of weight.
+    let still = (1.0 - st.speed / 0.6).clamp(0.0, 1.0)
+        * (1.0 - st.air)
+        * (1.0 - climb)
+        * (1.0 - swim)
+        * (1.0 - crawl)
+        * (1.0 - mw)
+        * (1.0 - st.down.min(1.0));
+    let breath = (st.time * TAU / 3.4 + st.seed * TAU).sin();
+    let sway = (st.time * TAU / 6.3 + st.seed * 17.0).sin();
+
+    // Foot IK: each foot sits on the ground under it; the pelvis drops so the lower one reaches.
+    let plant = (1.0 - st.air) * (1.0 - climb) * (1.0 - swim) * (1.0 - crawl);
+    let (fl, fr) = (st.foot_l * plant, st.foot_r * plant);
+    let drop = (-fl.min(fr)).clamp(0.0, 0.35 * leg);
+
+    // Pelvis height: standing -> crouch -> crawl. A move lunges it forward.
+    let stand_pelvis = leg * 0.97 + bob - drop;
+    let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl) * (1.0 - 0.05 * swim);
+    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd + mv.map_or(0.0, |m| m.lean);
+    let lunge = mv.map_or(0.0, |m| m.lunge) * k;
+    let pelvis = Vec3::new(sway * 0.012 * k * still, pelvis_h, -0.05 * crawl * leg + lunge);
+    // Torso direction: upright, leaning, or horizontal when crawling.
+    let torso_dir = Vec3::new(st.lean_side + st.hit_side, 1.0, lean_f)
+        .normalize()
+        .lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl)
+        .lerp(Vec3::new(0.0, 0.45, 1.0).normalize(), swim)
+        .normalize();
+    let chest = pelvis + torso_dir * def.torso_length * k * (1.0 + 0.012 * breath * still);
+    let neck = chest + torso_dir * (hr * 0.55);
+    // The head snaps a little further than the torso on a hit.
+    let head_dir = (torso_dir + Vec3::new(st.hit_side, 0.0, st.hit_fwd) * 0.6).normalize();
+    let head = neck + head_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * hr * 0.95;
+    let twist = Quat::from_rotation_y(mv.map_or(0.0, |m| m.twist));
+    // Blinks: a quick shut every few seconds, each character on its own beat.
+    let bt = (st.time / 4.1 + st.seed * 3.7).fract();
+    let blink = if st.down > 0.0 { 0.0 } else { (1.0 - (bt / 0.04 - 1.0).abs()).max(0.0) };
+
+    let mut sk = Skel {
+        pelvis,
+        chest,
+        neck,
+        head,
+        pelvis_rot: Quat::IDENTITY,
+        chest_rot: twist,
+        head_rot: Quat::from_rotation_arc(Vec3::Y, head_dir.lerp(Vec3::Y, crawl).normalize()),
+        crown: head_dir,
+        shoulder: [Vec3::ZERO; 2],
+        elbow: [Vec3::ZERO; 2],
+        hand: [Vec3::ZERO; 2],
+        hip: [Vec3::ZERO; 2],
+        knee: [Vec3::ZERO; 2],
+        ankle: [Vec3::ZERO; 2],
+        toe: [Vec3::Z; 2],
+        weapon: Vec3::new(0.12, -0.35, 1.0).normalize(),
+        blink,
+    };
+
+    // Legs: stride along the direction of travel; a kick takes the right foot to its target and
+    // the lead foot steps into a lunge.
+    let travel = Vec3::new(st.travel.sin(), 0.0, st.travel.cos());
+    let kick_foot = mv.and_then(|m| m.foot(leg, leg * 0.97));
+    let lead = if mv.is_some_and(|m| m.hand == crate::moves::Hand::Left) { 1 } else { 0 };
+    for (i, s) in [(0usize, -1.0f32), (1, 1.0)] {
+        let hip = pelvis + Vec3::new(s * def.hip_width * k, 0.0, 0.0);
+        let ph = cyc + if s > 0.0 { 0.0 } else { PI };
+        let amp = def.stride * k * 0.25 * walk;
+        let ground = if s > 0.0 { fr } else { fl };
+        let lift = ph.cos().max(0.0) * def.step_height * k * walk;
+        let mut foot = Vec3::new(s * def.hip_width * k * 1.1, ground + lift, 0.0) + travel * (ph.sin() * amp);
+        // Air: tuck feet; crouch: feet under hips; crawl: knees on the ground behind.
+        foot =
+            foot.lerp(Vec3::new(s * def.hip_width * k, pelvis_h * 0.35, -0.05 + if st.vy > 0.0 { 0.1 } else { -0.05 }), st.air);
+        let crawl_foot = Vec3::new(s * def.hip_width * k * 1.3, 0.05, pelvis.z - leg * 0.55 + ph.sin() * amp * 0.5);
+        foot = foot.lerp(crawl_foot, crawl);
+        let climb_foot = Vec3::new(
+            s * def.hip_width * k * 1.2,
+            0.1 + (st.climb_phase * TAU + if s > 0.0 { 0.0 } else { PI }).sin().max(0.0) * 0.35 * k,
+            0.12,
+        );
+        foot = foot.lerp(climb_foot, climb);
+        let kick = (stroke * 2.0 + if s > 0.0 { 0.0 } else { PI }).sin();
+        let swim_foot = Vec3::new(s * def.hip_width * k, pelvis_h - leg * 0.35 + kick * 0.12 * k, -leg * 0.85);
+        foot = foot.lerp(swim_foot, swim);
+        if let Some(m) = mv {
+            match kick_foot {
+                Some(t) if s > 0.0 => foot = foot.lerp(t, m.w * m.wind_k),
+                _ if i == lead => foot.z += lunge * 1.1,
+                _ => {}
+            }
+        }
+        let bend = Vec3::Z.lerp(Vec3::NEG_Y, crawl * 0.8);
+        let (knee, ankle) = ik(hip, foot, leg * 0.5, leg * 0.5, bend);
+        sk.hip[i] = hip;
+        sk.knee[i] = knee;
+        sk.ankle[i] = ankle;
+    }
+
+    // Arms (the right hand holds the weapon). A move twists the shoulders and steers the hands
+    // along its arc, winding up from wherever the hands were.
+    let fists = def.weapon.kind == WeaponKind::None;
+    let shoulder_at = |s: f32| {
+        pelvis + twist * (chest + Vec3::new(s * def.shoulder_width * k, -0.05 * k + breath * 0.005 * k * still, 0.0) - pelvis)
+    };
+    let shoulders = [shoulder_at(-1.0), shoulder_at(1.0)];
+    let centre = (shoulders[0] + shoulders[1]) * 0.5;
+    let targets = mv.map(|m| m.hands(fists));
+    let chain = [Vec3::from(st.chain_l), Vec3::from(st.chain_r)];
+    for (i, s) in [(0usize, -1.0f32), (1, 1.0)] {
+        let shoulder = shoulders[i];
+        let ph = cyc + if s > 0.0 { PI } else { 0.0 };
+        let swing = ph.sin() * def.arm_swing * walk;
+        let mut hand = shoulder + Vec3::new(s * 0.08 * k, -arm * 0.88, swing * arm * 0.45);
+        // Air: arms up and out.
+        hand = hand.lerp(shoulder + Vec3::new(s * arm * 0.55, arm * 0.25, 0.05), st.air * 0.7);
+        // Crouch: hands forward a bit.
+        hand = hand.lerp(shoulder + Vec3::new(s * 0.1, -arm * 0.6, arm * 0.45), crouch * 0.6);
+        // Crawl: hands on the ground ahead, alternating.
+        let crawl_hand = Vec3::new(s * def.shoulder_width * k * 1.1, 0.04, chest.z + arm * 0.35 + ph.sin() * 0.12 * k);
+        hand = hand.lerp(crawl_hand, crawl);
+        // Climb: reaching up alternately.
+        let cp = st.climb_phase * TAU + if s > 0.0 { PI } else { 0.0 };
+        let climb_hand = shoulder + Vec3::new(s * 0.1, arm * (0.35 + 0.3 * cp.sin().max(0.0)), 0.22);
+        hand = hand.lerp(climb_hand, climb);
+        // Swim: alternating front-crawl strokes.
+        let sp = stroke + if s > 0.0 { 0.0 } else { PI };
+        let swim_hand = shoulder + Vec3::new(s * 0.18, sp.sin() * 0.25 * k, sp.cos() * arm * 0.75);
+        hand = hand.lerp(swim_hand, swim);
+        hand.z -= st.recoil * 0.3;
+        // Arms fling out on a hit.
+        let fling = (st.hit_side.abs() + st.hit_fwd.abs()).min(0.8);
+        hand += Vec3::new(s * 0.5, 0.6, 0.0) * fling * arm;
+        if let (Some(m), Some(t)) = (mv, targets) {
+            let (rel, firm) = t[i];
+            let from = hand.lerp(centre + chain[i] * arm, st.chain_w);
+            hand = hand.lerp(from.lerp(centre + rel * arm, m.wind_k), m.w * firm);
+        }
+        let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
+        let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
+        sk.shoulder[i] = shoulder;
+        sk.elbow[i] = elbow;
+        sk.hand[i] = hand;
+    }
+    // The weapon points forward and down, or along the arc while a move swings it.
+    if let Some(m) = mv {
+        use crate::moves::Hand;
+        if matches!(m.hand, Hand::Right | Hand::Both | Hand::Pair) {
+            let rest = sk.weapon;
+            sk.weapon = rest.lerp(rest.lerp(m.weapon_dir(), m.wind_k), m.w).normalize_or(rest);
+        }
+        // Hops lift the whole body; spins turn it.
+        if m.hop != 0.0 || m.spin != 0.0 {
+            sk.transform(Quat::from_rotation_y(m.spin), Vec3::Y * m.hop * k);
+        }
+    }
+    sk
+}
+
+/// Parts for a skeleton: body, head, gear, limbs, weapon and eyes, squashed and stretched about
+/// the feet, then tumbled by a dodge roll.
+fn dress(def: &PuppetDef, st: &PuppetState, sk: &Skel, feet: Vec3, cam_fwd: Vec3) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
     let k = def.scale;
     let rot = Quat::from_rotation_y(st.facing);
     let fwd = rot * Vec3::Z;
@@ -842,13 +1151,12 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
     let pants = Color::hex(&def.pants);
     let shoes = Color::hex(&def.shoes);
     let eyes = Color::hex(&def.eyes);
-
     let leg = def.leg_length * k;
-    let arm = def.arm_length * k;
     let lr = def.limb_radius * k;
+    let hr = def.head_radius * k;
+    let tr = def.torso_radius * k;
     let walk = (st.speed / 5.0).min(1.0) * (1.0 - st.air) * (1.0 - st.climb);
     let cyc = st.phase * std::f32::consts::TAU;
-    let bob = (cyc * 2.0).cos().abs() * def.bob * k * walk;
 
     // Squash & stretch about the feet.
     let sq = st.squash;
@@ -856,40 +1164,10 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
     let sxz = 1.0 / sy.max(0.3).sqrt();
     let local = |v: Vec3| -> Vec3 {
         // v is in character space (x right, y up, z forward) relative to feet.
-        let w = right * v.x * sxz + up * v.y * sy + fwd * v.z * sxz;
-        feet + w
+        feet + right * v.x * sxz + up * v.y * sy + fwd * v.z * sxz
     };
 
-    let act = act_pose(ActKind::from_u8(st.act_kind), st.act, st.act_hit, st.act_side);
-    let crouch = st.crouch.max(st.roll).max(act.crouch * act.w.max(0.6));
-    let crawl = st.crawl;
-    let climb = st.climb;
-    let swim = st.swim;
-    let stroke = st.time * 5.0;
-
-    // Foot IK: each foot sits on the ground under it; the pelvis drops so the lower one reaches.
-    let plant = (1.0 - st.air) * (1.0 - climb) * (1.0 - swim) * (1.0 - crawl);
-    let (fl, fr) = (st.foot_l * plant, st.foot_r * plant);
-    let drop = (-fl.min(fr)).clamp(0.0, 0.35 * leg);
-
-    // Pelvis height: standing -> crouch -> crawl.
-    let stand_pelvis = leg * 0.97 + bob - drop;
-    let pelvis_h = stand_pelvis * (1.0 - 0.38 * crouch) * (1.0 - 0.62 * crawl) * (1.0 - 0.05 * swim);
-    let lean_f = st.lean_fwd + 0.25 * crouch - 0.12 * climb + st.hit_fwd + act.lean * act.w;
-    let pelvis = Vec3::new(0.0, pelvis_h, -0.05 * crawl * leg);
-    // Torso direction: upright, leaning, or horizontal when crawling.
-    let torso_dir = Vec3::new(st.lean_side + st.hit_side, 1.0, lean_f)
-        .normalize()
-        .lerp(Vec3::new(0.0, 0.18, 1.0).normalize(), crawl)
-        .lerp(Vec3::new(0.0, 0.45, 1.0).normalize(), swim)
-        .normalize();
-    let chest = pelvis + torso_dir * def.torso_length * k;
-    let neck = chest + torso_dir * (def.head_radius * 0.55 * k);
-    // The head snaps a little further than the torso on a hit.
-    let head_dir = (torso_dir + Vec3::new(st.hit_side, 0.0, st.hit_fwd) * 0.6).normalize();
-    let head = neck + head_dir.lerp(Vec3::new(0.0, 0.5, 1.0).normalize(), crawl) * def.head_radius * k * 0.95;
-
-    let mut parts = Vec::with_capacity(20);
+    let mut parts = Vec::with_capacity(24);
     // Parts pushed while `glow_now` is set shine (enchanted helmets).
     let glow_now = std::cell::Cell::new(0.0f32);
     let mut push = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color| {
@@ -902,18 +1180,20 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
             glow: glow_now.get(),
         });
     };
+    let (pelvis, chest, head) = (sk.pelvis, sk.chest, sk.head);
+    let (cr, pr, hq) = (sk.chest_rot, sk.pelvis_rot, sk.head_rot);
+    let torso_dir = (chest - pelvis).normalize_or(Vec3::Y);
 
     // Torso and head.
-    push(pelvis, chest, def.torso_radius * k * 0.92, def.torso_radius * k, shirt);
-    push(head, head, def.head_radius * k, def.head_radius * k, skin);
+    push(pelvis, chest, tr * 0.92, tr, shirt);
+    push(head, head, hr, hr, skin);
     let gear = &def.gear;
-    let hr = def.head_radius * k;
     glow_now.set(gear.glow);
     if gear.helm != HelmKind::None {
         let hc = Color::try_hex(&gear.helm_color).unwrap_or(Color::hex("#8a8f99"));
         let gold = Color::hex("#e8c45a");
-        let hu = head_dir;
-        let (f, x) = (Vec3::Z, Vec3::X);
+        let hu = sk.crown;
+        let (f, x) = (hq * Vec3::Z, hq * Vec3::X);
         match gear.helm {
             HelmKind::Cap => push(head + hu * hr * 0.3, head + hu * hr * 0.3, hr * 0.9, hr * 0.9, hc),
             HelmKind::Hood => {
@@ -978,15 +1258,15 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         let anchors = crate::parts::Anchors {
             head,
             head_r: hr,
-            fwd: Vec3::Z,
-            up: head_dir,
-            right: Vec3::X,
-            back: vec![chest - Vec3::Z * def.torso_radius * k * 0.6, pelvis - Vec3::Z * def.torso_radius * k * 0.6],
-            back_r: def.torso_radius * k,
-            back_out: (-Vec3::Z + Vec3::Y * 0.35).normalize(),
+            fwd: hq * Vec3::Z,
+            up: sk.crown,
+            right: hq * Vec3::X,
+            back: vec![chest - cr * Vec3::Z * tr * 0.6, pelvis - pr * Vec3::Z * tr * 0.6],
+            back_r: tr,
+            back_out: cr * (-Vec3::Z + Vec3::Y * 0.35).normalize(),
             shoulders: [
-                chest + Vec3::new(-def.shoulder_width * k * 0.7, 0.0, -def.torso_radius * k * 0.5),
-                chest + Vec3::new(def.shoulder_width * k * 0.7, 0.0, -def.torso_radius * k * 0.5),
+                chest + cr * Vec3::new(-def.shoulder_width * k * 0.7, 0.0, -tr * 0.5),
+                chest + cr * Vec3::new(def.shoulder_width * k * 0.7, 0.0, -tr * 0.5),
             ],
             center: pelvis.lerp(chest, 0.5),
             k,
@@ -1001,111 +1281,53 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
     }
     if !gear.belt.is_empty() {
         let b = Color::try_hex(&gear.belt).unwrap_or(Color::hex("#5a4030"));
-        let at = pelvis + torso_dir * def.torso_length * k * 0.12 + Vec3::Z * def.torso_radius * k * 0.92;
+        let at = pelvis + torso_dir * def.torso_length * k * 0.12 + pr * Vec3::Z * tr * 0.92;
         push(at, at, lr * 0.75, lr * 0.75, b);
     }
     if gear.cape > 0.0 {
+        // The cape hangs from the back of the shoulders and streams out behind as the body moves.
         let cc = Color::try_hex(&gear.cape_color).unwrap_or(Color::hex("#3a2f4a"));
-        let top = chest - Vec3::Z * def.torso_radius * k * 1.05 - Vec3::Y * 0.05 * k;
+        let top = chest - cr * Vec3::Z * tr * 1.05 - Vec3::Y * 0.05 * k;
         let flow = (st.speed / 6.0).min(1.0) * 0.55 + (cyc * 2.0).sin() * 0.05 * walk + st.lean_fwd.max(0.0) * 0.4;
-        let bottom = Vec3::new(0.0, (pelvis.y - leg * 0.55).max(0.12 * k), top.z - 0.1 * k - flow * leg * 0.75);
+        let back = (cr * Vec3::NEG_Z * Vec3::new(1.0, 0.0, 1.0)).normalize_or(Vec3::NEG_Z);
+        let hang = def.torso_length * k + leg * 0.55 - 0.05 * k;
+        let mut bottom = top - Vec3::Y * hang + back * (0.1 * k + flow * leg * 0.75);
+        bottom.y = bottom.y.max(0.12 * k);
         for xs in [-1.0f32, 0.0, 1.0] {
-            let off = Vec3::X * xs * def.torso_radius * k * 0.62;
+            let off = cr * Vec3::X * xs * tr * 0.62;
             push(top + off, bottom + off * 1.35, lr * 0.85 * gear.cape, lr * 1.05 * gear.cape, cc);
         }
     }
 
     // Legs.
-    for s in [-1.0f32, 1.0] {
-        let hip = pelvis + Vec3::new(s * def.hip_width * k, 0.0, 0.0);
-        let ph = cyc + if s > 0.0 { 0.0 } else { std::f32::consts::PI };
-        let amp = def.stride * k * 0.25 * walk;
-        let ground = if s > 0.0 { fr } else { fl };
-        let mut foot =
-            Vec3::new(s * def.hip_width * k * 1.1, ground + (ph.cos().max(0.0)) * def.step_height * k * walk, ph.sin() * amp);
-        // Air: tuck feet; crouch: feet under hips; crawl: knees on the ground behind.
-        foot =
-            foot.lerp(Vec3::new(s * def.hip_width * k, pelvis_h * 0.35, -0.05 + if st.vy > 0.0 { 0.1 } else { -0.05 }), st.air);
-        let crawl_foot = Vec3::new(s * def.hip_width * k * 1.3, 0.05, pelvis.z - leg * 0.55 + ph.sin() * amp * 0.5);
-        foot = foot.lerp(crawl_foot, crawl);
-        let climb_foot = Vec3::new(
-            s * def.hip_width * k * 1.2,
-            0.1 + (st.climb_phase * std::f32::consts::TAU + if s > 0.0 { 0.0 } else { std::f32::consts::PI }).sin().max(0.0)
-                * 0.35
-                * k,
-            0.12,
-        );
-        foot = foot.lerp(climb_foot, climb);
-        let kick = (stroke * 2.0 + if s > 0.0 { 0.0 } else { std::f32::consts::PI }).sin();
-        let swim_foot = Vec3::new(s * def.hip_width * k, pelvis_h - leg * 0.35 + kick * 0.12 * k, -leg * 0.85);
-        foot = foot.lerp(swim_foot, swim);
-        let bend = Vec3::Z.lerp(Vec3::NEG_Y, crawl * 0.8);
-        let (knee, foot) = ik(hip, foot, leg * 0.5, leg * 0.5, bend);
+    for i in 0..2 {
+        let (hip, knee, ankle, toe) = (sk.hip[i], sk.knee[i], sk.ankle[i], sk.toe[i]);
         push(hip, knee, lr * 1.25, lr * 1.05, pants);
-        push(knee, foot, lr * 1.05, lr * 0.9, pants);
-        push(foot + Vec3::new(0.0, 0.02, -0.02), foot + Vec3::new(0.0, 0.02, 0.12 * k), lr * 0.95, lr * 0.85, shoes);
+        push(knee, ankle, lr * 1.05, lr * 0.9, pants);
+        push(ankle + Vec3::Y * 0.02 - toe * 0.02, ankle + Vec3::Y * 0.02 + toe * 0.12 * k, lr * 0.95, lr * 0.85, shoes);
     }
 
-    // Arms (the right hand holds the weapon). Actions twist the shoulders and steer the hands.
-    let tw = Quat::from_rotation_y(act.twist * act.w);
-    let mut held_parts = Vec::new();
-    let mut span: Option<(Vec3, Vec3)> = None;
-    let mut held = (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
-    let mut off_hand = Vec3::ZERO;
-    for s in [-1.0f32, 1.0] {
-        let shoulder = chest + Vec3::new(s * def.shoulder_width * k, -0.05 * k, 0.0);
-        let shoulder = pelvis + tw * (shoulder - pelvis);
-        let ph = cyc + if s > 0.0 { std::f32::consts::PI } else { 0.0 };
-        let swing = ph.sin() * def.arm_swing * walk;
-        let mut hand = shoulder + Vec3::new(s * 0.08 * k, -arm * 0.88, swing * arm * 0.45);
-        // Air: arms up and out.
-        hand = hand.lerp(shoulder + Vec3::new(s * arm * 0.55, arm * 0.25, 0.05), st.air * 0.7);
-        // Crouch: hands forward a bit.
-        hand = hand.lerp(shoulder + Vec3::new(s * 0.1, -arm * 0.6, arm * 0.45), crouch * 0.6);
-        // Crawl: hands on the ground ahead, alternating.
-        let crawl_hand = Vec3::new(s * def.shoulder_width * k * 1.1, 0.04, chest.z + arm * 0.35 + ph.sin() * 0.12 * k);
-        hand = hand.lerp(crawl_hand, crawl);
-        // Climb: reaching up alternately.
-        let cp = st.climb_phase * std::f32::consts::TAU + if s > 0.0 { std::f32::consts::PI } else { 0.0 };
-        let climb_hand = shoulder + Vec3::new(s * 0.1, arm * (0.35 + 0.3 * cp.sin().max(0.0)), 0.22);
-        hand = hand.lerp(climb_hand, climb);
-        // Swim: alternating front-crawl strokes.
-        let sp = stroke + if s > 0.0 { 0.0 } else { std::f32::consts::PI };
-        let swim_hand = shoulder + Vec3::new(s * 0.18, sp.sin() * 0.25 * k, sp.cos() * arm * 0.75);
-        hand = hand.lerp(swim_hand, swim);
-        hand.z -= st.recoil * 0.3;
-        // Arms fling out on a hit.
-        let fling = (st.hit_side.abs() + st.hit_fwd.abs()).min(0.8);
-        hand += Vec3::new(s * 0.5, 0.6, 0.0) * fling * arm;
-        if let Some(t) = if s > 0.0 { act.right } else { act.left } {
-            hand = hand.lerp(shoulder + tw * (t * arm), act.w);
-        }
-        let bend = Vec3::new(0.0, 0.0, -1.0).lerp(Vec3::new(s, 0.0, 0.0), 0.3).lerp(Vec3::NEG_Y, crawl * 0.5);
-        let (elbow, hand) = ik(shoulder, hand, arm * 0.5, arm * 0.5, bend);
+    // Arms.
+    let glove = Color::try_hex(&def.gear.gloves).unwrap_or(skin);
+    let fore = if def.gear.gloves.is_empty() { skin } else { glove };
+    for (i, s) in [(0usize, -1.0f32), (1, 1.0)] {
+        let (shoulder, elbow, hand) = (sk.shoulder[i], sk.elbow[i], sk.hand[i]);
         push(shoulder, elbow, lr * 1.05, lr * 0.95, shirt);
-        let glove = Color::try_hex(&def.gear.gloves).unwrap_or(skin);
-        let fore = if def.gear.gloves.is_empty() { skin } else { glove };
         push(elbow, hand, lr * 0.95, lr * if def.gear.gloves.is_empty() { 0.85 } else { 1.05 }, fore);
         push(hand, hand, lr * 1.1, lr * 1.1, glove);
         if def.gear.pauldrons > 0.0 {
             let pc = Color::try_hex(&def.gear.armor_color).unwrap_or(shirt);
-            let p = shoulder + Vec3::new(s * 0.03 * k, 0.04 * k, 0.0);
+            let p = shoulder + cr * Vec3::new(s * 0.03 * k, 0.04 * k, 0.0);
             let r = lr * 1.9 * def.gear.pauldrons;
-            push(p, p + Vec3::new(s * 0.05 * k, -0.02 * k, 0.0), r, r * 0.85, pc);
-        }
-        if s > 0.0 {
-            held = (shoulder, elbow, hand);
-        } else {
-            off_hand = hand;
+            push(p, p + cr * Vec3::new(s * 0.05 * k, -0.02 * k, 0.0), r, r * 0.85, pc);
         }
     }
-    // Weapon: along the arm while acting, held forward and down otherwise.
+    // Weapon in the right hand, off-hand item in the left.
+    let mut held_parts = Vec::new();
+    let mut span: Option<(Vec3, Vec3)> = None;
     if def.weapon.kind != WeaponKind::None || def.weapon.offhand != OffhandKind::None {
-        let (shoulder, _, hand) = held;
-        let rest = Vec3::new(0.12, -0.35, 1.0).normalize();
-        let along = (hand - shoulder).normalize_or(rest);
-        let dir = rest.lerp(along, act.w).normalize_or(rest);
-        weapon_parts(&def.weapon, k, hand, dir, off_hand, &mut held_parts);
+        let (hand, dir) = (sk.hand[1], sk.weapon);
+        weapon_parts(&def.weapon, k, hand, dir, sk.hand[0], &mut held_parts);
         for p in held_parts.iter_mut() {
             p.a = local(p.a);
             p.b = local(p.b);
@@ -1115,15 +1337,20 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         }
     }
 
-    // Eyes: on the face, pushed toward the camera so they read from high angles.
+    // Eyes: on the face, pushed toward the camera so they read from high angles; shut in a blink.
     let cam_up = (-cam_fwd).dot(up).clamp(0.0, 1.0) * def.eyes_to_camera;
     let face_dir = (Vec3::Z * (1.0 - cam_up) + Vec3::Y * cam_up * 1.2).normalize();
-    let face_dir = face_dir.lerp(Vec3::new(0.0, 0.3 + cam_up * 0.5, 1.0).normalize(), crawl).normalize();
+    let face_dir = face_dir.lerp(Vec3::new(0.0, 0.3 + cam_up * 0.5, 1.0).normalize(), st.crawl).normalize();
     let out = if def.gear.helm == HelmKind::Great { 1.13 } else { 0.9 };
     for s in [-1.0f32, 1.0] {
         let side = Vec3::new(s * 0.36, 0.08, 0.0) * hr;
-        let e = head + (face_dir * hr * 0.93 + side).normalize() * hr * out;
-        push(e, e, hr * 0.17, hr * 0.17, eyes);
+        let e = head + hq * ((face_dir * hr * 0.93 + side).normalize() * hr * out);
+        if sk.blink > 0.5 {
+            let x = hq * Vec3::X * hr * 0.12;
+            push(e - x, e + x, hr * 0.06, hr * 0.06, eyes);
+        } else {
+            push(e, e, hr * 0.17, hr * 0.17, eyes);
+        }
     }
     parts.extend(held_parts);
     if st.roll > 0.01 || st.roll_angle.rem_euclid(std::f32::consts::TAU) > 0.01 {

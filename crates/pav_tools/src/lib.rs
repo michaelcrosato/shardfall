@@ -3,6 +3,7 @@
 //! (a simulation plus camera/view state and an optional headless GPU for captures).
 
 pub mod agent_tools;
+pub mod anim_tools;
 pub mod bridge;
 pub mod game_tools;
 pub mod mcp;

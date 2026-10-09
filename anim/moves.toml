@@ -1,0 +1,505 @@
+# Action moves: every attack, cast and gesture a puppet performs, as numbers instead of code.
+# A skill names one (`anim = "overhead"` in game/skills.toml); townsfolk and tools use them too.
+# Edit, then `anim_reload` in the REPL (or the running game) and `animsheet move=NAME` to look.
+#
+# How a move plays. Its progress runs 0..1 over the skill's own time, and the hit lands where the
+# skill says; the move's three phases are stretched to fit around that moment:
+#   wind     anticipation: the hand travels from wherever it was (the walk, or the last move's
+#            end: chained attacks never snap) to the start of the arc; the body coils back.
+#   active   the strike: the hand sweeps the arc from `from` to `to` (degrees) at `reach`, the
+#            body lunges, leans, twists with the swing and may hop or spin.
+#   recover  holds the end pose (`hold` of it), follows through a little, then eases back.
+#   hit      the share of `active` where it connects (the skill's hit moment lines up with it).
+#
+# Fields (defaults in brackets):
+#   name, about   what it is called and what it looks like (a model picks moves by `about`)
+#   hand          right | left | both (two-handed grip) | pair (both hands, mirrored) | kick (the
+#                 right foot)                                                        [right]
+#   plane         ground: a level arc around the shoulders (0 = straight ahead, + = the right side);
+#                 side: an up-and-down arc in front (0 = straight ahead, + = up)     [ground]
+#   from, to      degrees along the arc                                              [0, 0]
+#   height        [start, end] above the shoulders, in arm lengths (ground plane); kicks: shares of
+#                 hip height above the ground                                        [-0.76]
+#   reach         arm lengths from the shoulders (kicks: leg lengths); [start, end] extends a thrust
+#                                                                                    [0.82]
+#   wind, active, recover   seconds: the move's shape (the skill decides the real time)
+#                                                                         [0.06, 0.10, 0.18]
+#   hold          share of the recovery spent holding the end pose                   [0.3]
+#   lunge, hop    metres the body steps into the strike and jumps (on a 1.8 m figure) [0.064, 0]
+#   crouch        0..1 dip                                                           [0.15]
+#   lean          radians forward lean through the strike (negative leans back)      [0.3]
+#   twist         how much the torso turns with the swing angle                      [1]
+#   spin          the whole body turns once during the strike                        [false]
+#   trail         the held weapon draws a swing trail                                [true]
+#   alt           the move played on alternate swings (a slash answered by a backslash)
+#
+# The first nine are the engine's original actions, in their original order.
+
+[[move]]
+name = "slash"
+about = "a level sword swing from the right shoulder across to the left; alternate swings come back as a backslash"
+from = 97
+to = -97
+height = [-0.65, -0.98]
+wind = 0.08
+active = 0.1
+recover = 0.22
+alt = "backslash"
+
+[[move]]
+name = "overhead"
+about = "the blade raised high behind the head and chopped straight down in front, crouching into it"
+plane = "side"
+from = 138
+to = -72
+reach = 0.76
+wind = 0.16
+active = 0.09
+recover = 0.26
+lunge = 0.106
+crouch = 0.35
+lean = 0.4
+
+[[move]]
+name = "thrust"
+about = "a straight stab: the arm draws back to the hip and drives forward at full reach with a long lunge"
+from = 7
+to = 0
+height = [-0.54, -0.43]
+reach = [0.33, 1.09]
+wind = 0.11
+active = 0.07
+recover = 0.22
+lunge = 0.159
+lean = 0.5
+
+[[move]]
+name = "spin"
+about = "a whirlwind: both arms out wide and the whole body turning a full circle, again and again"
+hand = "pair"
+from = 80
+to = 80
+height = [-0.3, -0.3]
+reach = 0.9
+wind = 0.02
+active = 0.96
+recover = 0.02
+hit = 0.5
+lunge = 0
+crouch = 0.1
+lean = 0.1
+twist = 0
+spin = true
+
+[[move]]
+name = "cast"
+about = "both hands drawn up to the chest, then pushed out together to release a spell"
+hand = "pair"
+plane = "side"
+from = 80
+to = 6
+reach = 0.87
+wind = 0.22
+active = 0.12
+recover = 0.32
+lunge = 0.032
+lean = 0.15
+trail = false
+
+[[move]]
+name = "throw"
+about = "an overarm throw: the hand winds far back above the shoulder and whips forward"
+plane = "side"
+from = 143
+to = -14
+wind = 0.16
+active = 0.08
+recover = 0.24
+lunge = 0.095
+lean = 0.45
+trail = false
+
+[[move]]
+name = "roar"
+about = "a war cry: arms flung wide and high, chest out, leaning back"
+hand = "pair"
+from = 70
+to = 74
+height = [0.35, 0.45]
+reach = [0.8, 0.9]
+wind = 0.25
+active = 0.15
+recover = 0.4
+hold = 0.5
+lunge = 0
+crouch = 0.1
+lean = -0.3
+twist = 0
+trail = false
+
+[[move]]
+name = "leap"
+about = "a leaping strike: a deep crouch, the blade raised overhead as the body flies, chopped down on landing"
+plane = "side"
+from = 140
+to = -70
+reach = 0.76
+wind = 0.18
+active = 0.1
+recover = 0.3
+lunge = 0.1
+crouch = 0.55
+lean = 0.45
+
+[[move]]
+name = "lunge"
+about = "a pounce: both hands reaching forward as the body springs into them"
+hand = "pair"
+from = 15
+to = 10
+height = [0.05, 0.1]
+reach = [0.5, 0.95]
+wind = 0.14
+active = 0.08
+recover = 0.22
+lunge = 0.25
+crouch = 0.3
+lean = 0.5
+twist = 0
+trail = false
+
+# --- blades, staves and clubs (the right hand) -------------------------------------------------
+
+[[move]]
+name = "backslash"
+about = "a backhanded level swing from the left side across to the right"
+from = -86
+to = 92
+height = [-0.87, -0.54]
+wind = 0.07
+active = 0.1
+recover = 0.2
+lunge = 0.042
+
+[[move]]
+name = "rising"
+about = "a rising cut from low in front to high overhead, hopping up with it"
+plane = "side"
+from = -77
+to = 120
+reach = 0.76
+wind = 0.09
+active = 0.11
+recover = 0.24
+lunge = 0.042
+hop = 0.185
+crouch = 0.4
+
+[[move]]
+name = "spinslash"
+about = "the blade held out to the side as the whole body turns a full circle"
+from = 74
+to = 74
+height = [-0.65, -0.65]
+reach = 0.87
+wind = 0.09
+active = 0.3
+recover = 0.18
+lunge = 0
+lean = 0.1
+spin = true
+
+[[move]]
+name = "plunge"
+about = "a downward stab: the blade driven point-first into something on the ground"
+plane = "side"
+from = -83
+to = -86
+reach = [0.54, 0.98]
+wind = 0.06
+active = 0.25
+recover = 0.15
+lunge = 0
+lean = 0.1
+
+[[move]]
+name = "twohand"
+about = "a heavy two-handed chop: both hands on the grip, raised high and brought down with the whole body"
+hand = "both"
+plane = "side"
+from = 143
+to = -80
+reach = 0.71
+wind = 0.2
+active = 0.1
+recover = 0.3
+lunge = 0.127
+crouch = 0.5
+lean = 0.5
+
+[[move]]
+name = "bash"
+about = "a short heavy shove with both hands: a pommel, a shield or a shoulder"
+hand = "both"
+plane = "side"
+from = 57
+to = -20
+reach = 0.54
+wind = 0.12
+active = 0.07
+recover = 0.24
+lunge = 0.159
+hop = 0.064
+crouch = 0.45
+lean = 0.55
+trail = false
+
+[[move]]
+name = "claw"
+about = "a raking swipe from high on the right down and across the body"
+from = 69
+to = -57
+height = [0.11, -0.43]
+reach = 0.76
+wind = 0.12
+active = 0.08
+recover = 0.24
+lunge = 0.095
+lean = 0.4
+trail = false
+
+# --- fists (the jab leads with the left) ----------------------------------------------------------
+
+[[move]]
+name = "jab"
+about = "a quick straight punch with the lead (left) fist, the right fist guarding the chin"
+hand = "left"
+from = 3
+to = 0
+height = [-0.11, -0.05]
+reach = [0.33, 0.93]
+wind = 0.035
+active = 0.06
+recover = 0.13
+lunge = 0.048
+lean = 0.22
+trail = false
+
+[[move]]
+name = "cross"
+about = "a straight right punch thrown across with the hips and shoulders turning into it"
+from = 14
+to = 0
+height = [-0.11, -0.05]
+reach = [0.27, 0.96]
+wind = 0.06
+active = 0.07
+recover = 0.17
+lunge = 0.095
+lean = 0.38
+twist = 1.8
+trail = false
+
+[[move]]
+name = "hook"
+about = "a looping right punch swung in from the side at head height"
+from = 83
+to = -23
+height = [-0.05, 0.0]
+reach = 0.74
+wind = 0.08
+active = 0.09
+recover = 0.2
+lunge = 0.069
+twist = 1.5
+trail = false
+
+[[move]]
+name = "uppercut"
+about = "a crouch, then a rising right fist driven up under the chin with a small hop"
+plane = "side"
+from = -66
+to = 54
+reach = 0.78
+wind = 0.11
+active = 0.09
+recover = 0.26
+lunge = 0.064
+hop = 0.132
+crouch = 0.6
+lean = 0.2
+trail = false
+
+[[move]]
+name = "haymaker"
+about = "a huge wound-up right punch swung round from far behind"
+from = 120
+to = -29
+height = [0.11, -0.11]
+reach = 0.85
+wind = 0.22
+active = 0.1
+recover = 0.3
+lunge = 0.138
+lean = 0.5
+twist = 1.6
+trail = false
+
+[[move]]
+name = "elbow"
+about = "a short right elbow strike turned in at close range"
+from = 52
+to = -17
+height = [-0.05, 0.0]
+reach = 0.38
+wind = 0.05
+active = 0.07
+recover = 0.16
+lunge = 0.053
+twist = 1.4
+trail = false
+
+# --- kicks (the right foot; heights are shares of hip height) -----------------------------------
+
+[[move]]
+name = "kick"
+about = "a straight front kick at the belly, leaning back for balance"
+hand = "kick"
+from = 6
+to = 0
+height = [0.35, 0.8]
+reach = 0.64
+wind = 0.07
+active = 0.09
+recover = 0.2
+lunge = 0.021
+crouch = 0
+lean = -0.22
+
+[[move]]
+name = "roundhouse"
+about = "a high kick swung round from the side to head height, the body turning with it"
+hand = "kick"
+from = 97
+to = -26
+height = [1.0, 1.55]
+reach = 0.68
+wind = 0.1
+active = 0.13
+recover = 0.24
+lunge = 0.021
+crouch = 0
+lean = -0.3
+twist = 1.3
+
+[[move]]
+name = "sweep"
+about = "a low spinning leg sweep along the ground from a deep crouch"
+hand = "kick"
+from = 109
+to = -97
+height = [0.08, 0.08]
+reach = 0.71
+wind = 0.08
+active = 0.16
+recover = 0.24
+lunge = 0.021
+crouch = 0.9
+
+[[move]]
+name = "flyingkick"
+about = "a jumping kick: the body leaves the ground and drives one foot forward"
+hand = "kick"
+from = 6
+to = 0
+height = [0.5, 0.75]
+reach = 0.71
+wind = 0.1
+active = 0.22
+recover = 0.24
+lunge = 0.185
+hop = 0.371
+crouch = 0
+lean = -0.35
+
+[[move]]
+name = "knee"
+about = "a knee driven up into the body at close range"
+hand = "kick"
+from = 0
+to = 0
+height = [0.45, 0.85]
+reach = 0.34
+wind = 0.06
+active = 0.08
+recover = 0.18
+lunge = 0.053
+crouch = 0
+lean = 0.2
+
+[[move]]
+name = "axekick"
+about = "the leg swung straight up high and chopped down heel first"
+hand = "kick"
+from = 11
+to = 0
+height = [2.0, 0.5]
+reach = 0.53
+wind = 0.14
+active = 0.08
+recover = 0.24
+lunge = 0.021
+crouch = 0
+lean = -0.2
+
+# --- work and gestures ----------------------------------------------------------------------------
+
+[[move]]
+name = "stir"
+about = "stirring a pot: the right hand sweeps a slow low arc from left to right"
+from = -50
+to = 50
+height = [-0.95, -0.95]
+reach = 0.55
+wind = 0.05
+active = 1.0
+recover = 0.05
+hit = 0.0
+lunge = 0
+crouch = 0.05
+lean = 0.15
+twist = 0.3
+trail = false
+alt = "stir_back"
+
+[[move]]
+name = "stir_back"
+about = "stirring a pot, the other way: the right hand sweeps from right to left"
+from = 50
+to = -50
+height = [-0.95, -0.95]
+reach = 0.55
+wind = 0.05
+active = 1.0
+recover = 0.05
+hit = 0.0
+lunge = 0
+crouch = 0.05
+lean = 0.15
+twist = 0.3
+trail = false
+
+[[move]]
+name = "flick"
+about = "a coin flicked up from the right hand"
+plane = "side"
+from = -40
+to = 35
+reach = 0.6
+wind = 0.12
+active = 0.08
+recover = 0.25
+lunge = 0
+crouch = 0
+lean = 0.05
+trail = false

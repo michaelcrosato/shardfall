@@ -75,6 +75,79 @@ fn pause() -> [f32; 2] {
     [0.5, 2.5]
 }
 
+/// A performance: motion clips and moves played one after another (`[[npc]] clips`, `moves`).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Perform {
+    /// Clip ids (`crate::clips`), then moves (`crate::moves` indices), in that order.
+    pub clips: Vec<u32>,
+    pub moves: Vec<u8>,
+    /// Play flags for the clips (`clips::MIRROR`, `UPPER`...).
+    pub flags: u8,
+    /// Seconds a looping clip plays before the next.
+    pub hold: f32,
+    /// Speed of everything (1 = as captured).
+    pub speed: f32,
+    /// Which item is playing (starts past the end, so the first tick starts item 0).
+    pub index: usize,
+    /// Seconds until the next item.
+    pub timer: f32,
+    /// Seconds into the current move.
+    pub t: f32,
+}
+
+impl Perform {
+    pub fn new(clips: Vec<u32>, moves: Vec<u8>, flags: u8, hold: f32, speed: f32) -> Self {
+        let n = clips.len() + moves.len();
+        Self { clips, moves, flags, hold, speed, index: n.saturating_sub(1), timer: 0.0, t: 0.0 }
+    }
+
+    /// Advances the performance and poses `anim` for it (`params`: the `anim` settings).
+    pub fn tick(&mut self, anim: &mut crate::puppet::PuppetState, dt: f32, params: &crate::clips::AnimParams) {
+        let n = self.clips.len() + self.moves.len();
+        if n == 0 {
+            return;
+        }
+        let speed = if self.speed > 0.0 { self.speed } else { 1.0 } * params.tempo.max(0.05);
+        let flags = if params.mirror { self.flags ^ crate::clips::MIRROR } else { self.flags };
+        self.timer -= dt;
+        if self.timer <= 0.0 {
+            self.index = (self.index + 1) % n;
+            self.t = 0.0;
+            if let Some(&id) = self.clips.get(self.index) {
+                let (dur, looping) = crate::clips::with(id, |c| (c.dur, c.looping)).unwrap_or((1.0, false));
+                anim.set_action(crate::moves::MoveId::NONE, 0.0, 0.0, 1.0);
+                anim.play_clip(id, flags, speed);
+                self.timer = if looping { self.hold.max(dur) } else { dur / speed + 0.8 };
+            } else {
+                anim.stop_clip();
+                let m = self.moves[self.index - self.clips.len()];
+                let len = crate::moves::table().get(m).map_or(0.5, |d| d.wind + d.active + d.recover);
+                self.timer = len / speed + 0.9;
+            }
+        }
+        if let Some(&id) = self.clips.get(self.index) {
+            // Tempo and mirroring follow the settings as they change.
+            if anim.clip == id {
+                anim.play_clip(id, flags, speed);
+            }
+        } else {
+            // A move at its own timing, then a pause before the next one.
+            let m = self.moves[self.index - self.clips.len()];
+            let table = crate::moves::table();
+            if let Some(d) = table.get(m) {
+                let len = (d.wind + d.active + d.recover).max(1e-3);
+                self.t += dt * speed;
+                if self.t <= len {
+                    let hit = (d.wind + d.hit * d.active) / len;
+                    anim.set_action(crate::moves::MoveId(m), self.t / len, hit, 1.0);
+                } else {
+                    anim.set_action(crate::moves::MoveId::NONE, 0.0, 0.0, 1.0);
+                }
+            }
+        }
+    }
+}
+
 /// A running brain.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Ai {
@@ -110,6 +183,9 @@ pub struct Ai {
     /// Guards: heading when they stopped (they look around it).
     #[serde(default)]
     pub look: f32,
+    /// Clips and moves this character performs in turn.
+    #[serde(default)]
+    pub perform: Option<Perform>,
 }
 
 impl Ai {
@@ -131,6 +207,7 @@ impl Ai {
             alert: 0.0,
             sees: false,
             look: facing,
+            perform: None,
         }
     }
 

@@ -482,6 +482,10 @@ pub fn tick(
 ) {
     let Some(ent) = st.entities.map.get_mut(&id) else { return };
     let (Some(body_h), Some(mut ch)) = (ent.body, ent.character.take()) else { return };
+    if ch.anim.seed == 0.0 {
+        // Each character's own beat for idle breathing and blinks.
+        ch.anim.seed = (((id.0 as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 40) as f32 / (1u64 << 24) as f32).max(1e-4);
+    }
     let Some(col_h) = st.physics.bodies.get(body_h).and_then(|b| b.colliders().first().copied()) else {
         ent.character = Some(ch);
         return;
@@ -1166,6 +1170,25 @@ pub fn tick(
     );
     if hanging {
         ch.anim.climb_phase = 0.25;
+    }
+    // An idle clip plays while the character stands still with nothing to do.
+    if !puppet.idle_clip.is_empty() && puppet.body == crate::puppet::BodyPlan::Biped {
+        let id = crate::clips::find_cached(&puppet.idle_clip);
+        let still = ch.grounded
+            && Vec2::new(ch.vel.x, ch.vel.z).length() < 0.3
+            && ch.anim.act_kind == 0
+            && !climbing
+            && !hanging
+            && !ch.swimming
+            && ch.posture == Posture::Stand
+            && ch.anim.down <= 0.0;
+        if id != 0 && (ch.anim.clip == 0 || ch.anim.clip == id) {
+            if still {
+                ch.anim.play_clip(id, 0, 1.0);
+            } else if ch.anim.clip == id {
+                ch.anim.stop_clip();
+            }
+        }
     }
     // Rig: creature feet step on the ground, tails and antennae swing; bipeds find the ground
     // under each foot.
