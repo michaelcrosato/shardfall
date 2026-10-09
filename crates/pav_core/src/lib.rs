@@ -3,9 +3,11 @@
 #![allow(clippy::unnecessary_cast)]
 
 pub mod ai;
+pub mod anim;
 pub mod arpg;
 pub mod behaviors;
 pub mod character;
+pub mod clips;
 pub mod color;
 pub mod course;
 pub mod destruct;
@@ -19,6 +21,7 @@ pub mod history;
 pub mod input;
 pub mod joints;
 pub mod level;
+pub mod moves;
 pub mod nav;
 pub mod params;
 pub mod parts;

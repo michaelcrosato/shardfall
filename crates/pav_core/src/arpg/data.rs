@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use super::items::{AffixDef, BaseDef, Slot, UniqueDef};
 use super::stats::Stat;
-use crate::puppet::{ActKind, BodyPlan, PuppetDef};
+use crate::moves::MoveId;
+use crate::puppet::{BodyPlan, PuppetDef};
 
 include!(concat!(env!("OUT_DIR"), "/game_data.rs"));
 
@@ -117,7 +118,8 @@ pub struct SkillDef {
     pub about: String,
     pub tags: Vec<String>,
     pub behavior: Behavior,
-    pub anim: ActKind,
+    /// The move it plays (anim/moves.toml).
+    pub anim: MoveId,
     pub unlock: u32,
     pub cost: f32,
     pub cooldown: f32,
@@ -167,7 +169,7 @@ impl Default for SkillDef {
             about: String::new(),
             tags: Vec::new(),
             behavior: Behavior::Melee,
-            anim: ActKind::Slash,
+            anim: MoveId::of("slash"),
             unlock: 1,
             cost: 0.0,
             cooldown: 0.0,

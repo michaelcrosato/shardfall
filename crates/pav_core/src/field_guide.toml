@@ -457,6 +457,30 @@ text = "Jolting the camera on big hits and explosions; it sells impact as long a
 see = ["game feel"]
 
 [[term]]
+key = "motion capture"
+name = "Motion capture (mocap)"
+text = "Recording a real performer's movement (markers or a suit, sampled many times a second) and keeping it as animation. The CMU database holds 2,548 such takes, free for any use. This engine stores captures as readable key poses and plays them on its own puppets."
+see = ["key pose", "retargeting", "interpolation"]
+
+[[term]]
+key = "retargeting"
+name = "Retargeting"
+text = "Playing animation made for one body on another with different proportions. Here every limb takes the clip's direction at the puppet's own length, and IK solves the elbows and knees, so one clip fits a tall knight, a stocky smith or a child."
+see = ["ik", "motion capture", "key pose"]
+
+[[term]]
+key = "key pose"
+name = "Key pose"
+text = "One pose an animation is built from, with the in-between frames worked out between key poses. The readable format names what an animator would (hip height, turns and leans, which way each limb points and how much it bends), so a model or a person can read and edit a clip."
+see = ["interpolation", "motion capture"]
+
+[[term]]
+key = "anticipation"
+name = "Anticipation and follow-through"
+text = "Two of the classic principles of animation: a wind-up before an action (the arm drawn back, the body coiling) that tells you it is coming, and a follow-through after it (the swing carrying on, held for a moment) that sells its weight. Every move in anim/moves.toml has both."
+see = ["procedural animation", "game feel"]
+
+[[term]]
 key = "procedural animation"
 name = "Procedural animation"
 text = "Animation computed at run time from rules instead of drawn by hand: walk cycles from speed, feet planted on the ground, recoil from hits."

@@ -38,6 +38,30 @@ fn main() {
         writeln!(f, "    ({key:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
     }
     writeln!(f, "];").unwrap();
+
+    // Animation data: the files directly in /anim (moves.toml and the clip sets, *.json), keyed by
+    // file name. Sub-folders (the full motion-capture libraries) stay on disk and load on demand.
+    let anim = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../anim");
+    println!("cargo:rerun-if-changed={}", anim.display());
+    let mut files: Vec<_> = std::fs::read_dir(&anim)
+        .map(|d| {
+            d.filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "toml" || x == "json"))
+                .collect()
+        })
+        .unwrap_or_default();
+    files.sort();
+    let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("anim_data.rs");
+    let mut f = std::fs::File::create(out).unwrap();
+    writeln!(f, "pub const ANIM_DATA: &[(&str, &str)] = &[").unwrap();
+    for p in files {
+        println!("cargo:rerun-if-changed={}", p.display());
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let abs = p.canonicalize().unwrap();
+        writeln!(f, "    ({name:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
+    }
+    writeln!(f, "];").unwrap();
 }
 
 fn collect(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {

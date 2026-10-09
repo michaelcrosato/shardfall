@@ -347,6 +347,23 @@ pub struct NpcDef {
     /// Puppet settings over the preset (any puppet field: colours, proportions, look...).
     #[serde(default)]
     pub look: toml::Table,
+    /// A performance: motion clips (`SET/Clip`, see the `clips` tool) and then moves
+    /// (anim/moves.toml), played one after another for ever.
+    #[serde(default)]
+    pub clips: Vec<String>,
+    #[serde(default)]
+    pub moves: Vec<String>,
+    /// Seconds each looping clip plays before the next (default 5).
+    #[serde(default)]
+    pub hold: f32,
+    /// Clips mirrored left to right, or played on the upper body only (the legs keep walking).
+    #[serde(default)]
+    pub mirror: bool,
+    #[serde(default)]
+    pub upper: bool,
+    /// Speed of the performance (1 = as captured).
+    #[serde(default)]
+    pub tempo: f32,
 }
 
 fn half_speed() -> f32 {
@@ -354,6 +371,37 @@ fn half_speed() -> f32 {
 }
 
 impl NpcDef {
+    /// The performance (`clips`, `moves`), resolved; None when there is none.
+    pub fn perform(&self) -> Result<Option<crate::ai::Perform>, String> {
+        if self.clips.is_empty() && self.moves.is_empty() {
+            return Ok(None);
+        }
+        let lib = crate::clips::library();
+        let clips = self
+            .clips
+            .iter()
+            .map(|c| lib.find(c).ok_or_else(|| format!("npc '{}': no clip '{c}' (the clips tool lists them)", self.name)))
+            .collect::<Result<Vec<_>, _>>()?;
+        let moves = self
+            .moves
+            .iter()
+            .map(|m| {
+                crate::moves::MoveId::named(m)
+                    .filter(|m| m.index() != 0)
+                    .map(|m| m.index())
+                    .ok_or_else(|| format!("npc '{}': no move '{m}' (anim/moves.toml)", self.name))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut flags = 0;
+        if self.mirror {
+            flags |= crate::clips::MIRROR;
+        }
+        if self.upper {
+            flags |= crate::clips::UPPER;
+        }
+        Ok(Some(crate::ai::Perform::new(clips, moves, flags, if self.hold > 0.0 { self.hold } else { 5.0 }, self.tempo)))
+    }
+
     /// The preset for `kind` with `look` applied.
     pub fn puppet(&self) -> Result<crate::puppet::PuppetDef, String> {
         let preset = crate::puppet::PuppetDef::preset(self.kind);
@@ -381,7 +429,11 @@ impl RoomDef {
     /// Checks things the parser cannot (unknown legend characters, entrance on the map...).
     pub fn validate(&self) -> Result<(), String> {
         for n in &self.npcs {
-            n.puppet()?;
+            let p = n.puppet()?;
+            if !p.idle_clip.is_empty() && crate::clips::find(&p.idle_clip).is_none() {
+                return Err(format!("npc '{}': no clip '{}' for idle_clip (the clips tool lists them)", n.name, p.idle_clip));
+            }
+            n.perform()?;
         }
         let (w, h) = self.layout.extent();
         if w == 0 || h == 0 {

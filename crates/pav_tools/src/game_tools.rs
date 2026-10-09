@@ -13,7 +13,7 @@ use pav_core::arpg::{GameCmd, Place};
 use serde_json::{Value, json};
 
 use crate::session::Session;
-use crate::tools::{Args, Output, get_str, get_u64, round3, vec_arg};
+use crate::tools::{Args, Output, get_bool, get_f32, get_str, get_u64, round3, vec_arg};
 
 fn game(s: &Session) -> Result<&pav_core::arpg::Game> {
     s.sim.state.game.as_deref().ok_or_else(|| anyhow!("this scene is not running Shardfall (try `load scene=arena`)"))
@@ -869,12 +869,23 @@ const FRAME_MARGIN: f32 = 1.15;
 /// Renders a creature alone on a small floor: from several angles, or through an action. The
 /// camera holds still and frames the box around every frame's pose, so tall horns, long tails,
 /// leaps and lunges all stay in the picture.
+/// What the subject does across the frames of `creature_frames`.
+#[derive(Clone, Copy)]
+enum Motion {
+    /// Stands still while the camera goes round it.
+    Turn,
+    /// Plays a move from start to end (its hit at `hit`, the alternate swing on `side < 0`).
+    Act { anim: pav_core::moves::MoveId, hit: f32, side: f32 },
+    /// Plays a motion clip from start to end.
+    Clip { id: u32, dur: f32, flags: u8 },
+}
+
 fn creature_frames(
     s: &mut Session,
     look: pav_core::puppet::PuppetDef,
     frames: usize,
     size: u32,
-    act: Option<&pav_core::arpg::data::SkillDef>,
+    motion: Motion,
 ) -> Result<Vec<Vec<u8>>> {
     s.gpu()?;
     let mut tmp = Session::new("empty", 1)?;
@@ -889,15 +900,20 @@ fn creature_frames(
     tmp.camera.params.height_offset = 0.0;
     tmp.camera.params.follow_lag = 0.0;
     // Frame i: the camera's yaw, and the subject's animation advanced to it.
-    let step = |i: usize, st: &mut pav_core::puppet::PuppetState| match act {
-        None => 30.0 + i as f32 * 360.0 / frames as f32,
-        Some(def) => {
-            st.act_kind = def.anim.index();
-            st.act = i as f32 / (frames - 1).max(1) as f32;
-            st.act_hit = def.hit;
-            st.act_side = 1.0;
-            st.time += 0.05;
-            60.0
+    let step = |i: usize, st: &mut pav_core::puppet::PuppetState| {
+        let u = i as f32 / (frames - 1).max(1) as f32;
+        match motion {
+            Motion::Turn => 30.0 + i as f32 * 360.0 / frames as f32,
+            Motion::Act { anim, hit, side } => {
+                st.set_action(anim, u, hit, side);
+                st.time += 0.05;
+                60.0
+            }
+            Motion::Clip { id, dur, flags } => {
+                (st.clip, st.clip_t, st.clip_w, st.clip_flags, st.clip2) = (id, dur * u, 1.0, flags, 0);
+                st.time += 0.05;
+                60.0
+            }
         }
     };
     let mut shots = Vec::with_capacity(frames);
@@ -966,7 +982,7 @@ pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
     let body = crate::agent_tools::anatomy(&look);
     let angles = get_u64(a, "angles", 8)?.clamp(1, 16) as usize;
     let size = get_u64(a, "size", 256)?.clamp(64, 1024) as u32;
-    let shots = creature_frames(s, look, angles, size, None)?;
+    let shots = creature_frames(s, look, angles, size, Motion::Turn)?;
     let cols = get_u64(a, "columns", 4)? as u32;
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
     let png = pav_render::capture::encode_png(tw, th, &px)?;
@@ -981,22 +997,54 @@ pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
 pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
     let d = data();
     let (name, look, first) = authored_look(s, a)?;
-    let def = match get_str(a, "skill") {
-        Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
-        None => first.ok_or_else(|| anyhow!("no skill to show"))?,
-    };
     let frames = get_u64(a, "frames", 8)?.clamp(2, 24) as usize;
     let size = get_u64(a, "size", 220)?.clamp(64, 1024) as u32;
-    let shots = creature_frames(s, look, frames, size, Some(&def))?;
+    let side = if get_f32(a, "side", 1.0)? < 0.0 { -1.0 } else { 1.0 };
+    let (motion, meta) = if let Some(c) = get_str(a, "clip") {
+        // A motion clip, start to end.
+        let lib = pav_core::clips::library();
+        let id = lib.find(c).ok_or_else(|| anyhow!("no clip '{c}' (the clips tool lists them)"))?;
+        let clip = lib.get(id).ok_or_else(|| anyhow!("no clip '{c}'"))?;
+        let mut flags = 0;
+        for (k, f) in
+            [("mirror", pav_core::clips::MIRROR), ("upper", pav_core::clips::UPPER), ("travel", pav_core::clips::TRAVEL)]
+        {
+            if get_bool(a, k, false)? {
+                flags |= f;
+            }
+        }
+        let full = lib.name_of(id).unwrap_or_default();
+        (
+            Motion::Clip { id, dur: clip.dur, flags },
+            json!({ "clip": full, "seconds": clip.dur, "loop": clip.looping, "desc": clip.desc }),
+        )
+    } else if let Some(m) = get_str(a, "move") {
+        // Any move by name, at its own timing unless hit= says where the hit lands.
+        let anim = pav_core::moves::MoveId::named(m).filter(|m| m.index() != 0).ok_or_else(|| {
+            anyhow!("unknown move '{m}' (anim/moves.toml has: {})", pav_core::moves::table().names().join(", "))
+        })?;
+        let table = pav_core::moves::table();
+        let mv = pav_core::moves::played(&table, anim.index(), side).cloned().unwrap_or_default();
+        let own = (mv.wind + mv.hit * mv.active) / (mv.wind + mv.active + mv.recover).max(1e-3);
+        let hit = get_f32(a, "hit", own)?;
+        (Motion::Act { anim, hit, side }, json!({ "move": mv.name, "about": mv.about, "hit": hit }))
+    } else {
+        let def = match get_str(a, "skill") {
+            Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
+            None => first.ok_or_else(|| anyhow!("no skill to show"))?,
+        };
+        (Motion::Act { anim: def.anim, hit: def.hit, side }, json!({ "skill": def.key, "move": def.anim.name() }))
+    };
+    let shots = creature_frames(s, look, frames, size, motion)?;
     let cols = get_u64(a, "columns", 8)? as u32;
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
     let png = pav_render::capture::encode_png(tw, th, &px)?;
     let path = save_png(a, "out/animsheet.png", &png)?;
-    Ok(Output::Image {
-        png,
-        path: Some(path.clone()),
-        meta: json!({ "creature": name, "skill": def.key, "anim": format!("{:?}", def.anim).to_lowercase(), "frames": frames, "path": path }),
-    })
+    let mut meta = meta;
+    meta["creature"] = json!(name);
+    meta["frames"] = json!(frames);
+    meta["path"] = json!(path);
+    Ok(Output::Image { png, path: Some(path.clone()), meta })
 }
 
 /// `place=town|arena|lab|level` (with `depth=` for levels).

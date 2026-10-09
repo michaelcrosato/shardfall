@@ -473,7 +473,11 @@ impl Sim {
                 }
                 _ => Vec::new(),
             };
-            let ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
+            let mut ai = crate::ai::Ai::new(n.ai.clone(), feet, points, n.speed, n.hop, facing);
+            match n.perform() {
+                Ok(p) => ai.perform = p,
+                Err(e) => log::warn!("room {}: {e}", slot.key),
+            }
             let name = if n.name.is_empty() { "npc" } else { &n.name };
             self.spawn_npc(name, feet, facing, def, Some(ai), Some(region));
         }
