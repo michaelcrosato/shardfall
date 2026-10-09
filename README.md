@@ -14,11 +14,12 @@ buttons in the corner dodge, cast and drink.
 
 - Compact engine for AI agents: [`pavilion-lite/`](pavilion-lite/) (one Cargo package, CPU
   renderer, agent tools, sample games; `pavilion-lite/package.sh` makes the handoff archive).
+  Frozen: a finished experiment, outside the doctrine because its renderer isn't WebGPU.
 - Linux agent handoff: [`START_HERE.md`](START_HERE.md). Run `scripts/package-agent.sh`
   to create a standalone source archive and checksum in `out/agent/`.
-- Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state and decisions:
-  [`docs/PROGRESS.md`](docs/PROGRESS.md). Principles: [`docs/DOCTRINE.md`](docs/DOCTRINE.md).
-  Rules for agents working here: [`AGENTS.md`](AGENTS.md).
+- Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state: [`docs/PROGRESS.md`](docs/PROGRESS.md);
+  history and decisions: [`docs/HISTORY.md`](docs/HISTORY.md). Principles:
+  [`docs/DOCTRINE.md`](docs/DOCTRINE.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).
 
 ## The adventure
 A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `shardfall.exe`

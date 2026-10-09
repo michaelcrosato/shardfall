@@ -977,21 +977,84 @@ impl Sim {
         }
     }
 
-    /// Hash of the dynamic state, for repeatability checks.
+    /// Hash of the gameplay state, for repeatability checks: the tick, the random numbers, every
+    /// entity, rigid and soft bodies (pose and velocity), the level's blocks, projectiles,
+    /// courses, signals, crumbling tiles and the game (hero, items, gold, monsters). Two runs
+    /// that hash the same played out the same.
     pub fn state_hash(&self) -> u64 {
-        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        let mut mix = |x: u64| {
-            h ^= x;
-            h = h.wrapping_mul(0x0100_0000_01b3);
-        };
-        mix(self.state.tick);
-        for e in self.state.entities.iter() {
-            mix(e.id.0 as u64);
-            for f in e.pos.to_array().into_iter().chain(e.rot.to_array()) {
-                mix(f.to_bits() as u64);
+        let s = &self.state;
+        let mut h = Fnv::default();
+        h.u64(s.tick);
+        h.data(&s.rng);
+        h.data(&s.entities);
+        for (_, b) in s.physics.bodies.iter() {
+            h.floats(&b.translation().to_array());
+            h.floats(&b.rotation().to_array());
+            h.floats(&b.linvel().to_array());
+            h.floats(&b.angvel().to_array());
+        }
+        for (_, sb) in s.physics.soft_bodies.iter() {
+            for (p, v) in sb.particle_positions().zip(sb.particle_velocities()) {
+                h.floats(&p.to_array());
+                h.floats(&v.to_array());
             }
         }
-        mix(self.state.statics.block_count() as u64);
-        h
+        h.u64(s.statics.block_count() as u64);
+        h.data(&s.projectiles);
+        h.data(&s.courses);
+        h.data(&s.signals);
+        h.data(&s.crumbles);
+        h.data(&s.game);
+        h.0
+    }
+}
+
+/// 64-bit FNV-1a over everything written to it.
+struct Fnv(u64);
+
+impl Default for Fnv {
+    fn default() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+}
+
+impl Fnv {
+    fn u64(&mut self, x: u64) {
+        for b in x.to_le_bytes() {
+            self.byte(b);
+        }
+    }
+
+    fn floats(&mut self, fs: &[f32]) {
+        for f in fs {
+            for b in f.to_bits().to_le_bytes() {
+                self.byte(b);
+            }
+        }
+    }
+
+    /// Mixes in a value's serialized form (the same CBOR that snapshot files use; the state
+    /// keeps its maps ordered, so the bytes are the same every run).
+    fn data<T: Serialize + ?Sized>(&mut self, value: &T) {
+        // Writing into the hash can't fail, and every state type serializes.
+        let _ = ciborium::into_writer(value, &mut *self);
+    }
+
+    fn byte(&mut self, b: u8) {
+        self.0 ^= b as u64;
+        self.0 = self.0.wrapping_mul(0x0100_0000_01b3);
+    }
+}
+
+impl std::io::Write for Fnv {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        for &b in buf {
+            self.byte(b);
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }

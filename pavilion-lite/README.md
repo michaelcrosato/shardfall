@@ -1,5 +1,10 @@
 # Pavilion Lite
 
+> **Frozen (2026-10-09).** Pavilion Lite predates the Shardfall repo's doctrine
+> (`docs/DOCTRINE.md`), and its CPU renderer conflicts with the doctrine's "WebGPU only". It stays
+> as a finished experiment and handoff package and isn't developed further; games built with
+> it are unaffected. See `docs/ESCALATIONS.md`.
+
 A compact 3D game engine in Rust for AI agents to build games with. It is the essential core
 of the Pavilion engine (behind Shardfall) in one Cargo package of about 7,000 lines:
 

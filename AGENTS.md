@@ -1,10 +1,11 @@
 # AGENTS.md — rulebook for coding agents
 
 Shardfall is a procedural hack-and-slash game built on the Pavilion engine, written in Rust. The
-principles are in `docs/DOCTRINE.md`, which outranks everything else here. The design is in
-`docs/DESIGN.md` (source of truth for what we build); progress and decisions are in
-`docs/PROGRESS.md`. Read all three before starting; update `docs/PROGRESS.md` when you finish
-something.
+principles are in `docs/DOCTRINE.md`, which outranks everything else here. The current state is
+`docs/PROGRESS.md` (one page). Read both before starting. The design is in `docs/DESIGN.md`
+(engine) and `docs/GAME.md` (Shardfall): read them when your work touches the design. The full
+journal and past decisions are in `docs/HISTORY.md`, newest first: search it, don't read it
+whole.
 
 For a standalone Linux source handoff, `START_HERE.md` covers setup and headless CLI examples.
 
@@ -32,12 +33,12 @@ fix a mismatch when it gets in the way.
 - **Escalation:** ask in chat and log it in `docs/ESCALATIONS.md`. If you can schedule a check-in
   (e.g. `send_later`), set one for 15 minutes and carry on with other work; if not, make the call,
   log it and continue.
+- **Pavilion Lite** (`pavilion-lite/`) is frozen: its renderer runs on the CPU, not WebGPU (6),
+  so it isn't developed further (`docs/ESCALATIONS.md`).
 
-Known gaps, to fix when they get in the way:
-- The HUD, inventory, passive tree and touch controls (egui in `pav_app`) are invisible to the
-  tools and headless captures (2, 3). Game actions are reachable through `game_cmd`.
-- `Sim::state_hash` covers the tick, entity positions and rotations and the block count, not
-  life, items, gold or random-number state, so a replay can match while the game has diverged (5).
+Known gap, to fix when it gets in the way: the HUD, inventory, passive tree and touch controls
+(egui in `pav_app`) are invisible to the tools and headless captures (2, 3). Game actions are
+reachable through `game_cmd`.
 
 ## Working rules
 Under the doctrine, in priority order:
@@ -373,8 +374,10 @@ incremental cache; if the disk fills up anyway, delete stale binaries in `target
 
 ## Conventions
 - Rust stable pinned in `rust-toolchain.toml`; `Cargo.lock` committed; edition 2024.
-- Keep `docs/PROGRESS.md` current enough to resume from after a context reset.
-- Decide anything that isn't genuinely the user's call; record the decision in `docs/PROGRESS.md`.
+- Finished work gets a dated entry at the top of `docs/HISTORY.md` (what changed, how it works,
+  the decisions); then update `docs/PROGRESS.md`, which stays one page of current state.
+- Decide anything that isn't genuinely the user's call; record the decision with its entry in
+  `docs/HISTORY.md`.
   Escalate what the doctrine says to escalate, and log it in `docs/ESCALATIONS.md`.
 - Finishing a task or milestone: commit, push, open a PR into `main`, merge it and delete the
   branch. This is standard procedure (the user's standing instruction); don't ask first.

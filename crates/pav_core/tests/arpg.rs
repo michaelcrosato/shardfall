@@ -140,3 +140,30 @@ fn rewind_is_exact_in_battle() {
     assert!(sim.rewind_to(tick));
     assert_eq!(sim.state_hash(), hash);
 }
+
+/// The replay check sees the whole game, not just where things stand: gold, potions and the
+/// random numbers all change the hash, and putting them back restores it.
+#[test]
+fn the_replay_hash_sees_the_whole_game() {
+    let mut sim = Sim::new("arena", 5).unwrap();
+    sim.run(60, &InputFrame::default());
+    let hash = sim.state_hash();
+    assert_eq!(sim.state_hash(), hash, "hashing twice gives the same answer");
+
+    let gold = sim.state.game.as_ref().unwrap().hero.gold;
+    sim.state.game.as_mut().unwrap().hero.gold = gold + 1;
+    assert_ne!(sim.state_hash(), hash, "gold");
+    sim.state.game.as_mut().unwrap().hero.gold = gold;
+    assert_eq!(sim.state_hash(), hash);
+
+    sim.state.game.as_mut().unwrap().hero.potions += 1;
+    assert_ne!(sim.state_hash(), hash, "potions");
+    sim.state.game.as_mut().unwrap().hero.potions -= 1;
+    assert_eq!(sim.state_hash(), hash);
+
+    let rng = sim.state.rng.clone();
+    sim.state.rng.next_u32();
+    assert_ne!(sim.state_hash(), hash, "random numbers");
+    sim.state.rng = rng;
+    assert_eq!(sim.state_hash(), hash);
+}
