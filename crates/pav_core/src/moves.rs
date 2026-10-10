@@ -501,6 +501,21 @@ pub fn played(table: &MoveTable, id: u8, side: f32) -> Option<&MoveDef> {
     Some(if side < 0.0 && !m.alt.is_empty() { table.id(&m.alt).and_then(|i| table.get(i)).unwrap_or(m) } else { m })
 }
 
+/// The move a puppet plays for swing `combo` of skill `skill` in place of the skill's own
+/// (`attack_moves`), and the side to swing it on: a list names every swing itself, so it plays
+/// each as written; a single move keeps alternating like the skill's own (`side`).
+pub fn attack_move(def: &crate::puppet::PuppetDef, skill: &str, combo: u32, side: f32) -> Option<(MoveId, f32)> {
+    let named = def.attack_moves.get(skill)?;
+    let id = MoveId::named(named.swing(combo)).filter(|m| *m != MoveId::NONE)?;
+    Some((id, if named.per_swing() { 1.0 } else { side }))
+}
+
+/// Every move a puppet names that the table doesn't have (data checks).
+pub fn missing(def: &crate::puppet::PuppetDef) -> Vec<String> {
+    let t = table();
+    def.attack_moves.values().flat_map(|s| s.names()).filter(|n| t.id(n).is_none()).cloned().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

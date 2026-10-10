@@ -211,7 +211,7 @@ pub fn game_movement(sim: &mut Sim) {
     m.face_aim = false;
 }
 
-fn brazier(sim: &mut Sim, pos: Vec3) {
+pub(super) fn brazier(sim: &mut Sim, pos: Vec3) {
     let mut v = Visual::new(Shape::Cylinder { half_height: 0.5, radius: 0.32 }, Color::hex("#3a3532"));
     v.look = Look::Lit;
     v.light = Some(Box::new(LightDef {
@@ -654,6 +654,8 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
         info: Vec::new(),
     });
     g.npcs.extend(folk);
+    // The Hall of Heroes (south): every playable character on a pedestal.
+    super::hall::build(sim, &mut g);
     g.restock(sim);
     g.say(Place::Town.name(), 2.5);
     sim.state.game = Some(g);

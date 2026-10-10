@@ -1,6 +1,9 @@
-//! Shardfall saves: the hero (level, gear, bags, stash, passives, potions, waypoints) as JSON,
-//! next to the executable (`shardfall_save.json`) or in the browser's local storage. Written
-//! on every travel, every minute and on quit; read whenever a game scene starts.
+//! Shardfall saves: the hero (level, gear, bags, stash, passives, potions, waypoints) and the
+//! heroes of the other playable characters waiting in the Hall of Heroes, as JSON, next to the
+//! executable (`shardfall_save.json`) or in the browser's local storage. Written on every
+//! travel, every minute and on quit; read whenever a game scene starts.
+
+use std::collections::BTreeMap;
 
 use pav_core::arpg::hero::Hero;
 
@@ -8,6 +11,9 @@ use pav_core::arpg::hero::Hero;
 struct SaveFile {
     version: u32,
     hero: Hero,
+    /// The other characters' heroes, by character (saves before there were characters have none).
+    #[serde(default)]
+    roster: BTreeMap<String, Hero>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -30,11 +36,11 @@ fn read_text() -> Option<String> {
     return storage()?.get_item(KEY).ok()?;
 }
 
-/// The saved hero, if there is one (and it reads).
-pub fn load() -> Option<Hero> {
+/// The saved hero and the others waiting in the hall, if there is a save (and it reads).
+pub fn load() -> Option<(Hero, BTreeMap<String, Hero>)> {
     let text = read_text()?;
     match serde_json::from_str::<SaveFile>(&text) {
-        Ok(f) => Some(f.hero),
+        Ok(f) => Some((f.hero, f.roster)),
         Err(e) => {
             log::warn!("save unreadable ({e}); starting a new hero");
             None
@@ -42,9 +48,10 @@ pub fn load() -> Option<Hero> {
     }
 }
 
-/// Writes the hero (on disk atomically: a temp file renamed over the old save).
-pub fn write(hero: &Hero) {
-    let f = SaveFile { version: 1, hero: hero.clone() };
+/// Writes the hero and the others waiting in the hall (on disk atomically: a temp file renamed
+/// over the old save).
+pub fn write(hero: &Hero, roster: &BTreeMap<String, Hero>) {
+    let f = SaveFile { version: 1, hero: hero.clone(), roster: roster.clone() };
     let Ok(text) = serde_json::to_string(&f) else { return };
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -73,16 +80,16 @@ pub fn erase() {
 /// Saves the running game's hero from the simulation thread.
 pub fn save_from(sim: &pav_core::Sim) {
     if let Some(g) = sim.state.game.as_ref() {
-        write(&g.hero);
+        write(&g.hero, &g.roster);
     }
 }
 
 /// Puts the saved hero into a freshly built game scene.
 pub fn restore_into(sim: &mut pav_core::Sim) -> Option<u32> {
     sim.state.game.as_ref()?;
-    let hero = load()?;
+    let (hero, roster) = load()?;
     let level = hero.level;
-    sim.load_hero(hero).then_some(level)
+    sim.load_hero(hero).then(|| sim.load_roster(roster)).map(|_| level)
 }
 
 /// Preferences that outlive a session: the touch controls and the graphics quality.

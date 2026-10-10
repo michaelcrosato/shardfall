@@ -18,13 +18,19 @@ the background on something.
     (`docs/ANIMATION_STUDIO.md`; start with `shardfall --animation-studio`).
   - **Looks:** every filter on a part of the scene, painterly and print styles, volumetric light,
     water, wind, and a station guide in every room.
+  - **Playable characters** (`game/heroes.toml`): Kestrel the Brawler (captured boxing and
+    karate, fist and kick moves) and Ysolde the Stormcaller (captured spellwork, staff strikes)
+    beside the Wanderer, each a hero of their own with a shared stash, chosen in Emberwatch's Hall
+    of Heroes, where all three perform. Looks can now name a move or clip per combo swing and a
+    captured dodge.
 - Builds: the Windows `.exe` (cross-compiled here, played by the user) and the browser build on
   Vercel (https://shardfall-eight.vercel.app).
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
-New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters) and
-check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`).
+New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
+characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,
+`turntable character=`, `animsheet character= skill= swing=`).
 
 ## Open issues
 - The HUD, inventory, passive tree and touch controls are invisible to the tools and headless

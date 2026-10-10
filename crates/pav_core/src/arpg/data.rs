@@ -284,6 +284,71 @@ impl Default for FamilyDef {
     }
 }
 
+/// A playable character (game/heroes.toml): a look and a way of moving (clips and moves for
+/// the skills, a dodge, falls, cheers), the kit a new hero of theirs starts with, and what they
+/// show off on their pedestal in the Hall of Heroes.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CharacterDef {
+    #[serde(skip_deserializing)]
+    pub key: String,
+    pub name: String,
+    pub title: String,
+    pub about: String,
+    /// Hall of Heroes order (and the first is who a new game starts as).
+    pub order: i32,
+    /// Starting weapon and other worn items (item base keys), and the skill bar.
+    pub weapon: String,
+    pub gear: Vec<String>,
+    pub bar: Vec<String>,
+    /// Captured falls they die with, in turn; gestures (upper body) for a level gained and a
+    /// boss felled.
+    pub deaths: Vec<String>,
+    pub level_up: String,
+    pub triumph: String,
+    /// What they perform on their pedestal, in turn: skill keys (each swing of its combo, as
+    /// they strike it), move names or clips (`SET/Clip`).
+    pub showreel: Vec<String>,
+    /// Puppet settings over the default biped; empty = the scene's own puppet (tunable).
+    pub look: toml::Table,
+    /// Resolved at load.
+    #[serde(skip)]
+    pub puppet: PuppetDef,
+}
+
+impl Default for CharacterDef {
+    fn default() -> Self {
+        Self {
+            key: String::new(),
+            name: String::new(),
+            title: String::new(),
+            about: String::new(),
+            order: 0,
+            weapon: String::new(),
+            gear: Vec::new(),
+            bar: Vec::new(),
+            deaths: Vec::new(),
+            level_up: String::new(),
+            triumph: String::new(),
+            showreel: Vec::new(),
+            look: toml::Table::new(),
+            puppet: PuppetDef::default(),
+        }
+    }
+}
+
+impl CharacterDef {
+    /// "Kestrel the Brawler".
+    pub fn full_name(&self) -> String {
+        if self.title.is_empty() { self.name.clone() } else { format!("{} {}", self.name, self.title) }
+    }
+
+    /// Their look over a scene's own puppet (which only the look-less use as is).
+    pub fn puppet_over(&self, base: &PuppetDef) -> PuppetDef {
+        if self.look.is_empty() { base.clone() } else { self.puppet.clone() }
+    }
+}
+
 /// A puppet preset with a table of settings applied over it.
 pub fn puppet_with(plan: BodyPlan, look: &toml::Table, scale: f32) -> Result<PuppetDef, String> {
     let mut preset = PuppetDef::preset(plan);
@@ -305,8 +370,16 @@ pub fn puppet_with(plan: BodyPlan, look: &toml::Table, scale: f32) -> Result<Pup
 /// procedural animation in its place).
 pub fn clips_known(owner: &str, def: &PuppetDef) -> Result<(), String> {
     match crate::clips::missing(def).as_slice() {
+        [] => {}
+        names => return Err(format!("{owner}: no clip {} (the clips tool lists them)", names.join(", "))),
+    }
+    match crate::moves::missing(def).as_slice() {
         [] => Ok(()),
-        names => Err(format!("{owner}: no clip {} (the clips tool lists them)", names.join(", "))),
+        names => Err(format!(
+            "{owner}: no move {} (anim/moves.toml has: {})",
+            names.join(", "),
+            crate::moves::table().names().join(", ")
+        )),
     }
 }
 
@@ -328,9 +401,25 @@ pub struct Data {
     /// Level themes (game/themes.toml) and the designed levels (game/levels.toml).
     pub themes: BTreeMap<String, super::world::ThemeDef>,
     pub levels: Vec<super::world::LevelDef>,
+    /// Playable characters (game/heroes.toml), in Hall of Heroes order.
+    pub characters: Vec<CharacterDef>,
 }
 
 impl Data {
+    /// A playable character by key; "" (a hero saved before there were characters) is the
+    /// first.
+    pub fn character(&self, key: &str) -> Option<&CharacterDef> {
+        if key.is_empty() {
+            return self.characters.first();
+        }
+        self.characters.iter().find(|c| c.key == key)
+    }
+    pub fn character_index(&self, key: &str) -> Option<usize> {
+        if key.is_empty() {
+            return (!self.characters.is_empty()).then_some(0);
+        }
+        self.characters.iter().position(|c| c.key == key)
+    }
     pub fn skill_id(&self, key: &str) -> Option<u16> {
         self.skills.iter().position(|s| s.key == key).map(|i| i as u16)
     }
@@ -388,6 +477,7 @@ pub fn load() -> Result<Data, String> {
         bosses: Vec::new(),
         themes: BTreeMap::new(),
         levels: Vec::new(),
+        characters: Vec::new(),
     };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
@@ -524,6 +614,50 @@ pub fn load() -> Result<Data, String> {
         }
     }
     d.levels = file.level;
+    for (k, mut c) in table::<CharacterDef>("heroes")? {
+        c.key = k.clone();
+        let owner = format!("hero '{k}'");
+        c.puppet = puppet_with(BodyPlan::Biped, &c.look, 1.0).map_err(|e| format!("{owner}: {e}"))?;
+        clips_known(&owner, &c.puppet)?;
+        let gestures = [&c.level_up, &c.triumph].into_iter().filter(|n| !n.is_empty());
+        for n in c.deaths.iter().chain(gestures) {
+            if crate::clips::find(n).is_none() {
+                return Err(format!("{owner}: no clip {n} (the clips tool lists them)"));
+            }
+        }
+        if c.bar.len() != 6 {
+            return Err(format!("{owner}: the bar needs 6 skills"));
+        }
+        for s in &c.bar {
+            d.skill_id(s)
+                .filter(|i| !d.skill(*i).monster && !d.skill(*i).power)
+                .ok_or_else(|| format!("{owner}: unknown hero skill '{s}'"))?;
+        }
+        for skill in c.puppet.attack_clips.keys().chain(c.puppet.attack_moves.keys()) {
+            d.skill_id(skill).ok_or_else(|| format!("{owner}: a clip or move for unknown skill '{skill}'"))?;
+        }
+        let weapon = d.base(&c.weapon).ok_or_else(|| format!("{owner}: unknown weapon '{}'", c.weapon))?;
+        if weapon.slot != Slot::Weapon {
+            return Err(format!("{owner}: '{}' is not a weapon", c.weapon));
+        }
+        for g in &c.gear {
+            let b = d.base(g).ok_or_else(|| format!("{owner}: unknown item '{g}'"))?;
+            if matches!(b.slot, Slot::Weapon | Slot::Ring) {
+                return Err(format!("{owner}: gear '{g}' must be worn in a slot of its own (not a weapon or ring)"));
+            }
+        }
+        for s in &c.showreel {
+            let known = d.skill_id(s).is_some() || MoveId::named(s).is_some() || crate::clips::find(s).is_some();
+            if !known {
+                return Err(format!("{owner}: showreel '{s}' is no skill, move or clip"));
+            }
+        }
+        d.characters.push(c);
+    }
+    d.characters.sort_by(|a, b| (a.order, &a.key).cmp(&(b.order, &b.key)));
+    if d.characters.is_empty() {
+        return Err("game/heroes.toml has no characters".into());
+    }
     // Every archetype must be able to make a creature.
     for k in d.genome.archetype.keys() {
         let opts = super::genome::GenomeOpts { archetype: Some(k.clone()), ..Default::default() };

@@ -405,7 +405,7 @@ impl GameUi {
         // Walking away closes the vendor, the stash and exhibit cards.
         if let Some(k) = self.panel {
             if g.near.and_then(|i| g.spots.get(i)).map(|s| s.kind) != Some(k)
-                || (k == SpotKind::Exhibit && g.near != self.panel_spot)
+                || (matches!(k, SpotKind::Exhibit | SpotKind::Hero) && g.near != self.panel_spot)
             {
                 self.panel = None;
             }
@@ -442,6 +442,7 @@ impl GameUi {
             Some(SpotKind::Exhibit) => self.exhibit_window(ctx, g, &mut out),
             Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
             Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
+            Some(SpotKind::Hero) => self.hero_window(ctx, &d, &inv, g, &mut out),
             Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         if self.touch {
@@ -939,6 +940,37 @@ impl GameUi {
         }
     }
 
+    /// A pedestal in the Hall of Heroes: who they are, how they move, and a button to play as
+    /// them (the n-th pedestal is the n-th character).
+    fn hero_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, g: &GameFrame, out: &mut Vec<GameCmd>) {
+        let Some(i) = self.panel_spot else { return };
+        let Some(s) = g.spots.get(i) else { return };
+        let n = g.spots[..i].iter().filter(|s| s.kind == SpotKind::Hero).count();
+        let Some(c) = d.characters.get(n) else { return };
+        let mut open = true;
+        fit(egui::Window::new(&s.name), ctx, self.touch)
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .default_width(360.0)
+            .anchor(Align2::RIGHT_TOP, EVec2::new(-16.0, 80.0))
+            .show(ctx, |ui| {
+                for l in &s.info {
+                    ui.label(l);
+                }
+                ui.separator();
+                if inv.character == c.key {
+                    ui.label(RichText::new(format!("You are {}.", c.name)).italics());
+                } else if ui.button(RichText::new(format!("Play as {}", c.name)).size(16.0)).clicked() {
+                    out.push(GameCmd::Character(n as u8));
+                    self.panel = None;
+                }
+            });
+        if !open {
+            self.panel = None;
+        }
+    }
+
     fn portal_window(&mut self, ctx: &egui::Context, g: &GameFrame, out: &mut Vec<GameCmd>) {
         let mut open = true;
         let deepest = g.inv.as_ref().map(|i| i.max_depth).unwrap_or(0).max(1);
@@ -1014,6 +1046,10 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
         .show(ctx, |ui| {
             if let Some(h) = &g.hero {
                 ui.label(RichText::new(format!("{}  ·  Level {}", h.name, h.level)).size(17.0).strong());
+            }
+            // Which playable character (others wait in the Hall of Heroes, in town).
+            if let Some(c) = data().character(&inv.character).filter(|c| !c.title.is_empty()) {
+                ui.label(RichText::new(c.title.clone()).italics().color(Color32::from_rgb(200, 190, 170)));
             }
             let w = &inv.weapon;
             egui::Grid::new("sheet").num_columns(2).striped(true).show(ui, |ui| {
@@ -1178,6 +1214,7 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Gamble => "gamble",
                 SpotKind::Alchemist => "brew",
                 SpotKind::Chest => "break the seal (keepers will come)",
+                SpotKind::Hero => "meet them",
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),

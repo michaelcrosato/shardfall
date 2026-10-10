@@ -11,6 +11,7 @@ pub mod cmd;
 pub mod combat;
 pub mod data;
 pub mod genome;
+pub mod hall;
 pub mod hero;
 pub mod items;
 pub mod levelgen;
@@ -176,6 +177,12 @@ pub struct Game {
     /// How many gib chunks are flying (keeps big fights in budget).
     #[serde(default)]
     pub gib_load: f32,
+    /// Heroes of the other playable characters, waiting in the Hall of Heroes (by character).
+    #[serde(default)]
+    pub roster: BTreeMap<String, Hero>,
+    /// The characters performing on their pedestals (town).
+    #[serde(default)]
+    pub performers: Vec<hall::Performer>,
 }
 
 impl Game {
@@ -217,6 +224,8 @@ impl Game {
             level: None,
             streak: (0, 0.0, 0.0),
             gib_load: 0.0,
+            roster: BTreeMap::new(),
+            performers: Vec::new(),
         }
     }
 
@@ -250,6 +259,7 @@ impl Game {
             max_depth: self.hero.max_depth,
             brew: [scene::brew_price(&self.hero, 0), scene::brew_price(&self.hero, 1)],
             potion_max: self.hero.potion_max,
+            character: self.hero.character_key(&data()).to_string(),
         }
     }
 
@@ -326,6 +336,7 @@ impl Sim {
         g.echoes.clear();
         g.npcs.clear();
         g.exhibits.clear();
+        g.performers.clear();
         g.arena = None;
         g.level = None;
         g.respawn = 0.0;
@@ -353,9 +364,19 @@ impl Sim {
         if g.place == Place::Town {
             g.restock(self);
         }
+        hall::describe(&mut g);
         g.inv_changed();
         self.state.game = Some(g);
         true
+    }
+
+    /// Puts the heroes of the other playable characters (a save's) in the Hall of Heroes.
+    pub fn load_roster(&mut self, roster: BTreeMap<String, Hero>) {
+        if let Some(g) = self.state.game.as_mut() {
+            let playing = g.hero.character_key(&data()).to_string();
+            g.roster = roster.into_iter().filter(|(k, _)| *k != playing).collect();
+            hall::describe(g);
+        }
     }
 
     /// Spawns a monster of a family (game/monsters.toml) at `feet`.
@@ -452,8 +473,8 @@ pub fn refresh_hero(sim: &mut Sim, g: &mut Game, heal: bool) {
         a.life = if heal { a.sheet.life_max } else { (frac * a.sheet.life_max).min(a.sheet.life_max) };
         a.mana = if heal { a.sheet.mana_max } else { mfrac * a.sheet.mana_max };
     }
-    // What the hero looks like: weapon, off-hand and armour.
-    let look = hero_look(&sim.config.puppet, &g.hero, &d);
+    // What the hero looks like: their character, in their weapon, off-hand and armour.
+    let look = hero_look(&hall::base_look(&d, &g.hero, &sim.config.puppet), &g.hero, &d);
     if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
         ch.puppet = Some(std::sync::Arc::new(look));
     }
@@ -467,7 +488,8 @@ pub fn hero_look(base: &crate::puppet::PuppetDef, hero: &Hero, d: &data::Data) -
     let worn = |s: E| hero.worn(s).and_then(|it| Some((it, it.base_def(d)?)));
     if let Some((it, b)) = worn(E::Weapon) {
         look.weapon.color = b.color.clone();
-        look.weapon.glow = b.glow + if it.rarity == Rarity::Unique { 0.5 } else { 0.0 };
+        // A character's own glow (a mage's staff) shines through any weapon.
+        look.weapon.glow = (b.glow + if it.rarity == Rarity::Unique { 0.5 } else { 0.0 }).max(base.weapon.glow);
         look.weapon.size = 1.0 + (b.level as f32 / 75.0) * 0.12;
     }
     look.weapon.offhand = crate::puppet::OffhandKind::None;
@@ -492,8 +514,14 @@ pub fn hero_look(base: &crate::puppet::PuppetDef, hero: &Hero, d: &data::Data) -
             "scale" => 0.85,
             _ => 1.0,
         };
-        gear.cape = if b.look.ends_with("cape") || it.rarity == Rarity::Unique { 1.0 } else { 0.0 };
-        gear.cape_color = if it.rarity == Rarity::Unique { "#8a2a1a".into() } else { "#3a2f4a".into() };
+        // A character's own cape stays on under any armour.
+        let caped = b.look.ends_with("cape") || it.rarity == Rarity::Unique;
+        gear.cape = if caped { 1.0f32 } else { 0.0 }.max(base.gear.cape);
+        gear.cape_color = match (it.rarity == Rarity::Unique, base.gear.cape > 0.0) {
+            (true, _) => "#8a2a1a".into(),
+            (false, true) => base.gear.cape_color.clone(),
+            (false, false) => "#3a2f4a".into(),
+        };
     }
     if let Some((_, b)) = worn(E::Gloves) {
         gear.gloves = b.color.clone();
@@ -876,7 +904,13 @@ impl Game {
                     } else {
                         (c.t / c.dur.max(1e-3)).clamp(0.0, 1.0)
                     };
-                    ch.anim.set_action(def.anim, t, def.hit, c.side);
+                    // A look may swing its own move for the skill (one per combo swing).
+                    let (anim, side) = ch
+                        .puppet
+                        .as_deref()
+                        .and_then(|p| crate::moves::attack_move(p, &def.key, c.combo, c.side))
+                        .unwrap_or((def.anim, c.side));
+                    ch.anim.set_action(anim, t, def.hit, side);
                     ch.anim.lift = if def.behavior == Behavior::Leap {
                         let start = c.dur * 0.15;
                         let p = ((c.t - start) / (c.hit_at - start).max(1e-3)).clamp(0.0, 1.0);
@@ -892,7 +926,7 @@ impl Game {
                         .as_deref()
                         .filter(|p| p.body == crate::puppet::BodyPlan::Biped)
                         .filter(|_| !matches!(def.behavior, Behavior::Channel | Behavior::Leap))
-                        .and_then(|p| crate::clips::attack_clip(p, &def.key));
+                        .and_then(|p| crate::clips::attack_clip(p, &def.key, c.combo));
                     if let Some((clip, strike)) = attack {
                         // Nearly its own speed: a short clip starts late (the move winds up
                         // first), a long one part-way in, so the strike still lands on the hit.
@@ -935,12 +969,12 @@ impl Game {
             // The hero falls with a captured death and lies still until rising again (monsters
             // topple: their bodies have to clear quickly).
             if a.team == Team::Hero && ch.puppet.as_ref().is_none_or(|p| p.body == crate::puppet::BodyPlan::Biped) {
-                // (The count already includes this death.)
-                let death =
-                    crate::clips::find_cached(HERO_DEATHS[(self.hero.deaths as usize).saturating_sub(1) % HERO_DEATHS.len()]);
+                // Their character's falls, in turn (the count already includes this death).
+                let falls = self.hero_deaths(&d);
+                let death = crate::clips::find_cached(falls[(self.hero.deaths as usize).saturating_sub(1) % falls.len()]);
                 if a.dead && death != 0 && ch.anim.clip != death {
                     ch.anim.play_clip(death, 0, 1.0);
-                } else if !a.dead && HERO_DEATHS.iter().any(|d| crate::clips::find_cached(d) == ch.anim.clip) {
+                } else if !a.dead && falls.iter().any(|d| crate::clips::find_cached(d) == ch.anim.clip) {
                     ch.anim.stop_clip();
                 }
                 if a.dead && death != 0 {
@@ -969,6 +1003,7 @@ impl Game {
         scene::update_arena(self, sim, dt);
         mechanics::update_level(self, sim, dt, events);
         scene::update_npcs(self, sim, dt, events);
+        hall::update(self, sim, dt);
         if self.inv_cache.is_none() {
             self.inv_cache = Some(Arc::new(self.inv_view()));
         }
@@ -1229,7 +1264,7 @@ impl Game {
                 refresh_hero(sim, self, true);
                 self.level_flash = 0.0;
                 events.push(SimEvent::LevelUp { pos: hf });
-                self.hero_gesture(sim, HERO_LEVEL_UP);
+                self.hero_gesture(sim, Self::level_up_gesture);
             }
         }
     }
@@ -1302,7 +1337,7 @@ impl Game {
         // Rewards.
         self.hero.kills += 1;
         if was_boss {
-            self.hero_gesture(sim, HERO_BOSS_DOWN);
+            self.hero_gesture(sim, |c| if c.triumph.is_empty() { HERO_BOSS_DOWN } else { &c.triumph });
         }
         if let Some(k) = killer {
             self.power_on_kill(sim, k, feet, life_max, events);
@@ -1337,14 +1372,29 @@ impl Game {
                 2.5,
             );
             events.push(SimEvent::LevelUp { pos: hf });
-            self.hero_gesture(sim, HERO_LEVEL_UP);
+            self.hero_gesture(sim, Self::level_up_gesture);
+        }
+    }
+
+    /// The hero's character's cheer for a level gained.
+    fn level_up_gesture(c: &data::CharacterDef) -> &str {
+        if c.level_up.is_empty() { HERO_LEVEL_UP } else { &c.level_up }
+    }
+
+    /// The captured falls the hero dies with, in turn: their character's, or the default ones.
+    fn hero_deaths<'a>(&self, d: &'a data::Data) -> Vec<&'a str> {
+        match d.character(&self.hero.character) {
+            Some(c) if !c.deaths.is_empty() => c.deaths.iter().map(String::as_str).collect(),
+            _ => HERO_DEATHS.to_vec(),
         }
     }
 
     /// The hero acts out a moment with a captured gesture on the upper body (it fades out at its
-    /// end, and any action interrupts it).
-    fn hero_gesture(&self, sim: &mut Sim, name: &str) {
+    /// end, and any action interrupts it): `pick` chooses it from their character.
+    fn hero_gesture(&self, sim: &mut Sim, pick: impl Fn(&data::CharacterDef) -> &str) {
         let Some(hid) = self.hero_id else { return };
+        let d = data();
+        let name = d.character(&self.hero.character).map_or(HERO_LEVEL_UP, &pick);
         let id = crate::clips::find_cached(name);
         if let Some(ch) = sim.state.entities.get_mut(hid).and_then(|e| e.character.as_mut()) {
             if id != 0 && ch.anim.act_kind == 0 && ch.anim.down <= 0.0 {
@@ -1460,6 +1510,8 @@ pub struct InvView {
     /// The alchemist's brews (more potions, stronger potions): price, or None when maxed.
     pub brew: [Option<u64>; 2],
     pub potion_max: u32,
+    /// Which playable character the hero is (game/heroes.toml key).
+    pub character: String,
 }
 
 /// An item on the ground as the HUD and view see it.

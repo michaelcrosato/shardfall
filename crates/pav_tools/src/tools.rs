@@ -280,8 +280,9 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "hero",
-        help: "Change the hero: level, gold, xp to add, a skill on a bar slot (slot=0..5 skill=key), full heal.",
+        help: "Change the hero: play as another character (character=KEY: game/heroes.toml; each keeps their own hero, the stash is shared), level, gold, xp to add, a skill on a bar slot (slot=0..5 skill=key), full heal.",
         args: &[
+            arg("character", "string", "play as this character (wanderer, kestrel, ysolde...)"),
             arg("level", "integer", "set the level"),
             arg("gold", "integer", "set gold"),
             arg("xp", "number", "experience to add"),
@@ -359,7 +360,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "game_cmd",
-        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|use|auto_loot|sort with id/slot/skill/place/spot.",
+        help: "Do a menu action as the player would (it rides in the input frame, so replays include it): pickup|equip|unequip|drop|sell|buy|stash|take|sell_all|bar|travel|use|auto_loot|sort|character with id/slot/skill/place/spot/name.",
         args: &[
             arg("do", "string", "the action"),
             arg("id", "integer", "item id (equip, drop, sell, buy, stash, take, pickup)"),
@@ -373,6 +374,7 @@ pub static TOOLS: &[Tool] = &[
             arg("depth", "integer", "depth for place=level"),
             arg("spot", "integer", "spot index for use (the way down, a cursed chest)"),
             arg("rarity", "integer", "sell_all up to / auto_loot from this rarity (0 normal .. 3 unique, 4 off)"),
+            arg("name", "string", "character: play as this game/heroes.toml character (in town)"),
         ],
         run: crate::game_tools::t_game_cmd,
     },
@@ -443,8 +445,9 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "turntable",
-        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, or the hero; def= lays JSON puppet fields over it (author a creature: colours, proportions, parts, body plan). Reports its anatomy (height, length, parts, colours).",
+        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, character= (a playable character, game/heroes.toml), or the hero; def= lays JSON puppet fields over it (author a creature: colours, proportions, parts, body plan). Reports its anatomy (height, length, parts, colours).",
         args: &[
+            arg("character", "string", "a playable character (game/heroes.toml) in their starting kit"),
             arg("seed", "integer", "genome seed"),
             arg("family", "string", "designed family"),
             arg("boss", "string", "boss key or gen:N"),
@@ -465,12 +468,14 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "animsheet",
-        help: "Render a creature (the hero by default) through an action or a motion clip frame by frame into one PNG: skill= (or its first skill), any move= from anim/moves.toml, or clip= from the clip library.",
+        help: "Render a creature (the hero by default) through an action or a motion clip frame by frame into one PNG: skill= (or its first skill; swing= for a combo's later swings), any move= from anim/moves.toml, or clip= from the clip library.",
         args: &[
+            arg("character", "string", "a playable character (game/heroes.toml)"),
             arg("seed", "integer", "genome seed"),
             arg("family", "string", "designed family"),
             arg("boss", "string", "boss key"),
             arg("skill", "string", "skill to perform"),
+            arg("swing", "integer", "skill=: which swing of its combo (1, 2, 3...; a look may strike each differently)"),
             arg("move", "string", "any move by name (anim/moves.toml), at its own timing"),
             arg("hit", "number", "where the hit lands, 0..1 (move=)"),
             arg("side", "number", "-1 plays the move's alternate swing"),

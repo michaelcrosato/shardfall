@@ -569,6 +569,7 @@ impl Touch {
                 K::Gamble => "Gamble",
                 K::Alchemist => "Brew",
                 K::Chest => "Open",
+                K::Hero => "Meet",
             };
             let w = (what.len() as f32 * 8.5 + 34.0) * k;
             let rect = Rect::from_center_size(pp + EVec2::new(-34.0 * k - w * 0.5, 0.0), EVec2::new(w, 38.0 * k));

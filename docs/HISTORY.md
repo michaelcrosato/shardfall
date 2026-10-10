@@ -5,6 +5,73 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Two new playable characters and the Hall of Heroes — 2026-10-10
+Shardfall had one hero, the Wanderer, moving with the engine's procedural animation. Now there
+are three playable characters (`game/heroes.toml`), each with a look and a way of moving of their
+own, chosen in a new Hall of Heroes in Emberwatch:
+- **Kestrel the Brawler**: compact and broad, bare-chested and barefoot, white gi trousers and
+  hand wraps, a red sash, a black mohawk (the crest part), iron hooks (claws). She fights in
+  captured boxing and karate: a boxer's guard for an idle (CMU), a swaggering strut (100STYLE),
+  a sprint (Quaternius), a jab, cross and roundhouse kick for the three swings of Slash (two
+  Quaternius clips and a CMU take), a two-handed chi blast for Fireball, a ground pound for
+  Earthsplitter, an angry outburst for War Cry; the procedural fist and kick moves for the rest
+  (a leg sweep for Cleave, an axe kick for Leap Slam, a flying kick for Blade Dash, an uppercut,
+  a haymaker, a knee); a captured shoulder roll for a dodge; falls on her face; a fist pump.
+- **Ysolde the Stormcaller**: tall and slender, an indigo robe, hood and cape, gold at the
+  waist, pale with glowing eyes, three motes of light circling her (orbs), a staff that keeps its
+  glow whatever staff she holds. Spellwork in captured motion: a spell held ready for an idle, a
+  graceful walk (100STYLE), a light jog, a hand driven forward for Fireball, a two-handed blast
+  for Chain Lightning, shards hurled overhand, rising to call a Meteor down; quick staff strikes
+  (thrust, backhand, rising cut) for Slash; a forward glide, arms raised in a V, for a dodge; a
+  long dramatic fall; a salute when a boss falls.
+- **The Wanderer** is unchanged (procedural animation) and stays who a new game starts as.
+
+How it works:
+- **Engine (the puppet API)**: `PuppetDef.attack_clips` takes a list per skill (one clip per
+  swing of its combo; a string still works); new `attack_moves` (skill -> a move of
+  anim/moves.toml in place of the skill's own, or a list per swing; a single move keeps
+  alternating sides, a list plays each as written) and `dodge_clip` (a captured dodge played once
+  per dodge in place of the procedural tumble, sped up to be done 0.3 s after the roll, on any
+  biped: Shardfall's dodge and the committed model's roll). `PerSwing` is the one-or-a-list type;
+  `moves::attack_move` / `clips::attack_clip(def, skill, combo)` pick the swing; the game's cast
+  animation passes the combo index. Data checks cover moves as well as clips.
+- **Characters** (`arpg/data.rs` `CharacterDef`, game/heroes.toml): name, title, about, look
+  (puppet fields, so the animation kit lives there), starting weapon, gear and bar, captured
+  deaths, level-up and boss gestures, and a showreel. Checked on load (clips, moves, skills, item
+  bases, slots). `Hero.character` names one (`""` = the first, so old saves are Wanderers);
+  `Hero::new_character` builds a level 1 hero in their kit. `refresh_hero` dresses the
+  character's look (not the scene's puppet) in the gear; a character's own cape and weapon glow
+  stay under any armour.
+- **Separate heroes, shared stash**: `Game.roster` holds the heroes of the characters not being
+  played. `hall::switch` (the `Character` game command, in town) parks the current hero and
+  brings the chosen one forward (a new one at level 1 the first time), healed, with the stash
+  (its items renumbered for the new hero's bags); the vendor restocks. The save file carries the
+  roster (`roster`, absent in older saves).
+- **The Hall of Heroes** (`arpg/hall.rs`): a pedestal per character along the south side of the
+  square, their name on the floor, braziers at the ends. Each character stands on theirs
+  performing a showreel built from their kit: every swing of each skill as they strike it (their
+  captured clip or move), clips and moves; their idle clip shows between. Using a pedestal opens
+  a card (who they are, how they move, where their hero stands) with "Play as ...".
+- **Tools**: `hero character=KEY` switches from anywhere; `game_cmd do=character name=KEY` as
+  the player would; `turntable character=` / `animsheet character=` show a character in their
+  starting kit; `animsheet skill= swing=N` shows a combo's later swings; `hero`/`game` report
+  the character and who waits in the hall.
+- Tests: `tests/heroes.rs` (the roster and the looks differ, the hall's performers play clips
+  and moves, progress kept and stash shared across switches, the roster round-trips through a
+  save, Kestrel's jab-cross-roundhouse and sweep, Ysolde's staff strikes, the Wanderer's own
+  slash, captured dodges replace the tumble and play once, one-or-a-list parsing).
+
+Decisions:
+- **Characters are separate heroes** (own level, gear, passives, waypoints), as in the genre,
+  rather than looks on one hero; the stash is shared so loot can go to whoever needs it. A new
+  character starts at level 1; `hero character=KEY level=N` jumps ahead for testing.
+- **Skills are shared**: any character can use any skill; a character changes how a skill looks
+  (their clip or move for it), not what it does. Their starting bar suits them.
+- **Worn items colour the look**, as before; the new characters start without gloves or boots so
+  Kestrel's wraps and bare feet show until real gear replaces them.
+- Rejected: a captured cartwheel or backflip as a dodge (they travel sideways or backwards while
+  the dodge faces forward); a levitating idle (the clip reads as a crouch on this rig).
+
 ## Animation Studio: shared live editing for people and LLMs — 2026-10-10
 The user asked for a tool that an LLM can use to view, alter, and create animations while
 the user watches each change in the running engine.

@@ -214,8 +214,61 @@ pub struct PuppetDef {
     /// Captured attacks by skill (`claw = "QUATERNIUS/Zombie_Scratch"`), played in place of the
     /// skill's move and timed so the clip's strike lands on the hit: the moment a hand reaches
     /// furthest ahead of the hips (a foot, for a clip tagged `kick`), or `@seconds` written
-    /// after the name (bipeds).
-    pub attack_clips: std::collections::BTreeMap<String, String>,
+    /// after the name (bipeds). A list plays one per swing of a combo (`slash = ["A", "B",
+    /// "C"]`: jab, cross, kick).
+    pub attack_clips: std::collections::BTreeMap<String, PerSwing>,
+    /// Moves by skill (anim/moves.toml names: `cleave = "sweep"`), played in place of the
+    /// skill's own move; a list plays one per swing of a combo (`slash = ["jab", "cross",
+    /// "roundhouse"]`). A captured attack for the skill wins over its move.
+    pub attack_moves: std::collections::BTreeMap<String, PerSwing>,
+    /// A captured dodge (`QUATERNIUS/Roll`, a dive, a cartwheel) the character plays through a
+    /// dodge roll in place of the procedural tumble, sped up to be done a moment after the roll
+    /// (bipeds). Empty = the tumble.
+    pub dodge_clip: String,
+}
+
+/// A name for a skill, or one for each swing of its combo, written as a string or a list.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PerSwing {
+    One(String),
+    Swings(Vec<String>),
+}
+
+impl PerSwing {
+    /// The name for swing `combo` (0, 1, 2...) of a combo: a list goes round.
+    pub fn swing(&self, combo: u32) -> &str {
+        match self {
+            PerSwing::One(s) => s,
+            PerSwing::Swings(v) if v.is_empty() => "",
+            PerSwing::Swings(v) => &v[combo as usize % v.len()],
+        }
+    }
+
+    /// Every name it holds.
+    pub fn names(&self) -> &[String] {
+        match self {
+            PerSwing::One(s) => std::slice::from_ref(s),
+            PerSwing::Swings(v) => v,
+        }
+    }
+
+    /// Whether it holds one name per swing (so swings don't alternate sides on top).
+    pub fn per_swing(&self) -> bool {
+        matches!(self, PerSwing::Swings(v) if v.len() > 1)
+    }
+}
+
+impl From<String> for PerSwing {
+    fn from(s: String) -> Self {
+        PerSwing::One(s)
+    }
+}
+
+impl From<&str> for PerSwing {
+    fn from(s: &str) -> Self {
+        PerSwing::One(s.into())
+    }
 }
 
 impl Default for PuppetDef {
@@ -261,6 +314,8 @@ impl Default for PuppetDef {
             run_clip: String::new(),
             death_clip: String::new(),
             attack_clips: Default::default(),
+            attack_moves: Default::default(),
+            dodge_clip: String::new(),
         }
     }
 }
@@ -490,6 +545,9 @@ pub struct PuppetState {
     pub clip2_w: f32,
     #[serde(default)]
     pub clip2_flags: u8,
+    /// A dodge was under way last tick (a captured dodge starts once per dodge).
+    #[serde(default)]
+    pub dodged: bool,
 }
 
 /// What the character is doing this tick (input to the animator).
@@ -768,6 +826,7 @@ impl PuppetState {
             clip2_t: if o.clip2 == self.clip2 && o.clip2_t >= self.clip2_t { l(self.clip2_t, o.clip2_t) } else { o.clip2_t },
             clip2_w: if o.clip2 == self.clip2 { l(self.clip2_w, o.clip2_w) } else { o.clip2_w },
             clip2_flags: o.clip2_flags,
+            dodged: o.dodged,
         }
     }
 }

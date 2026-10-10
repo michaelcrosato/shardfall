@@ -45,6 +45,9 @@ impl WeaponStats {
 #[serde(default)]
 pub struct Hero {
     pub name: String,
+    /// Which playable character (game/heroes.toml; "" = the first, for heroes saved before
+    /// there were others).
+    pub character: String,
     pub level: u32,
     pub xp: f64,
     pub gold: u64,
@@ -77,6 +80,7 @@ impl Default for Hero {
     fn default() -> Self {
         Self {
             name: "Wanderer".into(),
+            character: String::new(),
             level: 1,
             xp: 0.0,
             gold: 0,
@@ -123,6 +127,35 @@ impl Default for Hero {
             bonus_points: 0,
             max_depth: 0,
         }
+    }
+}
+
+impl Hero {
+    /// A new hero of a playable character: level 1 in their starting kit (weapon, worn gear,
+    /// skill bar).
+    pub fn new_character(d: &Data, key: &str) -> Hero {
+        let mut h = Hero::default();
+        let Some(c) = d.character(key) else { return h };
+        h.name = c.name.clone();
+        h.character = c.key.clone();
+        for (i, s) in c.bar.iter().take(6).enumerate() {
+            h.bar[i] = s.clone();
+        }
+        h.equipment = Default::default();
+        h.next_item = 1;
+        for base in std::iter::once(&c.weapon).chain(&c.gear) {
+            let Some(b) = d.base(base) else { continue };
+            let item = Item::plain(h.new_id(), b, 1);
+            let slot = h.slot_for(d, &item);
+            h.equipment[slot.index()] = Some(item);
+        }
+        h.weapon = h.gear(d).weapon;
+        h
+    }
+
+    /// Which playable character this hero is (`Hero::character`, "" meaning the first).
+    pub fn character_key<'a>(&'a self, d: &'a Data) -> &'a str {
+        d.character(&self.character).map_or(self.character.as_str(), |c| c.key.as_str())
     }
 }
 

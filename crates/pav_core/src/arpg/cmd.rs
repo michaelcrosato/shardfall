@@ -55,6 +55,8 @@ pub enum GameCmd {
     Gamble(u8),
     /// The alchemist: 0 = one more potion, 1 = stronger potions.
     Brew(u8),
+    /// The Hall of Heroes (town): play as a character (index in game/heroes.toml order).
+    Character(u8),
 }
 
 /// Where the hero can be. Codes: 0 town, 1 arena, 2 the Menagerie, 100 + n depth n.
@@ -126,6 +128,8 @@ pub enum SpotKind {
     /// Odo the gambler and Mother Wren the alchemist (town).
     Gamble,
     Alchemist,
+    /// A playable character on their pedestal in the Hall of Heroes (town).
+    Hero,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -440,6 +444,13 @@ impl Game {
                 }
                 self.hero.masteries.insert(id, option);
                 gear = true;
+            }
+            GameCmd::Character(i) => {
+                if self.place != Place::Town {
+                    return Err("Heroes wait in the Hall of Heroes, in Emberwatch".into());
+                }
+                let key = d.characters.get(i as usize).map(|c| c.key.clone()).ok_or("No such hero")?;
+                super::hall::switch(self, sim, &key)?;
             }
             GameCmd::Release(i) => {
                 if self.place != Place::Lab {
