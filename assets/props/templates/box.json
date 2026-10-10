@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "box",
+  "description": "One neutral box standing on the floor. A starting point for a new prop.",
+  "parts": {
+    "body": {
+      "shape": {"type": "box", "half": [0.5, 0.5, 0.5]},
+      "pos": [0, 0.5, 0],
+      "color": "#8295aa"
+    }
+  }
+}

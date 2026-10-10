@@ -305,6 +305,9 @@ pub struct Entity {
     pub body_kind: BodyKind,
     pub body: Option<RigidBodyHandle>,
     pub visual: Option<Visual>,
+    /// Reusable procedural asset; its immutable definition is embedded in snapshots.
+    #[serde(default)]
+    pub prop: Option<crate::prop_instance::PropInstance>,
     pub behavior: Behavior,
     #[serde(default)]
     pub character: Option<Box<Character>>,
@@ -404,6 +407,8 @@ pub struct Spawn {
     #[serde(default)]
     pub visual: Option<Visual>,
     #[serde(default)]
+    pub prop: Option<crate::prop_instance::PropInstance>,
+    #[serde(default)]
     pub body: BodyKind,
     #[serde(default = "one")]
     pub density: f32,
@@ -440,6 +445,7 @@ impl Spawn {
             pos,
             rot: Quat::IDENTITY,
             visual: None,
+            prop: None,
             body: BodyKind::None,
             density: 1.0,
             friction: 0.5,
@@ -453,6 +459,12 @@ impl Spawn {
     }
     pub fn visual(mut self, v: Visual) -> Self {
         self.visual = Some(v);
+        self
+    }
+    pub fn prop(mut self, prop: crate::prop_instance::PropInstance) -> Self {
+        self.visual = Some(prop.visual());
+        self.body = if prop.collide { BodyKind::Fixed } else { BodyKind::None };
+        self.prop = Some(prop);
         self
     }
     pub fn body(mut self, b: BodyKind) -> Self {

@@ -7,6 +7,7 @@ use web_time::Instant;
 use anyhow::{Result, anyhow};
 use glam::{Mat4, Quat, Vec2, Vec3};
 use pav_core::params::{ParamVisitor, Tunable, nested};
+use pav_core::prop_preview::StudioMode;
 use pav_core::{InputFrame, Sim, SimConfig};
 use pav_render::gpu::BackendChoice;
 use pav_render::scene::{MeshInstance, MeshKey, Style, flags as rflags};
@@ -163,7 +164,9 @@ pub struct App {
     /// The Look & Filters window and the look layer over `view`.
     look_ui: crate::look_ui::LookUi,
     animation_ui: crate::animation_ui::AnimationUi,
-    animation_was_open: bool,
+    studio_mode: StudioMode,
+    asset_ui: crate::asset_ui::AssetUi,
+    asset_watcher: crate::asset_watch::AssetWatcher,
     animation_watcher: Option<crate::animation_watch::AnimationWatcher>,
     animation_watch_attempted: bool,
     /// Station guide (H) and field guide.
@@ -252,7 +255,9 @@ impl App {
             game_saved: None,
             look_ui: crate::look_ui::LookUi::load(),
             animation_ui: crate::animation_ui::AnimationUi::new(settings.animation_studio),
-            animation_was_open: false,
+            studio_mode: StudioMode::World,
+            asset_ui: crate::asset_ui::AssetUi::new(settings.asset_studio),
+            asset_watcher: crate::asset_watch::AssetWatcher::new(),
             animation_watcher: None,
             animation_watch_attempted: false,
             guide: Default::default(),
@@ -395,6 +400,11 @@ impl App {
             }
             Err(e) => Ok((None, format!("no sound ({e}); continuing silently"))),
         })?;
+        // Rooms can name saved objects. Load the library before constructing the scene.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = pav_tools::asset_tools::initialize_authored() {
+            self.asset_ui.report(Err(format!("Could not load saved objects: {error:#}")));
+        }
         let mut sim = stage("simulation", || {
             let mut sim = Sim::new(&s.scene, s.seed)?;
             let mut d = format!(
@@ -436,8 +446,21 @@ impl App {
             self.app_settings.show_stats = false;
             self.app_settings.show_guide = false;
         }
+        if s.asset_studio {
+            let name = if s.asset_name.is_empty() { "BUILTIN/bench" } else { &s.asset_name };
+            let mut session = pav_tools::Session::from_live(sim, self.rig.clone(), self.view.clone(), None);
+            let args = serde_json::json!({"name":name}).as_object().unwrap().clone();
+            pav_tools::asset_preview_tools::t_asset_preview(&mut session, &args)?;
+            let (live, rig, view, _) = session.into_live();
+            sim = live;
+            self.rig = rig;
+            self.view = view;
+            self.show_boot = false;
+            self.app_settings.show_stats = false;
+            self.app_settings.show_guide = false;
+        }
         self.sim_config = sim.config.clone();
-        self.rig.snap(sim.state.focus);
+        self.rig.snap(sim.frame().focus);
         self.hud.entries = room_entries(&sim);
         self.hud.errors = sim.state.world.errors.clone();
         self.watcher = RoomWatcher::start();
@@ -718,7 +741,7 @@ impl App {
     /// The fixed system layer: never rebinds, works in every room.
     fn handle_key(&mut self, code: KeyCode) {
         let Some(host) = &self.host else { return };
-        if self.animation_was_open {
+        if self.studio_mode == StudioMode::Animation {
             if let Some(p) = host.frames().1.animation_preview.as_ref() {
                 let args = match code {
                     KeyCode::F6 => Some(serde_json::json!({"playing": !p.playing})),
@@ -728,7 +751,7 @@ impl App {
                     _ => None,
                 };
                 if let Some(args) = args {
-                    self.animation_command(crate::animation_ui::Command {
+                    self.studio_command(crate::animation_ui::Command {
                         tool: "anim_preview",
                         args: args.as_object().unwrap().clone(),
                     });
@@ -736,8 +759,26 @@ impl App {
                 }
             }
         }
+        if self.studio_mode == StudioMode::Prop {
+            if let Some(p) = host.frames().1.prop_preview.as_ref() {
+                let args = match code {
+                    KeyCode::F6 => Some(serde_json::json!({"playing": !p.playing})),
+                    KeyCode::F7 => Some(serde_json::json!({"playing": false, "time": p.time + 1.0 / 60.0})),
+                    KeyCode::F8 => Some(serde_json::json!({"speed": (p.speed * 0.5).max(0.05)})),
+                    KeyCode::F9 => Some(serde_json::json!({"speed": (p.speed * 2.0).min(8.0)})),
+                    _ => None,
+                };
+                if let Some(args) = args {
+                    self.studio_command(crate::animation_ui::Command {
+                        tool: "asset_preview",
+                        args: args.as_object().unwrap().clone(),
+                    });
+                    return;
+                }
+            }
+        }
         // Shardfall's menu keys.
-        if self.input.game && !self.menu_open && !self.animation_was_open {
+        if self.input.game && !self.menu_open && self.studio_mode == StudioMode::World {
             let ui = &mut self.game_ui;
             match code {
                 KeyCode::KeyI | KeyCode::Tab => {
@@ -810,7 +851,7 @@ impl App {
             }),
             KeyCode::F8 => host.set_control(|c| c.speed = (c.speed * 0.5).max(0.0625)),
             KeyCode::F9 => host.set_control(|c| c.speed = (c.speed * 2.0).min(8.0)),
-            KeyCode::F10 if !self.animation_was_open => {
+            KeyCode::F10 if self.studio_mode == StudioMode::World => {
                 self.editor.on = !self.editor.on;
                 self.editor.dragging = None;
                 let on = self.editor.on;
@@ -902,20 +943,27 @@ impl App {
         }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
         let game_input = !self.menu_open && !ui_wants_keys;
-        let rewinding = game_input && !self.animation_was_open && self.input.rewind_held();
+        let rewinding = game_input && self.studio_mode == StudioMode::World && self.input.rewind_held();
         host.set_control(|c| c.rewinding = rewinding);
 
         let (prev, curr, curr_at, tick_wall) = host.frames();
-        let animation_active = curr.animation_preview.is_some();
-        let game_input = game_input && !animation_active;
-        if animation_active != self.animation_was_open {
+        let studio_mode = curr.studio_mode();
+        let studio_active = curr.studio_active();
+        let snap_camera = studio_mode != self.studio_mode
+            || prev.studio_mode() != studio_mode
+            || prev.live_edit_ticket != curr.live_edit_ticket;
+        let game_input = game_input && !studio_active;
+        if studio_mode != self.studio_mode {
+            let keep_object_redo = studio_mode == StudioMode::World && self.asset_ui.open && self.asset_ui.creation_removed();
             self.builder = ViewBuilder::new();
             if let Some(gfx) = &mut self.gfx {
                 gfx.renderer.clear_particles();
             }
-            self.animation_was_open = animation_active;
+            self.studio_mode = studio_mode;
+            self.animation_ui.open = studio_mode == StudioMode::Animation;
+            self.asset_ui.open = studio_mode == StudioMode::Prop || keep_object_redo;
         }
-        if !animation_active {
+        if !studio_active {
             let room_before = self.hud.current.as_ref().map(|r| (r.id, std::sync::Arc::as_ptr(&r.def)));
             let quarters = curr.room.as_ref().map(|r| r.quarters).unwrap_or(0);
             self.director.update(&curr.hud, quarters, &mut self.rig);
@@ -1022,8 +1070,16 @@ impl App {
         } else {
             self.game_frame = None;
         }
-        let alpha =
-            if self.app_settings.smoothing { ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0) } else { 1.0 };
+        let alpha = if self.app_settings.smoothing && !snap_camera {
+            ((now - curr_at).as_secs_f32() / tick_wall.max(1e-4)).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        if snap_camera {
+            // A submitted edit must contain its new framing as well as its new geometry.
+            self.rig = CameraRig::new(self.rig.params.clone());
+            self.rig.snap(curr.focus);
+        }
         let focus = prev.focus.lerp(curr.focus, alpha);
         let player = curr.player.and_then(|id| curr.objects.iter().find(|o| o.id == id));
         let feet = player.and_then(|p| p.puppet.as_ref().map(|pp| p.pos - Vec3::Y * pp.feet_offset)).unwrap_or(focus);
@@ -1062,7 +1118,7 @@ impl App {
         if left_tap && !self.editor.on && game_input {
             pressed |= pav_core::input::buttons::PRIMARY;
         }
-        if !animation_active && self.editor.update(host, &self.rig, self.input.cursor, size, left, left_tap, room_id) {
+        if !studio_active && self.editor.update(host, &self.rig, self.input.cursor, size, left, left_tap, room_id) {
             held &= !pav_core::input::buttons::PRIMARY;
             pressed &= !pav_core::input::buttons::PRIMARY;
         }
@@ -1102,7 +1158,7 @@ impl App {
         self.rig.update(focus, dt);
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
-        let events = if animation_active { Vec::new() } else { events };
+        let events = if studio_active { Vec::new() } else { events };
         self.builder.add_events(&events);
         // Save the hero on every arrival somewhere, and once a minute while playing.
         let travelled = events.iter().any(|e| matches!(e, pav_core::SimEvent::Travel { .. }));
@@ -1137,7 +1193,7 @@ impl App {
                 _ => self.arrival = None,
             }
         }
-        if !animation_active {
+        if !studio_active {
             self.editor.draw_preview(&mut scene);
         }
         if let Some(a) = intent.aiming.filter(|_| game_input) {
@@ -1216,9 +1272,9 @@ impl App {
             }
         }
         let toast = self.toast.as_ref().filter(|(_, t)| t.elapsed().as_secs_f32() < 3.0).map(|(m, _)| m.clone());
-        let card_visible = !animation_active && self.hud.card_visible();
+        let card_visible = !studio_active && self.hud.card_visible();
         let guide_visible =
-            !animation_active && self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
+            !studio_active && self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
         let touch_ui = device == Device::Touch;
         if touch_ui != self.touch_styled {
@@ -1268,7 +1324,10 @@ impl App {
         let game_ui = &mut self.game_ui;
         let look_ui = &mut self.look_ui;
         let animation_ui = &mut self.animation_ui;
+        let asset_ui = &mut self.asset_ui;
         let mut animation_commands = Vec::new();
+        let mut asset_commands = Vec::new();
+        let mut studio_target = None;
         #[cfg(not(target_arch = "wasm32"))]
         let animation_bridge = self.bridge.as_ref().map(|b| b.addr.as_str());
         #[cfg(target_arch = "wasm32")]
@@ -1340,11 +1399,40 @@ impl App {
             );
             teleport = hud.teleport_menu(&ctx);
             hud.error_panel(&ctx);
-            if !animation_active {
+            if !studio_active {
                 save_room = editor.ui(&ctx, room_name.as_deref());
             }
             look_msg = look_ui.window(&ctx, root.view);
-            animation_commands = animation_ui.window(&ctx, curr.animation_preview.as_ref(), animation_bridge);
+            if studio_active || animation_ui.open || asset_ui.open {
+                egui::Window::new("Studio workspace")
+                    .id(egui::Id::new("studio_navigation"))
+                    .title_bar(false)
+                    .resizable(false)
+                    .fixed_pos([16.0, 8.0])
+                    .show(&ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.strong("SHARDFALL STUDIO");
+                            for (mode, label) in [
+                                (StudioMode::Animation, "Animations"),
+                                (StudioMode::Prop, "Objects"),
+                                (StudioMode::World, "Game"),
+                            ] {
+                                let panel_open = animation_ui.open || asset_ui.open;
+                                if ui.selectable_label(studio_mode == mode, label).clicked()
+                                    && (studio_mode != mode || (mode == StudioMode::World && panel_open))
+                                {
+                                    studio_target = Some(mode);
+                                }
+                            }
+                        });
+                    });
+            }
+            if studio_mode != StudioMode::Prop {
+                animation_commands = animation_ui.window(&ctx, curr.animation_preview.as_ref(), animation_bridge);
+            }
+            if studio_mode != StudioMode::Animation {
+                asset_commands = asset_ui.window(&ctx, &curr, animation_bridge);
+            }
             let here = hud.current.clone();
             guide_out.extend(guide.station(&ctx, here.as_ref(), &mut root));
             guide_out.extend(guide.field_guide(&ctx, &hud.entries));
@@ -1469,18 +1557,25 @@ impl App {
 
         let first = self.boot_done_at.is_none()
             && boot::diag().stages.lock().map(|s| !s.iter().any(|s| s.name == "first frame")).unwrap_or(false);
-        if first {
-            let _ = stage("first frame", || {
-                gfx.draw(&scene, Some((&prims, &mut textures, ppp)));
-                Ok(((), format!("{} meshes, {} sdf", gfx.renderer.stats.mesh_instances, gfx.renderer.stats.sdf_instances)))
+        let submitted = if first {
+            let submitted = stage("first frame", || {
+                let submitted = gfx.draw(&scene, Some((&prims, &mut textures, ppp)));
+                Ok((submitted, format!("{} meshes, {} sdf", gfx.renderer.stats.mesh_instances, gfx.renderer.stats.sdf_instances)))
             });
             self.boot_done_at = Some(Instant::now());
             log::info!("boot complete in {:.0} ms", boot::diag().start.elapsed().as_secs_f64() * 1000.0);
+            submitted.unwrap_or(false)
         } else {
-            gfx.draw(&scene, Some((&prims, &mut textures, ppp)));
+            gfx.draw(&scene, Some((&prims, &mut textures, ppp)))
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        if submitted {
+            if let Some(bridge) = &self.bridge {
+                bridge.submitted(curr.live_edit_ticket);
+            }
         }
         // Input latency: the frame showing the tick that consumed a press is now submitted.
-        {
+        if submitted {
             let mut probe = host.shared.latency_probe.lock().unwrap();
             if let Some((pressed_at, ticked_at, tick)) = *probe {
                 if curr.tick >= tick {
@@ -1516,7 +1611,7 @@ impl App {
         if self.watcher.as_mut().is_some_and(|w| w.poll()) {
             self.reload_rooms();
         }
-        if animation_active {
+        if studio_active {
             self.ensure_animation_watcher();
         }
         let animation_updates = self.animation_watcher.as_mut().map(|w| w.poll()).unwrap_or_default();
@@ -1534,7 +1629,48 @@ impl App {
             }
         }
         for command in animation_commands {
-            self.animation_command(command);
+            self.studio_command(command);
+        }
+        for command in asset_commands {
+            self.studio_command(command);
+        }
+        for update in self.asset_watcher.poll() {
+            match update {
+                Ok((name, definition)) => {
+                    self.asset_ui.status = format!("Reloaded {name}");
+                    self.asset_ui.error = false;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let feedback = self.bridge.as_ref().map(|b| b.feedback.clone());
+                    #[cfg(target_arch = "wasm32")]
+                    let feedback: Option<pav_tools::live_feedback::SharedFeedback> = None;
+                    if let Some(host) = &self.host {
+                        let _ticket = host.query(move |sim| {
+                            let started = feedback.as_ref().map(|_| std::time::Instant::now());
+                            if !crate::asset_watch::apply_update(sim, &name, definition) {
+                                return None;
+                            }
+                            if let Some(feedback) = feedback {
+                                if let Ok(mut feedback) = feedback.lock() {
+                                    let note = feedback.accepted("asset_file_reload", started.unwrap());
+                                    sim.live_edit_ticket = note["ticket"].as_u64().unwrap_or_default();
+                                }
+                            }
+                            Some(sim.live_edit_ticket)
+                        });
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let (Some(bridge), Some(ticket)) = (&self.bridge, _ticket.flatten()) {
+                            bridge.adopted(ticket);
+                        }
+                    }
+                }
+                Err(error) => {
+                    log::warn!("object reload: {error}");
+                    self.asset_ui.report(Err(error));
+                }
+            }
+        }
+        if let Some(mode) = studio_target {
+            self.switch_studio(mode);
         }
         if let Some(a) = menu_action {
             self.menu_action(a);
@@ -1615,13 +1751,37 @@ impl App {
 
     /// Use the registered tools for UI edits too. This keeps validation, undo, and
     /// persistence identical for a user and an LLM.
-    fn animation_command(&mut self, command: crate::animation_ui::Command) {
+    fn studio_command(&mut self, command: crate::animation_ui::Command) {
         let Some(host) = &self.host else { return };
+        let asset = command.tool.starts_with("asset");
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(bridge) = &self.bridge {
+            match bridge.synchronize(host, &mut self.rig, &mut self.view) {
+                Ok(Some(look)) => self.look_ui.set_look(look),
+                Ok(None) => {}
+                Err(error) => {
+                    let message = format!("The previous live edit is still pending: {error:#}");
+                    if asset {
+                        self.asset_ui.report(Err(message));
+                    } else {
+                        self.animation_ui.report(Err(message));
+                    }
+                    return;
+                }
+            }
+        }
         let rig = self.rig.clone();
         let view = self.view.clone();
+        let look = self.look_ui.look().clone();
+        #[cfg(not(target_arch = "wasm32"))]
+        let feedback = self.bridge.as_ref().map(|b| b.feedback.clone());
+        #[cfg(target_arch = "wasm32")]
+        let feedback = None;
         let reply = host.query(move |sim| {
             let live = std::mem::replace(sim, Sim::empty(1));
             let mut session = pav_tools::Session::from_live(live, rig, view, None);
+            session.look = look;
+            session.feedback = feedback;
             let result = pav_tools::tools::call(&mut session, command.tool, &command.args)
                 .map(|out| match out {
                     pav_tools::Output::Json(v) => v,
@@ -1629,18 +1789,66 @@ impl App {
                 })
                 .map_err(|e| format!("{e:#}"));
             let (live, rig, view, _) = session.into_live();
+            let ticket = live.live_edit_ticket;
             *sim = live;
-            (result, rig, view)
+            (result, rig, view, ticket)
         });
-        match reply {
-            Some((result, rig, view)) => {
+        let result = match reply {
+            Some((result, rig, view, _ticket)) => {
                 self.rig = rig;
                 self.view = view;
-                self.animation_ui.report(result);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(bridge) = &self.bridge {
+                    bridge.adopted(_ticket);
+                }
+                result
             }
-            None => self.animation_ui.report(Err("The animation command did not answer. Check the game log.".into())),
+            None => Err("The studio command did not answer. Check the game log.".into()),
+        };
+        if asset {
+            self.asset_ui.report(result);
+        } else {
+            self.animation_ui.report(result);
         }
         self.ensure_animation_watcher();
+    }
+
+    fn switch_studio(&mut self, mode: StudioMode) {
+        self.set_menu(false);
+        #[cfg(not(target_arch = "wasm32"))]
+        if mode != StudioMode::World {
+            if mode == StudioMode::Animation {
+                if let Err(error) = pav_tools::animation_tools::reload_authored() {
+                    self.animation_ui.report(Err(format!("Could not load saved animations: {error:#}")));
+                }
+            }
+            if self.bridge.is_none() {
+                match crate::bridge::Bridge::start(pav_tools::bridge::DEFAULT_ADDR) {
+                    Ok(bridge) => self.bridge = Some(bridge),
+                    Err(error) => {
+                        let message = format!("Could not open the live bridge: {error}");
+                        if mode == StudioMode::Prop {
+                            self.asset_ui.report(Err(message));
+                        } else {
+                            self.animation_ui.report(Err(message));
+                        }
+                    }
+                }
+            }
+        }
+        self.animation_ui.open = mode == StudioMode::Animation;
+        self.asset_ui.open = mode == StudioMode::Prop;
+        let tool = match mode {
+            StudioMode::Animation => "anim_preview",
+            StudioMode::Prop => "asset_preview",
+            StudioMode::World if self.studio_mode == StudioMode::Prop => "asset_preview",
+            StudioMode::World => "anim_preview",
+        };
+        let action = if mode == StudioMode::World { "close" } else { "open" };
+        self.studio_command(crate::animation_ui::Command {
+            tool,
+            args: serde_json::json!({"action":action}).as_object().unwrap().clone(),
+        });
     }
 
     fn ensure_animation_watcher(&mut self) {
@@ -1655,26 +1863,8 @@ impl App {
     fn menu_action(&mut self, a: MenuAction) {
         match a {
             MenuAction::Resume => self.set_menu(false),
-            MenuAction::AnimationStudio => {
-                self.set_menu(false);
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    if let Err(error) = pav_tools::animation_tools::reload_authored() {
-                        self.animation_ui.report(Err(format!("Could not load saved animations: {error:#}")));
-                    }
-                    if self.bridge.is_none() {
-                        match crate::bridge::Bridge::start(pav_tools::bridge::DEFAULT_ADDR) {
-                            Ok(bridge) => self.bridge = Some(bridge),
-                            Err(error) => self.animation_ui.report(Err(format!("Could not open the live bridge: {error}"))),
-                        }
-                    }
-                }
-                self.animation_ui.open = true;
-                self.animation_command(crate::animation_ui::Command {
-                    tool: "anim_preview",
-                    args: serde_json::json!({"action":"open", "clip":"QUATERNIUS/Idle_Loop"}).as_object().unwrap().clone(),
-                });
-            }
+            MenuAction::AnimationStudio => self.switch_studio(StudioMode::Animation),
+            MenuAction::AssetStudio => self.switch_studio(StudioMode::Prop),
             MenuAction::Reset => {
                 self.set_menu(false);
                 self.reset();
@@ -1869,7 +2059,11 @@ impl ApplicationHandler for App {
                     self.latency.press();
                 }
                 // In the game the right button is a skill; the middle button turns the camera.
-                let turn = if self.input.game { MouseButton::Middle } else { MouseButton::Right };
+                let turn = if self.input.game && self.studio_mode == StudioMode::World {
+                    MouseButton::Middle
+                } else {
+                    MouseButton::Right
+                };
                 if button == turn {
                     self.mouse.right_down = state == ElementState::Pressed && !consumed;
                 } else if !consumed || state == ElementState::Released {

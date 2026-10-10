@@ -128,6 +128,13 @@ pub struct SimState {
     /// The animation stage freezes this world and publishes its own render frame.
     #[serde(default)]
     pub animation_preview: Option<crate::animation_preview::PreviewState>,
+    /// None is only for legacy snapshots whose active animation stage predates this field.
+    #[serde(default)]
+    pub studio_mode: Option<crate::prop_preview::StudioMode>,
+    #[serde(default)]
+    pub prop_preview: Option<crate::prop_preview::PropPreviewState>,
+    #[serde(default)]
+    pub studio_cameras: crate::prop_preview::StudioCameras,
 }
 
 impl SimState {
@@ -144,6 +151,8 @@ impl SimState {
 pub struct Sim {
     pub config: SimConfig,
     pub state: SimState,
+    /// Live feedback is a host transaction counter, independent of replay/snapshot time.
+    pub live_edit_ticket: u64,
     pub history: History,
     /// Inputs since the scene was built (for replays and crash reports).
     pub recording: Replay,
@@ -182,7 +191,11 @@ impl Sim {
                 crumbles: Vec::new(),
                 game: None,
                 animation_preview: None,
+                studio_mode: Some(crate::prop_preview::StudioMode::World),
+                prop_preview: None,
+                studio_cameras: Default::default(),
             },
+            live_edit_ticket: 0,
             config,
             history: History::default(),
             recording: Replay { seed, ..Default::default() },
@@ -257,14 +270,19 @@ impl Sim {
                 .linear_damping(s.damping as Real)
                 .angular_damping(s.damping as Real);
                 let shape = s.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
-                let collider = shape
-                    .collider()
-                    .density(s.density as Real)
-                    .friction(s.friction as Real)
-                    .restitution(s.restitution as Real)
-                    .user_data(entity_tag(id.0));
-                let (b, _) = self.state.physics.insert(builder, collider);
-                Some(b)
+                let collider = match &s.prop {
+                    Some(prop) => prop.collider(),
+                    None => Some(shape.collider()),
+                };
+                collider.map(|collider| {
+                    let collider = collider
+                        .density(s.density as Real)
+                        .friction(s.friction as Real)
+                        .restitution(s.restitution as Real)
+                        .user_data(entity_tag(id.0));
+                    let (b, _) = self.state.physics.insert(builder, collider);
+                    b
+                })
             }
         };
         self.state.entities.map.insert(
@@ -277,6 +295,7 @@ impl Sim {
                 body_kind: s.body,
                 body,
                 visual: s.visual,
+                prop: s.prop,
                 behavior: s.behavior,
                 character: None,
                 bomb: None,
@@ -296,6 +315,9 @@ impl Sim {
                 health: None,
             },
         );
+        if self.state.entities.get(id).is_some_and(|e| e.prop.is_some()) {
+            self.invalidate_prop_navigation();
+        }
         if !self.replaying {
             self.events.push(SimEvent::Spawned { id, pos: s.pos });
         }
@@ -318,6 +340,7 @@ impl Sim {
                 body_kind: BodyKind::Kinematic,
                 body: Some(b),
                 visual: None,
+                prop: None,
                 behavior: Behavior::None,
                 character: Some(Box::new(ch)),
                 bomb: None,
@@ -380,6 +403,9 @@ impl Sim {
     pub fn despawn(&mut self, id: EntityId) -> bool {
         match self.state.entities.map.remove(&id) {
             Some(e) => {
+                if e.prop.is_some() {
+                    self.invalidate_prop_navigation();
+                }
                 if let Some(b) = e.body {
                     self.state.physics.remove_body(b);
                 }
@@ -423,15 +449,29 @@ impl Sim {
             b.set_linvel(Vector::ZERO, true);
             b.set_angvel(Vector::ZERO, true);
         }
+        if e.prop.is_some() {
+            self.invalidate_prop_navigation();
+        }
         true
     }
 
     /// Advances one fixed tick, recording the input for rewind and replays.
     pub fn step(&mut self, input: &InputFrame) {
         let dt = self.dt();
-        if let Some(preview) = &mut self.state.animation_preview {
-            preview.advance(dt);
-            return;
+        match self.studio_mode() {
+            crate::prop_preview::StudioMode::Animation => {
+                if let Some(preview) = &mut self.state.animation_preview {
+                    preview.advance(dt);
+                }
+                return;
+            }
+            crate::prop_preview::StudioMode::Prop => {
+                if let Some(preview) = &mut self.state.prop_preview {
+                    preview.advance(dt);
+                }
+                return;
+            }
+            crate::prop_preview::StudioMode::World => {}
         }
         if self.history.enabled && self.config.history_seconds > 0.0 {
             self.history.window = (self.config.history_seconds * self.config.tick_rate.hz() as f32) as u64;
@@ -865,8 +905,18 @@ impl Sim {
         if *self.config_arc != self.config {
             self.config_arc = std::sync::Arc::new(self.config.clone());
         }
-        if let Some(preview) = &self.state.animation_preview {
-            return preview.frame(self.config_arc.clone(), self.dt());
+        match self.studio_mode() {
+            crate::prop_preview::StudioMode::Animation => {
+                if let Some(preview) = &self.state.animation_preview {
+                    return preview.frame(self.config_arc.clone(), self.dt(), self.live_edit_ticket);
+                }
+            }
+            crate::prop_preview::StudioMode::Prop => {
+                if let Some(preview) = &self.state.prop_preview {
+                    return preview.frame(self.config_arc.clone(), self.dt(), self.live_edit_ticket);
+                }
+            }
+            crate::prop_preview::StudioMode::World => {}
         }
         let room = self
             .state
@@ -895,6 +945,7 @@ impl Sim {
             tick: self.state.tick,
             time: self.time(),
             dt: self.dt(),
+            live_edit_ticket: self.live_edit_ticket,
             objects: self
                 .state
                 .entities
@@ -942,7 +993,19 @@ impl Sim {
                         && e.soft.is_none()
                         && e.lifetime.is_none()
                         && !self.state.game.as_ref().is_some_and(|g| g.actors.contains_key(&e.id));
-                    Some(RenderObject { id: e.id, pos: e.pos, rot: e.rot, visual, puppet, pulse, soft, vehicle, cone, scenery })
+                    Some(RenderObject {
+                        id: e.id,
+                        pos: e.pos,
+                        rot: e.rot,
+                        visual,
+                        prop: e.prop.as_ref().map(|p| p.frame()),
+                        puppet,
+                        pulse,
+                        soft,
+                        vehicle,
+                        cone,
+                        scenery,
+                    })
                 })
                 .collect(),
             statics: self.state.statics.clone(),
@@ -963,6 +1026,8 @@ impl Sim {
             hud,
             game: self.state.game.as_ref().map(|g| std::sync::Arc::new(g.frame(self))),
             animation_preview: None,
+            studio_mode: crate::prop_preview::StudioMode::World,
+            prop_preview: None,
         }
     }
 

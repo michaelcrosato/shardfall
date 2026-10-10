@@ -11,13 +11,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::clips;
 use crate::frame::{HudFrame, PuppetFrame, RenderFrame, RenderObject};
+use crate::prop_preview::{STAGE_ID_BASE, StudioMode, stage_objects};
 use crate::puppet::{BodyPlan, PuppetDef, PuppetState, Skel};
 use crate::shape::{Shape, Visual};
 use crate::{Color, EntityId, Sim, SimConfig};
-
-// Keep stage IDs apart from ordinary small entity IDs while leaving room for the view's
-// object-group offset (it adds two to every object ID).
-const STAGE_ID_BASE: u32 = 1_000_000;
 
 /// A clip keeps its stable name hash. Moves resolve their names again after a data reload.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -287,37 +284,16 @@ impl PreviewState {
         Some(clips::over(&self.puppet, &st, base))
     }
 
-    pub(crate) fn frame(&self, config: Arc<SimConfig>, dt: f32) -> RenderFrame {
+    pub(crate) fn frame(&self, config: Arc<SimConfig>, dt: f32, ticket: u64) -> RenderFrame {
         let info = self.info();
-        let mut objects = Vec::with_capacity(39);
-        let mut object = |id: u32, pos: Vec3, half: Vec3, color: &str| {
-            objects.push(RenderObject {
-                id: EntityId(id),
-                pos,
-                rot: Quat::IDENTITY,
-                visual: Visual::new(Shape::Box { half }, Color::hex(color)),
-                puppet: None,
-                pulse: -1.0,
-                soft: None,
-                vehicle: None,
-                cone: None,
-                scenery: true,
-            });
-        };
-        object(STAGE_ID_BASE + 1, Vec3::new(0.0, -0.035, 0.0), Vec3::new(8.0, 0.025, 8.0), "#273338");
-        for i in -8..=8 {
-            let at = i as f32 * 0.5;
-            object(STAGE_ID_BASE + 2 + (i + 8) as u32 * 2, Vec3::new(at, -0.008, 0.0), Vec3::new(0.005, 0.002, 4.0), "#3a494d");
-            object(STAGE_ID_BASE + 3 + (i + 8) as u32 * 2, Vec3::new(0.0, -0.007, at), Vec3::new(4.0, 0.002, 0.005), "#3a494d");
-        }
-        object(STAGE_ID_BASE + 40, Vec3::new(0.0, -0.002, 0.0), Vec3::new(4.0, 0.002, 0.012), "#a97169");
-        object(STAGE_ID_BASE + 41, Vec3::ZERO, Vec3::new(0.012, 0.002, 4.0), "#6598af");
+        let mut objects = stage_objects();
         let subject = EntityId(STAGE_ID_BASE);
         objects.push(RenderObject {
             id: subject,
             pos: Vec3::ZERO,
             rot: Quat::IDENTITY,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
+            prop: None,
             puppet: Some(PuppetFrame {
                 state: self.state_at(info.time),
                 feet_offset: 0.0,
@@ -331,10 +307,12 @@ impl PreviewState {
             cone: None,
             scenery: false,
         });
+        objects.sort_by_key(|o| o.id);
         RenderFrame {
             tick: self.ticks,
             time: info.time as f64,
             dt,
+            live_edit_ticket: ticket,
             objects,
             statics: Default::default(),
             focus: self.focus,
@@ -348,6 +326,8 @@ impl PreviewState {
             hud: HudFrame::default(),
             game: None,
             animation_preview: Some(info),
+            studio_mode: StudioMode::Animation,
+            prop_preview: None,
         }
     }
 }
@@ -370,7 +350,9 @@ impl Sim {
                 Some(name) => lib.find(name).ok_or_else(|| format!("no clip '{name}' (clips find=WORDS searches)"))?,
                 None => {
                     if let Some(p) = &self.state.animation_preview {
-                        return Ok(p.info());
+                        let info = p.info();
+                        self.set_studio_mode(StudioMode::Animation);
+                        return Ok(info);
                     }
                     let first = lib.sets.iter().flat_map(|s| s.clips.keys().map(move |n| clips::clip_id(&s.set, n))).next();
                     lib.find("QUATERNIUS/Idle_Loop").or(first).ok_or("the animation library has no clips")?
@@ -380,7 +362,9 @@ impl Sim {
         };
         if let Some(p) = &self.state.animation_preview {
             if p.selection == selection {
-                return Ok(p.info());
+                let info = p.info();
+                self.set_studio_mode(StudioMode::Animation);
+                return Ok(info);
             }
         }
         let puppet = self
@@ -404,6 +388,7 @@ impl Sim {
         }
         let info = p.info();
         self.state.animation_preview = Some(p);
+        self.set_studio_mode(StudioMode::Animation);
         Ok(info)
     }
 
@@ -415,12 +400,16 @@ impl Sim {
     }
 
     pub fn preview_info(&self) -> Option<PreviewInfo> {
-        self.state.animation_preview.as_ref().map(PreviewState::info)
+        (self.studio_mode() == StudioMode::Animation)
+            .then(|| self.state.animation_preview.as_ref().map(PreviewState::info))
+            .flatten()
     }
 
     /// The world resumes at the exact point where the preview was opened.
     pub fn preview_close(&mut self) {
-        self.state.animation_preview = None;
+        if self.studio_mode() == StudioMode::Animation {
+            self.set_studio_mode(StudioMode::World);
+        }
     }
 }
 

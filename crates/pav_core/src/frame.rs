@@ -29,6 +29,8 @@ pub struct RenderObject {
     pub pos: Vec3,
     pub rot: Quat,
     pub visual: Visual,
+    /// Immutable parts belonging to this one object ID.
+    pub prop: Option<crate::prop_instance::PropFrame>,
     pub puppet: Option<PuppetFrame>,
     /// Blink/highlight driver: bomb fuse seconds left, or < 0 for none.
     pub pulse: f32,
@@ -266,6 +268,9 @@ pub struct RenderFrame {
     pub tick: u64,
     pub time: f64,
     pub dt: f32,
+    /// Last accepted live edit included in this frame. View interpolation must not mix it
+    /// with an older revision before the application acknowledges drawing the ticket.
+    pub live_edit_ticket: u64,
     pub objects: Vec<RenderObject>,
     pub statics: StaticWorld,
     /// Suggested camera focus (the player, or the scene centre).
@@ -284,4 +289,6 @@ pub struct RenderFrame {
     pub game: Option<std::sync::Arc<crate::arpg::GameFrame>>,
     /// Agent-readable playback controls for the animation stage.
     pub animation_preview: Option<crate::animation_preview::PreviewInfo>,
+    pub studio_mode: crate::prop_preview::StudioMode,
+    pub prop_preview: Option<crate::prop_preview::PropPreviewInfo>,
 }

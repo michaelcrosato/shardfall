@@ -79,6 +79,11 @@ installs the additional tools and `scripts/build-windows.sh` builds the executab
 
 ## Work on animations with a live preview
 
+The same studio can build reusable objects from named parts. Start with
+`scripts/asset-studio.sh`, connect `.mcp.studio.json`, and use `assets`, `asset_edit`,
+`asset_preview`, and `asset_spawn`. The Objects and Animations tabs share the live bridge.
+`docs/ASSET_STUDIO.md` describes batches, revisions, placement, and frame feedback.
+
 Run `scripts/animation-studio.sh` to build the game and CLI, then open the animation workspace.
 Use `.mcp.animation-studio.json` in your LLM client, or run `./target/debug/pav live` in a second terminal.
 `anim_edit` creates and edits clips. `anim_preview` controls the visible playback.

@@ -385,6 +385,29 @@ impl Sim {
         }
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
+            if let Some(asset) = &o.asset {
+                match self.spawn_prop(
+                    asset,
+                    slot.place.point(o.pos),
+                    slot.place.quat() * o.local_rot(),
+                    o.scale,
+                    o.body == BodyKind::Fixed,
+                    Some(region),
+                ) {
+                    Ok(id) => {
+                        if !o.name.is_empty() {
+                            self.state.entities.get_mut(id).unwrap().name = o.name.clone();
+                            named.entry(o.name.clone()).or_insert(id);
+                        }
+                    }
+                    Err(error) => {
+                        let error = format!("room {}: {error}", slot.key);
+                        log::warn!("{error}");
+                        self.state.world.errors.push(error);
+                    }
+                }
+                continue;
+            }
             if let Some(vd) = &o.vehicle {
                 let name = if o.name.is_empty() { "vehicle" } else { &o.name };
                 let id = self.spawn_vehicle(
@@ -1007,6 +1030,18 @@ impl Sim {
                 let posture = ch.posture;
                 let (id, pos) = (e.id, e.pos);
                 e.body = Some(self.character_body(id, pos, posture));
+            } else if let Some(prop) = &e.prop {
+                // Recreate the same compound parts, never the conservative root proxy.
+                if let Some(collider) = prop.collider() {
+                    let m = e.material;
+                    let body = RigidBodyBuilder::fixed().pose(Pose::from_parts(e.pos, e.rot));
+                    let collider = collider
+                        .density(m.density as Real)
+                        .friction(m.friction as Real)
+                        .restitution(m.restitution as Real)
+                        .user_data(entity_tag(e.id.0));
+                    e.body = Some(self.state.physics.insert(body, collider).0);
+                }
             } else if e.body_kind != BodyKind::None {
                 let shape = e.visual.as_ref().map(|v| v.shape).unwrap_or(Shape::Sphere { radius: 0.25 });
                 let builder = match e.body_kind {
@@ -1174,6 +1209,8 @@ impl Sim {
                 Some(crate::room::ObjectDef {
                     name: e.name.clone(),
                     shape: v.shape,
+                    asset: e.prop.as_ref().map(|p| p.asset.clone()),
+                    scale: e.prop.as_ref().map(|p| p.scale).unwrap_or(1.0),
                     pos: (local * 1000.0).round() / 1000.0,
                     yaw: r1(yaw),
                     pitch: r1(pitch),
@@ -1258,6 +1295,17 @@ fn vec3(v: Vec3) -> String {
 
 /// One `[[object]]` table in the same compact style as hand-written room files.
 pub fn object_toml(o: &crate::room::ObjectDef) -> String {
+    if let Some(asset) = &o.asset {
+        let mut text =
+            format!("[[object]]\nname = {:?}\nasset = {:?}\nscale = {}\npos = {}\n", o.name, asset, num(o.scale), vec3(o.pos));
+        for (key, value) in [("yaw", o.yaw), ("pitch", o.pitch), ("roll", o.roll)] {
+            if value.abs() > 0.05 {
+                text.push_str(&format!("{key} = {}\n", num(value)));
+            }
+        }
+        text.push_str(&format!("body = \"{}\"\n", if o.body == BodyKind::None { "none" } else { "fixed" }));
+        return text;
+    }
     let shape = match o.shape {
         Shape::Box { half } => format!("{{ type = \"box\", half = {} }}", vec3(half)),
         Shape::RoundedBox { half, radius } => {

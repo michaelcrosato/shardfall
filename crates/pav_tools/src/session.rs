@@ -11,16 +11,16 @@ pub struct Gpu {
     pub builder: ViewBuilder,
     /// The live bridge keeps this device between requests, even when the human UI opens or
     /// closes a stage through a separate session with no GPU.
-    previewing: bool,
+    studio_mode: pav_core::prop_preview::StudioMode,
 }
 
 impl Gpu {
     fn prepare_frame(&mut self, frame: &RenderFrame) {
-        let previewing = frame.animation_preview.is_some();
-        if self.previewing != previewing {
+        let studio_mode = frame.studio_mode();
+        if self.studio_mode != studio_mode {
             self.builder = ViewBuilder::new();
             self.renderer.clear_particles();
-            self.previewing = previewing;
+            self.studio_mode = studio_mode;
         }
     }
 }
@@ -48,6 +48,8 @@ pub struct Session {
     /// The look layer (`look` tool, the game's Look & Filters menu): its sections that are on
     /// replace the view settings in captures.
     pub look: pav_view::look::Look,
+    /// Set by the native bridge. Headless sessions do not wait for or report window frames.
+    pub feedback: Option<crate::live_feedback::SharedFeedback>,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -67,6 +69,10 @@ impl Tunable for ParamsRoot<'_> {
 
 impl Session {
     pub fn new(scene: &str, seed: u64) -> Result<Self> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = crate::asset_tools::initialize_authored() {
+            log::warn!("saved objects: {error:#}");
+        }
         let mut sim = Sim::new(scene, seed)?;
         let mut camera = CameraRig::default();
         camera.snap(sim.state.focus);
@@ -87,6 +93,7 @@ impl Session {
             view_serial: 0,
             live: false,
             look: Default::default(),
+            feedback: None,
         };
         s.sync_camera();
         Ok(s)
@@ -111,6 +118,7 @@ impl Session {
             view_serial: 0,
             live: true,
             look: Default::default(),
+            feedback: None,
         }
     }
 
@@ -131,7 +139,12 @@ impl Session {
         if self.gpu.is_none() {
             let headless = Headless::new()?;
             let renderer = Renderer::new(&headless.device, &headless.queue);
-            self.gpu = Some(Gpu { headless, renderer, builder: ViewBuilder::new(), previewing: false });
+            self.gpu = Some(Gpu {
+                headless,
+                renderer,
+                builder: ViewBuilder::new(),
+                studio_mode: pav_core::prop_preview::StudioMode::World,
+            });
         }
         Ok(self.gpu.as_mut().unwrap())
     }
@@ -162,7 +175,7 @@ impl Session {
         if let Some(gpu) = &mut self.gpu {
             gpu.builder = ViewBuilder::new();
             gpu.renderer.clear_particles();
-            gpu.previewing = self.sim.state.animation_preview.is_some();
+            gpu.studio_mode = self.sim.studio_mode();
         }
     }
 
@@ -170,7 +183,7 @@ impl Session {
     /// cues, the way the game does (without blending). Called after every step.
     pub fn sync_camera(&mut self) {
         use pav_core::params::{ParamValue, apply_map};
-        if self.live || self.sim.state.animation_preview.is_some() {
+        if self.live || self.sim.studio_active() {
             return;
         }
         let w = &self.sim.state.world;
@@ -292,7 +305,7 @@ impl Session {
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.prepare_frame(&frame);
-        if frame.animation_preview.is_none() {
+        if !frame.studio_active() {
             gpu.builder.add_events(&events);
         }
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
@@ -309,7 +322,7 @@ impl Session {
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.prepare_frame(&frame);
-        if frame.animation_preview.is_none() {
+        if !frame.studio_active() {
             gpu.builder.add_events(&events);
         }
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);

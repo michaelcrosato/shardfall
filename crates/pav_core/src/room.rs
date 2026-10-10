@@ -44,6 +44,11 @@ pub struct ObjectDef {
     pub name: String,
     #[serde(default = "box_shape")]
     pub shape: Shape,
+    /// Reusable procedural prop. Its named parts replace shape/color/look for rendering.
+    #[serde(default)]
+    pub asset: Option<String>,
+    #[serde(default = "one")]
+    pub scale: f32,
     pub pos: Vec3,
     /// Rotation about the vertical axis (degrees).
     #[serde(default)]
@@ -428,6 +433,19 @@ impl RoomDef {
 
     /// Checks things the parser cannot (unknown legend characters, entrance on the map...).
     pub fn validate(&self) -> Result<(), String> {
+        for object in &self.objects {
+            if let Some(asset) = &object.asset {
+                crate::props::canonical(asset).map_err(|e| format!("object '{}': {e}", object.name))?;
+                crate::prop_instance::validate_scale(object.scale)?;
+                crate::prop_instance::validate_pose(object.pos, object.local_rot())?;
+                if !matches!(object.body, BodyKind::Fixed | BodyKind::None) {
+                    return Err(format!("prop '{}': body must be fixed or none", object.name));
+                }
+                if object.soft.is_some() || object.vehicle.is_some() || object.behavior != Behavior::None {
+                    return Err(format!("prop '{}': soft bodies, vehicles and behaviors are not supported", object.name));
+                }
+            }
+        }
         for n in &self.npcs {
             let p = n.puppet()?;
             for (field, clip) in [("idle_clip", &p.idle_clip), ("walk_clip", &p.walk_clip)] {

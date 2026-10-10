@@ -237,7 +237,7 @@ struct Clock {
     window_ticks: u32,
     busy: Duration,
     rewound: bool,
-    previewing: bool,
+    studio_mode: pav_core::prop_preview::StudioMode,
 }
 
 impl Clock {
@@ -248,15 +248,16 @@ impl Clock {
             window_ticks: 0,
             busy: Duration::ZERO,
             rewound: false,
-            previewing: false,
+            studio_mode: pav_core::prop_preview::StudioMode::World,
         }
     }
 
     /// Runs whatever is due now; returns how long until the next tick.
     fn advance(&mut self, sim: &mut Sim, sh: &Shared) -> Duration {
-        let previewing = sim.state.animation_preview.is_some();
-        if self.previewing != previewing {
-            self.previewing = previewing;
+        let previewing = sim.studio_active();
+        let mode = sim.studio_mode();
+        if self.studio_mode != mode {
+            self.studio_mode = mode;
             self.next = Instant::now();
         }
         let ctl = *sh.control.lock().unwrap();
