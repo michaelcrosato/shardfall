@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it. The full jou
 built, how it works, every decision) is `docs/HISTORY.md`, newest first: search it when you need
 the background on something.
 
-## Where things stand (2026-10-09)
+## Where things stand (2026-10-10)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).

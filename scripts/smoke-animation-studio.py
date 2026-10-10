@@ -177,6 +177,9 @@ def check(studio, pav, out, env):
                                       "out": str(out / "filmstrip.png")}, image=out / "filmstrip.png")
             client.call("anim_preview", {"time": 0.5, "playing": False})
             if shutil.which("import") and os.environ.get("DISPLAY"):
+                # A bridge reply precedes the window's next present. Give software
+                # rendering time to display the paused state before the OS capture.
+                time.sleep(2)
                 subprocess.run(["import", "-window", "root", str(out / "studio-window.png")], check=True, timeout=30)
             checks.append("MCP returns a filmstrip from the same studio renderer")
 

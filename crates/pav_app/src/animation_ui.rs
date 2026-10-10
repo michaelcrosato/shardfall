@@ -302,7 +302,17 @@ fn playback(ui: &mut egui::Ui, p: &PreviewInfo, commands: &mut Vec<Command>) {
         }
     });
     let mut time = p.time;
-    if ui.add(egui::Slider::new(&mut time, 0.0..=p.duration.max(0.001)).text("seconds").fixed_decimals(3)).changed() {
+    // The default slider rounds existing values during painting and can report a change
+    // with no input. A stale frame must never overwrite a newer agent scrub or pause.
+    if ui
+        .add(
+            egui::Slider::new(&mut time, 0.0..=p.duration.max(0.001))
+                .clamping(egui::SliderClamping::Edits)
+                .text("seconds")
+                .fixed_decimals(3),
+        )
+        .changed()
+    {
         commands.push(Command::preview(json!({"time":time, "playing":false})));
     }
     ui.horizontal(|ui| {
@@ -316,7 +326,16 @@ fn playback(ui: &mut egui::Ui, p: &PreviewInfo, commands: &mut Vec<Command>) {
         }
     });
     let mut speed = p.speed;
-    if ui.add(egui::Slider::new(&mut speed, 0.05..=4.0).logarithmic(true).text("speed").suffix("x")).changed() {
+    if ui
+        .add(
+            egui::Slider::new(&mut speed, 0.05..=8.0)
+                .clamping(egui::SliderClamping::Edits)
+                .logarithmic(true)
+                .text("speed")
+                .suffix("x"),
+        )
+        .changed()
+    {
         commands.push(Command::preview(json!({"speed":speed})));
     }
     ui.horizontal_wrapped(|ui| {
@@ -337,5 +356,32 @@ fn playback(ui: &mut egui::Ui, p: &PreviewInfo, commands: &mut Vec<Command>) {
     ui.small("Rotate: right-drag. Zoom: mouse wheel. F12: screenshot.");
     if ui.button("Fit camera to animation").clicked() {
         commands.push(Command::preview(json!({"action":"fit"})));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn painting_playback_controls_never_writes_to_the_live_preview() {
+        let mut sim = pav_core::Sim::empty(1);
+        let mut preview = sim.preview_open(Some("QUATERNIUS/Idle_Loop"), None).unwrap();
+        let ctx = egui::Context::default();
+        preview.speed = 8.0;
+        for playing in [true, false] {
+            preview.playing = playing;
+            for time in [1.0 / 60.0, 0.450_000_05, 0.5] {
+                preview.time = time;
+                let mut commands = Vec::new();
+                let raw = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0))),
+                    ..Default::default()
+                };
+                let mut output = ctx.run_ui(raw, |ui| playback(ui, &preview, &mut commands));
+                output.textures_delta.clear();
+                assert!(commands.is_empty(), "displaying time {time} at speed 8 must not emit a tool command");
+            }
+        }
     }
 }

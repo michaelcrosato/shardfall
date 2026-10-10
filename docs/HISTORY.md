@@ -5,7 +5,7 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
-## Animation Studio: shared live editing for people and LLMs — 2026-10-09
+## Animation Studio: shared live editing for people and LLMs — 2026-10-10
 The user asked for a tool that an LLM can use to view, alter, and create animations while
 the user watches each change in the running engine.
 - **One shared stage:** `SimState.animation_preview` holds selection, time, playback speed,
@@ -30,7 +30,8 @@ the user watches each change in the running engine.
   while paused. Editing the selected clip keeps its time, controls, and camera. Native file
   watching replaces only the changed set after a 250 ms debounce. Invalid files leave the
   last valid live data in use and show an error. Replacement shares unrelated clip sets,
-  which keeps large imported libraries cheap to retain during edits.
+  which keeps large imported libraries cheap to retain during edits. Playback sliders only
+  write when edited: painting a rounded value must not overwrite a newer agent command.
 - **Desktop workspace:** `--animation-studio [SET/Clip]` opens the stage and local live bridge.
   Esc → Animation Studio also opens it during a game. The egui controls search, select,
   create, copy, play, scrub, step, edit key channels, retime, mirror, undo, and redo. F6–F9
@@ -44,7 +45,17 @@ the user watches each change in the running engine.
   It also previews procedural moves; those remain editable in `anim/moves.toml`. No second
   renderer, hosted LLM service, API-key setting, binary animation format, or dependency was
   introduced. Existing imported interpolation tails are normalized only when copied for
-  editing, by keeping the sampled pose at the source clip's exact end time.
+  editing, by keeping the sampled pose at the source clip's exact end time. On Windows,
+  image tools try DirectX 12 if Vulkan adapter or device creation fails, matching the
+  window's supported graphics paths.
+- **Verification:** 70 selected tests pass across core motion/editing, tools, the CLI, and
+  the app. The native app/tools build and browser target check pass. The real desktop/MCP
+  smoke test passes all 10 checks under Xvfb and Vulkan lavapipe: creation, visible edits
+  while paused, revision rejection, undo/redo, batch error handling, file reloads, the wave
+  example, filmstrips, reopening saved motion, and closing the preview. Rendered poses,
+  the filmstrip, and the actual studio window were inspected. CPU regressions cover safe
+  stage IDs through the normal view builder and playback controls that emit no edits when
+  painted without input.
 
 ## Progress log split, a wider replay check, Pavilion Lite frozen — 2026-10-09
 Follow-ups to adopting the doctrine.

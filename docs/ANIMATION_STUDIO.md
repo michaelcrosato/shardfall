@@ -35,6 +35,8 @@ On Windows, run the provided binaries from a command prompt:
 shardfall.exe --animation-studio
 ```
 
+If image tools cannot start Vulkan on Windows, they try DirectX 12.
+
 For a native Windows source build, use `scripts/animation-studio.ps1` from PowerShell.
 For a Windows cross build on Linux, use `scripts/build-windows.sh`.
 After that build, `python3 scripts/package-animation-studio.py` makes a ZIP with both
