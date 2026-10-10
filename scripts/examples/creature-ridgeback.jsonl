@@ -1,0 +1,4 @@
+{"tool":"creature_catalog","args":{"module":"horn.curved"}}
+{"tool":"creature_preview","args":{"action":"open"}}
+{"tool":"creature_edit","args":{"action":"create","name":"example_ridgeback","template":"ridgeback_stalker","quality":"low","if_revision":"absent","preview":true}}
+{"tool":"creature_status","args":{"name":"CREATURE/example_ridgeback"}}

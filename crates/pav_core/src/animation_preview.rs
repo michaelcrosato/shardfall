@@ -328,6 +328,8 @@ impl PreviewState {
             animation_preview: Some(info),
             studio_mode: StudioMode::Animation,
             prop_preview: None,
+            creature_preview: None,
+            creature: None,
         }
     }
 }

@@ -1,0 +1,46 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Reef Shark",
+  "seed": 9306,
+  "extends": "fish",
+  "scale": 1.1,
+  "body": {
+    "torso": { "radius": [0.1, 0.13, 0.12, 0.08], "crossSection": "round" },
+    "head": {
+      "shape": "wedge",
+      "length": 0.32,
+      "radius": 0.095,
+      "jaw": true,
+      "crossSection": "wide"
+    },
+    "tail": { "length": 0.7, "radius": [0.075, 0.025], "pitch": 4 }
+  },
+  "limbs": [
+    {
+      "id": "pectoral",
+      "attach": { "on": "torso", "at": 0.2, "side": "both", "angle": 100 },
+      "length": 0.36,
+      "membrane": { "type": "membrane.fin", "rays": 6, "width": 0.7, "translucency": 0.2 }
+    },
+    {
+      "id": "pelvic",
+      "attach": { "on": "torso", "at": 0.6, "side": "both", "angle": 110 },
+      "length": 0.16
+    }
+  ],
+  "parts": [
+    {
+      "id": "dorsal",
+      "params": { "height": 0.22, "length": 0.2, "sweep": 40, "shape": "triangle" }
+    },
+    { "id": "tailfin", "params": { "shape": "forked", "size": 0.38, "upper": 0.66 } },
+    { "id": "teeth", "type": "teeth.row", "params": { "count": 14 } },
+    { "id": "eyes", "params": { "scale": 0.9, "irisColor": "#101010" } }
+  ],
+  "skin": {
+    "palette": { "base": "#5e6e78", "belly": "#e8ece8", "accent": "#202830" },
+    "material": "skin",
+    "layers": [{ "type": "countershade", "height": 0.1, "softness": 0.15 }]
+  },
+  "motion": { "temperament": "stalking", "actions": ["bite"] }
+}

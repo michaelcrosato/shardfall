@@ -1,0 +1,55 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Cave Bat",
+  "seed": 9302,
+  "extends": "wyvern",
+  "scale": 0.3,
+  "body": {
+    "torso": { "radius": [0.16, 0.2, 0.18, 0.12], "arch": 0.05, "pitch": 15 },
+    "neck": { "length": 0.12, "radius": [0.12, 0.14], "pitch": 20 },
+    "head": { "shape": "snout", "length": 0.32, "radius": 0.14, "jaw": true, "pitch": -5 },
+    "tail": { "length": 0.35, "radius": [0.05, 0.01], "pitch": -10, "curl": 0, "segments": 5 }
+  },
+  "limbs": [
+    {
+      "id": "leg",
+      "length": 0.55,
+      "radius": [0.06, 0.03],
+      "foot": { "type": "foot.claw", "toes": 5, "toeLength": 0.06 },
+      "attach": { "on": "torso", "at": 0.45, "side": "both", "angle": 125 }
+    },
+    {
+      "id": "wing",
+      "attach": { "on": "torso", "at": 0.18, "side": "both", "angle": 60 },
+      "length": 1.9,
+      "radius": [0.04, 0.012],
+      "foot": { "type": "foot.claw", "toes": 1, "toeLength": 0.05 },
+      "membrane": {
+        "type": "membrane.bat",
+        "fingers": 5,
+        "span": 1.05,
+        "trailing": "leg",
+        "scallop": 0.35,
+        "color": "#3a2c2a",
+        "translucency": 0.6
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "ears",
+      "type": "ear.pointed",
+      "attach": { "on": "head", "at": 0.8, "angle": 40, "side": "both" },
+      "params": { "length": 0.3, "width": 0.14 }
+    },
+    { "id": "eyes", "params": { "pupil": "round", "irisColor": "#1a1210", "scale": 0.8 } },
+    { "id": "teeth", "type": "teeth.row", "params": { "fangs": 1 } }
+  ],
+  "skin": {
+    "palette": { "base": "#5a4638", "belly": "#8a7464", "accent": "#2a201c" },
+    "material": "skin",
+    "fur": { "length": 0.03, "region": ["torso", "head"] },
+    "layers": [{ "type": "countershade", "strength": 0.5 }]
+  },
+  "motion": { "temperament": "skittish", "actions": ["bite", "roar"] }
+}

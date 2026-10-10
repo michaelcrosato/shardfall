@@ -1,0 +1,27 @@
+{
+  "name": "@spawnforge/modules",
+  "version": "0.2.0",
+  "private": true,
+  "description": "First module pack: body plans, parts, patterns, gaits and actions.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michaelcrosato/Spawnforge.git",
+    "directory": "packages/modules"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "three": "0.186.1",
+    "zod": "4.6.5",
+    "@spawnforge/core": "0.2.0"
+  }
+}

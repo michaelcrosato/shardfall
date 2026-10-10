@@ -19,8 +19,13 @@ the background on something.
   - **Object Studio:** reusable props made from named primitive parts, with the same live
     LLM and manual edit loop (`docs/ASSET_STUDIO.md`; `shardfall --asset-studio`). Atomic JSON
     edits save with revisions and undo/redo, then update the preview and all placed copies.
-    Animations, Objects, and Game keep separate controls and cameras. `studio_status` confirms
+    Each studio keeps separate controls and cameras. `studio_status` confirms
     native frame submission without a screenshot; native file edits reload after 250 ms.
+  - **Creature Studio:** the pinned SpawnForge compiler creates procedural rigs from themes,
+    templates or blueprints. Named part and surface edits use shared revisions, disk history,
+    asynchronous jobs, and native frame feedback (`docs/CREATURE_STUDIO.md`;
+    `shardfall --creature-studio`). The native stage plays baked motion and retains the last
+    good result after failed or superseded builds. The Windows package includes portable Node.
   - **Looks:** every filter on a part of the scene, painterly and print styles, volumetric light,
     water, wind, and a station guide in every room.
   - **Playable characters** (`game/heroes.toml`): Kestrel the Brawler (captured boxing and
@@ -42,6 +47,8 @@ characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntab
   captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
 - Older known issues and limits (engine rooms, browser build) are listed under "Known issues and
   limits" in `docs/HISTORY.md`.
+- Creature authoring uses the native Node sidecar. Full SpawnForge shader materials and
+  spawning generated rigs as gameplay enemies are separate work.
 
 ## Keeping this page current
 When you finish something, write it up as a dated entry at the top of `docs/HISTORY.md` (what

@@ -1,0 +1,70 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Ash Dragon",
+  "seed": 9301,
+  "extends": "quadruped",
+  "scale": 1.6,
+  "body": {
+    "torso": { "radius": [0.13, 0.17, 0.16, 0.11], "arch": 0.08 },
+    "neck": { "length": 0.6, "radius": [0.06, 0.09], "pitch": 30, "curve": 20, "segments": 5 },
+    "head": { "shape": "wedge", "length": 0.3, "radius": 0.085, "jaw": true, "brow": 0.5 },
+    "tail": { "length": 1.4, "radius": [0.1, 0.012], "curl": 10, "segments": 12 }
+  },
+  "limbs": [
+    {
+      "id": "foreleg",
+      "length": 0.5,
+      "radius": [0.06, 0.03],
+      "foot": { "type": "foot.claw", "toes": 4 }
+    },
+    {
+      "id": "hindleg",
+      "length": 0.55,
+      "radius": [0.075, 0.035],
+      "foot": { "type": "foot.claw", "toes": 4 }
+    },
+    {
+      "id": "wing",
+      "role": "wing",
+      "attach": { "on": "torso", "at": 0.16, "side": "both", "angle": 35 },
+      "length": 1.5,
+      "segments": 3,
+      "radius": [0.045, 0.014],
+      "membrane": {
+        "type": "membrane.bat",
+        "fingers": 4,
+        "span": 1.1,
+        "trailing": "body",
+        "scallop": 0.5,
+        "color": "#4a2a24",
+        "translucency": 0.5
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "horns",
+      "type": "horn.curved",
+      "attach": { "on": "head", "at": 0.85, "angle": 35, "side": "both" },
+      "params": { "length": 0.3, "curve": 50, "color": "#2a2420" }
+    },
+    {
+      "id": "crest",
+      "type": "spikes.row",
+      "attach": { "on": "torso", "from": 0.3, "to": 1, "angle": 0 },
+      "params": { "count": 8, "height": [0.06, 0.1, 0.05] }
+    },
+    { "id": "eyes", "params": { "pupil": "slit", "irisColor": "#ff8a20", "squint": 0.4 } },
+    { "id": "teeth", "type": "teeth.row", "params": { "fangs": 2 } }
+  ],
+  "skin": {
+    "palette": { "base": "#3c3634", "belly": "#9a7a5a", "accent": "#d0581e" },
+    "material": "scales",
+    "layers": [
+      { "type": "countershade", "strength": 0.7 },
+      { "type": "scales", "size": 0.02, "bump": 0.5 },
+      { "type": "veins", "color": "accent", "region": "wings", "strength": 0.6 }
+    ]
+  },
+  "motion": { "temperament": "aggressive", "actions": ["bite", "roar"] }
+}

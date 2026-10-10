@@ -1,0 +1,27 @@
+{
+  "name": "@shardfall/creature-compiler",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "vendor/core",
+    "vendor/modules"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@spawnforge/core": "0.2.0",
+    "@spawnforge/modules": "0.2.0",
+    "three": "0.186.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  }
+}

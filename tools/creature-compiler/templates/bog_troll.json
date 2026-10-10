@@ -1,0 +1,93 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Bog Troll",
+  "seed": 77,
+  "extends": "biped",
+  "scale": 0.9,
+  "body": {
+    "torso": {
+      "radius": [0.2, 0.24, 0.22, 0.2],
+      "arch": 0.12,
+      "pitch": 70
+    },
+    "head": {
+      "shape": "flat",
+      "length": 0.3,
+      "radius": 0.14,
+      "pitch": -5
+    }
+  },
+  "limbs": [
+    {
+      "id": "leg",
+      "length": 1,
+      "radius": [0.12, 0.07]
+    },
+    {
+      "id": "arm",
+      "length": 1.3,
+      "radius": [0.09, 0.06],
+      "foot": {
+        "type": "hand.grasp",
+        "fingers": 4,
+        "fingerLength": 0.2,
+        "claws": 0.04
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "tusks",
+      "type": "horn.curved",
+      "attach": {
+        "on": "jaw",
+        "at": 0.3,
+        "angle": 55
+      },
+      "params": {
+        "length": 0.13,
+        "curve": -50,
+        "width": 0.022,
+        "color": "#e8dcc0",
+        "tipColor": "#b8a888"
+      }
+    },
+    {
+      "id": "teeth",
+      "type": "teeth.row",
+      "params": { "fangs": 0, "scale": 1.3, "spacing": 0.5 }
+    }
+  ],
+  "skin": {
+    "palette": {
+      "base": "#5d6b4a",
+      "belly": "#a9a27a",
+      "accent": "#33402a"
+    },
+    "material": "hide",
+    "layers": [
+      {
+        "type": "countershade"
+      },
+      {
+        "type": "mottle",
+        "scale": 0.25
+      },
+      {
+        "type": "warts",
+        "color": "#6e7448",
+        "size": 0.02,
+        "density": 0.55,
+        "region": "back"
+      },
+      {
+        "type": "grime",
+        "amount": 0.6
+      }
+    ]
+  },
+  "motion": {
+    "temperament": "lumbering",
+    "actions": ["roar", "idle"]
+  }
+}

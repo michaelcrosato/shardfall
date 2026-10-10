@@ -1,0 +1,26 @@
+{
+  "name": "@spawnforge/core",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Blueprint schema, module registry, seeded RNG, compile pipeline, motion controller and analysis. No DOM or renderer.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michaelcrosato/Spawnforge.git",
+    "directory": "packages/core"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "three": "0.186.1",
+    "zod": "4.6.5"
+  }
+}

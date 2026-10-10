@@ -1,0 +1,130 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Wild Horse",
+  "seed": 1010,
+  "extends": "quadruped",
+  "scale": 1.4,
+  "body": {
+    "muscle": 0.6,
+    "torso": {
+      "radius": [0.14, 0.17, 0.165, 0.14],
+      "arch": 0.02,
+      "crossSection": "tall"
+    },
+    "neck": {
+      "length": 0.5,
+      "radius": [0.065, 0.12],
+      "pitch": 50,
+      "segments": 4,
+      "crossSection": "tall"
+    },
+    "head": {
+      "shape": "snout",
+      "length": 0.42,
+      "radius": 0.08,
+      "jaw": true,
+      "pitch": -45,
+      "crossSection": "tall"
+    },
+    "tail": {
+      "length": 0.55,
+      "radius": [0.06, 0.07, 0.05],
+      "pitch": -45,
+      "curl": -10
+    }
+  },
+  "limbs": [
+    {
+      "id": "foreleg",
+      "length": 0.95,
+      "segments": 3,
+      "radius": [0.06, 0.028, 0.024],
+      "attach": {
+        "at": 0.12,
+        "angle": 110
+      },
+      "foot": {
+        "type": "foot.hoof",
+        "cloven": false,
+        "color": "#2a2420"
+      }
+    },
+    {
+      "id": "hindleg",
+      "length": 1.0,
+      "segments": 3,
+      "radius": [0.075, 0.028, 0.024],
+      "attach": {
+        "at": 0.9,
+        "angle": 110
+      },
+      "foot": {
+        "type": "foot.hoof",
+        "cloven": false,
+        "color": "#2a2420"
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "ears",
+      "type": "ear.pointed",
+      "attach": {
+        "on": "head",
+        "at": 0.9,
+        "angle": 40
+      },
+      "params": {
+        "length": 0.12,
+        "width": 0.04
+      }
+    },
+    {
+      "id": "eyes",
+      "params": {
+        "irisColor": "#3a2414"
+      }
+    },
+    {
+      "id": "mane",
+      "type": "spikes.row",
+      "attach": {
+        "on": "neck",
+        "from": 0,
+        "to": 1,
+        "angle": 0
+      },
+      "params": {
+        "count": 18,
+        "height": 0.06,
+        "width": 0.025,
+        "curve": 60,
+        "color": "#2a1c14",
+        "tipColor": "#2a1c14"
+      }
+    }
+  ],
+  "skin": {
+    "palette": {
+      "base": "#8a5a34",
+      "belly": "#c8a882",
+      "accent": "#2a1c14"
+    },
+    "material": "hide",
+    "fur": {
+      "length": 0.01,
+      "density": 0.9
+    },
+    "layers": [
+      {
+        "type": "countershade",
+        "height": 0.3,
+        "strength": 0.5
+      }
+    ]
+  },
+  "motion": {
+    "temperament": "skittish",
+    "actions": ["bite", "look", "idle"]
+  }
+}

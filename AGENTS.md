@@ -214,6 +214,20 @@ Animations / Objects / Game tabs retain each workspace's controls and camera. Se
 `docs/ASSET_STUDIO.md`. Keep procedural parts as text; use `if_revision` and batch related
 part changes in one `ops` array.
 
+Creature Studio: `scripts/creature-studio.sh` or `shardfall --creature-studio` opens the
+procedural creature stage. `tools/creature-compiler` vendors the exact SpawnForge core/modules
+pin and bundles it with `npm ci --ignore-scripts && npm run build` (run in that directory).
+Keep the pin and source hashes intact; do not resolve against a moving upstream checkout.
+`creature_catalog`, `creature_edit`, `creature_preview`, and `creature_status` expose theme,
+template, blueprint, named-part and surface authoring through the same MCP bridge. Edits
+queue asynchronous builds. Wait for `published`, `failed`, or `superseded`; only publication
+gets a frame ticket. Use the new source `revision` for the next edit, and `studio_status`
+for actual frame submission. Failed/obsolete builds keep the last valid native mesh.
+Sources, history and disposable caches are under `assets/creatures` (`PAV_CREATURES`
+overrides it). Node runs outside the simulation. The Windows package includes the bundle
+and portable Node. See `docs/CREATURE_STUDIO.md` for native material limits and the tool
+contract. This is an authoring/preview stage; gameplay spawning of these rigs is separate.
+
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;

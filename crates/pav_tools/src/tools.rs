@@ -614,8 +614,9 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "assets",
-        help: "Find reusable object assets made from named primitive parts. Lists embedded templates and saved WORKSHOP objects with revisions and bounds. Copy a template with asset_edit, then patch named parts. All edits are readable JSON.",
+        help: "Find reusable assets. Default kind=prop lists named primitive objects; kind=creature lists native compiled creatures and saved sources. Use creature_catalog to discover procedural creature templates, anatomy and surface generators.",
         args: &[
+            arg("kind", "string", "prop (default) | creature"),
             arg("find", "string", "words in the asset name or description"),
             arg("limit", "integer", "maximum results (default 30)"),
         ],
@@ -625,6 +626,7 @@ pub static TOOLS: &[Tool] = &[
         name: "asset_edit",
         help: "Create, copy, inspect, and edit reusable objects. Named parts use existing primitive shapes, local positions in metres, rotations in degrees, colors, surface styles, emissive strength, and a solid flag. A patch is an atomic ops array: set a part's fields, add a part with value, or remove a part. All operations validate and save as one undo step. Use if_revision from the last result. Successful edits refresh placed copies and select the live preview by default. Inspect returns the full definition and field guide; edit replies stay small.",
         args: &[
+            arg("kind", "string", "prop (default) | creature; creature forwards to creature_edit with its arguments"),
             arg("action", "string", "create | copy | inspect | patch | replace | undo | redo"),
             arg("name", "string", "lowercase name or WORKSHOP/name; inspect also accepts BUILTIN/name"),
             arg("from", "string", "source asset for copy, e.g. BUILTIN/bench"),
@@ -653,6 +655,7 @@ pub static TOOLS: &[Tool] = &[
         name: "asset_preview",
         help: "View a reusable object through the game's renderer. The world pauses while the stage is open. Use name to select an asset; action=open resumes the previous selection. Same-name edits preserve the camera and controls. Fit frames the full asset. An optional turntable helps inspect all sides. Status includes the part count and bounds; asset_edit action=inspect gives named parts. capture returns an image of this same stage; close returns to the preserved world.",
         args: &[
+            arg("kind", "string", "prop (default) | creature; creature forwards to creature_preview"),
             arg("action", "string", "status | open | fit | close | play | pause | restart"),
             arg("name", "string", "BUILTIN/name or WORKSHOP/name to preview"),
             arg("close", "boolean", "return to the preserved world"),
@@ -665,6 +668,65 @@ pub static TOOLS: &[Tool] = &[
             arg("scale", "number", "uniform preview scale"),
         ],
         run: crate::asset_preview_tools::t_asset_preview,
+    },
+    Tool {
+        name: "creature_catalog",
+        help: "Discover the pinned local SpawnForge procedural generator: templates, body modules, wings, tails, parts, animation and surface parameters. No hosted AI service or credentials are used. Listing and JSON schema inspection never launch Node. Use named paths from this catalog for creature_edit patch operations.",
+        args: &[
+            arg("kind", "string", "filter generator modules by kind"),
+            arg("module", "string", "inspect one generator module by id"),
+            arg("find", "string", "search module names and parameter documentation"),
+            arg("schema", "boolean", "return the complete SpawnForge blueprint JSON schema"),
+        ],
+        run: crate::creature_tools::t_creature_catalog,
+    },
+    Tool {
+        name: "creature_edit",
+        help: "Create and revise procedural rigged creatures. create accepts a bundled template, complete blueprint, or seeded theme; patch applies an atomic named-path SpawnForge ops array; surface replaces skin settings; copy, inspect, replace, undo, redo and rebuild share the same saved source. Use if_revision from inspect or the last published job. Native builds run asynchronously and return a job immediately: poll creature_status until published or failed before judging capture. Only the latest accepted build may save and publish. Invalid/superseded jobs keep the last good stage. Playback and camera survive compatible updates. One-shot CLI waits for completion; persistent MCP/live sessions stay responsive.",
+        args: &[
+            arg("action", "string", "create | copy | inspect | patch | surface | replace | undo | redo | rebuild"),
+            arg("name", "string", "lowercase leaf or CREATURE/name"),
+            arg("template", "string", "create from a bundled template id; default ridgeback_stalker"),
+            arg("theme", "string", "create from a catalog theme using seed and optional constraints"),
+            arg("seed", "integer", "deterministic theme seed; default 1"),
+            arg("constraints", "object", "theme-generation constraints from the catalog"),
+            arg("blueprint", "object", "complete SpawnForge blueprint for create or replace"),
+            arg("from", "string", "existing creature source for copy"),
+            arg("quality", "string", "low | medium | high; default medium for creation, otherwise preserve"),
+            arg("ops", "array", "named-path set/add/remove/mirror/scale operations; one build and one undo step"),
+            arg("skin", "object", "complete SpawnForge skin settings for action=surface"),
+            arg("if_revision", "string", "expected source revision; absent for a new creature"),
+            arg("preview", "boolean", "open accepted selection unless the user switched workspace while building; default true"),
+        ],
+        run: crate::creature_tools::t_creature_edit,
+    },
+    Tool {
+        name: "creature_preview",
+        help: "View compiled creatures through Shardfall's renderer, including skinned wings and named baked animation clips. action=open resumes this workspace or opens an empty stage before the first build. The game, other studios, camera and controls are preserved. Select name, play/pause, scrub exact time, step source frames, rotate a turntable, or fit rest bounds. action=pose returns stage-space joints. capture and filmstrip use this same stage and clock. A saved source without a compiled cache needs creature_edit action=rebuild first.",
+        args: &[
+            arg("action", "string", "status | open | fit | close | play | pause | restart | pose"),
+            arg("name", "string", "CREATURE/name or lowercase leaf"),
+            arg("clip", "string", "named baked clip, or rest for the rest pose"),
+            arg("time", "number", "clip seconds; scrubbing pauses unless playing=true"),
+            arg("playing", "boolean", "run or pause playback"),
+            arg("speed", "number", "playback speed in 0.05..8"),
+            arg("looping", "boolean", "repeat the selected clip"),
+            arg("turntable", "boolean", "rotate while playback runs"),
+            arg("yaw", "number", "base rotation in degrees"),
+            arg("scale", "number", "uniform preview scale in 0.01..100"),
+            arg("step", "integer", "signed source-frame step; pauses unless playing=true"),
+            arg("close", "boolean", "return to the preserved game"),
+        ],
+        run: crate::creature_preview_tools::t_creature_preview,
+    },
+    Tool {
+        name: "creature_status",
+        help: "Read asynchronous build jobs without waiting or rendering. States: queued, building, ready (saved, awaiting session publication), published, failed, superseded. A published job includes source revision, diff, timings, warnings and any live feedback ticket; feedback submitted means the native window submitted that exact edit. Jobs belong to the current process/session. No args lists recent jobs, authored assets and the current preview.",
+        args: &[
+            arg("job", "integer", "specific job id returned by creature_edit"),
+            arg("name", "string", "filter jobs by creature name"),
+        ],
+        run: crate::creature_tools::t_creature_status,
     },
     Tool {
         name: "asset_spawn",
@@ -789,11 +851,36 @@ pub fn find(name: &str) -> Option<&'static Tool> {
 }
 
 pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
-    let tool = find(name).ok_or_else(|| anyhow!("unknown tool '{name}' (try `help`)"))?;
+    let original = find(name).ok_or_else(|| anyhow!("unknown tool '{name}' (try `help`)"))?;
+    let generic = matches!(name, "assets" | "asset_edit" | "asset_preview");
+    let kind = if generic { crate::preview_tools::opt_text(args, "kind")?.unwrap_or("prop") } else { "prop" };
+    if !matches!(kind, "prop" | "creature") {
+        bail!("kind must be prop or creature")
+    }
+    let routed = generic.then(|| {
+        let mut routed = args.clone();
+        routed.remove("kind");
+        routed
+    });
+    let args = routed.as_ref().unwrap_or(args);
+    let name = if kind == "creature" {
+        match name {
+            "assets" => "creatures",
+            "asset_edit" => "creature_edit",
+            "asset_preview" => "creature_preview",
+            _ => name,
+        }
+    } else {
+        name
+    };
+    let run = if name == "creatures" { crate::creature_tools::t_creatures } else { find(name).unwrap_or(original).run };
+    // Headless sessions also adopt completions. A live app polls on its frame loop; this
+    // hook covers an agent's immediate status/capture after completion without a frame gap.
+    crate::creature_tools::poll(session);
     // Native live calls get a ticket only after successful validation and application.
     // The app acknowledges it after drawing; never wait here on the simulation thread.
     let started = session.feedback.as_ref().filter(|_| crate::live_feedback::changes_studio(name, args)).map(|_| Instant::now());
-    let mut output = (tool.run)(session, args)?;
+    let mut output = run(session, args)?;
     if let (Some(shared), Some(started)) = (&session.feedback, started) {
         if let Ok(mut feedback) = shared.lock() {
             let note = feedback.accepted(name, started);
@@ -817,17 +904,40 @@ pub fn schema(t: &Tool) -> Value {
         let kind = if a.kind.contains('|') { json!(a.kind.split('|').collect::<Vec<_>>()) } else { json!(a.kind) };
         props.insert(a.name.into(), json!({ "type": kind, "description": a.help }));
     }
+    let creature_alias = match t.name {
+        "asset_edit" => Some("creature_edit"),
+        "asset_preview" => Some("creature_preview"),
+        _ => None,
+    };
+    if let Some(alias) = creature_alias {
+        for a in find(alias).unwrap().args {
+            props.entry(a.name.to_owned()).or_insert_with(|| json!({"type":a.kind,"description":a.help}));
+        }
+    }
     let mut schema = json!({ "type": "object", "properties": props });
     let actions: &[&str] = match t.name {
-        "asset_edit" => &["create", "copy", "inspect", "patch", "replace", "undo", "redo"],
-        "asset_preview" => &["status", "open", "fit", "close", "play", "pause", "restart"],
+        "asset_edit" | "creature_edit" => {
+            &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild"]
+        }
+        "asset_preview" | "creature_preview" => &["status", "open", "fit", "close", "play", "pause", "restart", "pose"],
         "asset_spawn" => &["add", "list", "update", "remove"],
         _ => &[],
     };
     if !actions.is_empty() {
         schema["properties"]["action"]["enum"] = json!(actions);
     }
-    if matches!(t.name, "assets" | "asset_edit" | "asset_preview" | "asset_spawn" | "studio_status") {
+    if matches!(
+        t.name,
+        "assets"
+            | "asset_edit"
+            | "asset_preview"
+            | "asset_spawn"
+            | "studio_status"
+            | "creature_catalog"
+            | "creature_edit"
+            | "creature_preview"
+            | "creature_status"
+    ) {
         schema["additionalProperties"] = json!(false);
     }
     if t.name == "asset_edit" {
@@ -839,6 +949,30 @@ pub fn schema(t: &Tool) -> Value {
             {"type":"object","required":["op","part"],"additionalProperties":false,
              "properties":{"op":{"const":"remove"},"part":{"type":"string"}}}
         ]});
+    }
+    if matches!(t.name, "asset_edit" | "creature_edit") {
+        let creature_ops = json!({"oneOf":[
+            {"type":"object","required":["op","path","value"],"additionalProperties":false,
+             "properties":{"op":{"enum":["set","add"]},"path":{"type":"string"},"value":{}}},
+            {"type":"object","required":["op","path"],"additionalProperties":false,
+             "properties":{"op":{"const":"remove"},"path":{"type":"string"}}},
+            {"type":"object","required":["op","path"],"additionalProperties":false,
+             "properties":{"op":{"const":"mirror"},"path":{"type":"string"},"side":{"enum":["left","right","center","both"]}}},
+            {"type":"object","required":["op","path","by"],"additionalProperties":false,
+             "properties":{"op":{"const":"scale"},"path":{"type":"string"},"by":{"type":"number","exclusiveMinimum":0}}}
+        ]});
+        if t.name == "creature_edit" {
+            schema["properties"]["ops"]["items"] = creature_ops;
+        } else {
+            schema["properties"]["ops"]["items"]["oneOf"]
+                .as_array_mut()
+                .unwrap()
+                .extend(creature_ops["oneOf"].as_array().unwrap().iter().cloned());
+        }
+        schema["properties"]["quality"]["enum"] = json!(["low", "medium", "high"]);
+    }
+    if matches!(t.name, "assets" | "asset_edit" | "asset_preview") {
+        schema["properties"]["kind"]["enum"] = json!(["prop", "creature"]);
     }
     if t.name == "asset_spawn" {
         schema["properties"]["pos"]["items"] = json!({"type":"number"});
@@ -896,13 +1030,16 @@ fn t_scenes(_: &mut Session, _: &Args) -> Result<Output> {
 fn t_load(s: &mut Session, a: &Args) -> Result<Output> {
     let scene = get_str(a, "scene").unwrap_or("test");
     let seed = get_u64(a, "seed", 1)?;
-    let gpu = s.gpu.take();
+    let mut next = Session::new(scene, seed)?;
+    next.gpu = s.gpu.take();
+    next.feedback = s.feedback.clone();
+    next.creature_owner = s.creature_owner;
+    next.sim.live_edit_ticket = s.sim.live_edit_ticket;
     // Keep the caller's camera and view settings, minus any room's own view table.
     let (camera, view) = (s.camera_base_or_current(), s.view_base_or_current());
     let live = s.live.then(|| s.sim.config.clone());
     let look = std::mem::take(&mut s.look);
-    *s = Session::new(scene, seed)?;
-    s.gpu = gpu;
+    *s = next;
     s.look = look;
     if let Some(config) = live {
         // Inside the game: keep its tuning, and leave room cameras and views to it.

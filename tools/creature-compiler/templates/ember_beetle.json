@@ -1,0 +1,36 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Ember Beetle",
+  "seed": 9001,
+  "extends": "hexapod",
+  "scale": 0.5,
+  "body": {
+    "torso": { "radius": [0.12, 0.16, 0.2, 0.15] },
+    "head": { "length": 0.18 }
+  },
+  "parts": [
+    {
+      "id": "horn",
+      "type": "horn.curved",
+      "attach": { "on": "head", "at": 0.2, "angle": 0 },
+      "params": { "length": 0.3, "curve": -70, "width": 0.04, "ridges": 6 }
+    },
+    { "id": "eyes", "params": { "irisColor": "#ff5a1f" } }
+  ],
+  "skin": {
+    "palette": { "base": "#2a1a14", "belly": "#5a3a24", "accent": "#ff5a1f" },
+    "layers": [
+      { "type": "countershade", "softness": 0.2 },
+      { "type": "spots", "size": 0.04, "density": 0.4, "region": "back" },
+      {
+        "type": "bioluminescence",
+        "color": "accent",
+        "size": 0.015,
+        "density": 0.5,
+        "brightness": 1,
+        "region": "back"
+      }
+    ]
+  },
+  "motion": { "actions": ["bite"] }
+}
