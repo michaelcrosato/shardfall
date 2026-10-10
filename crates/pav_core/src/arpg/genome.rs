@@ -341,7 +341,7 @@ impl Genome {
             p.death_clip = pick(&mut cr, &bg.death_clips).cloned().unwrap_or_default();
             for (skill, clips) in &bg.attack_clips {
                 if let Some(c) = pick(&mut cr, clips).filter(|c| !c.is_empty()) {
-                    p.attack_clips.insert(skill.clone(), c.clone());
+                    p.attack_clips.insert(skill.clone(), c.clone().into());
                 }
             }
         }

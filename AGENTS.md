@@ -67,7 +67,8 @@ crates/
               procedural animation, moves and clips each produce and `dress` turns into parts),
               moves.rs (attacks and gestures as data, anim/moves.toml: arcs around the shoulders,
               wind-up from wherever the hands were, strikes with lunge/lean/twist/hop/spin,
-              follow-through; skills name a move), clips.rs (motion clips: readable key poses
+              follow-through; skills name a move, a look may name its own per skill and combo
+              swing: `attack_moves`), clips.rs (motion clips: readable key poses
               translated from open animation libraries, retargeted onto the biped with IK,
               crossfaded over the procedural animation, upper body only or mirrored; performers,
               idle clips, walk clips played as fast as the character moves), anim.rs (the /anim files: embedded, live reload), rig.rs (creature feet that plant and step,
@@ -206,7 +207,10 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import m
   path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
   (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
   `animsheet` (its attack frame by frame), `bestiary count=500` (generator variety), `boss`
-  (spawn a designed or generated boss). Levels: `level depth=17` (what a depth is: name,
+  (spawn a designed or generated boss). Playable characters (`game/heroes.toml`: the Wanderer,
+  Kestrel, Ysolde; the Hall of Heroes in town): `hero character=kestrel` plays as one (each keeps
+  their own hero; the stash is shared), `game_cmd do=character name=ysolde` as the player would
+  (in town), `turntable character=` / `animsheet character= skill=slash swing=3` show one. Levels: `level depth=17` (what a depth is: name,
   palette, mechanics, boss; `to=` for a range), `level` (the live one: every feature with its
   position and state), `levelmap depth=7 seed=3` (top-down PNG of a freshly built level, no
   GPU), `go place=level depth=9` (travel there, waypoint unlocked), `goto_feature kind=keg`
@@ -256,9 +260,12 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import m
   `speed`, e.g. STYLE100/Old_Walk) while walking, at the rate its stride matches the ground,
   `run_clip` above the pace between the two; `death_clip` is a captured fall and `attack_clips
   = { claw = "QUATERNIUS/Zombie_Scratch" }` captured attacks by skill, timed so the clip's
-  strike (shown by `clips name=`; `@seconds` after the name overrides it) lands on the hit
-  (bipeds: game/monsters.toml and bosses.toml looks, and the genome's biped `gaits`,
-  `idle_clips`, `death_clips`, `attack_clips`; `animsheet family=ghoul skill=claw` shows one);
+  strike (shown by `clips name=`; `@seconds` after the name overrides it) lands on the hit, or
+  a list of them, one per swing of the skill's combo; `attack_moves = { cleave = "sweep" }`
+  swings a move of anim/moves.toml in place of the skill's own (a list per swing too);
+  `dodge_clip` is a captured dodge in place of the tumble (bipeds: game/monsters.toml,
+  bosses.toml and heroes.toml looks, and the genome's biped `gaits`, `idle_clips`,
+  `death_clips`, `attack_clips`; `animsheet family=ghoul skill=claw` shows one);
   `anim.tempo` / `anim.mirror` steer performers.
 - `camera_bench` renders the current moment from several camera presets/tilts in one PNG.
 - `signal name=drop` fires spawners listening for a pad signal (no need to walk onto the pad).
@@ -360,7 +367,9 @@ passive tree through commands, keystones, the bot spending points), `tests/monst
 (archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie),
 `tests/levels.rs` (every designed level has its mechanics, each mechanic works, endless
 depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
-brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances).
+brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances), `tests/heroes.rs`
+(playable characters: the hall, switching with a shared stash, strikes per combo swing,
+captured dodges).
 View: `pav_view/tests/pixel_art.rs`, `parts.rs` (characters & objects vs environment, filters per
 part, styles per part, styles/haze reach the renderer, transition loop), `look.rs` (look
 sections, presets, whole looks), `water.rs` (ripples spread and fade, rain, pool strips merge)

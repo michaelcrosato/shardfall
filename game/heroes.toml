@@ -1,0 +1,126 @@
+# Playable characters: who you can be, how each looks and moves, and what a new hero of theirs
+# starts with. They stand on pedestals in Emberwatch's Hall of Heroes (south side of the square),
+# each performing a showreel; use a pedestal to play as them. Every character is a hero of their
+# own (level, gear, passives, waypoints) and waits in the hall while another is played; the stash
+# is shared. Check with `turntable character=KEY`, `animsheet character=KEY skill=slash swing=2`,
+# `hero character=KEY` and `game_reload`.
+#
+# Fields:
+#   name, title, about   "Kestrel", "the Brawler", a line for the hall's card
+#   order                hall order (the first is who a new game starts as)
+#   weapon, gear         starting weapon and other worn items (game/items.toml base keys; worn
+#                        items colour the look, so leave out what the look should show itself)
+#   bar                  the six skills of a new hero's bar (left, right, Q, E, R, F)
+#   deaths               captured falls they die with, in turn (anim/*.json clips)
+#   level_up, triumph    upper-body gestures for a level gained and a boss felled
+#   showreel             what they perform on their pedestal, in turn: skill keys (every swing
+#                        of the combo, as they strike it), move names (anim/moves.toml) or clips
+#   [KEY.look]           puppet settings over the default biped (any `turntable def=` field); no
+#                        look = the scene's own puppet. The animation kit lives here:
+#     idle_clip, walk_clip, run_clip   captured standing, walking and running (bipeds)
+#     attack_clips       skill -> captured attack, or a list: one per swing of its combo
+#     attack_moves       skill -> a move of anim/moves.toml in place of the skill's own, or a list
+#     dodge_clip         a captured dodge in place of the procedural tumble
+
+# ---------------------------------------------------------------------------------- Wanderer
+# The original hero: the engine's procedural animation (every swing an arc around the
+# shoulders, legs that stride the way the body travels, a tumbling dodge roll).
+[wanderer]
+name = "Wanderer"
+title = "the Sellsword"
+about = "A sword for hire who learned a little of everything: blade, fire and frost. Moves with the engine's own procedural animation."
+order = 1
+weapon = "rusted_sword"
+bar = ["slash", "fireball", "cleave", "leap_slam", "frost_nova", "blade_dash"]
+deaths = ["QUATERNIUS/Death01", "MESH2MOTION/Death_D", "MESH2MOTION/Death_C", "CMU/Fall_On_Face", "MESH2MOTION/Death_A"]
+level_up = "MESH2MOTION/Cheer_One_arm"
+triumph = "MESH2MOTION/Cheering_Two_Hands"
+showreel = ["slash", "cleave", "leap_slam", "fireball", "whirlwind", "earthsplitter"]
+
+# ----------------------------------------------------------------------------------- Kestrel
+# Fists and feet in captured boxing and karate: a boxer's guard (CMU), a swaggering strut
+# (100STYLE), a sprint, a jab-cross-roundhouse combo, a two-handed chi blast, a ground pound; the
+# procedural fist and kick moves for the rest (leg sweep, axe kick, flying kick, uppercut,
+# haymaker); a captured shoulder roll for a dodge.
+[kestrel]
+name = "Kestrel"
+title = "the Brawler"
+about = "A pit fighter from the river docks who never needed a blade: wrapped fists, iron hooks for the mean nights, and a mohawk you can see across the square."
+order = 2
+weapon = "hooks"
+bar = ["slash", "cleave", "leap_slam", "blade_dash", "war_cry", "earthsplitter"]
+deaths = ["CMU/Fall_On_Face", "MESH2MOTION/Death_B", "QUATERNIUS/Death01"]
+level_up = "MESH2MOTION/Victory Fist Pump"
+triumph = "MESH2MOTION/Victory"
+showreel = ["slash", "cleave", "blade_dash", "fireball", "leap_slam", "CMU/Jump_Kick", "earthsplitter", "war_cry", "MESH2MOTION/Backflip"]
+
+[kestrel.look]
+scale = 0.96
+head_radius = 0.2
+torso_length = 0.4
+torso_radius = 0.22
+shoulder_width = 0.26
+hip_width = 0.12
+leg_length = 0.76
+arm_length = 0.55
+limb_radius = 0.085
+# Bare-chested and barefoot (shirt and shoes are skin), white gi trousers, white hand wraps
+# (the look's gloves, until real gloves are worn), a red sash and a black mohawk.
+skin = "#a8693f"
+shirt = "#a8693f"
+pants = "#ece4d2"
+shoes = "#a8693f"
+eyes = "#1a1210"
+accent = "#141012"
+gear = { belt = "#c2302a", gloves = "#f1eadb" }
+parts = [{ kind = "crest", size = 2.0, count = 8, color = "#141012" }]
+idle_clip = "CMU/Boxing_Guard_Loop"
+walk_clip = "STYLE100/Strutting_Walk"
+run_clip = "QUATERNIUS/Sprint_Loop"
+dodge_clip = "QUATERNIUS/Roll"
+attack_clips = { slash = ["QUATERNIUS/Punch_Jab", "QUATERNIUS/Punch_Cross", "CMU/Roundhouse_Kick"], rend = "QUATERNIUS/Melee_Hook", fireball = "MESH2MOTION/Two-hand Blast", chain_lightning = "MESH2MOTION/Fighting Right Jab", ice_shards = "QUATERNIUS/OverhandThrow", earthsplitter = "MESH2MOTION/Attack_Ground_Pound", war_cry = "MESH2MOTION/Angry" }
+attack_moves = { cleave = "sweep", leap_slam = "axekick", blade_dash = "flyingkick", frost_nova = "uppercut", meteor = "haymaker", blink = "knee" }
+
+# ------------------------------------------------------------------------------------ Ysolde
+# Spellwork in captured motion: a spell held ready for an idle, a graceful walk (100STYLE), a
+# light jog, a hand driven forward for a fireball, a two-handed blast of lightning, shards hurled
+# overhand, rising to call a meteor down; quick staff strikes (thrust, backhand, rising cut) up
+# close; a forward glide for a dodge.
+[ysolde]
+name = "Ysolde"
+title = "the Stormcaller"
+about = "A scholar of the drowned towers who argues with the weather. Tall and hooded, three motes of light circling her, a staff that never stops glowing."
+order = 3
+weapon = "quarterstaff"
+bar = ["slash", "fireball", "frost_nova", "ice_shards", "chain_lightning", "blizzard"]
+deaths = ["MESH2MOTION/Death_A", "MESH2MOTION/Death_C"]
+level_up = "MESH2MOTION/Cheering_Two_Hands"
+triumph = "MESH2MOTION/Salute"
+showreel = ["slash", "fireball", "chain_lightning", "ice_shards", "meteor", "frost_nova", "blizzard", "MESH2MOTION/Levitate Entrance"]
+
+[ysolde.look]
+scale = 1.06
+head_radius = 0.185
+torso_length = 0.46
+torso_radius = 0.16
+shoulder_width = 0.19
+hip_width = 0.1
+leg_length = 0.84
+arm_length = 0.6
+limb_radius = 0.056
+# An indigo robe and hood, a cape, gold at the waist, pale skin and eyes that glow.
+skin = "#e6d2c4"
+shirt = "#3b3f94"
+pants = "#30337a"
+shoes = "#221d38"
+eyes = "#7fe4ff"
+accent = "#7fd8ff"
+weapon = { kind = "staff", color = "#9fe8ff", grip = "#4a3360", glow = 1.2 }
+gear = { helm = "hood", helm_color = "#2b2d6c", cape = 1.0, cape_color = "#262a66", belt = "#d4ad4f", gloves = "#2b2d6c" }
+parts = [{ kind = "orbs", count = 3, size = 0.8, color = "#86dcff", glow = 2.0 }]
+idle_clip = "QUATERNIUS/Spell_Simple_Idle_Loop"
+walk_clip = "STYLE100/GracefulArms_Walk"
+run_clip = "QUATERNIUS/Jog_Fwd_Loop"
+dodge_clip = "MESH2MOTION/Glide"
+attack_clips = { fireball = "QUATERNIUS/Spell_Simple_Shoot", chain_lightning = "MESH2MOTION/Two-hand Blast", ice_shards = "QUATERNIUS/OverhandThrow", toxic_rain = "MESH2MOTION/Throw Object", meteor = "MESH2MOTION/Levitate Entrance", blizzard = "QUATERNIUS/Spell_Simple_Enter" }
+attack_moves = { slash = ["thrust", "backslash", "rising"], cleave = "spinslash", rend = "plunge", blade_dash = "thrust", earthsplitter = "twohand", frost_nova = "roar" }

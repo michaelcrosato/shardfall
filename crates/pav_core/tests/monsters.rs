@@ -203,7 +203,7 @@ fn a_ghoul_moves_and_fights_in_captured_motion() {
     let def = spec.puppet.clone();
     let id_of = |n: &str| clips::find(n).unwrap_or_else(|| panic!("no clip {n}"));
     let (idle, walk, run) = (id_of(&def.idle_clip), id_of(&def.walk_clip), id_of(&def.run_clip));
-    let (scratch, strike) = clips::attack_clip(&def, "claw").expect("a captured claw");
+    let (scratch, strike) = clips::attack_clip(&def, "claw", 0).expect("a captured claw");
     let mut sim = arena(84);
     // Out of the hero's sight: it wanders.
     let home = hero_feet(&sim) + Vec3::new(0.0, 0.0, -17.0);

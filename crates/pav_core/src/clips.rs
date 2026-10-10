@@ -520,10 +520,10 @@ fn split_at_sign(name: &str) -> (&str, Option<f32>) {
     }
 }
 
-/// A puppet's captured attack for skill `skill`: the clip and when its strike lands (seconds;
-/// `SET/Clip@0.4` says so outright).
-pub fn attack_clip(def: &PuppetDef, skill: &str) -> Option<(u32, f32)> {
-    let (clip, at) = split_at_sign(def.attack_clips.get(skill)?);
+/// A puppet's captured attack for swing `combo` of skill `skill` (a list goes round): the clip
+/// and when its strike lands (seconds; `SET/Clip@0.4` says so outright).
+pub fn attack_clip(def: &PuppetDef, skill: &str, combo: u32) -> Option<(u32, f32)> {
+    let (clip, at) = split_at_sign(def.attack_clips.get(skill)?.swing(combo));
     let id = find_cached(clip);
     if id == 0 {
         return None;
@@ -533,7 +533,7 @@ pub fn attack_clip(def: &PuppetDef, skill: &str) -> Option<(u32, f32)> {
 
 /// Whether clip `id` is one of a puppet's captured attacks.
 pub fn is_attack(def: &PuppetDef, id: u32) -> bool {
-    id != 0 && def.attack_clips.values().any(|n| find_cached(split_at_sign(n).0) == id)
+    id != 0 && def.attack_clips.values().flat_map(|s| s.names()).any(|n| find_cached(split_at_sign(n).0) == id)
 }
 
 /// A puppet's captured death: the clip, how fast to play it, and when it has the body down
@@ -551,8 +551,8 @@ pub fn death_clip(def: &PuppetDef) -> Option<(u32, f32, f32)> {
 
 /// Every clip a puppet names that the library doesn't have (data checks).
 pub fn missing(def: &PuppetDef) -> Vec<String> {
-    let mut names: Vec<&str> = vec![&def.idle_clip, &def.walk_clip, &def.run_clip, &def.death_clip];
-    names.extend(def.attack_clips.values().map(|n| split_at_sign(n).0));
+    let mut names: Vec<&str> = vec![&def.idle_clip, &def.walk_clip, &def.run_clip, &def.death_clip, &def.dodge_clip];
+    names.extend(def.attack_clips.values().flat_map(|s| s.names()).map(|n| split_at_sign(n).0));
     names.into_iter().map(str::trim).filter(|n| !n.is_empty() && find(n).is_none()).map(str::to_string).collect()
 }
 

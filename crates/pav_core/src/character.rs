@@ -1151,6 +1151,21 @@ pub fn tick(
     // --- animation
     let accel = (ch.vel - last_vel) / dt.max(1e-4);
     let phase_before = ch.anim.phase;
+    // A captured dodge (a dive, a cartwheel) plays once a dodge, in place of the tumble, fast
+    // enough to be done a moment after the roll (bipeds).
+    let dodging = rolling || (dashing && ch.dash_roll);
+    let dodge_clip = if dodging && !creature && !puppet.dodge_clip.is_empty() {
+        crate::clips::find_cached(&puppet.dodge_clip)
+    } else {
+        0
+    };
+    if dodge_clip != 0 && !ch.anim.dodged {
+        let left = if rolling { ch.roll } else { ch.dash_time };
+        let dur = crate::clips::with(dodge_clip, |c| c.dur).unwrap_or(1.0);
+        ch.anim.set_action(crate::moves::MoveId::NONE, 0.0, 0.0, 1.0);
+        ch.anim.replay_clip(dodge_clip, crate::clips::ONCE | crate::clips::QUICK, (dur / (left + 0.3)).clamp(1.0, 4.0));
+    }
+    ch.anim.dodged = dodging;
     ch.anim.update(
         puppet,
         &AnimInput {
@@ -1164,7 +1179,7 @@ pub fn tick(
             landed,
             jumped,
             swimming: ch.swimming,
-            rolling: rolling || (dashing && ch.dash_roll),
+            rolling: dodging && dodge_clip == 0,
         },
         dt,
     );

@@ -22,8 +22,10 @@ fn game(s: &Session) -> Result<&pav_core::arpg::Game> {
 fn hero_json(s: &Session) -> Result<Value> {
     let g = game(s)?;
     let h = g.hero_actor();
+    let d = data();
     Ok(json!({
         "name": g.hero.name,
+        "character": g.hero.character_key(&d),
         "level": g.hero.level,
         "xp": g.hero.xp.round(),
         "xp_next": pav_core::arpg::hero::xp_to_next(g.hero.level).round(),
@@ -40,6 +42,9 @@ fn hero_json(s: &Session) -> Result<Value> {
         "bar": g.hero.bar,
         "place": format!("{:?}", g.place).to_lowercase(),
         "bag": g.hero.inventory.len(),
+        "stash": g.hero.stash.len(),
+        // The other playable characters' heroes, waiting in the Hall of Heroes.
+        "hall": g.roster.iter().map(|(k, h)| json!({ "character": k, "level": h.level, "max_depth": h.max_depth })).collect::<Vec<_>>(),
     }))
 }
 
@@ -65,6 +70,17 @@ pub fn t_hero(s: &mut Session, a: &Args) -> Result<Output> {
     game(s)?;
     let mut g = s.sim.state.game.take().unwrap();
     let r = (|| -> Result<()> {
+        if let Some(k) = get_str(a, "character") {
+            // Play as another character (the Hall of Heroes' switch, from anywhere).
+            let d = data();
+            if d.character(k).is_none() {
+                let keys: Vec<&str> = d.characters.iter().map(|c| c.key.as_str()).collect();
+                bail!("no character '{k}' (game/heroes.toml has: {})", keys.join(", "));
+            }
+            if g.hero.character_key(&d) != k {
+                pav_core::arpg::hall::switch(&mut g, &mut s.sim, k).map_err(|e| anyhow!(e))?;
+            }
+        }
         if let Some(l) = a.get("level") {
             g.hero.level = l.as_u64().ok_or_else(|| anyhow!("level must be a number"))?.max(1) as u32;
             g.hero.xp = 0.0;
@@ -371,6 +387,10 @@ pub fn t_game_cmd(s: &mut Session, a: &Args) -> Result<Output> {
         }
         "travel" => GameCmd::Travel(place_arg(a)?.code()),
         "use" => GameCmd::Use(get_u64(a, "spot", 0)? as u32),
+        "character" => {
+            let k = get_str(a, "name").ok_or_else(|| anyhow!("name=KEY is required (a game/heroes.toml character)"))?;
+            GameCmd::Character(d.character_index(k).ok_or_else(|| anyhow!("no character '{k}'"))? as u8)
+        }
         o => bail!("unknown action '{o}'"),
     };
     let floaters_before = game(s)?.floaters.len();
@@ -818,6 +838,17 @@ fn creature_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::Pup
         let f = d.family(k).ok_or_else(|| anyhow!("unknown family '{k}'"))?;
         return Ok((f.name.clone(), f.puppet.clone(), first_skill(&f.skill_ids)));
     }
+    if let Some(k) = get_str(a, "character") {
+        // A playable character, as a new hero of theirs looks: in their starting kit.
+        let c = d.character(k).ok_or_else(|| {
+            let keys: Vec<&str> = d.characters.iter().map(|c| c.key.as_str()).collect();
+            anyhow!("no character '{k}' (game/heroes.toml has: {})", keys.join(", "))
+        })?;
+        let hero = pav_core::arpg::hero::Hero::new_character(&d, &c.key);
+        let look = pav_core::arpg::hero_look(&c.puppet_over(&s.sim.config.puppet), &hero, &d);
+        let first = c.bar.first().and_then(|k| d.skill_id(k)).map(|i| d.skill(i).clone());
+        return Ok((c.full_name(), look, first));
+    }
     if a.contains_key("seed") || a.contains_key("body") || a.contains_key("archetype") || a.contains_key("parts") {
         let g = pav_core::arpg::genome::Genome::generate(&d, get_u64(a, "seed", 1)?, level, &genome_opts(a)?)
             .map_err(|e| anyhow!(e))?;
@@ -1033,17 +1064,24 @@ pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
             Some(k) => d.skill_id(k).map(|i| d.skill(i).clone()).ok_or_else(|| anyhow!("unknown skill '{k}'"))?,
             None => first.ok_or_else(|| anyhow!("no skill to show"))?,
         };
+        // Which swing of a combo (1, 2, 3...): alternate swings come from the other side.
+        let combo = get_u64(a, "swing", 1)?.max(1) as u32 - 1;
+        let side = if combo % 2 == 1 { -side } else { side };
         // A biped with a captured attack for the skill strikes with it, as in the game.
         let captured = (look.body == pav_core::puppet::BodyPlan::Biped)
-            .then(|| pav_core::clips::attack_clip(&look, &def.key))
+            .then(|| pav_core::clips::attack_clip(&look, &def.key, combo))
             .flatten()
             .and_then(|(id, strike)| pav_core::clips::with(id, |c| (id, strike, c.dur)));
         match captured {
             Some((id, strike, dur)) => (
                 Motion::Clip { id, dur, flags: 0 },
-                json!({ "skill": def.key, "clip": pav_core::clips::library().name_of(id), "strike": strike, "seconds": dur }),
+                json!({ "skill": def.key, "swing": combo + 1, "clip": pav_core::clips::library().name_of(id), "strike": strike, "seconds": dur }),
             ),
-            None => (Motion::Act { anim: def.anim, hit: def.hit, side }, json!({ "skill": def.key, "move": def.anim.name() })),
+            None => {
+                // The look's own move for the skill (`attack_moves`), or the skill's.
+                let (anim, side) = pav_core::moves::attack_move(&look, &def.key, combo, side).unwrap_or((def.anim, side));
+                (Motion::Act { anim, hit: def.hit, side }, json!({ "skill": def.key, "swing": combo + 1, "move": anim.name() }))
+            }
         }
     };
     let shots = creature_frames(s, look, frames, size, motion)?;

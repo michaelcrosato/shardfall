@@ -99,6 +99,19 @@ small generators, and every system has an agent tool to build and inspect it.
   Beyond: the Astral rings, endless, stronger ring by ring. One point per level; refund and
   respec cost gold.
 
+## Characters
+Three playable characters (`game/heroes.toml`), each a hero of their own (level, gear, passives,
+waypoints) waiting in the Hall of Heroes while another is played; the stash is shared. Skills
+are shared too: a character changes how a skill looks, not what it does.
+- **The Wanderer, the Sellsword**: the engine's procedural animation; a sword. Who a new game
+  starts as.
+- **Kestrel the Brawler**: compact, bare-chested, mohawk; hooks. Captured boxing and karate (a
+  boxer's guard, a jab-cross-roundhouse combo, a chi blast, a ground pound), fist and kick moves
+  (sweep, axe kick, flying kick, uppercut), a captured roll for a dodge.
+- **Ysolde the Stormcaller**: tall, hooded, robed, motes of light circling; a staff that glows.
+  Captured spellwork (a spell held ready, fireball, two-handed blast, rising to call a meteor),
+  staff strikes (thrust, backhand, rising cut), a forward glide for a dodge.
+
 ## Monsters (G4)
 - **Genome**: body plan × proportions × parts × palette (element) × archetype (brain, skill
   pools, stat shape) → a named creature, the same from the same seed. Five body plans, ten
@@ -115,7 +128,8 @@ small generators, and every system has an agent tool to build and inspect it.
 - **Emberwatch** (the town): Hilda the smith (vendor), Odo the gambler (a sealed box per slot:
   magic 60%, rare 22%, unique 3%), Mother Wren the alchemist (up to 6 potions, stronger brews),
   Captain Brannoc by the portal, villagers on their rounds and Biscuit the dog. The portal
-  lists every depth you've reached.
+  lists every depth you've reached. The Hall of Heroes (south side) has a pedestal for every
+  playable character, each performing a showreel; use one to play as them.
 - **The descent**: each level is rooms and corridors generated from a seed, painted by a theme,
   with one signature mechanic and earlier ones mixed in. Find the way down; on boss levels it
   is sealed until the boss falls (and the first time pays a passive point).
