@@ -175,10 +175,7 @@ pub fn build(sim: &mut Sim, g: &mut Game) {
 pub fn describe(g: &mut Game) {
     let d = data();
     let playing = g.hero.character_key(&d).to_string();
-    let mut i = 0;
-    for s in g.spots.iter_mut().filter(|s| s.kind == SpotKind::Hero) {
-        let Some(c) = d.characters.get(i) else { break };
-        i += 1;
+    for (s, c) in g.spots.iter_mut().filter(|s| s.kind == SpotKind::Hero).zip(&d.characters) {
         let mut info = vec![c.about.clone(), motion_line(c)];
         info.push(if c.key == playing {
             format!("You are playing {} (level {}).", c.name, g.hero.level)
@@ -211,7 +208,11 @@ pub fn motion_line(c: &CharacterDef) -> String {
     if !p.dodge_clip.is_empty() {
         bits.push(format!("dodge: {}", short(&p.dodge_clip)));
     }
-    if bits.is_empty() { "Moves with the engine's procedural animation.".into() } else { format!("Moves: {}.", bits.join(" · ")) }
+    if bits.is_empty() {
+        "Moves with the engine's procedural animation.".into()
+    } else {
+        format!("Moves: {}.", bits.join(" · "))
+    }
 }
 
 /// Plays every performer's showreel.

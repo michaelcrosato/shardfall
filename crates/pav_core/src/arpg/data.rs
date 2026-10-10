@@ -629,7 +629,9 @@ pub fn load() -> Result<Data, String> {
             return Err(format!("{owner}: the bar needs 6 skills"));
         }
         for s in &c.bar {
-            d.skill_id(s).filter(|i| !d.skill(*i).monster && !d.skill(*i).power).ok_or_else(|| format!("{owner}: unknown hero skill '{s}'"))?;
+            d.skill_id(s)
+                .filter(|i| !d.skill(*i).monster && !d.skill(*i).power)
+                .ok_or_else(|| format!("{owner}: unknown hero skill '{s}'"))?;
         }
         for skill in c.puppet.attack_clips.keys().chain(c.puppet.attack_moves.keys()) {
             d.skill_id(skill).ok_or_else(|| format!("{owner}: a clip or move for unknown skill '{skill}'"))?;

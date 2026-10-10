@@ -1154,11 +1154,8 @@ pub fn tick(
     // A captured dodge (a dive, a cartwheel) plays once a dodge, in place of the tumble, fast
     // enough to be done a moment after the roll (bipeds).
     let dodging = rolling || (dashing && ch.dash_roll);
-    let dodge_clip = if dodging && !creature && !puppet.dodge_clip.is_empty() {
-        crate::clips::find_cached(&puppet.dodge_clip)
-    } else {
-        0
-    };
+    let dodge_clip =
+        if dodging && !creature && !puppet.dodge_clip.is_empty() { crate::clips::find_cached(&puppet.dodge_clip) } else { 0 };
     if dodge_clip != 0 && !ch.anim.dodged {
         let left = if rolling { ch.roll } else { ch.dash_time };
         let dur = crate::clips::with(dodge_clip, |c| c.dur).unwrap_or(1.0);
