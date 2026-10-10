@@ -72,6 +72,58 @@ Decisions:
 - Rejected: a captured cartwheel or backflip as a dodge (they travel sideways or backwards while
   the dodge faces forward); a levitating idle (the clip reads as a crouch on this rig).
 
+## Animation Studio: shared live editing for people and LLMs — 2026-10-10
+The user asked for a tool that an LLM can use to view, alter, and create animations while
+the user watches each change in the running engine.
+- **One shared stage:** `SimState.animation_preview` holds selection, time, playback speed,
+  and pose options. The game, physics, recording, and rewind history stay still while it is
+  open. The stage uses the normal puppet sampler, view builder, and wgpu renderer. Closing it
+  restores the game and camera. The preview clock works even if the game was already paused.
+- **Same API for the UI and agents:** `anim_preview` opens clips and procedural moves, plays,
+  pauses, scrubs, steps, and reports poses, named joints, and bounds. `anim_edit` creates clips
+  from rest, copies source motion, updates partial or full poses, removes keys, retimes,
+  mirrors, and performs undo/redo. Both tools work through the CLI, MCP, and the live bridge.
+  Captures and filmstrips use the same rendered stage. REPLs also accept full JSON request
+  lines, so nested pose arrays and spaces do not need shell quoting tricks. Batch files can
+  use `--stop-on-error` to stop before later edits after a failed create; interactive REPLs
+  keep their existing error recovery.
+- **Files and history:** editable clips go in `anim/workshop.json`; copies of restricted
+  sources stay in `anim/local/workshop_local.json`. Original clips and source credits remain.
+  Each edit validates and saves with a file lock and sibling-file replacement. Revisions
+  reject stale writes; per-clip history stores 32 undo/redo steps across process restarts.
+  External file changes invalidate stale history. The next accepted edit starts from the
+  changed file. Undo of creation removes the clip; redo can restore it.
+- **Changes appear live:** the preview reads the active library on each frame, including
+  while paused. Editing the selected clip keeps its time, controls, and camera. Native file
+  watching replaces only the changed set after a 250 ms debounce. Invalid files leave the
+  last valid live data in use and show an error. Replacement shares unrelated clip sets,
+  which keeps large imported libraries cheap to retain during edits. Playback sliders only
+  write when edited: painting a rounded value must not overwrite a newer agent command.
+- **Desktop workspace:** `--animation-studio [SET/Clip]` opens the stage and local live bridge.
+  Esc → Animation Studio also opens it during a game. The egui controls search, select,
+  create, copy, play, scrub, step, edit key channels, retime, mirror, undo, and redo. F6–F9
+  control the preview while it is open. Sandbox editing and game input are held during the
+  preview. The browser can view the stage; file authoring and the local bridge stay native.
+- **Handoff:** `.mcp.animation-studio.json`, Linux and PowerShell launch scripts, a readable
+  wave example, a Windows ZIP packager, and `docs/ANIMATION_STUDIO.md` cover setup and use.
+  The original `.mcp.json` still starts an independent headless session. Use `mcp --live`
+  when an LLM must change the visible window.
+- **Scope decision:** this is a biped motion-clip editor built into the existing engine.
+  It also previews procedural moves; those remain editable in `anim/moves.toml`. No second
+  renderer, hosted LLM service, API-key setting, binary animation format, or dependency was
+  introduced. Existing imported interpolation tails are normalized only when copied for
+  editing, by keeping the sampled pose at the source clip's exact end time. On Windows,
+  image tools try DirectX 12 if Vulkan adapter or device creation fails, matching the
+  window's supported graphics paths.
+- **Verification:** 70 selected tests pass across core motion/editing, tools, the CLI, and
+  the app. The native app/tools build and browser target check pass. The real desktop/MCP
+  smoke test passes all 10 checks under Xvfb and Vulkan lavapipe: creation, visible edits
+  while paused, revision rejection, undo/redo, batch error handling, file reloads, the wave
+  example, filmstrips, reopening saved motion, and closing the preview. Rendered poses,
+  the filmstrip, and the actual studio window were inspected. CPU regressions cover safe
+  stage IDs through the normal view builder and playback controls that emit no edits when
+  painted without input.
+
 ## Progress log split, a wider replay check, Pavilion Lite frozen — 2026-10-09
 Follow-ups to adopting the doctrine.
 - **Startup reading** (principle 1, token efficiency): every session read about 150 KB before

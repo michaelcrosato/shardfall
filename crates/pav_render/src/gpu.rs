@@ -91,7 +91,20 @@ pub struct Headless {
 
 impl Headless {
     pub fn new() -> Result<Self> {
-        let instance = create_instance(BackendChoice::Vulkan);
+        let result = Self::with_backend(BackendChoice::Vulkan);
+        // The window can use DX12 on a Windows system without a working Vulkan driver.
+        // Its image tools create a separate device and must be able to use DX12 as well.
+        #[cfg(windows)]
+        let result = result.or_else(|vulkan_error| {
+            log::info!("Vulkan capture GPU is unavailable; trying DirectX 12: {vulkan_error:#}");
+            Self::with_backend(BackendChoice::Dx12)
+                .with_context(|| format!("Vulkan capture GPU failed ({vulkan_error:#}); DirectX 12 fallback also failed"))
+        });
+        result
+    }
+
+    fn with_backend(backend: BackendChoice) -> Result<Self> {
+        let instance = create_instance(backend);
         let adapter = request_adapter(&instance, None)?;
         let (device, queue) = request_device(&adapter)?;
         device.on_uncaptured_error(std::sync::Arc::new(|e| log::error!("GPU error: {e}")));

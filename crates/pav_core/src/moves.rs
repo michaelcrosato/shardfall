@@ -224,8 +224,37 @@ pub fn table() -> Arc<MoveTable> {
 /// Re-reads moves.toml (see `crate::anim::reload`). Returns how many moves there are.
 pub fn reload() -> Result<usize, String> {
     let text = crate::anim::source("moves.toml").ok_or("anim/moves.toml is missing")?;
+    replace_text(&text)
+}
+
+/// Installs one validated moves file without reloading the clip library. Existing move IDs
+/// stay stable, and a rejected file leaves the running table unchanged.
+pub fn replace_text(text: &str) -> Result<usize, String> {
     let old = table();
-    let t = MoveTable::parse(&text, Some(&old))?;
+    let t = MoveTable::parse(text, Some(&old))?;
+    for m in t.moves.iter().skip(1).filter(|m| !m.name.is_empty()) {
+        let values = [
+            m.from,
+            m.to,
+            m.height.0[0],
+            m.height.0[1],
+            m.reach.0[0],
+            m.reach.0[1],
+            m.wind,
+            m.active,
+            m.recover,
+            m.hit,
+            m.hold,
+            m.lunge,
+            m.hop,
+            m.crouch,
+            m.lean,
+            m.twist,
+        ];
+        if values.iter().any(|v| !v.is_finite() || v.abs() > 1_000_000.0) {
+            return Err(format!("moves.toml: '{}' needs finite numbers from -1000000 to 1000000", m.name));
+        }
+    }
     let n = t.names().len();
     *TABLE.write().unwrap() = Some(Arc::new(t));
     Ok(n)

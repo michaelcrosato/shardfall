@@ -13,7 +13,9 @@ the background on something.
   - **Mobile:** touch controls, a pared-down HUD, swipe-to-dismiss and performance work.
   - **Animation:** moves as data, motion clips translated from open libraries by the engine's
     own tools (CMU, 100STYLE, Quaternius, M2M; Mixamo, Bandai Namco and LaFAN1 locally), and
-    monsters in captured motion.
+    monsters in captured motion. **Animation Studio** adds live LLM and manual editing,
+    shared playback, saved workshop clips, revisions, undo/redo, and file reloads
+    (`docs/ANIMATION_STUDIO.md`; start with `shardfall --animation-studio`).
   - **Looks:** every filter on a part of the scene, painterly and print styles, volumetric light,
     water, wind, and a station guide in every room.
   - **Playable characters** (`game/heroes.toml`): Kestrel the Brawler (captured boxing and

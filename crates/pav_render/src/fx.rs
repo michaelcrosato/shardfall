@@ -651,6 +651,13 @@ impl Particles {
         true
     }
 
+    /// Drops particles from the previous scene. New births overwrite the unused ring slots.
+    pub fn clear(&mut self) {
+        self.head = 0;
+        self.used = 0;
+        self.last_time = None;
+    }
+
     /// Particles alive somewhere in the ring (upper bound).
     pub fn slots(&self) -> u32 {
         self.used

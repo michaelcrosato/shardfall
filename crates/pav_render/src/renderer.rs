@@ -770,6 +770,11 @@ impl Renderer {
         &self.queue
     }
 
+    /// Clears transient particles when switching between the game and an isolated preview.
+    pub fn clear_particles(&mut self) {
+        self.particles.clear();
+    }
+
     /// Uploads (or replaces) a mesh under `key`.
     pub fn upsert_mesh(&mut self, key: MeshKey, data: &MeshData) {
         let vbuf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

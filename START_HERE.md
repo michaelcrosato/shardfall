@@ -77,6 +77,16 @@ settings and hero saves are written next to the game executable.
 For Windows cross-compilation and Wine checks, the original `scripts/setup-linux.sh`
 installs the additional tools and `scripts/build-windows.sh` builds the executables.
 
+## Work on animations with a live preview
+
+Run `scripts/animation-studio.sh` to build the game and CLI, then open the animation workspace.
+Use `.mcp.animation-studio.json` in your LLM client, or run `./target/debug/pav live` in a second terminal.
+`anim_edit` creates and edits clips. `anim_preview` controls the visible playback.
+Edits save automatically and update the running preview.
+
+The original `.mcp.json` runs a separate headless session. Use the live configuration to control the visible window.
+Read `docs/ANIMATION_STUDIO.md` for the complete workflow and a sample animation made from scratch.
+
 ## Make another handoff archive
 
 From a Git checkout, run `scripts/package-agent.sh`. It packages the current

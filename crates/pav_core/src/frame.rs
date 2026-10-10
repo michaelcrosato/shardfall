@@ -282,4 +282,6 @@ pub struct RenderFrame {
     pub hud: HudFrame,
     /// Shardfall state for the view and HUD (None outside the game).
     pub game: Option<std::sync::Arc<crate::arpg::GameFrame>>,
+    /// Agent-readable playback controls for the animation stage.
+    pub animation_preview: Option<crate::animation_preview::PreviewInfo>,
 }

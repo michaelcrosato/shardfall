@@ -8,3 +8,4 @@
 # Clip sets translated from libraries whose licences forbid sharing them (Mixamo, LaFAN1,
 # Bandai Namco): kept on this machine, loaded with `clips load=local`.
 /anim/local
+/anim/.editor

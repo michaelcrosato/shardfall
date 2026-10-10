@@ -192,12 +192,22 @@ Live bridge: start the game with `--bridge` (or `bridge = "127.0.0.1:7878"` in s
 then `pav live` is a REPL into the running game and `pav mcp --live` an MCP server for it. Same
 tools; they act on what is on screen (captures render the game's camera on a second device).
 
+Animation Studio: `scripts/animation-studio.sh` or `shardfall --animation-studio` opens an
+isolated preview and the live bridge. Use `.mcp.animation-studio.json` for visible MCP edits.
+`anim_edit` creates/copies/inspects/edits clips, with revisions and 32-step undo/redo;
+`anim_preview` plays, pauses, scrubs, and inspects their poses. Every accepted edit saves and
+updates the live library. The preview preserves the game state. Native animation files also
+reload automatically. See `docs/ANIMATION_STUDIO.md`. REPLs accept structured JSON lines:
+`{"tool":"anim_edit","args":{"action":"key","name":"WORKSHOP/Wave","time":0.5,"pose":{"armR":[80,20,50,25,0]}}}`.
+Use the returned `revision` as `if_revision` on later edits. Copy source clips before editing;
+keep local source copies and their history in `anim/local`.
+
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;
 Shardfall: `game hero monster autoplay skills game_reload loot_roll give inventory game_cmd tree
 tree_map genome bestiary boss turntable animsheet level levelmap go goto_feature see campaign
-theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import mocap anim_reload`
+theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import mocap anim_reload anim_edit anim_preview`
 (`pav help` for args).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give

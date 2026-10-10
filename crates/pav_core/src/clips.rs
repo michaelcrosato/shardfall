@@ -35,6 +35,9 @@ pub const STOP: u8 = 8;
 pub const ONCE: u8 = 16;
 /// Play flag: fade in and out three times as fast (an attack's wind-up is short).
 pub const QUICK: u8 = 32;
+/// Hold the first and last poses instead of wrapping. The editor uses this to inspect a
+/// loop's final key without changing how that clip plays in the game.
+pub const CLAMP: u8 = 128;
 
 /// Seconds a clip takes to fade in or out.
 pub const FADE: f32 = 0.25;
@@ -302,9 +305,22 @@ impl Clip {
     /// The pose at time `t` (seconds): key poses in-betweened, loops wrap, one-shots hold their
     /// last pose.
     pub fn key_at(&self, t: f32) -> Key {
-        let k = &self.keys;
-        let dur = if self.dur > 0.0 { self.dur } else { k.last().map_or(0.0, |k| k.t) };
+        let dur = self.duration();
         let tt = if self.looping && dur > 0.0 { t.rem_euclid(dur) } else { t.clamp(0.0, dur) };
+        self.sample_key(tt)
+    }
+
+    /// The pose with time held between the first and last keys, including a loop's end key.
+    pub fn key_at_clamped(&self, t: f32) -> Key {
+        self.sample_key(t.clamp(0.0, self.duration()))
+    }
+
+    fn duration(&self) -> f32 {
+        if self.dur > 0.0 { self.dur } else { self.keys.last().map_or(0.0, |k| k.t) }
+    }
+
+    fn sample_key(&self, tt: f32) -> Key {
+        let k = &self.keys;
         let mut i = 0;
         while i + 2 < k.len() && k[i + 1].t <= tt {
             i += 1;
@@ -712,7 +728,7 @@ pub fn blend(def: &PuppetDef, a: &Skel, b: &Skel, w: f32, upper: bool) -> Skel {
 
 /// The skeleton of clip `id` at time `t` with `flags`, or None if there is no such clip.
 pub fn pose_of(def: &PuppetDef, id: u32, t: f32, flags: u8) -> Option<Skel> {
-    let mut k = with(id, |c| c.key_at(t))?;
+    let mut k = with(id, |c| if flags & CLAMP != 0 { c.key_at_clamped(t) } else { c.key_at(t) })?;
     if flags & MIRROR != 0 {
         k = mirror(&k);
     }
@@ -754,6 +770,28 @@ pub struct ClipLib {
 }
 
 impl ClipLib {
+    /// Build a replacement without changing this library. Other sets, including libraries
+    /// loaded from subfolders, remain available. Hash collisions fail before installation.
+    pub fn replacing_set(&self, set: ClipSet) -> Result<Self, String> {
+        // A full motion library can contain millions of key values. Keep its immutable
+        // sets shared; an edit only needs a fresh index and the set being replaced.
+        let mut next = Self { sets: self.sets.clone(), by_id: self.by_id.clone() };
+        if let Some(index) = self.sets.iter().position(|existing| existing.set == set.set) {
+            next.by_id.retain(|_, (i, _)| *i != index);
+            for name in set.clips.keys() {
+                let id = clip_id(&set.set, name);
+                if let Some((j, other)) = next.by_id.get(&id) {
+                    return Err(format!("{}/{name} and {}/{other} hash alike: rename one", set.set, next.sets[*j].set));
+                }
+                next.by_id.insert(id, (index, name.clone()));
+            }
+            next.sets[index] = Arc::new(set);
+        } else {
+            next.add(set)?;
+        }
+        Ok(next)
+    }
+
     pub fn add(&mut self, set: ClipSet) -> Result<(), String> {
         if self.sets.iter().any(|s| s.set == set.set) {
             return Err(format!("two sets are called {}", set.set));
@@ -825,8 +863,8 @@ pub fn library() -> Arc<ClipLib> {
         return l.clone();
     }
     let l = Arc::new(load().unwrap_or_else(|e| panic!("clip sets: {e}")));
-    *LIB.write().unwrap() = Some(l.clone());
-    l
+    // Another thread may have initialized or edited the library while the files loaded.
+    LIB.write().unwrap().get_or_insert(l).clone()
 }
 
 /// Re-reads the sets (see `crate::anim::reload`). Returns how many sets and clips there are.
@@ -837,6 +875,27 @@ pub fn reload() -> Result<(usize, usize), String> {
     *NAMES.lock().unwrap() = None;
     *STRIKES.lock().unwrap() = None;
     Ok(n)
+}
+
+/// Install one checked set without reloading or dropping other sets. Stable clip ids make
+/// changes visible on the next frame. Readers keep their old Arc until that frame is complete.
+pub fn replace_set(set: ClipSet) -> Result<(), String> {
+    // Parse the written form before it can enter the renderer. Authoring tools apply their
+    // stricter value checks before this shared library operation.
+    let set = ClipSet::parse(&set.to_text())?;
+    let _ = library();
+    {
+        // The file watcher and the live tools can update different sets on different
+        // threads. Build from the latest library while holding its write lock, so neither
+        // accepted update can replace the other with an older snapshot.
+        let mut library = LIB.write().unwrap();
+        let next = library.as_ref().expect("library initialized above").replacing_set(set)?;
+        *library = Some(Arc::new(next));
+    }
+    // A name lookup can hold NAMES while reading LIB. Release LIB before clearing caches.
+    *NAMES.lock().unwrap() = None;
+    *STRIKES.lock().unwrap() = None;
+    Ok(())
 }
 
 /// Adds every set in the folder `anim/<sub>` (on disk: the big libraries that aren't embedded,
@@ -913,6 +972,34 @@ mod tests {
             leg_r: [0.0, 0.0, -100.0, 5.0, 0.0],
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn replacing_a_set_shares_other_keys_and_rejects_collisions_without_changes() {
+        let set = |name: &str, clip: &str| ClipSet {
+            set: name.into(),
+            clips: BTreeMap::from([(
+                clip.into(),
+                Clip { clip: clip.into(), dur: 1.0, keys: vec![standing()], ..Default::default() },
+            )]),
+            ..Default::default()
+        };
+        let mut original = ClipLib::default();
+        original.add(set("A", "Safe")).unwrap();
+        original.add(set("A/B", "C")).unwrap();
+        let id = clip_id("A", "Safe");
+        let other = clip_id("A/B", "C");
+        let mut edited = set("A", "Safe");
+        edited.clips.get_mut("Safe").unwrap().keys[0].hips[2] = 60.0;
+        let next = original.replacing_set(edited).unwrap();
+        assert!(Arc::ptr_eq(&original.sets[1], &next.sets[1]), "unrelated key arrays stay shared");
+        assert_eq!(original.by_id[&other], next.by_id[&other], "other set indices remain stable");
+        assert_eq!(original.get(id).unwrap().keys[0].hips[2], 100.0, "existing readers keep the old pose");
+        assert_eq!(next.get(id).unwrap().keys[0].hips[2], 60.0);
+        // Both names hash the bytes A/B/C. This constructs a collision without a random search.
+        assert!(next.replacing_set(set("A", "B/C")).is_err());
+        assert_eq!(next.get(id).unwrap().keys[0].hips[2], 60.0, "a failed replacement leaves its input unchanged");
+        assert!(next.get(other).is_some());
     }
 
     #[test]

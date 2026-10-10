@@ -237,27 +237,44 @@ struct Clock {
     window_ticks: u32,
     busy: Duration,
     rewound: bool,
+    previewing: bool,
 }
 
 impl Clock {
     fn new() -> Self {
-        Self { next: Instant::now(), window_start: Instant::now(), window_ticks: 0, busy: Duration::ZERO, rewound: false }
+        Self {
+            next: Instant::now(),
+            window_start: Instant::now(),
+            window_ticks: 0,
+            busy: Duration::ZERO,
+            rewound: false,
+            previewing: false,
+        }
     }
 
     /// Runs whatever is due now; returns how long until the next tick.
     fn advance(&mut self, sim: &mut Sim, sh: &Shared) -> Duration {
+        let previewing = sim.state.animation_preview.is_some();
+        if self.previewing != previewing {
+            self.previewing = previewing;
+            self.next = Instant::now();
+        }
         let ctl = *sh.control.lock().unwrap();
-        let tick_wall = sim.dt() / ctl.speed.clamp(0.01, 16.0);
+        // The animation stage has its own play, pause and speed controls. The world's time
+        // controls stay untouched, including a paused or rewound game behind the stage.
+        let tick_wall = if previewing { sim.dt() } else { sim.dt() / ctl.speed.clamp(0.01, 16.0) };
         let (busy, window_ticks) = (&mut self.busy, &mut self.window_ticks);
         let mut tick_once = |sim: &mut Sim, at: Instant| {
-            let input = {
+            let input = if previewing {
+                InputFrame::default()
+            } else {
                 let mut i = sh.input.lock().unwrap();
                 let mut frame = *i;
                 i.pressed = 0;
                 frame.cmd = sh.cmds.lock().unwrap().pop_front();
                 frame
             };
-            let stamp = sh.input_stamp.lock().unwrap().take();
+            let stamp = if previewing { None } else { sh.input_stamp.lock().unwrap().take() };
             let t = Instant::now();
             sim.step(&input);
             *busy += t.elapsed();
@@ -269,7 +286,17 @@ impl Clock {
         };
 
         let now = Instant::now();
-        if ctl.rewinding {
+        if previewing {
+            let mut n = 0;
+            while now >= self.next && n < 8 {
+                self.next += Duration::from_secs_f32(tick_wall);
+                tick_once(sim, self.next);
+                n += 1;
+            }
+            if n == 8 && now > self.next {
+                self.next = now;
+            }
+        } else if ctl.rewinding {
             if now >= self.next {
                 self.next = now + Duration::from_secs_f32(sim.dt());
                 let oldest = sim.history.oldest_tick().unwrap_or(sim.state.tick);
@@ -331,7 +358,7 @@ impl Clock {
             self.window_ticks = 0;
             self.busy = Duration::ZERO;
         }
-        if ctl.paused { Duration::from_millis(4) } else { self.next.saturating_duration_since(Instant::now()) }
+        if ctl.paused && !previewing { Duration::from_millis(4) } else { self.next.saturating_duration_since(Instant::now()) }
     }
 }
 
@@ -364,5 +391,36 @@ fn run(mut sim: Sim, rx: std::sync::mpsc::Receiver<Cmd>, sh: Arc<Shared>) {
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preview_runs_over_a_paused_world_without_changing_its_time_controls() {
+        let mut sim = Sim::empty(1);
+        let shared = shared_for(&mut sim);
+        {
+            let mut control = shared.control.lock().unwrap();
+            control.paused = true;
+            control.speed = 8.0;
+        }
+        let mut clock = Clock::new();
+        clock.rewound = true;
+        sim.preview_open(Some("QUATERNIUS/Idle_Loop"), None).unwrap();
+        clock.advance(&mut sim, &shared);
+        let time = sim.preview_info().unwrap().time;
+        assert!(time >= sim.dt() && time < sim.dt() * 2.0);
+        assert!(clock.rewound, "opening a preview must not commit the world's rewind");
+        assert_eq!(sim.state.tick, 0);
+        let control = *shared.control.lock().unwrap();
+        assert!(control.paused);
+        assert_eq!(control.speed, 8.0);
+        sim.preview_close();
+        clock.advance(&mut sim, &shared);
+        assert_eq!(sim.state.tick, 0, "the paused world stays paused after closing");
+        assert!(clock.rewound);
     }
 }

@@ -21,6 +21,17 @@ buttons in the corner dodge, cast and drink.
   history and decisions: [`docs/HISTORY.md`](docs/HISTORY.md). Principles:
   [`docs/DOCTRINE.md`](docs/DOCTRINE.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).
 
+## Live animation editing with an LLM
+
+Run `scripts/animation-studio.sh` or `shardfall.exe --animation-studio` to open Animation Studio.
+Connect your LLM with the MCP configuration in `.mcp.animation-studio.json`.
+The LLM can create clips, copy existing animations, change key poses, and see the results through captured images.
+You see each accepted edit in the game window, without a rebuild.
+
+The studio includes playback, time and speed controls, source credits, and 32 levels of undo and redo.
+Edits save to readable JSON files. The preview uses the game's renderer and leaves the current game state intact.
+See [`docs/ANIMATION_STUDIO.md`](docs/ANIMATION_STUDIO.md) for setup, example prompts, and tool arguments.
+
 ## The adventure
 A fast hack-and-slash built on the engine ([`docs/GAME.md`](docs/GAME.md)). `shardfall.exe`
 starts in **Emberwatch**, the town: trade with Hilda the smith, gamble with Odo, buy stronger

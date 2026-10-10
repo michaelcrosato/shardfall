@@ -4,6 +4,8 @@
 
 pub mod ai;
 pub mod anim;
+pub mod animation_edit;
+pub mod animation_preview;
 pub mod arpg;
 pub mod behaviors;
 pub mod character;
