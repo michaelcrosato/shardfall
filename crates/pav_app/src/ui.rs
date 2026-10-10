@@ -33,6 +33,8 @@ pub enum MenuAction {
     Tuning,
     /// The Look & Filters window.
     Look,
+    /// The live animation workspace.
+    AnimationStudio,
     /// How the room you are in works (the station guide; outside rooms the field guide).
     Guide,
     /// Every word and every room's ask-for-it phrases.
@@ -196,6 +198,9 @@ pub fn pause_menu(
                     .clicked()
                 {
                     action = Some(MenuAction::Look);
+                }
+                if ui.button("Animation Studio").clicked() {
+                    action = Some(MenuAction::AnimationStudio);
                 }
                 if !game
                     && ui

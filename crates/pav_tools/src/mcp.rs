@@ -100,7 +100,7 @@ fn run(call: &mut dyn FnMut(&str, &Args) -> Value, target: &str) -> Result<()> {
                 "protocolVersion": params.get("protocolVersion").and_then(|v| v.as_str()).unwrap_or(PROTOCOL),
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "shardfall", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": format!("Pavilion game engine tools, connected to {target}. Start with `scenes` and `load` (or `rooms` and `goto`), drive the player with `input`, look with `capture`. Parameters: `params` / `set`."),
+                "instructions": format!("Pavilion game engine tools, connected to {target}. Start with `scenes` and `load` (or `rooms` and `goto`), drive the player with `input`, look with `capture`. Parameters: `params` / `set`. Animation: use `clips` to find sources, `anim_edit` to create/copy/inspect/edit, and `anim_preview` to play/pause/scrub. Edits save automatically and appear in the live studio; pass if_revision from the last result. `capture`, `filmstrip`, and `animsheet` return images. The live studio is started with `shardfall --animation-studio`; connect this MCP server with `pav mcp --live`."),
             })),
             "ping" => Ok(json!({})),
             "tools/list" => Ok(tool_list()),
