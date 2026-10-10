@@ -10,3 +10,10 @@
 /anim/local
 /anim/.editor
 /assets/props/.editor
+
+# Pinned procedural creature compiler outputs and local authored caches.
+/tools/creature-compiler/node_modules
+/tools/creature-compiler/dist
+/tools/creature-compiler/runtime
+/assets/creatures/.compiled
+/assets/creatures/.editor

@@ -71,7 +71,7 @@ impl LiveFeedback {
         }
     }
 
-    fn status(&self, ticket: Option<u64>) -> Value {
+    pub fn status(&self, ticket: Option<u64>) -> Value {
         let ticket = ticket.unwrap_or(self.next);
         let edit = self.edits.iter().find(|e| e.ticket == ticket);
         json!({
@@ -97,7 +97,7 @@ pub(crate) fn changes_studio(name: &str, args: &Args) -> bool {
     let action = args.get("action").and_then(Value::as_str).unwrap_or("");
     match name {
         "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect"),
-        "anim_preview" | "asset_preview" => {
+        "anim_preview" | "asset_preview" | "creature_preview" => {
             !matches!(action, "" | "status" | "pose")
                 || args.iter().any(|(key, value)| {
                     if key == "close" {
@@ -127,7 +127,8 @@ pub fn t_studio_status(s: &mut Session, a: &Args) -> Result<Output> {
     let frame = s.sim.frame();
     Ok(Output::Json(json!({
         "mode":frame.studio_mode(),"world_tick":s.sim.state.tick,"feedback":feedback,
-        "animation":frame.animation_preview,"asset":frame.prop_preview
+        "animation":frame.animation_preview,"asset":frame.prop_preview,"creature":frame.creature_preview,
+        "creature_jobs":crate::creature_tools::snapshot(s.creature_owner)
     })))
 }
 

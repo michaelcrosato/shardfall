@@ -132,7 +132,9 @@ fn main() -> Result<()> {
                     session.step(t);
                 }
             }
-            if !print(tools::call(&mut session, name, &args)) {
+            let output = tools::call(&mut session, name, &args)
+                .and_then(|output| pav_tools::creature_tools::finish_one_shot(&mut session, output));
+            if !print(output) {
                 std::process::exit(1);
             }
         }

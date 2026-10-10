@@ -12,6 +12,8 @@ pub mod character;
 pub mod clips;
 pub mod color;
 pub mod course;
+pub mod creature_preview;
+pub mod creatures;
 pub mod destruct;
 pub mod entity;
 pub mod feel;

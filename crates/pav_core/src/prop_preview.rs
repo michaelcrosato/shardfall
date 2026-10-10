@@ -18,6 +18,7 @@ pub enum StudioMode {
     World,
     Animation,
     Prop,
+    Creature,
 }
 
 impl StudioMode {
@@ -38,6 +39,8 @@ pub struct StudioCameras {
     pub world: Option<StudioCamera>,
     pub animation: Option<StudioCamera>,
     pub prop: Option<StudioCamera>,
+    #[serde(default)]
+    pub creature: Option<StudioCamera>,
 }
 
 impl StudioCameras {
@@ -46,6 +49,7 @@ impl StudioCameras {
             StudioMode::World => self.world.as_ref(),
             StudioMode::Animation => self.animation.as_ref(),
             StudioMode::Prop => self.prop.as_ref(),
+            StudioMode::Creature => self.creature.as_ref(),
         }
     }
 
@@ -54,6 +58,7 @@ impl StudioCameras {
             StudioMode::World => &mut self.world,
             StudioMode::Animation => &mut self.animation,
             StudioMode::Prop => &mut self.prop,
+            StudioMode::Creature => &mut self.creature,
         } = Some(camera);
     }
 }
@@ -242,6 +247,8 @@ impl PropPreviewState {
             studio_mode: StudioMode::Prop,
             animation_preview: None,
             prop_preview: Some(info),
+            creature_preview: None,
+            creature: None,
         }
     }
 }

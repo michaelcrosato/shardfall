@@ -87,6 +87,7 @@ pub(crate) fn switch_camera(s: &mut Session, from: StudioMode) -> Result<bool> {
         let focus = match to {
             StudioMode::Animation => s.sim.state.animation_preview.as_ref().map(|p| p.focus),
             StudioMode::Prop => s.sim.state.prop_preview.as_ref().map(|p| p.focus),
+            StudioMode::Creature => Some(s.sim.state.creature_preview.as_ref().map_or(Vec3::Y, |p| p.focus)),
             StudioMode::World => Some(s.sim.state.focus),
         };
         if let Some(focus) = focus {
@@ -101,6 +102,7 @@ pub(crate) fn switch_camera(s: &mut Session, from: StudioMode) -> Result<bool> {
 pub(crate) struct StudioCheckpoint {
     animation: Option<pav_core::animation_preview::PreviewState>,
     prop: Option<pav_core::prop_preview::PropPreviewState>,
+    creature: Option<pav_core::creature_preview::CreaturePreviewState>,
     mode: Option<StudioMode>,
     cameras: pav_core::prop_preview::StudioCameras,
     camera: pav_view::CameraRig,
@@ -111,6 +113,7 @@ impl StudioCheckpoint {
         Self {
             animation: s.sim.state.animation_preview.clone(),
             prop: s.sim.state.prop_preview.clone(),
+            creature: s.sim.state.creature_preview.clone(),
             mode: s.sim.state.studio_mode,
             cameras: s.sim.state.studio_cameras.clone(),
             camera: s.camera.clone(),
@@ -119,6 +122,7 @@ impl StudioCheckpoint {
     pub(crate) fn restore(self, s: &mut Session) {
         s.sim.state.animation_preview = self.animation;
         s.sim.state.prop_preview = self.prop;
+        s.sim.state.creature_preview = self.creature;
         s.sim.state.studio_mode = self.mode;
         s.sim.state.studio_cameras = self.cameras;
         s.camera = self.camera;

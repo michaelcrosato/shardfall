@@ -5,6 +5,83 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Creature Studio: pinned SpawnForge creation in the native agent loop — 2026-10-10
+
+The native window now has Animations / Objects / Creatures / Game workspaces. Creature Studio
+creates a procedural creature from a theme, one of eight templates, or an existing blueprint.
+The human can direct an LLM through the shared MCP bridge and see each accepted build in the
+same native renderer. Manual controls call the same tools and keep their source revisions.
+
+How it works:
+- `tools/creature-compiler` vendors the production SpawnForge core and modules from commit
+  `851880256987ecdb2895c6afd01f84df64199bdb`. Every source hash is checked before bundling.
+  The Node worker uses a JSON-line protocol and has no browser or WebGL dependency. The
+  catalog lists 81 modules and eight readable templates. The original code remains pinned;
+  the new adapter owns the Shardfall conversion.
+- Native format 1 carries bind bones, indexed mesh streams, four skin influences per vertex,
+  linear vertex colours, bounds, sockets, warnings, and all available motion clips baked at
+  30 frames per second. `pav_core` validates it without graphics dependencies. It samples
+  local transforms, handles rest rotations and shortest-arc quaternion interpolation, and
+  produces skinned native geometry through `pav_view`. Snapshots keep the exact definition.
+- `creature_catalog`, `creature_edit`, `creature_preview`, and `creature_status` work through
+  the CLI, persistent JSON-line sessions, MCP, and the live bridge. The shared asset tools
+  also accept `kind:"creature"`. Named body sections, limbs, parts, palettes, and layers let
+  an agent make a bounded change instead of rewriting a mesh. Inspect returns the current
+  blueprint and revision.
+- Authoring returns a queued job promptly. A persistent Node sidecar performs validation,
+  generation, compilation, and motion baking away from the game loop. Ready results are
+  validated and published as one change. Latest-request tracking and revision checks at
+  acceptance, save, and publication prevent an obsolete build from replacing newer work.
+  Failed and superseded jobs leave the last accepted source and visible definition intact.
+  Worker transport has bounded replies, a timeout, and restart after transport failure.
+- Accepted source lives in `assets/creatures/workshop`. Content-addressed native caches live
+  in `.compiled` and the 32-step undo/redo history in `.editor` under the same root.
+  `PAV_CREATURES` can move this workspace. Saves are atomic and use an exclusive file lock.
+  New sessions can load a validated cache without starting Node. The native watcher queues
+  missing caches for rebuild, reloads external changes after 250 ms of quiet, and retries
+  transient lock contention.
+- The Creature panel provides source search, theme/template/blueprint creation, copy, named
+  edits, whole-blueprint edits, undo/redo, motion scrubbing, source-frame stepping, playback,
+  turntable, and camera fit. An asynchronous reply cannot discard text typed after submission.
+  External edits keep dirty drafts tied to their original revision. Undoing creation leaves
+  an empty Creature stage with Redo reachable. Passive slider drawing cannot round and
+  overwrite an agent's playhead or playback speed. The workspace bar remains available in Game.
+- Each workspace retains its clock and camera. Compatible creature rebuilds preserve paused
+  time and the view. Accepted live publications receive the shared `studio_status` ticket;
+  a queued, failed, or superseded job does not claim a submitted frame. Native capture uses
+  the same creature geometry and pose as the window.
+- Palette or material changes compile geometry again because SpawnForge can use those
+  fields for part colours or skeleton construction. Layer-only edits can reuse the last
+  compiled geometry and motion, then bake new vertex colours. In particular, chitin changes
+  invalidate the cache because that material can alter the skeleton.
+- Source launchers build the compiler bundle before starting the app. The Windows package
+  includes the pinned bundle, portable Node, a saved native demo, MCP configuration, examples,
+  and the guide. Runtime lookup works beside the executable and does not need npm installed.
+
+Native material scope: broad palette and surface layers are baked to vertex colours.
+Fine relief, roughness maps, shader-only breathing and animated surface patterns are not
+reproduced. Baked bone motion, including jaw and lid tracks, is retained. Fur shells are
+omitted. Wing membranes are double-sided but opaque, and emissive glow is omitted.
+The compiler reports these approximations. This milestone is an authoring and preview
+workspace; gameplay spawning of generated rigs is a separate integration.
+
+Verification:
+- 117 distinct focused Rust tests pass across the app, core, tools, and view. Six Node
+  compiler tests pass. All eight bundled templates pass native asset validation and
+  independent rest-pose and baked-motion checks.
+- Fifteen workflows pass against a real Linux window using software Vulkan. These cover
+  creation, named and surface edits, baked motion, revisions, save/reload, undo/redo,
+  invalid input, actual in-flight supersession, workspace state, and frame feedback.
+  The packaged demo also opens and submits a native frame with Node unavailable.
+- Five warm surface edits take a median 133 ms to return a queued job, 355 ms to build
+  and save, and 544 ms from the request to native frame submission. Client confirmation
+  with polling takes 690 ms. These software-renderer measurements exclude LLM time,
+  GPU completion, and physical display latency; they are not Windows GPU benchmarks.
+- Native app/tools and the Windows distribution build pass without warnings. The wasm
+  app check passes. Windows PE import checks require only system DLLs for both programs
+  and the portable Node runtime. Windows execution and browser execution were not
+  available for this release check; the native studio workflow was exercised on Linux.
+
 ## Object Studio: reusable assets in the live agent loop — 2026-10-10
 
 The studio now creates and edits reusable objects as well as animations. People give design

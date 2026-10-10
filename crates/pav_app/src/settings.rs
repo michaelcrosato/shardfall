@@ -24,6 +24,9 @@ pub struct Settings {
     /// Open the object workspace. Native startup also enables the live agent bridge.
     pub asset_studio: bool,
     pub asset_name: String,
+    /// Open the native SpawnForge creature workspace.
+    pub creature_studio: bool,
+    pub creature_name: String,
     /// A scripted gamepad to play (command line only: --pad-script FILE).
     #[serde(skip)]
     pub pad_script: String,
@@ -44,6 +47,8 @@ impl Default for Settings {
             animation_clip: String::new(),
             asset_studio: false,
             asset_name: String::new(),
+            creature_studio: false,
+            creature_name: String::new(),
             pad_script: String::new(),
         }
     }
@@ -72,8 +77,10 @@ impl Settings {
             s.animation_clip = p.get("clip").unwrap_or_default();
             s.asset_studio = p.get("asset_studio").is_some_and(|v| v != "false");
             s.asset_name = p.get("asset").unwrap_or_default();
+            s.creature_studio = p.get("creature_studio").is_some_and(|v| v != "false");
+            s.creature_name = p.get("creature").unwrap_or_default();
         }
-        if (s.animation_studio || s.asset_studio) && s.scene.is_empty() {
+        if (s.animation_studio || s.asset_studio || s.creature_studio) && s.scene.is_empty() {
             s.scene = "empty".into();
         }
         if s.scene.is_empty() {
@@ -112,6 +119,7 @@ impl Settings {
                 "--animation-studio" => {
                     s.animation_studio = true;
                     s.asset_studio = false;
+                    s.creature_studio = false;
                     if it.peek().is_some_and(|v| !v.starts_with("--")) {
                         s.animation_clip = it.next().cloned().unwrap_or_default();
                     }
@@ -119,8 +127,17 @@ impl Settings {
                 "--asset-studio" | "--studio" => {
                     s.asset_studio = true;
                     s.animation_studio = false;
+                    s.creature_studio = false;
                     if it.peek().is_some_and(|v| !v.starts_with("--")) {
                         s.asset_name = it.next().cloned().unwrap_or_default();
+                    }
+                }
+                "--creature-studio" => {
+                    s.creature_studio = true;
+                    s.asset_studio = false;
+                    s.animation_studio = false;
+                    if it.peek().is_some_and(|v| !v.starts_with("--")) {
+                        s.creature_name = it.next().cloned().unwrap_or_default();
                     }
                 }
                 "--bridge" => {
@@ -144,7 +161,7 @@ impl Settings {
         if let Ok(b) = std::env::var("PAV_BACKEND") {
             s.backend = b;
         }
-        if s.animation_studio || s.asset_studio {
+        if s.animation_studio || s.asset_studio || s.creature_studio {
             if s.scene.is_empty() {
                 s.scene = "empty".into();
             }

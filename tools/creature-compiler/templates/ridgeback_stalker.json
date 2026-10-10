@@ -1,0 +1,62 @@
+{
+  "format": "spawnforge/0.2",
+  "name": "Ridgeback Stalker",
+  "seed": 4127,
+  "extends": "quadruped",
+  "scale": 1.2,
+  "body": {
+    "torso": { "radius": [0.13, 0.18, 0.16, 0.11], "arch": 0.15 },
+    "neck": { "length": 0.35, "radius": [0.07, 0.09], "pitch": 25 },
+    "head": { "shape": "snout", "length": 0.3, "radius": 0.1, "jaw": true },
+    "tail": { "length": 0.9, "radius": [0.1, 0.015], "curl": 20 }
+  },
+  "limbs": [
+    {
+      "id": "foreleg",
+      "role": "leg",
+      "attach": { "on": "torso", "at": 0.15, "side": "both" },
+      "length": 0.55,
+      "segments": 3,
+      "radius": [0.06, 0.035],
+      "foot": { "type": "foot.claw", "toes": 3 }
+    },
+    {
+      "id": "hindleg",
+      "role": "leg",
+      "attach": { "on": "torso", "at": 0.9, "side": "both" },
+      "length": 0.6,
+      "segments": 3,
+      "radius": [0.07, 0.035],
+      "foot": { "type": "foot.claw", "toes": 3 }
+    }
+  ],
+  "parts": [
+    {
+      "id": "horns",
+      "type": "horn.curved",
+      "attach": { "on": "head", "at": 0.75, "angle": 40, "side": "both" },
+      "params": { "length": 0.25, "curve": 60 }
+    },
+    {
+      "id": "dorsal",
+      "type": "spikes.row",
+      "attach": { "on": "torso", "from": 0.05, "to": 0.95, "angle": 0 },
+      "params": { "count": 9, "height": [0.08, 0.15, 0.06] }
+    },
+    {
+      "id": "eyes",
+      "type": "eye.basic",
+      "attach": { "on": "head", "at": 0.4, "angle": 60, "side": "both" },
+      "params": { "pupil": "slit", "squint": 0.35 }
+    }
+  ],
+  "skin": {
+    "palette": { "base": "#5b6b3a", "belly": "#d8cfa0", "accent": "#2a1e14" },
+    "layers": [
+      { "type": "countershade", "strength": 0.6 },
+      { "type": "stripes", "color": "accent", "count": 12, "region": "back", "jitter": 0.4 },
+      { "type": "scales", "size": 0.02, "bump": 0.4 }
+    ]
+  },
+  "motion": { "temperament": "stalking", "gaits": ["walk", "trot"], "actions": ["bite", "roar"] }
+}

@@ -1206,6 +1206,12 @@ impl ViewBuilder {
                 }
             }
         }
+        if let Some(creature) = crate::creatures::interpolate(prev, curr, alpha) {
+            puppets.push(creature.id.0 + 2);
+            if let Err(error) = crate::creatures::emit(&mut scene, &creature, style_of(Look::Lit, settings.style)) {
+                eprintln!("creature preview: {error}");
+            }
+        }
         self.emit_carry.retain(|id, _| live.contains(id));
         if let Some(g) = &curr.game {
             self.arpg.emit(&mut scene, curr, g, alpha, time, dt, settings.particles, cam_fwd);

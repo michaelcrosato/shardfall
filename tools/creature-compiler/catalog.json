@@ -1,0 +1,5519 @@
+{
+  "format": 1,
+  "generator_revision": "851880256987ecdb2895c6afd01f84df64199bdb",
+  "blueprint_format": "spawnforge/0.2",
+  "qualities": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "modules": [
+    {
+      "kind": "bodyPlan",
+      "id": "biped",
+      "pack": "basic",
+      "summary": "Upright torso on two legs with two free arms; walks. Lean the torso forward and add a tail for a raptor.",
+      "tags": [
+        "legs:2",
+        "arms:2",
+        "humanoid"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 0.7,
+        "body": {
+          "torso": {
+            "radius": [
+              0.13,
+              0.2,
+              0.18,
+              0.16
+            ],
+            "arch": 0.04,
+            "pitch": 82,
+            "segments": 5,
+            "crossSection": "wide"
+          },
+          "neck": {
+            "length": 0.2,
+            "radius": [
+              0.065,
+              0.075
+            ],
+            "pitch": 82,
+            "segments": 2
+          },
+          "head": {
+            "shape": "round",
+            "length": 0.3,
+            "radius": 0.13,
+            "jaw": true,
+            "pitch": 0
+          },
+          "tail": {
+            "length": 0
+          }
+        },
+        "limbs": [
+          {
+            "id": "leg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.94,
+              "side": "both",
+              "angle": 130
+            },
+            "length": 1.3,
+            "segments": 2,
+            "radius": [
+              0.1,
+              0.05
+            ],
+            "foot": {
+              "type": "foot.claw",
+              "toes": 3
+            }
+          },
+          {
+            "id": "arm",
+            "role": "arm",
+            "attach": {
+              "on": "torso",
+              "at": 0.12,
+              "side": "both",
+              "angle": 92
+            },
+            "length": 1.05,
+            "segments": 2,
+            "radius": [
+              0.065,
+              0.04
+            ],
+            "foot": {
+              "type": "foot.claw",
+              "toes": 4
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.3,
+              "angle": 62
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#6f7a4a",
+            "belly": "#c9c39a",
+            "accent": "#2f3320"
+          },
+          "layers": [
+            {
+              "type": "countershade"
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "calm"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "centaur",
+      "pack": "basic",
+      "summary": "A horse-like body on four legs with an upright, torso-like neck carrying two arms and the head.",
+      "tags": [
+        "legs:4",
+        "arms:2",
+        "humanoid",
+        "mammal"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 1,
+        "body": {
+          "muscle": 0.6,
+          "torso": {
+            "radius": [
+              0.15,
+              0.17,
+              0.16,
+              0.13
+            ],
+            "arch": 0.04,
+            "pitch": 0,
+            "segments": 6
+          },
+          "neck": {
+            "length": 0.72,
+            "radius": [
+              0.042,
+              0.045,
+              0.07,
+              0.135,
+              0.14,
+              0.125,
+              0.105,
+              0.1,
+              0.11,
+              0.125
+            ],
+            "pitch": 86,
+            "segments": 5,
+            "crossSection": "wide"
+          },
+          "head": {
+            "shape": "round",
+            "length": 0.2,
+            "radius": 0.08,
+            "jaw": true,
+            "pitch": 0,
+            "lips": 0.5,
+            "brow": 0.5
+          },
+          "tail": {
+            "length": 0.6,
+            "radius": [
+              0.05,
+              0.02
+            ],
+            "pitch": -40,
+            "segments": 8
+          }
+        },
+        "limbs": [
+          {
+            "id": "foreleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.12,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.8,
+            "segments": 3,
+            "radius": [
+              0.06,
+              0.028
+            ],
+            "foot": "foot.hoof"
+          },
+          {
+            "id": "hindleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.88,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.85,
+            "segments": 3,
+            "radius": [
+              0.07,
+              0.028
+            ],
+            "foot": "foot.hoof"
+          },
+          {
+            "id": "arm",
+            "role": "arm",
+            "attach": {
+              "on": "neck",
+              "at": 0.3,
+              "side": "both",
+              "angle": 90
+            },
+            "length": 0.62,
+            "segments": 3,
+            "radius": [
+              0.055,
+              0.04,
+              0.03
+            ],
+            "foot": "hand.grasp"
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.3,
+              "angle": 62
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#7a5a3a",
+            "belly": "#c8b090",
+            "accent": "#3a2a1a"
+          },
+          "layers": [
+            {
+              "type": "countershade"
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "calm"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "fish",
+      "pack": "basic",
+      "summary": "A legless, deep-bodied swimmer with pectoral and pelvic fins, a dorsal fin and a tail fin; lives in water.",
+      "tags": [
+        "legs:0",
+        "fins:4",
+        "aquatic"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 0.8,
+        "body": {
+          "torso": {
+            "radius": [
+              0.12,
+              0.17,
+              0.16,
+              0.11
+            ],
+            "pitch": 0,
+            "segments": 6,
+            "crossSection": "tall"
+          },
+          "neck": {
+            "length": 0
+          },
+          "head": {
+            "shape": "wedge",
+            "length": 0.3,
+            "radius": 0.12,
+            "jaw": true,
+            "pitch": 0,
+            "crossSection": "tall"
+          },
+          "tail": {
+            "length": 0.8,
+            "radius": [
+              0.1,
+              0.03
+            ],
+            "pitch": 0,
+            "segments": 8,
+            "crossSection": "tall"
+          }
+        },
+        "limbs": [
+          {
+            "id": "pectoral",
+            "role": "fin",
+            "attach": {
+              "on": "torso",
+              "at": 0.2,
+              "side": "both",
+              "angle": 120
+            },
+            "length": 0.3,
+            "membrane": {
+              "type": "membrane.fin",
+              "rays": 7
+            }
+          },
+          {
+            "id": "pelvic",
+            "role": "fin",
+            "attach": {
+              "on": "torso",
+              "at": 0.55,
+              "side": "both",
+              "angle": 125
+            },
+            "length": 0.18,
+            "membrane": {
+              "type": "membrane.fin",
+              "rays": 5
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.3,
+              "angle": 70
+            },
+            "params": {
+              "scale": 1.3,
+              "lids": false
+            }
+          },
+          {
+            "id": "dorsal",
+            "type": "fin.dorsal",
+            "attach": {
+              "on": "torso",
+              "at": 0.4,
+              "angle": 0
+            }
+          },
+          {
+            "id": "tailfin",
+            "type": "fin.tail"
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#506a80",
+            "belly": "#e0e8e8",
+            "accent": "#203040"
+          },
+          "material": "scales",
+          "layers": [
+            {
+              "type": "countershade"
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "calm"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "hexapod",
+      "pack": "basic",
+      "summary": "Six sprawled legs on a low, wide body with chitin skin; runs a tripod gait.",
+      "tags": [
+        "legs:6",
+        "insect",
+        "sprawl"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 0.8,
+        "body": {
+          "torso": {
+            "radius": [
+              0.1,
+              0.14,
+              0.085,
+              0.17,
+              0.15,
+              0.1
+            ],
+            "pitch": 0,
+            "segments": 8,
+            "crossSection": "wide"
+          },
+          "neck": {
+            "length": 0.06,
+            "radius": [
+              0.07,
+              0.08
+            ],
+            "pitch": 0,
+            "segments": 1
+          },
+          "head": {
+            "shape": "round",
+            "length": 0.22,
+            "radius": 0.09,
+            "jaw": true,
+            "pitch": -10
+          },
+          "tail": {
+            "length": 0
+          }
+        },
+        "limbs": [
+          {
+            "id": "frontleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.1,
+              "side": "both",
+              "angle": 120
+            },
+            "length": 0.6,
+            "segments": 3,
+            "radius": [
+              0.035,
+              0.015
+            ],
+            "splay": 55,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          },
+          {
+            "id": "midleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.22,
+              "side": "both",
+              "angle": 120
+            },
+            "length": 0.62,
+            "segments": 3,
+            "radius": [
+              0.035,
+              0.015
+            ],
+            "splay": 60,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          },
+          {
+            "id": "hindleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.34,
+              "side": "both",
+              "angle": 120
+            },
+            "length": 0.7,
+            "segments": 3,
+            "radius": [
+              0.035,
+              0.015
+            ],
+            "splay": 55,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.3,
+              "angle": 60
+            },
+            "params": {
+              "scale": 1.6,
+              "lids": false
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#3d2f45",
+            "belly": "#8a7a6a",
+            "accent": "#1a141f"
+          },
+          "material": "chitin",
+          "layers": [
+            {
+              "type": "countershade",
+              "softness": 0.2
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "skittish"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "octopod",
+      "pack": "basic",
+      "summary": "Eight sprawled legs on a small front body and a big round abdomen, like a spider or a scorpion.",
+      "tags": [
+        "legs:8",
+        "arachnid",
+        "sprawl"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 0.7,
+        "body": {
+          "torso": {
+            "radius": [
+              0.11,
+              0.13,
+              0.1,
+              0.07,
+              0.19,
+              0.22,
+              0.16
+            ],
+            "pitch": 0,
+            "segments": 8,
+            "crossSection": "wide"
+          },
+          "neck": {
+            "length": 0.03,
+            "radius": [
+              0.07,
+              0.08
+            ],
+            "pitch": 0,
+            "segments": 1
+          },
+          "head": {
+            "shape": "round",
+            "length": 0.16,
+            "radius": 0.08,
+            "jaw": true,
+            "pitch": -5
+          },
+          "tail": {
+            "length": 0
+          }
+        },
+        "limbs": [
+          {
+            "id": "leg1",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.04,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 1.1,
+            "segments": 3,
+            "radius": [
+              0.03,
+              0.012
+            ],
+            "splay": 60,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          },
+          {
+            "id": "leg2",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.13,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.95,
+            "segments": 3,
+            "radius": [
+              0.03,
+              0.012
+            ],
+            "splay": 65,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          },
+          {
+            "id": "leg3",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.22,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.85,
+            "segments": 3,
+            "radius": [
+              0.03,
+              0.012
+            ],
+            "splay": 65,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          },
+          {
+            "id": "leg4",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.31,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 1,
+            "segments": 3,
+            "radius": [
+              0.03,
+              0.012
+            ],
+            "splay": 60,
+            "foot": {
+              "type": "foot.claw",
+              "toes": 1
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.25,
+              "angle": 35
+            },
+            "params": {
+              "scale": 1.3,
+              "lids": false,
+              "scleraColor": "#140c10",
+              "irisColor": "#401020"
+            }
+          },
+          {
+            "id": "side-eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.4,
+              "angle": 70
+            },
+            "params": {
+              "scale": 0.8,
+              "lids": false,
+              "scleraColor": "#140c10",
+              "irisColor": "#401020"
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#3a3030",
+            "belly": "#6a5a50",
+            "accent": "#1a1414"
+          },
+          "material": "chitin",
+          "layers": [
+            {
+              "type": "countershade",
+              "softness": 0.2
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "stalking"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "quadruped",
+      "pack": "basic",
+      "summary": "Four legs under a horizontal torso, a raised neck and a tail; walks and trots.",
+      "tags": [
+        "legs:4",
+        "mammal",
+        "reptile"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 1,
+        "body": {
+          "torso": {
+            "radius": [
+              0.14,
+              0.17,
+              0.16,
+              0.13
+            ],
+            "arch": 0.08,
+            "pitch": 0,
+            "segments": 6
+          },
+          "neck": {
+            "length": 0.32,
+            "radius": [
+              0.07,
+              0.1
+            ],
+            "pitch": 30,
+            "segments": 3
+          },
+          "head": {
+            "shape": "snout",
+            "length": 0.3,
+            "radius": 0.1,
+            "jaw": true,
+            "pitch": -10
+          },
+          "tail": {
+            "length": 0.7,
+            "radius": [
+              0.07,
+              0.012
+            ],
+            "pitch": -20,
+            "curl": 10,
+            "segments": 8
+          }
+        },
+        "limbs": [
+          {
+            "id": "foreleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.12,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.55,
+            "segments": 3,
+            "radius": [
+              0.06,
+              0.03
+            ],
+            "foot": {
+              "type": "foot.claw",
+              "toes": 4
+            }
+          },
+          {
+            "id": "hindleg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.88,
+              "side": "both",
+              "angle": 115
+            },
+            "length": 0.6,
+            "segments": 3,
+            "radius": [
+              0.07,
+              0.03
+            ],
+            "foot": {
+              "type": "foot.claw",
+              "toes": 4
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.35,
+              "angle": 55
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#7a6a50",
+            "belly": "#d9cdb0",
+            "accent": "#3b2e22"
+          },
+          "layers": [
+            {
+              "type": "countershade"
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "calm"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "serpent",
+      "pack": "basic",
+      "summary": "Legless snake body with a long tail and scales; slithers with a wave down the spine.",
+      "tags": [
+        "legs:0",
+        "reptile",
+        "snake"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 0.6,
+        "body": {
+          "torso": {
+            "radius": [
+              0.07,
+              0.085,
+              0.09,
+              0.085
+            ],
+            "pitch": 0,
+            "segments": 8
+          },
+          "neck": {
+            "length": 0.15,
+            "radius": [
+              0.065,
+              0.07
+            ],
+            "pitch": 10,
+            "segments": 2
+          },
+          "head": {
+            "shape": "wedge",
+            "length": 0.2,
+            "radius": 0.075,
+            "jaw": true,
+            "pitch": 0,
+            "lips": 0,
+            "tongue": "forked"
+          },
+          "tail": {
+            "length": 2.2,
+            "radius": [
+              0.085,
+              0.01
+            ],
+            "pitch": 0,
+            "curl": 0,
+            "segments": 16
+          }
+        },
+        "limbs": [],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.35,
+              "angle": 70
+            },
+            "params": {
+              "pupil": "slit",
+              "lids": false
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#4f6b3a",
+            "belly": "#d8d0a0",
+            "accent": "#24301a"
+          },
+          "material": "scales",
+          "layers": [
+            {
+              "type": "countershade"
+            },
+            {
+              "type": "scales",
+              "size": 0.025
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "stalking"
+        }
+      }
+    },
+    {
+      "kind": "bodyPlan",
+      "id": "wyvern",
+      "pack": "basic",
+      "summary": "Two legs under a horizontal body, wings for forelimbs, a long neck and tail; for bats and wyverns.",
+      "tags": [
+        "legs:2",
+        "wings:2",
+        "dragon",
+        "flyer"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {},
+      "blueprint": {
+        "scale": 1,
+        "body": {
+          "torso": {
+            "radius": [
+              0.13,
+              0.15,
+              0.13,
+              0.1
+            ],
+            "arch": 0.06,
+            "pitch": 10,
+            "segments": 6
+          },
+          "neck": {
+            "length": 0.5,
+            "radius": [
+              0.06,
+              0.09
+            ],
+            "pitch": 35,
+            "segments": 4
+          },
+          "head": {
+            "shape": "wedge",
+            "length": 0.32,
+            "radius": 0.09,
+            "jaw": true,
+            "pitch": -5
+          },
+          "tail": {
+            "length": 1.6,
+            "radius": [
+              0.09,
+              0.012
+            ],
+            "pitch": -5,
+            "curl": 15,
+            "segments": 14
+          }
+        },
+        "limbs": [
+          {
+            "id": "leg",
+            "role": "leg",
+            "attach": {
+              "on": "torso",
+              "at": 0.56,
+              "side": "both",
+              "angle": 125
+            },
+            "length": 0.75,
+            "segments": 3,
+            "radius": [
+              0.08,
+              0.035
+            ],
+            "foot": {
+              "type": "foot.claw",
+              "toes": 3
+            }
+          },
+          {
+            "id": "wing",
+            "role": "wing",
+            "attach": {
+              "on": "torso",
+              "at": 0.15,
+              "side": "both",
+              "angle": 45
+            },
+            "length": 1.6,
+            "segments": 3,
+            "radius": [
+              0.05,
+              0.015
+            ],
+            "membrane": {
+              "type": "membrane.bat",
+              "fingers": 4,
+              "trailing": "body"
+            }
+          }
+        ],
+        "parts": [
+          {
+            "id": "eyes",
+            "type": "eye.basic",
+            "attach": {
+              "on": "head",
+              "at": 0.35,
+              "angle": 55
+            },
+            "params": {
+              "pupil": "slit"
+            }
+          },
+          {
+            "id": "teeth",
+            "type": "teeth.row",
+            "params": {
+              "fangs": 2
+            }
+          }
+        ],
+        "skin": {
+          "palette": {
+            "base": "#5a3a3a",
+            "belly": "#c0a080",
+            "accent": "#2a1a1a"
+          },
+          "material": "scales",
+          "layers": [
+            {
+              "type": "countershade"
+            }
+          ]
+        },
+        "motion": {
+          "temperament": "aggressive"
+        }
+      }
+    },
+    {
+      "kind": "part",
+      "id": "antenna",
+      "pack": "basic",
+      "summary": "A jointed antenna that sways on springs: thread-like, clubbed or feathery; side \"both\" for a pair.",
+      "tags": [
+        "head",
+        "sense",
+        "insect"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "default": 0.5,
+            "description": "Length in torso lengths",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 2
+          },
+          "segments": {
+            "default": 6,
+            "description": "Jointed segments",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 12
+          },
+          "shape": {
+            "default": "thread",
+            "description": "\"thread\" plain, \"club\" thickened at the tip (a butterfly), \"feather\" combed (a moth)",
+            "type": "string",
+            "enum": [
+              "thread",
+              "club",
+              "feather"
+            ]
+          },
+          "curve": {
+            "default": 40,
+            "description": "Degrees it curves back at rest",
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "stiffness": {
+            "default": 0.5,
+            "description": "How little it sways",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "accent",
+            "description": "Colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "length": 0.5,
+        "segments": 6,
+        "shape": "thread",
+        "curve": 40,
+        "stiffness": 0.5,
+        "color": "accent"
+      },
+      "example": {
+        "id": "antennae",
+        "type": "antenna",
+        "attach": {
+          "on": "head",
+          "at": 0.3,
+          "angle": 30,
+          "side": "both"
+        },
+        "params": {
+          "length": 0.6,
+          "shape": "feather"
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "head",
+        "at": 0.3,
+        "angle": 30
+      }
+    },
+    {
+      "kind": "part",
+      "id": "armor.bands",
+      "pack": "basic",
+      "summary": "Overlapping bands of armour across an area of the body, like an armadillo or a pangolin.",
+      "tags": [
+        "armor"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "bands": {
+            "default": 9,
+            "description": "Bands from front to back",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 30
+          },
+          "thickness": {
+            "default": 0.025,
+            "description": "Thickness in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.15
+          },
+          "overlap": {
+            "default": 0.3,
+            "description": "How much each band overlaps the next",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.8
+          },
+          "scales": {
+            "default": false,
+            "description": "Break the bands into scales, like a pangolin",
+            "type": "boolean"
+          },
+          "color": {
+            "default": "base",
+            "description": "Armour colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "bands": 9,
+        "thickness": 0.025,
+        "overlap": 0.3,
+        "scales": false,
+        "color": "base"
+      },
+      "example": {
+        "id": "armor",
+        "type": "armor.bands",
+        "params": {
+          "bands": 11
+        }
+      },
+      "slot": "area",
+      "attach": {
+        "on": "torso",
+        "area": "back",
+        "from": 0,
+        "to": 1
+      }
+    },
+    {
+      "kind": "part",
+      "id": "beak",
+      "pack": "basic",
+      "summary": "A horny beak in two halves over the snout, upper on the head and lower on the jaw, for birds and griffins.",
+      "tags": [
+        "head",
+        "mouth",
+        "bird"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "shape": {
+            "default": "hooked",
+            "description": "\"hooked\" like an eagle, \"straight\" like a heron, \"broad\" like a duck",
+            "type": "string",
+            "enum": [
+              "hooked",
+              "straight",
+              "broad"
+            ]
+          },
+          "length": {
+            "default": 1,
+            "description": "How far the beak runs on past the snout, relative to the snout",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          },
+          "depth": {
+            "default": 1,
+            "description": "How deep and heavy the beak is",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          },
+          "color": {
+            "default": "#d8b040",
+            "description": "Beak colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#3a3020",
+            "description": "Colour at the tip",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "shape": "hooked",
+        "length": 1,
+        "depth": 1,
+        "color": "#d8b040",
+        "tipColor": "#3a3020"
+      },
+      "example": {
+        "id": "beak",
+        "type": "beak",
+        "params": {
+          "shape": "hooked"
+        }
+      },
+      "slot": "mouth",
+      "attach": {
+        "on": "head"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "ear.pointed",
+      "pack": "basic",
+      "summary": "Leaf-shaped ear, upright or drooping; use side \"both\" for a pair.",
+      "tags": [
+        "head",
+        "sense",
+        "soft"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "default": 0.12,
+            "description": "Length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 0.6
+          },
+          "width": {
+            "default": 0.05,
+            "description": "Widest half-width in torso lengths",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 0.25
+          },
+          "thickness": {
+            "default": 0.3,
+            "description": "Thickness as a share of the width: low is a flat leaf, 1 a round cone",
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1
+          },
+          "curve": {
+            "default": 15,
+            "description": "Degrees the ear bends; positive sweeps back toward the tail, negative forward",
+            "type": "number",
+            "minimum": -120,
+            "maximum": 120
+          },
+          "lean": {
+            "default": 0,
+            "description": "Degrees the root tilts forward (+) or back (-)",
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "droop": {
+            "default": 0,
+            "description": "How much the ear flops outward and down, 0 upright to 1 hanging",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "base",
+            "description": "Colour at the root: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "base",
+            "description": "Colour at the tip",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "length": 0.12,
+        "width": 0.05,
+        "thickness": 0.3,
+        "curve": 15,
+        "lean": 0,
+        "droop": 0,
+        "color": "base",
+        "tipColor": "base"
+      },
+      "example": {
+        "id": "ears",
+        "type": "ear.pointed",
+        "attach": {
+          "on": "head",
+          "at": 0.85,
+          "angle": 45,
+          "side": "both"
+        },
+        "params": {
+          "length": 0.14,
+          "width": 0.05
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "head",
+        "at": 0.85,
+        "angle": 45
+      }
+    },
+    {
+      "kind": "part",
+      "id": "eye.basic",
+      "pack": "basic",
+      "summary": "Round eyeball with an iris and pupil, sized to the head, with eyelids that blink (or none).",
+      "tags": [
+        "head",
+        "sense"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "scale": {
+            "default": 1,
+            "description": "Eye size relative to the head: 1 is typical, 2 big, 0.5 small",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 3
+          },
+          "size": {
+            "description": "Eyeball radius in torso lengths; when set it wins over `scale`",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "pupil": {
+            "default": "round",
+            "description": "Pupil shape",
+            "type": "string",
+            "enum": [
+              "round",
+              "slit",
+              "goat"
+            ]
+          },
+          "irisColor": {
+            "default": "#c8a030",
+            "description": "Iris colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "scleraColor": {
+            "default": "#e8e2cc",
+            "description": "Colour of the eyeball around the iris",
+            "type": "string",
+            "minLength": 1
+          },
+          "iris": {
+            "default": 0.7,
+            "description": "Iris size as a share of the visible eye",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 1
+          },
+          "bulge": {
+            "default": 0.5,
+            "description": "How far the eye stands out of the skin",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "lids": {
+            "default": true,
+            "description": "Eyelids that blink; snakes, fish and insects have none",
+            "type": "boolean"
+          },
+          "squint": {
+            "default": 0.15,
+            "description": "How far the upper lid hangs over the eye at rest: 0 wide open, 1 a menacing squint",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "scale": 1,
+        "pupil": "round",
+        "irisColor": "#c8a030",
+        "scleraColor": "#e8e2cc",
+        "iris": 0.7,
+        "bulge": 0.5,
+        "lids": true,
+        "squint": 0.15
+      },
+      "example": {
+        "id": "eyes",
+        "type": "eye.basic",
+        "attach": {
+          "on": "head",
+          "at": 0.4,
+          "angle": 60,
+          "side": "both"
+        },
+        "params": {
+          "scale": 1.2,
+          "pupil": "slit",
+          "squint": 0.4
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "head",
+        "at": 0.4,
+        "angle": 60
+      }
+    },
+    {
+      "kind": "part",
+      "id": "fin.dorsal",
+      "pack": "basic",
+      "summary": "One fin standing on the midline of the back (or belly, at angle 180), like a shark's.",
+      "tags": [
+        "fin",
+        "aquatic",
+        "back"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "default": 0.25,
+            "description": "Height in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 1
+          },
+          "length": {
+            "default": 0.25,
+            "description": "Length along the body at its base",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 1
+          },
+          "sweep": {
+            "default": 35,
+            "description": "Degrees the fin leans back",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 80
+          },
+          "shape": {
+            "default": "triangle",
+            "description": "\"triangle\" like a shark, \"sail\" tall and straight, \"rounded\" like a carp",
+            "type": "string",
+            "enum": [
+              "triangle",
+              "sail",
+              "rounded"
+            ]
+          },
+          "color": {
+            "default": "base",
+            "description": "Fin colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "height": 0.25,
+        "length": 0.25,
+        "sweep": 35,
+        "shape": "triangle",
+        "color": "base"
+      },
+      "example": {
+        "id": "dorsal",
+        "type": "fin.dorsal",
+        "attach": {
+          "on": "torso",
+          "at": 0.4,
+          "angle": 0
+        },
+        "params": {
+          "height": 0.3
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "torso",
+        "at": 0.45,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "fin.tail",
+      "pack": "basic",
+      "summary": "A tail fin at the tail tip: forked like a shark, rounded like a carp, or flat like a whale.",
+      "tags": [
+        "fin",
+        "aquatic",
+        "tail"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "shape": {
+            "default": "forked",
+            "description": "\"forked\", \"crescent\" (a tuna), \"rounded\" or \"flukes\" (flat, like a whale)",
+            "type": "string",
+            "enum": [
+              "forked",
+              "crescent",
+              "rounded",
+              "flukes"
+            ]
+          },
+          "size": {
+            "default": 0.35,
+            "description": "Fin height in torso lengths",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 1.5
+          },
+          "upper": {
+            "default": 0.6,
+            "description": "Share of the fin above the tail line",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "base",
+            "description": "Fin colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "shape": "forked",
+        "size": 0.35,
+        "upper": 0.6,
+        "color": "base"
+      },
+      "example": {
+        "id": "tailfin",
+        "type": "fin.tail",
+        "params": {
+          "shape": "forked",
+          "size": 0.4
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "tail",
+        "at": 1,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "foot.claw",
+      "pack": "basic",
+      "summary": "Foot or hand of short toes, each tipped with a curved claw; set it as a limb's \"foot\".",
+      "tags": [
+        "foot",
+        "hand",
+        "weapon"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "toes": {
+            "default": 3,
+            "description": "Toes (or fingers) per foot",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "toeLength": {
+            "default": 0.08,
+            "description": "Toe length in torso lengths",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 0.5
+          },
+          "spread": {
+            "default": 50,
+            "description": "Degrees between the outermost toes",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 150
+          },
+          "clawLength": {
+            "default": 0.035,
+            "description": "Claw length in torso lengths; 0 for none",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.3
+          },
+          "clawCurve": {
+            "default": 70,
+            "description": "Degrees each claw bends down",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 180
+          },
+          "clawWidth": {
+            "default": 1,
+            "description": "Claw thickness relative to the toe",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 3
+          },
+          "clawColor": {
+            "default": "#2a221c",
+            "description": "Claw colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "toes": 3,
+        "toeLength": 0.08,
+        "spread": 50,
+        "clawLength": 0.035,
+        "clawCurve": 70,
+        "clawWidth": 1,
+        "clawColor": "#2a221c"
+      },
+      "example": {
+        "type": "foot.claw",
+        "toes": 3,
+        "clawLength": 0.05
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "foot.hoof",
+      "pack": "basic",
+      "summary": "A hoof, single (a horse) or cloven (a goat or boar); set it as a leg's \"foot\".",
+      "tags": [
+        "foot",
+        "hoof"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "cloven": {
+            "default": false,
+            "description": "Split into two toes, like a goat or a boar",
+            "type": "boolean"
+          },
+          "size": {
+            "default": 1,
+            "description": "Hoof size relative to the leg tip",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          },
+          "height": {
+            "default": 1,
+            "description": "How tall the hoof wall is",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          },
+          "color": {
+            "default": "#2a221c",
+            "description": "Hoof colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "cloven": false,
+        "size": 1,
+        "height": 1,
+        "color": "#2a221c"
+      },
+      "example": {
+        "type": "foot.hoof",
+        "cloven": true
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "foot.pad",
+      "pack": "basic",
+      "summary": "A broad column foot with blunt nails, for heavy creatures like elephants and trolls.",
+      "tags": [
+        "foot",
+        "heavy"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "default": 1.3,
+            "description": "Foot width relative to the leg tip",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2.5
+          },
+          "nails": {
+            "default": 4,
+            "description": "Blunt nails around the front",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "nailColor": {
+            "default": "#d8ccb0",
+            "description": "Nail colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "width": 1.3,
+        "nails": 4,
+        "nailColor": "#d8ccb0"
+      },
+      "example": {
+        "type": "foot.pad",
+        "width": 1.5,
+        "nails": 3
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "foot.paw",
+      "pack": "basic",
+      "summary": "A padded paw with toes and visible or hidden claws, like a dog or a big cat.",
+      "tags": [
+        "foot",
+        "paw"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "toes": {
+            "default": 4,
+            "description": "Toes on the ground",
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 5
+          },
+          "size": {
+            "default": 1,
+            "description": "Paw size relative to the leg tip",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          },
+          "claws": {
+            "default": "short",
+            "description": "\"hidden\" like a cat at rest, \"short\" like a dog, \"long\" like a bear",
+            "type": "string",
+            "enum": [
+              "hidden",
+              "short",
+              "long"
+            ]
+          },
+          "padColor": {
+            "default": "#3a2e2a",
+            "description": "Colour of the pads: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "clawColor": {
+            "default": "#2a221c",
+            "description": "Claw colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "toes": 4,
+        "size": 1,
+        "claws": "short",
+        "padColor": "#3a2e2a",
+        "clawColor": "#2a221c"
+      },
+      "example": {
+        "type": "foot.paw",
+        "toes": 4,
+        "claws": "short"
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "foot.talon",
+      "pack": "basic",
+      "summary": "A bird-like foot: three long toes forward, one back, each with a hooked talon.",
+      "tags": [
+        "foot",
+        "bird",
+        "weapon"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "toeLength": {
+            "default": 0.12,
+            "description": "Toe length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 0.5
+          },
+          "talonLength": {
+            "default": 0.05,
+            "description": "Talon length in torso lengths",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.3
+          },
+          "grip": {
+            "default": 0.3,
+            "description": "How curled the toes are at rest",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "#c8a040",
+            "description": "Scaly toe colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "talonColor": {
+            "default": "#1e1a16",
+            "description": "Talon colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "toeLength": 0.12,
+        "talonLength": 0.05,
+        "grip": 0.3,
+        "color": "#c8a040",
+        "talonColor": "#1e1a16"
+      },
+      "example": {
+        "type": "foot.talon",
+        "toeLength": 0.14,
+        "talonLength": 0.06
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "frill",
+      "pack": "basic",
+      "summary": "A fan of spines with skin between them around the neck, folded at rest and opened in display.",
+      "tags": [
+        "neck",
+        "display",
+        "reptile"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "radius": {
+            "default": 0.3,
+            "description": "Frill radius when open, in torso lengths",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 1
+          },
+          "spines": {
+            "default": 12,
+            "description": "Spines in the fan",
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 30
+          },
+          "open": {
+            "default": 0.2,
+            "description": "How open it is at rest",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "accent",
+            "description": "Membrane colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "spineColor": {
+            "default": "base",
+            "description": "Spine colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "display"
+      ],
+      "defaults": {
+        "radius": 0.3,
+        "spines": 12,
+        "open": 0.2,
+        "color": "accent",
+        "spineColor": "base"
+      },
+      "example": {
+        "id": "frill",
+        "type": "frill",
+        "params": {
+          "radius": 0.35,
+          "spines": 14
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "neck",
+        "at": 0.1,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "hand.grasp",
+      "pack": "basic",
+      "summary": "A grasping hand: fingers and an opposed thumb, with nails or claws; set it as \"foot\".",
+      "tags": [
+        "hand"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "fingers": {
+            "default": 4,
+            "description": "Fingers beside the thumb",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
+          "fingerLength": {
+            "default": 0.1,
+            "description": "Finger length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 0.5
+          },
+          "claws": {
+            "default": 0.01,
+            "description": "Claw length in torso lengths; 0 for nails",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.2
+          },
+          "clawColor": {
+            "default": "#2a221c",
+            "description": "Claw or nail colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "hand"
+      ],
+      "defaults": {
+        "fingers": 4,
+        "fingerLength": 0.1,
+        "claws": 0.01,
+        "clawColor": "#2a221c"
+      },
+      "example": {
+        "type": "hand.grasp",
+        "fingers": 4,
+        "claws": 0.03
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "hand.pincer",
+      "pack": "basic",
+      "summary": "A crab or scorpion pincer: a heavy claw with one hinged finger that snaps shut.",
+      "tags": [
+        "hand",
+        "weapon",
+        "chitin"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "default": 0.2,
+            "description": "Pincer length in torso lengths",
+            "type": "number",
+            "minimum": 0.03,
+            "maximum": 0.8
+          },
+          "width": {
+            "default": 0.6,
+            "description": "How bulky the claw is",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 1.5
+          },
+          "teeth": {
+            "default": 4,
+            "description": "Serrations along the inner edge",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12
+          },
+          "color": {
+            "default": "base",
+            "description": "Claw colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#1e1a16",
+            "description": "Colour at the finger tips",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "pincer"
+      ],
+      "defaults": {
+        "size": 0.2,
+        "width": 0.6,
+        "teeth": 4,
+        "color": "base",
+        "tipColor": "#1e1a16"
+      },
+      "example": {
+        "type": "hand.pincer",
+        "size": 0.25
+      },
+      "slot": "foot",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "hood",
+      "pack": "basic",
+      "summary": "A cobra's hood: neck ribs that spread the skin into a flat shield in display.",
+      "tags": [
+        "neck",
+        "display",
+        "snake"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "default": 0.25,
+            "description": "Hood width when spread, in torso lengths",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 1
+          },
+          "length": {
+            "default": 0.5,
+            "description": "Share of the neck the hood covers",
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1
+          },
+          "open": {
+            "default": 0.3,
+            "description": "How spread it is at rest",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "markColor": {
+            "default": "belly",
+            "description": "Colour of the eye marks on the back of the hood",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "display"
+      ],
+      "defaults": {
+        "width": 0.25,
+        "length": 0.5,
+        "open": 0.3,
+        "markColor": "belly"
+      },
+      "example": {
+        "id": "hood",
+        "type": "hood",
+        "params": {
+          "width": 0.3
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "neck",
+        "at": 0.08,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "horn.curved",
+      "pack": "basic",
+      "summary": "Tapered horn bent along an arc; use side \"both\" for a pair.",
+      "tags": [
+        "head",
+        "weapon",
+        "bone"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "default": 0.2,
+            "description": "Length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 1
+          },
+          "width": {
+            "default": 0.035,
+            "description": "Base radius in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.3
+          },
+          "curve": {
+            "default": 45,
+            "description": "Total bend in degrees; positive sweeps back toward the tail, negative forward; past 360 it coils",
+            "type": "number",
+            "minimum": -540,
+            "maximum": 540
+          },
+          "twist": {
+            "default": 0,
+            "description": "Spiral in degrees along the horn, like a ram",
+            "type": "number",
+            "minimum": -720,
+            "maximum": 720
+          },
+          "lean": {
+            "default": 0,
+            "description": "Degrees the root tilts forward (+) or back (-)",
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "turn": {
+            "default": 0,
+            "description": "Degrees the bend turns sideways: 90 curves toward the midline (mandibles), -90 away from it",
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "aim": {
+            "description": "Which way the horn points, wherever it sits: forward (mandibles, a bull), up, out (away from the body), back (swept back) or down (tusks). It replaces lean and turn",
+            "type": "string",
+            "enum": [
+              "forward",
+              "up",
+              "out",
+              "back",
+              "down"
+            ]
+          },
+          "ridges": {
+            "default": 0,
+            "description": "Rings along the horn",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "color": {
+            "default": "#d4c6a2",
+            "description": "Colour at the root: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#3d3329",
+            "description": "Colour at the tip",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "length": 0.2,
+        "width": 0.035,
+        "curve": 45,
+        "twist": 0,
+        "lean": 0,
+        "turn": 0,
+        "ridges": 0,
+        "color": "#d4c6a2",
+        "tipColor": "#3d3329"
+      },
+      "example": {
+        "id": "horns",
+        "type": "horn.curved",
+        "attach": {
+          "on": "head",
+          "at": 0.75,
+          "angle": 40,
+          "side": "both"
+        },
+        "params": {
+          "length": 0.25,
+          "curve": 60
+        }
+      },
+      "slot": "surface",
+      "attach": {
+        "on": "head",
+        "at": 0.75,
+        "angle": 40
+      }
+    },
+    {
+      "kind": "part",
+      "id": "mandible",
+      "pack": "basic",
+      "summary": "A pair of hinged mandibles or fangs at the mouth corners that close with the bite.",
+      "tags": [
+        "head",
+        "mouth",
+        "insect",
+        "weapon"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "length": {
+            "default": 0.15,
+            "description": "Mandible length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 0.6
+          },
+          "curve": {
+            "default": 70,
+            "description": "Degrees each mandible curves inward",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 180
+          },
+          "teeth": {
+            "default": 2,
+            "description": "Teeth along the inner edge",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "shape": {
+            "default": "mandible",
+            "description": "\"mandible\" like an ant, \"fang\" like a spider's chelicerae",
+            "type": "string",
+            "enum": [
+              "mandible",
+              "fang"
+            ]
+          },
+          "color": {
+            "default": "#2a2018",
+            "description": "Colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#100a06",
+            "description": "Colour at the tips",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "mandibles"
+      ],
+      "defaults": {
+        "length": 0.15,
+        "curve": 70,
+        "teeth": 2,
+        "shape": "mandible",
+        "color": "#2a2018",
+        "tipColor": "#100a06"
+      },
+      "example": {
+        "id": "mandibles",
+        "type": "mandible",
+        "params": {
+          "length": 0.2
+        }
+      },
+      "slot": "mouth",
+      "attach": {
+        "on": "head"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "membrane.bat",
+      "pack": "basic",
+      "summary": "Leathery skin stretched between long finger bones, the body and the hind leg: bat and dragon wings.",
+      "tags": [
+        "wing",
+        "membrane"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "fingers": {
+            "default": 4,
+            "description": "Finger bones spanning the membrane",
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 5
+          },
+          "span": {
+            "default": 1,
+            "description": "Finger length relative to the arm: larger spreads a bigger wing",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          },
+          "trailing": {
+            "default": "leg",
+            "description": "Where the trailing edge runs: to the nearest leg behind the wing, or to the body",
+            "type": "string",
+            "enum": [
+              "leg",
+              "body"
+            ]
+          },
+          "scallop": {
+            "default": 0.4,
+            "description": "How deeply the edge dips between fingers",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "base",
+            "description": "Membrane colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "translucency": {
+            "default": 0.4,
+            "description": "How much light shows through",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "glide"
+      ],
+      "defaults": {
+        "fingers": 4,
+        "span": 1,
+        "trailing": "leg",
+        "scallop": 0.4,
+        "color": "base",
+        "translucency": 0.4
+      },
+      "example": {
+        "type": "membrane.bat",
+        "fingers": 4,
+        "span": 1.2
+      },
+      "slot": "membrane",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "membrane.case",
+      "pack": "basic",
+      "summary": "A beetle's hard wing case (elytron): a shell that covers the same-side wing behind it and lifts in flight.",
+      "tags": [
+        "wing",
+        "shell",
+        "insect",
+        "chitin"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "dome": {
+            "default": 0.6,
+            "description": "How domed the case is",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ridges": {
+            "default": 3,
+            "description": "Ridges along the case",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12
+          },
+          "color": {
+            "default": "base",
+            "description": "Case colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "sheen": {
+            "default": 0.6,
+            "description": "How glossy the case is",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "cover"
+      ],
+      "defaults": {
+        "dome": 0.6,
+        "ridges": 3,
+        "color": "base",
+        "sheen": 0.6
+      },
+      "example": {
+        "type": "membrane.case",
+        "dome": 0.7
+      },
+      "slot": "membrane",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "membrane.feather",
+      "pack": "basic",
+      "summary": "Overlapping flight feathers along the wing bones, for birds and griffins.",
+      "tags": [
+        "wing",
+        "feather",
+        "bird"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "feathers": {
+            "default": 18,
+            "description": "Flight feathers per wing",
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 40
+          },
+          "length": {
+            "default": 1,
+            "description": "Feather length relative to the wing bones: larger makes a broader wing",
+            "type": "number",
+            "minimum": 0.3,
+            "maximum": 2
+          },
+          "tips": {
+            "default": "fingered",
+            "description": "Wing tip: rounded, pointed (a falcon) or fingered (an eagle)",
+            "type": "string",
+            "enum": [
+              "rounded",
+              "pointed",
+              "fingered"
+            ]
+          },
+          "color": {
+            "default": "base",
+            "description": "Feather colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "accent",
+            "description": "Colour at the feather tips",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "glide"
+      ],
+      "defaults": {
+        "feathers": 18,
+        "length": 1,
+        "tips": "fingered",
+        "color": "base",
+        "tipColor": "accent"
+      },
+      "example": {
+        "type": "membrane.feather",
+        "feathers": 20,
+        "tips": "fingered"
+      },
+      "slot": "membrane",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "membrane.fin",
+      "pack": "basic",
+      "summary": "A fin of thin rays with skin between them, on a fin limb (pectoral and pelvic fins).",
+      "tags": [
+        "fin",
+        "membrane",
+        "aquatic"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "rays": {
+            "default": 7,
+            "description": "Rays spanning the fin",
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 16
+          },
+          "width": {
+            "default": 0.8,
+            "description": "Fin width relative to its length",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          },
+          "color": {
+            "default": "base",
+            "description": "Fin colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "translucency": {
+            "default": 0.5,
+            "description": "How much light shows through",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "rays": 7,
+        "width": 0.8,
+        "color": "base",
+        "translucency": 0.5
+      },
+      "example": {
+        "type": "membrane.fin",
+        "rays": 8
+      },
+      "slot": "membrane",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "membrane.insect",
+      "pack": "basic",
+      "summary": "A thin, veined insect wing on a hinge, for flies, dragonflies, moths and bees.",
+      "tags": [
+        "wing",
+        "membrane",
+        "insect"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "shape": {
+            "default": "narrow",
+            "description": "\"narrow\" like a dragonfly, \"broad\" like a moth, \"round\" like a beetle",
+            "type": "string",
+            "enum": [
+              "narrow",
+              "broad",
+              "round"
+            ]
+          },
+          "width": {
+            "default": 0.4,
+            "description": "Wing width relative to its length",
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1.5
+          },
+          "veins": {
+            "default": 0.6,
+            "description": "How strongly the veins show",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "#d8e0e8",
+            "description": "Wing colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "translucency": {
+            "default": 0.7,
+            "description": "How much light shows through",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "hover",
+        "glide"
+      ],
+      "defaults": {
+        "shape": "narrow",
+        "width": 0.4,
+        "veins": 0.6,
+        "color": "#d8e0e8",
+        "translucency": 0.7
+      },
+      "example": {
+        "type": "membrane.insect",
+        "shape": "broad",
+        "width": 0.8
+      },
+      "slot": "membrane",
+      "attach": {
+        "on": "limb"
+      }
+    },
+    {
+      "kind": "part",
+      "id": "plates.row",
+      "pack": "basic",
+      "summary": "Upright bony plates along the back, in one row or two alternating rows like a stegosaur.",
+      "tags": [
+        "back",
+        "armor",
+        "bone"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "default": 12,
+            "description": "Plates in all; with alternate they take turns left and right",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 40
+          },
+          "height": {
+            "default": [
+              0.08,
+              0.2,
+              0.08
+            ],
+            "description": "Height in torso lengths, as one number or a profile along the row",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.01,
+                "maximum": 0.8
+              },
+              {
+                "minItems": 1,
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 0.8
+                }
+              }
+            ]
+          },
+          "alternate": {
+            "default": true,
+            "description": "Two staggered rows, left and right",
+            "type": "boolean"
+          },
+          "shape": {
+            "default": "kite",
+            "description": "Plate outline",
+            "type": "string",
+            "enum": [
+              "kite",
+              "round",
+              "spike"
+            ]
+          },
+          "color": {
+            "default": "#c8b090",
+            "description": "Plate colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "edgeColor": {
+            "default": "accent",
+            "description": "Colour at the plate edges",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "count": 12,
+        "height": [
+          0.08,
+          0.2,
+          0.08
+        ],
+        "alternate": true,
+        "shape": "kite",
+        "color": "#c8b090",
+        "edgeColor": "accent"
+      },
+      "example": {
+        "id": "plates",
+        "type": "plates.row",
+        "attach": {
+          "on": "spine",
+          "from": 0.2,
+          "to": 0.85
+        },
+        "params": {
+          "count": 14,
+          "height": [
+            0.1,
+            0.25,
+            0.1
+          ]
+        }
+      },
+      "slot": "row",
+      "attach": {
+        "on": "spine",
+        "from": 0.2,
+        "to": 0.8,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "quills",
+      "pack": "basic",
+      "summary": "Long sharp quills scattered over an area of the body, raised in display, like a porcupine.",
+      "tags": [
+        "back",
+        "display",
+        "weapon"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "density": {
+            "default": 0.5,
+            "description": "How closely the quills grow",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "length": {
+            "default": 0.2,
+            "description": "Quill length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 1
+          },
+          "lie": {
+            "default": 60,
+            "description": "Degrees the quills lie back at rest",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "color": {
+            "default": "#e8e0d0",
+            "description": "Quill colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#2a2018",
+            "description": "Colour at the tips",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "display"
+      ],
+      "defaults": {
+        "density": 0.5,
+        "length": 0.2,
+        "lie": 60,
+        "color": "#e8e0d0",
+        "tipColor": "#2a2018"
+      },
+      "example": {
+        "id": "quills",
+        "type": "quills",
+        "attach": {
+          "on": "spine",
+          "area": "back",
+          "from": 0.3,
+          "to": 0.9
+        },
+        "params": {
+          "length": 0.25
+        }
+      },
+      "slot": "area",
+      "attach": {
+        "on": "spine",
+        "area": "back",
+        "from": 0.3,
+        "to": 0.9
+      }
+    },
+    {
+      "kind": "part",
+      "id": "sail",
+      "pack": "basic",
+      "summary": "A tall sail of skin stretched over long spines along the back, like a dimetrodon.",
+      "tags": [
+        "back",
+        "display",
+        "reptile"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "default": [
+              0.1,
+              0.4,
+              0.1
+            ],
+            "description": "Height in torso lengths, as one number or a profile along the sail",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.02,
+                "maximum": 1
+              },
+              {
+                "minItems": 1,
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.02,
+                  "maximum": 1
+                }
+              }
+            ]
+          },
+          "spines": {
+            "default": 12,
+            "description": "Spines holding the sail",
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 40
+          },
+          "color": {
+            "default": "accent",
+            "description": "Membrane colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "spineColor": {
+            "default": "base",
+            "description": "Spine colour",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "provides": [
+        "display"
+      ],
+      "defaults": {
+        "height": [
+          0.1,
+          0.4,
+          0.1
+        ],
+        "spines": 12,
+        "color": "accent",
+        "spineColor": "base"
+      },
+      "example": {
+        "id": "sail",
+        "type": "sail",
+        "attach": {
+          "on": "spine",
+          "from": 0.25,
+          "to": 0.6
+        },
+        "params": {
+          "height": [
+            0.1,
+            0.45,
+            0.1
+          ]
+        }
+      },
+      "slot": "row",
+      "attach": {
+        "on": "spine",
+        "from": 0.25,
+        "to": 0.6,
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "shell",
+      "pack": "basic",
+      "summary": "A domed shell over an area of the body, divided into scutes, like a turtle or a tortoise.",
+      "tags": [
+        "armor",
+        "shell"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "dome": {
+            "default": 0.6,
+            "description": "How domed: 0 flat, 1 a high tortoise shell",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "thickness": {
+            "default": 0.03,
+            "description": "Thickness in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "overhang": {
+            "default": 0.12,
+            "description": "How far the rim reaches past the body",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.5
+          },
+          "scutes": {
+            "default": 13,
+            "description": "Plates on the shell; 0 for smooth",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "color": {
+            "default": "base",
+            "description": "Shell colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "seamColor": {
+            "default": "accent",
+            "description": "Colour of the seams between scutes",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "dome": 0.6,
+        "thickness": 0.03,
+        "overhang": 0.12,
+        "scutes": 13,
+        "color": "base",
+        "seamColor": "accent"
+      },
+      "example": {
+        "id": "shell",
+        "type": "shell",
+        "params": {
+          "dome": 0.7
+        }
+      },
+      "slot": "area",
+      "attach": {
+        "on": "torso",
+        "area": "back",
+        "from": 0,
+        "to": 1
+      }
+    },
+    {
+      "kind": "part",
+      "id": "spikes.row",
+      "pack": "basic",
+      "summary": "A row of conical spikes between two points, e.g. down the spine at angle 0.",
+      "tags": [
+        "back",
+        "tail",
+        "defence",
+        "bone"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "default": 7,
+            "description": "Spikes in the row (in each row, with side \"both\")",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "height": {
+            "default": 0.08,
+            "description": "Height in torso lengths, as one number or a profile along the row",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.01,
+                "maximum": 0.5
+              },
+              {
+                "minItems": 1,
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 0.5
+                }
+              }
+            ]
+          },
+          "width": {
+            "default": 0.025,
+            "description": "Base radius in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "curve": {
+            "default": 20,
+            "description": "Degrees each spike sweeps back toward the tail",
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "jitter": {
+            "default": 0,
+            "description": "Irregular heights and angles, for jagged rows",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "color": {
+            "default": "#ddd1b4",
+            "description": "Colour at the root: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "tipColor": {
+            "default": "#5e5040",
+            "description": "Colour at the tip",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "count": 7,
+        "height": 0.08,
+        "width": 0.025,
+        "curve": 20,
+        "jitter": 0,
+        "color": "#ddd1b4",
+        "tipColor": "#5e5040"
+      },
+      "example": {
+        "id": "dorsal",
+        "type": "spikes.row",
+        "attach": {
+          "on": "torso",
+          "from": 0.05,
+          "to": 0.95,
+          "angle": 0
+        },
+        "params": {
+          "count": 9,
+          "height": [
+            0.08,
+            0.15,
+            0.06
+          ]
+        }
+      },
+      "slot": "row",
+      "attach": {
+        "on": "torso",
+        "angle": 0
+      }
+    },
+    {
+      "kind": "part",
+      "id": "teeth.row",
+      "pack": "basic",
+      "summary": "Teeth standing in the gums along the mouth, sized to the head: incisors, fangs, then cheek teeth. The upper row moves with the head, the lower with the jaw.",
+      "tags": [
+        "head",
+        "mouth",
+        "weapon"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "scale": {
+            "default": 1,
+            "description": "Tooth size relative to the head: 1 is typical, 2 big, 0.5 small",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 3
+          },
+          "fangScale": {
+            "default": 1,
+            "description": "Fang size relative to the head: 1 is typical, 2 sabre-like",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 3
+          },
+          "spacing": {
+            "default": 0.15,
+            "description": "Gap between neighbouring teeth as a share of a tooth’s width; 0 packs them tight",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "incisors": {
+            "default": 2,
+            "description": "Small front teeth on each side before the fangs (not used when `count` is set)",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "fangs": {
+            "default": 1,
+            "description": "Long fangs at the front of each row",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "count": {
+            "description": "Teeth per row on each side; without it, as many as `spacing` fits",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40
+          },
+          "length": {
+            "description": "Tooth length in torso lengths; when set it wins over `scale`",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "fangLength": {
+            "description": "Fang length in torso lengths; when set it wins over `fangScale`",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 0.4
+          },
+          "upper": {
+            "default": true,
+            "description": "Teeth in the upper row",
+            "type": "boolean"
+          },
+          "lower": {
+            "default": true,
+            "description": "Teeth in the lower row",
+            "type": "boolean"
+          },
+          "color": {
+            "default": "#efe8d0",
+            "description": "A palette name such as \"accent\", or a colour such as \"#2a1e14\"",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "scale": 1,
+        "fangScale": 1,
+        "spacing": 0.15,
+        "incisors": 2,
+        "fangs": 1,
+        "upper": true,
+        "lower": true,
+        "color": "#efe8d0"
+      },
+      "example": {
+        "id": "teeth",
+        "type": "teeth.row",
+        "params": {
+          "fangs": 1,
+          "fangScale": 1.3
+        }
+      },
+      "slot": "mouth",
+      "attach": {
+        "on": "head"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "bands",
+      "pack": "basic",
+      "summary": "Wide, even rings of colour around the body and tail, like a coral snake or a lemur tail.",
+      "tags": [
+        "warning"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "Band colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "default": 8,
+            "description": "Bands from snout to tail tip",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "width": {
+            "default": 0.5,
+            "description": "Band width as a share of the spacing",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 0.95
+          },
+          "sharpness": {
+            "default": 0.8,
+            "description": "How crisp the band edges are",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "count": 8,
+        "width": 0.5,
+        "sharpness": 0.8
+      },
+      "example": {
+        "type": "bands",
+        "color": "accent",
+        "count": 12,
+        "region": "tail"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "bioluminescence",
+      "pack": "basic",
+      "summary": "Glowing spots or lines that light up in the dark and pulse slowly.",
+      "tags": [
+        "glow",
+        "deep-sea"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "#7fffd0",
+            "description": "Glow colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "shape": {
+            "default": "spots",
+            "description": "\"spots\" scattered over the skin, or \"lines\" of dots along the body",
+            "type": "string",
+            "enum": [
+              "spots",
+              "lines"
+            ]
+          },
+          "size": {
+            "default": 0.03,
+            "description": "Spot radius or line width in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.3
+          },
+          "density": {
+            "default": 0.5,
+            "description": "Share of possible spots that glow",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "brightness": {
+            "default": 1.5,
+            "description": "Emissive strength; 1 matches a lit surface",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "pulse": {
+            "default": 0.3,
+            "description": "Pulses per second; 0 glows steadily",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "#7fffd0",
+        "shape": "spots",
+        "size": 0.03,
+        "density": 0.5,
+        "brightness": 1.5,
+        "pulse": 0.3
+      },
+      "example": {
+        "type": "bioluminescence",
+        "color": "#60ffd0",
+        "shape": "spots",
+        "size": 0.03,
+        "density": 0.6
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "countershade",
+      "pack": "basic",
+      "summary": "Paler belly blending into a darker back, as on most animals.",
+      "tags": [
+        "base",
+        "camouflage"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "belly",
+            "description": "Belly colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "height": {
+            "default": -0.1,
+            "description": "Where the blend sits: -1 belly, 0 flank, 1 back",
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          },
+          "softness": {
+            "default": 0.35,
+            "description": "Width of the blend",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "belly",
+        "height": -0.1,
+        "softness": 0.35
+      },
+      "example": {
+        "type": "countershade",
+        "strength": 0.6
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "grime",
+      "pack": "basic",
+      "summary": "Dirt gathered in creases, on the feet and low on the body; adds roughness.",
+      "tags": [
+        "weathering"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "#5c4c3a",
+            "description": "A palette name such as \"accent\", or a colour such as \"#2a1e14\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "amount": {
+            "default": 0.5,
+            "description": "Overall strength",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "creases": {
+            "default": 0.7,
+            "description": "Dirt in creases and joints",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "feet": {
+            "default": 0.6,
+            "description": "Dirt rising from the ground up the legs",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "#5c4c3a",
+        "amount": 0.5,
+        "creases": 0.7,
+        "feet": 0.6
+      },
+      "example": {
+        "type": "grime",
+        "amount": 0.4
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "mottle",
+      "pack": "basic",
+      "summary": "Soft, cloudy blotches of a second colour that break up the outline.",
+      "tags": [
+        "camouflage",
+        "texture"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "A palette name such as \"accent\", or a colour such as \"#2a1e14\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "scale": {
+            "default": 0.15,
+            "description": "Blotch size in torso lengths",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 1
+          },
+          "contrast": {
+            "default": 0.5,
+            "description": "How sharp the blotch edges are",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "coverage": {
+            "default": 0.5,
+            "description": "Share of the skin covered",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "scale": 0.15,
+        "contrast": 0.5,
+        "coverage": 0.5
+      },
+      "example": {
+        "type": "mottle",
+        "color": "accent",
+        "scale": 0.2,
+        "coverage": 0.4
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "rosettes",
+      "pack": "basic",
+      "summary": "Leopard-like rosettes: broken rings of dark marks around a tinted centre.",
+      "tags": [
+        "camouflage",
+        "cat"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "Ring colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "centerColor": {
+            "default": "base",
+            "description": "Colour inside each ring",
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "default": 0.06,
+            "description": "Rosette radius in torso lengths",
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 0.4
+          },
+          "density": {
+            "default": 0.7,
+            "description": "Share of possible rosettes that appear",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "broken": {
+            "default": 0.6,
+            "description": "How broken each ring is into separate marks",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "centerColor": "base",
+        "size": 0.06,
+        "density": 0.7,
+        "broken": 0.6
+      },
+      "example": {
+        "type": "rosettes",
+        "color": "accent",
+        "size": 0.05,
+        "region": "back"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "scales",
+      "pack": "basic",
+      "summary": "Overlapping scales in staggered rows down the body: each one raised at its free rear edge, with darker gaps.",
+      "tags": [
+        "texture",
+        "reptile"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "default": 0.02,
+            "description": "Scale size in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "bump": {
+            "default": 0.4,
+            "description": "Depth of the scale relief",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "gapColor": {
+            "default": "accent",
+            "description": "Colour in the gaps between scales: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "gap": {
+            "default": 0.3,
+            "description": "How dark and wide the gaps are",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "size": 0.02,
+        "bump": 0.4,
+        "gapColor": "accent",
+        "gap": 0.3
+      },
+      "example": {
+        "type": "scales",
+        "size": 0.02,
+        "bump": 0.4
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "scars",
+      "pack": "basic",
+      "summary": "Old healed scars: pale, raised streaks and claw rakes across the skin.",
+      "tags": [
+        "detail",
+        "battle"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "belly",
+            "description": "Scar colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "default": 6,
+            "description": "About how many scars over the whole body",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40
+          },
+          "length": {
+            "default": 0.15,
+            "description": "Scar length in torso lengths",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 0.6
+          },
+          "rake": {
+            "default": 1,
+            "description": "Parallel cuts per scar: 3 or 4 read as claw marks",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "depth": {
+            "default": 0.5,
+            "description": "How raised and creased the scars are",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "belly",
+        "count": 6,
+        "length": 0.15,
+        "rake": 1,
+        "depth": 0.5
+      },
+      "example": {
+        "type": "scars",
+        "color": "belly",
+        "count": 5,
+        "rake": 3,
+        "region": "torso"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "slime",
+      "pack": "basic",
+      "summary": "A wet, glossy coat of slime with drips and a faint tint.",
+      "tags": [
+        "wet",
+        "gross"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "#a8c890",
+            "description": "Slime tint: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "wetness": {
+            "default": 0.8,
+            "description": "How glossy the skin gets (1 is mirror-wet)",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "drips": {
+            "default": 0.4,
+            "description": "How many drips run down the flanks",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tint": {
+            "default": 0.2,
+            "description": "How much the slime colours the skin",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "#a8c890",
+        "wetness": 0.8,
+        "drips": 0.4,
+        "tint": 0.2
+      },
+      "example": {
+        "type": "slime",
+        "wetness": 0.9,
+        "drips": 0.5
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "spots",
+      "pack": "basic",
+      "summary": "Scattered round spots, from leopard rosettes to sparse blotches.",
+      "tags": [
+        "camouflage"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "A palette name such as \"accent\", or a colour such as \"#2a1e14\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "default": 0.04,
+            "description": "Spot radius in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.5
+          },
+          "density": {
+            "default": 0.75,
+            "description": "Share of possible spots that appear",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "jitter": {
+            "default": 0.8,
+            "description": "Irregularity of placement and size",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ring": {
+            "default": 0,
+            "description": "Hollow the spots into rings (rosettes)",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "size": 0.04,
+        "density": 0.75,
+        "jitter": 0.8,
+        "ring": 0
+      },
+      "example": {
+        "type": "spots",
+        "color": "accent",
+        "size": 0.04,
+        "density": 0.6
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "stripes",
+      "pack": "basic",
+      "summary": "Bands running across the spine (or along it), with optional wobble.",
+      "tags": [
+        "camouflage",
+        "warning"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "A palette name such as \"accent\", or a colour such as \"#2a1e14\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "default": 10,
+            "description": "Stripes from snout to tail tip",
+            "type": "number",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "width": {
+            "default": 0.35,
+            "description": "Stripe width as a share of the spacing",
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 0.95
+          },
+          "jitter": {
+            "default": 0.3,
+            "description": "Wobble and irregularity",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "direction": {
+            "default": "across",
+            "description": "\"across\" the spine like a tiger, or \"along\" it",
+            "type": "string",
+            "enum": [
+              "across",
+              "along"
+            ]
+          },
+          "fade": {
+            "default": 0.6,
+            "description": "How much stripes fade toward the belly",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "count": 10,
+        "width": 0.35,
+        "jitter": 0.3,
+        "direction": "across",
+        "fade": 0.6
+      },
+      "example": {
+        "type": "stripes",
+        "color": "accent",
+        "count": 12,
+        "region": "back",
+        "jitter": 0.4
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "suckers",
+      "pack": "basic",
+      "summary": "A row of pale suckers down the underside of tentacles (and any limb), each a raised rim round a dark cup.",
+      "tags": [
+        "texture",
+        "sea"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "belly",
+            "description": "Rim colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "centerColor": {
+            "default": "#6a3a44",
+            "description": "Colour in the cup: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "default": 22,
+            "description": "Suckers along each limb",
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 64
+          },
+          "size": {
+            "default": 0.8,
+            "description": "Sucker length as a share of the spacing",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 1
+          },
+          "width": {
+            "default": 0.7,
+            "description": "How far round the underside they reach, in radians either side",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 1.2
+          },
+          "bump": {
+            "default": 0.5,
+            "description": "How raised the rims are",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "belly",
+        "centerColor": "#6a3a44",
+        "count": 22,
+        "size": 0.8,
+        "width": 0.7,
+        "bump": 0.5
+      },
+      "example": {
+        "type": "suckers",
+        "count": 24,
+        "region": "limbs"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "veins",
+      "pack": "basic",
+      "summary": "Branching veins under thin skin, darker or glowing.",
+      "tags": [
+        "detail",
+        "gross"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "#5a1a2a",
+            "description": "Vein colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "density": {
+            "default": 0.5,
+            "description": "How many branches",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "width": {
+            "default": 0.01,
+            "description": "Vein width in torso lengths",
+            "type": "number",
+            "minimum": 0.001,
+            "maximum": 0.05
+          },
+          "raised": {
+            "default": 0.3,
+            "description": "How far the veins stand out",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "#5a1a2a",
+        "density": 0.5,
+        "width": 0.01,
+        "raised": 0.3
+      },
+      "example": {
+        "type": "veins",
+        "color": "#6a1030",
+        "density": 0.6,
+        "region": "head"
+      }
+    },
+    {
+      "kind": "pattern",
+      "id": "warts",
+      "pack": "basic",
+      "summary": "Raised bumps and warts, like a toad or a troll.",
+      "tags": [
+        "detail",
+        "gross"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "default": "accent",
+            "description": "Wart colour: a palette name or a colour",
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "default": 0.025,
+            "description": "Wart radius in torso lengths",
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2
+          },
+          "density": {
+            "default": 0.5,
+            "description": "Share of possible warts that appear",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "height": {
+            "default": 0.6,
+            "description": "How far the warts stand out",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "color": "accent",
+        "size": 0.025,
+        "density": 0.5,
+        "height": 0.6
+      },
+      "example": {
+        "type": "warts",
+        "color": "accent",
+        "size": 0.02,
+        "density": 0.6,
+        "region": "back"
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "bound",
+      "pack": "basic",
+      "summary": "Small quadrupeds leaping with both hind legs, then both front legs, like a rabbit or a weasel; the back flexes and stretches with each leap.",
+      "tags": [
+        "legs",
+        "fast",
+        "small"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duty": {
+            "description": "Share of the cycle each foot is planted: one number, or [slowest, fastest] (default [0.35, 0.22])",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.15,
+                "maximum": 0.6
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.15,
+                  "maximum": 0.6
+                }
+              }
+            ]
+          },
+          "flex": {
+            "default": 0.6,
+            "description": "How much the spine flexes each bound",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stepHeight": {
+            "default": 0.25,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "flex": 0.6,
+        "stepHeight": 0.25,
+        "stride": 1
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "fly",
+      "pack": "basic",
+      "summary": "Flapping flight: power strokes on the way down, wings folded on the way up.",
+      "tags": [
+        "air",
+        "wings"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "stroke": {
+            "default": 1,
+            "description": "Wingbeat amplitude multiplier",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          },
+          "bank": {
+            "default": 40,
+            "description": "Most degrees it banks into a turn",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 90
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stroke": 1,
+        "bank": 40
+      },
+      "needs": [
+        "wing"
+      ]
+    },
+    {
+      "kind": "gait",
+      "id": "gallop",
+      "pack": "basic",
+      "summary": "Fast four-legged gait with a leading foreleg and a moment in the air, like a horse (transverse) or a cheetah (rotary); the back flexes each stride.",
+      "tags": [
+        "legs",
+        "fast"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "style": {
+            "default": "transverse",
+            "description": "\"transverse\" like a horse (the forefeet land in the same order as the hind), \"rotary\" like a cheetah or a dog (in the opposite order)",
+            "type": "string",
+            "enum": [
+              "transverse",
+              "rotary"
+            ]
+          },
+          "lead": {
+            "default": "right",
+            "description": "Which foreleg lands last, leading",
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ]
+          },
+          "duty": {
+            "description": "Share of the cycle each foot is planted: one number, or [slowest, fastest] (default [0.4, 0.22])",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.15,
+                "maximum": 0.6
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.15,
+                  "maximum": 0.6
+                }
+              }
+            ]
+          },
+          "flex": {
+            "default": 0.4,
+            "description": "How much the spine flexes each stride",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stepHeight": {
+            "default": 0.22,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "style": "transverse",
+        "lead": "right",
+        "flex": 0.4,
+        "stepHeight": 0.22,
+        "stride": 1
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "glide",
+      "pack": "basic",
+      "summary": "Soaring and gliding on spread wings between flaps.",
+      "tags": [
+        "air",
+        "wings"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "sink": {
+            "default": 0.3,
+            "description": "How fast it loses height while gliding",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "sink": 0.3
+      },
+      "needs": [
+        "wing",
+        "glide"
+      ]
+    },
+    {
+      "kind": "gait",
+      "id": "hover",
+      "pack": "basic",
+      "summary": "Hovering in place on fast figure-eight wingbeats, like an insect or a hummingbird.",
+      "tags": [
+        "air",
+        "wings",
+        "insect"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "rate": {
+            "default": 1,
+            "description": "Wingbeat rate multiplier",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "rate": 1
+      },
+      "needs": [
+        "wing",
+        "hover"
+      ]
+    },
+    {
+      "kind": "gait",
+      "id": "run",
+      "pack": "basic",
+      "summary": "Two-legged running with a moment in the air each stride, for raptors and runners: feet are down less as it speeds up, and the body leans in.",
+      "tags": [
+        "legs",
+        "fast"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duty": {
+            "description": "Share of the cycle each foot is planted: one number, or [slowest, fastest] (default [0.45, 0.3])",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 0.6
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 0.6
+                }
+              }
+            ]
+          },
+          "stepHeight": {
+            "default": 0.25,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          },
+          "lean": {
+            "default": 15,
+            "description": "Degrees the body leans forward at speed",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 45
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stepHeight": 0.25,
+        "stride": 1,
+        "lean": 15
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "slither",
+      "pack": "basic",
+      "summary": "Legless travelling wave down the spine; each segment follows the path of the one ahead.",
+      "tags": [
+        "spine",
+        "snake"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "amplitude": {
+            "default": 0.18,
+            "description": "Sideways swing as a share of body length",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.6
+          },
+          "waves": {
+            "default": 1.5,
+            "description": "Wavelengths along the body",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 4
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "amplitude": 0.18,
+        "waves": 1.5
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "swim.flap",
+      "pack": "basic",
+      "summary": "Swims by beating long fins or flippers like wings, like a turtle or a penguin; it dives.",
+      "tags": [
+        "water",
+        "fins"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "stroke": {
+            "default": 1,
+            "description": "Stroke size multiplier",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stroke": 1
+      },
+      "needs": [
+        "fin"
+      ]
+    },
+    {
+      "kind": "gait",
+      "id": "swim.paddle",
+      "pack": "basic",
+      "summary": "Swims at the surface by paddling its legs in circles under the hips, like a dog, a bear or a crocodile going slowly.",
+      "tags": [
+        "water",
+        "legs"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "stroke": {
+            "default": 1,
+            "description": "Stroke length multiplier",
+            "type": "number",
+            "minimum": 0.2,
+            "maximum": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stroke": 1
+      },
+      "needs": [
+        "legs"
+      ]
+    },
+    {
+      "kind": "gait",
+      "id": "swim.undulate",
+      "pack": "basic",
+      "summary": "Swims with a body wave that grows toward the tail, like a fish, an eel, a sea serpent or a crocodile; it dives and steers in three dimensions.",
+      "tags": [
+        "water",
+        "body"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "amplitude": {
+            "default": 0.2,
+            "description": "Tail-beat width as a share of body length; the beat comes faster as it narrows",
+            "type": "number",
+            "minimum": 0.02,
+            "maximum": 1
+          },
+          "waves": {
+            "default": 1,
+            "description": "Body waves along the length",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 3
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "amplitude": 0.2,
+        "waves": 1
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "tripod",
+      "pack": "basic",
+      "summary": "Six-legged insect gait: two alternating tripods of feet.",
+      "tags": [
+        "legs",
+        "insect",
+        "fast"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duty": {
+            "description": "Share of the cycle each foot is planted: one number, or [slowest, fastest] across its speeds",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.3,
+                "maximum": 0.8
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.3,
+                  "maximum": 0.8
+                }
+              }
+            ]
+          },
+          "stepHeight": {
+            "default": 0.25,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stepHeight": 0.25,
+        "stride": 1
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "trot",
+      "pack": "basic",
+      "summary": "Faster four-legged gait: diagonal feet move together.",
+      "tags": [
+        "legs",
+        "fast"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duty": {
+            "description": "Share of the cycle each foot is planted: one number, or [slowest, fastest] across its speeds",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.3,
+                "maximum": 0.7
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.3,
+                  "maximum": 0.7
+                }
+              }
+            ]
+          },
+          "stepHeight": {
+            "default": 0.2,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stepHeight": 0.2,
+        "stride": 1
+      }
+    },
+    {
+      "kind": "gait",
+      "id": "walk",
+      "pack": "basic",
+      "summary": "Slow gait for any leg count: feet lift one after another, back to front.",
+      "tags": [
+        "legs",
+        "slow"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duty": {
+            "description": "Share of the cycle each foot is planted; defaults by leg count: one number, or [slowest, fastest] across its speeds",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.4,
+                "maximum": 0.95
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.4,
+                  "maximum": 0.95
+                }
+              }
+            ]
+          },
+          "stepHeight": {
+            "default": 0.15,
+            "description": "Foot lift as a share of hip height",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stride": {
+            "default": 1,
+            "description": "Stride length multiplier: one number, or [slowest, fastest]",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 2
+              },
+              {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "maximum": 2
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "stepHeight": 0.15,
+        "stride": 1
+      }
+    },
+    {
+      "kind": "action",
+      "id": "bite",
+      "pack": "basic",
+      "summary": "Lunges the head at a target and snaps the jaw shut; fires a bite-contact event.",
+      "tags": [
+        "attack",
+        "mouth"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "reach": {
+            "default": 0.7,
+            "description": "How far the neck may stretch, as a share of its reach",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "speed": {
+            "default": 1,
+            "description": "Speed multiplier",
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 4
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "reach": 0.7,
+        "speed": 1
+      },
+      "needs": [
+        "jaw"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "display",
+      "pack": "basic",
+      "summary": "Threat display: opens frills and hoods, raises quills and sails. Needs a part that provides `display`.",
+      "tags": [
+        "display"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "default": 2.5,
+            "description": "Seconds for a creature with 1 m hips; scales with size",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 8
+          },
+          "intensity": {
+            "default": 1,
+            "description": "How far everything opens",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "duration": 2.5,
+        "intensity": 1
+      },
+      "needs": [
+        "display"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "idle",
+      "pack": "basic",
+      "summary": "Breathing, weight shifts, glances, tail swish and blinks while standing.",
+      "tags": [
+        "ambient"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "breath": {
+            "default": 0.5,
+            "description": "Breathing depth",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "fidget": {
+            "default": 0.5,
+            "description": "How often it shifts and looks around",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "breath": 0.5,
+        "fidget": 0.5
+      },
+      "needs": []
+    },
+    {
+      "kind": "action",
+      "id": "jump",
+      "pack": "basic",
+      "summary": "Crouches, leaps to a target point (or ahead) over the ground and any height asked for, and lands on its legs, absorbing it; fires takeoff and land events.",
+      "tags": [
+        "move"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "power": {
+            "default": 0.6,
+            "description": "How hard it springs, 0 to 1: how far it leaps unaimed, and at most",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "crouch": {
+            "default": 0.5,
+            "description": "How deep it crouches first, 0 to 1",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "height": {
+            "default": 0,
+            "description": "Least height in metres it clears above the ground in the middle of the leap (over an obstacle); 0 for a natural arc",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "power": 0.6,
+        "crouch": 0.5,
+        "height": 0
+      },
+      "needs": [
+        "legs"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "lash",
+      "pack": "basic",
+      "summary": "Whips the tail or a tentacle at a target; fires a lash-contact event.",
+      "tags": [
+        "attack"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "speed": {
+            "default": 1,
+            "description": "Speed multiplier",
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3
+          },
+          "arc": {
+            "default": 90,
+            "description": "Degrees the strike sweeps",
+            "type": "number",
+            "minimum": 20,
+            "maximum": 180
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "speed": 1,
+        "arc": 90
+      },
+      "needs": [
+        [
+          "tail",
+          "tentacle"
+        ]
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "look",
+      "pack": "basic",
+      "summary": "Turns eyes, head and neck toward a target within limits.",
+      "tags": [
+        "head",
+        "sense"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "speed": {
+            "default": 1,
+            "description": "Speed multiplier",
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 4
+          },
+          "range": {
+            "default": 100,
+            "description": "Degrees the head may turn from straight ahead",
+            "type": "number",
+            "minimum": 10,
+            "maximum": 180
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "speed": 1,
+        "range": 100
+      },
+      "needs": [
+        "head"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "pinch",
+      "pack": "basic",
+      "summary": "Snaps a pincer shut on a target; fires a pinch-contact event.",
+      "tags": [
+        "attack"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "speed": {
+            "default": 1,
+            "description": "Speed multiplier",
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 3
+          },
+          "both": {
+            "default": false,
+            "description": "Snap both pincers together",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "speed": 1,
+        "both": false
+      },
+      "needs": [
+        "pincer"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "pounce",
+      "pack": "basic",
+      "summary": "A low crouch, a leap at the target and a bite as it lands, the head meeting the target; fires takeoff, land and bite-contact events.",
+      "tags": [
+        "attack",
+        "move"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "power": {
+            "default": 0.7,
+            "description": "How hard it springs, 0 to 1: how far it can pounce",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reach": {
+            "default": 0.8,
+            "description": "How far the head lunges at the end, as a share of what the neck can reach",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "power": 0.7,
+        "reach": 0.8
+      },
+      "needs": [
+        "legs",
+        "jaw"
+      ]
+    },
+    {
+      "kind": "action",
+      "id": "roar",
+      "pack": "basic",
+      "summary": "Raises the head and opens the jaw wide; fires a roar-peak event.",
+      "tags": [
+        "display",
+        "mouth"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "default": 2,
+            "description": "Seconds for a creature with 1 m hips; scales with size",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 6
+          },
+          "intensity": {
+            "default": 0.8,
+            "description": "How wide the jaw opens and how far the head rises",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "duration": 2,
+        "intensity": 0.8
+      },
+      "needs": [
+        "jaw"
+      ]
+    },
+    {
+      "kind": "theme",
+      "id": "aquatic",
+      "pack": "basic",
+      "summary": "Sea and river creatures: sharks and fish with dorsal and tail fins, finned eels and sea serpents, and low armoured walkers that swim, in countershaded blues, teals and greys.",
+      "tags": [
+        "fins",
+        "water"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "beast",
+      "pack": "basic",
+      "summary": "Muscled furred mammals: wolves and big cats on paws, boars and bulls on hooves, bears on pads, with ears, fangs, now and then horns or tusks, in tawny, brown, grey or black coats.",
+      "tags": [
+        "fur",
+        "mammal"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "demon",
+      "pack": "basic",
+      "summary": "Horned fiends and hellhounds: heavy shoulders, big curled or swept horns, fangs, spine rows, goat or slit pupils, blood reds and soot blacks.",
+      "tags": [
+        "horns",
+        "fangs"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "dragon",
+      "pack": "basic",
+      "summary": "Winged dragons and wyverns: four legs and a pair of wings or wings for arms, long curved necks and tails, horns, crests, fangs, scales, in ember, emerald, gold or soot.",
+      "tags": [
+        "wings",
+        "scales",
+        "horns"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "eldritch",
+      "pack": "basic",
+      "summary": "Things that should not be: tentacled krakens, many-headed hounds, faces of tentacles and clusters of eyes, slimy veined skin with a cold glow, in bruise purples and deep blacks.",
+      "tags": [
+        "tentacles",
+        "eyes",
+        "heads"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "insect",
+      "pack": "basic",
+      "summary": "Six-legged beetles and ants: glossy chitin, a thorax and abdomen with a narrow waist, thin legs, horns or mandibles, dark or warning colours.",
+      "tags": [
+        "chitin",
+        "six-legged"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "theme",
+      "id": "reptile",
+      "pack": "basic",
+      "summary": "Scaled lizards, raptors and snakes: low sprawling bodies, long tails, wedge or snout heads, slit pupils, greens and browns.",
+      "tags": [
+        "scales",
+        "tail"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "defaults": {}
+    },
+    {
+      "kind": "stats",
+      "id": "rpg",
+      "pack": "basic",
+      "summary": "Generic action-RPG numbers: health from mass, speed from legs and gaits, attack from teeth, horns and claws, one attack per head, defence from shells, plates, chitin, scales and spikes, perception from eyes and ears.",
+      "tags": [
+        "example"
+      ],
+      "params": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "default": 1,
+            "description": "Multiplies health, attack and defence (unitless; 1 is a normal encounter)",
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 10
+          }
+        },
+        "additionalProperties": false
+      },
+      "defaults": {
+        "level": 1
+      }
+    }
+  ],
+  "defaults": {
+    "foot": {
+      "leg": "foot.claw",
+      "arm": "foot.claw"
+    },
+    "membrane": {
+      "wing": "membrane.bat",
+      "fin": "membrane.fin"
+    },
+    "layers": [
+      {
+        "type": "countershade"
+      }
+    ],
+    "bodyPlan": "quadruped",
+    "lineage": [
+      "bird",
+      "insect",
+      "snake"
+    ],
+    "habitat": {
+      "aquatic": "water"
+    }
+  },
+  "hints": {
+    "limbs.hand": "a hand goes in \"foot\", whatever the limb: \"foot\": \"hand.grasp\" (or \"hand.pincer\")",
+    "limbs.wings": "wings are limbs of their own: { \"id\": \"wing\", \"role\": \"wing\" }",
+    "skin.material:feathers": "only wings have feathers: a wing limb with \"membrane\": \"membrane.feather\"",
+    "limbs.role:pincer": "pincers are hands: an arm with \"foot\": \"hand.pincer\"",
+    "limbs.role:claw": "claws are feet or hands: a leg or arm with \"foot\": \"foot.claw\"",
+    "limbs.role:antenna": "antennae are parts: { \"id\": \"antennae\", \"type\": \"antenna\" }",
+    "limbs.role:mandible": "mandibles are parts: { \"id\": \"mandibles\", \"type\": \"mandible\" }",
+    "limbs.role:beak": "a beak is a part: { \"id\": \"beak\", \"type\": \"beak\" }",
+    "body.head.beak": "a beak is a part: { \"id\": \"beak\", \"type\": \"beak\" }",
+    "body.shell": "a shell is a part: { \"id\": \"shell\", \"type\": \"shell\" }",
+    "body.fins": "paired fins are limbs ({ \"role\": \"fin\" }); a dorsal fin is the part \"fin.dorsal\" and a tail fin \"fin.tail\""
+  },
+  "patch_operations": [
+    "set",
+    "add",
+    "remove",
+    "mirror",
+    "scale"
+  ],
+  "examples": [
+    {
+      "op": "set",
+      "path": "parts[id=horns].params.length",
+      "value": 0.4
+    },
+    {
+      "op": "set",
+      "path": "skin.palette.base",
+      "value": "#285a78"
+    },
+    {
+      "op": "set",
+      "path": "skin.layers[type=stripes].strength",
+      "value": 0.6
+    }
+  ],
+  "templates": [
+    {
+      "id": "ash_dragon",
+      "name": "Ash Dragon",
+      "body_plan": "quadruped",
+      "file": "templates/ash_dragon.json"
+    },
+    {
+      "id": "bog_troll",
+      "name": "Bog Troll",
+      "body_plan": "biped",
+      "file": "templates/bog_troll.json"
+    },
+    {
+      "id": "cave_bat",
+      "name": "Cave Bat",
+      "body_plan": "wyvern",
+      "file": "templates/cave_bat.json"
+    },
+    {
+      "id": "ember_beetle",
+      "name": "Ember Beetle",
+      "body_plan": "hexapod",
+      "file": "templates/ember_beetle.json"
+    },
+    {
+      "id": "reef_shark",
+      "name": "Reef Shark",
+      "body_plan": "fish",
+      "file": "templates/reef_shark.json"
+    },
+    {
+      "id": "ridgeback_stalker",
+      "name": "Ridgeback Stalker",
+      "body_plan": "quadruped",
+      "file": "templates/ridgeback_stalker.json"
+    },
+    {
+      "id": "stone_tortoise",
+      "name": "Stone Tortoise",
+      "body_plan": "quadruped",
+      "file": "templates/stone_tortoise.json"
+    },
+    {
+      "id": "wild_horse",
+      "name": "Wild Horse",
+      "body_plan": "quadruped",
+      "file": "templates/wild_horse.json"
+    }
+  ]
+}

@@ -291,4 +291,7 @@ pub struct RenderFrame {
     pub animation_preview: Option<crate::animation_preview::PreviewInfo>,
     pub studio_mode: crate::prop_preview::StudioMode,
     pub prop_preview: Option<crate::prop_preview::PropPreviewInfo>,
+    pub creature_preview: Option<crate::creature_preview::CreaturePreviewInfo>,
+    /// The generated native stage subject, separate from simulation entity geometry.
+    pub creature: Option<crate::creature_preview::CreatureFrame>,
 }

@@ -50,6 +50,8 @@ pub struct Session {
     pub look: pav_view::look::Look,
     /// Set by the native bridge. Headless sessions do not wait for or report window frames.
     pub feedback: Option<crate::live_feedback::SharedFeedback>,
+    /// Live requests share owner 0; independent headless sessions adopt only their own jobs.
+    pub(crate) creature_owner: u64,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -73,6 +75,10 @@ impl Session {
         if let Err(error) = crate::asset_tools::initialize_authored() {
             log::warn!("saved objects: {error:#}");
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = crate::creature_tools::initialize_authored() {
+            log::warn!("saved creatures: {error:#}");
+        }
         let mut sim = Sim::new(scene, seed)?;
         let mut camera = CameraRig::default();
         camera.snap(sim.state.focus);
@@ -94,6 +100,7 @@ impl Session {
             live: false,
             look: Default::default(),
             feedback: None,
+            creature_owner: crate::creature_tools::new_owner(),
         };
         s.sync_camera();
         Ok(s)
@@ -119,6 +126,7 @@ impl Session {
             live: true,
             look: Default::default(),
             feedback: None,
+            creature_owner: 0,
         }
     }
 

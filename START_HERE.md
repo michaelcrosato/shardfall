@@ -98,3 +98,16 @@ From a Git checkout, run `scripts/package-agent.sh`. It packages the current
 contents of tracked files, including local edits, plus this guide and the packaging
 script. Add new source files to Git before packaging them. The archive and its
 SHA-256 checksum are written to `out/agent/` by default.
+
+## Creature Studio
+
+The native studio also builds procedural creatures from the pinned SpawnForge compiler.
+Install Node 22.18 or newer, then run `scripts/creature-studio.sh` from the repository root.
+The launcher installs the exact npm lock, builds the self-contained compiler, builds both
+Rust programs, and opens the Creatures view with the live bridge.
+
+Use `.mcp.studio.json` for an LLM that controls the open window. `creature_edit` returns
+an asynchronous job; use `creature_status` before the next dependent edit. Published builds
+have a source revision and a frame ticket. Sources are readable JSON under
+`assets/creatures/workshop`, and the last valid native mesh stays visible during a build.
+Read `docs/CREATURE_STUDIO.md` for the complete workflow and the native material limits.

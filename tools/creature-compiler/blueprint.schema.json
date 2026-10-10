@@ -1,0 +1,1723 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "spawnforge/0.2",
+      "description": "Format id and version"
+    },
+    "name": {
+      "default": "Unnamed creature",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "seed": {
+      "default": 1,
+      "description": "Same blueprint and seed, same monster",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "extends": {
+      "description": "Body-plan preset to start from",
+      "type": "string",
+      "enum": [
+        "biped",
+        "centaur",
+        "fish",
+        "hexapod",
+        "octopod",
+        "quadruped",
+        "serpent",
+        "wyvern"
+      ]
+    },
+    "scale": {
+      "default": 1,
+      "description": "Torso length in metres; every other length is a multiple of it",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 20
+    },
+    "body": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "torso": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "radius": {
+              "default": [
+                0.14,
+                0.18,
+                0.16,
+                0.12
+              ],
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0.02,
+                  "maximum": 1
+                },
+                {
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0.02,
+                    "maximum": 1
+                  }
+                }
+              ],
+              "description": "Radius from the neck end to the tail end, in torso lengths"
+            },
+            "arch": {
+              "default": 0,
+              "description": "Upward bow of the spine, as a share of torso length; negative sags",
+              "type": "number",
+              "minimum": -0.5,
+              "maximum": 0.5
+            },
+            "pitch": {
+              "default": 0,
+              "description": "Degrees the torso tilts nose-up: 0 is horizontal, about 75 for an upright biped",
+              "type": "number",
+              "minimum": -30,
+              "maximum": 90
+            },
+            "crossSection": {
+              "default": "round",
+              "description": "Shape across the torso",
+              "type": "string",
+              "enum": [
+                "round",
+                "tall",
+                "wide"
+              ]
+            },
+            "segments": {
+              "default": 6,
+              "description": "Spine bones in the torso",
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 12
+            }
+          },
+          "additionalProperties": false,
+          "description": "The main body. Its length is the blueprint `scale`."
+        },
+        "neck": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "length": {
+              "default": 0.3,
+              "description": "Neck length in torso lengths; 0 for no neck",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1.5
+            },
+            "radius": {
+              "default": [
+                0.07,
+                0.09
+              ],
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 0.6
+                },
+                {
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 0.6
+                  }
+                }
+              ],
+              "description": "Radius from the head end to the torso end, in torso lengths"
+            },
+            "pitch": {
+              "default": 20,
+              "description": "Degrees the neck rises above horizontal",
+              "type": "number",
+              "minimum": -60,
+              "maximum": 90
+            },
+            "crossSection": {
+              "default": "round",
+              "description": "Shape across the neck",
+              "type": "string",
+              "enum": [
+                "round",
+                "tall",
+                "wide"
+              ]
+            },
+            "segments": {
+              "default": 3,
+              "description": "Bones in the neck",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "count": {
+              "default": 1,
+              "description": "Necks, each with its own head shaped like body.head (a hydra has several)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            },
+            "spread": {
+              "description": "Degrees between the outermost necks as they fan out; default 25 per extra neck",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 170
+            },
+            "curve": {
+              "default": 0,
+              "description": "Degrees of S-bend: forward at the base and back below the head (a swan)",
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          "additionalProperties": false,
+          "description": "Joins the head to the front of the torso."
+        },
+        "head": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "shape": {
+              "default": "round",
+              "description": "Overall head shape",
+              "type": "string",
+              "enum": [
+                "round",
+                "snout",
+                "flat",
+                "wedge"
+              ]
+            },
+            "length": {
+              "default": 0.28,
+              "description": "Snout tip to back of skull, in torso lengths",
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            },
+            "radius": {
+              "default": 0.1,
+              "description": "Skull radius in torso lengths",
+              "type": "number",
+              "minimum": 0.02,
+              "maximum": 0.6
+            },
+            "jaw": {
+              "default": true,
+              "description": "A hinged lower jaw, needed for bite, roar and teeth",
+              "type": "boolean"
+            },
+            "pitch": {
+              "default": 0,
+              "description": "Degrees the snout points above horizontal",
+              "type": "number",
+              "minimum": -60,
+              "maximum": 60
+            },
+            "crossSection": {
+              "default": "round",
+              "description": "Shape across the head",
+              "type": "string",
+              "enum": [
+                "round",
+                "tall",
+                "wide"
+              ]
+            },
+            "lips": {
+              "default": 0.3,
+              "description": "Thickness of the lips along the mouth",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "tongue": {
+              "default": "flat",
+              "description": "The tongue in the mouth",
+              "type": "string",
+              "enum": [
+                "none",
+                "flat",
+                "forked"
+              ]
+            },
+            "brow": {
+              "default": 0.2,
+              "description": "How heavy the brow ridge is",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false,
+          "description": "The head. `at` runs from the snout tip (0) to the back of the skull (1)."
+        },
+        "tail": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "length": {
+              "default": 0.6,
+              "description": "Tail length in torso lengths; 0 for no tail",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "radius": {
+              "default": [
+                0.08,
+                0.012
+              ],
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0.005,
+                  "maximum": 0.6
+                },
+                {
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.6
+                  }
+                }
+              ],
+              "description": "Radius from the root to the tip, in torso lengths"
+            },
+            "curl": {
+              "default": 0,
+              "description": "Total degrees the tail bends upward along its length; negative curls down",
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360
+            },
+            "curlStart": {
+              "default": 0,
+              "description": "Share of the tail that stays straight before the curl begins; 0.6 curls only the end",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.95
+            },
+            "crossSection": {
+              "default": "round",
+              "description": "Shape across the tail",
+              "type": "string",
+              "enum": [
+                "round",
+                "tall",
+                "wide"
+              ]
+            },
+            "pitch": {
+              "default": -10,
+              "description": "Degrees the tail root points above horizontal; negative droops",
+              "type": "number",
+              "minimum": -90,
+              "maximum": 60
+            },
+            "segments": {
+              "default": 8,
+              "description": "Bones in the tail",
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 24
+            },
+            "count": {
+              "default": 1,
+              "description": "Tails, each shaped like this one (a two-tailed fox has 2)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            },
+            "spread": {
+              "description": "Degrees between the outermost tails as they fan out; default 20 per extra tail",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 170
+            },
+            "forkAt": {
+              "default": 0,
+              "description": "Where along the tail several tails branch: 0 leaves the torso separately, 0.7 forks near the tip",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.95
+            }
+          },
+          "additionalProperties": false,
+          "description": "Runs back from the torso. `at` runs from the root (0) to the tip (1)."
+        },
+        "muscle": {
+          "default": 0.5,
+          "description": "How muscled the body is, 0 (smooth tubes) to 1 (heavily built)",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "limbs": {
+      "default": [],
+      "description": "Legs and arms. Lists merge with the preset by id",
+      "maxItems": 16,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "default": "leg",
+                "description": "\"leg\" limbs carry the body",
+                "type": "string",
+                "const": "leg"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "description": "Unique id; mirrored copies get .L and .R"
+              },
+              "attach": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "default": "torso",
+                    "description": "Body section the limb grows from",
+                    "type": "string"
+                  },
+                  "at": {
+                    "default": 0.5,
+                    "description": "Where along the section: 0 is the snout end, 1 the tail end",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "side": {
+                    "default": "both",
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "left",
+                      "right",
+                      "center"
+                    ],
+                    "description": "\"both\" makes a mirrored pair with ids ending .L and .R"
+                  },
+                  "angle": {
+                    "default": 100,
+                    "description": "Degrees around the section from the top: 90 is the side, 180 the belly",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 180
+                  }
+                },
+                "additionalProperties": false
+              },
+              "length": {
+                "default": 0.5,
+                "description": "Total limb length in torso lengths",
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 3
+              },
+              "segments": {
+                "default": 3,
+                "description": "Bones from hip or shoulder to ankle",
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 4
+              },
+              "radius": {
+                "default": [
+                  0.06,
+                  0.03
+                ],
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.5
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0.005,
+                      "maximum": 0.5
+                    }
+                  }
+                ],
+                "description": "Radius from root to tip, in torso lengths"
+              },
+              "muscle": {
+                "description": "How muscled this limb is, 0 to 1; left out, it follows body.muscle",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "remove": {
+                "description": "Delete an inherited limb with this id",
+                "type": "boolean",
+                "const": true
+              },
+              "splay": {
+                "default": 0,
+                "description": "Degrees the limb swings out from under the body; about 50 for sprawlers",
+                "type": "number",
+                "minimum": -30,
+                "maximum": 90
+              },
+              "lift": {
+                "default": 0,
+                "description": "Arms only: degrees the arm is raised forward from hanging; 90 holds it straight out (pincers)",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 150
+              },
+              "stance": {
+                "description": "How the foot meets the ground: plantigrade (whole sole), digitigrade (toes), unguligrade (hoof tips); left out, the foot suggests one",
+                "type": "string",
+                "enum": [
+                  "plantigrade",
+                  "digitigrade",
+                  "unguligrade"
+                ]
+              },
+              "foot": {
+                "description": "Foot or hand part at the limb tip (default { \"type\": \"foot.claw\" }); the id alone also works; null for none",
+                "default": {},
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "foot.claw",
+                        "type": "string",
+                        "enum": [
+                          "foot.claw",
+                          "foot.hoof",
+                          "foot.pad",
+                          "foot.paw",
+                          "foot.talon",
+                          "hand.grasp",
+                          "hand.pincer"
+                        ],
+                        "description": "Foot part id"
+                      }
+                    },
+                    "additionalProperties": {},
+                    "description": "Foot part module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "foot.claw",
+                      "foot.hoof",
+                      "foot.pad",
+                      "foot.paw",
+                      "foot.talon",
+                      "hand.grasp",
+                      "hand.pincer"
+                    ],
+                    "description": "Foot part id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "A leg: carries the body; legs come in mirrored pairs"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "arm",
+                "description": "\"arm\" limbs are free for actions"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "description": "Unique id; mirrored copies get .L and .R"
+              },
+              "attach": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "default": "torso",
+                    "description": "Body section the limb grows from",
+                    "type": "string"
+                  },
+                  "at": {
+                    "default": 0.5,
+                    "description": "Where along the section: 0 is the snout end, 1 the tail end",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "side": {
+                    "default": "both",
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "left",
+                      "right",
+                      "center"
+                    ],
+                    "description": "\"both\" makes a mirrored pair with ids ending .L and .R"
+                  },
+                  "angle": {
+                    "default": 100,
+                    "description": "Degrees around the section from the top: 90 is the side, 180 the belly",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 180
+                  }
+                },
+                "additionalProperties": false
+              },
+              "length": {
+                "default": 0.5,
+                "description": "Total limb length in torso lengths",
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 3
+              },
+              "segments": {
+                "default": 3,
+                "description": "Bones from hip or shoulder to ankle",
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 4
+              },
+              "radius": {
+                "default": [
+                  0.06,
+                  0.03
+                ],
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.5
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0.005,
+                      "maximum": 0.5
+                    }
+                  }
+                ],
+                "description": "Radius from root to tip, in torso lengths"
+              },
+              "muscle": {
+                "description": "How muscled this limb is, 0 to 1; left out, it follows body.muscle",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "remove": {
+                "description": "Delete an inherited limb with this id",
+                "type": "boolean",
+                "const": true
+              },
+              "splay": {
+                "default": 0,
+                "description": "Degrees the limb swings out from under the body; about 50 for sprawlers",
+                "type": "number",
+                "minimum": -30,
+                "maximum": 90
+              },
+              "lift": {
+                "default": 0,
+                "description": "Arms only: degrees the arm is raised forward from hanging; 90 holds it straight out (pincers)",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 150
+              },
+              "foot": {
+                "description": "Foot or hand part at the limb tip (default { \"type\": \"foot.claw\" }); the id alone also works; null for none",
+                "default": {},
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "foot.claw",
+                        "type": "string",
+                        "enum": [
+                          "foot.claw",
+                          "foot.hoof",
+                          "foot.pad",
+                          "foot.paw",
+                          "foot.talon",
+                          "hand.grasp",
+                          "hand.pincer"
+                        ],
+                        "description": "Foot part id"
+                      }
+                    },
+                    "additionalProperties": {},
+                    "description": "Foot part module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "foot.claw",
+                      "foot.hoof",
+                      "foot.pad",
+                      "foot.paw",
+                      "foot.talon",
+                      "hand.grasp",
+                      "hand.pincer"
+                    ],
+                    "description": "Foot part id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "role",
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "An arm: hangs free, for grabbing and striking"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "wing",
+                "description": "\"wing\" limbs fold at rest and beat in the air"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "description": "Unique id; mirrored copies get .L and .R"
+              },
+              "attach": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "default": "torso",
+                    "description": "Body section the limb grows from",
+                    "type": "string"
+                  },
+                  "at": {
+                    "default": 0.2,
+                    "description": "Where along the section: 0 is the snout end, 1 the tail end",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "side": {
+                    "default": "both",
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "left",
+                      "right",
+                      "center"
+                    ],
+                    "description": "\"both\" makes a mirrored pair with ids ending .L and .R"
+                  },
+                  "angle": {
+                    "default": 40,
+                    "description": "Degrees around the section from the top: 90 is the side, 180 the belly",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 180
+                  }
+                },
+                "additionalProperties": false
+              },
+              "length": {
+                "default": 1.2,
+                "description": "Total limb length in torso lengths",
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 3
+              },
+              "segments": {
+                "default": 3,
+                "description": "Bones from hip or shoulder to ankle",
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 4
+              },
+              "radius": {
+                "default": [
+                  0.05,
+                  0.015
+                ],
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.5
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0.005,
+                      "maximum": 0.5
+                    }
+                  }
+                ],
+                "description": "Radius from root to tip, in torso lengths"
+              },
+              "muscle": {
+                "description": "How muscled this limb is, 0 to 1; left out, it follows body.muscle",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "remove": {
+                "description": "Delete an inherited limb with this id",
+                "type": "boolean",
+                "const": true
+              },
+              "membrane": {
+                "description": "The surface the limb carries (skin, feathers, a fin) (default { \"type\": \"membrane.bat\" }); the id alone also works; null for none",
+                "default": {},
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "membrane.bat",
+                        "type": "string",
+                        "enum": [
+                          "membrane.bat",
+                          "membrane.case",
+                          "membrane.feather",
+                          "membrane.fin",
+                          "membrane.insect"
+                        ],
+                        "description": "Membrane id"
+                      }
+                    },
+                    "additionalProperties": {},
+                    "description": "Membrane module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "membrane.bat",
+                      "membrane.case",
+                      "membrane.feather",
+                      "membrane.fin",
+                      "membrane.insect"
+                    ],
+                    "description": "Membrane id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "foot": {
+                "description": "Claw at the wrist (a bat's thumb); the id alone also works; null for none",
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "foot.claw",
+                          "foot.hoof",
+                          "foot.pad",
+                          "foot.paw",
+                          "foot.talon",
+                          "hand.grasp",
+                          "hand.pincer"
+                        ],
+                        "description": "Foot part id"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": {},
+                    "description": "Foot part module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "foot.claw",
+                      "foot.hoof",
+                      "foot.pad",
+                      "foot.paw",
+                      "foot.talon",
+                      "hand.grasp",
+                      "hand.pincer"
+                    ],
+                    "description": "Foot part id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "role",
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "A wing: an arm-like chain carrying a membrane, folded at rest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "fin",
+                "description": "\"fin\" limbs steer and beat in water"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "description": "Unique id; mirrored copies get .L and .R"
+              },
+              "attach": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "default": "torso",
+                    "description": "Body section the limb grows from",
+                    "type": "string"
+                  },
+                  "at": {
+                    "default": 0.25,
+                    "description": "Where along the section: 0 is the snout end, 1 the tail end",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "side": {
+                    "default": "both",
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "left",
+                      "right",
+                      "center"
+                    ],
+                    "description": "\"both\" makes a mirrored pair with ids ending .L and .R"
+                  },
+                  "angle": {
+                    "default": 115,
+                    "description": "Degrees around the section from the top: 90 is the side, 180 the belly",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 180
+                  }
+                },
+                "additionalProperties": false
+              },
+              "length": {
+                "default": 0.35,
+                "description": "Total limb length in torso lengths",
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 3
+              },
+              "segments": {
+                "default": 2,
+                "description": "Bones from hip or shoulder to ankle",
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 4
+              },
+              "radius": {
+                "default": [
+                  0.05,
+                  0.02
+                ],
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.5
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0.005,
+                      "maximum": 0.5
+                    }
+                  }
+                ],
+                "description": "Radius from root to tip, in torso lengths"
+              },
+              "muscle": {
+                "description": "How muscled this limb is, 0 to 1; left out, it follows body.muscle",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "remove": {
+                "description": "Delete an inherited limb with this id",
+                "type": "boolean",
+                "const": true
+              },
+              "membrane": {
+                "description": "The surface the limb carries (skin, feathers, a fin) (default { \"type\": \"membrane.fin\" }); the id alone also works; null for none",
+                "default": {},
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "default": "membrane.fin",
+                        "type": "string",
+                        "enum": [
+                          "membrane.bat",
+                          "membrane.case",
+                          "membrane.feather",
+                          "membrane.fin",
+                          "membrane.insect"
+                        ],
+                        "description": "Membrane id"
+                      }
+                    },
+                    "additionalProperties": {},
+                    "description": "Membrane module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "membrane.bat",
+                      "membrane.case",
+                      "membrane.feather",
+                      "membrane.fin",
+                      "membrane.insect"
+                    ],
+                    "description": "Membrane id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "foot": {
+                "description": "Foot or hand part at the limb tip; the id alone also works; null for none",
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "foot.claw",
+                          "foot.hoof",
+                          "foot.pad",
+                          "foot.paw",
+                          "foot.talon",
+                          "hand.grasp",
+                          "hand.pincer"
+                        ],
+                        "description": "Foot part id"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": {},
+                    "description": "Foot part module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "foot.claw",
+                      "foot.hoof",
+                      "foot.pad",
+                      "foot.paw",
+                      "foot.talon",
+                      "hand.grasp",
+                      "hand.pincer"
+                    ],
+                    "description": "Foot part id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "role",
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "A fin or flipper: a short flat limb; null membrane makes a flipper"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "tentacle",
+                "description": "\"tentacle\" limbs curl and reach"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "description": "Unique id; mirrored copies get .L and .R"
+              },
+              "attach": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "default": "torso",
+                    "description": "Body section the limb grows from",
+                    "type": "string"
+                  },
+                  "at": {
+                    "default": 0.9,
+                    "description": "Where along the section: 0 is the snout end, 1 the tail end",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "side": {
+                    "default": "both",
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "left",
+                      "right",
+                      "center"
+                    ],
+                    "description": "\"both\" makes a mirrored pair with ids ending .L and .R"
+                  },
+                  "angle": {
+                    "default": 150,
+                    "description": "Degrees around the section from the top: 90 is the side, 180 the belly",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 180
+                  }
+                },
+                "additionalProperties": false
+              },
+              "length": {
+                "default": 1.5,
+                "description": "Total limb length in torso lengths",
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 4
+              },
+              "segments": {
+                "default": 10,
+                "description": "Bones along the tentacle",
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 16
+              },
+              "radius": {
+                "default": [
+                  0.06,
+                  0.008
+                ],
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.005,
+                    "maximum": 0.5
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0.005,
+                      "maximum": 0.5
+                    }
+                  }
+                ],
+                "description": "Radius from root to tip, in torso lengths"
+              },
+              "muscle": {
+                "description": "How muscled this limb is, 0 to 1; left out, it follows body.muscle",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "remove": {
+                "description": "Delete an inherited limb with this id",
+                "type": "boolean",
+                "const": true
+              },
+              "curl": {
+                "default": 0,
+                "description": "Total degrees the tentacle curls at rest, toward the belly; negative curls toward the back",
+                "type": "number",
+                "minimum": -360,
+                "maximum": 360
+              },
+              "curlStart": {
+                "default": 0,
+                "description": "Share of the tentacle that stays straight before the curl begins",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.95
+              },
+              "foot": {
+                "description": "Foot or hand part at the limb tip; the id alone also works; null for none",
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "foot.claw",
+                          "foot.hoof",
+                          "foot.pad",
+                          "foot.paw",
+                          "foot.talon",
+                          "hand.grasp",
+                          "hand.pincer"
+                        ],
+                        "description": "Foot part id"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": {},
+                    "description": "Foot part module; its parameters sit beside `type`"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "foot.claw",
+                      "foot.hoof",
+                      "foot.pad",
+                      "foot.paw",
+                      "foot.talon",
+                      "hand.grasp",
+                      "hand.pincer"
+                    ],
+                    "description": "Foot part id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "role",
+              "id"
+            ],
+            "additionalProperties": false,
+            "description": "A tentacle: a long tapering chain of up to 16 bones"
+          }
+        ],
+        "description": "A limb; its role decides its fields and defaults"
+      }
+    },
+    "parts": {
+      "default": [],
+      "description": "Hard parts. Lists merge with the preset by id",
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "description": "Unique id; mirrored copies get .L and .R"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "antenna",
+              "armor.bands",
+              "beak",
+              "ear.pointed",
+              "eye.basic",
+              "fin.dorsal",
+              "fin.tail",
+              "frill",
+              "hood",
+              "horn.curved",
+              "mandible",
+              "plates.row",
+              "quills",
+              "sail",
+              "shell",
+              "spikes.row",
+              "teeth.row"
+            ],
+            "description": "Part module id"
+          },
+          "attach": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "on": {
+                "description": "Body section (head, jaw, neck, torso, tail; spine runs neck to tail tip), limb id or part id",
+                "type": "string"
+              },
+              "at": {
+                "description": "Where along it: snout-to-tail on sections, root-to-tip on limbs and parts",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "from": {
+                "description": "Start of a row",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "to": {
+                "description": "End of a row",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "angle": {
+                "description": "Degrees around the section from the top: 0 dorsal, 90 side, 180 belly",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 180
+              },
+              "side": {
+                "description": "Defaults to \"both\", or \"center\" when angle is 0 or 180",
+                "type": "string",
+                "enum": [
+                  "both",
+                  "left",
+                  "right",
+                  "center"
+                ]
+              },
+              "area": {
+                "description": "Area-slot parts only: which area of \"on\" they cover (back, belly, sides, all)",
+                "type": "string",
+                "enum": [
+                  "back",
+                  "belly",
+                  "sides",
+                  "all"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "params": {
+            "default": {},
+            "description": "The part module's parameters",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "remove": {
+            "description": "Delete an inherited part with this id",
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "skin": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "palette": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "base": {
+              "type": "string",
+              "description": "Colour: \"#rrggbb\", \"#rgb\" or a CSS colour name"
+            },
+            "belly": {
+              "type": "string",
+              "description": "Colour: \"#rrggbb\", \"#rgb\" or a CSS colour name"
+            },
+            "accent": {
+              "type": "string",
+              "description": "Colour: \"#rrggbb\", \"#rgb\" or a CSS colour name"
+            },
+            "harmony": {
+              "type": "string",
+              "enum": [
+                "analogous",
+                "complementary",
+                "triadic",
+                "split",
+                "monochrome"
+              ],
+              "description": "Generate the base, belly and accent you leave out from the seed: the accent analogous, complementary, triadic, split-complementary or the same hue (monochrome), around the base you give"
+            }
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "Colour: \"#rrggbb\", \"#rgb\" or a CSS colour name"
+          },
+          "description": "Named colours. base, belly and accent always exist; add any others by name"
+        },
+        "material": {
+          "default": "skin",
+          "description": "Base surface under the patterns",
+          "type": "string",
+          "enum": [
+            "skin",
+            "scales",
+            "chitin",
+            "hide"
+          ]
+        },
+        "fur": {
+          "description": "Fur over the skin, where its region says; null removes an inherited coat",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "length": {
+                  "default": 0.03,
+                  "description": "Hair length in torso lengths",
+                  "type": "number",
+                  "minimum": 0.002,
+                  "maximum": 0.3
+                },
+                "density": {
+                  "default": 0.8,
+                  "description": "How thick the coat is",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "region": {
+                  "default": "all",
+                  "description": "Where it grows: a layer region or a list of them, e.g. [\"torso\", \"limbs\", \"tail\"]",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "all",
+                        "back",
+                        "belly",
+                        "head",
+                        "torso",
+                        "limbs",
+                        "tail",
+                        "wings"
+                      ]
+                    },
+                    {
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "back",
+                          "belly",
+                          "head",
+                          "torso",
+                          "limbs",
+                          "tail",
+                          "wings"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "description": "A coat of fur over the skin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layers": {
+          "description": "Pattern stack, bottom first",
+          "default": [
+            {
+              "type": "countershade"
+            }
+          ],
+          "maxItems": 12,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "bands",
+                  "bioluminescence",
+                  "countershade",
+                  "grime",
+                  "mottle",
+                  "rosettes",
+                  "scales",
+                  "scars",
+                  "slime",
+                  "spots",
+                  "stripes",
+                  "suckers",
+                  "veins",
+                  "warts"
+                ],
+                "description": "Pattern module id"
+              },
+              "id": {
+                "description": "Optional id; keys the layer random stream",
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$"
+              },
+              "region": {
+                "default": "all",
+                "description": "Where the layer shows",
+                "type": "string",
+                "enum": [
+                  "all",
+                  "back",
+                  "belly",
+                  "head",
+                  "torso",
+                  "limbs",
+                  "tail",
+                  "wings"
+                ]
+              },
+              "strength": {
+                "default": 1,
+                "description": "Layer opacity",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": {},
+            "description": "One pattern layer; its parameters sit beside `type`"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "motion": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "temperament": {
+          "default": "calm",
+          "description": "Sets pace, posture and idle behaviour",
+          "type": "string",
+          "enum": [
+            "calm",
+            "stalking",
+            "skittish",
+            "aggressive",
+            "lumbering"
+          ]
+        },
+        "gaits": {
+          "description": "Gaits it may use; by default every gait that suits its body; a list replaces the defaults only for the media its gaits serve",
+          "maxItems": 12,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bound",
+                  "fly",
+                  "gallop",
+                  "glide",
+                  "hover",
+                  "run",
+                  "slither",
+                  "swim.flap",
+                  "swim.paddle",
+                  "swim.undulate",
+                  "tripod",
+                  "trot",
+                  "walk"
+                ],
+                "description": "Gait id"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bound",
+                      "fly",
+                      "gallop",
+                      "glide",
+                      "hover",
+                      "run",
+                      "slither",
+                      "swim.flap",
+                      "swim.paddle",
+                      "swim.undulate",
+                      "tripod",
+                      "trot",
+                      "walk"
+                    ],
+                    "description": "Gait id"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": {}
+              }
+            ]
+          }
+        },
+        "actions": {
+          "description": "Actions it can perform; by default every action its body allows",
+          "maxItems": 12,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bite",
+                  "display",
+                  "idle",
+                  "jump",
+                  "lash",
+                  "look",
+                  "pinch",
+                  "pounce",
+                  "roar"
+                ],
+                "description": "Action id"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bite",
+                      "display",
+                      "idle",
+                      "jump",
+                      "lash",
+                      "look",
+                      "pinch",
+                      "pounce",
+                      "roar"
+                    ],
+                    "description": "Action id"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": {}
+              }
+            ]
+          }
+        },
+        "media": {
+          "description": "Where it moves; each switch left out follows the body (land with legs, water with fins or tentacles on the torso and no legs, air with wings)",
+          "type": "object",
+          "properties": {
+            "land": {
+              "description": "Walks (or slithers) on the ground",
+              "type": "boolean"
+            },
+            "water": {
+              "description": "Swims",
+              "type": "boolean"
+            },
+            "air": {
+              "description": "Flies; needs a wing",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format"
+  ],
+  "additionalProperties": false
+}

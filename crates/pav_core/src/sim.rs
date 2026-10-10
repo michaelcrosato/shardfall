@@ -134,6 +134,8 @@ pub struct SimState {
     #[serde(default)]
     pub prop_preview: Option<crate::prop_preview::PropPreviewState>,
     #[serde(default)]
+    pub creature_preview: Option<crate::creature_preview::CreaturePreviewState>,
+    #[serde(default)]
     pub studio_cameras: crate::prop_preview::StudioCameras,
 }
 
@@ -193,6 +195,7 @@ impl Sim {
                 animation_preview: None,
                 studio_mode: Some(crate::prop_preview::StudioMode::World),
                 prop_preview: None,
+                creature_preview: None,
                 studio_cameras: Default::default(),
             },
             live_edit_ticket: 0,
@@ -467,6 +470,12 @@ impl Sim {
             }
             crate::prop_preview::StudioMode::Prop => {
                 if let Some(preview) = &mut self.state.prop_preview {
+                    preview.advance(dt);
+                }
+                return;
+            }
+            crate::prop_preview::StudioMode::Creature => {
+                if let Some(preview) = &mut self.state.creature_preview {
                     preview.advance(dt);
                 }
                 return;
@@ -916,6 +925,12 @@ impl Sim {
                     return preview.frame(self.config_arc.clone(), self.dt(), self.live_edit_ticket);
                 }
             }
+            crate::prop_preview::StudioMode::Creature => {
+                return match &self.state.creature_preview {
+                    Some(preview) => preview.frame(self.config_arc.clone(), self.dt(), self.live_edit_ticket),
+                    None => crate::creature_preview::empty_frame(self.config_arc.clone(), self.dt(), self.live_edit_ticket),
+                };
+            }
             crate::prop_preview::StudioMode::World => {}
         }
         let room = self
@@ -1028,6 +1043,8 @@ impl Sim {
             animation_preview: None,
             studio_mode: crate::prop_preview::StudioMode::World,
             prop_preview: None,
+            creature_preview: None,
+            creature: None,
         }
     }
 
