@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it. The full jou
 built, how it works, every decision) is `docs/HISTORY.md`, newest first: search it when you need
 the background on something.
 
-## Where things stand (2026-10-09)
+## Where things stand (2026-10-10)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -13,7 +13,9 @@ the background on something.
   - **Mobile:** touch controls, a pared-down HUD, swipe-to-dismiss and performance work.
   - **Animation:** moves as data, motion clips translated from open libraries by the engine's
     own tools (CMU, 100STYLE, Quaternius, M2M; Mixamo, Bandai Namco and LaFAN1 locally), and
-    monsters in captured motion.
+    monsters in captured motion. **Animation Studio** adds live LLM and manual editing,
+    shared playback, saved workshop clips, revisions, undo/redo, and file reloads
+    (`docs/ANIMATION_STUDIO.md`; start with `shardfall --animation-studio`).
   - **Looks:** every filter on a part of the scene, painterly and print styles, volumetric light,
     water, wind, and a station guide in every room.
 - Builds: the Windows `.exe` (cross-compiled here, played by the user) and the browser build on

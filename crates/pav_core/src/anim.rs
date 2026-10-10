@@ -49,6 +49,10 @@ pub fn files(ext: &str) -> Vec<String> {
 /// Re-reads the moves table and the clip sets (from disk when `from_disk`). An invalid file
 /// keeps the old data and returns the error. Returns a one-line summary.
 pub fn reload(from_disk: bool) -> Result<String, String> {
+    // Establish known-good tables before changing the source. The first explicit reload may
+    // see a half-written file; it must report an error instead of panicking during lazy init.
+    let _ = crate::moves::table();
+    let _ = crate::clips::library();
     USE_DISK.store(from_disk, Ordering::Relaxed);
     let moves = crate::moves::reload()?;
     let (sets, clips) = crate::clips::reload()?;

@@ -1,0 +1,7 @@
+{"tool":"anim_edit","args":{"action":"create","name":"HelloWave","duration":2,"loop":true}}
+{"tool":"anim_preview","args":{"playing":false,"time":0}}
+{"tool":"anim_edit","args":{"action":"key","name":"WORKSHOP/HelloWave","time":0.35,"pose":{"armR":[30,35,85,85,0],"head":[15,0,0]}}}
+{"tool":"anim_edit","args":{"action":"key","name":"WORKSHOP/HelloWave","time":0.7,"pose":{"armR":[25,65,70,95,-25],"head":[15,0,0]}}}
+{"tool":"anim_edit","args":{"action":"key","name":"WORKSHOP/HelloWave","time":1.05,"pose":{"armR":[30,20,95,85,25],"head":[15,0,0]}}}
+{"tool":"anim_edit","args":{"action":"key","name":"WORKSHOP/HelloWave","time":1.4,"pose":{"armR":[25,65,70,95,-25],"head":[15,0,0]}}}
+{"tool":"anim_preview","args":{"playing":true,"time":0,"speed":1,"repeat":true}}

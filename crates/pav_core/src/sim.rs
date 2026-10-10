@@ -125,6 +125,9 @@ pub struct SimState {
     /// Shardfall, when this scene is part of the game.
     #[serde(default)]
     pub game: Option<Box<crate::arpg::Game>>,
+    /// The animation stage freezes this world and publishes its own render frame.
+    #[serde(default)]
+    pub animation_preview: Option<crate::animation_preview::PreviewState>,
 }
 
 impl SimState {
@@ -178,6 +181,7 @@ impl Sim {
                 signals: Vec::new(),
                 crumbles: Vec::new(),
                 game: None,
+                animation_preview: None,
             },
             config,
             history: History::default(),
@@ -424,6 +428,11 @@ impl Sim {
 
     /// Advances one fixed tick, recording the input for rewind and replays.
     pub fn step(&mut self, input: &InputFrame) {
+        let dt = self.dt();
+        if let Some(preview) = &mut self.state.animation_preview {
+            preview.advance(dt);
+            return;
+        }
         if self.history.enabled && self.config.history_seconds > 0.0 {
             self.history.window = (self.config.history_seconds * self.config.tick_rate.hz() as f32) as u64;
             self.history.record(&self.state, input);
@@ -856,6 +865,9 @@ impl Sim {
         if *self.config_arc != self.config {
             self.config_arc = std::sync::Arc::new(self.config.clone());
         }
+        if let Some(preview) = &self.state.animation_preview {
+            return preview.frame(self.config_arc.clone(), self.dt());
+        }
         let room = self
             .state
             .world
@@ -950,6 +962,7 @@ impl Sim {
                 .collect(),
             hud,
             game: self.state.game.as_ref().map(|g| std::sync::Arc::new(g.frame(self))),
+            animation_preview: None,
         }
     }
 

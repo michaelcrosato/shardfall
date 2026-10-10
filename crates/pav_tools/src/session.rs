@@ -9,6 +9,20 @@ pub struct Gpu {
     pub headless: Headless,
     pub renderer: Renderer,
     pub builder: ViewBuilder,
+    /// The live bridge keeps this device between requests, even when the human UI opens or
+    /// closes a stage through a separate session with no GPU.
+    previewing: bool,
+}
+
+impl Gpu {
+    fn prepare_frame(&mut self, frame: &RenderFrame) {
+        let previewing = frame.animation_preview.is_some();
+        if self.previewing != previewing {
+            self.builder = ViewBuilder::new();
+            self.renderer.clear_particles();
+            self.previewing = previewing;
+        }
+    }
 }
 
 /// One agent session: a simulation plus everything needed to look at it.
@@ -117,7 +131,7 @@ impl Session {
         if self.gpu.is_none() {
             let headless = Headless::new()?;
             let renderer = Renderer::new(&headless.device, &headless.queue);
-            self.gpu = Some(Gpu { headless, renderer, builder: ViewBuilder::new() });
+            self.gpu = Some(Gpu { headless, renderer, builder: ViewBuilder::new(), previewing: false });
         }
         Ok(self.gpu.as_mut().unwrap())
     }
@@ -141,11 +155,22 @@ impl Session {
         }
     }
 
+    /// Starts an isolated view with no bursts or particles left from the previous scene.
+    pub fn clear_view_effects(&mut self) {
+        self.events.clear();
+        let _ = self.sim.drain_events();
+        if let Some(gpu) = &mut self.gpu {
+            gpu.builder = ViewBuilder::new();
+            gpu.renderer.clear_particles();
+            gpu.previewing = self.sim.state.animation_preview.is_some();
+        }
+    }
+
     /// Applies a room's camera defaults when the player enters/leaves it, and level camera
     /// cues, the way the game does (without blending). Called after every step.
     pub fn sync_camera(&mut self) {
         use pav_core::params::{ParamValue, apply_map};
-        if self.live {
+        if self.live || self.sim.state.animation_preview.is_some() {
             return;
         }
         let w = &self.sim.state.world;
@@ -266,7 +291,10 @@ impl Session {
         let view = self.view_for(&frame);
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
-        gpu.builder.add_events(&events);
+        gpu.prepare_frame(&frame);
+        if frame.animation_preview.is_none() {
+            gpu.builder.add_events(&events);
+        }
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
         pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
     }
@@ -280,7 +308,10 @@ impl Session {
         let view = self.view_for(&frame);
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
-        gpu.builder.add_events(&events);
+        gpu.prepare_frame(&frame);
+        if frame.animation_preview.is_none() {
+            gpu.builder.add_events(&events);
+        }
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
         let vp = scene.camera.proj * scene.camera.view;
         Ok((pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)?, vp))

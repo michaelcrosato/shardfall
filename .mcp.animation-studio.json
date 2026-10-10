@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "shardfall": {
+      "command": "cargo",
+      "args": ["run", "-q", "-p", "pav_tools", "--bin", "pav", "--", "mcp", "--live"]
+    }
+  }
+}

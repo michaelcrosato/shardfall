@@ -4,10 +4,12 @@
 
 pub mod agent_tools;
 pub mod anim_tools;
+pub mod animation_tools;
 pub mod bridge;
 pub mod game_tools;
 pub mod mcp;
 pub mod mocap;
+pub mod preview_tools;
 pub mod session;
 pub mod tools;
 
