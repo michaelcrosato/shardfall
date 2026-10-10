@@ -1,12 +1,14 @@
 //! Shardfall — the game executable.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-mod app;
 mod animation_ui;
 mod animation_watch;
+mod app;
 mod arpg_items;
 mod arpg_tree;
 mod arpg_ui;
+mod asset_ui;
+mod asset_watch;
 mod boot;
 #[cfg(not(target_arch = "wasm32"))]
 mod bridge;
@@ -44,6 +46,7 @@ fn main() {
             "shardfall [--room NAME | --scene NAME] [--seed N] [--backend vulkan|dx12] [--no-vsync] [--fullscreen] [--bridge [ADDR]]\n\
              --bridge opens the live agent bridge (default 127.0.0.1:7878; drive it with `pav live`).\n\
              --animation-studio [SET/Clip] opens the animation workspace and the live agent bridge.\n\
+             --asset-studio [SET/name] opens the object workspace and the live agent bridge.\n\
              Startup settings live in shardfall.toml next to the executable."
         );
         return;

@@ -9,3 +9,4 @@
 # Bandai Namco): kept on this machine, loaded with `clips load=local`.
 /anim/local
 /anim/.editor
+/assets/props/.editor

@@ -138,7 +138,7 @@ impl Gfx {
 
     /// Renders the scene plus the egui overlay and presents. Texture updates are always
     /// applied (and the delta cleared), even when the frame is skipped.
-    pub fn draw(&mut self, scene: &Scene, ui: Option<(&[egui::ClippedPrimitive], &mut egui::TexturesDelta, f32)>) {
+    pub fn draw(&mut self, scene: &Scene, ui: Option<(&[egui::ClippedPrimitive], &mut egui::TexturesDelta, f32)>) -> bool {
         let mut ui = ui;
         if let Some((_, textures, _)) = ui.as_mut() {
             for (id, deltas) in &textures.set {
@@ -148,6 +148,7 @@ impl Gfx {
             }
         }
         let frame = self.acquire();
+        let submitted = frame.is_some();
         if let Some(frame) = frame {
             let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
             let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("frame") });
@@ -182,6 +183,7 @@ impl Gfx {
             }
             textures.clear();
         }
+        submitted
     }
 }
 

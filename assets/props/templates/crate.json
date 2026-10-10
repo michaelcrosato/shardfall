@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "name": "crate",
+  "description": "A wooden crate with dark edge bands and diagonal braces.",
+  "parts": {
+    "body": {
+      "shape": {"type": "rounded_box", "half": [0.6, 0.6, 0.6], "radius": 0.025},
+      "pos": [0, 0.6, 0],
+      "color": "#b7804f"
+    },
+    "band_lower": {
+      "shape": {"type": "box", "half": [0.63, 0.07, 0.63]},
+      "pos": [0, 0.12, 0],
+      "color": "#65452e"
+    },
+    "band_upper": {
+      "shape": {"type": "box", "half": [0.63, 0.07, 0.63]},
+      "pos": [0, 1.08, 0],
+      "color": "#65452e"
+    },
+    "brace_front": {
+      "shape": {"type": "box", "half": [0.07, 0.63, 0.025]},
+      "pos": [0, 0.6, 0.625],
+      "roll": -40,
+      "color": "#d8a66a",
+      "solid": false
+    },
+    "brace_back": {
+      "shape": {"type": "box", "half": [0.07, 0.63, 0.025]},
+      "pos": [0, 0.6, -0.625],
+      "roll": 40,
+      "color": "#d8a66a",
+      "solid": false
+    }
+  }
+}

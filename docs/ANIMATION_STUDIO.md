@@ -8,6 +8,12 @@ The desktop studio connects to an LLM through the existing MCP server and local 
 The LLM client must be able to run a local MCP server on the computer that runs the studio.
 The game does not need an API key. You supply prompts through your LLM client.
 
+The studio also supports reusable procedural objects. Use the **Objects** tab or start with
+`--asset-studio`. Animation and object workspaces keep their own selections, controls, and
+cameras when you switch. See `ASSET_STUDIO.md` for object authoring and placed copies.
+Live animation edits now also return a frame ticket; `studio_status ticket=N` can confirm
+that the native window submitted the edit without making another capture.
+
 ## Start the studio
 
 Run these commands from the repository root. Use the normal Linux setup in `START_HERE.md` first.

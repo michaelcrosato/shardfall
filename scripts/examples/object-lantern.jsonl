@@ -1,0 +1,4 @@
+{"tool":"asset_edit","args":{"action":"copy","from":"BUILTIN/lantern","name":"garden_lantern"}}
+{"tool":"asset_preview","args":{"playing":false,"time":0}}
+{"tool":"asset_edit","args":{"action":"patch","name":"WORKSHOP/garden_lantern","ops":[{"op":"set","part":"globe","fields":{"color":"#79debd","emissive":2.5,"shape":{"type":"sphere","radius":0.27}}},{"op":"set","part":"post","fields":{"color":"#26313e"}},{"op":"set","part":"base","fields":{"color":"#26313e"}},{"op":"set","part":"top_cap","fields":{"color":"#a98042","pos":[0,1.96,0],"shape":{"type":"cylinder","half_height":0.06,"radius":0.34}}},{"op":"set","part":"finial","fields":{"pos":[0,2.08,0]}}]}}
+{"tool":"asset_preview","args":{"action":"fit","turntable":true,"playing":true}}

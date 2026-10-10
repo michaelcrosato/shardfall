@@ -88,7 +88,7 @@ impl Editor {
         }
         let (o, d) = rig.screen_ray(cursor, size);
         let exclude = self.dragging;
-        self.hover = host.query(move |sim| sim.raycast(o, d, 500.0, exclude)).flatten();
+        self.hover = host.query(move |sim| editor_raycast(sim, o, d, 500.0, exclude)).flatten();
         let pressed = left_tap || (left_down && !self.was_down);
         let released = !left_down && (self.was_down || left_tap);
         self.was_down = left_down;
@@ -115,14 +115,19 @@ impl Editor {
                 }
                 if let (Some(id), Some(h)) = (self.dragging, self.hover) {
                     host.exec(move |sim| {
-                        let half = sim
+                        let lift = sim
                             .state
                             .entities
                             .get(id)
-                            .and_then(|e| e.visual.as_ref())
-                            .map(|v| v.shape.half_extents().y)
+                            .map(|e| {
+                                e.prop
+                                    .as_ref()
+                                    .map(|p| -p.bounds_at(Vec3::ZERO, e.rot).min.y)
+                                    .or_else(|| e.visual.as_ref().map(|v| v.shape.half_extents().y))
+                                    .unwrap_or(0.3)
+                            })
                             .unwrap_or(0.3);
-                        sim.set_position(id, h.point + Vec3::Y * (half + 0.02));
+                        sim.set_position(id, h.point + Vec3::Y * (lift + 0.02));
                     });
                 }
                 if released {
@@ -263,4 +268,68 @@ pub fn save_room(host: &SimHost, room_id: u16) -> anyhow::Result<std::path::Path
     pav_core::room::RoomDef::parse(&out).map_err(|e| anyhow::anyhow!("refusing to save an invalid room: {e}"))?;
     std::fs::write(&path, out)?;
     Ok(path)
+}
+
+/// Props can be selected while paused, including visual-only props. Physics query bounds
+/// update on a physics tick; these local bounds use the current root transform immediately.
+fn editor_raycast(sim: &pav_core::Sim, origin: Vec3, dir: Vec3, max: f32, exclude: Option<EntityId>) -> Option<RayHit> {
+    let dir = dir.normalize_or(Vec3::NEG_Y);
+    let mut hit = sim.raycast(origin, dir, max, exclude);
+    let mut nearest = hit.map(|h| h.point.distance(origin)).unwrap_or(max);
+    for entity in sim.state.entities.iter().filter(|e| Some(e.id) != exclude) {
+        let Some(prop) = &entity.prop else { continue };
+        let bounds = prop.definition.bounds(prop.scale);
+        let inverse = entity.rot.inverse();
+        let local_origin = inverse * (origin - entity.pos);
+        let local_dir = inverse * dir;
+        if let Some((distance, normal)) = ray_bounds(local_origin, local_dir, bounds.min, bounds.max, nearest) {
+            nearest = distance;
+            hit = Some(RayHit { point: origin + dir * distance, normal: entity.rot * normal, entity: Some(entity.id) });
+        }
+    }
+    hit
+}
+
+fn ray_bounds(origin: Vec3, dir: Vec3, min: Vec3, max: Vec3, limit: f32) -> Option<(f32, Vec3)> {
+    let (mut near, mut far, mut normal) = (0.0f32, limit, -dir);
+    for axis in 0..3 {
+        if dir[axis].abs() < 1.0e-8 {
+            if origin[axis] < min[axis] || origin[axis] > max[axis] {
+                return None;
+            }
+            continue;
+        }
+        let a = (min[axis] - origin[axis]) / dir[axis];
+        let b = (max[axis] - origin[axis]) / dir[axis];
+        let enter = a.min(b);
+        if enter > near {
+            near = enter;
+            normal = Vec3::ZERO;
+            normal[axis] = -dir[axis].signum();
+        }
+        far = far.min(a.max(b));
+        if near > far {
+            return None;
+        }
+    }
+    Some((near, normal))
+}
+
+#[cfg(test)]
+mod prop_selection_tests {
+    use super::*;
+
+    #[test]
+    fn paused_visual_prop_can_be_picked_after_spawn_and_move() {
+        let mut sim = pav_core::Sim::empty(1);
+        let id = sim.spawn_prop("BUILTIN/box", Vec3::new(2.0, 0.0, 1.0), Quat::from_rotation_y(0.6), 1.0, false, None).unwrap();
+        let hit = editor_raycast(&sim, Vec3::new(2.0, 5.0, 1.0), Vec3::NEG_Y, 10.0, None).unwrap();
+        assert_eq!(hit.entity, Some(id));
+        sim.set_position(id, Vec3::new(5.0, 0.0, 1.0));
+        let hit = editor_raycast(&sim, Vec3::new(5.0, 5.0, 1.0), Vec3::NEG_Y, 10.0, None).unwrap();
+        assert_eq!(hit.entity, Some(id));
+        assert_eq!(sim.state.tick, 0);
+        assert!(editor_raycast(&sim, Vec3::new(2.0, 5.0, 1.0), Vec3::NEG_Y, 10.0, None).is_none());
+        assert!(editor_raycast(&sim, Vec3::new(5.0, 5.0, 1.0), Vec3::NEG_Y, 10.0, Some(id)).is_none());
+    }
 }

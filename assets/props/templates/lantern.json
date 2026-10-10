@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "name": "lantern",
+  "description": "A standing metal lantern with a warm glowing globe and a dark cap.",
+  "parts": {
+    "base": {
+      "shape": {"type": "cylinder", "half_height": 0.1, "radius": 0.35},
+      "pos": [0, 0.1, 0],
+      "color": "#354052"
+    },
+    "post": {
+      "shape": {"type": "cylinder", "half_height": 0.63, "radius": 0.055},
+      "pos": [0, 0.82, 0],
+      "color": "#354052"
+    },
+    "globe": {
+      "shape": {"type": "sphere", "radius": 0.22},
+      "pos": [0, 1.65, 0],
+      "color": "#ffd58c",
+      "look": "lit",
+      "emissive": 2,
+      "solid": false
+    },
+    "bottom_cap": {
+      "shape": {"type": "cylinder", "half_height": 0.045, "radius": 0.27},
+      "pos": [0, 1.43, 0],
+      "color": "#354052"
+    },
+    "top_cap": {
+      "shape": {"type": "cylinder", "half_height": 0.06, "radius": 0.29},
+      "pos": [0, 1.88, 0],
+      "color": "#354052"
+    },
+    "finial": {
+      "shape": {"type": "sphere", "radius": 0.065},
+      "pos": [0, 1.99, 0],
+      "color": "#a98042"
+    }
+  }
+}

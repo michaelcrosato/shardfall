@@ -627,6 +627,9 @@ pub struct ViewBuilder {
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
 pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<RenderObject> {
+    if prev.live_edit_ticket != curr.live_edit_ticket || prev.studio_mode() != curr.studio_mode() {
+        return curr.objects.clone();
+    }
     let mut out = Vec::with_capacity(curr.objects.len());
     let mut j = 0;
     for o in &curr.objects {
@@ -867,6 +870,8 @@ impl ViewBuilder {
         settings: &ViewSettings,
         focus: Vec3,
     ) -> Scene {
+        let alpha =
+            if prev.live_edit_ticket != curr.live_edit_ticket || prev.studio_mode() != curr.studio_mode() { 1.0 } else { alpha };
         // Interpolated simulation time: animations and particles move smoothly between ticks.
         let time = (prev.time + (curr.time - prev.time) * alpha as f64) as f32;
         let mut scene = Scene { camera: rig.data(aspect), time, ..Default::default() };
@@ -1492,6 +1497,25 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
 
 /// Adds one object's instances to the scene.
 pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: f32) {
+    if let Some(prop) = &o.prop {
+        for part in prop.definition.parts.values() {
+            let visual = part.visual(prop.scale);
+            emit_shape(
+                &mut scene.meshes,
+                &mut scene.sdfs,
+                &mut scene.point_lights,
+                &visual.shape,
+                o.pos + o.rot * (part.pos * prop.scale),
+                o.rot * part.rotation(),
+                v3(visual.color),
+                visual.emissive,
+                style_of(visual.look, ov),
+                o.id.0 + 2,
+                0,
+            );
+        }
+        return;
+    }
     let v = &o.visual;
     let style = style_of(v.look, ov);
     let mut color = v3(v.color);

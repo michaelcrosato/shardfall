@@ -613,6 +613,85 @@ pub static TOOLS: &[Tool] = &[
         run: crate::preview_tools::t_anim_preview,
     },
     Tool {
+        name: "assets",
+        help: "Find reusable object assets made from named primitive parts. Lists embedded templates and saved WORKSHOP objects with revisions and bounds. Copy a template with asset_edit, then patch named parts. All edits are readable JSON.",
+        args: &[
+            arg("find", "string", "words in the asset name or description"),
+            arg("limit", "integer", "maximum results (default 30)"),
+        ],
+        run: crate::asset_tools::t_assets,
+    },
+    Tool {
+        name: "asset_edit",
+        help: "Create, copy, inspect, and edit reusable objects. Named parts use existing primitive shapes, local positions in metres, rotations in degrees, colors, surface styles, emissive strength, and a solid flag. A patch is an atomic ops array: set a part's fields, add a part with value, or remove a part. All operations validate and save as one undo step. Use if_revision from the last result. Successful edits refresh placed copies and select the live preview by default. Inspect returns the full definition and field guide; edit replies stay small.",
+        args: &[
+            arg("action", "string", "create | copy | inspect | patch | replace | undo | redo"),
+            arg("name", "string", "lowercase name or WORKSHOP/name; inspect also accepts BUILTIN/name"),
+            arg("from", "string", "source asset for copy, e.g. BUILTIN/bench"),
+            arg("template", "string", "template for create (default box): box, crate, bench, lantern"),
+            arg("description", "string", "description for create or copy"),
+            arg(
+                "asset",
+                "object",
+                "complete {format:1,name,description,parts:{part_id:{shape,pos,color,...}}} for create or replace",
+            ),
+            arg(
+                "ops",
+                "array",
+                "atomic patch operations, e.g. [{\"op\":\"set\",\"part\":\"seat\",\"fields\":{\"color\":\"#4488cc\"}}]; add uses value; remove uses part",
+            ),
+            arg("if_revision", "string", "expected revision from inspect or the last edit"),
+            arg(
+                "preview",
+                "boolean",
+                "show the accepted asset on the isolated stage (default true); false updates placed instances only",
+            ),
+        ],
+        run: crate::asset_tools::t_asset_edit,
+    },
+    Tool {
+        name: "asset_preview",
+        help: "View a reusable object through the game's renderer. The world pauses while the stage is open. Use name to select an asset; action=open resumes the previous selection. Same-name edits preserve the camera and controls. Fit frames the full asset. An optional turntable helps inspect all sides. Status includes the part count and bounds; asset_edit action=inspect gives named parts. capture returns an image of this same stage; close returns to the preserved world.",
+        args: &[
+            arg("action", "string", "status | open | fit | close | play | pause | restart"),
+            arg("name", "string", "BUILTIN/name or WORKSHOP/name to preview"),
+            arg("close", "boolean", "return to the preserved world"),
+            arg("playing", "boolean", "run or pause the turntable clock"),
+            arg("time", "number", "turntable time in seconds"),
+            arg("step", "integer", "step forward or backward in 1/60-second frames"),
+            arg("speed", "number", "turntable speed multiplier"),
+            arg("turntable", "boolean", "rotate the object while the clock runs"),
+            arg("yaw", "number", "base rotation in degrees"),
+            arg("scale", "number", "uniform preview scale"),
+        ],
+        run: crate::asset_preview_tools::t_asset_preview,
+    },
+    Tool {
+        name: "asset_spawn",
+        help: "Place reusable objects in the preserved game or room without resetting it. Each object is one root entity. add requires name and world pos; update changes a root's transform, scale, or collision; remove deletes one root; list reports all instances and their asset revisions. Accepted asset edits refresh every placed copy's geometry and collision. Room saves retain asset references. Snapshot files include exact definitions.",
+        args: &[
+            arg("action", "string", "add | list | update | remove"),
+            arg("name", "string", "asset name for add"),
+            arg("id", "integer", "root entity id for update or remove"),
+            arg("pos", "array", "world position [x,y,z] in metres (required for add)"),
+            arg("yaw", "number", "root rotation in degrees (default 0)"),
+            arg("scale", "number", "uniform instance scale (default 1)"),
+            arg("collide", "boolean", "use fixed compound collision for solid parts (default true)"),
+            arg(
+                "room",
+                "string|integer|null",
+                "room key or id for room-file persistence; defaults to the current room; null removes room assignment",
+            ),
+        ],
+        run: crate::asset_preview_tools::t_asset_spawn,
+    },
+    Tool {
+        name: "studio_status",
+        help: "Read the active studio and confirm a live edit reached a submitted window frame. Pass feedback.ticket from an edit. States: pending, submitted, superseded, or unknown (only the last 64 edits are retained). This is cheap metadata; it does not render a screenshot. Timings exclude network transport and physical display latency. Headless sessions report feedback unavailable.",
+        args: &[arg("ticket", "integer", "edit ticket from a successful live mutation; defaults to the latest")],
+        run: crate::live_feedback::t_studio_status,
+    },
+    Tool {
         name: "level",
         help: "Shardfall levels: with depth= what that depth is (name, theme colours, mechanics, boss, monster level; to= for a range); with no args the level being played (features by kind with positions and state, spots, rooms seen, exit).",
         args: &[
@@ -711,16 +790,62 @@ pub fn find(name: &str) -> Option<&'static Tool> {
 
 pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
     let tool = find(name).ok_or_else(|| anyhow!("unknown tool '{name}' (try `help`)"))?;
-    (tool.run)(session, args)
+    // Native live calls get a ticket only after successful validation and application.
+    // The app acknowledges it after drawing; never wait here on the simulation thread.
+    let started = session.feedback.as_ref().filter(|_| crate::live_feedback::changes_studio(name, args)).map(|_| Instant::now());
+    let mut output = (tool.run)(session, args)?;
+    if let (Some(shared), Some(started)) = (&session.feedback, started) {
+        if let Ok(mut feedback) = shared.lock() {
+            let note = feedback.accepted(name, started);
+            session.sim.live_edit_ticket = note["ticket"].as_u64().unwrap_or_default();
+            let value = match &mut output {
+                Output::Json(value) => value,
+                Output::Image { meta, .. } => meta,
+            };
+            if let Some(object) = value.as_object_mut() {
+                object.insert("feedback".into(), note);
+            }
+        }
+    }
+    Ok(output)
 }
 
 /// JSON schema for a tool's arguments (for MCP).
 pub fn schema(t: &Tool) -> Value {
     let mut props = Map::new();
     for a in t.args {
-        props.insert(a.name.into(), json!({ "type": a.kind, "description": a.help }));
+        let kind = if a.kind.contains('|') { json!(a.kind.split('|').collect::<Vec<_>>()) } else { json!(a.kind) };
+        props.insert(a.name.into(), json!({ "type": kind, "description": a.help }));
     }
-    json!({ "type": "object", "properties": props })
+    let mut schema = json!({ "type": "object", "properties": props });
+    let actions: &[&str] = match t.name {
+        "asset_edit" => &["create", "copy", "inspect", "patch", "replace", "undo", "redo"],
+        "asset_preview" => &["status", "open", "fit", "close", "play", "pause", "restart"],
+        "asset_spawn" => &["add", "list", "update", "remove"],
+        _ => &[],
+    };
+    if !actions.is_empty() {
+        schema["properties"]["action"]["enum"] = json!(actions);
+    }
+    if matches!(t.name, "assets" | "asset_edit" | "asset_preview" | "asset_spawn" | "studio_status") {
+        schema["additionalProperties"] = json!(false);
+    }
+    if t.name == "asset_edit" {
+        schema["properties"]["ops"]["items"] = json!({"oneOf":[
+            {"type":"object","required":["op","part","fields"],"additionalProperties":false,
+             "properties":{"op":{"const":"set"},"part":{"type":"string"},"fields":{"type":"object"}}},
+            {"type":"object","required":["op","part","value"],"additionalProperties":false,
+             "properties":{"op":{"const":"add"},"part":{"type":"string"},"value":{"type":"object"}}},
+            {"type":"object","required":["op","part"],"additionalProperties":false,
+             "properties":{"op":{"const":"remove"},"part":{"type":"string"}}}
+        ]});
+    }
+    if t.name == "asset_spawn" {
+        schema["properties"]["pos"]["items"] = json!({"type":"number"});
+        schema["properties"]["pos"]["minItems"] = json!(3);
+        schema["properties"]["pos"]["maxItems"] = json!(3);
+    }
+    schema
 }
 
 pub(crate) fn get_u64(a: &Args, k: &str, default: u64) -> Result<u64> {

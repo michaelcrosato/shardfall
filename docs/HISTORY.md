@@ -5,6 +5,66 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Object Studio: reusable assets in the live agent loop — 2026-10-10
+
+The studio now creates and edits reusable objects as well as animations. People give design
+direction in their LLM client while the game window shows accepted changes. The first new
+asset type is a prop made from named primitive parts. This fits the engine's procedural
+renderer and text-asset rule, and lets an agent make precise changes without mesh import or
+texture generation. Box, crate, bench, and lantern templates are embedded as readable JSON.
+
+How it works:
+- `props.rs` defines a versioned JSON format, named parts, strict validation, scaled bounds,
+  and stable content revisions. Parts have a shape, transform, colour, surface, glow, and a
+  collision flag. One object can have up to 256 parts. No new dependencies were added.
+- `assets`, `asset_edit`, `asset_preview`, and `asset_spawn` work through the CLI, JSON-line
+  REPL, and MCP. Inspect gives the full definition and field guide; edit replies stay small.
+  Related `set`, `add`, and `remove` operations validate and publish as one batch. Revision
+  guards reject stale edits. Atomic saves and 32-step undo/redo use `assets/props/workshop`
+  and `.editor` (`PAV_ASSETS` overrides the root).
+- A placed prop is one root entity with an embedded definition. Its parts use one compound
+  collider. Edits refresh active and sleeping copies, with each root's placement intact.
+  Existing physics handles stay stable while collision remains enabled, so room joints stay
+  attached. Selection, streaming wake, and navigation use the whole object's bounds.
+- Room object records preserve asset references and scale. Full snapshots embed exact
+  definitions, so later library edits cannot change an old snapshot. Normal hero saves do
+  not store level layouts. Removing a source leaves placed copies intact.
+- The native Objects panel calls the same tools as agents. It provides template search,
+  create/copy, named-part controls, JSON batches, placement, and undo/redo. Unsaved drafts keep
+  their original revision after an external edit. Undoing creation leaves Redo reachable.
+- Animations / Objects / Game share one window and bridge. Each preview keeps its subject,
+  clock, and camera; the game state stays paused behind the active stage. Existing animation
+  startup and tools remain available. `--asset-studio` (or `--studio`) opens the new stage;
+  an explicit `--scene` remains behind it.
+- Direct tool saves publish immediately. Native file watching waits for 250 ms of quiet,
+  retains the last valid definition on errors, and detects recovery. Startup loads authored
+  objects once; catalog reads cannot consume watcher updates. A sim-thread revision check
+  rejects a queued file update if a newer edit was already published.
+- `studio_status ticket=N` reports when the native window submitted a frame containing an
+  edit and its camera changes. Tickets are independent of world ticks and content revisions,
+  so paused edits and undo work. Replaced pending tickets report `superseded`. The path skips
+  interpolation across edits and does not capture an image. Timings end at frame submission,
+  not GPU completion or physical display.
+- Bridge requests adopt their camera changes in order, including requests from several
+  clients. A manual studio command first adopts any earlier bridge result. This stops delayed
+  camera changes from overwriting a later human edit. A new ticket cancels old camera blends
+  and uses the current focus on its first submitted frame.
+- Source launchers, `.mcp.studio.json`, a runnable lantern example, a Windows package script,
+  and a real-window MCP smoke script are included. The browser still builds and can show the
+  procedural stage; native file editing and the local bridge are desktop features.
+
+Scope: this adds procedural object assets and scene placement. Imported mesh models, bitmap
+textures, and a general level editor are separate work. The reusable definition, revision,
+preview, and placement interfaces provide a base for that work.
+
+Verification: 100 focused Rust tests passed (63 core, 18 tools, 19 app), including existing
+animation and playable-character regressions. The real native window passed 12 object and
+10 animation workflow checks through MCP. The 20-edit sample used Vulkan llvmpipe software
+rendering at 1600 x 900, with Cargo idle: median apply/save 2.04 ms, RPC return 292 ms, tool
+start to frame submission 580 ms, and client-observed confirmation 898 ms. The last measure
+includes status polling. These are software-renderer results, not measurements on the
+user's Windows GPU. Captures were outside the timing sample.
+
 ## Two new playable characters and the Hall of Heroes — 2026-10-10
 Shardfall had one hero, the Wanderer, moving with the engine's procedural animation. Now there
 are three playable characters (`game/heroes.toml`), each with a look and a way of moving of their

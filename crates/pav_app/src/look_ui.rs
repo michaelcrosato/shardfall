@@ -79,8 +79,7 @@ impl LookUi {
         Self { open: false, file, name: "my look".into(), dirty: None }
     }
 
-    /// The look (for agent tools over the live bridge).
-    #[cfg(not(target_arch = "wasm32"))]
+    /// The look shared by studio controls and agent tools.
     pub fn look(&self) -> &Look {
         &self.file.current
     }

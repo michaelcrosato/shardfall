@@ -202,6 +202,18 @@ reload automatically. See `docs/ANIMATION_STUDIO.md`. REPLs accept structured JS
 Use the returned `revision` as `if_revision` on later edits. Copy source clips before editing;
 keep local source copies and their history in `anim/local`.
 
+Object Studio: `scripts/asset-studio.sh` or `shardfall --asset-studio` opens reusable prop
+authoring on the same live bridge (`.mcp.studio.json`). `assets` lists embedded templates and
+saved definitions. `asset_edit` creates/copies/inspects/patches readable JSON with stable part
+names, atomic batches, revisions, and 32-step history. `asset_preview` opens the isolated
+stage. `asset_spawn` places one-root instances in the preserved scene. Edits refresh visuals
+and compound collision together. Native file changes reload after 250 ms of quiet. Saved
+definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props root).
+`studio_status ticket=N` confirms frame submission for live edits without a capture. The
+Animations / Objects / Game tabs retain each workspace's controls and camera. See
+`docs/ASSET_STUDIO.md`. Keep procedural parts as text; use `if_revision` and batch related
+part changes in one `ops` array.
+
 Tools: `scenes load step status entities params set camera capture bench gpu player input spawn
 despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream filmstrip camera_bench course feel audio_capture`;

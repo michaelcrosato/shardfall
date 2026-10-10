@@ -35,6 +35,7 @@ pub enum MenuAction {
     Look,
     /// The live animation workspace.
     AnimationStudio,
+    AssetStudio,
     /// How the room you are in works (the station guide; outside rooms the field guide).
     Guide,
     /// Every word and every room's ask-for-it phrases.
@@ -201,6 +202,9 @@ pub fn pause_menu(
                 }
                 if ui.button("Animation Studio").clicked() {
                     action = Some(MenuAction::AnimationStudio);
+                }
+                if ui.button("Object Studio").clicked() {
+                    action = Some(MenuAction::AssetStudio);
                 }
                 if !game
                     && ui

@@ -16,6 +16,11 @@ the background on something.
     monsters in captured motion. **Animation Studio** adds live LLM and manual editing,
     shared playback, saved workshop clips, revisions, undo/redo, and file reloads
     (`docs/ANIMATION_STUDIO.md`; start with `shardfall --animation-studio`).
+  - **Object Studio:** reusable props made from named primitive parts, with the same live
+    LLM and manual edit loop (`docs/ASSET_STUDIO.md`; `shardfall --asset-studio`). Atomic JSON
+    edits save with revisions and undo/redo, then update the preview and all placed copies.
+    Animations, Objects, and Game keep separate controls and cameras. `studio_status` confirms
+    native frame submission without a screenshot; native file edits reload after 250 ms.
   - **Looks:** every filter on a part of the scene, painterly and print styles, volumetric light,
     water, wind, and a station guide in every room.
   - **Playable characters** (`game/heroes.toml`): Kestrel the Brawler (captured boxing and

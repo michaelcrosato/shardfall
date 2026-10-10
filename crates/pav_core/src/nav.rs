@@ -89,6 +89,22 @@ impl NavGrid {
             if e.body_kind != BodyKind::Fixed || e.character.is_some() || skip(e.id) {
                 continue;
             }
+            if let Some(prop) = &e.prop {
+                if prop.collide {
+                    for part in prop.definition.parts.values().filter(|p| p.solid) {
+                        let b = crate::prop_instance::transform_bounds(part.bounds(prop.scale), e.pos, e.rot);
+                        if b.min.y <= 1.6 && b.max.y >= 0.3 {
+                            mark(
+                                &mut solid,
+                                Vec2::new(b.min.x, b.min.z) - Vec2::splat(radius),
+                                Vec2::new(b.max.x, b.max.z) + Vec2::splat(radius),
+                                true,
+                            );
+                        }
+                    }
+                }
+                continue;
+            }
             let Some(v) = &e.visual else { continue };
             let he = v.shape.half_extents();
             if e.pos.y - he.y > 1.6 || e.pos.y + he.y < 0.3 {

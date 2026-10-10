@@ -3,24 +3,25 @@
 use anyhow::{Result, anyhow, bail};
 use glam::Vec3;
 use pav_core::animation_preview::{PreviewChange, Selection};
+use pav_core::prop_preview::{StudioCamera, StudioMode};
 use serde_json::{Value, json};
 
 use crate::session::Session;
 use crate::tools::{Args, Output, get_bool, get_f32, get_str};
 
-fn opt_float(a: &Args, key: &str) -> Result<Option<f32>> {
+pub(crate) fn opt_float(a: &Args, key: &str) -> Result<Option<f32>> {
     a.contains_key(key).then(|| get_f32(a, key, 0.0)).transpose()
 }
 
-fn opt_bool(a: &Args, key: &str) -> Result<Option<bool>> {
+pub(crate) fn opt_bool(a: &Args, key: &str) -> Result<Option<bool>> {
     a.contains_key(key).then(|| get_bool(a, key, false)).transpose()
 }
 
-fn opt_text<'a>(a: &'a Args, key: &str) -> Result<Option<&'a str>> {
+pub(crate) fn opt_text<'a>(a: &'a Args, key: &str) -> Result<Option<&'a str>> {
     a.get(key).map(|v| v.as_str().ok_or_else(|| anyhow!("{key} must be text"))).transpose()
 }
 
-fn step_arg(a: &Args) -> Result<Option<i32>> {
+pub(crate) fn step_arg(a: &Args) -> Result<Option<i32>> {
     a.get("step")
         .map(|v| {
             let n = v
@@ -33,17 +34,94 @@ fn step_arg(a: &Args) -> Result<Option<i32>> {
 }
 
 fn status(s: &Session) -> Value {
-    match s.sim.preview_info() {
+    match s.sim.state.animation_preview.as_ref().map(|p| p.info()) {
         Some(info) => {
             let mut out = serde_json::to_value(info).unwrap_or_default();
-            out["open"] = json!(true);
+            out["open"] = json!(s.sim.studio_mode() == StudioMode::Animation);
+            out["active"] = out["open"].clone();
+            out["studio_mode"] = json!(s.sim.studio_mode());
             out["scene_preserved"] = json!(s.sim.state.scene);
             out
         }
         None => json!({
             "open": false,
+            "active": false,
+            "studio_mode": s.sim.studio_mode(),
             "use": "clip=SET/Clip or move=NAME opens the stage; playing/time/speed/repeat control it; action=pose reads joints; close=true returns to the scene",
         }),
+    }
+}
+
+/// Keep every workspace camera in snapshot state. Call after the core changes mode; the
+/// caller supplies its previous mode and restores the checkpoint if fitting/decoding fails.
+pub(crate) fn switch_camera(s: &mut Session, from: StudioMode) -> Result<bool> {
+    let to = s.sim.studio_mode();
+    if from == to {
+        return Ok(false);
+    }
+    let old = StudioCamera { params: serde_json::to_value(&s.camera.params)?, focus: s.camera.target };
+    let target = s.sim.state.studio_cameras.get(to).cloned().or_else(|| {
+        // Animation snapshots made before shared workspaces kept just the world camera.
+        (to == StudioMode::World)
+            .then(|| {
+                s.sim
+                    .state
+                    .animation_preview
+                    .as_ref()?
+                    .saved_camera
+                    .clone()
+                    .map(|params| StudioCamera { params, focus: s.sim.state.focus })
+            })
+            .flatten()
+    });
+    let decoded = target
+        .as_ref()
+        .map(|c| serde_json::from_value(c.params.clone()))
+        .transpose()
+        .map_err(|e| anyhow!("saved studio camera: {e}"))?;
+    s.sim.state.studio_cameras.set(from, old);
+    if let (Some(params), Some(target)) = (decoded, target) {
+        s.camera.params = params;
+        s.camera.snap(target.focus);
+    } else {
+        let focus = match to {
+            StudioMode::Animation => s.sim.state.animation_preview.as_ref().map(|p| p.focus),
+            StudioMode::Prop => s.sim.state.prop_preview.as_ref().map(|p| p.focus),
+            StudioMode::World => Some(s.sim.state.focus),
+        };
+        if let Some(focus) = focus {
+            s.camera.snap(focus);
+        }
+    }
+    s.clear_view_effects();
+    Ok(s.sim.state.studio_cameras.get(to).is_some())
+}
+
+/// Preview mutations never need to clone or roll back the frozen game/physics world.
+pub(crate) struct StudioCheckpoint {
+    animation: Option<pav_core::animation_preview::PreviewState>,
+    prop: Option<pav_core::prop_preview::PropPreviewState>,
+    mode: Option<StudioMode>,
+    cameras: pav_core::prop_preview::StudioCameras,
+    camera: pav_view::CameraRig,
+}
+
+impl StudioCheckpoint {
+    pub(crate) fn new(s: &Session) -> Self {
+        Self {
+            animation: s.sim.state.animation_preview.clone(),
+            prop: s.sim.state.prop_preview.clone(),
+            mode: s.sim.state.studio_mode,
+            cameras: s.sim.state.studio_cameras.clone(),
+            camera: s.camera.clone(),
+        }
+    }
+    pub(crate) fn restore(self, s: &mut Session) {
+        s.sim.state.animation_preview = self.animation;
+        s.sim.state.prop_preview = self.prop;
+        s.sim.state.studio_mode = self.mode;
+        s.sim.state.studio_cameras = self.cameras;
+        s.camera = self.camera;
     }
 }
 
@@ -102,21 +180,6 @@ pub fn t_anim_preview(s: &mut Session, a: &Args) -> Result<Output> {
     let clip = opt_text(a, "clip")?;
     let move_name = opt_text(a, "move")?;
     let close = get_bool(a, "close", false)? || action == "close";
-    if close {
-        if clip.is_some() || move_name.is_some() {
-            bail!("close cannot select another animation");
-        }
-        let saved = s.sim.state.animation_preview.as_ref().and_then(|p| p.saved_camera.clone());
-        if let Some(saved) = saved {
-            s.camera.params = serde_json::from_value(saved).map_err(|e| anyhow!("saved preview camera: {e}"))?;
-        }
-        s.sim.preview_close();
-        s.camera.snap(s.sim.state.focus);
-        s.prev_frame = s.sim.frame();
-        s.clear_view_effects();
-        return Ok(Output::Json(status(s)));
-    }
-
     // Parse before opening the stage, so a bad command never leaves a partial change.
     let mut change = PreviewChange {
         playing: opt_bool(a, "playing")?,
@@ -149,6 +212,20 @@ pub fn t_anim_preview(s: &mut Session, a: &Args) -> Result<Output> {
         matches!(k.as_str(), "playing" | "time" | "speed" | "repeat" | "mirror" | "upper" | "travel" | "side" | "hit" | "step")
     });
     let open = clip.is_some() || move_name.is_some() || action == "open" || get_bool(a, "stage", false)?;
+    if close {
+        if open || controls {
+            bail!("close cannot select or alter an animation");
+        }
+        let checkpoint = StudioCheckpoint::new(s);
+        let before = s.sim.studio_mode();
+        s.sim.preview_close();
+        if let Err(error) = switch_camera(s, before) {
+            checkpoint.restore(s);
+            return Err(error);
+        }
+        s.prev_frame = s.sim.frame();
+        return Ok(Output::Json(status(s)));
+    }
     if !open && s.sim.state.animation_preview.is_none() {
         if controls || action != "status" {
             bail!("no preview is open (anim_preview clip=SET/Clip)");
@@ -156,10 +233,15 @@ pub fn t_anim_preview(s: &mut Session, a: &Args) -> Result<Output> {
         return Ok(Output::Json(status(s)));
     }
 
-    let previous = s.sim.state.animation_preview.clone();
-    let camera_before = s.camera.clone();
+    let activate = open || controls || matches!(action, "play" | "pause" | "restart" | "fit");
+    if !activate && action == "status" {
+        return Ok(Output::Json(status(s)));
+    }
+    let checkpoint = StudioCheckpoint::new(s);
+    let previous = s.sim.state.animation_preview.as_ref().map(|p| p.selection.clone());
+    let mode_before = s.sim.studio_mode();
     let result = (|| -> Result<()> {
-        if open {
+        if activate {
             if let Some(name) = clip {
                 let authored = name
                     .split_once('/')
@@ -170,28 +252,23 @@ pub fn t_anim_preview(s: &mut Session, a: &Args) -> Result<Output> {
             }
             s.sim.preview_open(clip, move_name).map_err(|e| anyhow!(e))?;
         }
-        if let Some(p) = &mut s.sim.state.animation_preview {
-            if p.saved_camera.is_none() {
-                p.saved_camera = Some(serde_json::to_value(&camera_before.params)?);
+        if activate {
+            s.sim.preview_change(&change).map_err(|e| anyhow!(e))?;
+            switch_camera(s, mode_before)?;
+            let selected = s.sim.state.animation_preview.as_ref().map(|p| &p.selection);
+            if previous.as_ref() != selected || action == "fit" {
+                fit_camera(s)?;
             }
-        }
-        s.sim.preview_change(&change).map_err(|e| anyhow!(e))?;
-        let selected = s.sim.state.animation_preview.as_ref().map(|p| &p.selection);
-        let changed = previous.as_ref().map(|p| &p.selection) != selected;
-        if changed || action == "fit" {
-            fit_camera(s)?;
         }
         Ok(())
     })();
     if let Err(e) = result {
-        s.sim.state.animation_preview = previous;
-        s.camera = camera_before;
+        checkpoint.restore(s);
         return Err(e);
     }
-    if previous.is_none() {
-        s.clear_view_effects();
+    if activate {
+        s.prev_frame = s.sim.frame();
     }
-    s.prev_frame = s.sim.frame();
     let mut out = status(s);
     if action == "pose" {
         let p = s.sim.state.animation_preview.as_ref().ok_or_else(|| anyhow!("no preview is open"))?;
