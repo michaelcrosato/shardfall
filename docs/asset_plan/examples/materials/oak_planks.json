@@ -1,0 +1,5 @@
+{"format":1,"name":"oak_planks","unit":"cm","description":"Warm oak boards: floors, decks, crates, tables.","tags":["wood","floor"],"color":"#a0703f","roughness":0.7,
+ "layers":[
+  {"type":"planks","size":[120,20],"gap":2,"vary":0.2,"cavity":0.25},
+  {"type":"wood","size":10,"axis":"x","cover":0.3,"shade":0.8}
+ ]}

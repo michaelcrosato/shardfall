@@ -1,0 +1,1 @@
+{"format":1,"name":"pb/gold","unit":"cm","description":"Gold, from Physically Based (CC0): metal albedo with Oklab L x0.8, chroma x1.6.","tags":["metal","preset"],"color":"#d1a400","metallic":1,"roughness":0.25,"source":{"library":"physicallybased","id":"Gold","license":"CC0-1.0"}}

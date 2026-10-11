@@ -1,0 +1,4 @@
+{"format":1,"name":"gold_trim","unit":"cm","description":"Polished gold, lightly hammered: trims, crowns, coins, inlays.","tags":["metal"],"base":"MAT/pb/gold","roughness":0.3,
+ "layers":[
+  {"type":"noise","size":15,"cover":0.5,"shade":0.85}
+ ]}

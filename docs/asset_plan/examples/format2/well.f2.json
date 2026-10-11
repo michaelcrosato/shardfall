@@ -1,0 +1,39 @@
+{"format":2,"name":"well","unit":"cm",
+"description":"A round stone well with a shingled wooden gable roof, a rope crank and a hanging bucket.",
+"tags":["well","town","stone","wood"],
+"materials":{
+"stone":{"color":"$wall"},
+"mortar":{"color":"#5f6266"},
+"pad":{"color":"#6f7276"},
+"rim":{"color":"#a7a9ab"},
+"void":{"color":"#1f272d","look":"flat"},
+"wood":{"color":"#6b4a2e"},
+"wood_dark":{"color":"#5a3a22"},
+"roof":{"color":"#8a4b2f"},
+"shingle":{"color":"#6f3a22"},
+"rope":{"color":"#c9a66b"},
+"iron":{"color":"#4a4a4a"},
+"bucket":{"color":"#8b5a2b"}},
+"parts":{
+"pad":{"type":"cylinder","radius":95,"height":6,"pos":[0,3,0],"mat":"pad"},
+"wall":{"type":"tube","radius":70,"thickness":10,"height":80,"pos":[0,40,0],"mat":"mortar"},
+"water":{"type":"cylinder","radius":60,"height":1,"pos":[0,30,0],"mat":"void","solid":false},
+"stones":{"pos":[0,40,0],"array":{"count":2,"step":[0,52,0]},"parts":{
+  "ring":{"type":"box","size":[40,23,8],"mat":"stone","radial":{"count":10,"radius":69},"jitter":{"color":0.12}}}},
+"stones_mid":{"type":"box","size":[40,23,8],"pos":[0,40,0],"mat":"stone","radial":{"count":10,"radius":69,"start":18},"jitter":{"color":0.12}},
+"rim":{"type":"tube","radius":78,"thickness":20,"height":10,"attach":"wall","mat":"rim"},
+"post":{"type":"box","size":[12,12],"from":[70,90,0],"to":[70,230,0],"mat":"wood","mirror":"x"},
+"roof":{"pos":[0,207.3,41],"pitch":35,"mirror":"z","parts":{
+  "slab":{"type":"box","size":[180,5,100],"mat":"roof"},
+  "shingles":{"type":"box","size":[184,2.4,12],"pos":[0,3.7,0],"mat":"shingle","solid":false,"array":{"count":3,"step":[0,0,30]}}}},
+"ridge":{"type":"cylinder","radius":5,"height":190,"pos":[0,237,0],"axis":"x","mat":"wood_dark"},
+"crank":{"pos":[0,145,0],"mat":"wood_dark","parts":{
+  "axle":{"type":"cylinder","radius":3.5,"height":164,"axis":"x"},
+  "drum":{"type":"cylinder","radius":10,"height":60,"axis":"x","mat":"rope"},
+  "arm":{"type":"box","size":[5,26,5],"pos":[84,-12,0]},
+  "handle":{"type":"cylinder","radius":2.5,"height":18,"pos":[93,-24,0],"axis":"x"}}},
+"bucket":{"pos":[0,102,0],"solid":false,"parts":{
+  "body":{"type":"cone","radius":11.5,"radius_end":13.5,"height":18,"mat":"bucket"},
+  "band":{"type":"tube","radius":13.6,"thickness":1.2,"height":2.4,"pos":[0,6,0],"mat":"iron"},
+  "bail":{"type":"torus","radius":13,"minor_radius":0.8,"arc":180,"pos":[0,9,0],"axis":"z","mat":"iron"},
+  "rope":{"type":"cylinder","radius":1.2,"from":[0,22,0],"to":[0,33,0],"mat":"rope"}}}}}

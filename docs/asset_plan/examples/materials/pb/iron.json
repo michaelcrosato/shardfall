@@ -1,0 +1,1 @@
+{"format":1,"name":"pb/iron","unit":"cm","description":"Iron, from Physically Based (CC0): metal albedo with Oklab L x0.8, chroma x1.6.","tags":["metal","preset"],"color":"#908c87","metallic":1,"roughness":0.4,"source":{"library":"physicallybased","id":"Iron","license":"CC0-1.0"}}

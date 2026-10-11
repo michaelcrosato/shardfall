@@ -1,0 +1,19 @@
+{"format":2,"name":"greatsword","unit":"cm",
+"description":"A two-handed steel sword: long tapered blade with a dark fuller, upswept brass crossguard, leather grip with brass rings, oval pommel. Origin: crossguard centre; the blade points +y.",
+"tags":["weapon","sword","two_handed","steel"],
+"materials":{
+"steel":{"color":"#c9d0d6","look":"lit"},
+"steel_dark":{"color":"#6e767d"},
+"brass":{"color":"#b08a3e"},
+"leather":{"color":"#4a2f1e"}},
+"parts":{
+"blade":{"type":"extrude","points":[[-3,0],[3,0],[2.4,100],[0,113],[-2.4,100]],"depth":0.8,"pos":[0,1.5,0],"mat":"steel"},
+"fuller":{"type":"box","size":[0.9,72,1],"pos":[0,40,0],"mat":"steel_dark"},
+"guard":{"type":"capsule","radius":1.5,"from":[0,0,0],"to":[15,2.5,0],"mat":"brass","mirror":"x"},
+"grip":{"type":"cylinder","radius":1.6,"from":[0,-1.5,0],"to":[0,-38,0],"mat":"leather"},
+"rings":{"type":"tube","radius":1.8,"thickness":0.3,"height":1,"pos":[0,-19,0],"mat":"brass","array":{"count":3,"step":[0,11,0]}},
+"pommel":{"type":"ellipsoid","size":[6.5,5,4.5],"attach":{"to":"grip","at":"to"},"mat":"brass"}},
+"sockets":{
+"grip":{"pos":[0,-6,0]},
+"grip2":{"pos":[0,-28,0]},
+"tip":{"pos":[0,114.5,0]}}}

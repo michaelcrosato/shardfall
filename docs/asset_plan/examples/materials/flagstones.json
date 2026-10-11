@@ -1,0 +1,4 @@
+{"format":1,"name":"flagstones","unit":"cm","description":"Big irregular slabs: dungeon floors.","color":"$floor",
+ "layers":[
+  {"type":"cobbles","size":70,"jitter":0.5,"gap":4.5,"bevel":6,"vary":0.18,"cavity":0.35}
+ ]}

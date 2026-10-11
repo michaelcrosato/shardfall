@@ -1,0 +1,78 @@
+--- /home/user/shardfall/crates/pav_render/src/scene.rs	2026-10-11 18:42:33.493505060 +0000
++++ src/scene.rs	2026-10-11 20:53:15.194926591 +0000
+@@ -126,6 +126,8 @@
+     pub style: Style,
+     pub flags: u32,
+     pub group: u32,
++    /// Material slot (bits 0-11, 0 = none) | per-instance seed << 12.
++    pub material: u32,
+ }
+ 
+ #[derive(Clone, Copy, Debug)]
+@@ -141,6 +143,8 @@
+     /// Outline group: edges are drawn where the group changes. 0 = background, use 1 for
+     /// static level geometry and unique ids for objects.
+     pub group: u32,
++    /// Material slot (bits 0-11, 0 = none) | per-instance seed << 12.
++    pub material: u32,
+ }
+ 
+ /// Analytic SDF primitive, ray-traced per pixel: a rounded cone between `a` and `b` with
+@@ -156,14 +160,15 @@
+     pub style: Style,
+     pub flags: u32,
+     pub group: u32,
++    pub material: u32,
+ }
+ 
+ impl SdfInstance {
+     pub fn sphere(center: Vec3, r: f32, color: Vec3) -> Self {
+-        Self { a: center, b: center, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1 }
++        Self { a: center, b: center, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1, material: 0 }
+     }
+     pub fn capsule(a: Vec3, b: Vec3, r: f32, color: Vec3) -> Self {
+-        Self { a, b, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1 }
++        Self { a, b, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1, material: 0 }
+     }
+ }
+ 
+@@ -559,6 +564,30 @@
+     pub distortions: Vec<Distortion>,
+     pub wind: Wind,
+     pub time: f32,
++    /// Material table (slot 0 = none). Re-uploaded when `materials_version` changes.
++    pub materials: std::sync::Arc<Vec<GpuMaterial>>,
++    pub materials_version: u64,
++}
++
++/// One pattern layer of a material, laid out as in materials.wgsl.
++#[repr(C)]
++#[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
++pub struct GpuLayer {
++    pub head: [u32; 4],
++    pub paint: [f32; 4],
++    pub a: [f32; 4],
++    pub b: [f32; 4],
++    pub c: [f32; 4],
++    pub cells: [u32; 4],
++    pub dir: [f32; 4],
++}
++
++#[repr(C)]
++#[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
++pub struct GpuMaterial {
++    pub head: [u32; 4],
++    pub pbr: [f32; 4],
++    pub layers: [GpuLayer; 3],
+ }
+ 
+ impl Default for Scene {
+@@ -583,6 +612,8 @@
+             distortions: Vec::new(),
+             wind: Wind::default(),
+             time: 0.0,
++            materials: std::sync::Arc::new(vec![GpuMaterial::default()]),
++            materials_version: 0,
+         }
+     }
+ }
