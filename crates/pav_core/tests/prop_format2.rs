@@ -1,10 +1,12 @@
 //! Format 2's conformance corpus (asset plan §5.9): the five examples and three probes, inline
 //! and in canonical form. Map entries are in key order, so the examples' authored order (the
-//! bench's seat first) reads to this text too. Row 2.1 checks reading, writing and revisions;
-//! the compile goldens join with row 2.2.
+//! bench's seat first) reads to this text too. The tests check reading, writing, revisions and
+//! the resolved goldens: positions in cm within 0.01 cm, angles within 0.05 degrees.
 
+use glam::{EulerRot, Vec3};
 use pav_core::issue::render;
-use pav_core::props::{Doc, PropAsset, get};
+use pav_core::props::compile::compile;
+use pav_core::props::{CompiledProp, Doc, PropAsset, ResolvedPart, get};
 
 const BENCH: &str = r##"{"format":2,"name":"bench","unit":"cm",
 "description":"A wooden bench: broad seat, four legs, backrest leaning 12 degrees back on the rear legs.",
@@ -388,4 +390,107 @@ fn every_field_reads_and_writes_back() {
     let changed = read("sink", &SINK.replace("\"peak\":-0.5", "\"peak\":-0.25"));
     assert_ne!(changed.revision(), doc.revision());
     assert_eq!(read("sink", &SINK.replace(",\n", ",")).revision(), doc.revision());
+}
+
+fn compiled(name: &str, text: &str) -> CompiledProp {
+    compile(&read(name, text), &|_| None, 0).unwrap_or_else(|issues| panic!("{name}:\n{}", render(&issues)))
+}
+
+fn part<'a>(prop: &'a CompiledProp, id: &str) -> &'a ResolvedPart {
+    prop.parts
+        .iter()
+        .find(|p| p.id == id)
+        .unwrap_or_else(|| panic!("no part {id} in {:?}", prop.parts.iter().map(|p| p.id.as_str()).collect::<Vec<_>>()))
+}
+
+/// A resolved centre in cm, within 0.01 cm; NaN skips an axis.
+fn at(prop: &CompiledProp, id: &str, cm: [f32; 3]) {
+    let pos = part(prop, id).pos * 100.0;
+    for axis in 0..3 {
+        if !cm[axis].is_nan() {
+            assert!((pos[axis] - cm[axis]).abs() <= 0.01, "{id} is at {pos} cm, expected {cm:?}");
+        }
+    }
+}
+
+/// Resolved yaw and pitch (YXZ, degrees), within 0.05 degrees.
+fn turned(prop: &CompiledProp, id: &str, yaw: f32, pitch: f32) {
+    let (y, p, _) = part(prop, id).rot.to_euler(EulerRot::YXZ);
+    let near = |a: f32, b: f32| ((a - b + 540.0).rem_euclid(360.0) - 180.0).abs() <= 0.05;
+    assert!(near(y.to_degrees(), yaw) && near(p.to_degrees(), pitch), "{id}: yaw {} pitch {}", y.to_degrees(), p.to_degrees());
+}
+
+#[test]
+fn the_corpus_resolves_to_its_goldens() {
+    let counts: Vec<(&str, usize)> =
+        FIXTURES.iter().take(5).map(|(name, text, _)| (*name, compiled(name, text).parts.len())).collect();
+    assert_eq!(counts, [("bench", 7), ("greatsword", 9), ("market_stall", 46), ("wall_torch", 6), ("well", 53)]);
+
+    let bench = compiled("bench", BENCH);
+    at(&bench, "leg_back~x", [-85.0, 70.5, -41.0]);
+    turned(&bench, "leg_back~x", 0.0, -12.01);
+
+    let well = compiled("well", WELL);
+    at(&well, "rim", [0.0, 85.0, 0.0]);
+    at(&well, "stones[1].ring[3]", [65.62, 66.0, -21.32]);
+    turned(&well, "stones[1].ring[3]", 108.0, 0.0);
+    at(&well, "stones_mid[0]", [21.32, 40.0, 65.62]);
+    at(&well, "roof~z.slab", [0.0, 207.3, -41.0]);
+    turned(&well, "roof~z.slab", 180.0, 35.0);
+
+    let stall = compiled("market_stall", MARKET_STALL);
+    at(&stall, "awning[0].stripe", [-108.25, f32::NAN, f32::NAN]);
+    at(&stall, "crate[1].fruit[5]", [78.0, 129.06, 53.8]);
+
+    let sword = compiled("greatsword", GREATSWORD);
+    at(&sword, "pommel", [f32::NAN, -40.5, f32::NAN]);
+
+    let mirror = compiled("probe_mirror", PROBE_MIRROR);
+    at(&mirror, "arm~x.hand", [-50.0, 80.0, 0.0]);
+    assert_eq!(part(&mirror, "outer.inner.cube").color, "#30c040", "the nearest level wins");
+
+    let attach = compiled("probe_attach", PROBE_ATTACH);
+    at(&attach, "cube", [0.0, 128.0, 0.0]);
+    at(&attach, "knob", [0.0, 106.0, 0.0]);
+    at(&attach, "spokes_z[0]", [-60.0, 90.0, 0.0]);
+    at(&attach, "spokes_z[1]", [-80.0, 70.0, 0.0]);
+    let size = |id: &str| part(&attach, id).aabb.size();
+    assert!((size("cap_height") - size("cap_fromto")).abs().max_element() < 1e-5, "a capsule's height and its ends agree");
+}
+
+#[test]
+fn compiling_twice_gives_identical_bytes() {
+    for (name, text, _) in FIXTURES {
+        let doc = read(name, text);
+        let bytes = |seed| serde_json::to_vec(&compile(&doc, &|_| None, seed).unwrap()).unwrap();
+        assert_eq!(bytes(0), bytes(0), "{name}");
+        assert_eq!(bytes(7), bytes(7), "{name}");
+    }
+}
+
+#[test]
+fn extras_sockets_and_warnings_resolve() {
+    let torch = compiled("wall_torch", WALL_TORCH);
+    let [light] = torch.lights.as_slice() else { panic!("one light") };
+    assert_eq!(
+        (light.part.as_str(), light.color.as_str(), light.radius, light.intensity, light.flicker),
+        ("torch.flame", "$light", 6.0, 1.6, 0.5)
+    );
+    assert!((light.pos - part(&torch, "torch.flame").pos).length() < 1e-6, "a light sits at its part");
+    assert!(!part(&torch, "torch.flame").glow_light, "a part's own light replaces its glow light");
+    let [fx] = torch.fx.as_slice() else { panic!("one emitter") };
+    assert_eq!((fx.preset.as_str(), fx.size), ("fire", 0.5));
+    assert!((torch.sockets["wall_mount"].rot * Vec3::Y - Vec3::NEG_Z).length() < 1e-6, "+y points into the wall");
+    let sword = compiled("greatsword", GREATSWORD);
+    assert!((sword.sockets["tip"].pos * 100.0 - Vec3::new(0.0, 114.5, 0.0)).length() < 0.01);
+    for (name, text, _) in FIXTURES.iter().take(5) {
+        assert_eq!(compiled(name, text).warnings, [], "{name} is clean");
+    }
+    let frames: Vec<String> = compiled("probe_frames", PROBE_FRAMES)
+        .warnings
+        .into_iter()
+        .filter(|w| w.code == "frame_turn")
+        .flat_map(|w| w.ids)
+        .collect();
+    assert_eq!(frames, ["board_lean_x"], "only the board leaning sideways turns");
 }

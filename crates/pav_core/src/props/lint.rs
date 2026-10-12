@@ -19,7 +19,7 @@ const COPLANAR: f32 = 0.001;
 pub const MAX_LINES: usize = 10;
 
 /// One finding: its code, the parts it names, and the line agents read.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct Finding {
     pub code: &'static str,
     pub ids: Vec<String>,

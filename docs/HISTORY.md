@@ -5,6 +5,66 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 2.2: format 2 compiles — 2026-10-12
+
+Row 2.2 of `docs/ASSET_SYSTEM_PLAN.md` (F3, F4 and the §5.9 conformance test). A prop document
+of either format compiles to resolved parts, the form the consumers will draw, collide and
+measure from row 2.3.
+- **Compile** (`props/compile.rs`): `compile(&Doc, deps, seed) -> CompiledProp` (parts, bounds,
+  sockets, lights, fx, warnings), pure and deterministic (f32, BTreeMap order, depth first,
+  copies in index order, metres). It covers all of §5.4. From/to frames: local y from → to,
+  local z the parent's up made perpendicular, `spin` about the axis. `axis` uses the base
+  rotations of §5.2 before yaw, pitch and roll; an arc turns about its axis to stay centred on
+  `facing`. Groups carry their frame and surface. Copies: arrays by `step` or `span`, grids with
+  `index = ia + a·ib`, and radials turning each copy, with angle 0 at +z for a y axis and +y
+  otherwise; `cycle` entries set a copy's material or colour. Mirrors map a whole subtree through
+  the reflection, and only leaves turn proper (a `mirrored` flag reflects local x). `attach`
+  finds the face, edge or corner centre of the target's box in the parent frame, the target's
+  ends, or a `[u,v,w]` point; the attaching part's own anchor defaults to the opposite side. Refs
+  inline the referenced asset's parts as `id.part`, through scale and mirrors, with `remap`. The
+  surface cascade takes the nearest explicit field, then that level's material. Variation is
+  seeded per part: FNV-1a of `"{seed}:{id}:{field}"` drives `chance`, `jitter` (position,
+  rotation, scale, colour) and `pick`, so adding a part reshuffles nothing else. Lights, fx,
+  `sway`, `hidden` and sockets are resolved too. Warnings: `unit_suspect`, `floating` (box
+  contact at 0.5 cm, up to 10 groups), `sdf_heavy`, `frame_turn`, `mirror_overlap`. Limits:
+  1,024 parts and 64 generated meshes.
+- **Exact format 1.** Frames keep their rotation as a quaternion with mirror signs, so a format-1
+  part compiles to exactly its own position, rotation and shape (a capsule's cap centres at ±
+  `half_height`), bit for bit, for the templates and both dogfood files. The renderer's instance
+  lists can then stay identical when the consumers switch in row 2.3.
+- **Generators** (`props/geom.rs`): the resolved `Primitive` with its local box (an arc's box is
+  its visible sector) and hull points. The meshes the renderer lacks are generated: frustums
+  (tapered or cut cylinders and cones), tubes, tori, wedges, lathes and extrusions. The first
+  four are unit-normalised like the renderer's meshes, so one mesh serves every size. Lathes and
+  extrusions are absolute; a mirrored extrusion is reflected and rewound. Keys are FNV over
+  quantized parameters (thousandths, tenths of a degree, tenths of a millimetre). Every mesh is
+  closed and faces out (welded edges pair up, the signed volume is positive).
+- **Definitions** (`PropDef`): the library holds each document with its revision, its compiled
+  parts (seed 0), up to 64 seed variants, its references and their depth (at most 3), and a key:
+  the revision, or with references `propk-` over the revision and the referenced keys.
+  `install_def` returns the definitions that reference the installed asset, which it
+  recompiles; an asset that would reference itself is refused. The consumers keep reading each
+  definition's format-1 view (`props::get`) until row 2.3; format-2 definitions have none.
+- **Conformance** (`pav_core/tests/prop_format2.rs`): every §5.9 golden holds on the first run.
+  The counts are bench 7, greatsword 9, stall 46, torch 6 and well 53. Among the others:
+  `leg_back~x` at (−85, 70.5, −41) with pitch −12.01; the well's `stones[1].ring[3]` and
+  `roof~z.slab` (yaw 180, pitch 35); the stall's `crate[1].fruit[5]` at (78, 129.06, 53.8); the
+  pommel at y −40.5. The probes resolve `arm~x.hand`, the cascade's #30c040, and the attached
+  cube and knob. Compiling twice gives identical bytes; the five examples and the templates warn
+  nothing. In release a 1,024-part asset compiles in about 0.4 ms on this container (budget 1
+  ms): placements are computed once per sibling map, the cascade borrows from the document,
+  boxes come from absolute rotations, and mesh keys hash without a buffer.
+- Decisions:
+  - Format-2 `create` stays refused until row 2.3, when the consumers draw compiled parts, so
+    no asset is ever saved that the engine cannot draw. The plan's row list said "until 2.2".
+  - `attach` targets are the attaching node's siblings (`group.part` reaches inside one): a
+    copy of a group then attaches inside itself. The checker no longer falls back to the top
+    level.
+  - The mesh-file loader of F4 moves to row 5.3 (I3), which writes mesh files; nothing reads
+    or writes them before. Mesh nodes stay "not available yet".
+  - Theme roles default to neutral stone and a warm light (`DEFAULT_ROLES`).
+  - `PropInstance` gains its seed, roles and params with the consumers (2.3) and snapshots (2.4).
+
 ## Asset plan 2.1: format 2 reads, checks and writes — 2026-10-12
 
 Row 2.1 of `docs/ASSET_SYSTEM_PLAN.md` (F1, F2), the first of Phase 2. Format 2 is read, checked

@@ -49,8 +49,11 @@ and G0 pass): compact asset replies and canonical prop files (0.1), errors that 
 (1.1), contact sheets `asset_preview views=true` and `capture stats=only` (1.2), agent-first
 `docs/ASSET_STUDIO.md` with the live studio in `docs/ASSET_STUDIO_LIVE.md`, and calibrated judges
 (1.3). Phase 2 has begun: format 2 is read, checked (errors with fixes for common guesses) and
-written canonically with `prop2-` revisions; a document that needs it is refused until it
-compiles (2.1). Next: row 2.2, compile, the mesh generators and the §5.9 conformance goldens.
+written canonically with `prop2-` revisions (2.1), and compiles to resolved parts with
+generated meshes, seeded variants and compiled definitions in the library; every §5.9 golden
+holds and format-1 parts compile bit-exactly (2.2). Format-2 creates stay refused until the
+consumers draw compiled parts. Next: row 2.3, the consumers, the UI adapter and lint on
+compiled parts.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

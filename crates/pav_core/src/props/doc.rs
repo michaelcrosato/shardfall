@@ -542,7 +542,7 @@ impl Doc {
     /// Read a document of either format. Errors list every problem with its path.
     pub fn from_value(value: &Value) -> Result<Self, Vec<Issue>> {
         match read::migrate(value).map_err(|issue| vec![issue])? {
-            2 => read::v2::doc(value, &super::get),
+            2 => read::v2::doc(value, &super::def),
             _ => PropAsset::from_v1_value(value.clone()).map(|asset| Self::from_v1(&asset)),
         }
     }

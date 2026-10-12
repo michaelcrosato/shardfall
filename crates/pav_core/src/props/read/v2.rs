@@ -16,7 +16,7 @@ use crate::props::doc::{
     Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Layer, Light, MapMode, Material, MaterialEntry,
     Node, PRESETS, Pattern, Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
 };
-use crate::props::{MAX_PARTS, PropAsset, validate_name, validate_part_name};
+use crate::props::{MAX_PARTS, PropDef, validate_name, validate_part_name};
 use crate::shape::{Look, Sway};
 
 /// Groups inside groups.
@@ -417,11 +417,11 @@ struct Reader<'a> {
     unit: Unit,
     /// Material keys as written, so a broken material is reported once.
     materials: BTreeSet<String>,
-    assets: &'a dyn Fn(&str) -> Option<Arc<PropAsset>>,
+    assets: &'a dyn Fn(&str) -> Option<Arc<PropDef>>,
 }
 
 /// Read a format-2 document. `assets` looks up the targets of `ref` nodes.
-pub(crate) fn doc(value: &Value, assets: &dyn Fn(&str) -> Option<Arc<PropAsset>>) -> Result<Doc, Vec<Issue>> {
+pub(crate) fn doc(value: &Value, assets: &dyn Fn(&str) -> Option<Arc<PropDef>>) -> Result<Doc, Vec<Issue>> {
     let mut reader = Reader { issues: Vec::new(), unit: Unit::Cm, materials: BTreeSet::new(), assets };
     let doc = reader.document(value);
     match doc {
@@ -1220,7 +1220,7 @@ impl Reader<'_> {
                 totals.lights += copies * usize::from(node.light.is_some());
                 totals.fx += copies * usize::from(node.fx.is_some());
             }
-            Kind::Ref(name) => totals.parts += copies * (self.assets)(name).map_or(1, |asset| asset.parts.len()),
+            Kind::Ref(name) => totals.parts += copies * (self.assets)(name).map_or(1, |def| def.compiled.parts.len()),
             _ => {}
         }
         if matches!(node.kind, Kind::Group(_)) {
@@ -1933,7 +1933,7 @@ impl Reader<'_> {
                     } else {
                         join(&path, "attach.to")
                     };
-                    let target = self.resolve(&field, parts, Some(raw), &parent, &attach.to);
+                    let target = self.resolve(&field, parts, Some(raw), &own, &attach.to);
                     let inside =
                         |outer: &[String], inner: &[String]| inner.len() >= outer.len() && inner[..outer.len()] == *outer;
                     let target = match target {
@@ -2013,32 +2013,43 @@ impl Reader<'_> {
         }
     }
 
-    /// The node an attach id names: among the attaching node's siblings first, then the
-    /// document's top level. Copies need their index; mirror copies their `~axes`.
+    /// The node an attach id names, among the attaching node's siblings (`group.part` reaches
+    /// inside one). Copies need their index; mirror copies their `~axes`.
+    /// `own` is the attaching node's path (empty for a socket, which sits at the top level).
     fn resolve(
         &mut self,
         field: &str,
         parts: &BTreeMap<String, Node>,
         raw_siblings: Option<&Map<String, Value>>,
-        parent: &[String],
+        own: &[String],
         id: &str,
     ) -> Option<Vec<String>> {
         let segments: Vec<(&str, Option<usize>, Vec<Axis>)> = id.split('.').filter_map(parse_segment).collect();
+        let parent = own.split_last().map_or(&[][..], |(_, parent)| parent);
         let siblings = if parent.is_empty() { Some(parts) } else { find(parts, parent).and_then(Node::children) };
         let (first, ..) = *segments.first()?;
         let (mut current, mut path): (&BTreeMap<String, Node>, Vec<String>) = match siblings {
             Some(siblings) if siblings.contains_key(first) => (siblings, parent.to_vec()),
-            _ if parts.contains_key(first) => (parts, Vec::new()),
+            _ if parent.iter().any(|group| group == first) => {
+                self.push(
+                    Issue::error(field, Code::Cycle, format!("{first} is a group around this part"))
+                        .fix("attach to a part beside this one"),
+                );
+                return None;
+            }
             _ => {
                 if raw_siblings.is_some_and(|raw| raw.contains_key(first)) {
                     return None; // That part has its own errors.
                 }
-                let mut names: Vec<&str> = siblings.map(|s| s.keys().map(String::as_str).collect()).unwrap_or_default();
-                names.extend(parts.keys().map(String::as_str));
-                self.push(
-                    Issue::error(field, Code::UnknownPart, format!("no part \"{first}\""))
-                        .maybe_fix(issue::suggestion(first, names.iter().copied())),
-                );
+                let names: Vec<&str> = siblings
+                    .map(|s| s.keys().map(String::as_str).filter(|name| own.last().is_none_or(|me| me != name)).collect())
+                    .unwrap_or_default();
+                let fix = issue::suggestion(first, names.iter().copied()).or_else(|| {
+                    (!parent.is_empty() && parts.contains_key(first)).then(|| {
+                        "attach names a part beside this one (or group.part inside one); move this part next to it".to_owned()
+                    })
+                });
+                self.push(Issue::error(field, Code::UnknownPart, format!("no part \"{first}\" here")).maybe_fix(fix));
                 return None;
             }
         };
@@ -2483,7 +2494,7 @@ mod tests {
                     "parts.a: no colour: nothing gives this part color or mat — add color or mat here, on an enclosing group or at the top of the document",
                 ],
             ),
-            (&format!("{seat},{}", on(r#""saet""#)), &[r#"parts.a.attach: no part "saet" — did you mean "seat"?"#]),
+            (&format!("{seat},{}", on(r#""saet""#)), &[r#"parts.a.attach: no part "saet" here — did you mean "seat"?"#]),
             (&format!("{pair},{}", on(r#""seat""#)), &["parts.a.attach: seat has 2 copies — name one: seat[0] to seat[1]"]),
             (
                 &format!("{pair},{}", on(r#""seat[2]""#)),
@@ -2498,7 +2509,7 @@ mod tests {
             (&on(r#""a""#), &["parts.a.attach: a part cannot attach to itself — attach it to another part"]),
             (
                 r#""g":{"mat":"wood","parts":{"c":{"type":"box","size":[1,1,1],"attach":"g"}}}"#,
-                &["parts.g.parts.c.attach: g is a group around this part — attach to a part outside it"],
+                &["parts.g.parts.c.attach: g is a group around this part — attach to a part beside this one"],
             ),
             (
                 &format!("{seat},{}", on(r#"{"to":"seat","at":"to"}"#)),

@@ -189,7 +189,7 @@ Rules for the generated shapes:
 | grid | `{count:[a,b], step:[sa,sb], plane:"xz"}` | centred; runs along plane[0] then plane[1]; index = ia + a·ib |
 | radial | `{count, radius, start?, arc?, axis?}` | right-hand rotation about +axis (−axis reverses). Angle 0 = +z for axis y, +y for axes x and z. Each copy is turned with its angle; arc < 360 divides by count−1 |
 | cycle | `cycle:[…]` inside array/grid/radial | copy i takes entry i%n. A name sets the copy's `mat`; `#hex`/`$role` sets `color` and clears `mat`. It reaches only children without their own `mat`/`color` |
-| attach | `"attach":"seat"` or `{to, at?, self?}` + `offset` | position only. `top bottom front back left right` (and `_` combos) are directions in the parent frame, resolving to the face/edge/corner centre of the target's bounding box in that frame. `from`/`to` are endpoints; `[u,v,w]` ∈ [−1,1] is in the target's local box. `at` default top; `self` default = the opposite word on self's own box; `offset` in the parent frame. The target is one resolved part (`id[i]` for copies) or a group (union of children). Cycles are errors |
+| attach | `"attach":"seat"` or `{to, at?, self?}` + `offset` | position only. `top bottom front back left right` (and `_` combos) are directions in the parent frame, resolving to the face/edge/corner centre of the target's bounding box in that frame. `from`/`to` are endpoints; `[u,v,w]` ∈ [−1,1] is in the target's local box. `at` default top; `self` default = the opposite word on self's own box; `offset` in the parent frame. The target is one resolved part (`id[i]` for copies) or a group (union of children), among the attaching node's siblings (`group.part` reaches inside one; row 2.2). Cycles are errors |
 | ref | `{"ref":"LIB/core/crate", pos…, scale?, remap?:{mat:mat}}` | inlines that asset's resolved parts as `id.part`; read-only inside; depth ≤ 3; `props::install` returns dependents, which are recompiled and refreshed |
 
 Order and ids:
@@ -226,7 +226,7 @@ Surface cascade (nearest level wins):
 - **params/presets** (parametric families): see §9.4.
 
 ### 5.6 Compile and consumers
-`compile::compile(&PropAsset, &Deps, seed) -> Result<CompiledProp, Vec<Issue>>`.
+`compile::compile(&PropAsset, &Deps, seed) -> Result<CompiledProp, Vec<Issue>>` (row 2.2: `compile(&Doc, deps, seed)`; the library holds `PropDef`s and keeps each one's format-1 view for the consumers until F5).
 - It is pure f32 and deterministic: ids in BTreeMap order, depth-first, copies in index order, metres internally.
 - It runs once per key, at install, parse or snapshot load, and caches up to 64 seed variants.
 - `PropDef {asset, revision, key, deps, meshes, compiled, variants}` replaces `Arc<PropAsset>` in the library, `PropInstance` and `PropFrame` (prop_instance.rs:17-30).
@@ -1273,8 +1273,8 @@ Why this order:
 - [x] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
 - [x] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
 - [x] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
-- [x] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.2) (L)
-- [ ] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
+- [x] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.3, when the consumers draw compiled parts) (L)
+- [x] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
 - [ ] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [ ] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [ ] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs)
@@ -1322,7 +1322,7 @@ Why this order:
 | F1 | strict reader, Issues, hints | `props/{mod,read}.rs` | duplicate keys rejected with path; did-you-mean |
 | F2 | v2 model, migrate/check, revisions, writer, `needed_format`, LEGEND | `props/{doc,read,write,mod}.rs`; `asset_tools.rs` definition | golden `prop1-` revisions of the templates and the dogfood v1 files unchanged; v2 fixtures rewrite byte-identically; missing unit is an error |
 | F3 | compile, PropDef, registry, dependents, seeds, roles | `props/compile.rs`, `props/mod.rs`, `prop_instance.rs` | §5.9 goldens; resolved counts; identical bytes twice; 1,024 parts < 1 ms (release) |
-| F4 | generators, hulls, mesh-file loader | `props/geom.rs` | outward winding; closed meshes; unit-normalised keys shared; mirrored mesh flips winding |
+| F4 | generators, hulls, mesh-file loader (the loader moved to I3, which writes mesh files) | `props/geom.rs` | outward winding; closed meshes; unit-normalised keys shared; mirrored mesh flips winding |
 | F5 | consumers | `build.rs` emit_object/emit_prim + mesh cache; `prop_instance.rs` collider; `nav.rs`; `prop_preview.rs`; `asset_preview_tools.rs`; `asset_ui.rs`; `edit.rs` | v1 template scenes identical; each fixture renders; collider counts |
 | F6 | patch ops v2, Value history, schema | `props/patch.rs`; `asset_tools.rs`; `tools.rs` | per-op tests; dry_run touches nothing; old typed history still undoes |
 | F7 | snapshot dedupe, seeds, rooms, room_check | `sim.rs`, `prop_instance.rs`, `props/mod.rs`, `room.rs`, `world.rs`, `tools.rs` | < 64 B per extra instance; legacy snapshot loads; equal state_hash after save/load; field-order test |
