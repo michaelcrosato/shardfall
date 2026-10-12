@@ -21,8 +21,9 @@ runs the same frozen tasks (`tasks.toml`) on a new arm and compares it with arm 
   effort and the file's prompt body, and record that.
 - `results/`: committed. `runs.tsv` (one row per run), `judgments.tsv` (one row per judge
   answer), `summary.json` (per gate and arm, and the calibration) and `assets/<gate>/<arm>/` (every
-  final asset as text, for re-scoring and re-judging later). Run folders, logs and images stay in
-  `.cache/asset_bench/` (git-ignored).
+  final asset as text, for re-scoring and re-judging later), and `agent_tokens.tsv` (what each
+  author run's agent read). Run folders, logs and images stay in `.cache/asset_bench/`
+  (git-ignored).
 
 ## A gate
 
@@ -78,6 +79,12 @@ The judge prompt is frozen once calibration passes.
 - `tok_cum`: the context each wrapper call starts from, summed, plus the final context: what
   re-reading over turns costs.
 - `tok_run`: what the runner reported (informational).
+- `agent_tokens.tsv`: what each author run's agent read, from the session's transcripts (kept only
+  while that session lasts): model calls, the first call's context (the agent's fixed prompt and
+  tools, about 55k tokens), the last call's, their sum over calls (`processed`) and the part not
+  read from cache (`fresh`, which depends on timing). `tok_x` and `tok_cum` leave out the fixed
+  prompt that every call re-reads, so they miss changes in the number of calls: arm F2 cut
+  `tok_cum` to 0.56 of arm A's, yet its agents read 1.21 times as much per run.
 - Acceptance (`score`, with the newest engine): every asset loads; it stands on the floor (min y
   within ±0.5 cm), hangs (max y within ±2 cm of 0) or mounts (min z from -1 to +2 cm) as briefed;
   every axis is within tolerance; light tasks glow (emissive above 0.5, or a light); `check` finds

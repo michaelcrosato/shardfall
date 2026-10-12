@@ -60,6 +60,8 @@ and `BUILTIN/bench` is fixed (2.5). **Gate G2 is a NO-GO** after its one remedia
 no kill criterion held. Round 1 met quality (15 of 24 pairs won) but not tokens (`tok_x` 0.86,
 `tok_cum` 1.22 of arm A's). Round 2, after the docs and error fixes, met tokens (`tok_x` 0.51,
 `tok_cum` 0.56, edits 0.39, 29/30 accepted) but not quality (10 of 24 pairs, rubric Δ −0.18).
+Those token ratios count wrapper traffic only: end to end its runs cost about the same as arm A's,
+since they make more model calls and each call re-reads a ~55k-token fixed prompt (HISTORY).
 Phases 3-6 have not started: stop, re-judge or change the gate is the user's call
 (`docs/ESCALATIONS.md`).
 

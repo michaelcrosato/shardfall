@@ -5,6 +5,36 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan: G2's token pass doesn't hold end to end — 2026-10-12
+
+A correction to the G2 record in the next entry, from the session's own transcripts. The NO-GO
+stands and the plan stays stopped at row 2.5.
+- **What the token checks leave out.** `tok_x` and `tok_cum` count what crosses the wrapper: the
+  docs, commands, replies and images. Every model call of an author agent also re-reads the
+  agent's fixed prompt and tools, about 55k tokens before its first command, and a run's own
+  content is only 11-14% of what it reads. So a run's cost follows its number of model calls.
+- **End to end.** `scripts/asset_bench/results/agent_tokens.tsv` has each author run's model
+  calls and context sizes. Matched with arm A's run 1 of the 24 authoring tasks (medians of the
+  per-task ratios):
+  - Tokens read, cached or not: arm F 1.20 times arm A's (lower on 7 of 24 tasks), arm F2 1.21
+    (6 of 24). Model calls per run (median): A 5, F 7, F2 6. The harness's `turns` count
+    wrapper calls only.
+  - Priced with every read as a cache read (a tenth) and each run's own context written once
+    (1.25): F 1.11, F2 1.00 (lower on 12 of 24).
+  - The runs' own context did shrink (F2 0.77 of A's), but the extra model call cancels it.
+  - Caveats: arm A ran ten hours earlier with a prompt one line shorter, and the fixed prompt was
+    59k tokens for F2's batch against 55k for A's and F's, about 7% of a run on its own.
+- **So** round 2's token pass holds for wrapper traffic only: end to end, format 2 didn't make a
+  run cheaper. Its other objective results stand (29/30 accepted against 25, lint findings per
+  accepted asset 0.48 against 1.08, median failed calls 0), and the quality vote stays a fail.
+- **What the testing cost.** The session that ran rows 0.1-2.5 took about 13 hours. Weighting
+  tokens by price (cache reads 0.1, cache writes 1.25, output 5), it used about 127M, about 40%
+  of it on benchmark runs, judging and their analysis (G2 alone about 35M). Each of the 288 judge
+  agents read about 120k tokens, nearly all of it fixed prompt, to look at one image and a short
+  prompt (about 1.6k tokens). The largest single cost was the main session re-reading its own
+  context, a median of 442k tokens on each of 1,942 calls: about two thirds of the total. How
+  testing and the gates change is the user's call, asked in chat.
+
 ## Asset plan 2.5: format-2 docs, the fixed bench, and a NO-GO at gate G2 — 2026-10-12
 
 Row 2.5 of `docs/ASSET_SYSTEM_PLAN.md` (F8, EVAL-5). The row's work landed, but gate G2 failed
