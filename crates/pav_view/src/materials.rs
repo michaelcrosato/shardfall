@@ -59,7 +59,9 @@ pub fn seed(entity: u32, part: u32) -> u32 {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Key {
     name: String,
-    map: MapMode,
+    /// The map the caller asked for; `None` follows the material's own map, also after a
+    /// library change.
+    map: Option<MapMode>,
     /// Hash of the role colours the layers use (0 when they use none).
     palette: u64,
 }
@@ -123,15 +125,22 @@ impl MaterialTable {
     /// different `Arc` under a known name is a library change: the row is re-packed in place.
     /// When every slot is taken it returns slot 0 (the plain colour) and warns once.
     pub fn intern(&mut self, name: &str, material: &Arc<Material>, map: Option<MapMode>, roles: &[(&str, &str)]) -> MatSlot {
-        let map = map.or(material.map).unwrap_or(MapMode::Object);
         let key = Key { name: name.to_owned(), map, palette: palette_hash(material, roles) };
         if let Some(&i) = self.index.get(&key) {
             if !Arc::ptr_eq(&self.entries[i].material, material) {
                 self.entries[i].material = material.clone();
                 self.repack(i);
             }
-            return self.entries[i].slot;
+            let entry = &self.entries[i];
+            if same_roles(&entry.roles, roles) {
+                return entry.slot;
+            }
+            // The row is shared (the layers' roles agree), but the base colour, emissive and
+            // look travel in the instance, so they come from these roles.
+            let packed = entry.material.pack(entry.slot.map, roles);
+            return MatSlot { base: packed.base, emissive: packed.emissive, look: packed.look, ..entry.slot };
         }
+        let map = effective_map(map, material);
         let slot = self.entries.len() + 1;
         if slot >= MATERIAL_SLOTS as usize {
             if !self.full_warned {
@@ -169,14 +178,9 @@ impl MaterialTable {
     fn repack(&mut self, i: usize) {
         let entry = &self.entries[i];
         let roles: Vec<(&str, &str)> = entry.roles.iter().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
-        let packed = entry.material.pack(entry.key.map, &roles);
-        let slot = MatSlot {
-            slot: entry.slot.slot,
-            map: entry.key.map,
-            base: packed.base,
-            emissive: packed.emissive,
-            look: packed.look,
-        };
+        let map = effective_map(entry.key.map, &entry.material);
+        let packed = entry.material.pack(map, &roles);
+        let slot = MatSlot { slot: entry.slot.slot, map, base: packed.base, emissive: packed.emissive, look: packed.look };
         if slot != entry.slot {
             self.entries[i].slot = slot;
             self.generation += 1;
@@ -194,6 +198,15 @@ impl MaterialTable {
         scene.materials = self.rows.clone();
         scene.materials_version = self.version;
     }
+}
+
+/// The map a row is laid with: the caller's, else the material's own, else object.
+fn effective_map(map: Option<MapMode>, material: &Material) -> MapMode {
+    map.or(material.map).unwrap_or(MapMode::Object)
+}
+
+fn same_roles(stored: &[(String, String)], roles: &[(&str, &str)]) -> bool {
+    stored.len() == roles.len() && stored.iter().zip(roles).all(|((r, h), (r2, h2))| r == r2 && h == h2)
 }
 
 /// Hash of the role colours a material's layers use, as `roles` resolves them (0 for none).
@@ -239,6 +252,8 @@ mod tests {
         let r3 = table.resolve(&lib, "MAT/roled", None, &[("$accent", "#ff0000"), ("$wall", "#123456")]).unwrap();
         assert_ne!(r1.slot, r2.slot);
         assert_eq!(r1.slot, r3.slot);
+        assert_ne!(r1.base, r3.base, "the shared row's instance colour follows these roles");
+        assert_eq!(table.resolve(&lib, "MAT/roled", None, &[("$accent", "#ff0000")]).unwrap(), r1);
         assert_eq!(table.len(), 4);
         // World maps ignore the seed.
         assert_eq!(b.param(77), b.slot);
@@ -265,6 +280,26 @@ mod tests {
         table.refresh(&lib2);
         table.attach(&mut scene);
         assert_eq!(scene.materials_version, version);
+    }
+
+    #[test]
+    fn an_inherited_map_follows_the_library() {
+        let lib = Library::from_sources(&[("plain", PLAIN)]);
+        let mut table = MaterialTable::default();
+        let own = table.resolve(&lib, "MAT/plain", None, &[]).unwrap();
+        let fixed = table.resolve(&lib, "MAT/plain", Some(MapMode::Object), &[]).unwrap();
+        assert_eq!((own.map, fixed.map), (MapMode::Object, MapMode::Object));
+        let world = PLAIN.replace(r#""color""#, r#""map":"world","color""#);
+        let lib2 = Library::from_sources(&[("plain", &world)]);
+        table.refresh(&lib2);
+        let own2 = table.resolve(&lib2, "MAT/plain", None, &[]).unwrap();
+        let fixed2 = table.resolve(&lib2, "MAT/plain", Some(MapMode::Object), &[]).unwrap();
+        assert_eq!((own2.slot, own2.map), (own.slot, MapMode::World), "the inherited map follows");
+        assert_eq!((fixed2.slot, fixed2.map), (fixed.slot, MapMode::Object), "an explicit map holds");
+        let mut scene = Scene::default();
+        table.attach(&mut scene);
+        let words = lib2.get("MAT/plain").unwrap().pack(MapMode::World, &[]).gpu.words();
+        assert_eq!(scene.materials[own2.slot as usize], GpuMaterial::from_words(&words));
     }
 
     #[test]
