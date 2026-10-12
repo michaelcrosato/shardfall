@@ -61,9 +61,13 @@
      "pass": true,
      "value": 0.1
     },
+    "runs": {
+     "pass": true,
+     "value": "30/30"
+    },
     "wins_ties": {
      "pass": true,
-     "value": "15+0/2 of 24"
+     "value": "15+0/2 of 24 judged"
     }
    },
    "killed": false,
@@ -134,9 +138,13 @@
      "pass": false,
      "value": -0.183
     },
+    "runs": {
+     "pass": true,
+     "value": "30/30"
+    },
     "wins_ties": {
      "pass": false,
-     "value": "10+0/2 of 24"
+     "value": "10+0/2 of 24 judged"
     }
    },
    "killed": false,

@@ -716,7 +716,7 @@ def compare(mine, baseline):
 
 
 # §10.2 thresholds per gate: token ratios are medians over tasks, against the baseline's mean.
-GATES = {"G2": {"authoring_tok_x": 0.75, "authoring_tok_cum": 0.65, "edits_tok_x": 0.60, "pairs": 24,
+GATES = {"G2": {"tasks": "all", "authoring_tok_x": 0.75, "authoring_tok_cum": 0.65, "edits_tok_x": 0.60, "pairs": 24,
                 "parity": 12, "rubric": -0.1, "k1_tok_x": 0.90, "k1_wins": 15, "k2": 8, "k3_points": 15,
                 "k3_failed": 3}}
 
@@ -724,36 +724,42 @@ GATES = {"G2": {"authoring_tok_x": 0.75, "authoring_tok_cum": 0.65, "edits_tok_x
 def gate_verdict(gate, key, mine, vs):
     """The §10.2 pass checks and kill criteria of a gate with authoring, edit and pair results."""
     limit = GATES[gate]
+    expected = set(select(limit["tasks"], tasks()))
+    present = {r["task"] for r in mine}
     authoring = compare([r for r in mine if r["task"].startswith("P")], vs)
     edits = compare([r for r in mine if r["task"].startswith("E")], vs)
     pairs = pair_results(key + "/")
-    outcomes = [p["outcome"] for p in pairs.values()]
+    judged = [p for p in pairs.values() if p["complete"]]
+    outcomes = [p["outcome"] for p in judged]
     wins, ties, losses = outcomes.count("win"), outcomes.count("tie"), outcomes.count("loss")
-    deltas = [p["delta"] for p in pairs.values() if p["delta"] is not None]
-    rubric = round(statistics.mean(deltas), 3) if deltas else None
+    deltas = [p["delta"] for p in judged if p["delta"] is not None]
+    rubric_delta = round(statistics.mean(deltas), 3) if deltas else None
     whole = compare(mine, vs)
     accepted, theirs, runs = whole["accepted"], whole["baseline_accepted"], len(mine)
-    failed = statistics.median(int(r["failed"]) for r in mine)
+    failed = statistics.median(int(r["failed"]) for r in mine) if mine else None
     points = round((accepted - theirs) / runs * 100, 1) if runs else 0
     score = wins + ties / 2
+    # A verdict needs every planned run and every pair answered by three judges.
+    all_runs, all_pairs = expected <= present, len(judged) == limit["pairs"]
     checks = {
+        "runs": (f"{len(expected & present)}/{len(expected)}", all_runs),
         "authoring_tok_x": (authoring["median_tok_x_ratio"], authoring["median_tok_x_ratio"] <= limit["authoring_tok_x"]),
         "authoring_tok_cum": (authoring["median_tok_cum_ratio"],
                               authoring["median_tok_cum_ratio"] <= limit["authoring_tok_cum"]),
         "edits_tok_x": (edits["median_tok_x_ratio"], edits["median_tok_x_ratio"] <= limit["edits_tok_x"]),
         "acceptance": (f"{accepted}/{runs} vs {theirs}", accepted >= theirs - 1),
-        "median_failed": (failed, failed <= 1),
-        "wins_ties": (f"{wins}+{ties}/2 of {len(pairs)}", score >= limit["parity"] and len(pairs) == limit["pairs"]),
-        "rubric_delta": (rubric, rubric is not None and rubric >= limit["rubric"]),
+        "median_failed": (failed, failed is not None and failed <= 1),
+        "wins_ties": (f"{wins}+{ties}/2 of {len(judged)} judged", all_pairs and score >= limit["parity"]),
+        "rubric_delta": (rubric_delta, all_pairs and rubric_delta is not None and rubric_delta >= limit["rubric"]),
     }
     kills = {
-        "K1": authoring["median_tok_x_ratio"] > limit["k1_tok_x"] and wins < limit["k1_wins"],
-        "K2": score <= limit["k2"],
-        "K3": points < -limit["k3_points"] or failed >= limit["k3_failed"],
+        "K1": all_pairs and authoring["median_tok_x_ratio"] > limit["k1_tok_x"] and wins < limit["k1_wins"],
+        "K2": all_pairs and score <= limit["k2"],
+        "K3": all_runs and (points < -limit["k3_points"] or failed >= limit["k3_failed"]),
     }
-    return {"checks": {k: {"value": v, "pass": ok} for k, (v, ok) in checks.items()},
-            "pairs": {"wins": wins, "ties": ties, "losses": losses, "judged": sum(1 for p in pairs.values() if p["judges"])},
-            "acceptance_points": points, "kills": kills,
+    return {"checks": {k: {"value": v, "pass": bool(ok)} for k, (v, ok) in checks.items()},
+            "pairs": {"wins": wins, "ties": ties, "losses": losses, "judged": len(judged)},
+            "acceptance_points": points, "kills": {k: bool(v) for k, v in kills.items()},
             "passed": all(ok for _, ok in checks.values()), "killed": any(kills.values())}
 
 
@@ -952,6 +958,7 @@ def cmd_pairs(args):
     (folder / "props/workshop").mkdir(parents=True)
     (folder / "sheets").mkdir()
     IMAGES.mkdir(parents=True, exist_ok=True)
+    unjudged = []
     for run in run_dirs(args.gate, args.arm):
         config = load(run / "run.json")
         task = table[config["task"]]
@@ -976,10 +983,11 @@ def cmd_pairs(args):
         key = {"kind": "pair", "target": target, "vs": args.vs, "brief": task_brief(task),
                "path": str(IMAGES / f"{name}.png")}
         if not sides["arm"] or not sides["base"]:
-            key |= {"order": "unjudged", "missing": "both" if sides["arm"] == sides["base"] else
-                    "arm" if not sides["arm"] else "base"}
-            keys[name] = key
-            print(f"{target}: nothing to draw on the {key['missing']} side; no judges")
+            missing = "both" if sides["arm"] == sides["base"] else "arm" if not sides["arm"] else "base"
+            keys[name] = key | {"order": f"missing-{missing}"}
+            unjudged.append({"kind": "pair", "image": name, "target": target, "order": f"missing-{missing}",
+                             "judge": "-", "judged": time.strftime("%Y-%m-%d %H:%M")})
+            print(f"{target}: nothing to draw on the {missing} side; no judges")
             continue
         arm_top = random.Random(target).random() < 0.5
         top, bottom = (sides["arm"], sides["base"]) if arm_top else (sides["base"], sides["arm"])
@@ -991,30 +999,50 @@ def cmd_pairs(args):
         keys[name] = key | {"order": "arm-top" if arm_top else "arm-bottom", "arm_at": 1 if arm_top else 2}
         print(f"{name}\t{key['path']}\t{key['brief']}")
     save_keys(keys)
+    if unjudged:
+        stale = {r["target"] for r in unjudged}
+        write_judgments([r for r in read_judgments() if not (r["kind"] == "pair" and r["target"] in stale
+                                                            and r["order"].startswith("missing-"))] + unjudged)
+
+
+def rubric(text):
+    """A judgment's five 1-5 scores (its s1 or s2 column), or None when they are malformed."""
+    try:
+        scores = [int(x) for x in text.split(",")]
+    except ValueError:
+        return None
+    return scores if len(scores) == 5 and all(1 <= x <= 5 for x in scores) else None
 
 
 def pair_results(prefix):
-    """Per judged pair: the majority's verdict for the arm and the rubric difference (the arm's
-    median score minus the baseline's, averaged over the five criteria)."""
-    votes = [r for r in read_judgments() if r["kind"] == "pair"]
+    """Per pair: the majority's verdict for the arm and the rubric difference (the arm's median
+    score minus the baseline's, averaged over the five criteria). Read from the committed
+    judgments alone, so a fresh checkout reports the same; a pair counts once three distinct
+    judges have answered its newest image, and a side with nothing to draw loses unjudged."""
+    rows = [r for r in read_judgments() if r["kind"] == "pair" and r["target"].startswith(prefix)]
+    newest = {}
+    for r in sorted(rows, key=lambda r: (r["judged"], r["image"])):
+        newest[r["target"]] = r["image"]  # a re-rendered pair is judged afresh
     results = {}
-    for name, key in judge_keys().items():
-        if key["kind"] != "pair" or not key["target"].startswith(prefix):
+    for target, image in newest.items():
+        mine = [r for r in rows if r["target"] == target and r["image"] == image]
+        order = mine[0]["order"]
+        if order.startswith("missing-"):
+            outcome = {"arm": "loss", "base": "win", "both": "tie"}[order.removeprefix("missing-")]
+            results[target] = {"outcome": outcome, "judges": 0, "delta": None, "complete": True}
             continue
-        if key.get("missing"):
-            outcome = {"arm": "loss", "base": "win", "both": "tie"}[key["missing"]]
-            results[key["target"]] = {"outcome": outcome, "judges": 0, "delta": None}
+        votes = {r["judge"]: r for r in mine if r["pref"] in ("0", "1", "2") and rubric(r["s1"]) and rubric(r["s2"])}
+        if len(votes) < 3:
+            results[target] = {"outcome": None, "judges": len(votes), "delta": None, "complete": False}
             continue
-        rows = [r for r in votes if r["image"] == name]
-        pick, at = majority(rows, "pref"), str(key["arm_at"])
+        pick, at = majority(list(votes.values()), "pref"), "1" if order == "arm-top" else "2"
         outcome = "win" if pick == at else "tie" if pick in ("0", None) else "loss"
 
         def medians(field):
-            scores = [[int(x) for x in r[field].split(",")] for r in rows if r[field]]
-            return [statistics.median(c) for c in zip(*scores)] if scores else None
-        mine, theirs = (medians("s1"), medians("s2")) if at == "1" else (medians("s2"), medians("s1"))
-        delta = statistics.mean(a - b for a, b in zip(mine, theirs)) if mine and theirs else None
-        results[key["target"]] = {"outcome": outcome, "judges": len(rows), "delta": delta}
+            return [statistics.median(c) for c in zip(*(rubric(r[field]) for r in votes.values()))]
+        mine_s, theirs = (medians("s1"), medians("s2")) if at == "1" else (medians("s2"), medians("s1"))
+        delta = statistics.mean(a - b for a, b in zip(mine_s, theirs))
+        results[target] = {"outcome": outcome, "judges": len(votes), "delta": delta, "complete": True}
     return results
 
 
@@ -1029,8 +1057,10 @@ def cmd_judgment(args):
     if key["kind"] == "edit":
         if not isinstance(answer.get("done"), bool):
             sys.exit(f"an edit vote needs done: true|false: {answer}")
-    elif answer.get("pref") not in (0, 1, 2) or len(answer.get("s1", [])) != 5 or len(answer.get("s2", [])) != 5:
-        sys.exit(f"a comparison needs pref 0|1|2 and five scores each in s1 and s2: {answer}")
+    elif type(answer.get("pref")) is not int or answer["pref"] not in (0, 1, 2) or not all(
+            isinstance(answer.get(k), list) and len(answer[k]) == 5
+            and all(type(x) is int and 1 <= x <= 5 for x in answer[k]) for k in ("s1", "s2")):
+        sys.exit(f"a comparison needs pref 0|1|2 and five whole scores 1-5 each in s1 and s2: {answer}")
     rows = [r for r in read_judgments() if not (r["image"] == args.image and r["judge"] == str(args.judge))]
     rows.append({"kind": key["kind"], "image": args.image, "target": key["target"], "order": key["order"],
                  "judge": args.judge, "pref": answer.get("pref", ""),
@@ -1070,8 +1100,32 @@ def cmd_selftest(args):
     (m1, n1, r1), (m2, n2, r2) = results
     ok = m1 == m2 and n1 == n2 == 31 and r1 == r2 == 1
     print(f"replay 1: {m1}, {n1} commands, {r1} refused\nreplay 2: {m2}, {n2} commands, {r2} refused")
-    print("selftest " + ("passed" if ok else "FAILED"))
-    sys.exit(0 if ok else 1)
+    pairs_ok = pair_rules_hold()
+    print("pair rules " + ("hold" if pairs_ok else "FAILED"))
+    print("selftest " + ("passed" if ok and pairs_ok else "FAILED"))
+    sys.exit(0 if ok and pairs_ok else 1)
+
+
+def pair_rules_hold():
+    """pair_results on made-up judgments: three distinct valid judges decide a pair, fewer (or a
+    malformed score) leave it open, a newer image replaces an older one, a missing side loses."""
+    global read_judgments
+    vote = lambda image, target, order, judge, pref, s1="4,4,4,4,4", when="2026-01-01 10:00": {
+        "kind": "pair", "image": image, "target": target, "order": order, "judge": str(judge),
+        "pref": str(pref), "s1": s1, "s2": "3,3,3,3,3", "judged": when}
+    rows = [vote("a", "T/X/P01-r1", "arm-top", j, 1) for j in (1, 2, 3)]
+    rows += [vote("b", "T/X/P02-r1", "arm-bottom", j, 1) for j in (1, 2)]
+    rows += [vote("c", "T/X/P03-r1", "arm-top", j, 1, "7,4,4,4,4" if j == 3 else "4,4,4,4,4") for j in (1, 2, 3)]
+    rows += [vote("d", "T/X/P04-r1", "arm-top", j, 1) for j in (1, 2, 3)]
+    rows += [vote("e", "T/X/P04-r1", "arm-bottom", j, 1, when="2026-01-02 10:00") for j in (1, 2, 3)]
+    rows += [dict(vote("f", "T/X/P05-r1", "missing-arm", "-", ""), pref="", s1="", s2="")]
+    saved, read_judgments = read_judgments, lambda: rows
+    try:
+        got = {target[4:7]: (p["outcome"], p["complete"]) for target, p in pair_results("T/X/").items()}
+    finally:
+        read_judgments = saved
+    return got == {"P01": ("win", True), "P02": (None, False), "P03": (None, False), "P04": ("loss", True),
+                   "P05": ("loss", True)}
 
 
 def main():

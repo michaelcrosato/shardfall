@@ -46,11 +46,13 @@ scripts/asset_bench/bench.py report --gate GA [--vs GA/A]   # --vs: the §10.2 r
 ```
 
 `report --vs` splits authoring and edit tasks, and for a gate with pass rules in `GATES` (G2 so
-far) applies §10.2: the token ratios, acceptance against the baseline's run 1 of the same tasks,
-the median of failed commands, and the pairs. Each pair is decided by the majority of its three
-judges (a split or a majority for "equal" is a tie), and the rubric difference is the arm's median
-score minus the baseline's, averaged over the five criteria and then over the pairs. A side that
-draws nothing loses its pair without judges.
+far) applies §10.2: every planned run present, the token ratios, acceptance against the
+baseline's run 1 of the same tasks, the median of failed commands, and the pairs. Each pair is
+decided by the majority of three distinct judges (a split or a majority for "equal" is a tie);
+until all pairs have three, the pair checks fail and no kill criterion is called. The rubric
+difference is the arm's median score minus the baseline's, averaged over the five criteria and
+then over the pairs. A side that draws nothing loses its pair without judges. Pairs are read from
+`judgments.tsv` alone (its target and order columns), so a fresh checkout reports the same.
 
 Run author agents one at a time. They write scratch files to `/tmp` under short names, and in
 G1's first batch eight concurrent runs overwrote each other's (three ran another task's asset),
