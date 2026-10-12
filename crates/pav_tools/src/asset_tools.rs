@@ -1,7 +1,7 @@
 //! Persistent authoring for procedural props. One validated batch is one file replacement,
 //! history step and library publication. Preview control is separate from that transaction.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,10 @@ use std::sync::{Arc, Once};
 
 use anyhow::{Context, Result, anyhow, bail};
 use pav_core::issue::{self, Code, Issue};
+use pav_core::props::lint::{self, Finding};
 use pav_core::props::{self, PropAsset};
+use pav_core::shape::Shape;
+use pav_render::MeshKey;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -273,7 +276,7 @@ fn json_arg(a: &Args, key: &str) -> Result<Value> {
     }
 }
 
-const ACTIONS: &[&str] = &["create", "copy", "inspect", "patch", "replace", "undo", "redo", "schema"];
+const ACTIONS: &[&str] = &["create", "copy", "inspect", "check", "patch", "replace", "undo", "redo", "schema"];
 
 fn check_args(a: &Args) -> Result<(&str, bool)> {
     let preview = get_bool(a, "preview", true)?;
@@ -282,11 +285,12 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
     }
     let action = get_str(a, "action").unwrap_or("inspect");
     let extra: &[&str] = match action {
-        "create" => &["template", "asset", "description", "if_revision"],
-        "copy" => &["from", "description", "if_revision"],
+        "create" => &["template", "asset", "description", "if_revision", "dry_run"],
+        "copy" => &["from", "description", "if_revision", "dry_run"],
         "inspect" => &["legend", "bounds"],
-        "patch" => &["ops", "if_revision"],
-        "replace" => &["asset", "if_revision"],
+        "check" => &["target", "all"],
+        "patch" => &["ops", "if_revision", "dry_run"],
+        "replace" => &["asset", "if_revision", "dry_run"],
         "undo" | "redo" => &["if_revision"],
         "schema" => &["topic"],
         _ => bail!(
@@ -299,7 +303,20 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
     let accepted: Vec<&str> = ["action", "name", "preview"].into_iter().chain(extra.iter().copied()).collect();
     for (key, value) in a {
         if !accepted.contains(&key.as_str()) && !["scene", "seed", "ticks"].contains(&key.as_str()) {
-            let known = ["from", "template", "asset", "description", "if_revision", "ops", "legend", "bounds", "topic"];
+            let known = [
+                "from",
+                "template",
+                "asset",
+                "description",
+                "if_revision",
+                "ops",
+                "legend",
+                "bounds",
+                "topic",
+                "dry_run",
+                "target",
+                "all",
+            ];
             let fix = if known.contains(&key.as_str()) {
                 Some(format!("{key} belongs to another action"))
             } else {
@@ -312,7 +329,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
                     .maybe_fix(fix)
             );
         }
-        if ["action", "name", "from", "template", "description", "if_revision", "topic"].contains(&key.as_str())
+        if ["action", "name", "from", "template", "description", "if_revision", "topic", "target"].contains(&key.as_str())
             && !value.is_string()
         {
             bail!("{key} must be text");
@@ -338,6 +355,100 @@ fn definition(value: Value, name: &str, creating: bool) -> Result<PropAsset> {
     Ok(asset)
 }
 
+/// What drawing an asset costs on the CPU side: triangles of its meshes, distinct meshes, SDF
+/// parts, lights, and the kilobytes of meshes generated for it.
+struct Cost {
+    triangles: usize,
+    meshes: usize,
+    sdf: usize,
+    lights: usize,
+    generated_kb: usize,
+}
+
+impl Cost {
+    fn of(asset: &PropAsset) -> Self {
+        let mut meshes: BTreeMap<MeshKey, usize> = BTreeMap::new();
+        let mut cost = Cost { triangles: 0, meshes: 0, sdf: 0, lights: 0, generated_kb: 0 };
+        let mut generated_bytes = 0;
+        for part in asset.parts.values() {
+            let key = match part.shape {
+                Shape::Box { .. } => Some(MeshKey::Cube),
+                Shape::RoundedBox { half, radius } => Some(MeshKey::rounded_box(half, radius)),
+                Shape::Cylinder { .. } => Some(MeshKey::Cylinder),
+                Shape::Sphere { .. } | Shape::Capsule { .. } => None,
+            };
+            match key {
+                Some(key) => {
+                    let triangles = *meshes.entry(key).or_insert_with(|| {
+                        let mesh = key.generate().expect("prop meshes generate");
+                        if matches!(key, MeshKey::RoundedBox { .. }) {
+                            generated_bytes +=
+                                mesh.vertices.len() * std::mem::size_of::<pav_render::mesh::Vertex>() + mesh.indices.len() * 4;
+                        }
+                        mesh.indices.len() / 3
+                    });
+                    cost.triangles += triangles;
+                }
+                None => cost.sdf += 1,
+            }
+            cost.lights += usize::from(part.emissive > 0.5);
+        }
+        cost.meshes = meshes.len();
+        cost.generated_kb = generated_bytes.div_ceil(1024);
+        cost
+    }
+
+    fn line(&self) -> String {
+        format!(
+            "{} tris, {} meshes, {} sdf, {} lights, {} KB generated",
+            self.triangles, self.meshes, self.sdf, self.lights, self.generated_kb
+        )
+    }
+}
+
+/// The lint plus the budget findings that need the renderer's meshes.
+fn findings(asset: &PropAsset, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
+    let mut found = lint::lint(asset, &lint::Options { target_cm: target });
+    let cost = Cost::of(asset);
+    let mut over = |code: &'static str, fact: String| found.push(Finding { code, ids: vec![], line: format!("{code}: {fact}") });
+    if cost.triangles > 20_000 {
+        over("heavy", format!("{} triangles (budget 20000)", cost.triangles));
+    }
+    if cost.meshes > 8 {
+        over("meshes", format!("{} distinct meshes (budget 8); reuse sizes of rounded boxes", cost.meshes));
+    }
+    if cost.lights > 4 {
+        over("lights", format!("{} parts above emissive 0.5 each light the scene (budget 4)", cost.lights));
+    }
+    (found, cost)
+}
+
+/// Findings of `after` that `before` did not have: what an edit introduced.
+fn new_findings(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<String> {
+    let Some(after) = after else { return Vec::new() };
+    let old: BTreeSet<String> =
+        before.map(|before| findings(before, None).0.iter().map(Finding::key).collect()).unwrap_or_default();
+    let new: Vec<Finding> = findings(after, None).0.into_iter().filter(|f| !old.contains(&f.key())).collect();
+    lint::lines(&new)
+}
+
+/// `"220x90x-"`: a target size in cm; `-` skips an axis.
+fn target_arg(a: &Args) -> Result<Option<[Option<f32>; 3]>> {
+    let Some(text) = get_str(a, "target") else { return Ok(None) };
+    let axes: Vec<&str> = text.split(['x', 'X']).collect();
+    let bad = || anyhow!("target is WxHxD in cm, e.g. 200x78x80 (- skips an axis)");
+    if axes.len() != 3 {
+        return Err(bad());
+    }
+    let mut out = [None; 3];
+    for (slot, axis) in out.iter_mut().zip(axes) {
+        if axis.trim() != "-" {
+            *slot = Some(axis.trim().parse::<f32>().ok().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(bad)?);
+        }
+    }
+    Ok(Some(out))
+}
+
 fn changed_parts(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<String> {
     let names = before
         .into_iter()
@@ -361,6 +472,21 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let name = props::canonical(get_str(a, "name").ok_or_else(|| anyhow!("name= names the asset"))?).map_err(|e| anyhow!(e))?;
     if action == "inspect" {
         return inspect(root, &name, preview, get_bool(a, "legend", false)?, get_bool(a, "bounds", false)?);
+    }
+    if action == "check" {
+        let asset =
+            read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'; assets find=WORDS searches the library"))?;
+        let (found, cost) = findings(&asset, target_arg(a)?);
+        let mut result =
+            json!({"name": name, "revision": asset.revision(), "size_cm": asset.bounds(1.0).size_cm(), "cost": cost.line()});
+        if !found.is_empty() {
+            result["check"] = if get_bool(a, "all", false)? {
+                json!(found.iter().map(|f| &f.line).collect::<Vec<_>>())
+            } else {
+                json!(lint::lines(&found))
+            };
+        }
+        return Ok(Edited { report: result, asset: None, mutation: false, preview: false });
     }
     if !name.starts_with("WORKSHOP/") {
         bail!("built-in templates are read-only; use action=copy from={name} name=your_name first");
@@ -442,6 +568,24 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     }
     let next_revision = revision(next.as_ref());
     let changed_parts = changed_parts(before.as_deref(), next.as_ref());
+    let check = new_findings(before.as_deref(), next.as_ref());
+    if get_bool(a, "dry_run", false)? {
+        // Everything an accepted edit would report; nothing is written or published.
+        let mut result = report(&name, before.as_deref(), &history, false);
+        result["revision_next"] = json!(next_revision);
+        if let Some(asset) = &next {
+            result["size_cm"] = json!(asset.bounds(1.0).size_cm());
+        }
+        if matches!(action, "create" | "copy") {
+            result["parts"] = json!(next.as_ref().map(|asset| asset.parts.len()).unwrap_or(0));
+        } else {
+            result["changed_parts"] = json!(changed_parts);
+        }
+        if !check.is_empty() {
+            result["check"] = json!(check);
+        }
+        return Ok(Edited { report: result, asset: None, mutation: false, preview: false });
+    }
     if next_revision == current_revision {
         let mut result = report(&name, before.as_deref(), &history, false);
         result["changed_parts"] = json!(changed_parts);
@@ -484,6 +628,9 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     }
     if history_reset {
         result["history_reset"] = json!(true);
+    }
+    if !check.is_empty() {
+        result["check"] = json!(check);
     }
     Ok(Edited { report: result, asset, mutation: true, preview })
 }
@@ -728,6 +875,38 @@ mod tests {
         assert_eq!(full["part_bounds"]["seat"], json!([[-1.1, 0.71, -0.38], [1.1, 0.89, 0.38]]));
         assert!(edit_at(&root, &args(json!({"action":"patch","name":name,"legend":true,"ops":[]}))).is_err());
         props::remove(&format!("WORKSHOP/{name}")).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn dry_runs_write_nothing_and_edits_report_only_new_findings() {
+        let root = temp_root("lint");
+        let name = "test_asset_lint";
+        let canonical = format!("WORKSHOP/{name}");
+        let copied = edit(&root, json!({"action":"copy","name":name,"from":"BUILTIN/bench"}));
+        assert!(copied.get("check").is_none(), "the bench is clean");
+        let path = asset_path(&root, &canonical);
+        let (file, history) = (std::fs::read(&path).unwrap(), std::fs::read(history_path(&root, &canonical)).unwrap());
+        let lamp =
+            json!([{"op":"add","part":"lamp","value":{"shape":{"type":"sphere","radius":0.08},"pos":[0,2,0],"color":"#ffd58c"}}]);
+        let dry = edit(&root, json!({"action":"patch","name":name,"dry_run":true,"ops":lamp}));
+        assert_eq!((dry["saved"].as_bool(), dry["revision"].clone()), (Some(false), copied["revision"].clone()));
+        assert_eq!(dry["check"], json!(["floating: lamp (49 cm from the rest)"]));
+        assert_eq!(std::fs::read(&path).unwrap(), file);
+        assert_eq!(std::fs::read(history_path(&root, &canonical)).unwrap(), history);
+        assert_eq!(props::get(&canonical).unwrap().revision(), copied["revision"]);
+        let real = edit(&root, json!({"action":"patch","name":name,"ops":lamp}));
+        assert_eq!(real["revision"], dry["revision_next"], "a dry run predicts the revision");
+        assert_eq!(real["check"], dry["check"]);
+        let later =
+            edit(&root, json!({"action":"patch","name":name,"ops":[{"op":"set","part":"seat","fields":{"color":"#3e9a9e"}}]}));
+        assert!(later.get("check").is_none(), "findings already reported are not repeated");
+        let checked = edit(&root, json!({"action":"check","name":name,"target":"200x-x80"}));
+        assert_eq!(checked["check"], json!(["floating: lamp (49 cm from the rest)"]));
+        assert_eq!(checked["cost"], "2004 tris, 3 meshes, 1 sdf, 0 lights, 80 KB generated");
+        assert!(edit_at(&root, &args(json!({"action":"check","name":name,"target":"2x2"}))).is_err());
+        assert!(edit_at(&root, &args(json!({"action":"undo","name":name,"dry_run":true}))).is_err(), "undo has no dry run");
+        props::remove(&canonical).unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
 

@@ -5,6 +5,38 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 1.1: a geometry lint, dry runs and a cost line — 2026-10-12
+
+Row 1.1 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-5, TOOLS-8). Format 1 is unchanged.
+- **`asset_edit action=check name=X [target=WxHxD] [all=true]`** (read-only, BUILTIN too):
+  `pav_core::props::lint` treats parts as oriented boxes (round shapes contained exactly), finds
+  candidate pairs with an axis-aligned sweep and measures them with a 15-axis separating-axis
+  test. Codes: `floating` (groups not joined within 0.5 cm to the floor; an asset whose top is at
+  its origin hangs from it, and one on a wall anchors there), `below_floor`, `not_grounded`,
+  `poke`, `hidden`, `z_fight` (coplanar overlapping faces in different surfaces, sampled where
+  both faces really are and nothing covers them), `mirror` (left/right pairs compared as geometry,
+  so a symmetric cylinder at roll 90° on both sides is a mirror image), `size`, `tiny`,
+  `unit_suspect`, `default_color`, and from the renderer's meshes `heavy`, `meshes`, `lights`.
+  Lines read `code: ids fact`, at most 10 then `+N more`; a clean asset has no `check` key. The
+  `cost` line counts triangles from `MeshKey::generate` (the bench: 2,004, as the plan
+  measured), distinct meshes, SDF parts, lights and generated KB.
+- **Every accepted edit** reports the findings it introduced (compared by code and parts, so a
+  moved part does not repeat its finding). **`dry_run:true`** on create, copy, patch or replace
+  returns the same reply with `saved:false` and `revision_next`, writes and publishes nothing,
+  and gets no live ticket.
+- **Kind routing** is a table (`tools::KIND_ROUTES`): an unknown kind lists the kinds that tool
+  serves; creature forwarding is unchanged; materials and meshes add rows later.
+- Validation: the four templates and the dogfood well are clean and the stall shows its four real
+  faults (as the prototype found); a bench with 7 planted defects gives exactly those 7 codes;
+  256 parts lint within 10 ms (release). On the 44 arm-A assets it finds real faults (floating
+  chain links and an anvil horn, buried cheese holes, voussoir fronts overlapping 2 cm² and more
+  in different stone colours, light budgets); two false-positive kinds found there (rotated
+  z-fight samples, symmetric mirror pairs) were fixed before landing.
+- Decisions: `tools/list` stays under 47,000 chars with the three new arguments by shortening
+  the `clip_import` and `mocap` help (part of D13's help diet, approved for after Phase 0).
+  `lint4.py` was removed. The bench scorer now reads `check` and skips the floor codes for
+  hanging and wall tasks; GA is re-scored with it in 1.3.
+
 ## Asset plan 0.3: the benchmark harness and the arm-A baseline (Gate A, G0) — 2026-10-12
 
 Row 0.3 of `docs/ASSET_SYSTEM_PLAN.md` (EVAL-1, EVAL-2, G0). Phase 0 is closed: both of its gates

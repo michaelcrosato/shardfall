@@ -101,10 +101,13 @@ impl LiveFeedback {
     }
 }
 
+/// Calls that change what the live studio shows get a frame ticket. Reads (inspect, check,
+/// schema) and dry runs change nothing.
 pub(crate) fn changes_studio(name: &str, args: &Args) -> bool {
     let action = args.get("action").and_then(Value::as_str).unwrap_or("");
+    let dry_run = args.get("dry_run").is_some_and(|value| value == true || value == "true");
     match name {
-        "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect" | "schema"),
+        "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect" | "schema" | "check") && !dry_run,
         "anim_preview" | "asset_preview" | "creature_preview" => {
             !matches!(action, "" | "status" | "pose")
                 || args.iter().any(|(key, value)| {
@@ -158,6 +161,16 @@ pub fn t_studio_status(s: &mut Session, a: &Args) -> Result<Output> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_and_dry_runs_get_no_ticket() {
+        let args = |value: Value| value.as_object().unwrap().clone();
+        assert!(changes_studio("asset_edit", &args(json!({"action":"patch"}))));
+        for read in ["inspect", "check", "schema"] {
+            assert!(!changes_studio("asset_edit", &args(json!({"action":read}))), "{read}");
+        }
+        assert!(!changes_studio("asset_edit", &args(json!({"action":"patch","dry_run":true}))));
+    }
 
     #[test]
     fn acknowledgements_follow_frames_not_repeated_content_or_paused_ticks() {

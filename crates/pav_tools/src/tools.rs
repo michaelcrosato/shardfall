@@ -504,7 +504,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clip_import",
-        help: "Translate an animation library into a clip set (anim/<set>.json: readable key poses fitted within tol mm of the capture, with credits and each clip's fit). from= .glb libraries (Rigify, Unreal-style or Mixamo rigs; comma separated, sources= their ids), .fbx files (binary: every animation stack a clip), .bvh takes (100STYLE, MotionBuilder (Mixamo, LaFAN1), Bandai Namco, Unreal or Rigify skeletons; at=FROM-TO, loop=true cuts the best cycle, way= the way it goes), or set files (my-3D2dge .js, readable .json) or a folder of them. catalog= (anim/catalogs/*.json) tags, describes and credits each clip; one with \"$pick\" and no from= cuts its moments out of a capture database (CMU, 100STYLE, Bandai Namco or LaFAN1, downloading the takes; the last two, non-commercial, into anim/local). list=true shows a file's rig, clips or joints.",
+        help: "Translate an animation library into a clip set (anim/<set>.json: readable key poses within tol mm of the capture, with credits). from= .glb (Rigify, Unreal or Mixamo rigs; sources= ids), .fbx (every stack a clip), .bvh (at=FROM-TO, loop=true: best cycle, way=), set files (.js, .json) or a folder. catalog= (anim/catalogs/*.json) tags and credits clips; with \"$pick\" and no from= it cuts moments out of CMU, 100STYLE, Bandai Namco or LaFAN1 (the last two into anim/local). list=true shows a file's rig and clips.",
         args: &[
             arg("from", "string", "files (comma separated) or a folder of sets"),
             arg("catalog", "string", "catalog JSON (tags, descriptions, sources, skips, picks)"),
@@ -537,7 +537,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "mocap",
-        help: "Open motion-capture databases, translated on demand: no args describes them (CMU: 2,548 takes, free for all uses; 100STYLE: 100 walking and running styles, CC BY 4.0; Bandai Namco and LaFAN1, non-commercial: into anim/local; Mesh2Motion; Quaternius; Mixamo). find=WORDS searches takes (lib=cmu|100style); get=IDS downloads them (02_01, Zombie_FW, mesh2motion; cmu: the whole database); cut=TAKE fits one moment into a set: at=FROM-TO seconds, loop=true cuts the best cycle, name=, set= (default MOCAP, created or added to), tags=, desc=. survey=ledger measures every downloaded CMU take into anim/cmu/takes.tsv; survey=library translates them, a set a subject, into anim/cmu (subjects=5,13 for some).",
+        help: "Open motion-capture databases, translated on demand. No args describes them (CMU, 100STYLE, Bandai Namco and LaFAN1 into anim/local, Mesh2Motion, Quaternius, Mixamo). find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits one moment into a set (at=FROM-TO, loop=true, name=, set=, tags=, desc=). survey=ledger measures the CMU takes into anim/cmu/takes.tsv; survey=library translates them into anim/cmu.",
         args: &[
             arg("find", "string", "words to search takes for"),
             arg("lib", "string", "cmu, 100style or all (find)"),
@@ -640,6 +640,9 @@ pub static TOOLS: &[Tool] = &[
             arg("legend", "boolean", "inspect: add the coordinate legend"),
             arg("bounds", "boolean", "inspect: add asset and part bounds in metres"),
             arg("topic", "string", "schema: legend, document, part, shapes, ops or limits"),
+            arg("dry_run", "boolean", "report the result without saving"),
+            arg("target", "string", "check: target size WxHxD in cm"),
+            arg("all", "boolean", "check: every finding, not the first 10"),
         ],
         run: crate::asset_tools::t_asset_edit,
     },
@@ -834,6 +837,22 @@ pub static TOOLS: &[Tool] = &[
     },
 ];
 
+/// `kind=` routing for the shared asset tools: (tool, kind, the tool that serves it). A new
+/// asset kind adds rows here, not a new top-level tool.
+pub const KIND_ROUTES: &[(&str, &str, &str)] = &[
+    ("assets", "prop", "assets"),
+    ("asset_edit", "prop", "asset_edit"),
+    ("asset_preview", "prop", "asset_preview"),
+    ("assets", "creature", "creatures"),
+    ("asset_edit", "creature", "creature_edit"),
+    ("asset_preview", "creature", "creature_preview"),
+];
+
+/// The kinds a shared asset tool serves.
+pub fn kinds(tool: &str) -> Vec<&'static str> {
+    KIND_ROUTES.iter().filter(|(t, _, _)| *t == tool).map(|(_, kind, _)| *kind).collect()
+}
+
 pub fn find(name: &str) -> Option<&'static Tool> {
     TOOLS.iter().find(|t| t.name == name)
 }
@@ -843,33 +862,30 @@ pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
         let fix = pav_core::issue::suggestion(name, TOOLS.iter().map(|t| t.name)).unwrap_or_else(|| "try `help`".into());
         anyhow!("unknown tool \"{name}\" — {fix}")
     })?;
-    let generic = matches!(name, "assets" | "asset_edit" | "asset_preview");
+    let generic = KIND_ROUTES.iter().any(|(tool, _, _)| *tool == name);
     let kind = if generic { crate::preview_tools::opt_text(args, "kind")?.unwrap_or("prop") } else { "prop" };
-    if !matches!(kind, "prop" | "creature") {
-        let kinds = ["prop", "creature"];
-        bail!(
-            "{}",
-            pav_core::issue::Issue::error("kind", pav_core::issue::Code::UnknownValue, format!("unknown kind \"{kind}\""))
-                .expected(kinds.join(", "))
-                .maybe_fix(pav_core::issue::suggestion(kind, kinds))
-        )
-    }
+    let target = if generic {
+        let kinds = kinds(name);
+        let route = KIND_ROUTES.iter().find(|(tool, k, _)| *tool == name && *k == kind);
+        let Some((_, _, target)) = route else {
+            bail!(
+                "{}",
+                pav_core::issue::Issue::error("kind", pav_core::issue::Code::UnknownValue, format!("unknown kind \"{kind}\""))
+                    .expected(kinds.join(", "))
+                    .maybe_fix(pav_core::issue::suggestion(kind, kinds.iter().copied()))
+            )
+        };
+        *target
+    } else {
+        name
+    };
     let routed = generic.then(|| {
         let mut routed = args.clone();
         routed.remove("kind");
         routed
     });
     let args = routed.as_ref().unwrap_or(args);
-    let name = if kind == "creature" {
-        match name {
-            "assets" => "creatures",
-            "asset_edit" => "creature_edit",
-            "asset_preview" => "creature_preview",
-            _ => name,
-        }
-    } else {
-        name
-    };
+    let name = target;
     let run = if name == "creatures" { crate::creature_tools::t_creatures } else { find(name).unwrap_or(original).run };
     // Headless sessions also adopt completions. A live app polls on its frame loop; this
     // hook covers an agent's immediate status/capture after completion without a frame gap.
@@ -914,7 +930,9 @@ pub fn schema(t: &Tool) -> Value {
     }
     let mut schema = json!({ "type": "object", "properties": props });
     let actions: &[&str] = match t.name {
-        "asset_edit" => &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild", "schema"],
+        "asset_edit" => {
+            &["create", "copy", "inspect", "check", "patch", "surface", "replace", "undo", "redo", "rebuild", "schema"]
+        }
         "creature_edit" => &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild"],
         "asset_preview" | "creature_preview" => &["status", "open", "fit", "close", "play", "pause", "restart", "pose"],
         "asset_spawn" => &["add", "list", "update", "remove"],
@@ -965,8 +983,8 @@ pub fn schema(t: &Tool) -> Value {
         ]});
         schema["properties"]["ops"]["items"] = creature_ops;
     }
-    if matches!(t.name, "assets" | "asset_edit" | "asset_preview") {
-        schema["properties"]["kind"]["enum"] = json!(["prop", "creature"]);
+    if KIND_ROUTES.iter().any(|(tool, _, _)| *tool == t.name) {
+        schema["properties"]["kind"]["enum"] = json!(kinds(t.name));
     }
     if t.name == "asset_spawn" {
         schema["properties"]["pos"]["items"] = json!({"type":"number"});

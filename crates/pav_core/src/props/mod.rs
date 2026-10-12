@@ -1,6 +1,7 @@
 //! Readable procedural props. Named parts use the engine's shapes, colors and surface looks.
 //! A published definition is immutable; placed instances can keep it in their snapshots.
 
+pub mod lint;
 mod patch;
 mod read;
 mod write;

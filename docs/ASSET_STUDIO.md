@@ -150,6 +150,13 @@ ops[2] seat.color: "grey" is not a #rrggbb colour — use a hex colour such as "
 A file path names a part as `parts.<id>`; a batch names the operation first, `ops[i] <id>`.
 A JSON object that repeats a key is refused, not silently overwritten.
 
+`asset_edit action=check name=X` (optional `target=WxHxD` in cm) lists geometry problems, one
+line each: `floating`, `below_floor`, `not_grounded`, `poke`, `hidden`, `z_fight`, `mirror`,
+`size`, `tiny`, `unit_suspect`, `default_color`, and the budgets `heavy`, `meshes`, `lights`; a
+`cost` line counts triangles, meshes and lights. Every accepted edit lists the findings it
+introduced under `check`. `dry_run:true` on create, copy, patch or replace returns that reply
+without saving; `revision_next` is the revision the edit would get.
+
 The whole batch is checked before it is saved or published. One failed operation rejects
 the entire batch. One accepted batch is one undo step. Each object keeps up to 32 undo/redo
 steps on disk. `undo` after initial creation removes the authored file; `redo` restores it.

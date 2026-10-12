@@ -41,20 +41,21 @@ fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
     };
     assert_eq!(
         error(&mut s, "asset_edit", json!({"action":"inspekt","name":"BUILTIN/bench"})),
-        r#"action: unknown action "inspekt" (expected create, copy, inspect, patch, replace, undo, redo, schema) — did you mean "inspect"?"#
+        r#"action: unknown action "inspekt" (expected create, copy, inspect, check, patch, replace, undo, redo, schema) — did you mean "inspect"?"#
     );
     assert_eq!(
         error(&mut s, "asset_edit", json!({"action":"patch","name":"x","opps":[]})),
-        r#"opps: not an asset_edit argument for action=patch (expected action, name, preview, ops, if_revision) — did you mean "ops"?"#
+        r#"opps: not an asset_edit argument for action=patch (expected action, name, preview, ops, if_revision, dry_run) — did you mean "ops"?"#
     );
     assert_eq!(
         error(&mut s, "asset_edit", json!({"action":"copy","name":"x","from":"BUILTIN/bench","ops":[]})),
-        "ops: not an asset_edit argument for action=copy (expected action, name, preview, from, description, if_revision) — ops belongs to another action"
+        "ops: not an asset_edit argument for action=copy (expected action, name, preview, from, description, if_revision, dry_run) — ops belongs to another action"
     );
     assert_eq!(
         error(&mut s, "assets", json!({"kind":"props"})),
         r#"kind: unknown kind "props" (expected prop, creature) — did you mean "prop"?"#
     );
+    assert_eq!(error(&mut s, "asset_preview", json!({"kind":"mesh"})), r#"kind: unknown kind "mesh" (expected prop, creature)"#);
     assert_eq!(
         error(&mut s, "asset_preview", json!({"action":"opn"})),
         r#"action: unknown action "opn" (expected status, open, fit, close, play, pause, restart) — did you mean "open"?"#

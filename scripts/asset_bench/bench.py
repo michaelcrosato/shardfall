@@ -376,8 +376,11 @@ def check_asset(binary, run, name, needs, size, tol):
         facts["check"] = "na"  # the arm's engine has no lint yet; re-scored when it does
     else:
         facts["check"] = "ok"
+        blocking = {"floating", "unit_suspect"}
+        if "hang" not in needs and "wall" not in needs:
+            blocking |= {"below_floor", "not_grounded"}
         for line in check.get("check", []):
-            if line.split(":")[0] in ("floating", "unit_suspect", "below_floor", "not_grounded"):
+            if line.split(":")[0] in blocking:
                 facts["problems"].append(f"{name}: {line}")
     return facts
 
