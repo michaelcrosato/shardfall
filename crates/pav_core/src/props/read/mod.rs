@@ -225,7 +225,7 @@ fn kind_of(value: &Value) -> &'static str {
 }
 
 /// `expected a number, got the string "45" — write 45 without quotes`.
-fn wrong_type(path: &str, expected: &str, value: &Value) -> Issue {
+pub(crate) fn wrong_type(path: &str, expected: &str, value: &Value) -> Issue {
     let got = match value {
         Value::String(text) => format!("the string \"{text}\""),
         other => kind_of(other).into(),
@@ -242,7 +242,7 @@ fn range_text(min: f32, max: f32) -> String {
 }
 
 /// Ranges compare in f32, as the engine stores the value.
-fn number(path: &str, value: &Value, min: f32, max: f32, issues: &mut Vec<Issue>) -> Option<f32> {
+pub(crate) fn number(path: &str, value: &Value, min: f32, max: f32, issues: &mut Vec<Issue>) -> Option<f32> {
     let Some(x) = value.as_f64().map(|x| x as f32) else {
         issues.push(wrong_type(path, "a number", value));
         return None;
@@ -280,7 +280,7 @@ fn vec3(path: &str, value: &Value, min: f32, max: f32, issues: &mut Vec<Issue>) 
 }
 
 /// A JSON number written for a fix: shortest, no exponent for ordinary sizes.
-fn amount(x: f64) -> String {
+pub(crate) fn amount(x: f64) -> String {
     let x = (x * 1e6).round() / 1e6;
     if x == x.trunc() && x.abs() < 1e15 { format!("{}", x as i64) } else { format!("{x}") }
 }
@@ -344,7 +344,7 @@ fn shape_type_hint(kind: &str) -> Option<&'static str> {
     })
 }
 
-fn look_hint(look: &str) -> Option<&'static str> {
+pub(crate) fn look_hint(look: &str) -> Option<&'static str> {
     Some(match look {
         "toon" | "cartoon" | "cel_shaded" | "celshaded" => "cel is the toon look",
         "shaded" | "pbr" | "phong" | "smooth" | "lambert" => "use lit",
@@ -355,7 +355,7 @@ fn look_hint(look: &str) -> Option<&'static str> {
 }
 
 /// A hex colour for a colour name or a short `#rgb`.
-fn color_fix(text: &str) -> Option<String> {
+pub(crate) fn color_fix(text: &str) -> Option<String> {
     let named = match text.trim().to_ascii_lowercase().as_str() {
         "red" => "#ff0000",
         "green" => "#008000",
@@ -385,7 +385,7 @@ fn color_fix(text: &str) -> Option<String> {
     None
 }
 
-fn is_color(text: &str) -> bool {
+pub(crate) fn is_color(text: &str) -> bool {
     text.len() == 7 && text.starts_with('#') && text[1..].chars().all(|c| c.is_ascii_hexdigit()) && Color::try_hex(text).is_some()
 }
 

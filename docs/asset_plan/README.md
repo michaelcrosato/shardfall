@@ -4,7 +4,7 @@ Planning artefacts for `docs/ASSET_SYSTEM_PLAN.md` (§14 there says which work i
 They are starting points, not product code: the Rust implementation in the plan is the single
 source of truth. Delete each file when the work item that uses it lands.
 
-- `examples/materials/`: example materials in the house unit (cm), including `pb/` presets.
+- `examples/materials/`: moved to `assets/materials/` (the embedded core library) when MAT-1 landed.
 - `examples/families/fence.f2.json`: a parametric family (§9.4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1
   (`python3 -I f2expand.py IN.f2.json --resolved OUT.json > OUT.v1.json`).

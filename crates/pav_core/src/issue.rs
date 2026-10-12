@@ -34,6 +34,8 @@ pub enum Code {
     Cycle,
     Limit,
     Format,
+    /// Detail too small to read at the game camera (a warning).
+    Legibility,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -56,6 +58,10 @@ pub struct Issue {
 impl Issue {
     pub fn error(path: impl Into<String>, code: Code, message: impl Into<String>) -> Self {
         Self { severity: Severity::Error, path: path.into(), code, message: message.into(), expected: None, fix: None }
+    }
+
+    pub fn warning(path: impl Into<String>, code: Code, message: impl Into<String>) -> Self {
+        Self { severity: Severity::Warning, ..Self::error(path, code, message) }
     }
 
     pub fn expected(mut self, expected: impl Into<String>) -> Self {

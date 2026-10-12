@@ -1,4 +1,0 @@
-{"format":1,"name":"roof_shingles","unit":"cm","description":"Slate-blue round shingles; set down to the roof's downhill axis.","tags":["roof"],"color":"#4f5d6e",
- "layers":[
-  {"type":"shingles","size":[32,22],"vary":0.25,"cavity":0.45}
- ]}

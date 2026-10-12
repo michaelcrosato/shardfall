@@ -62,6 +62,32 @@ fn main() {
         writeln!(f, "    ({name:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
     }
     writeln!(f, "];").unwrap();
+
+    // Core materials: assets/materials/*.json and pb/*.json, keyed by their name ("oak_planks",
+    // "pb/gold"), which is `MAT/<name>`. The other tiers (workshop, fit, local) stay on disk.
+    let materials = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/materials");
+    let mut files = Vec::new();
+    for sub in ["", "pb"] {
+        let dir = materials.join(sub);
+        println!("cargo:rerun-if-changed={}", dir.display());
+        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+        for p in rd.filter_map(|e| e.ok()).map(|e| e.path()) {
+            if p.is_file() && p.extension().is_some_and(|x| x == "json") {
+                let stem = p.file_stem().unwrap().to_string_lossy().to_string();
+                files.push((if sub.is_empty() { stem } else { format!("{sub}/{stem}") }, p));
+            }
+        }
+    }
+    files.sort();
+    let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("materials.rs");
+    let mut f = std::fs::File::create(out).unwrap();
+    writeln!(f, "pub const MATERIALS: &[(&str, &str)] = &[").unwrap();
+    for (name, p) in files {
+        println!("cargo:rerun-if-changed={}", p.display());
+        let abs = p.canonicalize().unwrap();
+        writeln!(f, "    ({name:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
+    }
+    writeln!(f, "];").unwrap();
 }
 
 fn collect(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {

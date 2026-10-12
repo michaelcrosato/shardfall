@@ -26,6 +26,7 @@ pub mod input;
 pub mod issue;
 pub mod joints;
 pub mod level;
+pub mod material;
 pub mod moves;
 pub mod nav;
 pub mod params;

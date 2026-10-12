@@ -1326,7 +1326,7 @@ Why this order:
 - [x] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [x] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [x] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs): **G2 NO-GO**, stopped
-- [ ] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
+- [x] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
 - [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)

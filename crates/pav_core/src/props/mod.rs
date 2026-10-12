@@ -28,6 +28,8 @@ pub use patch::v2::{OPS as OPS2, Patched, patch as patch_document};
 /// Format 2's field tables, legend and field guide.
 pub use read::v2 as format2;
 pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, migrate, schema, strict_value};
+/// Reader helpers the material reader shares, so both word their errors alike.
+pub(crate) use read::{amount, color_fix, is_color, look_hint, number, wrong_type};
 pub use table::PropDefTable;
 
 pub const MAX_PARTS: usize = 256;

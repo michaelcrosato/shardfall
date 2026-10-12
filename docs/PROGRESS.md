@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next row 3.1):
+**Asset system plan** (resumed in slim form on 2026-10-12; next row 3.2):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -68,6 +68,8 @@ Those token ratios count wrapper traffic only: end to end its runs cost about 9%
 A's, since each model call re-reads a ~55k-token fixed prompt and they make more calls (HISTORY).
 The user then closed G2 (format 2 stays) and resumed Phases 3-6 in slim form: only features that
 are needed and showed a benefit, with lean gates (plan §10.3; deferred items listed in §11).
+Procedural materials exist as data with a CPU reference evaluator (`pav_core::material`, 12 core
+materials; 3.1); the renderer draws them next.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,
