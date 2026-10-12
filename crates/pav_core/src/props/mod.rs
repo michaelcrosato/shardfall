@@ -795,11 +795,12 @@ mod tests {
 
     #[test]
     fn canonical_text_is_exact_compact_and_keeps_revisions() {
-        // Revisions captured before the canonical writer; F2 must keep them too.
+        // Revisions captured before the canonical writer; F2 must keep them too. The bench's is
+        // the one row 2.5 gave it, with its rear legs fixed.
         let golden = [
             ("BUILTIN/box", "prop1-501ba5dc44b112fd"),
             ("BUILTIN/crate", "prop1-464f1ac1ee324075"),
-            ("BUILTIN/bench", "prop1-6feb81dece124dfd"),
+            ("BUILTIN/bench", "prop1-1dec2d266aa7c89d"),
             ("BUILTIN/lantern", "prop1-fc44b95ee89f262e"),
         ];
         let mut assets: Vec<(PropAsset, &str)> =
@@ -822,7 +823,7 @@ mod tests {
         }
         let bench = get("BUILTIN/bench").unwrap().doc.text();
         assert!(bench.len() <= 1_000, "a copied bench file is {} bytes", bench.len());
-        assert!(bench.contains(r##""backrest":{"shape":{"type":"rounded_box","half":[1.1,0.25,0.065],"radius":0.025},"pos":[0,1.17,-0.36],"pitch":-12,"color":"#bc8150"}"##));
+        assert!(bench.contains(r##""backrest":{"shape":{"type":"rounded_box","half":[1.1,0.25,0.04],"radius":0.025},"pos":[0,1.165,-0.43],"pitch":-11.5346,"color":"#bc8150"}"##));
 
         // Only bit-identical defaults are left out: negative zero survives a save.
         let mut odd = assets[0].0.clone();

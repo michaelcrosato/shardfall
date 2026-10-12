@@ -129,7 +129,7 @@ fn format1_files_keep_their_revisions_through_the_source_model() {
     let golden = [
         ("BUILTIN/box", "prop1-501ba5dc44b112fd"),
         ("BUILTIN/crate", "prop1-464f1ac1ee324075"),
-        ("BUILTIN/bench", "prop1-6feb81dece124dfd"),
+        ("BUILTIN/bench", "prop1-1dec2d266aa7c89d"),
         ("BUILTIN/lantern", "prop1-fc44b95ee89f262e"),
     ];
     let mut assets: Vec<(PropAsset, &str)> =
@@ -357,4 +357,37 @@ fn fixtures_lint_on_their_resolved_parts() {
         lines("probe_frames"),
         ["frame_turn: board_lean_x leans sideways, so its width turns front-to-back; use spin:90 or a vertical axis"]
     );
+}
+
+/// The object doc (`docs/ASSET_STUDIO.md`, what an agent reads first) names every key, shape,
+/// socket, look and op format 2 checks; its document reads, compiles clean and takes its patch.
+#[test]
+fn the_object_doc_names_every_checked_key() {
+    use pav_core::props::doc::SocketName;
+    use pav_core::props::lint::{Options, lint};
+    use pav_core::props::{LOOKS, OPS2, format2, patch_document};
+    let text = include_str!("../../../docs/ASSET_STUDIO.md");
+    let words: std::collections::BTreeSet<&str> = text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).collect();
+    let mut keys: Vec<&str> = Vec::new();
+    for rows in [format2::DOCUMENT_FIELDS, format2::NODE_FIELDS, format2::MATERIAL_FIELDS] {
+        keys.extend(rows.iter().map(|(key, _)| *key));
+    }
+    for (kind, fields, _) in format2::SHAPES {
+        keys.push(kind);
+        keys.extend(fields.iter());
+    }
+    keys.extend(OPS2.iter().map(|(op, _, _)| *op));
+    keys.extend(SocketName::NAMES);
+    keys.extend(LOOKS);
+    let missing: Vec<&str> = keys.into_iter().filter(|key| !words.contains(key)).collect();
+    assert!(missing.is_empty(), "ASSET_STUDIO.md never names {missing:?}");
+
+    let blocks: Vec<&str> = text.split("```json\n").skip(1).map(|block| block.split("```").next().unwrap()).collect();
+    let bench = read("the doc's bench", blocks[0]);
+    let def = PropDef::new(bench.clone()).unwrap();
+    assert!(lint(&def.compiled, &Options::default()).is_empty(), "the doc's bench is clean");
+    assert_eq!(def.bounds(1.0).size_cm(), "220x142x98", "the size the doc quotes");
+    let call: serde_json::Value = serde_json::from_str(&blocks[1].replace('\n', "")).unwrap();
+    let patched = patch_document(&bench, &call["args"]["ops"], &get).unwrap_or_else(|issues| panic!("{}", render(&issues)));
+    assert!(patched.doc.parts.contains_key("arm") && !patched.doc.parts.contains_key("crossbar"));
 }

@@ -295,7 +295,9 @@ fn inspect(root: &Path, name: &str, preview: bool, extras: Extras) -> Result<Edi
         result["resolved"] = resolved(def);
     }
     if extras.legend {
-        result["legend"] = json!(props::LEGEND);
+        // The legend of the format the document is written in.
+        let format1 = def.as_ref().is_some_and(|def| def.doc.needed_format() == 1);
+        result["legend"] = json!(if format1 { props::LEGEND } else { props::format2::LEGEND });
     }
     Ok(Edited { report: result, def, dependents: Vec::new(), mutation: false, preview })
 }
@@ -578,9 +580,10 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let (action, preview) = check_args(a)?;
     let read_only = |report| Ok(Edited { report, def: None, dependents: Vec::new(), mutation: false, preview: false });
     if action == "schema" {
+        // Format 2 is the house format; format 1's guide stays for its files.
         let guide = match a.get("format") {
-            None => props::schema(get_str(a, "topic")),
             Some(format) if format == 1 => props::schema(get_str(a, "topic")),
+            None => props::format2::schema(get_str(a, "topic")),
             Some(format) if format == 2 => props::format2::schema(get_str(a, "topic")),
             Some(format) => {
                 bail!("{}", Issue::error("format", Code::UnknownValue, format!("format {format}")).expected("1 or 2"))
@@ -1035,7 +1038,7 @@ mod tests {
         let keys = |value: &Value| value.as_object().unwrap().keys().cloned().collect::<Vec<_>>();
         let copied = edit(&root, json!({"action":"copy","name":name,"from":"BUILTIN/bench"}));
         assert_eq!(keys(&copied), ["file", "name", "parts", "revision", "saved", "size_cm", "undo"]);
-        assert_eq!((copied["parts"].as_u64(), copied["size_cm"].as_str()), (Some(7), Some("220x143x86")));
+        assert_eq!((copied["parts"].as_u64(), copied["size_cm"].as_str()), (Some(7), Some("220x142x98")));
         let patched =
             edit(&root, json!({"action":"patch","name":name,"ops":[{"op":"set","part":"seat","fields":{"color":"#3e9a9e"}}]}));
         assert_eq!(keys(&patched), ["changed_parts", "name", "revision", "saved", "size_cm", "undo"]);
@@ -1046,7 +1049,7 @@ mod tests {
         let mut full = edit(&root, json!({"action":"inspect","name":"BUILTIN/bench","legend":true,"bounds":true}));
         crate::reply::tidy(&mut full);
         assert_eq!(full["legend"], props::LEGEND);
-        assert_eq!(full["bounds"], json!([[-1.1, 0, -0.476], [1.1, 1.428, 0.38]]));
+        assert_eq!(full["bounds"], json!([[-1.1, 0, -0.599], [1.1, 1.418, 0.38]]));
         assert_eq!(full["part_bounds"]["seat"], json!([[-1.1, 0.71, -0.38], [1.1, 0.89, 0.38]]));
         assert!(edit_at(&root, &args(json!({"action":"patch","name":name,"legend":true,"ops":[]}))).is_err());
         props::remove(&format!("WORKSHOP/{name}")).unwrap();
@@ -1066,7 +1069,7 @@ mod tests {
             json!([{"op":"add","part":"lamp","value":{"shape":{"type":"sphere","radius":0.08},"pos":[0,2,0],"color":"#ffd58c"}}]);
         let dry = edit(&root, json!({"action":"patch","name":name,"dry_run":true,"ops":lamp}));
         assert_eq!((dry["saved"].as_bool(), dry["revision"].clone()), (Some(false), copied["revision"].clone()));
-        assert_eq!(dry["check"], json!(["floating: lamp (49 cm from the rest)"]));
+        assert_eq!(dry["check"], json!(["floating: lamp (50 cm from the rest)"]));
         assert_eq!(std::fs::read(&path).unwrap(), file);
         assert_eq!(std::fs::read(history_path(&root, &canonical)).unwrap(), history);
         assert_eq!(props::get(&canonical).unwrap().revision, copied["revision"]);
@@ -1076,8 +1079,8 @@ mod tests {
         let later =
             edit(&root, json!({"action":"patch","name":name,"ops":[{"op":"set","part":"seat","fields":{"color":"#3e9a9e"}}]}));
         assert!(later.get("check").is_none(), "findings already reported are not repeated");
-        let checked = edit(&root, json!({"action":"check","name":name,"target":"200x-x80"}));
-        assert_eq!(checked["check"], json!(["floating: lamp (49 cm from the rest)"]));
+        let checked = edit(&root, json!({"action":"check","name":name,"target":"200x-x95"}));
+        assert_eq!(checked["check"], json!(["floating: lamp (50 cm from the rest)"]));
         assert_eq!(checked["cost"], "2004 tris, 3 meshes, 1 sdf, 0 lights, 80 KB generated");
         assert!(edit_at(&root, &args(json!({"action":"check","name":name,"target":"2x2"}))).is_err());
         assert!(edit_at(&root, &args(json!({"action":"undo","name":name,"dry_run":true}))).is_err(), "undo has no dry run");

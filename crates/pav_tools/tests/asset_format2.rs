@@ -99,6 +99,8 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     assert_eq!(inspected["resolved"]["seat"], json!({"type":"cylinder","size":[40,6,40],"pos":[0,45,0]}));
     let guide = edit(&mut s, json!({"action":"schema","format":2,"topic":"ops"})).unwrap();
     assert!(guide["ops"]["expand"].as_str().unwrap().contains("<id>_<i>"), "{guide}");
+    let legend = edit(&mut s, json!({"action":"inspect","name":"stool","legend":true,"preview":false})).unwrap();
+    assert_eq!(legend["legend"], pav_core::props::format2::LEGEND, "a format-2 asset gets format 2's legend");
 
     // Undo and redo restore format-2 documents exactly.
     let unpatched = edit(&mut s, json!({"action":"undo","name":"stool","preview":false})).unwrap();

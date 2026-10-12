@@ -70,14 +70,22 @@ fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
 #[test]
 fn the_field_guide_and_tool_list_stay_compact() {
     let mut s = Session::new("empty", 1).unwrap();
-    let guide = match pav_tools::call(&mut s, "asset_edit", json!({"action":"schema"}).as_object().unwrap()).unwrap() {
+    let mut guide = |args: Value| match pav_tools::call(&mut s, "asset_edit", args.as_object().unwrap()).unwrap() {
         pav_tools::Output::Json(value) => value,
         _ => panic!("schema returns data"),
     };
-    for key in ["legend", "document", "part", "shapes", "ops", "limits"] {
-        assert!(guide.get(key).is_some(), "{key}");
+    // Format 2's guide is the default; format 1's stays for its files.
+    let v2 = guide(json!({"action":"schema"}));
+    assert_eq!(v2["format"], 2);
+    for key in ["legend", "document", "node", "shapes", "materials", "ops", "limits"] {
+        assert!(v2.get(key).is_some(), "{key}");
     }
-    assert!(guide.to_string().len() < 2_600, "the field guide is {} chars", guide.to_string().len());
+    assert!(v2.to_string().len() < 7_200, "format 2's field guide is {} chars", v2.to_string().len());
+    let v1 = guide(json!({"action":"schema","format":1}));
+    for key in ["legend", "document", "part", "shapes", "ops", "limits"] {
+        assert!(v1.get(key).is_some(), "{key}");
+    }
+    assert!(v1.to_string().len() < 2_600, "format 1's field guide is {} chars", v1.to_string().len());
     let list = pav_tools::mcp::tool_list();
     let chars = list.to_string().len();
     assert!(chars <= 47_000, "tools/list is {chars} chars");

@@ -538,7 +538,7 @@ mod tests {
                 {"op":"add","part":"peg","value":{"shape":{"type":"box","half":[0.02,0.13,0.02]},"pos":[0.5,0.82,0],"color":"#202020"}},
                 {"op":"add","part":"core","value":{"shape":{"type":"box","half":[0.3,0.03,0.1]},"pos":[-0.3,0.8,0],"color":"#ff0000"}},
                 {"op":"add","part":"inlay","value":{"shape":{"type":"box","half":[0.3,0.005,0.1]},"pos":[0.3,0.885,0],"color":"#2a6a9a"}},
-                {"op":"set","part":"leg_back_right","fields":{"pos":[0.8,0.56,-0.25]}}
+                {"op":"set","part":"leg_back_right","fields":{"pos":[0.8,0.71,-0.41]}}
             ]))
             .unwrap();
         let options = Options { target_cm: Some([Some(180.0), Some(90.0), Some(60.0)]) };
@@ -547,7 +547,8 @@ mod tests {
         seen.sort();
         assert_eq!(seen, ["below_floor", "floating", "hidden", "mirror", "poke", "size", "z_fight"], "{found:#?}");
         let text: Vec<&str> = found.iter().map(|f| f.line.as_str()).collect();
-        assert!(text.contains(&"floating: lamp (49 cm from the rest)"), "{text:?}");
+        assert!(text.contains(&"floating: lamp (50 cm from the rest)"), "{text:?}");
+        assert!(text.contains(&"below_floor: rug reaches y=-2.5 cm"), "{text:?}");
         assert!(text.contains(&"hidden: core is inside seat"), "{text:?}");
         assert!(text.contains(&"poke: peg pokes 2 cm out of seat"), "{text:?}");
         assert!(text.contains(&"z_fight: inlay and seat share a face (y=89 cm)"), "{text:?}");

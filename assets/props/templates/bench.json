@@ -1,7 +1,7 @@
 {
   "format": 1,
   "name": "bench",
-  "description": "A wooden bench with four legs, a broad seat, and a tilted backrest.",
+  "description": "A wooden bench: broad seat, four legs, a backrest leaning on the rear legs.",
   "parts": {
     "seat": {
       "shape": {"type": "rounded_box", "half": [1.1, 0.09, 0.38], "radius": 0.025},
@@ -9,34 +9,36 @@
       "color": "#bc8150"
     },
     "backrest": {
-      "shape": {"type": "rounded_box", "half": [1.1, 0.25, 0.065], "radius": 0.025},
-      "pos": [0, 1.17, -0.36],
-      "pitch": -12,
+      "shape": {"type": "rounded_box", "half": [1.1, 0.25, 0.04], "radius": 0.025},
+      "pos": [0, 1.165, -0.43],
+      "pitch": -11.5346,
       "color": "#bc8150"
     },
     "leg_front_left": {
-      "shape": {"type": "box", "half": [0.075, 0.36, 0.075]},
-      "pos": [-0.85, 0.36, 0.25],
+      "shape": {"type": "box", "half": [0.05, 0.355, 0.04]},
+      "pos": [-0.85, 0.355, 0.25],
       "color": "#594635"
     },
     "leg_front_right": {
-      "shape": {"type": "box", "half": [0.075, 0.36, 0.075]},
-      "pos": [0.85, 0.36, 0.25],
+      "shape": {"type": "box", "half": [0.05, 0.355, 0.04]},
+      "pos": [0.85, 0.355, 0.25],
       "color": "#594635"
     },
     "leg_back_left": {
-      "shape": {"type": "box", "half": [0.075, 0.56, 0.075]},
-      "pos": [-0.85, 0.56, -0.25],
+      "shape": {"type": "box", "half": [0.05, 0.7159, 0.04]},
+      "pos": [-0.85, 0.71, -0.41],
+      "pitch": -12.0948,
       "color": "#594635"
     },
     "leg_back_right": {
-      "shape": {"type": "box", "half": [0.075, 0.56, 0.075]},
-      "pos": [0.85, 0.56, -0.25],
+      "shape": {"type": "box", "half": [0.05, 0.7159, 0.04]},
+      "pos": [0.85, 0.71, -0.41],
+      "pitch": -12.0948,
       "color": "#594635"
     },
     "crossbar": {
-      "shape": {"type": "box", "half": [0.88, 0.05, 0.05]},
-      "pos": [0, 0.31, -0.25],
+      "shape": {"type": "box", "half": [0.8, 0.03, 0.03]},
+      "pos": [0, 0.31, -0.33],
       "color": "#594635"
     }
   }

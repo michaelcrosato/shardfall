@@ -642,7 +642,7 @@ pub static TOOLS: &[Tool] = &[
             arg("bounds", "boolean", "inspect: bounds in metres"),
             arg("resolved", "boolean", "inspect: every drawn part after copies"),
             arg("topic", "string", "schema: one section, e.g. ops"),
-            arg("format", "integer", "schema: 2 for format 2"),
+            arg("format", "integer", "schema: 1 for format 1"),
             arg("dry_run", "boolean", "reply without saving"),
             arg("target", "string", "check: target size WxHxD in cm"),
             arg("all", "boolean", "check: every finding"),

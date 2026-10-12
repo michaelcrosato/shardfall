@@ -213,7 +213,7 @@ pub fn schema(topic: Option<&str>) -> Result<Value, String> {
         ("ops", super::triples(crate::props::OPS2)),
         ("limits", json!(LIMITS)),
     ];
-    super::guide(2, sections, topic, "asset_edit action=copy from=BUILTIN/bench name=x, then one patch batch")
+    super::guide(2, sections, topic, "asset_edit action=create name=x asset={…}, then patch batches")
 }
 
 /// An unknown key. The valid keys are listed only when there is no fix: a node takes about
