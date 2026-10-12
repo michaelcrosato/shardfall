@@ -493,7 +493,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clips",
-        help: "The motion clip library (anim/*.json: animation translated from open libraries, as readable key poses): no args lists the sets; find=WORDS searches names, tags and descriptions; name=SET/Clip shows one clip as readable text with its source and license; set=NAME lists a set; load=FOLDER adds an on-disk library (load=cmu: every take of the CMU database; load=100style: its runs, backward, sideways and idle loops; load=local: what you translated from libraries that may not be shared). Play one with animsheet clip=.",
+        help: "The motion clip library (anim/*.json: animation translated from open libraries, as readable key poses): no args lists the sets; find=WORDS searches names, tags and descriptions; name=SET/Clip shows one clip as readable text with its source and license; set=NAME lists a set; load=FOLDER adds an on-disk library (cmu: every CMU take; 100style: its runs and idle loops; local: your translations that may not be shared). Play one with animsheet clip=.",
         args: &[
             arg("find", "string", "words to search for"),
             arg("name", "string", "SET/Clip (or Clip) to show"),
@@ -668,6 +668,7 @@ pub static TOOLS: &[Tool] = &[
             arg("dry_run", "boolean", "reply without saving"),
             arg("target", "string", "check: target size WxHxD in cm"),
             arg("all", "boolean", "check: every finding"),
+            arg("review", "string", "publish to LIB/core: the sheet review"),
         ],
         run: crate::asset_tools::t_asset_edit,
     },

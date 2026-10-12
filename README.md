@@ -150,6 +150,7 @@ printf 'load scene=world\ngoto room=drift\ncapture out=out/drift.png\n' | pav re
 ```
 The same tools are an MCP server (`pav mcp`, registered in `.mcp.json`), and a live bridge into
 the running game: start it with `--bridge`, then use `pav live` (REPL) or `pav mcp --live`.
+Object packs and their licences are credited in `assets/props/CREDITS.md`.
 
 For building game content there are tools that make and judge it: grow a creature from a seed
 (`genome`), author one as JSON and see it from every side with its measurements (`turntable

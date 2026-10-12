@@ -1,0 +1,201 @@
+//! The curated library (docs/ASSET_SYSTEM_PLAN.md §9.3, §9.5): each pack's licence
+//! (`PACK.json`), the credits file, the gate a library asset passes, and
+//! `asset_edit action=publish`, which writes a checked workshop asset into a pack with its index
+//! row and its review.
+
+use std::path::{Path, PathBuf};
+
+use anyhow::{Result, anyhow, bail};
+use pav_core::props::doc::Category;
+use pav_core::props::index;
+use pav_core::props::{self, PropDef, Tier, store};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+/// Licences `lib/` may hold. `lib/core` holds own work and CC0 only (plan D5); anything else
+/// stays under `local/`.
+pub const REDISTRIBUTABLE: &[&str] = &["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0"];
+
+/// A pack's `PACK.json`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Pack {
+    pub pack: String,
+    pub title: String,
+    /// An SPDX identifier.
+    pub license: String,
+    /// The attribution line.
+    pub credit: String,
+    /// `own`, or where it was downloaded from.
+    pub source: String,
+    /// The import catalog it came from, if any.
+    #[serde(default)]
+    pub catalog: Option<String>,
+}
+
+/// The `PACK.json` of `folder`, checked: it names its folder and its licence may be committed.
+pub fn read_pack(folder: &Path) -> Result<Pack> {
+    let path = folder.join("PACK.json");
+    let text = std::fs::read_to_string(&path).map_err(|e| anyhow!("{}: {e} (a pack needs its licence)", path.display()))?;
+    let pack: Pack = serde_json::from_str(&text).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    let folder_name = folder.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+    if pack.pack != folder_name {
+        bail!("{}: pack \"{}\" must name its folder \"{folder_name}\"", path.display(), pack.pack);
+    }
+    license_allowed(&pack.pack, &pack.license).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    Ok(pack)
+}
+
+/// Whether `license` may be committed in `lib/<pack>`.
+pub fn license_allowed(pack: &str, license: &str) -> Result<()> {
+    let allowed: &[&str] = if pack == store::CORE { &["CC0-1.0"] } else { REDISTRIBUTABLE };
+    if !allowed.contains(&license) {
+        bail!("licence {license} cannot be committed in lib/{pack} (allowed: {}); keep it under local/", allowed.join(", "));
+    }
+    Ok(())
+}
+
+/// The committed packs under `root`: `lib/core`, then the others on disk.
+pub fn committed_packs(root: &Path) -> Vec<(String, PathBuf)> {
+    let core = root.join("lib").join(store::CORE);
+    let mut packs: Vec<_> = core.is_dir().then(|| (store::CORE.to_owned(), core)).into_iter().collect();
+    packs.extend(
+        index::disk_packs(root).into_iter().filter(|(_, _, tier)| *tier == Tier::Disk).map(|(pack, folder, _)| (pack, folder)),
+    );
+    packs
+}
+
+/// The credits file (`CREDITS.md` under the props root): each committed pack's licence and
+/// credit line. Local packs are not shared, so not listed.
+pub fn credits(root: &Path) -> Result<String> {
+    let mut text = String::from(
+        "# Object asset credits\n\nThe licence and credit of each committed object pack (`assets/props/lib/`), written by\n`pav assets reindex=<pack>` from the packs' `PACK.json`.\n",
+    );
+    for (_, folder) in committed_packs(root) {
+        let pack = read_pack(&folder)?;
+        text.push_str(&format!(
+            "\n## LIB/{}: {}\n\n- Licence: {}\n- Credit: {}\n- Source: {}\n",
+            pack.pack, pack.title, pack.license, pack.credit, pack.source
+        ));
+    }
+    Ok(text)
+}
+
+/// Rewrites `CREDITS.md` under `root` when it changed.
+pub fn write_credits(root: &Path) -> Result<()> {
+    let text = credits(root)?;
+    let path = root.join("CREDITS.md");
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
+        std::fs::write(&path, text).map_err(|e| anyhow!("write {}: {e}", path.display()))?;
+    }
+    Ok(())
+}
+
+/// Tokens a library asset may cost by category (plan §9.3): small things 400, dressing 600,
+/// furniture and gear 800, set pieces 2,000.
+fn token_cap(category: Option<Category>) -> usize {
+    match category {
+        Some(Category::Food | Category::Tool | Category::Signage) => 400,
+        Some(Category::Container | Category::Lighting | Category::Rock | Category::Vegetation) => 600,
+        Some(Category::Town | Category::Dungeon) => 2_000,
+        _ => 800,
+    }
+}
+
+/// What keeps `def` out of `lib/<pack>` besides `check`'s findings: what retrieval needs (a
+/// description, a category, 2-6 tags), its token cap, references outside the library, and its
+/// source's licence.
+pub fn gate(def: &PropDef, pack: &str) -> Vec<String> {
+    let doc = &def.doc;
+    let mut found = Vec::new();
+    let chars = doc.description.trim().chars().count();
+    if !(1..=120).contains(&chars) {
+        found.push(format!("missing: a description of 1-120 characters (has {chars})"));
+    }
+    if doc.category.is_none() {
+        let hint = if def.v1.is_some() { "; format 1 holds none: replace it as format 2" } else { "" };
+        found.push(format!("missing: category ({}){hint}", Category::NAMES.join(", ")));
+    }
+    if !(2..=6).contains(&doc.tags.len()) {
+        found.push(format!("missing: 2-6 tags (has {})", doc.tags.len()));
+    }
+    let tok = index::tokens(doc.text().len());
+    let cap = token_cap(doc.category);
+    if tok > cap {
+        found.push(format!("tokens: {tok} (cap {cap} for its category)"));
+    }
+    for dep in &def.deps {
+        let library = dep.starts_with("BUILTIN/") || matches!(store::pack(dep), Some(p) if p == store::CORE || p == pack);
+        if !library {
+            found.push(format!("refs: {dep} is outside the library; publish it first and reference its LIB/ name"));
+        }
+    }
+    if let Some(license) = doc.source.as_ref().and_then(|source| source.license.as_deref()) {
+        if let Err(error) = license_allowed(pack, license) {
+            found.push(format!("license: {error}"));
+        }
+    }
+    found
+}
+
+/// One line of the review ledger: no tabs or line breaks.
+fn line(text: &str) -> String {
+    text.split(['\t', '\n', '\r']).map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
+}
+
+/// The review ledger of a pack folder: (name, revision, review) per asset, sorted by name.
+pub fn reviews(folder: &Path) -> Result<Vec<(String, String, String)>> {
+    let path = folder.join("review.tsv");
+    let Ok(text) = std::fs::read_to_string(&path) else { return Ok(Vec::new()) };
+    text.lines()
+        .skip(1)
+        .filter(|row| !row.trim().is_empty())
+        .enumerate()
+        .map(|(i, row)| match row.split('\t').collect::<Vec<_>>()[..] {
+            [name, revision, review] => Ok((name.to_owned(), revision.to_owned(), review.to_owned())),
+            _ => Err(anyhow!("{} line {}: expected name, revision, review", path.display(), i + 2)),
+        })
+        .collect()
+}
+
+/// `asset_edit action=publish name=WORKSHOP/x pack=core review="ok: …"`: `def` (the workshop
+/// asset, with `findings` from `check`) passes the gate, then goes into `lib/<pack>/<leaf>.json`
+/// with its index row, its review at this revision, and the credits rewritten.
+pub fn publish(root: &Path, name: &str, def: &PropDef, findings: Vec<String>, pack: &str, review: &str) -> Result<Value> {
+    if name.starts_with("WORKSHOP_LOCAL/") {
+        bail!("{name} stays on this machine: WORKSHOP_LOCAL holds copies of sources that may not be shared");
+    }
+    if !name.starts_with("WORKSHOP/") {
+        bail!("publish takes a workshop asset; copy {name} to WORKSHOP/ first");
+    }
+    store::validate_pack(pack).map_err(|e| anyhow!("pack: {e}"))?;
+    let review = line(review);
+    if review.is_empty() || review.chars().count() > 200 {
+        bail!("review= says what the sheet review found (1-200 characters), e.g. \"ok: reads at game distance, front +z\"");
+    }
+    let folder = root.join("lib").join(pack);
+    read_pack(&folder)?;
+    let mut found = findings;
+    found.extend(gate(def, pack));
+    if !found.is_empty() {
+        bail!("{name} does not pass the library gate: {}", found.join("; "));
+    }
+    let leaf = props::leaf(name);
+    let published = format!("LIB/{pack}/{leaf}");
+    let file = folder.join(format!("{leaf}.json"));
+    std::fs::write(&file, def.doc.text()).map_err(|e| anyhow!("write {}: {e}", file.display()))?;
+    let mut ledger: Vec<_> = reviews(&folder)?.into_iter().filter(|(row, _, _)| *row != published).collect();
+    ledger.push((published.clone(), def.revision.clone(), review));
+    ledger.sort();
+    let mut text = String::from("name\trevision\treview\n");
+    for (row, revision, review) in &ledger {
+        text.push_str(&format!("{row}\t{revision}\t{review}\n"));
+    }
+    std::fs::write(folder.join("review.tsv"), text).map_err(|e| anyhow!("write review.tsv: {e}"))?;
+    crate::asset_search::reindex(root, pack)?;
+    let mut result = json!({"published": published, "revision": def.revision, "file": file});
+    if pack == store::CORE {
+        result["note"] = json!("LIB/core is embedded: rebuild to load it");
+    }
+    Ok(result)
+}

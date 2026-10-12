@@ -149,8 +149,8 @@ pub fn text(rows: &[Row]) -> String {
     std::iter::once(HEADER.to_owned()).chain(rows.iter().map(|row| row.line())).map(|line| line + "\n").collect()
 }
 
-/// Rows for every asset file directly in `folder`, named `<set>/<leaf>` (`BUILTIN` for the
-/// templates, `LIB/<pack>` for a pack). Each keeps its old row's note, and its category and
+/// Rows for every asset file directly in `folder` (not its licence, `PACK.json`), named
+/// `<set>/<leaf>` (`BUILTIN` for the templates, `LIB/<pack>` for a pack). Each keeps its old row's note, and its category and
 /// tags when the document has none: format 1 cannot hold them.
 pub fn build(folder: &Path, set: &str, old: &[Row], deps: compile::Deps) -> Result<Vec<Row>, String> {
     let mut paths: Vec<_> = std::fs::read_dir(folder)
@@ -159,7 +159,7 @@ pub fn build(folder: &Path, set: &str, old: &[Row], deps: compile::Deps) -> Resu
         .filter(|path| {
             path.is_file()
                 && path.extension().is_some_and(|ext| ext == "json")
-                && path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with('.'))
+                && path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with('.') && name != "PACK.json")
         })
         .collect();
     paths.sort();

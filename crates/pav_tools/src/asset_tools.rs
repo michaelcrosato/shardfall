@@ -376,7 +376,7 @@ fn json_arg(a: &Args, key: &str) -> Result<Value> {
     }
 }
 
-const ACTIONS: &[&str] = &["create", "copy", "inspect", "check", "patch", "replace", "undo", "redo", "schema"];
+const ACTIONS: &[&str] = &["create", "copy", "inspect", "check", "patch", "replace", "undo", "redo", "schema", "publish"];
 
 fn check_args(a: &Args) -> Result<(&str, bool)> {
     let preview = get_bool(a, "preview", true)?;
@@ -393,6 +393,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
         "replace" => &["asset", "if_revision", "dry_run"],
         "undo" | "redo" => &["if_revision"],
         "schema" => &["topic", "format"],
+        "publish" => &["review"],
         _ => bail!(
             "{}",
             Issue::error("action", Code::UnknownValue, format!("unknown action \"{action}\""))
@@ -418,6 +419,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
                 "dry_run",
                 "target",
                 "all",
+                "review",
             ];
             let fix = if known.contains(&key.as_str()) {
                 Some(format!("{key} belongs to another action"))
@@ -431,7 +433,8 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
                     .maybe_fix(fix)
             );
         }
-        if ["action", "name", "from", "template", "description", "if_revision", "topic", "target"].contains(&key.as_str())
+        if ["action", "name", "from", "template", "description", "if_revision", "topic", "target", "review"]
+            .contains(&key.as_str())
             && !value.is_string()
         {
             bail!("{key} must be text");
@@ -543,6 +546,11 @@ fn findings(compiled: &CompiledProp, target: Option<[Option<f32>; 3]>) -> (Vec<F
 }
 
 /// Findings of `after` that `before` did not have: what an edit introduced.
+/// `check`'s findings for `def` (lint and cost budgets), as `check` lists them.
+pub fn check_lines(def: &PropDef) -> Vec<String> {
+    lint::lines(&findings(&def.compiled, None).0)
+}
+
 fn new_findings(before: Option<&PropDef>, after: Option<&PropDef>) -> Vec<String> {
     let Some(after) = after else { return Vec::new() };
     let old: BTreeSet<String> =
@@ -620,6 +628,11 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
             };
         }
         return read_only(result);
+    }
+    if action == "publish" {
+        let def = read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'"))?;
+        let review = get_str(a, "review").ok_or_else(|| anyhow!("review= says what the sheet review found"))?;
+        return read_only(crate::asset_library::publish(root, &name, &def, check_lines(&def), props::store::CORE, review)?);
     }
     if !props::editable(&name) {
         let what = if name.starts_with("BUILTIN/") { "built-in templates are" } else { "library assets are" };
@@ -1093,6 +1106,38 @@ mod tests {
         assert_eq!(no_op["saved"], false);
         assert_eq!(no_op["undo"], branch["undo"]);
         props::remove(&canonical).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn publish_gates_a_workshop_asset_then_files_it_with_its_review() {
+        let root = temp_root("publish");
+        let name = "test_asset_publish_post";
+        let mut post = json!({"format":2,"name":name,"unit":"cm","description":"A wooden post.",
+            "parts":{"post":{"type":"box","size":[10,100,10],"pos":[0,50,0],"color":"#806040"}}});
+        edit(&root, json!({"action":"create","name":name,"asset":post}));
+        let publish =
+            |review: &str| edit_at(&root, &args(json!({"action":"publish","name":name,"review":review}))).err().unwrap();
+        assert!(publish("ok").to_string().contains("PACK.json"), "a pack needs its licence");
+        std::fs::create_dir_all(root.join("lib/core")).unwrap();
+        let licence = r#"{"pack":"core","title":"Core","license":"CC0-1.0","credit":"Test","source":"own"}"#;
+        std::fs::write(root.join("lib/core/PACK.json"), licence).unwrap();
+        let error = publish("ok").to_string();
+        assert!(error.contains("missing: category") && error.contains("missing: 2-6 tags"), "{error}");
+        post["category"] = json!("town");
+        post["tags"] = json!(["wood", "fence"]);
+        edit(&root, json!({"action":"replace","name":name,"asset":post}));
+        assert!(publish(" ").to_string().contains("review="), "a review is required");
+        let done = edit(&root, json!({"action":"publish","name":name,"review":"ok: reads at game distance"}));
+        let published = format!("LIB/core/{name}");
+        assert_eq!(done["published"], published.as_str());
+        assert!(root.join(format!("lib/core/{name}.json")).is_file());
+        let ledger = crate::asset_library::reviews(&root.join("lib/core")).unwrap();
+        let revision = done["revision"].as_str().unwrap().to_owned();
+        assert_eq!(ledger, [(published.clone(), revision, "ok: reads at game distance".to_owned())]);
+        let index = std::fs::read_to_string(root.join("lib/core/index.tsv")).unwrap();
+        assert!(index.contains(&format!("{published}\ttown")), "{index}");
+        assert!(std::fs::read_to_string(root.join("CREDITS.md")).unwrap().contains("## LIB/core: Core"));
+        props::remove(&format!("WORKSHOP/{name}")).unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
 }

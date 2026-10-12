@@ -91,7 +91,8 @@ fn main() {
 
     // Object assets, the embedded tier (docs/ASSET_SYSTEM_PLAN.md §9.1): the templates and the
     // core library (assets, meshes, index.tsv), keyed by their path under assets/props. Other
-    // packs stay on disk, and local ones on this machine.
+    // packs stay on disk, and local ones on this machine. A pack's licence (PACK.json) and
+    // review ledger (review.tsv) are for tools, not the game.
     let props = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/props");
     let mut files = Vec::new();
     for folder in ["templates", "lib/core"] {
@@ -101,6 +102,7 @@ fn main() {
             collect_ext(&dir, &["json", "tsv"], &mut files);
         }
     }
+    files.retain(|p| !p.file_name().is_some_and(|n| n == "PACK.json" || n == "review.tsv"));
     files.sort();
     let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("asset_data.rs");
     let mut f = std::fs::File::create(out).unwrap();

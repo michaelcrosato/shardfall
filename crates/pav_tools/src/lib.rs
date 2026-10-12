@@ -6,6 +6,7 @@ pub mod agent_tools;
 pub mod anim_tools;
 pub mod animation_tools;
 pub mod asset_import;
+pub mod asset_library;
 pub mod asset_preview_tools;
 pub mod asset_search;
 pub mod asset_tools;

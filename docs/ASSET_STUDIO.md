@@ -88,6 +88,15 @@ data and rooms may name only these. Other packs (assets/props/lib/pack/) load on
 native builds; assets/props/local/ (packs, and WORKSHOP_LOCAL/name copies of their assets) is
 git-ignored, for sources whose licences forbid sharing. Each pack folder has an index.tsv that
 `assets` reads; `assets reindex=pack` (or `=templates`) rewrites it, keeping its note column.
+A pack's PACK.json holds its licence (lib/ takes CC0 and CC-BY, lib/core CC0 only); reindexing a
+pack rewrites assets/props/CREDITS.md.
+
+`asset_edit action=publish name=x review="ok: …"` puts a workshop asset into LIB/core after you
+look at its sheet (views=true elevation=game). It needs no check findings, a description (≤ 120
+chars), a category, 2-6 tags, references to BUILTIN or LIB/core only, and at most 400 tokens
+(food, tool, signage), 600 (container, lighting, rock, vegetation), 800 (most) or 2,000 (town,
+dungeon). It writes lib/core/x.json, its index row and a review.tsv line at this revision (an
+edited core asset needs a new review); rebuild to embed it.
 
 ## Library assets in game code
 

@@ -1,10 +1,12 @@
-//! Committed asset folders (docs/ASSET_SYSTEM_PLAN.md §9.1-9.2): every index is current, and the
-//! packs kept on disk fit their budget.
+//! Committed asset folders (docs/ASSET_SYSTEM_PLAN.md §9.1-9.5): every index is current, the
+//! packs kept on disk fit their budget, their licences may be shared and are credited, and every
+//! core asset was reviewed at its current revision and passes the library gate.
 
 use std::path::{Path, PathBuf};
 
 use pav_core::props::index;
 use pav_core::props::{self, Tier};
+use pav_tools::asset_library;
 
 fn assets() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets")
@@ -61,4 +63,65 @@ fn committed_packs_fit_budget() {
         total += bytes;
     }
     assert!(total <= 40_000_000, "the packs on disk are {total} bytes (budget 40,000,000)");
+}
+
+/// Every committed pack has a `PACK.json` whose licence may be shared, and no asset in it names a
+/// source licence the pack may not hold.
+#[test]
+fn committed_packs_are_redistributable() {
+    let root = assets().join("props");
+    for (pack, folder) in asset_library::committed_packs(&root) {
+        asset_library::read_pack(&folder).unwrap();
+        for (name, def) in pack_assets(&pack, &folder) {
+            if let Some(license) = def.doc.source.as_ref().and_then(|source| source.license.as_deref()) {
+                asset_library::license_allowed(&pack, license).unwrap_or_else(|e| panic!("{name}: {e}"));
+            }
+        }
+    }
+}
+
+#[test]
+fn credits_file_is_current() {
+    let root = assets().join("props");
+    let text = std::fs::read_to_string(root.join("CREDITS.md")).unwrap_or_default();
+    assert_eq!(asset_library::credits(&root).unwrap(), text, "assets/props/CREDITS.md is stale: run `pav assets reindex=core`");
+}
+
+/// Each core asset passes `check` and the library gate, and `review.tsv` holds a review of its
+/// current revision: an edit needs a new review (`asset_edit action=publish`).
+#[test]
+fn core_assets_are_reviewed() {
+    let root = assets().join("props");
+    let folder = root.join("lib/core");
+    let reviews = asset_library::reviews(&folder).unwrap();
+    for (name, def) in pack_assets("core", &folder) {
+        let mut found = pav_tools::asset_tools::check_lines(&def);
+        found.extend(asset_library::gate(&def, "core"));
+        assert!(found.is_empty(), "{name}: {found:?}");
+        assert!(
+            reviews.iter().any(|(row, revision, _)| *row == name && *revision == def.revision),
+            "{name} has no review of revision {}: publish it again after a sheet review",
+            def.revision
+        );
+    }
+}
+
+/// The assets of a pack folder, read from their files.
+fn pack_assets(pack: &str, folder: &Path) -> Vec<(String, std::sync::Arc<props::PropDef>)> {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(folder)
+        .unwrap()
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| path.extension().is_some_and(|ext| ext == "json") && !path.ends_with("PACK.json"))
+        .collect();
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            let name = format!("LIB/{pack}/{}", path.file_stem().unwrap().to_string_lossy());
+            let text = std::fs::read_to_string(&path).unwrap();
+            let doc = props::Doc::read(&text).unwrap_or_else(|e| panic!("{name}: {}", pav_core::issue::render(&e)));
+            let def = props::PropDef::new(doc).unwrap_or_else(|e| panic!("{name}: {}", pav_core::issue::render(&e)));
+            (name, std::sync::Arc::new(def))
+        })
+        .collect()
 }

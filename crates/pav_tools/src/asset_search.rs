@@ -172,8 +172,9 @@ fn number(a: &Args, key: &str, default: usize, range: std::ops::RangeInclusive<u
     }
 }
 
-/// `templates` or a pack: write the index.tsv of its folder under `root`.
-fn reindex(root: &Path, target: &str) -> Result<Value> {
+/// `templates` or a pack: write the index.tsv of its folder under `root`, and for a committed
+/// pack the credits (`CREDITS.md`) too.
+pub(crate) fn reindex(root: &Path, target: &str) -> Result<Value> {
     let (folder, set) = match target {
         "templates" => (root.join("templates"), "BUILTIN".to_owned()),
         pack => {
@@ -191,6 +192,9 @@ fn reindex(root: &Path, target: &str) -> Result<Value> {
     };
     let rows = index::build(&folder, &set, &old, &|name| props::resolve_in(root, name).ok().flatten()).map_err(|e| anyhow!(e))?;
     std::fs::write(&path, index::text(&rows)).map_err(|e| anyhow!("write {}: {e}", path.display()))?;
+    if folder.parent().and_then(Path::file_name).is_some_and(|tier| tier == "lib") {
+        crate::asset_library::write_credits(root)?;
+    }
     Ok(json!({"reindexed": path, "rows": rows.len()}))
 }
 
@@ -379,6 +383,8 @@ mod tests {
             std::fs::create_dir_all(&folder).unwrap();
             let text = r##"{"format":2,"name":"stake","unit":"cm","category":"architecture","description":"A sharpened stake.","tags":["wood","fence"],"parts":{"stake":{"type":"cylinder","radius":5,"height":90,"pos":[0,45,0],"color":"#806040"}},"sockets":{"top":{"pos":[0,90,0]}}}"##;
             std::fs::write(folder.join("stake.json"), text).unwrap();
+            let licence = r#"{"pack":"PACK","title":"Stakes","license":"CC0-1.0","credit":"Test","source":"own"}"#;
+            std::fs::write(folder.join("PACK.json"), licence.replace("PACK", pack)).unwrap();
             assert_eq!(reindex(&root, pack).unwrap()["rows"], 1);
         }
         // A pack without an index is reported, not read.
@@ -394,6 +400,8 @@ mod tests {
         assert_eq!(names(&rank(rows.clone(), &local)), ["LIB/searchlocal/stake"]);
         assert_eq!(listing_row(&rows[1])[5], "wood fence @top");
         assert!(reindex(&root, "core").is_err(), "no lib/core under this root");
+        let credits = std::fs::read_to_string(root.join("CREDITS.md")).unwrap();
+        assert!(credits.contains("## LIB/searchpack: Stakes") && !credits.contains("searchlocal"), "{credits}");
         // An explicit root's files are read afresh, not from the shared library.
         let stake = || props::resolve_in(&root, "LIB/searchpack/stake").unwrap().unwrap().doc.description.clone();
         assert_eq!(stake(), "A sharpened stake.");

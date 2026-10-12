@@ -79,6 +79,10 @@ Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, o
 disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
 `similar=` and ~35-token rows read from each folder's `index.tsv`, and
 `pav_view::assets::emit_asset`, which draws a library asset from a game's own state each frame.
+Row 4.2's tooling is in (part 1): `PACK.json` licences with `assets/props/CREDITS.md`,
+`asset_edit action=publish` into `LIB/core` behind a library gate and a review ledger, and
+`scripts/review_page.py` (review pages whose verdicts the agent reads back). The ~30 core
+exemplars follow once 3.3 lands.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

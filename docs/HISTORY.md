@@ -5,6 +5,37 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 4.2, part 1: pack licences, credits, publish to LIB/core, review pages — 2026-10-12
+
+The tooling half of row 4.2 of `docs/ASSET_SYSTEM_PLAN.md` (LIB-3, LIB-5). The W0 exemplars
+follow in part 2, once row 3.3 lets props wear materials.
+- **Licences** (`pav_tools/src/asset_library.rs`): every committed pack has a `PACK.json`
+  (`pack title license credit source [catalog]`). `lib/` may hold CC0-1.0, CC-BY-3.0 and
+  CC-BY-4.0, `lib/core` CC0-1.0 only (own work); test `committed_packs_are_redistributable`
+  also checks each asset's `source.license`. `lib/core/PACK.json` and `review.tsv` are not
+  embedded, and the index skips `PACK.json`.
+- **Credits:** `assets reindex=<pack>` of a committed pack also rewrites
+  `assets/props/CREDITS.md` (each pack's licence and credit line; local packs are not shared,
+  so not listed); test `credits_file_is_current`. The studio package ships it, and the README
+  links it. The plan's `assets credits=true|write` args are left out: reindexing writes the
+  file, and the tools/list cap had no room.
+- **Publish:** `asset_edit action=publish name=x review="ok: …"` puts a workshop asset into
+  `LIB/core` after a sheet review. The gate: no `check` findings, a description of 1-120
+  characters, a category, 2-6 tags, a token cap by category (400 food/tool/signage, 600
+  container/lighting/rock/vegetation, 800 most, 2,000 town/dungeon), references to BUILTIN or
+  LIB/core only, and a source licence core may hold. It writes `lib/core/x.json`, its index row,
+  a `review.tsv` line (`name revision review`) at this revision and the credits. Test
+  `core_assets_are_reviewed`: every core asset passes the gate and has a review of its current
+  revision, so an edited core asset needs a new review. Other packs come from import (row 5.3),
+  so publish has no `pack=` arg; the `review` arg was paid for by trimming the clip library's
+  `load=` help (tools/list stays under 48,000 characters). The plan's refusal of WORKSHOP saves
+  that depend on local-only sources is left out until an import brings such sources.
+- **Review pages** (`scripts/review_page.py`): the lean gates' visual checks go to the user's
+  eye. A manifest of items (captures, facts, a note) becomes one page, published as a private
+  Artifact with the `db` capability: the user clicks ok / fix / drop (or keys 1-3, j/k to move)
+  and adds notes, which save to the artifact's store for the agent to read back; without the
+  store they stay in the browser and "Copy verdicts" gives them as text.
+
 ## Asset plan 4.1: library names and tiers, `assets find=`, assets drawn from game code — 2026-10-12
 
 Row 4.1 of `docs/ASSET_SYSTEM_PLAN.md` (LIB-1, LIB-2) plus what Capital Strike asked for.

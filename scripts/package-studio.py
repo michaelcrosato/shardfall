@@ -116,6 +116,7 @@ def main():
     }
     for path in sorted((REPO / "assets/props/templates").glob("*.json")):
         files[str(path.relative_to(REPO))] = path
+    files["assets/props/CREDITS.md"] = REPO / "assets/props/CREDITS.md"
     # Library packs on disk (docs/ASSET_SYSTEM_PLAN.md §9.1): the exe embeds lib/core; other
     # committed packs ship only when named. Local packs never ship.
     pack_bytes = 0

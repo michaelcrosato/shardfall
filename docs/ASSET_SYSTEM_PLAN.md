@@ -1335,7 +1335,7 @@ Why this order:
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
-- [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L)
+- [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L) — part 1 (tooling) done; exemplars next
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [ ] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L)
