@@ -1,29 +1,38 @@
 //! Readable procedural props. Named parts use the engine's shapes, colors and surface looks.
 //! A published definition is immutable; placed instances can keep it in their snapshots.
 
+mod patch;
+mod read;
+mod write;
+
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
 use glam::{Quat, Vec3};
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::color::Color;
+use crate::issue::{self, Issue};
 use crate::shape::{Look, Shape, Visual};
+
+pub use patch::MAX_OPS;
+pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, schema, strict_value};
 
 pub const MAX_PARTS: usize = 256;
 const MAX_SIZE: f32 = 1_000.0;
 const MAX_POSITION: f32 = 10_000.0;
 const MIN_SIZE: f32 = 0.001;
 
-pub const LEGEND: &str = "Parts have stable lowercase names. Positions and dimensions use metres: \
-x right, y up, z forward. The asset origin is the placement point, normally on the floor. \
-pos is a part's local centre. yaw rotates about Y, pitch about X, roll about Z; all use degrees \
-in Y-X-Z order, as room objects do. Box half values are half extents. Cylinder height is \
-2*half_height; capsule total height is 2*(half_height+radius). Colors are sRGB #rrggbb. \
-look is flat, cel, lit, unlit, or cutout; cutout draws ordinary props flat. emissive adds glow. \
-solid selects parts used by the instance's collider. A set operation merges part fields \
-and replaces shape as a complete object. A batch is accepted or rejected as a whole.";
+pub const LEGEND: &str = "Parts have stable lowercase names. Metres: x right, y up, z forward \
+(+z is the object's front). The origin is the placement point, normally on the floor. pos is a \
+part's centre. yaw, pitch and roll are degrees applied Y, then X, then Z, as room objects do: \
++yaw turns +z toward +x, +pitch tips +z down. Box half values are half extents. Cylinder and \
+capsule axes are local y; cylinder height is 2*half_height, capsule total height \
+2*(half_height+radius). Colors are sRGB #rrggbb. look is flat, cel, lit, unlit, or cutout; \
+cutout draws ordinary props flat. emissive adds glow. solid selects parts used by the \
+instance's collider. A set operation merges part fields and replaces shape as a complete \
+object. A batch is accepted or rejected as a whole.";
 
 /// Local axis-aligned bounds after the requested uniform scale.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -126,59 +135,7 @@ fn read_shape<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Shape, D::Er
     serde_json::from_value(value).map_err(serde::de::Error::custom)
 }
 
-fn quoted(text: &str) -> String {
-    serde_json::to_string(text).expect("strings serialize")
-}
-
-/// The shortest decimal that reads back as the same f32: integers without `.0`, no exponents.
-/// Negative zero keeps its sign so that a written file keeps its revision.
-fn number(x: f32) -> String {
-    if x == 0.0 && x.is_sign_negative() { "-0.0".into() } else { x.to_string() }
-}
-
-fn numbers(values: &[f32]) -> String {
-    format!("[{}]", values.iter().map(|x| number(*x)).collect::<Vec<_>>().join(","))
-}
-
 impl PropPart {
-    /// Canonical part order: shape, placement, rotation, surface, collision. A field is left
-    /// out only when it is bit-identical to its default.
-    fn write(&self, out: &mut String) {
-        let shape = match self.shape {
-            Shape::Box { half } => format!("{{\"type\":\"box\",\"half\":{}}}", numbers(&half.to_array())),
-            Shape::RoundedBox { half, radius } => {
-                format!("{{\"type\":\"rounded_box\",\"half\":{},\"radius\":{}}}", numbers(&half.to_array()), number(radius))
-            }
-            Shape::Sphere { radius } => format!("{{\"type\":\"sphere\",\"radius\":{}}}", number(radius)),
-            Shape::Capsule { half_height, radius } => {
-                format!("{{\"type\":\"capsule\",\"radius\":{},\"half_height\":{}}}", number(radius), number(half_height))
-            }
-            Shape::Cylinder { half_height, radius } => {
-                format!("{{\"type\":\"cylinder\",\"radius\":{},\"half_height\":{}}}", number(radius), number(half_height))
-            }
-        };
-        out.push_str(&format!("{{\"shape\":{shape}"));
-        if self.pos.to_array().iter().any(|x| x.to_bits() != 0) {
-            out.push_str(&format!(",\"pos\":{}", numbers(&self.pos.to_array())));
-        }
-        for (key, angle) in [("yaw", self.yaw), ("pitch", self.pitch), ("roll", self.roll)] {
-            if angle.to_bits() != 0 {
-                out.push_str(&format!(",\"{key}\":{}", number(angle)));
-            }
-        }
-        out.push_str(&format!(",\"color\":{}", quoted(&self.color)));
-        if self.look != Look::Cel {
-            out.push_str(&format!(",\"look\":{}", serde_json::to_string(&self.look).expect("looks serialize")));
-        }
-        if self.emissive.to_bits() != 0 {
-            out.push_str(&format!(",\"emissive\":{}", number(self.emissive)));
-        }
-        if !self.solid {
-            out.push_str(",\"solid\":false");
-        }
-        out.push('}');
-    }
-
     pub fn rotation(&self) -> Quat {
         Quat::from_euler(glam::EulerRot::YXZ, self.yaw.to_radians(), self.pitch.to_radians(), self.roll.to_radians())
     }
@@ -310,9 +267,25 @@ fn read_parts<'de, D: Deserializer<'de>>(deserializer: D) -> Result<BTreeMap<Str
 }
 
 impl PropAsset {
+    /// Read a definition from text. Errors list every problem with its path, one per line.
     pub fn parse(text: &str) -> Result<Self, String> {
-        let asset: Self = serde_json::from_str(text).map_err(|e| e.to_string())?;
-        asset.validate()?;
+        Self::read(text).map_err(|issues| issue::render(&issues))
+    }
+
+    /// Strict JSON, the whole-document check, then the typed model.
+    pub fn read(text: &str) -> Result<Self, Vec<Issue>> {
+        Self::from_value(read::strict_value(text).map_err(|issue| vec![issue])?)
+    }
+
+    /// The typed model of a checked document. The typed validation stays as a backstop.
+    pub fn from_value(value: Value) -> Result<Self, Vec<Issue>> {
+        let issues = read::check(&value);
+        if !issues.is_empty() {
+            return Err(issues);
+        }
+        let backstop = |error: String| vec![Issue::error("", issue::Code::Format, error)];
+        let asset: Self = serde_json::from_value(value).map_err(|e| backstop(e.to_string()))?;
+        asset.validate().map_err(backstop)?;
         Ok(asset)
     }
 
@@ -349,73 +322,6 @@ impl PropAsset {
             .reduce(Bounds::union)
             .unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO })
     }
-
-    /// The canonical file text: a header line, one line per part, defaults omitted and the
-    /// shortest numbers that read back exactly. Reading it gives the same revision.
-    pub fn text(&self) -> String {
-        let mut out = format!("{{\"format\":{},\"name\":{}", self.format, quoted(&self.name));
-        if !self.description.is_empty() {
-            out += &format!(",\n\"description\":{}", quoted(&self.description));
-        }
-        out += ",\n\"parts\":{";
-        for (index, (name, part)) in self.parts.iter().enumerate() {
-            out += if index == 0 { "\n" } else { ",\n" };
-            out += &quoted(name);
-            out.push(':');
-            part.write(&mut out);
-        }
-        out + "}}\n"
-    }
-
-    /// Apply a named-part transaction. The original stays unchanged if any operation fails.
-    pub fn patch(&self, value: &Value) -> Result<Self, String> {
-        let operations: Vec<PatchOp> = serde_json::from_value(value.clone()).map_err(|e| format!("invalid ops: {e}"))?;
-        if operations.len() > 1024 {
-            return Err("a patch supports at most 1024 operations".into());
-        }
-        let mut next = self.clone();
-        for (index, operation) in operations.into_iter().enumerate() {
-            let result = (|| -> Result<(), String> {
-                match operation {
-                    PatchOp::Set { part, fields } => {
-                        validate_part_name(&part)?;
-                        let current = next.parts.get(&part).ok_or_else(|| format!("no part '{part}' to set"))?;
-                        let mut value = serde_json::to_value(current).map_err(|e| e.to_string())?;
-                        let object = value.as_object_mut().expect("part is an object");
-                        for (field, value) in fields {
-                            object.insert(field, value);
-                        }
-                        let changed = serde_json::from_value(value).map_err(|e| format!("part '{part}': {e}"))?;
-                        next.parts.insert(part, changed);
-                    }
-                    PatchOp::Add { part, value } => {
-                        validate_part_name(&part)?;
-                        if next.parts.contains_key(&part) {
-                            return Err(format!("part '{part}' already exists; use op=set"));
-                        }
-                        next.parts.insert(part, value);
-                    }
-                    PatchOp::Remove { part } => {
-                        if next.parts.remove(&part).is_none() {
-                            return Err(format!("no part '{part}' to remove"));
-                        }
-                    }
-                }
-                Ok(())
-            })();
-            result.map_err(|e| format!("operation {}: {e}", index + 1))?;
-        }
-        next.validate()?;
-        Ok(next)
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
-enum PatchOp {
-    Set { part: String, fields: Map<String, Value> },
-    Add { part: String, value: PropPart },
-    Remove { part: String },
 }
 
 pub fn validate_part_name(name: &str) -> Result<(), String> {
@@ -458,10 +364,10 @@ pub struct PropLibrary {
 }
 
 const TEMPLATES: &[(&str, &str)] = &[
-    ("box", include_str!("../../../assets/props/templates/box.json")),
-    ("crate", include_str!("../../../assets/props/templates/crate.json")),
-    ("bench", include_str!("../../../assets/props/templates/bench.json")),
-    ("lantern", include_str!("../../../assets/props/templates/lantern.json")),
+    ("box", include_str!("../../../../assets/props/templates/box.json")),
+    ("crate", include_str!("../../../../assets/props/templates/crate.json")),
+    ("bench", include_str!("../../../../assets/props/templates/bench.json")),
+    ("lantern", include_str!("../../../../assets/props/templates/lantern.json")),
 ];
 
 static LIBRARY: OnceLock<RwLock<Arc<PropLibrary>>> = OnceLock::new();
@@ -520,6 +426,7 @@ pub fn remove(name: &str) -> Result<bool, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::collections::BTreeSet;
 
     #[test]
     fn named_batches_keep_other_parts_and_reject_incomplete_transactions() {
@@ -566,8 +473,8 @@ mod tests {
         let mut assets: Vec<(PropAsset, &str)> =
             golden.iter().map(|(name, revision)| ((*get(name).unwrap()).clone(), *revision)).collect();
         for (text, revision) in [
-            (include_str!("../tests/fixtures/props/dogfood_stall_v1.json"), "prop1-bd43f9ba44a259b0"),
-            (include_str!("../tests/fixtures/props/dogfood_well_v1.json"), "prop1-368eeb091c94f947"),
+            (include_str!("../../tests/fixtures/props/dogfood_stall_v1.json"), "prop1-bd43f9ba44a259b0"),
+            (include_str!("../../tests/fixtures/props/dogfood_well_v1.json"), "prop1-368eeb091c94f947"),
         ] {
             assets.push((PropAsset::parse(text).unwrap(), revision));
         }
@@ -601,6 +508,167 @@ mod tests {
         );
         assert!(text.contains(r#""look":"lit","emissive":0.5,"solid":false}"#), "{text}");
         assert_eq!(PropAsset::parse(&text).unwrap().revision(), odd.revision());
+    }
+
+    fn errors(text: &str) -> Vec<String> {
+        PropAsset::parse(text).unwrap_err().lines().map(String::from).collect()
+    }
+
+    #[test]
+    fn every_problem_names_its_path_with_the_valid_values_and_a_fix() {
+        let doc = |part: &str| format!(r#"{{"format":1,"name":"probe","parts":{{"p":{part}}}}}"#);
+        let cases = [
+            (
+                r#"{"shape":{"type":"cone","radius":0.3,"half_height":0.5}}"#,
+                r#"parts.p.shape.type: unknown shape type "cone" (expected box, rounded_box, sphere, capsule, cylinder) — cone needs format 2; in format 1 use a cylinder"#,
+            ),
+            (
+                r#"{"shape":{"type":"box","half":[0.1,0.1,0.1]},"rotation":[0,45,0]}"#,
+                "parts.p.rotation: unknown key (expected shape, pos, yaw, pitch, roll, color, look, emissive, solid) — use yaw, pitch and roll in degrees",
+            ),
+            (
+                r##"{"shape":{"type":"box","half":[0.1,0.1,0.1]},"color":"#f00"}"##,
+                r##"parts.p.color: "#f00" is not a #rrggbb colour — write all six digits: "#ff0000""##,
+            ),
+            (
+                r#"{"shape":{"type":"cylinder","height":1,"radius":0.2}}"#,
+                r#"parts.p.shape.height: unknown key (expected type, radius, half_height) — use "half_height":0.5 (height = 2*half_height)"#,
+            ),
+            (r#"{"shape":{"type":"sphere","radius":-0.2}}"#, "parts.p.shape.radius: -0.2 is outside 0.001 to 1000"),
+            (r#"{"shape":{"type":"box","half":[0.1,0.1,0.1]},"pos":[0,1]}"#, "parts.p.pos: expected 3 numbers [x,y,z], got 2"),
+            (
+                r#"{"shape":{"type":"box","half":[0.1,0.1,0.1]},"look":"toon"}"#,
+                r#"parts.p.look: unknown look "toon" (expected flat, cel, lit, unlit, cutout) — cel is the toon look"#,
+            ),
+            (
+                r#"{"shape":{"type":"box","half":[0.1,0.1,0.1]},"yaw":"45"}"#,
+                r#"parts.p.yaw: expected a number, got the string "45" — write 45 without quotes"#,
+            ),
+            (r#"{"shape":{"type":"box","half":[0,0.1,0.1]}}"#, "parts.p.shape.half[0]: 0 is outside 0.001 to 1000"),
+            (
+                r#"{"shape":{"type":"rounded_box","half":[0.1,0.1,0.1],"radius":0.2}}"#,
+                "parts.p.shape.radius: 0.2 is outside 0 to 0.1",
+            ),
+        ];
+        for (part, expected) in cases {
+            assert_eq!(errors(&doc(part)), [expected], "{part}");
+        }
+        let size = errors(&doc(r#"{"shape":{"type":"box","size":[1,1,1]}}"#));
+        assert_eq!(
+            size,
+            [r#"parts.p.shape.size: unknown key (expected type, half) — box sizes are half extents: "half":[0.5,0.5,0.5]"#]
+        );
+        assert_eq!(
+            errors(&doc(r#"{"shape":{"type":"rounded_box","half":[1,1,1]}}"#)),
+            ["parts.p.shape.radius: missing (expected rounded_box needs half and radius)"]
+        );
+        // Values exactly at an f32 bound pass, as the typed model reads them.
+        assert!(PropAsset::parse(&doc(r#"{"shape":{"type":"sphere","radius":0.001}}"#)).is_ok());
+        let document = errors(r#"{"format":2,"name":"Bad Name","colour":"x","parts":{}}"#);
+        assert_eq!(
+            document,
+            [
+                r#"colour: unknown key (expected format, name, description, parts) — spelled "color""#,
+                "format: format 2 needs a newer engine (expected 1)",
+                r#"name: "Bad Name" is not a usable name: use 1 to 64 lowercase letters, digits, underscores or hyphens, starting with a letter"#,
+                "parts: 0 parts (expected 1 to 256)",
+            ]
+        );
+        assert_eq!(errors("{\"format\":1,"), ["(root): not valid JSON: EOF while parsing a value at line 1 column 12"]);
+    }
+
+    #[test]
+    fn patch_errors_name_the_operation_and_change_nothing() {
+        let bench = get("BUILTIN/bench").unwrap();
+        let patch = |ops: serde_json::Value| bench.patch(&ops).unwrap_err();
+        assert_eq!(
+            patch(
+                json!([{"op":"set","part":"seat","fields":{"color":"#ffffff"}},{"op":"set","part":"crossbar","fields":{"color":"grey"}}])
+            ),
+            r##"ops[1] crossbar.color: "grey" is not a #rrggbb colour — use a hex colour such as "#808080""##
+        );
+        assert_eq!(
+            patch(json!([{"op":"set","part":"seta","fields":{}}])),
+            r#"ops[0] seta: no part "seta" — did you mean "seat"?"#
+        );
+        assert_eq!(
+            patch(json!([{"op":"add","part":"seat","value":{}}])),
+            r#"ops[0] seat: part "seat" already exists — use op:set to change it"#
+        );
+        assert_eq!(
+            patch(json!([{"op":"set","part":"seat","fields":{"shape":{"radius":0.8}}}])),
+            "ops[0] seat.shape.type: missing (expected box, rounded_box, sphere, capsule, cylinder) — set replaces the whole shape: give the type and every field, e.g. {\"type\":\"box\",\"half\":[0.5,0.5,0.5]}"
+        );
+        assert_eq!(
+            patch(json!([{"op":"mirror","path":"leg_front_left","side":"both"}])),
+            "ops[0].op: unknown op \"mirror\" (expected set, add, remove) — format 1 batches use set, add and remove: add the new part with op:add"
+        );
+        assert_eq!(
+            patch(json!([{"op":"set","part":"seat","fields":{"colour":"#ffffff"}}])),
+            r#"ops[0] seat.colour: unknown key (expected shape, pos, yaw, pitch, roll, color, look, emissive, solid) — spelled "color""#
+        );
+        assert_eq!(
+            patch(json!({"op":"set"})),
+            "ops: expected an array of operations — ops:[{\"op\":\"set\",\"part\":\"seat\",\"fields\":{\"color\":\"#4060a0\"}}]"
+        );
+        let changed = bench.patch(&json!([{"op":"set","part":"seat","fields":{"pitch":-3}}])).unwrap();
+        assert_eq!(changed.parts["seat"].pitch, -3.0);
+        assert_eq!(changed.parts["backrest"], bench.parts["backrest"]);
+    }
+
+    #[test]
+    fn schema_covers_every_field() {
+        // The checker's tables are the typed model's fields, and the field guide shows them all.
+        let typed = |value: serde_json::Value| value.as_object().unwrap().keys().cloned().collect::<BTreeSet<_>>();
+        let table = |rows: &[(&str, &str)]| rows.iter().map(|(key, _)| key.to_string()).collect::<BTreeSet<_>>();
+        let bench = get("BUILTIN/bench").unwrap();
+        assert_eq!(typed(serde_json::to_value(&*bench).unwrap()), table(DOCUMENT_FIELDS));
+        assert_eq!(typed(serde_json::to_value(PropPart::default()).unwrap()), table(PART_FIELDS));
+        let shapes = [
+            Shape::Box { half: Vec3::ONE },
+            Shape::RoundedBox { half: Vec3::ONE, radius: 0.1 },
+            Shape::Sphere { radius: 1.0 },
+            Shape::Capsule { half_height: 1.0, radius: 1.0 },
+            Shape::Cylinder { half_height: 1.0, radius: 1.0 },
+        ];
+        for shape in shapes {
+            let value = serde_json::to_value(shape).unwrap();
+            let kind = value["type"].as_str().unwrap().to_owned();
+            let (_, fields, _) = SHAPES.iter().find(|(name, _, _)| *name == kind.as_str()).unwrap();
+            let mut expected: BTreeSet<String> = fields.iter().map(|f| f.to_string()).collect();
+            expected.insert("type".into());
+            assert_eq!(typed(value), expected, "{kind}");
+        }
+        assert_eq!(
+            LOOKS,
+            ["flat", "cel", "lit", "unlit", "cutout"].map(|look| {
+                serde_json::to_value(serde_json::from_value::<Look>(json!(look)).unwrap()).unwrap().as_str().unwrap().to_owned()
+            })
+        );
+        let guide = schema(None).unwrap();
+        for (key, _) in DOCUMENT_FIELDS {
+            assert!(guide["document"].get(*key).is_some(), "{key}");
+        }
+        for (key, _) in PART_FIELDS {
+            assert!(guide["part"].get(*key).is_some(), "{key}");
+        }
+        for (kind, fields, line) in SHAPES {
+            assert_eq!(guide["shapes"][*kind], *line);
+            for field in *fields {
+                assert!(line.contains(field), "{kind} guide names {field}");
+            }
+        }
+        for (op, fields, line) in OPS {
+            assert_eq!(guide["ops"][*op], *line);
+            for field in *fields {
+                assert!(line.contains(field), "{op} guide names {field}");
+            }
+        }
+        assert_eq!(schema(Some("shapes")).unwrap().as_object().unwrap().len(), 3);
+        assert_eq!(
+            schema(Some("shape")).unwrap_err(),
+            r#"topic: unknown topic "shape" (expected legend, document, part, shapes, ops, limits) — did you mean "shapes"?"#
+        );
     }
 
     #[test]
@@ -647,6 +715,9 @@ mod tests {
         assert!(canonical("WORKSHOP/con").is_err());
         assert_eq!(canonical("Workshop/My_Bench").unwrap(), "WORKSHOP/my_bench");
         let duplicate = r##"{"format":1,"name":"duplicate","parts":{"body":{"shape":{"type":"sphere","radius":1}},"body":{"shape":{"type":"sphere","radius":2}}}}"##;
-        assert!(PropAsset::parse(duplicate).unwrap_err().contains("duplicate part name"));
+        assert_eq!(
+            PropAsset::parse(duplicate).unwrap_err(),
+            r#"parts.body: "body" appears twice — keep one; names must be unique"#
+        );
     }
 }

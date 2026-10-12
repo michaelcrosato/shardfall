@@ -41,7 +41,8 @@ the background on something.
 **Asset system plan** (in progress since 2026-10-12): `docs/ASSET_SYSTEM_PLAN.md` (format 2,
 procedural materials, library import, curated library, benchmark gates). Execute with the prompt
 in its §15, resuming at the first unticked row of its §11 checklist. Done: 0.1 (compact asset
-replies, f32-tidy numbers in every tool reply, canonical one-line-per-part prop files).
+replies, f32-tidy numbers in every tool reply, canonical one-line-per-part prop files), 0.2
+(errors that name `parts.<id>`/`ops[i]` with a fix, `asset_edit action=schema`, leaner schema).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

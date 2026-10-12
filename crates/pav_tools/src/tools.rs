@@ -614,59 +614,48 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "assets",
-        help: "Find reusable assets. Default kind=prop lists named primitive objects; kind=creature lists native compiled creatures and saved sources. Use creature_catalog to discover procedural creature templates, anatomy and surface generators.",
+        help: "Find reusable assets: object rows (kind=prop, default) or compiled creatures (kind=creature).",
         args: &[
             arg("kind", "string", "prop (default) | creature"),
-            arg("find", "string", "words in the asset name or description"),
+            arg("find", "string", "words in the name or description"),
             arg("limit", "integer", "rows per page (default 30)"),
-            arg("page", "integer", "page of rows (default 1; replies give next)"),
+            arg("page", "integer", "page number (default 1); replies give next"),
         ],
         run: crate::asset_tools::t_assets,
     },
     Tool {
         name: "asset_edit",
-        help: "Create, copy, inspect, and edit reusable objects. Named parts use existing primitive shapes, local positions in metres, rotations in degrees, colors, surface styles, emissive strength, and a solid flag. A patch is an atomic ops array: set a part's fields, add a part with value, or remove a part. All operations validate and save as one undo step. Use if_revision from the last result. Successful edits refresh placed copies and select the live preview by default. Inspect returns the definition without default fields; edit replies stay small.",
+        help: "Create, copy, inspect or edit objects made of named primitive parts. patch: one atomic ops batch, one undo step; pass if_revision. action=schema is the field guide.",
         args: &[
-            arg("kind", "string", "prop (default) | creature; creature forwards to creature_edit with its arguments"),
-            arg("action", "string", "create | copy | inspect | patch | replace | undo | redo"),
-            arg("name", "string", "lowercase name or WORKSHOP/name; inspect also accepts BUILTIN/name"),
-            arg("from", "string", "source asset for copy, e.g. BUILTIN/bench"),
-            arg("template", "string", "template for create (default box): box, crate, bench, lantern"),
+            arg("kind", "string", "prop (default); creature forwards to creature_edit"),
+            arg("action", "string", "default inspect; surface and rebuild are kind=creature only"),
+            arg("name", "string", "lowercase name or WORKSHOP/name; inspect also reads BUILTIN/name"),
+            arg("from", "string", "copy source, e.g. BUILTIN/bench"),
+            arg("template", "string", "create from box, crate, bench or lantern (default box)"),
             arg("description", "string", "description for create or copy"),
-            arg(
-                "asset",
-                "object",
-                "complete {format:1,name,description,parts:{part_id:{shape,pos,color,...}}} for create or replace",
-            ),
-            arg(
-                "ops",
-                "array",
-                "atomic patch operations, e.g. [{\"op\":\"set\",\"part\":\"seat\",\"fields\":{\"color\":\"#4488cc\"}}]; add uses value; remove uses part",
-            ),
-            arg("if_revision", "string", "expected revision from inspect or the last edit"),
-            arg(
-                "preview",
-                "boolean",
-                "show the accepted asset on the isolated stage (default true); false updates placed instances only",
-            ),
-            arg("legend", "boolean", "inspect: add the field guide"),
+            arg("asset", "object", "a whole definition for create or replace (see action=schema)"),
+            arg("ops", "array", "the patch batch, applied atomically"),
+            arg("if_revision", "string", "revision from the last reply; a stale one is refused"),
+            arg("preview", "boolean", "show the result on the stage (default true)"),
+            arg("legend", "boolean", "inspect: add the coordinate legend"),
             arg("bounds", "boolean", "inspect: add asset and part bounds in metres"),
+            arg("topic", "string", "schema: legend, document, part, shapes, ops or limits"),
         ],
         run: crate::asset_tools::t_asset_edit,
     },
     Tool {
         name: "asset_preview",
-        help: "View a reusable object through the game's renderer. The world pauses while the stage is open. Use name to select an asset; action=open resumes the previous selection. Same-name edits preserve the camera and controls. Fit frames the full asset. An optional turntable helps inspect all sides. Status includes the part count and size; asset_edit action=inspect gives named parts. capture returns an image of this same stage; close returns to the preserved world.",
+        help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. capture images it.",
         args: &[
-            arg("kind", "string", "prop (default) | creature; creature forwards to creature_preview"),
-            arg("action", "string", "status | open | fit | close | play | pause | restart"),
-            arg("name", "string", "BUILTIN/name or WORKSHOP/name to preview"),
+            arg("kind", "string", "prop (default); creature forwards to creature_preview"),
+            arg("action", "string", "default status; pose is kind=creature only"),
+            arg("name", "string", "BUILTIN/name or WORKSHOP/name"),
             arg("close", "boolean", "return to the preserved world"),
             arg("playing", "boolean", "run or pause the turntable clock"),
             arg("time", "number", "turntable time in seconds"),
-            arg("step", "integer", "step forward or backward in 1/60-second frames"),
+            arg("step", "integer", "step by 1/60-second frames (negative steps back)"),
             arg("speed", "number", "turntable speed multiplier"),
-            arg("turntable", "boolean", "rotate the object while the clock runs"),
+            arg("turntable", "boolean", "spin the object while the clock runs"),
             arg("yaw", "number", "base rotation in degrees"),
             arg("scale", "number", "uniform preview scale"),
         ],
@@ -733,27 +722,23 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "asset_spawn",
-        help: "Place reusable objects in the preserved game or room without resetting it. Each object is one root entity. add requires name and world pos; update changes a root's transform, scale, or collision; remove deletes one root; list reports all instances and their asset revisions. Accepted asset edits refresh every placed copy's geometry and collision. Room saves retain asset references. Snapshot files include exact definitions.",
+        help: "Place, list, move or remove object instances in the world. Edits to an asset refresh its placed copies.",
         args: &[
-            arg("action", "string", "add | list | update | remove"),
-            arg("name", "string", "asset name for add"),
+            arg("action", "string", "add, list (default), update or remove"),
+            arg("name", "string", "asset name for add, or a list filter"),
             arg("id", "integer", "root entity id for update or remove"),
-            arg("pos", "array", "world position [x,y,z] in metres (required for add)"),
-            arg("yaw", "number", "root rotation in degrees (default 0)"),
-            arg("scale", "number", "uniform instance scale (default 1)"),
-            arg("collide", "boolean", "use fixed compound collision for solid parts (default true)"),
-            arg(
-                "room",
-                "string|integer|null",
-                "room key or id for room-file persistence; defaults to the current room; null removes room assignment",
-            ),
+            arg("pos", "array", "world position [x,y,z] in metres; required for add"),
+            arg("yaw", "number", "rotation in degrees (default 0)"),
+            arg("scale", "number", "uniform scale (default 1)"),
+            arg("collide", "boolean", "collide with the solid parts (default true)"),
+            arg("room", "string|integer|null", "room key or id to save with; null for none"),
         ],
         run: crate::asset_preview_tools::t_asset_spawn,
     },
     Tool {
         name: "studio_status",
-        help: "Read the active studio and confirm a live edit reached a submitted window frame. Pass feedback.ticket from an edit. States: pending, submitted, superseded, or unknown (only the last 64 edits are retained). This is cheap metadata; it does not render a screenshot. Timings exclude network transport and physical display latency. Headless sessions report feedback unavailable.",
-        args: &[arg("ticket", "integer", "edit ticket from a successful live mutation; defaults to the latest")],
+        help: "The active studio, and whether a live edit's frame was drawn (ticket from its feedback). Cheap: no image.",
+        args: &[arg("ticket", "integer", "edit ticket from a live edit (default: the latest)")],
         run: crate::live_feedback::t_studio_status,
     },
     Tool {
@@ -854,11 +839,20 @@ pub fn find(name: &str) -> Option<&'static Tool> {
 }
 
 pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
-    let original = find(name).ok_or_else(|| anyhow!("unknown tool '{name}' (try `help`)"))?;
+    let original = find(name).ok_or_else(|| {
+        let fix = pav_core::issue::suggestion(name, TOOLS.iter().map(|t| t.name)).unwrap_or_else(|| "try `help`".into());
+        anyhow!("unknown tool \"{name}\" — {fix}")
+    })?;
     let generic = matches!(name, "assets" | "asset_edit" | "asset_preview");
     let kind = if generic { crate::preview_tools::opt_text(args, "kind")?.unwrap_or("prop") } else { "prop" };
     if !matches!(kind, "prop" | "creature") {
-        bail!("kind must be prop or creature")
+        let kinds = ["prop", "creature"];
+        bail!(
+            "{}",
+            pav_core::issue::Issue::error("kind", pav_core::issue::Code::UnknownValue, format!("unknown kind \"{kind}\""))
+                .expected(kinds.join(", "))
+                .maybe_fix(pav_core::issue::suggestion(kind, kinds))
+        )
     }
     let routed = generic.then(|| {
         let mut routed = args.clone();
@@ -915,14 +909,13 @@ pub fn schema(t: &Tool) -> Value {
     };
     if let Some(alias) = creature_alias {
         for a in find(alias).unwrap().args {
-            props.entry(a.name.to_owned()).or_insert_with(|| json!({"type":a.kind,"description":a.help}));
+            props.entry(a.name.to_owned()).or_insert_with(|| json!({"type":a.kind,"description":"kind=creature only"}));
         }
     }
     let mut schema = json!({ "type": "object", "properties": props });
     let actions: &[&str] = match t.name {
-        "asset_edit" | "creature_edit" => {
-            &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild"]
-        }
+        "asset_edit" => &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild", "schema"],
+        "creature_edit" => &["create", "copy", "inspect", "patch", "surface", "replace", "undo", "redo", "rebuild"],
         "asset_preview" | "creature_preview" => &["status", "open", "fit", "close", "play", "pause", "restart", "pose"],
         "asset_spawn" => &["add", "list", "update", "remove"],
         _ => &[],
@@ -945,16 +938,21 @@ pub fn schema(t: &Tool) -> Value {
         schema["additionalProperties"] = json!(false);
     }
     if t.name == "asset_edit" {
+        // Prop ops, plus one item that lets kind=creature batches through to creature_edit.
         schema["properties"]["ops"]["items"] = json!({"oneOf":[
             {"type":"object","required":["op","part","fields"],"additionalProperties":false,
              "properties":{"op":{"const":"set"},"part":{"type":"string"},"fields":{"type":"object"}}},
             {"type":"object","required":["op","part","value"],"additionalProperties":false,
              "properties":{"op":{"const":"add"},"part":{"type":"string"},"value":{"type":"object"}}},
             {"type":"object","required":["op","part"],"additionalProperties":false,
-             "properties":{"op":{"const":"remove"},"part":{"type":"string"}}}
+             "properties":{"op":{"const":"remove"},"part":{"type":"string"}}},
+            {"type":"object","required":["op","path"],"description":"kind=creature only: a creature_edit op"}
         ]});
     }
     if matches!(t.name, "asset_edit" | "creature_edit") {
+        schema["properties"]["quality"]["enum"] = json!(["low", "medium", "high"]);
+    }
+    if t.name == "creature_edit" {
         let creature_ops = json!({"oneOf":[
             {"type":"object","required":["op","path","value"],"additionalProperties":false,
              "properties":{"op":{"enum":["set","add"]},"path":{"type":"string"},"value":{}}},
@@ -965,15 +963,7 @@ pub fn schema(t: &Tool) -> Value {
             {"type":"object","required":["op","path","by"],"additionalProperties":false,
              "properties":{"op":{"const":"scale"},"path":{"type":"string"},"by":{"type":"number","exclusiveMinimum":0}}}
         ]});
-        if t.name == "creature_edit" {
-            schema["properties"]["ops"]["items"] = creature_ops;
-        } else {
-            schema["properties"]["ops"]["items"]["oneOf"]
-                .as_array_mut()
-                .unwrap()
-                .extend(creature_ops["oneOf"].as_array().unwrap().iter().cloned());
-        }
-        schema["properties"]["quality"]["enum"] = json!(["low", "medium", "high"]);
+        schema["properties"]["ops"]["items"] = creature_ops;
     }
     if matches!(t.name, "assets" | "asset_edit" | "asset_preview") {
         schema["properties"]["kind"]["enum"] = json!(["prop", "creature"]);

@@ -104,7 +104,7 @@ impl LiveFeedback {
 pub(crate) fn changes_studio(name: &str, args: &Args) -> bool {
     let action = args.get("action").and_then(Value::as_str).unwrap_or("");
     match name {
-        "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect"),
+        "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect" | "schema"),
         "anim_preview" | "asset_preview" | "creature_preview" => {
             !matches!(action, "" | "status" | "pose")
                 || args.iter().any(|(key, value)| {

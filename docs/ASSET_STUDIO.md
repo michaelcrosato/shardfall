@@ -137,6 +137,18 @@ out. Hand edits in any layout load; the next tool save rewrites the canonical on
 `set` changes only the listed fields. A supplied `shape` replaces the whole shape object.
 `add` needs a new part ID and a complete part in `value`. `remove` needs an existing part ID.
 The final object must contain at least one part. There is a limit of 256 parts.
+`asset_edit action=schema` returns the field guide: every field with its default, the shapes,
+the operations and the limits (`topic=shapes` returns one section).
+
+Errors say where, what is valid and how to fix it, one problem per line (up to 20):
+
+```
+parts.lamp.shape.height: unknown key (expected type, radius, half_height) — use "half_height":0.5 (height = 2*half_height)
+ops[2] seat.color: "grey" is not a #rrggbb colour — use a hex colour such as "#808080"
+```
+
+A file path names a part as `parts.<id>`; a batch names the operation first, `ops[i] <id>`.
+A JSON object that repeats a key is refused, not silently overwritten.
 
 The whole batch is checked before it is saved or published. One failed operation rejects
 the entire batch. One accepted batch is one undo step. Each object keeps up to 32 undo/redo

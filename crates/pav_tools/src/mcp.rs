@@ -26,7 +26,8 @@ pub fn base64(data: &[u8]) -> String {
     out
 }
 
-fn tool_list() -> Value {
+/// The MCP `tools/list` result: every tool with its help and argument schema.
+pub fn tool_list() -> Value {
     json!({ "tools": TOOLS.iter().map(|t| json!({
         "name": t.name,
         "description": t.help,

@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Once};
 
 use anyhow::{Context, Result, anyhow, bail};
+use pav_core::issue::{self, Code, Issue};
 use pav_core::props::{self, PropAsset};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -259,12 +260,20 @@ fn inspect(root: &Path, name: &str, preview: bool, legend: bool, bounds: bool) -
     Ok(Edited { report: result, asset, mutation: false, preview })
 }
 
+/// A JSON argument: an object, or text read strictly (a repeated key is an error).
 fn json_arg(a: &Args, key: &str) -> Result<Value> {
     match a.get(key).ok_or_else(|| anyhow!("{key}= is required"))? {
-        Value::String(text) => serde_json::from_str(text).with_context(|| format!("invalid JSON in {key}")),
+        Value::String(text) => props::strict_value(text).map_err(|mut issue| {
+            if key == "ops" {
+                issue.path = format!("ops{}", if issue.path.starts_with('[') { issue.path.clone() } else { String::new() });
+            }
+            anyhow!("{issue}")
+        }),
         value => Ok(value.clone()),
     }
 }
+
+const ACTIONS: &[&str] = &["create", "copy", "inspect", "patch", "replace", "undo", "redo", "schema"];
 
 fn check_args(a: &Args) -> Result<(&str, bool)> {
     let preview = get_bool(a, "preview", true)?;
@@ -279,13 +288,33 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
         "patch" => &["ops", "if_revision"],
         "replace" => &["asset", "if_revision"],
         "undo" | "redo" => &["if_revision"],
-        _ => bail!("unknown action '{action}'; use create, copy, inspect, patch, replace, undo, or redo"),
+        "schema" => &["topic"],
+        _ => bail!(
+            "{}",
+            Issue::error("action", Code::UnknownValue, format!("unknown action \"{action}\""))
+                .expected(ACTIONS.join(", "))
+                .maybe_fix(issue::suggestion(action, ACTIONS.iter().copied()))
+        ),
     };
+    let accepted: Vec<&str> = ["action", "name", "preview"].into_iter().chain(extra.iter().copied()).collect();
     for (key, value) in a {
-        if !["action", "name", "preview", "scene", "seed", "ticks"].contains(&key.as_str()) && !extra.contains(&key.as_str()) {
-            bail!("unknown or unused asset_edit argument '{key}' for action={action}");
+        if !accepted.contains(&key.as_str()) && !["scene", "seed", "ticks"].contains(&key.as_str()) {
+            let known = ["from", "template", "asset", "description", "if_revision", "ops", "legend", "bounds", "topic"];
+            let fix = if known.contains(&key.as_str()) {
+                Some(format!("{key} belongs to another action"))
+            } else {
+                issue::suggestion(key, accepted.iter().copied())
+            };
+            bail!(
+                "{}",
+                Issue::error(key.as_str(), Code::UnknownKey, format!("not an asset_edit argument for action={action}"))
+                    .expected(accepted.join(", "))
+                    .maybe_fix(fix)
+            );
         }
-        if ["action", "name", "from", "template", "description", "if_revision"].contains(&key.as_str()) && !value.is_string() {
+        if ["action", "name", "from", "template", "description", "if_revision", "topic"].contains(&key.as_str())
+            && !value.is_string()
+        {
             bail!("{key} must be text");
         }
     }
@@ -302,11 +331,10 @@ fn definition(value: Value, name: &str, creating: bool) -> Result<PropAsset> {
         object.entry("format").or_insert(json!(1));
         object.insert("name".into(), json!(leaf));
     }
-    let asset: PropAsset = serde_json::from_value(Value::Object(object)).context("invalid asset definition")?;
+    let asset = PropAsset::from_value(Value::Object(object)).map_err(|issues| anyhow!(issue::render(&issues)))?;
     if asset.name != leaf {
         bail!("asset.name must stay '{leaf}'; use action=copy to make a new asset");
     }
-    asset.validate().map_err(|e| anyhow!(e))?;
     Ok(asset)
 }
 
@@ -326,6 +354,10 @@ fn changed_parts(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<S
 /// Disk editing stays independent of a GPU or active preview.
 fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let (action, preview) = check_args(a)?;
+    if action == "schema" {
+        let report = props::schema(get_str(a, "topic")).map_err(|e| anyhow!(e))?;
+        return Ok(Edited { report, asset: None, mutation: false, preview: false });
+    }
     let name = props::canonical(get_str(a, "name").ok_or_else(|| anyhow!("name= names the asset"))?).map_err(|e| anyhow!(e))?;
     if action == "inspect" {
         return inspect(root, &name, preview, get_bool(a, "legend", false)?, get_bool(a, "bounds", false)?);
@@ -474,7 +506,13 @@ fn summary(text: &str) -> String {
 pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
     for key in a.keys() {
         if !["find", "limit", "page", "scene", "seed", "ticks"].contains(&key.as_str()) {
-            bail!("unknown assets argument '{key}'");
+            let accepted = ["kind", "find", "limit", "page"];
+            bail!(
+                "{}",
+                Issue::error(key.as_str(), Code::UnknownKey, "not an assets argument")
+                    .expected(accepted.join(", "))
+                    .maybe_fix(issue::suggestion(key, accepted))
+            );
         }
     }
     if a.get("find").is_some_and(|value| !value.is_string()) {

@@ -1250,7 +1250,7 @@ Why this order:
 
 **Progress** (sizes: S < 1 day of agent work, M 1-3, L 3-7):
 - [x] 0.1 TOOLS-1 reply hygiene + TOOLS-4 canonical v1 writer (M)
-- [ ] 0.2 TOOLS-2 `issue.rs` + format-1 error paths; TOOLS-3 schema trims and `action=schema` (M)
+- [x] 0.2 TOOLS-2 `issue.rs` + format-1 error paths; TOOLS-3 schema trims and `action=schema` (M)
 - [ ] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
 - [ ] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
 - [ ] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
@@ -1287,7 +1287,7 @@ Why this order:
 | id | what | key files | verify |
 |---|---|---|---|
 | TOOLS-1 | reply tidy + trimmed contracts + consumers | new `pav_tools/src/reply.rs`; `tools.rs` call; `asset_tools.rs` report/inspect/t_assets/edit_at; `asset_preview_tools.rs`; `live_feedback.rs`; `asset_ui.rs` report; `smoke-asset-studio.py`; new `tests/reply_budget.rs` | caps in §7.1; no f32-noise numbers; smoke passes |
-| TOOLS-2 | Issue module + v1 error paths | new `pav_core/src/issue.rs`; props.rs parse/read_shape/patch; `asset_tools.rs` definition/check_args; fixtures `tests/fixtures/asset_errors.jsonl` from `docs/asset_plan/fixtures/dogfood_probes.jsonl` | each of the 23 probes names `parts.<id>` or `ops[i]`; did-you-mean cases |
+| TOOLS-2 | Issue module + v1 error paths | new `pav_core/src/issue.rs`; props.rs parse/read_shape/patch; `asset_tools.rs` definition/check_args; fixtures `tests/fixtures/asset_errors.jsonl` from the 23 dogfood probes | each probe that fails on a part or op names `parts.<id>` or `ops[i]` (19 of 23; 2 are valid input, 2 are a stale revision and an existing name); did-you-mean cases |
 | TOOLS-3 | schema trims, `action=schema`, opt-in legend/bounds | `tools.rs` TOOLS + schema(); `asset_tools.rs` | tools/list ≤ 47,000 chars; `schema_covers_every_field`; no `path` op in prop ops |
 | TOOLS-4 | canonical v1 writer | props.rs text() | round trip; revisions unchanged; copied bench file ≤ 1,000 chars |
 | TOOLS-5 | `check`, `dry_run`, cost line | new `props/lint.rs` (or `props_lint.rs` before the split); `asset_tools.rs` | bench with 7 planted defects gives exactly those codes; templates clean; ≤ 10 ms / 256 parts |
@@ -1381,11 +1381,11 @@ the work item that uses it lands. Each is listed with the work item that uses it
 - `prototypes/materials/`: `materials.wgsl` (494-line kernel library), diffs against `scene.wgsl`/`renderer.rs`/`scene.rs`, and the parity/bench harness `main.rs`, which includes the CPU mirror (MAT-1..3).
 - `prototypes/material_fit/fitprobe.py` (MAT-7, numpy).
 - `prototypes/lint4.py`: the lint rules with their tuned thresholds (TOOLS-5).
-- `prototypes/tools/`: `schema_v1.json` (field-guide draft) (TOOLS-3). `trim.py` was removed when TOOLS-1 landed.
+- `prototypes/tools/`: removed when TOOLS-1 (`trim.py`) and TOOLS-3 (`schema_v1.json`) landed.
 - `prototypes/import/`: `gltfload.py`, `structure.py`, `fitproto3.py`, `summarize3.py` (I3, I4, numpy).
 - `prototypes/families/apply_params.py` (LIB-4).
 - `prototypes/bench/`: `benchpav.py` (wrapper), `tokx.py`, `tokcum.py`, `author.md`, `judge.md`, `stall_replay.cmds` (arm-A baseline replay) (EVAL-1).
-- `fixtures/dogfood_probes.jsonl` (23 error probes, TOOLS-2). The format-1 baselines `dogfood_stall_v1.json` and `dogfood_well_v1.json` moved to `crates/pav_core/tests/fixtures/props/` with TOOLS-4 (golden revisions; F2 reuses them).
+- The 23 error probes became `crates/pav_tools/tests/fixtures/asset_errors.jsonl` with TOOLS-2. The format-1 baselines `dogfood_stall_v1.json` and `dogfood_well_v1.json` moved to `crates/pav_core/tests/fixtures/props/` with TOOLS-4 (golden revisions; F2 reuses them).
 
 ## 15. Executing this plan
 

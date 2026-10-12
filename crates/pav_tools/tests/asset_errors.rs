@@ -1,0 +1,98 @@
+//! Errors are part of the agent loop: each one says where (`parts.<id>` or `ops[i]`), what is
+//! valid and how to fix it. The fixture holds the 23 probes from the planning dogfood
+//! session (docs/ASSET_SYSTEM_PLAN.md §7.1) with the exact replies they get now.
+
+use pav_tools::Session;
+use serde_json::{Value, json};
+
+#[test]
+fn every_dogfood_probe_gets_a_located_actionable_reply() {
+    let root = std::env::temp_dir().join(format!("pav-asset-errors-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    // SAFETY: this test binary has one test, and it sets the variable before any tool runs.
+    unsafe { std::env::set_var("PAV_ASSETS", &root) };
+    let mut s = Session::new("empty", 1).unwrap();
+    let well: Value = serde_json::from_str(include_str!("../../pav_core/tests/fixtures/props/dogfood_well_v1.json")).unwrap();
+    let args = json!({"action":"create","name":"well","asset":well,"preview":false});
+    pav_tools::call(&mut s, "asset_edit", args.as_object().unwrap()).unwrap();
+    let mut located = 0;
+    for (line, text) in include_str!("fixtures/asset_errors.jsonl").lines().enumerate() {
+        let probe: Value = serde_json::from_str(text).unwrap();
+        let reply = pav_tools::call(&mut s, probe["tool"].as_str().unwrap(), probe["args"].as_object().unwrap());
+        match (&reply, probe["error"].as_str()) {
+            (Err(error), Some(expected)) => {
+                assert_eq!(format!("{error:#}"), expected, "probe {}", line + 1);
+                located += usize::from(expected.starts_with("parts.") || expected.starts_with("ops["));
+            }
+            (Ok(_), None) => {}
+            (Err(error), None) => panic!("probe {} should succeed ({}): {error:#}", line + 1, probe["ok"]),
+            (Ok(_), Some(expected)) => panic!("probe {} should fail with {expected}", line + 1),
+        }
+    }
+    assert_eq!(located, 19, "every part or op problem names its part or op");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
+    let mut s = Session::new("empty", 1).unwrap();
+    let error = |s: &mut Session, tool: &str, args: Value| {
+        format!("{:#}", pav_tools::call(s, tool, args.as_object().unwrap()).err().expect("an error"))
+    };
+    assert_eq!(
+        error(&mut s, "asset_edit", json!({"action":"inspekt","name":"BUILTIN/bench"})),
+        r#"action: unknown action "inspekt" (expected create, copy, inspect, patch, replace, undo, redo, schema) — did you mean "inspect"?"#
+    );
+    assert_eq!(
+        error(&mut s, "asset_edit", json!({"action":"patch","name":"x","opps":[]})),
+        r#"opps: not an asset_edit argument for action=patch (expected action, name, preview, ops, if_revision) — did you mean "ops"?"#
+    );
+    assert_eq!(
+        error(&mut s, "asset_edit", json!({"action":"copy","name":"x","from":"BUILTIN/bench","ops":[]})),
+        "ops: not an asset_edit argument for action=copy (expected action, name, preview, from, description, if_revision) — ops belongs to another action"
+    );
+    assert_eq!(
+        error(&mut s, "assets", json!({"kind":"props"})),
+        r#"kind: unknown kind "props" (expected prop, creature) — did you mean "prop"?"#
+    );
+    assert_eq!(
+        error(&mut s, "asset_preview", json!({"action":"opn"})),
+        r#"action: unknown action "opn" (expected status, open, fit, close, play, pause, restart) — did you mean "open"?"#
+    );
+    assert_eq!(
+        error(&mut s, "asset_spawn", json!({"action":"list","nmae":"x"})),
+        r#"nmae: unknown argument (expected action, name, id, pos, yaw, scale, collide, room) — did you mean "name"?"#
+    );
+    assert_eq!(error(&mut s, "asset_edt", json!({})), r#"unknown tool "asset_edt" — did you mean "asset_edit"?"#);
+}
+
+#[test]
+fn the_field_guide_and_tool_list_stay_compact() {
+    let mut s = Session::new("empty", 1).unwrap();
+    let guide = match pav_tools::call(&mut s, "asset_edit", json!({"action":"schema"}).as_object().unwrap()).unwrap() {
+        pav_tools::Output::Json(value) => value,
+        _ => panic!("schema returns data"),
+    };
+    for key in ["legend", "document", "part", "shapes", "ops", "limits"] {
+        assert!(guide.get(key).is_some(), "{key}");
+    }
+    assert!(guide.to_string().len() < 2_600, "the field guide is {} chars", guide.to_string().len());
+    let list = pav_tools::mcp::tool_list();
+    let chars = list.to_string().len();
+    assert!(chars <= 47_000, "tools/list is {chars} chars");
+    let tools = list["tools"].as_array().unwrap();
+    let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();
+    for item in edit["inputSchema"]["properties"]["ops"]["items"]["oneOf"].as_array().unwrap() {
+        let creature = item["description"].as_str().is_some_and(|d| d.starts_with("kind=creature"));
+        assert_eq!(item.to_string().contains("path"), creature, "no path op among prop ops: {item}");
+    }
+    for name in ["assets", "asset_edit", "asset_preview", "asset_spawn", "studio_status"] {
+        let tool = tools.iter().find(|t| t["name"] == name).unwrap();
+        let words = tool["description"].as_str().unwrap().split_whitespace().count();
+        assert!(words <= 36, "{name} help has {words} words");
+        for (arg, schema) in tool["inputSchema"]["properties"].as_object().unwrap() {
+            let words = schema["description"].as_str().unwrap_or("").split_whitespace().count();
+            assert!(words <= 12, "{name}.{arg} help has {words} words");
+        }
+    }
+}

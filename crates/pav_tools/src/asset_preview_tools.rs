@@ -2,6 +2,7 @@
 
 use anyhow::{Result, anyhow, bail};
 use glam::{Quat, Vec3};
+use pav_core::issue::{self, Code, Issue};
 use pav_core::prop_instance::{transform_bounds, validate_pose, validate_scale};
 use pav_core::prop_preview::{PropPreviewChange, StudioMode};
 use pav_core::props;
@@ -95,9 +96,7 @@ pub fn fit_camera(s: &mut Session) -> Result<()> {
 pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
     allowed_keys(a, &["action", "name", "close", "playing", "time", "speed", "turntable", "yaw", "scale", "step"])?;
     let action = opt_text(a, "action")?.unwrap_or("status");
-    if !matches!(action, "status" | "open" | "fit" | "close" | "play" | "pause" | "restart") {
-        bail!("action must be status, open, fit, close, play, pause or restart");
-    }
+    one_of("action", action, &["status", "open", "fit", "close", "play", "pause", "restart"])?;
     let name = opt_text(a, "name")?;
     let close = opt_bool(a, "close")?.unwrap_or(false) || action == "close";
     let mut change = PropPreviewChange {
@@ -160,7 +159,24 @@ fn allowed_keys(a: &Args, allowed: &[&str]) -> Result<()> {
     if let Some(key) =
         a.keys().find(|key| !allowed.contains(&key.as_str()) && !["scene", "seed", "ticks"].contains(&key.as_str()))
     {
-        bail!("unknown argument '{key}'; accepted arguments: {}", allowed.join(", "));
+        bail!(
+            "{}",
+            Issue::error(key.as_str(), Code::UnknownKey, "unknown argument")
+                .expected(allowed.join(", "))
+                .maybe_fix(issue::suggestion(key, allowed.iter().copied()))
+        );
+    }
+    Ok(())
+}
+
+fn one_of(key: &str, value: &str, valid: &[&str]) -> Result<()> {
+    if !valid.contains(&value) {
+        bail!(
+            "{}",
+            Issue::error(key, Code::UnknownValue, format!("unknown {key} \"{value}\""))
+                .expected(valid.join(", "))
+                .maybe_fix(issue::suggestion(value, valid.iter().copied()))
+        );
     }
     Ok(())
 }
@@ -234,9 +250,7 @@ fn instance(s: &Session, entity: &Entity, active: bool) -> Value {
 pub fn t_asset_spawn(s: &mut Session, a: &Args) -> Result<Output> {
     allowed_keys(a, &["action", "name", "id", "pos", "yaw", "scale", "collide", "room"])?;
     let action = opt_text(a, "action")?.unwrap_or("list");
-    if !matches!(action, "add" | "list" | "update" | "remove") {
-        bail!("action must be add, list, update or remove");
-    }
+    one_of("action", action, &["add", "list", "update", "remove"])?;
     let name = opt_text(a, "name")?.map(props::canonical).transpose().map_err(|e| anyhow!(e))?;
     let id = entity_id(a)?;
     let pos = position(a)?;

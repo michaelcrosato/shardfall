@@ -5,6 +5,42 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 0.2: errors that name their place, a field guide, a leaner schema — 2026-10-12
+
+Row 0.2 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-2, TOOLS-3). Format 1 is unchanged; every file
+that loaded before still loads with the same revision.
+- **`pav_core::issue`**: a Rust port of SpawnForge's blueprint issues (`Issue {severity, path,
+  code, message, expected, fix}`, rendered `path: message (expected …) — fix`; the
+  optimal-string-alignment distance and `did_you_mean`). The vendored TypeScript is
+  untouched.
+- **Reading a prop** (`props/read.rs`): strict JSON first (a repeated key is an error with its
+  path; serde_json would keep the last one silently), then one check of the whole document
+  against field tables, reporting up to 20 problems, each with its path, the valid values and
+  a fix: `parts.p.shape.height: unknown key (expected type, radius, half_height) — use
+  "half_height":0.5`. Hints cover the usual guesses (colour, rotation, size, height,
+  diameter, scale, material, cube/cone/torus, toon, colour names, `#f00`, numbers in
+  quotes). The typed model is built only from a checked document; its old validation stays
+  as a backstop. Range checks compare in f32, as the engine stores values.
+- **Patches** (`props/patch.rs`) apply to the document's JSON and then run the same check, so
+  a batch's errors read `ops[1] pad.color: "grey" is not a #rrggbb colour — use a hex colour
+  such as "#808080"`; unknown ops, keys and parts suggest the nearest valid one. Batches stay
+  atomic. `props.rs` became `props/{mod,read,patch,write}.rs` (the split §5.1 plans).
+- **Tools.** Unknown actions, arguments, kinds and tools name the nearest valid one.
+  `asset_edit action=schema [topic]` returns the field guide, generated from the same tables
+  (`schema_covers_every_field` ties the tables to the typed model and the guide). The
+  `asset_edit` ops schema lists only prop ops plus one `kind=creature` item (the merged
+  creature ops with `path` are gone); merged creature arguments read "kind=creature only";
+  the five asset tools' help is at most 36 words and each argument at most 12. MCP
+  `tools/list`: 49,400 → 46,926 chars (11,525 → 11,062 tokens).
+- **Tests.** The 23 dogfood probes are `crates/pav_tools/tests/fixtures/asset_errors.jsonl`
+  with their exact replies: the 19 that fail on a part or an op name `parts.<id>` or
+  `ops[i]`; two are valid input (an upper-case name is normalised, a part without a colour
+  takes the default) and two are document-level (stale revision, existing name). Did-you-mean
+  cases for actions, arguments, kinds and tools; tools/list ≤ 47,000 chars; no `path` among
+  prop ops.
+- Decision: the plan's TOOLS-2 check said every probe names a part or an op; four of the 23 are
+  not part errors, so the plan now states the 19 that are.
+
 ## Asset plan 0.1: compact replies and a canonical prop writer — 2026-10-12
 
 First row of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-1, TOOLS-4). No format change: every file,

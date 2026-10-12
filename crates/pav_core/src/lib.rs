@@ -23,6 +23,7 @@ pub mod guide;
 pub mod health;
 pub mod history;
 pub mod input;
+pub mod issue;
 pub mod joints;
 pub mod level;
 pub mod moves;
