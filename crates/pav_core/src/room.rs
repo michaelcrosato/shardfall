@@ -49,6 +49,12 @@ pub struct ObjectDef {
     pub asset: Option<String>,
     #[serde(default = "one")]
     pub scale: f32,
+    /// A prop's variant: its chance, jitter and pick (0: as authored).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub seed: u32,
+    /// A prop's palette: colours for the theme roles its parts name (`$wall` = "#5a6b7c").
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub roles: BTreeMap<String, String>,
     pub pos: Vec3,
     /// Rotation about the vertical axis (degrees).
     #[serde(default)]
@@ -111,6 +117,10 @@ impl ObjectDef {
 fn box_shape() -> Shape {
     Shape::Box { half: Vec3::splat(0.5) }
 }
+fn is_zero(seed: &u32) -> bool {
+    *seed == 0
+}
+
 fn one() -> f32 {
     1.0
 }
@@ -436,6 +446,7 @@ impl RoomDef {
         for object in &self.objects {
             if let Some(asset) = &object.asset {
                 crate::props::canonical(asset).map_err(|e| format!("object '{}': {e}", object.name))?;
+                crate::prop_instance::validate_roles(&object.roles).map_err(|e| format!("object '{}': {e}", object.name))?;
                 crate::prop_instance::validate_scale(object.scale)?;
                 crate::prop_instance::validate_pose(object.pos, object.local_rot())?;
                 if !matches!(object.body, BodyKind::Fixed | BodyKind::None) {

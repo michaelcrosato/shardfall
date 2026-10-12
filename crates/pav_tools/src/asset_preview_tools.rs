@@ -1,9 +1,11 @@
 //! Prop inspection and placement through the same session used by the native studio.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Result, anyhow, bail};
 use glam::{Quat, Vec3};
 use pav_core::issue::{self, Code, Issue};
-use pav_core::prop_instance::{transform_bounds, validate_pose, validate_scale};
+use pav_core::prop_instance::{PropInstance, transform_bounds, validate_pose, validate_roles, validate_scale};
 use pav_core::prop_preview::{PropPreviewChange, StudioMode, figure_bounds};
 use pav_core::props;
 use pav_core::statics::RegionKey;
@@ -35,6 +37,7 @@ fn status(s: &Session) -> Value {
         ("turntable", json!(info.turntable), json!(false)),
         ("yaw", json!(info.yaw), json!(0.0)),
         ("scale", json!(info.scale), json!(1.0)),
+        ("seed", json!(info.seed), json!(0)),
     ];
     for (key, value, default) in fresh {
         if value != default {
@@ -113,6 +116,7 @@ pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
         yaw: opt_float(a, "yaw")?,
         scale: opt_float(a, "scale")?,
         step: step_arg(a)?,
+        seed: seed_arg(a)?,
     };
     match action {
         "play" => change.playing = Some(true),
@@ -126,7 +130,8 @@ pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
         _ => {}
     }
     change.validate().map_err(|e| anyhow!(e))?;
-    let controls = a.keys().any(|k| matches!(k.as_str(), "time" | "playing" | "speed" | "turntable" | "yaw" | "scale" | "step"));
+    let controls =
+        a.keys().any(|k| matches!(k.as_str(), "time" | "playing" | "speed" | "turntable" | "yaw" | "scale" | "step" | "seed"));
     if close && (name.is_some() || controls || matches!(action, "open" | "fit" | "play" | "pause" | "restart")) {
         bail!("close cannot select or alter a prop preview");
     }
@@ -285,14 +290,16 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
         },
     };
     let asset = props::get(&name).ok_or_else(|| anyhow!("no prop '{name}'"))?;
-    let bounds = asset.bounds(1.0);
+    let seed = seed_arg(a)?.unwrap_or(0);
+    let parts = asset.variant(seed);
+    let bounds = parts.bounds_at(1.0);
     let lift = -Vec3::Y * bounds.min.y;
-    let drawn = asset.compiled.parts.iter().filter(|part| !part.hidden);
+    let drawn = parts.parts.iter().filter(|part| !part.hidden);
     let mut points: Vec<Vec3> = drawn.flat_map(|part| part.hull(1.0)).map(|p| p + lift).collect();
     if points.is_empty() {
         bail!(
             "{}",
-            Issue::error("name", Code::Missing, format!("{name} draws nothing: every part is hidden or left out at seed 0"))
+            Issue::error("name", Code::Missing, format!("{name} draws nothing: every part is hidden or left out at seed {seed}"))
                 .fix("asset_edit action=inspect bounds=true measures the hidden parts")
         );
     }
@@ -314,6 +321,7 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
             turntable: Some(false),
             yaw: Some(0.0),
             scale: Some(1.0),
+            seed: Some(seed),
             ..Default::default()
         };
         s.sim.prop_preview_change(&still).map_err(|e| anyhow!(e))?;
@@ -427,18 +435,54 @@ fn instance(s: &Session, entity: &Entity, active: bool) -> Value {
         Some(RegionKey::Room(id)) => s.sim.state.world.rooms.get(id as usize).map(|r| r.key.clone()),
         _ => None,
     };
-    json!({
+    let mut out = json!({
         "id": entity.id.0, "name": entity.name, "asset": prop.asset,
         "revision": prop.definition.revision, "pos": entity.pos,
         "yaw": yaw.to_degrees(), "pitch": pitch.to_degrees(), "roll": roll.to_degrees(),
         "scale": prop.scale, "collide": prop.collide, "room": room, "active": active,
         "bounds": prop.bounds_at(entity.pos, entity.rot),
-    })
+    });
+    if prop.seed != 0 {
+        out["seed"] = json!(prop.seed);
+    }
+    if !prop.roles.is_empty() {
+        out["roles"] = json!(prop.roles);
+    }
+    out
+}
+
+/// `seed=`: which variant of an asset (chance, jitter and pick), 0 as authored.
+fn seed_arg(a: &Args) -> Result<Option<u32>> {
+    a.contains_key("seed")
+        .then(|| {
+            let seed = crate::tools::get_u64(a, "seed", 0)?;
+            u32::try_from(seed).map_err(|_| anyhow!("seed must be from 0 to 4294967295"))
+        })
+        .transpose()
+}
+
+/// `roles=`: colours for the theme roles an asset's parts name, `{"$wall":"#5a6b7c"}`.
+fn roles_arg(a: &Args) -> Result<Option<BTreeMap<String, String>>> {
+    let Some(value) = a.get("roles") else { return Ok(None) };
+    let value = match value {
+        Value::String(text) => props::strict_value(text).map_err(|issue| anyhow!("roles: {}", issue.message))?,
+        value => value.clone(),
+    };
+    let object = value.as_object().ok_or_else(|| anyhow!("roles must be an object such as {{\"$wall\":\"#5a6b7c\"}}"))?;
+    let roles = object
+        .iter()
+        .map(|(role, color)| match color.as_str() {
+            Some(color) => Ok((role.clone(), color.to_string())),
+            None => Err(anyhow!("roles.{role} must be a #rrggbb colour")),
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    validate_roles(&roles).map_err(|e| anyhow!(e))?;
+    Ok(Some(roles))
 }
 
 /// Explicit world placement. Adding a prop does not leave the current studio tab.
 pub fn t_asset_spawn(s: &mut Session, a: &Args) -> Result<Output> {
-    allowed_keys(a, &["action", "name", "id", "pos", "yaw", "scale", "collide", "room"])?;
+    allowed_keys(a, &["action", "name", "id", "pos", "yaw", "scale", "collide", "room", "roles"])?;
     let action = opt_text(a, "action")?.unwrap_or("list");
     one_of("action", action, &["add", "list", "update", "remove"])?;
     let name = opt_text(a, "name")?.map(props::canonical).transpose().map_err(|e| anyhow!(e))?;
@@ -454,7 +498,9 @@ pub fn t_asset_spawn(s: &mut Session, a: &Args) -> Result<Output> {
     }
     let collide = opt_bool(a, "collide")?;
     let region = room(a, s)?;
-    let transforms = pos.is_some() || yaw.is_some() || scale.is_some() || collide.is_some() || region.is_some();
+    let (seed, roles) = (seed_arg(a)?, roles_arg(a)?);
+    let transforms =
+        pos.is_some() || yaw.is_some() || scale.is_some() || collide.is_some() || region.is_some() || roles.is_some();
     match action {
         "list" => {
             if id.is_some() || transforms {
@@ -485,17 +531,12 @@ pub fn t_asset_spawn(s: &mut Session, a: &Args) -> Result<Output> {
             let name = name.ok_or_else(|| anyhow!("add needs name=BUILTIN/bench or a WORKSHOP prop"))?;
             let name = ensure_asset(&name)?;
             let region = region.unwrap_or_else(|| s.sim.state.world.current_room.map(RegionKey::Room));
-            let id = s
-                .sim
-                .spawn_prop(
-                    &name,
-                    pos,
-                    Quat::from_rotation_y(yaw.unwrap_or(0.0).to_radians()),
-                    scale.unwrap_or(1.0),
-                    collide.unwrap_or(true),
-                    region,
-                )
+            let definition = props::get(&name).ok_or_else(|| anyhow!("no prop '{name}'"))?;
+            let copy = PropInstance::new(&name, definition, scale.unwrap_or(1.0), collide.unwrap_or(true))
+                .and_then(|copy| copy.with_seed(seed.unwrap_or(0)).with_roles(roles.unwrap_or_default()))
                 .map_err(|e| anyhow!(e))?;
+            let rot = Quat::from_rotation_y(yaw.unwrap_or(0.0).to_radians());
+            let id = s.sim.place_prop(copy, pos, rot, region).map_err(|e| anyhow!(e))?;
             Ok(Output::Json(json!({"success": true, "instance": instance(s, s.sim.state.entities.get(id).unwrap(), true)})))
         }
         "update" => {
@@ -525,6 +566,9 @@ pub fn t_asset_spawn(s: &mut Session, a: &Args) -> Result<Output> {
                     collide.unwrap_or(prop.collide),
                 )
                 .map_err(|e| anyhow!(e))?;
+            if seed.is_some() || roles.is_some() {
+                s.sim.restyle_prop(id, seed, roles).map_err(|e| anyhow!(e))?;
+            }
             if let Some(region) = region {
                 s.sim.state.entities.get_mut(id).unwrap().region = region;
             }

@@ -7,6 +7,7 @@ pub mod geom;
 pub mod lint;
 mod patch;
 mod read;
+pub mod table;
 mod write;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,9 +24,11 @@ use crate::shape::{Look, Shape, Visual};
 pub use compile::{CompiledProp, DEFAULT_ROLES, ResolvedPart};
 pub use doc::Doc;
 pub use patch::MAX_OPS;
+pub use patch::v2::{OPS as OPS2, Patched, patch as patch_document};
 /// Format 2's field tables, legend and field guide.
 pub use read::v2 as format2;
 pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, migrate, schema, strict_value};
+pub use table::PropDefTable;
 
 pub const MAX_PARTS: usize = 256;
 const MAX_SIZE: f32 = 1_000.0;
@@ -570,7 +573,7 @@ pub mod embedded {
         read(Value::deserialize(deserializer)?).map_err(D::Error::custom)
     }
 
-    fn read(value: Value) -> Result<Arc<PropDef>, String> {
+    pub(super) fn read(value: Value) -> Result<Arc<PropDef>, String> {
         let def = match value {
             Value::Object(mut map) if map.contains_key("document") => {
                 let refs = match map.remove("refs") {
@@ -660,6 +663,16 @@ pub fn library() -> Arc<PropLibrary> {
 pub fn get(name: &str) -> Option<Arc<PropDef>> {
     let name = canonical(name).ok()?;
     library().defs.get(&name).cloned()
+}
+
+/// Why `name` names no asset, with the closest library name when one is near.
+pub fn unknown_asset(name: &str) -> String {
+    let library = library();
+    let wanted = canonical(name).unwrap_or_else(|_| name.to_string());
+    match issue::suggestion(&wanted, library.defs.keys().map(String::as_str)) {
+        Some(fix) => format!("no prop '{name}' — {fix}"),
+        None => format!("no prop '{name}' (assets lists available props)"),
+    }
 }
 
 /// Install a compiled definition, keeping every other definition shared. Returns the

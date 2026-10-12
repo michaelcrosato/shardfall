@@ -386,14 +386,16 @@ impl Sim {
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
             if let Some(asset) = &o.asset {
-                match self.spawn_prop(
-                    asset,
-                    slot.place.point(o.pos),
-                    slot.place.quat() * o.local_rot(),
-                    o.scale,
-                    o.body == BodyKind::Fixed,
-                    Some(region),
-                ) {
+                let placed = crate::props::get(asset)
+                    .ok_or_else(|| crate::props::unknown_asset(asset))
+                    .and_then(|definition| {
+                        crate::prop_instance::PropInstance::new(asset, definition, o.scale, o.body == BodyKind::Fixed)
+                    })
+                    .and_then(|copy| copy.with_seed(o.seed).with_roles(o.roles.clone()))
+                    .and_then(|copy| {
+                        self.place_prop(copy, slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region))
+                    });
+                match placed {
                     Ok(id) => {
                         if !o.name.is_empty() {
                             self.state.entities.get_mut(id).unwrap().name = o.name.clone();
@@ -1211,6 +1213,8 @@ impl Sim {
                     shape: v.shape,
                     asset: e.prop.as_ref().map(|p| p.asset.clone()),
                     scale: e.prop.as_ref().map(|p| p.scale).unwrap_or(1.0),
+                    seed: e.prop.as_ref().map(|p| p.seed).unwrap_or(0),
+                    roles: e.prop.as_ref().map(|p| p.roles.clone()).unwrap_or_default(),
                     pos: (local * 1000.0).round() / 1000.0,
                     yaw: r1(yaw),
                     pitch: r1(pitch),
@@ -1304,6 +1308,13 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
             }
         }
         text.push_str(&format!("body = \"{}\"\n", if o.body == BodyKind::None { "none" } else { "fixed" }));
+        if o.seed != 0 {
+            text.push_str(&format!("seed = {}\n", o.seed));
+        }
+        if !o.roles.is_empty() {
+            let roles: Vec<String> = o.roles.iter().map(|(role, color)| format!("{role:?} = {color:?}")).collect();
+            text.push_str(&format!("roles = {{ {} }}\n", roles.join(", ")));
+        }
         return text;
     }
     let shape = match o.shape {

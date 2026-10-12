@@ -55,7 +55,10 @@ Part names are lowercase letters, digits, `_` and `-`. 1-256 parts; sizes 0.001-
 `set` merges the listed fields (a `shape` replaces the whole shape); `add` takes a new part name
 and a whole part; `remove` deletes one. A batch is checked whole: one bad op rejects it and
 nothing changes. `replace` swaps in a whole definition; `undo` and `redo` step through the last 32
-batches; `dry_run:true` returns the reply, with `revision_next`, without saving.
+batches; `dry_run:true` returns the reply, with `revision_next`, without saving. Format-2
+objects also take `rename`, `copy`, `mirror`, `array`, `expand`, `move`, `scale` and `unit`, and
+address groups, materials and sockets (`asset_edit action=schema format=2 topic=ops`).
+`action=inspect resolved=true` lists every drawn part after copies and mirrors.
 
 Replies carry `name`, `revision`, `saved`, `size_cm` (`"220x143x86"`: width x height x depth),
 `undo`/`redo` counts, `changed_parts`, and `check` when the edit introduced problems. A stale
@@ -87,9 +90,10 @@ in size. `capture stats=only` reports what the current view costs to draw.
 ## Placing copies
 
 `asset_spawn action=add name=x pos=[3,0,2] [yaw=90] [scale=1] [collide=false]` returns the copy's
-`id`; `action=list`, `update id=… pos=… yaw=…` and `remove id=…` manage copies. A copy moves,
-collides and deletes as one object. Accepted edits refresh every placed copy; snapshots keep the
-exact definitions they were saved with.
+`id`; `action=list`, `update id=… pos=… yaw=…` and `remove id=…` manage copies. `seed=3` picks a
+variant (chance, jitter, pick) and `roles={"$wall":"#5a6b7c"}` colours its theme roles. A copy
+moves, collides and deletes as one object. Accepted edits refresh every placed copy; snapshots keep
+each definition they were saved with, once.
 
 ## Files
 

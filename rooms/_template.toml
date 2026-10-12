@@ -164,6 +164,11 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
 # restitution = 0.0 (bounciness 0..1; rapier averages it with the surface underneath),
 # damping = 0 (air drag). Pushing shares momentum: a 70 kg character barely moves 300 kg.
+# Reusable props made in the Object Studio replace shape and colour:
+#   asset = "BUILTIN/bench", scale = 1, body = "fixed" (or "none": no collision),
+#   seed = 3 (a variant: chance, jitter and pick; 0 as authored),
+#   roles = { "$wall" = "#5a6b7c" } (colours for the theme roles its parts name).
+#   `room_check` names any asset the library does not have.
 # Visual-only effects on any object (never affect the simulation; body = "none" for invisible
 # emitters with a tiny sphere shape):
 #   light = { color = "#ffb060", radius = 7, intensity = 2.5, flicker = 0.8, pulse = 0,

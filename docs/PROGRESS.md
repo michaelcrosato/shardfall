@@ -53,8 +53,10 @@ written canonically with `prop2-` revisions (2.1), and compiles to resolved part
 generated meshes, seeded variants and compiled definitions in the library; every §5.9 golden
 holds and format-1 parts compile bit-exactly (2.2). Drawing, collision, nav, bounds, previews,
 `check` and the native studio read compiled parts, so format-2 assets are created, drawn and
-placed; format-1 assets draw and collide exactly as before (2.3). Next: row 2.4, patch ops on
-format 2, snapshot dedupe, seeds and `room_check`.
+placed; format-1 assets draw and collide exactly as before (2.3). Format-2 assets take patch
+ops (rename, copy, mirror, array, expand, move, scale, unit, dotted targets), snapshots carry
+each definition once, and placed copies take a seed and a palette (2.4). Next: row 2.5, the
+fixtures, bench template, docs and legend on format 2, then gate G2.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

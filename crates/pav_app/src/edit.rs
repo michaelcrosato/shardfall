@@ -278,7 +278,7 @@ fn editor_raycast(sim: &pav_core::Sim, origin: Vec3, dir: Vec3, max: f32, exclud
     let mut nearest = hit.map(|h| h.point.distance(origin)).unwrap_or(max);
     for entity in sim.state.entities.iter().filter(|e| Some(e.id) != exclude) {
         let Some(prop) = &entity.prop else { continue };
-        let bounds = prop.definition.bounds(prop.scale);
+        let bounds = prop.parts().bounds_at(prop.scale);
         let inverse = entity.rot.inverse();
         let local_origin = inverse * (origin - entity.pos);
         let local_dir = inverse * dir;

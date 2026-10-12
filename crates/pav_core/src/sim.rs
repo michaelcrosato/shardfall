@@ -99,6 +99,10 @@ impl SimConfig {
 /// Everything that changes during play. Cloning it is a snapshot.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SimState {
+    /// The prop definitions placed copies use, each once. Declared first: a restore reads it
+    /// before the entities that name its keys.
+    #[serde(default, skip_serializing_if = "crate::props::PropDefTable::is_empty")]
+    pub prop_defs: crate::props::PropDefTable,
     pub tick: u64,
     pub seed: u64,
     pub rng: Rng,
@@ -175,6 +179,7 @@ impl Sim {
         let dt = 1.0 / config.tick_rate.hz() as f32;
         Self {
             state: SimState {
+                prop_defs: Default::default(),
                 tick: 0,
                 seed,
                 rng: Rng::new(seed),
@@ -234,16 +239,23 @@ impl Sim {
         self.state.tick as f64 * self.dt() as f64
     }
 
+    /// The state, carrying exactly the prop definitions its placed copies use.
     pub fn snapshot(&self) -> SimState {
-        self.state.clone()
+        let mut state = self.state.clone();
+        state.rebuild_prop_defs();
+        state
     }
 
     pub fn restore(&mut self, s: SimState) {
         self.state = s;
+        self.state.rebuild_prop_defs();
         self.pipeline = PhysicsPipeline::new();
     }
 
     pub fn spawn(&mut self, s: Spawn) -> EntityId {
+        if let Some(prop) = &s.prop {
+            self.state.prop_defs.insert(&prop.definition);
+        }
         let id = self.state.entities.alloc_id();
         let soft = s.soft.as_ref().map(|d| {
             let part = self.state.physics.insert_soft(d, s.pos, s.rot);
@@ -845,7 +857,7 @@ impl Sim {
     /// Saves the full state to a file (binary).
     pub fn save_state(&self, path: &Path) -> Result<()> {
         let mut bytes = Vec::new();
-        ciborium::into_writer(&self.state, &mut bytes).context("serializing state")?;
+        ciborium::into_writer(&self.snapshot(), &mut bytes).context("serializing state")?;
         if let Some(d) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(d)?;
         }

@@ -1,6 +1,6 @@
 //! Format 2 through the tools: a document is read, checked and compiled whole, saved in the
 //! lowest format that holds it, drawn and collided from its compiled parts, and undone like any
-//! other edit. Patch ops cover format 1 only until row 2.4.
+//! other edit, whole or by patch.
 
 use pav_tools::{Output, Session};
 use serde_json::{Value, json};
@@ -23,7 +23,7 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     let edit = |s: &mut Session, args: Value| call(s, "asset_edit", args);
     let stool = json!({"format":2,"unit":"cm","materials":{"wood":{"color":"#8a5a35"}},"parts":{
         "seat":{"type":"cylinder","radius":18,"height":4,"pos":[0,45,0],"mat":"wood"},
-        "leg":{"type":"cylinder","radius":2,"from":[12,0,0],"to":[12,43,0],"mat":"wood","radial":{"count":3,"radius":0}},
+        "leg":{"type":"cylinder","radius":2,"from":[0,0,0],"to":[0,43,0],"mat":"wood","radial":{"count":3,"radius":12}},
         "ring":{"type":"tube","radius":13,"thickness":1.5,"height":2,"pos":[0,15,0],"mat":"wood"}}});
 
     // A dry run predicts the save and writes nothing.
@@ -61,19 +61,48 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     };
     assert_eq!(shapes(&s), 1 + 3 + 12);
 
-    // A replace refreshes the placed copy; patch ops wait for format 2 (row 2.4).
+    // A copy can carry a variant and a palette; the stage shows a variant too.
+    let styled = json!({"action":"add","name":"WORKSHOP/stool","pos":[6,0,0],"seed":3,"roles":{"$wall":"#405060"}});
+    let styled = call(&mut s, "asset_spawn", styled).unwrap();
+    assert_eq!((styled["instance"]["seed"].clone(), styled["instance"]["roles"].clone()), (json!(3), json!({"$wall":"#405060"})));
+    call(&mut s, "asset_spawn", json!({"action":"remove","id":styled["instance"]["id"]})).unwrap();
+    let wrong = json!({"action":"add","name":"WORKSHOP/stool","pos":[9,0,0],"roles":{"$wal":"#405060"}});
+    assert!(call(&mut s, "asset_spawn", wrong).unwrap_err().contains("did you mean \"$wall\"?"));
+    let stage = call(&mut s, "asset_preview", json!({"name":"WORKSHOP/stool","seed":2})).unwrap();
+    assert_eq!(stage["seed"], 2, "{stage}");
+    call(&mut s, "asset_preview", json!({"close":true})).unwrap();
+
+    // A replace refreshes the placed copy, and so does a patch.
     let mut taller = stool.clone();
     taller["name"] = json!("stool");
     taller["parts"]["seat"]["height"] = json!(6);
     let replaced = edit(&mut s, json!({"action":"replace","name":"stool","asset":taller,"preview":false})).unwrap();
     assert_eq!((replaced["changed_parts"].clone(), replaced["refreshed_instances"].clone()), (json!(["seat"]), json!(1)));
+    let ops = json!([{"op":"set","part":"seat","fields":{"radius":20}},{"op":"rename","part":"ring","to":"hoop"}]);
+    let patched = edit(&mut s, json!({"action":"patch","name":"stool","ops":ops,"preview":false})).unwrap();
     assert_eq!(
-        edit(&mut s, json!({"action":"patch","name":"stool","ops":[{"op":"set","part":"seat","fields":{"radius":20}}]}))
+        (patched["changed_parts"].clone(), patched["refreshed_instances"].clone()),
+        (json!(["hoop", "ring", "seat"]), json!(1))
+    );
+    assert_eq!(
+        edit(&mut s, json!({"action":"patch","name":"stool","ops":[{"op":"set","part":"hoop","fields":{"thickness":-1}}]}))
             .unwrap_err(),
-        "ops: patch ops edit format-1 assets; this one is format 2 — send the whole document with action=replace"
+        "ops[0] hoop.thickness: -1 is outside 0.1 to 100000 cm"
     );
 
+    // Resolved parts in the asset's unit: the legs by their ends, the seat by its place.
+    let inspected = edit(&mut s, json!({"action":"inspect","name":"stool","resolved":true,"preview":false})).unwrap();
+    assert_eq!(
+        inspected["resolved"]["leg[1]"],
+        json!({"type":"cylinder","size":[4,43,4],"from":[10.39,0,-6],"to":[10.39,43,-6]})
+    );
+    assert_eq!(inspected["resolved"]["seat"], json!({"type":"cylinder","size":[40,6,40],"pos":[0,45,0]}));
+    let guide = edit(&mut s, json!({"action":"schema","format":2,"topic":"ops"})).unwrap();
+    assert!(guide["ops"]["expand"].as_str().unwrap().contains("<id>_<i>"), "{guide}");
+
     // Undo and redo restore format-2 documents exactly.
+    let unpatched = edit(&mut s, json!({"action":"undo","name":"stool","preview":false})).unwrap();
+    assert_eq!(unpatched["revision"], replaced["revision"]);
     let undone = edit(&mut s, json!({"action":"undo","name":"stool","preview":false})).unwrap();
     assert_eq!(undone["revision"], created["revision"]);
     assert_eq!(std::fs::read_to_string(root.join("workshop/stool.json")).unwrap(), saved);
@@ -143,5 +172,14 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
         saved,
         "{\"format\":1,\"name\":\"marker\",\n\"parts\":{\n\"post\":{\"shape\":{\"type\":\"cylinder\",\"radius\":0.05,\"half_height\":0.6},\"pos\":[0,0.6,0],\"color\":\"#26313e\"}}}\n"
     );
+
+    // A room that places a misspelled asset reads, and room_check names the asset it meant.
+    let source = pav_core::room::load_sources(None).into_iter().find(|room| room.key == "sandbox").unwrap();
+    let object = "[[object]]\nname = \"seat\"\nasset = \"WORKSHOP/stoool\"\npos = [3.0, 0.0, 4.0]\nbody = \"fixed\"\nseed = 4\n";
+    let room = root.join("stool_room.toml");
+    std::fs::write(&room, format!("{}\n{object}", source.text)).unwrap();
+    let checked = call(&mut s, "room_check", json!({"path": room})).unwrap();
+    assert_eq!(checked["ok"], false, "{checked}");
+    assert_eq!(checked["error"], "object 'seat': no prop 'WORKSHOP/stoool' — did you mean \"WORKSHOP/stool\"?");
     let _ = std::fs::remove_dir_all(&root);
 }

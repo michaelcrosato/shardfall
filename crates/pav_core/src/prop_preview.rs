@@ -78,6 +78,13 @@ pub struct PropPreviewState {
     /// A 1.8 m figure beside the asset, for scale (contact sheets).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub figure: bool,
+    /// The variant shown (0: as authored).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub seed: u32,
+}
+
+fn is_zero(seed: &u32) -> bool {
+    *seed == 0
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -94,6 +101,7 @@ pub struct PropPreviewInfo {
     pub turntable: bool,
     pub yaw: f32,
     pub scale: f32,
+    pub seed: u32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -107,6 +115,8 @@ pub struct PropPreviewChange {
     pub scale: Option<f32>,
     /// Signed 1/60-second frames. Stepping and scrubbing pause unless playing is explicit.
     pub step: Option<i32>,
+    /// The variant to show.
+    pub seed: Option<u32>,
 }
 
 impl PropPreviewChange {
@@ -145,6 +155,7 @@ impl PropPreviewState {
             focus: bounds.center() - Vec3::Y * bounds.min.y,
             ticks: 0,
             figure: false,
+            seed: 0,
         }
     }
 
@@ -158,14 +169,17 @@ impl PropPreviewState {
             name: self.name.clone(),
             revision: definition.map(|d| d.revision.clone()).unwrap_or_default(),
             available: definition.is_some(),
-            parts: definition.map(|d| d.compiled.parts.len()).unwrap_or(0),
-            bounds: definition.map(|d| d.bounds(self.scale)).unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO }),
+            parts: definition.map(|d| d.variant(self.seed).parts.len()).unwrap_or(0),
+            bounds: definition
+                .map(|d| d.variant(self.seed).bounds_at(self.scale))
+                .unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO }),
             time: self.time,
             playing: self.playing,
             speed: self.speed,
             turntable: self.turntable,
             yaw: self.yaw,
             scale: self.scale,
+            seed: self.seed,
         }
     }
 
@@ -200,6 +214,9 @@ impl PropPreviewState {
         if let Some(scale) = change.scale {
             self.scale = scale;
         }
+        if let Some(seed) = change.seed {
+            self.seed = seed;
+        }
         Ok(())
     }
 
@@ -221,7 +238,12 @@ impl PropPreviewState {
                 pos: -Vec3::Y * info.bounds.min.y,
                 rot: self.rotation(),
                 visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
-                prop: Some(PropFrame { definition, scale: self.scale }),
+                prop: Some(PropFrame {
+                    parts: definition.variant(self.seed),
+                    definition,
+                    scale: self.scale,
+                    roles: Default::default(),
+                }),
                 puppet: None,
                 pulse: -1.0,
                 soft: None,

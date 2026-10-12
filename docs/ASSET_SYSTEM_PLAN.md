@@ -287,12 +287,12 @@ Keep `{op, part, fields}`:
 
 ### 5.8 Snapshots, history, rooms
 - **Dedupe.** `SimState` gains `#[serde(default)] prop_defs: PropDefTable`, declared before `physics/entities/world` (sim.rs:101-140), with a field-order test.
-  - The table stores each reachable definition once, with dependencies and mesh files by sha. (Until then, row 2.3 embeds each instance's document with the definitions its references compiled against, so a restore never reads the library.)
+  - The table stores each reachable definition once, with dependencies and mesh files by sha. (Row 2.4: done, keyed by a u64 hash of `PropDef::key`; row 2.3 had embedded each instance's document with the definitions its references compiled against.)
   - `PropInstance.definition` serializes as its key and resolves through a key → `Weak<PropDef>` registry. Legacy inline v1 definitions still load.
   - `state_hash` hashes keys, not definitions.
   - Target: < 64 B per extra instance of one asset (today ~1.5 KB).
 - **History.** Undo/redo becomes `Vec<Option<Value>>` (asset_tools.rs:23-28): old typed files read as Values, and restoring runs migrate + parse. (Landed in row 2.3: format-2 creates need it.)
-- **Rooms.** `asset=`/`scale=` stay. `ObjectDef` gains optional `seed` and `params`, written by `object_toml` when set. `room_check` reports unknown assets with did-you-mean.
+- **Rooms.** `asset=`/`scale=` stay. `ObjectDef` gains optional `seed` and `params`, written by `object_toml` when set. `room_check` reports unknown assets with did-you-mean. (Row 2.4: `seed` and the palette `roles` landed; `params` waits for LIB-4 with `PropInstance.params`.)
 
 ### 5.9 Conformance corpus
 The five examples and three probes in `docs/asset_plan/examples/format2/` become
@@ -1277,7 +1277,7 @@ Why this order:
 - [x] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.3, when the consumers draw compiled parts) (L)
 - [x] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
 - [x] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
-- [ ] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
+- [x] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [ ] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs)
 - [ ] 3.1 MAT-1 material core + MAT-8 Physically Based presets (L)
 - [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, bench, WGSL check (L)

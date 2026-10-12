@@ -10,6 +10,8 @@ use super::read::{OPS, check};
 use super::{PropAsset, validate_part_name};
 use crate::issue::{self, Code, Issue};
 
+pub mod v2;
+
 pub const MAX_OPS: usize = 1024;
 
 impl PropAsset {

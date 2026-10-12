@@ -262,9 +262,16 @@ fn bounds_mm(bounds: props::Bounds) -> Value {
     json!([mm(bounds.min), mm(bounds.max)])
 }
 
-/// The definition as its canonical file writes it: defaults left out. The legend and bounds
-/// are opt-in.
-fn inspect(root: &Path, name: &str, preview: bool, legend: bool, bounds: bool) -> Result<Edited> {
+/// What `inspect` adds on request.
+struct Extras {
+    legend: bool,
+    bounds: bool,
+    resolved: bool,
+}
+
+/// The definition as its canonical file writes it: defaults left out. The legend, bounds and
+/// resolved parts are opt-in.
+fn inspect(root: &Path, name: &str, preview: bool, extras: Extras) -> Result<Edited> {
     let def = read_asset(root, name)?;
     let history_file = history_path(root, name);
     if def.is_none() && (!name.starts_with("WORKSHOP/") || !history_file.is_file()) {
@@ -278,16 +285,72 @@ fn inspect(root: &Path, name: &str, preview: bool, legend: bool, bounds: bool) -
         Some(def) => document(def)?,
         None => Value::Null,
     };
-    if let (Some(def), true) = (&def, bounds) {
+    if let (Some(def), true) = (&def, extras.bounds) {
         // Resolved parts: a format-1 part is its own name; copies and mirrors carry suffixes.
         result["bounds"] = bounds_mm(def.bounds(1.0));
         result["part_bounds"] =
             Value::Object(def.compiled.parts.iter().map(|part| (part.id.clone(), bounds_mm(part.bounds(1.0)))).collect());
     }
-    if legend {
+    if let (Some(def), true) = (&def, extras.resolved) {
+        result["resolved"] = resolved(def);
+    }
+    if extras.legend {
         result["legend"] = json!(props::LEGEND);
     }
     Ok(Edited { report: result, def, dependents: Vec::new(), mutation: false, preview })
+}
+
+/// Each resolved part in the document's unit: its type and size, and its ends for a part
+/// placed by them, else its position and yaw, pitch and roll (zeros left out). A mirror copy
+/// says so: no turn draws it.
+fn resolved(def: &PropDef) -> Value {
+    let per_metre = def.doc.unit.per_metre();
+    let digits = if def.doc.unit == props::doc::Unit::Cm { 100.0 } else { 10_000.0 };
+    let length = |x: f32| ((x * per_metre) as f64 * digits).round() / digits;
+    let point = |v: glam::Vec3| json!(v.to_array().map(length));
+    let angle = |x: f32| (x.to_degrees() as f64 * 100.0).round() / 100.0;
+    let parts = def.compiled.parts.iter().map(|part| {
+        let (centre, half) = part.prim.local_box();
+        let mut row = json!({"type": part.prim.type_name(), "size": point(half * 2.0 * part.scale)});
+        if part.ends {
+            let end = |sign: f32| part.pos + part.rot * ((centre + glam::Vec3::Y * half.y * sign) * part.scale);
+            row["from"] = point(end(-1.0));
+            row["to"] = point(end(1.0));
+        } else {
+            row["pos"] = point(part.pos);
+            let (yaw, pitch, roll) = part.rot.to_euler(glam::EulerRot::YXZ);
+            for (key, value) in [("yaw", yaw), ("pitch", pitch), ("roll", roll)] {
+                if angle(value) != 0.0 {
+                    row[key] = json!(angle(value));
+                }
+            }
+        }
+        if part.mirrored {
+            row["mirrored"] = json!(true);
+        }
+        (part.id.clone(), row)
+    });
+    Value::Object(parts.collect())
+}
+
+/// A batch format 1 reads as its own: set, add and remove of whole format-1 parts and their
+/// fields. Anything else goes through the format-2 view of the document.
+fn format1_batch(ops: &Value) -> bool {
+    let Some(ops) = ops.as_array() else { return true };
+    let part_fields = |object: &serde_json::Map<String, Value>| {
+        object.keys().all(|key| props::PART_FIELDS.iter().any(|(field, _)| field == key))
+    };
+    ops.iter().all(|op| {
+        let Some(op) = op.as_object() else { return true };
+        let plain_part = op.get("part").and_then(Value::as_str).is_some_and(|part| !part.contains('.'));
+        let fields = match (op.get("op").and_then(Value::as_str), op.get("fields"), op.get("value")) {
+            (Some("set"), Some(Value::Object(fields)), None) => part_fields(fields),
+            (Some("add"), None, Some(Value::Object(value))) => part_fields(value),
+            (Some("remove"), None, None) => true,
+            _ => false,
+        };
+        plain_part && fields && op.keys().all(|key| ["op", "part", "fields", "value"].contains(&key.as_str()))
+    })
 }
 
 /// A JSON argument: an object, or text read strictly (a repeated key is an error).
@@ -314,12 +377,12 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
     let extra: &[&str] = match action {
         "create" => &["template", "asset", "description", "if_revision", "dry_run"],
         "copy" => &["from", "description", "if_revision", "dry_run"],
-        "inspect" => &["legend", "bounds"],
+        "inspect" => &["legend", "bounds", "resolved"],
         "check" => &["target", "all"],
         "patch" => &["ops", "if_revision", "dry_run"],
         "replace" => &["asset", "if_revision", "dry_run"],
         "undo" | "redo" => &["if_revision"],
-        "schema" => &["topic"],
+        "schema" => &["topic", "format"],
         _ => bail!(
             "{}",
             Issue::error("action", Code::UnknownValue, format!("unknown action \"{action}\""))
@@ -339,7 +402,9 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
                 "ops",
                 "legend",
                 "bounds",
+                "resolved",
                 "topic",
+                "format",
                 "dry_run",
                 "target",
                 "all",
@@ -512,11 +577,24 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let (action, preview) = check_args(a)?;
     let read_only = |report| Ok(Edited { report, def: None, dependents: Vec::new(), mutation: false, preview: false });
     if action == "schema" {
-        return read_only(props::schema(get_str(a, "topic")).map_err(|e| anyhow!(e))?);
+        let guide = match a.get("format") {
+            None => props::schema(get_str(a, "topic")),
+            Some(format) if format == 1 => props::schema(get_str(a, "topic")),
+            Some(format) if format == 2 => props::format2::schema(get_str(a, "topic")),
+            Some(format) => {
+                bail!("{}", Issue::error("format", Code::UnknownValue, format!("format {format}")).expected("1 or 2"))
+            }
+        };
+        return read_only(guide.map_err(|e| anyhow!(e))?);
     }
     let name = props::canonical(get_str(a, "name").ok_or_else(|| anyhow!("name= names the asset"))?).map_err(|e| anyhow!(e))?;
     if action == "inspect" {
-        return inspect(root, &name, preview, get_bool(a, "legend", false)?, get_bool(a, "bounds", false)?);
+        let extras = Extras {
+            legend: get_bool(a, "legend", false)?,
+            bounds: get_bool(a, "bounds", false)?,
+            resolved: get_bool(a, "resolved", false)?,
+        };
+        return inspect(root, &name, preview, extras);
     }
     if action == "check" {
         let def = read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'; assets find=WORDS searches the library"))?;
@@ -565,6 +643,8 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         step.map(|value| Doc::from_value(&value).map_err(|issues| anyhow!("saved history: {}", issue::render(&issues))))
             .transpose()
     };
+    // A format-2 batch, kept to name its operations in compile errors too.
+    let mut patched: Option<props::Patched> = None;
     let next = match action {
         "create" | "copy" => {
             let mut doc = if action == "create" && a.contains_key("asset") {
@@ -605,14 +685,18 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
             let current = before.as_ref().ok_or_else(|| anyhow!("no asset {name}; use action=create or action=copy first"))?;
             Some(match action {
                 "patch" => {
-                    let Some(asset) = &current.v1 else {
-                        bail!(
-                            "{}",
-                            Issue::error("ops", Code::Format, "patch ops edit format-1 assets; this one is format 2")
-                                .fix("send the whole document with action=replace")
-                        );
-                    };
-                    Doc::from_v1(&asset.patch(&json_arg(a, "ops")?).map_err(|e| anyhow!(e))?)
+                    let ops = json_arg(a, "ops")?;
+                    match &current.v1 {
+                        // Format 1's own batches keep format 1's checks and messages.
+                        Some(asset) if format1_batch(&ops) => Doc::from_v1(&asset.patch(&ops).map_err(|e| anyhow!(e))?),
+                        _ => {
+                            let result = props::patch_document(&current.doc, &ops, &props::get)
+                                .map_err(|issues| anyhow!(issue::render(&issues)))?;
+                            let doc = result.doc.clone();
+                            patched = Some(result);
+                            doc
+                        }
+                    }
                 }
                 "replace" => definition(json_arg(a, "asset")?, &name, false)?,
                 _ => unreachable!("action was checked"),
@@ -622,7 +706,12 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     if next.as_ref().is_some_and(|doc| doc.name != leaf) {
         bail!("saved history has a different asset name; cannot restore it as {name}");
     }
-    let next = next.map(compiled).transpose()?;
+    let next = match &patched {
+        Some(patched) => {
+            next.map(|doc| PropDef::new(doc).map_err(|issues| anyhow!(issue::render(&patched.readdress(issues))))).transpose()?
+        }
+        None => next.map(compiled).transpose()?,
+    };
     // What the registry would refuse (a reference back to this asset, or removing one that
     // others reference) changes nothing on disk either.
     match &next {

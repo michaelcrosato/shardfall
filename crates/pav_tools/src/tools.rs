@@ -640,7 +640,9 @@ pub static TOOLS: &[Tool] = &[
             arg("preview", "boolean", "show the result on the stage (default true)"),
             arg("legend", "boolean", "inspect: add the coordinate legend"),
             arg("bounds", "boolean", "inspect: add asset and part bounds in metres"),
-            arg("topic", "string", "schema: legend, document, part, shapes, ops or limits"),
+            arg("resolved", "boolean", "inspect: list every resolved part (copies, mirrors) in the asset's unit"),
+            arg("topic", "string", "schema: one section, e.g. shapes or ops"),
+            arg("format", "integer", "schema: 2 for format 2's guide (default 1)"),
             arg("dry_run", "boolean", "report the result without saving"),
             arg("target", "string", "check: target size WxHxD in cm"),
             arg("all", "boolean", "check: every finding, not the first 10"),
@@ -662,6 +664,7 @@ pub static TOOLS: &[Tool] = &[
             arg("turntable", "boolean", "spin the object while the clock runs"),
             arg("yaw", "number", "base rotation in degrees"),
             arg("scale", "number", "uniform preview scale"),
+            arg("seed", "integer", "which variant (chance, jitter, pick); default 0"),
             arg("views", "array", "true = front,right,back,iso; or sides (left, top) and degrees"),
             arg("elevation", "number", "views: degrees above the horizon (default 20), or game"),
             arg("tile", "integer", "views: pixels per side (default 240)"),
@@ -740,6 +743,8 @@ pub static TOOLS: &[Tool] = &[
             arg("scale", "number", "uniform scale (default 1)"),
             arg("collide", "boolean", "collide with the solid parts (default true)"),
             arg("room", "string|integer|null", "room key or id to save with; null for none"),
+            arg("seed", "integer", "which variant (chance, jitter, pick); default 0"),
+            arg("roles", "object", "colours for theme roles, e.g. {\"$wall\":\"#5a6b7c\"}"),
         ],
         run: crate::asset_preview_tools::t_asset_spawn,
     },
@@ -1523,7 +1528,24 @@ fn t_room_check(_: &mut Session, a: &Args) -> Result<Output> {
     let path = get_str(a, "path").context("missing path")?;
     let text = std::fs::read_to_string(path)?;
     Ok(Output::Json(match pav_core::room::RoomDef::parse(&text) {
-        Ok(d) => json!({ "ok": true, "name": d.name, "size": d.layout.extent(), "objects": d.objects.len() }),
+        // The file reads; each prop it places must also be in the library.
+        Ok(d) => {
+            let unknown: Vec<String> = d
+                .objects
+                .iter()
+                .filter_map(|o| {
+                    let asset = o.asset.as_ref()?;
+                    let missing = pav_core::props::get(asset).is_none();
+                    missing.then(|| format!("object '{}': {}", o.name, pav_core::props::unknown_asset(asset)))
+                })
+                .collect();
+            let mut out =
+                json!({ "ok": unknown.is_empty(), "name": d.name, "size": d.layout.extent(), "objects": d.objects.len() });
+            if !unknown.is_empty() {
+                out["error"] = json!(unknown.join("; "));
+            }
+            out
+        }
         Err(e) => json!({ "ok": false, "error": e }),
     }))
 }

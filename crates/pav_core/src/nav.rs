@@ -91,7 +91,7 @@ impl NavGrid {
             }
             if let Some(prop) = &e.prop {
                 if prop.collide {
-                    for part in prop.definition.compiled.parts.iter().filter(|p| p.solid) {
+                    for part in prop.parts().parts.iter().filter(|p| p.solid) {
                         let b = crate::prop_instance::transform_bounds(part.bounds(prop.scale), e.pos, e.rot);
                         if b.min.y <= 1.6 && b.max.y >= 0.3 {
                             mark(

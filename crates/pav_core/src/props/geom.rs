@@ -81,6 +81,24 @@ pub enum Primitive {
 }
 
 impl Primitive {
+    /// The format-2 type that makes this shape.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Primitive::Box { .. } => "box",
+            Primitive::RoundedBox { .. } => "rounded_box",
+            Primitive::Sphere { .. } => "sphere",
+            Primitive::Ellipsoid { .. } => "ellipsoid",
+            Primitive::Capsule { .. } => "capsule",
+            Primitive::Cylinder { radius, radius_end, .. } if radius == radius_end => "cylinder",
+            Primitive::Cylinder { .. } => "cone",
+            Primitive::Tube { .. } => "tube",
+            Primitive::Torus { .. } => "torus",
+            Primitive::Wedge { .. } => "wedge",
+            Primitive::Lathe { .. } => "lathe",
+            Primitive::Extrude { .. } => "extrude",
+        }
+    }
+
     /// The box that holds the drawn shape, as centre and half size in the local frame. An arc's
     /// box is its visible sector.
     pub fn local_box(&self) -> (Vec3, Vec3) {

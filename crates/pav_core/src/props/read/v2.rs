@@ -201,8 +201,8 @@ pub const LIMITS: &str = "1-256 nodes (groups and refs included), 1024 parts aft
 array and radial 64 copies; grid 32x32 and 256 copies; lights 4 and fx 4 after copies; sizes 0.001-1000 m \
 after the unit; pos within 10000 m; angles within 36000 degrees";
 
-/// The format-2 field guide. Topics: legend, document, node, shapes, materials, limits; none
-/// gives all of them.
+/// The format-2 field guide. Topics: legend, document, node, shapes, materials, ops, limits;
+/// none gives all of them.
 pub fn schema(topic: Option<&str>) -> Result<Value, String> {
     let sections = vec![
         ("legend", json!(LEGEND)),
@@ -210,6 +210,7 @@ pub fn schema(topic: Option<&str>) -> Result<Value, String> {
         ("node", super::pairs(NODE_FIELDS)),
         ("shapes", super::triples(SHAPES)),
         ("materials", super::pairs(MATERIAL_FIELDS)),
+        ("ops", super::triples(crate::props::OPS2)),
         ("limits", json!(LIMITS)),
     ];
     super::guide(2, sections, topic, "asset_edit action=copy from=BUILTIN/bench name=x, then one patch batch")

@@ -5,6 +5,60 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 2.4: format-2 patches, one definition per snapshot, seeds — 2026-10-12
+
+Row 2.4 of `docs/ASSET_SYSTEM_PLAN.md` (F6, F7). Format-2 assets are edited by patch, a snapshot
+carries each definition once, and placed copies take a seed and a palette.
+- **Patch ops on format 2** (`props/patch/v2.rs`). A batch applies to the document's format-2
+  view, then the result is read, checked and compiled whole, at most 1,024 ops, atomically.
+  - Targets: `part` (dotted through groups), `parts:[…]`, `material`, `socket`, or none for
+    the document's own fields. `fields` take dotted keys (`"radial.count":12`) and `null`
+    deletes; a `type` replaces the shape fields, and `size`/`half` (or `height`/`half_height`)
+    replace each other.
+  - Ops: set, add (into a group by a dotted id), remove, rename (attach and socket targets
+    follow; for a material, its `mat`, cycle and remap references), copy, mirror, array, expand,
+    move, scale and unit. Each problem names its op (`ops[0] stones.ring.radial.count: 0 is
+    outside 1 to 64`), compile errors too.
+  - `expand` replaces a replicated node by parts `<id>_<i>` placed where its copies were: ends
+    stay ends (a spin keeps the cross-section turned), positions take yaw/pitch/roll, attached
+    copies shift their offset, cycle entries become each copy's `mat` or `color`, and an arc
+    keeps its facing on quarter turns (other turns are refused). An attachment to one copy
+    follows it; one to the whole node is refused. Tests expand all 11 replicated nodes of the
+    fixtures, and radial copies of ends, of turned wedges, of attached tabs and of arcs, and
+    compare every compiled part's hull within 0.01 cm.
+  - `unit` converts every length (parts, steps, light radius, fx area, sockets, material
+    pattern sizes); `scale` multiplies lengths about each part's centre, or the whole asset
+    about the origin (a reference's `scale` grows with it). Every fixture converted to metres
+    and back compiles to the same parts.
+  - Format-1 assets keep format 1's own batches (set, add and remove of format-1 fields, with
+    the same messages); other ops go through the format-2 view, and the result saves in format
+    1 while it fits.
+- **Tools.** `asset_edit action=patch` edits format-2 assets. `action=inspect resolved=true`
+  lists every drawn part in the asset's unit: type and size, then from/to for a part placed by
+  its ends, else pos and yaw/pitch/roll, and `mirrored` for a mirror copy. `action=schema
+  format=2` is format 2's guide with an `ops` topic (the default stays format 1 until row 2.5).
+- **Snapshot dedupe** (`props/table.rs`). `SimState::prop_defs`, declared first (a test checks
+  the field order), holds each definition the placed copies use once, with what their
+  references compiled against; a copy names its definition by key. A `PropInstance` is 59-61 B
+  for the templates, and an extra bench costs its 411 B entity instead of also carrying its
+  1,079 B definition. `state_hash` hashes the keys. `snapshot()`, `save_state` and `restore`
+  rebuild the table from the placed copies, awake or asleep. Snapshots from before the table,
+  with definitions inline, still load to the same `state_hash`, and save with a table again.
+- **Seeds and palettes.** `PropInstance` gains `seed` (the variant it draws and collides with)
+  and `roles` (colours for `$wall`…, else `DEFAULT_ROLES`). `asset_spawn` takes `seed=` and
+  `roles=`, `asset_preview` and its contact sheets `seed=`. Room objects take `seed` and `roles`
+  (written back by the room editor, documented in `rooms/_template.toml`), and `room_check`
+  names an asset the library lacks, with did-you-mean.
+- Fix: the end-to-end test stool from row 2.3 had its three legs in one place (a `radial` of
+  radius 0 turns copies about their own centre); they now stand 12 cm out.
+- Decisions:
+  - `ObjectDef.params` waits for LIB-4, with `PropInstance.params` (§5.5): before parametric
+    families there is nothing for a room's params to set.
+  - A snapshot key is the FNV-1a hash of `PropDef::key` (a u64), so a copy fits in 64 B with
+    its asset name.
+  - The placement tools name the variant `seed=`, as the plan does. Like other tools' seeds, a
+    one-shot `pav <tool> seed=N` also seeds that call's session.
+
 ## Asset plan 2.3: compiled parts drive every consumer — 2026-10-12
 
 Row 2.3 of `docs/ASSET_SYSTEM_PLAN.md` (F5, TOOLS-10 and lint on compiled parts). Everything

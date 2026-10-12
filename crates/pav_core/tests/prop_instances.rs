@@ -277,3 +277,153 @@ fn snapshots_keep_the_definitions_references_compiled_against() {
 fn shapes_of(sim: &Sim, id: EntityId) -> usize {
     if sim.state.entities.get(id).unwrap().body.is_none() { 0 } else { compound_parts(sim, id) }
 }
+
+/// A definition written into a snapshot the way snapshots before the table carried it.
+struct Inline<'a>(&'a Arc<PropDef>);
+
+impl serde::Serialize for Inline<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        props::embedded::serialize(self.0, serializer)
+    }
+}
+
+fn cbor<T: serde::Serialize>(value: &T) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    ciborium::into_writer(value, &mut bytes).unwrap();
+    bytes
+}
+
+#[test]
+fn snapshots_carry_each_definition_once_and_copies_name_it() {
+    let stool = serde_json::json!({"format":2,"name":"dedupe_stool","unit":"cm","parts":{
+        "seat":{"type":"cylinder","radius":18,"height":4,"pos":[0,45,0],"color":"#8a5a35"}}});
+    props::install("WORKSHOP/dedupe_stool", PropDef::new(Doc::from_value(&stool).unwrap()).unwrap()).unwrap();
+    let pair = serde_json::json!({"format":2,"name":"dedupe_pair","unit":"cm","parts":{
+        "a":{"ref":"WORKSHOP/dedupe_stool","pos":[-30,0,0]},"b":{"ref":"WORKSHOP/dedupe_stool","pos":[30,0,0]}}});
+    props::install("WORKSHOP/dedupe_pair", PropDef::new(Doc::from_value(&pair).unwrap()).unwrap()).unwrap();
+    let mut sim = Sim::empty(31);
+    let benches: Vec<EntityId> = (0..9)
+        .map(|i| sim.spawn_prop("BUILTIN/bench", Vec3::new(i as f32 * 3.0, 0.0, 0.0), Quat::IDENTITY, 1.0, true, None).unwrap())
+        .collect();
+    let pair = sim.spawn_prop("WORKSHOP/dedupe_pair", Vec3::new(0.0, 0.0, 6.0), Quat::IDENTITY, 1.0, true, None).unwrap();
+    let snapshot = sim.snapshot();
+    assert_eq!(snapshot.prop_defs.len(), 3, "the bench, the pair and the stool it references, once each");
+
+    // A copy names its definition by key: well under 64 bytes, however big the asset.
+    let bench = sim.state.entities.get(benches[0]).unwrap().prop.clone().unwrap();
+    assert!(cbor(&bench).len() < 64, "{} bytes", cbor(&bench).len());
+    // Another bench (without a body, whose compound physics stores itself) adds its entity
+    // and nothing more.
+    let mut more = Sim::empty(31);
+    more.restore(snapshot.clone());
+    let extra = more.spawn_prop("BUILTIN/bench", Vec3::new(40.0, 0.0, 0.0), Quat::IDENTITY, 1.0, false, None).unwrap();
+    let one_more = cbor(&more.snapshot()).len() - cbor(&snapshot).len();
+    let entity = cbor(more.state.entities.get(extra).unwrap()).len();
+    assert!(one_more <= entity + 8, "an extra bench costs its entity ({entity} B), not its definition: {one_more} B");
+
+    // The table comes first, so a restore reads definitions before the copies naming them.
+    let ciborium::Value::Map(fields) = ciborium::from_reader(cbor(&snapshot).as_slice()).unwrap() else { panic!() };
+    let names: Vec<String> = fields.iter().filter_map(|(key, _)| key.as_text().map(String::from)).collect();
+    assert_eq!(names[0], "prop_defs");
+    assert!(["physics", "entities", "world"].iter().all(|field| names.contains(&field.to_string())));
+
+    // Saved and loaded with the library emptied of both: the same state, one shared bench.
+    let hash = sim.state_hash();
+    let bytes = cbor(&snapshot);
+    props::remove("WORKSHOP/dedupe_pair").unwrap();
+    props::remove("WORKSHOP/dedupe_stool").unwrap();
+    sim.restore(ciborium::from_reader(bytes.as_slice()).unwrap());
+    assert_eq!(sim.state_hash(), hash);
+    let definition = |sim: &Sim, id: EntityId| sim.state.entities.get(id).unwrap().prop.as_ref().unwrap().definition.clone();
+    assert!(benches.iter().all(|id| Arc::ptr_eq(&definition(&sim, *id), &definition(&sim, benches[0]))));
+    assert_eq!(definition(&sim, pair).compiled.parts.len(), 2);
+
+    // A snapshot from before the table, each copy carrying its definition inline, still loads.
+    let defs: std::collections::BTreeMap<u64, Arc<PropDef>> =
+        [definition(&sim, benches[0]), definition(&sim, pair)].into_iter().map(|def| (def.snapshot_key(), def)).collect();
+    fn inline(value: &mut ciborium::Value, defs: &std::collections::BTreeMap<u64, Arc<PropDef>>) {
+        match value {
+            ciborium::Value::Map(entries) => {
+                for (key, value) in entries.iter_mut() {
+                    if key.as_text() == Some("definition") {
+                        if let Some(id) = value.as_integer() {
+                            *value = ciborium::Value::serialized(&Inline(&defs[&u64::try_from(id).unwrap()])).unwrap();
+                            continue;
+                        }
+                    }
+                    inline(value, defs);
+                }
+            }
+            ciborium::Value::Array(items) => items.iter_mut().for_each(|item| inline(item, defs)),
+            _ => {}
+        }
+    }
+    let mut legacy: ciborium::Value = ciborium::from_reader(bytes.as_slice()).unwrap();
+    inline(&mut legacy, &defs);
+    let ciborium::Value::Map(fields) = &mut legacy else { panic!() };
+    fields.retain(|(key, _)| key.as_text() != Some("prop_defs"));
+    sim.restore(ciborium::from_reader(cbor(&legacy).as_slice()).unwrap());
+    assert_eq!(sim.state_hash(), hash);
+    assert_eq!(definition(&sim, pair).compiled.parts.len(), 2);
+    // Saved again, it carries the table its copies need.
+    let resaved = sim.snapshot();
+    assert_eq!(resaved.prop_defs.len(), 3);
+    sim.restore(ciborium::from_reader(cbor(&resaved).as_slice()).unwrap());
+    assert_eq!(sim.state_hash(), hash);
+}
+
+#[test]
+fn seeds_and_palettes_follow_a_copy_through_snapshots_and_rooms() {
+    let mut parts = serde_json::Map::new();
+    for i in 0..8 {
+        parts.insert(
+            format!("stone_{i}"),
+            serde_json::json!({"type":"box","size":[10,10,10],"pos":[i * 15, 5, 0],"color":"$wall","chance":0.5}),
+        );
+    }
+    let doc = serde_json::json!({"format":2,"name":"seeded_rubble","unit":"cm","parts":parts});
+    props::install("WORKSHOP/seeded_rubble", PropDef::new(Doc::from_value(&doc).unwrap()).unwrap()).unwrap();
+    let definition = props::get("WORKSHOP/seeded_rubble").unwrap();
+    let seed = (1..64).find(|seed| definition.variant(*seed).parts.len() != definition.compiled.parts.len()).unwrap();
+    let mut sim = Sim::empty(37);
+    let roles: std::collections::BTreeMap<String, String> = [("$wall".to_string(), "#40506a".to_string())].into();
+    let copy = PropInstance::new("WORKSHOP/seeded_rubble", definition.clone(), 1.0, true)
+        .unwrap()
+        .with_seed(seed)
+        .with_roles(roles.clone())
+        .unwrap();
+    let id = sim.place_prop(copy, Vec3::ZERO, Quat::IDENTITY, None).unwrap();
+    let drawn = definition.variant(seed).parts.len();
+    assert_eq!(sim.frame().objects[0].prop.as_ref().unwrap().parts.parts.len(), drawn);
+    assert_eq!(sim.frame().objects[0].prop.as_ref().unwrap().roles, roles);
+    assert_eq!(shapes_of(&sim, id), drawn, "the copy collides with the parts its seed keeps");
+    let hash = sim.state_hash();
+    sim.restore(ciborium::from_reader(cbor(&sim.snapshot()).as_slice()).unwrap());
+    assert_eq!((sim.state_hash(), shapes_of(&sim, id)), (hash, drawn));
+    assert!(
+        PropInstance::new("WORKSHOP/seeded_rubble", definition.clone(), 1.0, true)
+            .unwrap()
+            .with_roles([("$wal".to_string(), "#40506a".to_string())].into())
+            .unwrap_err()
+            .contains("did you mean \"$wall\"?")
+    );
+
+    // A room writes them back and builds its copy with them.
+    let source = pav_core::room::load_sources(None).into_iter().find(|r| r.key == "sandbox").unwrap();
+    let object: pav_core::room::ObjectDef = toml::from_str(&format!(
+        "name = \"rubble\"\nasset = \"WORKSHOP/seeded_rubble\"\npos = [3.0, 0.0, 4.0]\nbody = \"fixed\"\nseed = {seed}\nroles = {{ \"$wall\" = \"#40506a\" }}\n"
+    ))
+    .unwrap();
+    let text = pav_core::world::object_toml(&object);
+    assert!(text.ends_with(&format!("seed = {seed}\nroles = {{ \"$wall\" = \"#40506a\" }}\n")), "{text}");
+    let room = pav_core::room::RoomDef::parse(&pav_core::world::rewrite_room_objects(&source.text, &[object])).unwrap();
+    assert_eq!((room.objects[0].seed, &room.objects[0].roles), (seed, &roles));
+    let mut sim = Sim::empty(41);
+    sim.build_world(vec![("rubble_room".into(), room)], Vec::new());
+    sim.teleport_to_room("rubble_room");
+    let rubble = sim.state.entities.find("rubble").unwrap();
+    let prop = rubble.prop.as_ref().unwrap();
+    assert_eq!((prop.seed, &prop.roles), (seed, &roles));
+    let room_id = sim.state.world.room("rubble_room").unwrap().id;
+    assert_eq!(sim.room_objects(room_id)[0].seed, seed);
+}

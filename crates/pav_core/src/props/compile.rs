@@ -80,6 +80,8 @@ pub struct ResolvedPart {
     pub mirrored: bool,
     /// The emissive glow may light the surroundings (the part has no light of its own).
     pub glow_light: bool,
+    /// Placed by its ends (`from`/`to`): its local y runs from one to the other.
+    pub ends: bool,
     /// The centre and half size of the part's box (its position for centred shapes): exact
     /// for every shape but arcs, and format 1's own bounds for its shapes.
     pub centre: Vec3,
@@ -312,7 +314,7 @@ struct Compiler<'a> {
 }
 
 /// Format 1's angles: YXZ, degrees.
-fn euler(yaw: f32, pitch: f32, roll: f32) -> Quat {
+pub(crate) fn euler(yaw: f32, pitch: f32, roll: f32) -> Quat {
     Quat::from_euler(EulerRot::YXZ, yaw.to_radians(), pitch.to_radians(), roll.to_radians())
 }
 
@@ -339,7 +341,7 @@ fn axis_vector(axis: Axis) -> Vec3 {
 
 /// The frame of a part placed by its two ends: local +y runs from → to; local +z is the parent's
 /// +y made perpendicular to it (+z when the axis is exactly vertical); x = y × z.
-fn ends_frame(from: Vec3, to: Vec3) -> Quat {
+pub(crate) fn ends_frame(from: Vec3, to: Vec3) -> Quat {
     let y = (to - from).normalize();
     let z = if y.y.abs() >= 1.0 - 1e-6 { Vec3::Z } else { (Vec3::Y - y * y.y).normalize() };
     Quat::from_mat3(&Mat3::from_cols(y.cross(z), y, z)).normalize()
@@ -850,6 +852,7 @@ impl<'a> Compiler<'a> {
             sway: node.sway.unwrap_or_default(),
             mirrored,
             glow_light: node.light.is_none(),
+            ends: node.from.is_some() && node.to.is_some(),
             centre,
             extent,
         });

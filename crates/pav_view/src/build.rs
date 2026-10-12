@@ -1,6 +1,6 @@
 //! Scene building: interpolates between two simulation frames and emits render instances.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
@@ -875,15 +875,15 @@ impl ViewBuilder {
 
     /// A placed prop: its compiled parts, their lights, and their particles.
     fn emit_prop(&mut self, scene: &mut Scene, o: &RenderObject, prop: &PropFrame, settings: &ViewSettings, time: f32, dt: f32) {
-        let compiled = &prop.definition.compiled;
+        let compiled = &prop.parts;
         let scale = prop.scale;
         let at = |pos: Vec3| o.pos + o.rot * (pos * scale);
         for part in compiled.parts.iter().filter(|part| !part.hidden) {
-            emit_prim(scene, &mut self.generated, part, o, scale, settings.style);
+            emit_prim(scene, &mut self.generated, part, o, scale, settings.style, &prop.roles);
         }
         for (i, light) in compiled.lights.iter().enumerate() {
             let def = LightDef {
-                color: role_hex(&light.color).to_owned(),
+                color: role_hex(&light.color, &prop.roles).to_owned(),
                 radius: light.radius * scale,
                 intensity: light.intensity,
                 flicker: light.flicker,
@@ -898,7 +898,7 @@ impl ViewBuilder {
                 let def = EmitterDef {
                     preset: fx.preset.clone(),
                     rate: fx.rate,
-                    color: role_hex(&fx.color).to_owned(),
+                    color: role_hex(&fx.color, &prop.roles).to_owned(),
                     size: fx.size * scale,
                     speed: fx.speed,
                     life: fx.life,
@@ -1666,17 +1666,21 @@ fn mesh_data(mesh: &GeomMesh) -> MeshData {
     }
 }
 
-/// A colour as written, with a theme role (`$light`) through the default palette.
-fn role_hex(color: &str) -> &str {
+/// A colour as written, with a theme role (`$light`) through the copy's palette, else the
+/// default one.
+fn role_hex<'a>(color: &'a str, roles: &'a BTreeMap<String, String>) -> &'a str {
     match color.strip_prefix('$') {
-        Some(_) => DEFAULT_ROLES.iter().find(|(role, _)| *role == color).map_or("#808080", |(_, hex)| *hex),
+        Some(_) => roles
+            .get(color)
+            .map(String::as_str)
+            .unwrap_or_else(|| DEFAULT_ROLES.iter().find(|(role, _)| *role == color).map_or("#808080", |(_, hex)| *hex)),
         None => color,
     }
 }
 
 /// A part's linear colour: its role resolved, then its tint.
-fn part_color(color: &str, tint: f32) -> Vec3 {
-    v3(Color::hex(role_hex(color))) * tint
+fn part_color(color: &str, tint: f32, roles: &BTreeMap<String, String>) -> Vec3 {
+    v3(Color::hex(role_hex(color, roles))) * tint
 }
 
 /// One compiled part of a prop. Format 1's shapes go through `emit_shape`, so a format-1 asset
@@ -1689,11 +1693,12 @@ fn emit_prim(
     o: &RenderObject,
     scale: f32,
     ov: StyleOverride,
+    roles: &BTreeMap<String, String>,
 ) {
     let s = part.scale * scale;
     let pos = o.pos + o.rot * (part.pos * scale);
     let rot = o.rot * part.rot;
-    let color = part_color(&part.color, part.tint);
+    let color = part_color(&part.color, part.tint, roles);
     let (emissive, style, group) = (part.emissive, style_of(part.look, ov), o.id.0 + 2);
     if part.sway == Sway::Grass {
         let (centre, half) = part.prim.local_box();
@@ -1835,7 +1840,7 @@ mod tests {
             pos,
             rot,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
-            prop: Some(PropFrame { definition, scale }),
+            prop: Some(PropFrame { parts: definition.compiled.clone(), definition, scale, roles: Default::default() }),
             puppet: None,
             pulse: -1.0,
             soft: None,
@@ -1947,7 +1952,7 @@ mod tests {
             assert_eq!(scene.point_lights.len(), compiled.lights.len() + glow, "{name}: part lights and glow");
             if name == "wall_torch" {
                 // The flame's light is `$light`: the palette's warm colour, not a fallback white.
-                let warm = v3(Color::hex(role_hex("$light")));
+                let warm = v3(Color::hex(role_hex("$light", &BTreeMap::new())));
                 // Part lights come after the parts' glow.
                 let light = scene.point_lights.last().unwrap().color.normalize();
                 assert!(light.distance(warm.normalize()) < 1e-4 && warm.x > warm.z, "{light}");
