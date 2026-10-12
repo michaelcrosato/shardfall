@@ -14,7 +14,8 @@ assets can be created, drawn and placed.
   the assets that reference it, recompiled; the library keeps definitions only. `PropInstance`
   and `PropFrame` hold the definition. Snapshots still embed each instance's document: a
   format-1 definition writes exactly the bytes it always wrote (state hashes of existing worlds
-  are unchanged), a format-2 one its canonical document, compiled again on load.
+  are unchanged), a format-2 one its canonical document and the definitions its references
+  compiled against, compiled again from those alone on load.
 - **Exactly format 1.** A part's box is now exact per shape (`centre`/`extent`, format 1's own
   formulas for its shapes) and `bounds(scale)` matches format 1's bounds bit for bit at any
   scale. Frames skip identity turns instead of multiplying by them, so a format-1 part keeps its
@@ -70,6 +71,19 @@ assets can be created, drawn and placed.
   - Not changed: `attach` resolves against the target's authored placement, before its
     chance, jitter and pick. Moving attachments with a jittered target would mean resolving
     anchors per seed and per copy; no asset needs that yet.
+- **Review follow-ups from this row** (the Codex review of its PR, each finding verified first):
+  - A snapshot carried a format-2 instance's own document only, and a restore compiled its
+    references against the live library: editing a referenced asset changed a saved world and
+    removing it broke the load. It now embeds `{"document", "refs"}` with the definitions the
+    references compiled against, and a restore reads only those.
+  - `asset_edit` wrote the file and its history before the registry could refuse the edit (a
+    stool replaced to hold the pair of stools that holds it). It now asks first
+    (`props::check_install`/`check_remove`) and writes nothing on a refusal; if publishing still
+    fails, the asset file and its history are put back.
+  - The file watcher retries a file that failed while others in the same batch load, so a file
+    that references one later in the batch loads in the same pass.
+  - `asset_preview views=true` on a prop that draws nothing (every part hidden or left out at
+    seed 0) says so instead of framing an empty sheet.
 - Decisions:
   - Undo history as JSON documents moved here from F6: format-2 creates need it.
   - `grip` sockets anchor the floor rules like `hang` (the plan named `hang` and

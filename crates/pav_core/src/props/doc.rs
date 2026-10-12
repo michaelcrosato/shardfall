@@ -541,8 +541,16 @@ impl Doc {
 
     /// Read a document of either format. Errors list every problem with its path.
     pub fn from_value(value: &Value) -> Result<Self, Vec<Issue>> {
+        Self::from_value_in(value, &super::get)
+    }
+
+    /// `from_value` with references found in `assets` instead of the library.
+    pub(crate) fn from_value_in(
+        value: &Value,
+        assets: &dyn Fn(&str) -> Option<std::sync::Arc<super::PropDef>>,
+    ) -> Result<Self, Vec<Issue>> {
         match read::migrate(value).map_err(|issue| vec![issue])? {
-            2 => read::v2::doc(value, &super::get),
+            2 => read::v2::doc(value, assets),
             _ => PropAsset::from_v1_value(value.clone()).map(|asset| Self::from_v1(&asset)),
         }
     }

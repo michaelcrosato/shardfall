@@ -289,6 +289,13 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
     let lift = -Vec3::Y * bounds.min.y;
     let drawn = asset.compiled.parts.iter().filter(|part| !part.hidden);
     let mut points: Vec<Vec3> = drawn.flat_map(|part| part.hull(1.0)).map(|p| p + lift).collect();
+    if points.is_empty() {
+        bail!(
+            "{}",
+            Issue::error("name", Code::Missing, format!("{name} draws nothing: every part is hidden or left out at seed 0"))
+                .fix("asset_edit action=inspect bounds=true measures the hidden parts")
+        );
+    }
     let wanted = opt_bool(a, "figure")?.unwrap_or(false);
     let figure = wanted && (0.5..=20.0).contains(&bounds.size().max_element());
     if figure {

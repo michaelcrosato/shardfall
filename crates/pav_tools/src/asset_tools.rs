@@ -623,13 +623,14 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         bail!("saved history has a different asset name; cannot restore it as {name}");
     }
     let next = next.map(compiled).transpose()?;
-    if next.is_none() && before.is_some() {
-        // An undo that would remove an asset others reference changes nothing.
-        let users = props::dependents(&name);
-        if !users.is_empty() {
-            bail!("{name} is referenced by {}; change or remove those first", users.join(", "));
-        }
+    // What the registry would refuse (a reference back to this asset, or removing one that
+    // others reference) changes nothing on disk either.
+    match &next {
+        Some(def) => props::check_install(&name, def),
+        None if before.is_some() => props::check_remove(&name),
+        None => Ok(()),
     }
+    .map_err(|e| anyhow!(e))?;
     let next_revision = revision(next.as_ref());
     let changed_parts = changed_parts(before.as_ref().map(|def| &def.doc), next.as_ref().map(|def| &def.doc));
     let check = new_findings(before.as_deref(), next.as_ref());
@@ -660,30 +661,40 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         history.redo.clear();
     }
     history.head = next_revision;
-    atomic_write(&history_file, &serde_json::to_vec(&history)?)?;
     let path = asset_path(root, &name);
+    let old_asset = if path.is_file() { Some(std::fs::read(&path)?) } else { None };
+    // A failed save or publish puts the files back: the history always, the asset once written.
+    let put_back = |error: anyhow::Error, asset_written: bool| -> anyhow::Error {
+        let restore = |file: &Path, old: Option<&[u8]>| match old {
+            Some(bytes) => atomic_write(file, bytes),
+            None => std::fs::remove_file(file).map_err(anyhow::Error::from),
+        };
+        let restored = restore(&history_file, old_history.as_deref());
+        if !asset_written {
+            return match restored {
+                Ok(()) => error,
+                Err(restore_error) => error.context(format!("the asset is unchanged; history restore failed: {restore_error}")),
+            };
+        }
+        match restored.and_then(|()| restore(&path, old_asset.as_deref())) {
+            Ok(()) => error,
+            Err(restore_error) => error.context(format!("restoring the asset file and its history failed: {restore_error}")),
+        }
+    };
+    atomic_write(&history_file, &serde_json::to_vec(&history)?)?;
     let save = match &next {
         Some(def) => atomic_write(&path, def.doc.text().as_bytes()),
         None => std::fs::remove_file(&path).with_context(|| format!("remove {}", path.display())),
     };
     if let Err(error) = save {
-        let restored = match old_history {
-            Some(bytes) => atomic_write(&history_file, &bytes),
-            None => std::fs::remove_file(&history_file).map_err(anyhow::Error::from),
-        };
-        return match restored {
-            Ok(()) => Err(error),
-            Err(history_error) => Err(error.context(format!("the asset is unchanged; history restore failed: {history_error}"))),
-        };
+        return Err(put_back(error, false));
     }
     let parts = next.as_ref().map(|def| def.compiled.parts.len()).unwrap_or(0);
-    let dependents = match next {
-        Some(def) => props::install(&name, def).map_err(|e| anyhow!(e))?,
-        None => {
-            props::remove(&name).map_err(|e| anyhow!(e))?;
-            Vec::new()
-        }
+    let published = match next {
+        Some(def) => props::install(&name, def),
+        None => props::remove(&name).map(|_| Vec::new()),
     };
+    let dependents = published.map_err(|error| put_back(anyhow!(error), true))?;
     let def = props::get(&name);
     let mut result = report(&name, def.as_deref(), &history, true);
     if matches!(action, "create" | "copy") {

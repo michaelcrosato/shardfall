@@ -240,6 +240,39 @@ fn format2_fixtures_place_collide_and_survive_snapshots() {
     }
 }
 
+#[test]
+fn snapshots_keep_the_definitions_references_compiled_against() {
+    let stool = |height: f32| {
+        let doc = serde_json::json!({"format":2,"name":"snap_stool","unit":"cm","parts":{
+            "seat":{"type":"cylinder","radius":18,"height":height,"pos":[0,45,0],"color":"#8a5a35"}}});
+        PropDef::new(Doc::from_value(&doc).unwrap()).unwrap()
+    };
+    props::install("WORKSHOP/snap_stool", stool(4.0)).unwrap();
+    let pair = serde_json::json!({"format":2,"name":"snap_pair","unit":"cm","parts":{
+        "a":{"ref":"WORKSHOP/snap_stool","pos":[-30,0,0]},"b":{"ref":"WORKSHOP/snap_stool","pos":[30,0,0]}}});
+    props::install("WORKSHOP/snap_pair", PropDef::new(Doc::from_value(&pair).unwrap()).unwrap()).unwrap();
+    let mut sim = Sim::empty(29);
+    let id = sim.spawn_prop("WORKSHOP/snap_pair", Vec3::ZERO, Quat::IDENTITY, 1.0, true, None).unwrap();
+    let seat = |sim: &Sim| {
+        let def = &sim.state.entities.get(id).unwrap().prop.as_ref().unwrap().definition;
+        def.compiled.parts.iter().find(|part| part.id == "a.seat").unwrap().bounds(1.0).size().y
+    };
+    let hash = sim.state_hash();
+    let mut snapshot = Vec::new();
+    ciborium::into_writer(&sim.snapshot(), &mut snapshot).unwrap();
+
+    // The stool changes, then both assets leave the library; the snapshot still holds them.
+    props::install("WORKSHOP/snap_stool", stool(8.0)).unwrap();
+    sim.restore(ciborium::from_reader(snapshot.as_slice()).unwrap());
+    assert!((seat(&sim) - 0.04).abs() < 1e-5, "the stool the snapshot was saved with");
+    assert_eq!(sim.state_hash(), hash);
+    props::remove("WORKSHOP/snap_pair").unwrap();
+    props::remove("WORKSHOP/snap_stool").unwrap();
+    sim.restore(ciborium::from_reader(snapshot.as_slice()).unwrap());
+    assert_eq!(sim.state_hash(), hash);
+    assert_eq!(shapes_of(&sim, id), 2);
+}
+
 /// Shapes in a placed prop's compound; none without a body.
 fn shapes_of(sim: &Sim, id: EntityId) -> usize {
     if sim.state.entities.get(id).unwrap().body.is_none() { 0 } else { compound_parts(sim, id) }

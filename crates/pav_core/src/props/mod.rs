@@ -531,34 +531,68 @@ impl PropDef {
 
 /// Snapshots embed each instance's definition as its document, so a restored world keeps the
 /// asset it was saved with. A format-1 definition writes exactly what format 1 always wrote.
+/// A definition with references also carries the definitions they compiled against, as
+/// `{"document": …, "refs": {"WORKSHOP/stool": …}}`, so a restore never reads the library.
 pub mod embedded {
+    use std::collections::BTreeMap;
     use std::sync::Arc;
 
     use serde::de::Error as _;
-    use serde::ser::Error as _;
+    use serde::ser::{Error as _, SerializeMap};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_json::Value;
 
-    use super::{Doc, PropAsset, PropDef};
+    use super::{Doc, PropAsset, PropDef, canonical};
     use crate::issue;
 
     pub fn serialize<S: Serializer>(def: &Arc<PropDef>, serializer: S) -> Result<S::Ok, S::Error> {
-        match &def.v1 {
-            Some(asset) => asset.serialize(serializer),
-            None => serde_json::from_str::<Value>(&def.doc.text()).map_err(S::Error::custom)?.serialize(serializer),
+        if let Some(asset) = &def.v1 {
+            return asset.serialize(serializer);
         }
+        let document = serde_json::from_str::<Value>(&def.doc.text()).map_err(S::Error::custom)?;
+        if def.pinned.is_empty() {
+            return document.serialize(serializer);
+        }
+        struct Embedded<'a>(&'a Arc<PropDef>);
+        impl Serialize for Embedded<'_> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serialize(self.0, serializer)
+            }
+        }
+        let refs: BTreeMap<&str, Embedded> = def.pinned.iter().map(|(name, dep)| (name.as_str(), Embedded(dep))).collect();
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("document", &document)?;
+        map.serialize_entry("refs", &refs)?;
+        map.end()
     }
 
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Arc<PropDef>, D::Error> {
-        let value = Value::deserialize(deserializer)?;
-        let def = if value.get("format").and_then(Value::as_u64) == Some(2) {
-            let doc = Doc::from_value(&value).map_err(|issues| D::Error::custom(issue::render(&issues)))?;
-            PropDef::new(doc)
-        } else {
-            let asset: PropAsset = serde_json::from_value(value).map_err(D::Error::custom)?;
-            PropDef::from_v1(Arc::new(asset))
+        read(Value::deserialize(deserializer)?).map_err(D::Error::custom)
+    }
+
+    fn read(value: Value) -> Result<Arc<PropDef>, String> {
+        let def = match value {
+            Value::Object(mut map) if map.contains_key("document") => {
+                let refs = match map.remove("refs") {
+                    Some(Value::Object(refs)) => refs,
+                    _ => Default::default(),
+                };
+                let refs =
+                    refs.into_iter().map(|(name, dep)| Ok((name, read(dep)?))).collect::<Result<BTreeMap<_, _>, String>>()?;
+                let lookup = |name: &str| refs.get(&canonical(name).ok()?).cloned();
+                let doc = Doc::from_value_in(&map["document"], &lookup).map_err(|issues| issue::render(&issues))?;
+                PropDef::with_deps(doc, &lookup, None)
+            }
+            value if value.get("format").and_then(Value::as_u64) == Some(2) => {
+                let doc = Doc::from_value_in(&value, &|_| None).map_err(|issues| issue::render(&issues))?;
+                PropDef::with_deps(doc, &|_| None, None)
+            }
+            value => {
+                let asset: PropAsset = serde_json::from_value(value).map_err(|e| e.to_string())?;
+                PropDef::from_v1(Arc::new(asset))
+            }
         };
-        def.map(Arc::new).map_err(|issues| D::Error::custom(issue::render(&issues)))
+        def.map(Arc::new).map_err(|issues| issue::render(&issues))
     }
 }
 
@@ -631,19 +665,29 @@ pub fn get(name: &str) -> Option<Arc<PropDef>> {
 /// Install a compiled definition, keeping every other definition shared. Returns the
 /// definitions that reference it and were recompiled, so their placed copies can be refreshed.
 pub fn install(name: &str, def: PropDef) -> Result<Vec<String>, String> {
-    let name = canonical(name)?;
-    if name.split_once('/').map(|(_, leaf)| leaf) != Some(def.doc.name.as_str()) {
-        return Err(format!("{name} does not match the prop's name '{}'", def.doc.name));
-    }
-    if def.deps.contains(&name) || closure(&library(), &def.deps).contains(&name) {
-        return Err(format!("{name} would reference itself"));
-    }
     let mut current = shared().write().unwrap();
+    let name = installable(&current, name, &def)?;
     let mut next = (**current).clone();
     next.insert(name.clone(), Arc::new(def));
     let dependents = next.recompile_dependents(&name);
     *current = Arc::new(next);
     Ok(dependents)
+}
+
+/// Why `install` would refuse `def` as `name` now. Callers that save files check first.
+pub fn check_install(name: &str, def: &PropDef) -> Result<(), String> {
+    installable(&library(), name, def).map(|_| ())
+}
+
+fn installable(library: &PropLibrary, name: &str, def: &PropDef) -> Result<String, String> {
+    let name = canonical(name)?;
+    if name.split_once('/').map(|(_, leaf)| leaf) != Some(def.doc.name.as_str()) {
+        return Err(format!("{name} does not match the prop's name '{}'", def.doc.name));
+    }
+    if def.deps.contains(&name) || closure(library, &def.deps).contains(&name) {
+        return Err(format!("{name} would reference itself"));
+    }
+    Ok(name)
 }
 
 /// Every asset `deps` reach through references.
@@ -669,21 +713,32 @@ pub fn dependents(name: &str) -> Vec<String> {
 /// Remove a workshop definition. One that others reference stays: they would lose their parts.
 pub fn remove(name: &str) -> Result<bool, String> {
     let name = canonical(name)?;
-    if name.starts_with("BUILTIN/") {
-        return Err("built-in templates cannot be removed".into());
-    }
     let mut current = shared().write().unwrap();
+    removable(&current, &name)?;
     if !current.defs.contains_key(&name) {
         return Ok(false);
-    }
-    let users: Vec<&str> = current.defs.iter().filter(|(_, def)| def.deps.contains(&name)).map(|(n, _)| n.as_str()).collect();
-    if !users.is_empty() {
-        return Err(format!("{name} is referenced by {}; change or remove those first", users.join(", ")));
     }
     let mut next = (**current).clone();
     next.defs.remove(&name);
     *current = Arc::new(next);
     Ok(true)
+}
+
+/// Why `remove` would refuse `name` now. Callers that delete files check first.
+pub fn check_remove(name: &str) -> Result<(), String> {
+    removable(&library(), &canonical(name)?)
+}
+
+fn removable(library: &PropLibrary, name: &str) -> Result<(), String> {
+    if name.starts_with("BUILTIN/") {
+        return Err("built-in templates cannot be removed".into());
+    }
+    let users: Vec<&str> =
+        library.defs.iter().filter(|(_, def)| def.deps.iter().any(|dep| dep == name)).map(|(n, _)| n.as_str()).collect();
+    if !users.is_empty() {
+        return Err(format!("{name} is referenced by {}; change or remove those first", users.join(", ")));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

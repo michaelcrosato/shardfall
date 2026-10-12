@@ -147,10 +147,35 @@ impl AssetWatcher {
             .filter(|(_, changed)| changed.elapsed() >= Duration::from_millis(250))
             .map(|(path, _)| path.clone())
             .collect();
-        for path in ready {
-            self.pending.remove(&path);
-            updates.extend(self.reload(&path));
+        for path in &ready {
+            self.pending.remove(path);
         }
+        updates.extend(self.reload_batch(ready));
+        updates
+    }
+
+    /// Files that became ready together. One can reference another later in the batch, so the
+    /// failures are retried while each round loads something; the last round's errors remain.
+    fn reload_batch(&mut self, mut queue: Vec<PathBuf>) -> Vec<AssetUpdate> {
+        let mut updates = Vec::new();
+        let mut errors = Vec::new();
+        while !queue.is_empty() {
+            let attempted = queue.len();
+            errors.clear();
+            for path in std::mem::take(&mut queue) {
+                let results = self.reload(&path);
+                if results.iter().any(Result::is_err) {
+                    errors.extend(results);
+                    queue.push(path);
+                } else {
+                    updates.extend(results);
+                }
+            }
+            if queue.len() == attempted {
+                break;
+            }
+        }
+        updates.extend(errors);
         updates
     }
 
@@ -219,6 +244,28 @@ mod tests {
         assert!(watcher.reload(&path).is_empty(), "one recovery clears the error; further saves stay quiet");
 
         pav_core::props::remove(name).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_file_that_references_a_later_one_in_the_batch_loads() {
+        let root = std::env::temp_dir().join(format!("pav-asset-watch-batch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("workshop")).unwrap();
+        let file = |leaf: &str, parts: &str| {
+            let path = root.join(format!("workshop/{leaf}.json"));
+            std::fs::write(&path, format!(r#"{{"format":2,"name":"{leaf}","unit":"cm","parts":{parts}}}"#)).unwrap();
+            path
+        };
+        let pair = file("test_watch_batch_pair", r#"{"a":{"ref":"WORKSHOP/test_watch_batch_stool"}}"#);
+        let stool = file("test_watch_batch_stool", r##"{"seat":{"type":"cylinder","radius":18,"height":4,"color":"#8a5a35"}}"##);
+        let loaded: Vec<String> =
+            AssetWatcher::new().reload_batch(vec![pair, stool]).into_iter().map(|update| update.unwrap().0).collect();
+        assert_eq!(loaded, ["WORKSHOP/test_watch_batch_stool", "WORKSHOP/test_watch_batch_pair"]);
+        assert_eq!(props::get("WORKSHOP/test_watch_batch_pair").unwrap().compiled.parts.len(), 1);
+
+        props::remove("WORKSHOP/test_watch_batch_pair").unwrap();
+        props::remove("WORKSHOP/test_watch_batch_stool").unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
 

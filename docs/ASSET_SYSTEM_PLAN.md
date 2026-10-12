@@ -287,7 +287,7 @@ Keep `{op, part, fields}`:
 
 ### 5.8 Snapshots, history, rooms
 - **Dedupe.** `SimState` gains `#[serde(default)] prop_defs: PropDefTable`, declared before `physics/entities/world` (sim.rs:101-140), with a field-order test.
-  - The table stores each reachable definition once, with dependencies and mesh files by sha.
+  - The table stores each reachable definition once, with dependencies and mesh files by sha. (Until then, row 2.3 embeds each instance's document with the definitions its references compiled against, so a restore never reads the library.)
   - `PropInstance.definition` serializes as its key and resolves through a key → `Weak<PropDef>` registry. Legacy inline v1 definitions still load.
   - `state_hash` hashes keys, not definitions.
   - Target: < 64 B per extra instance of one asset (today ~1.5 KB).

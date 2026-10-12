@@ -104,6 +104,27 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     );
     assert!(root.join("workshop/stool.json").exists() && pav_core::props::get("WORKSHOP/stool").is_some());
 
+    // A stool holding the pair that holds it is refused before its file or history changes.
+    let files = || ["workshop/stool.json", ".editor/stool.json"].map(|file| std::fs::read(root.join(file)).unwrap());
+    let (saved, revision) = (files(), pav_core::props::get("WORKSHOP/stool").unwrap().revision.clone());
+    let mut looped = stool.clone();
+    looped["name"] = json!("stool");
+    looped["parts"]["pair"] = json!({"ref":"WORKSHOP/stools","pos":[0,100,0]});
+    assert_eq!(
+        edit(&mut s, json!({"action":"replace","name":"stool","asset":looped,"preview":false})).unwrap_err(),
+        "WORKSHOP/stool would reference itself"
+    );
+    assert_eq!((files(), pav_core::props::get("WORKSHOP/stool").unwrap().revision.clone()), (saved, revision));
+
+    // A collision-only blocker draws nothing, so it has no contact sheet to frame.
+    let blocker = json!({"format":2,"unit":"cm","parts":{
+        "wall":{"type":"box","size":[100,100,10],"pos":[0,50,0],"hidden":true,"color":"#26313e"}}});
+    edit(&mut s, json!({"action":"create","name":"blocker","asset":blocker,"preview":false})).unwrap();
+    assert_eq!(
+        call(&mut s, "asset_preview", json!({"name":"WORKSHOP/blocker","views":true})).unwrap_err(),
+        "name: WORKSHOP/blocker draws nothing: every part is hidden or left out at seed 0 — asset_edit action=inspect bounds=true measures the hidden parts"
+    );
+
     // A broken document reports its problems and saves nothing.
     let mut broken = stool.clone();
     broken["parts"]["seat"]["mat"] = json!("wod");
