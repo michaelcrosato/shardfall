@@ -53,6 +53,25 @@ Under the doctrine, in priority order:
    of things that almost never break. "If it's broken, the user will say so" is valid.
 6. **Token efficiency over speed.** Prefer the CLI/capture tools over reading lots of code.
 
+## Testing budget (prototype stage)
+Every engine here is a prototype with one user: spend tokens on finding what clearly helps, not on
+measuring exactly how much.
+- Use the fewest runs and tests that give confidence. Cheap objective checks (tests, exact token or
+  byte counts, error counts) may confirm small gains, but don't hunt for gains under 5%. Timing
+  differences under 10% are noise.
+- Expensive checks aren't worth it for small or uncertain gains.
+- Looks and feel are the expensive, noisy kind: prefer objective proxies; use agent judges only for
+  large, obvious differences, few of them, several items per call; leave fine visual judgement to
+  the user on a quick comparison page.
+- Read results by confidence: clearly better, keep it; clearly worse, drop it; close or unclear
+  after a cheap test, no proven benefit: try a different idea instead of buying precision.
+- Explore broadly: test distinct hypotheses, not variations of one. Don't add or keep code without
+  a verified benefit.
+- Count cost end to end (tokens and model calls from the session transcripts), not one tool's
+  traffic: every model call re-reads the agent's whole context.
+- Before any test bigger than a few runs, state its estimated token cost and the decision it
+  changes; afterwards, report what it cost.
+
 ## Architecture map
 ```
 crates/

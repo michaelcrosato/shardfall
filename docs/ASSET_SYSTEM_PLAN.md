@@ -1,7 +1,8 @@
 # Agent-first asset system: plan
 
-Status: **stopped at gate G2 on 2026-10-12** (NO-GO after its remediation round, no kill
-criterion held; gate log in §10.2). Phases 3-6 wait for the user's decision. Started 2026-10-12
+Status: **resumed in slim form on 2026-10-12.** Gate G2 was a NO-GO (gate log in §10.2); the
+user then closed it under the prototype testing budget and kept only the Phase 3-6 features that
+are needed and showed a benefit, with lean gates (§10.3). Started 2026-10-12
 (§11 checklist; `docs/HISTORY.md` has each row). The executing session starts at §15 (prompt)
 and resumes from the first unticked row of the progress checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
 Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14). A five-lens
@@ -92,7 +93,7 @@ them needs a doctrine escalation.
 | D7 | Theme materials on by default for all 8 themes. View setting `material_detail = full | first-layer | off`; phones default to first-layer until measured | yes |
 | D8 | Material frame budget: ≤ +25% typical, ≤ +60% worst case (llvmpipe, 960×540) | yes |
 | D9 | Commit accepted CC0 fitted texture recipes (`assets/materials/fit/<lib>/`, ~100 tokens each, on disk) | yes |
-| D10 | Benchmark at the lean scale in §10: ~135 author runs on a pinned Sonnet at medium effort, ~320 judge calls on a pinned Opus. Human votes optional | yes |
+| D10 | Benchmark at the lean scale in §10: ~135 author runs on a pinned Sonnet at medium effort, ~320 judge calls on a pinned Opus. Human votes optional | superseded on 2026-10-12 by the lean gates (§10.3) |
 | D11 | Trim asset tool replies; in-repo consumers are updated in the same PR. Private scripts that parse current reply shapes would break | proceed |
 | D12 | Native Object Studio UI gets upkeep only; every new feature is agent-facing | yes |
 | D13 | Optional help-string diet for non-asset tools (TOOLS-11, ~1k tokens off every session's tool list) | yes, after Phase 0 |
@@ -1267,6 +1268,24 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
     more calls (median 6 and 7 against 5). Round 2's token pass does not hold end to end.
 - **Total load:** ~135 author runs and ~320 judge calls (calibration 72, edit votes 54, G2 72, G3 24, G4 96).
 
+### 10.3 Lean gates (from 2026-10-12)
+After the G2 NO-GO the user resumed Phases 3-6 in slim form under the prototype testing budget
+(`AGENTS.md`, "Testing budget"). This replaces G3-G5 and the benchmark batches above:
+- **G2 is closed: format 2 stays.** It works, its assets are accepted more often (29/30 against
+  25/30) with half the lint findings, and it was not shown to look worse. Its cost and looks
+  claims count as no proven benefit (end to end 0.91 of arm A's; pooled judged pairs 25 of 48).
+- **Every row:** its own objective checks (tests, goldens, budgets, parity) pass.
+- **Visual changes:** a review page the user flips through (before/after captures, one-key
+  verdicts). No agent judge panels.
+- **Cost claims:** at most 6 tasks, counted end to end from the session transcripts (the fields
+  of `scripts/asset_bench/results/agent_tokens.tsv`). Keep the change only if it is clearly
+  cheaper (lower on at least 5 of 6); otherwise it counts as no proven benefit.
+- **G3** = the MAT checks (parity ≥ 99.9% per kernel, the D8 frame budget, the Chromium WGSL
+  check, slot-0 goldens) + the 8-theme review page. **G4** = the library and game checks of the
+  G4 row above + the Level 1 review page. **G5** = the §8.8 pilot GO/NO-GO, already objective.
+- A check that fails gets one fix round. If it still fails, the row ships without that feature and
+  HISTORY says so.
+
 ## 11. Roadmap and progress checklist
 Phases run in dependency order. Each row is one PR. Tick the row in this file in the PR that
 lands it.
@@ -1298,28 +1317,23 @@ Why this order:
 - [x] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [x] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [x] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs): **G2 NO-GO**, stopped
-- [ ] 3.1 MAT-1 material core + MAT-8 Physically Based presets (L)
-- [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, bench, WGSL check (L)
-- [ ] 3.3 MAT-4 props/statics integration + MAT-5 tools, swatch, MATERIALS.md (M)
-- [ ] 3.4 MAT-6 theme materials in levels + EVAL-6 G3 (M + runs)
-- [ ] 4.1 LIB-1 names, tiers, budgets + LIB-2 index and retrieval (M)
-- [ ] 4.2 LIB-3 provenance, licences, credits + LIB-4 families (M)
-- [ ] 4.3 LIB-5 publish/review + W0 exemplars (~30) + MAT-9 material library (L)
-- [ ] 4.4 SF-1 static prop bake + SF-2 data-driven dressing (M)
-- [ ] 4.5 SF-3 theme kits (M)
-- [ ] 4.6 EVAL-7 G4 (S + runs)
-- [ ] 5.1 I1 import refactor, byte-identical mocap output (S)
-- [ ] 5.2 I2 readers, normalisation, directory/get/list/survey, Khronos corpus (M)
-- [ ] 5.3 I3 fit + I4 fidelity metrics, GPU cross-check, compare (L)
-- [ ] 5.4 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md (M)
-- [ ] 5.5 I6 pilot GO/NO-GO + I7 ≥ 30 re-authorings + EVAL-8 G5 (M + runs)
-- [ ] 6.1 I8 scale-out after GO (L)
-- [ ] 6.2 LIB-6 exemplar waves to ~520, each with a wave report and one S8 run whose median tok_x ≤ G4's (XL)
-- [ ] 6.3 SF-4 item and weapon models (L)
-- [ ] 6.4 SF-5 monster gear (M)
-- [ ] 6.5 SF-6 town as data (M)
-- [ ] 6.6 MAT-7 texture-library fits (L)
-- [ ] 6.7 MAT-10 and I9: only when their triggers fire
+- [ ] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
+- [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
+- [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
+- [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
+- [ ] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval (M)
+- [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L)
+- [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
+- [ ] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
+- [ ] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L)
+- [ ] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M)
+- [ ] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L)
+
+**Deferred on 2026-10-12** (no shown need yet; feedback from the test games decides whether any
+returns): LIB-4 parametric families, LIB-6 exemplar waves to ~520, SF-3 theme kits, SF-4 item and
+weapon models, SF-5 monster gear, SF-6 town as data, MAT-7 texture-library fits, MAT-8 Physically
+Based importer, MAT-9 material growth beyond what the rows use, MAT-10, I4's GPU cross-check, I7
+re-authorings beyond the core exemplars, I9, and every judge panel.
 
 ### Work items
 | id | what | key files | verify |
@@ -1450,10 +1464,10 @@ checklist; rows run in order and the plan's sections specify each work item. The
 are approved with their defaults unless I say otherwise. Land each row as its own PR into main,
 merge it and delete its branch (AGENTS.md standing instruction; don't ask); after a merge,
 restart your working branch from the updated main. Each PR adds a dated docs/HISTORY.md entry,
-updates docs/PROGRESS.md and ticks its row. Close a phase only when its §10.2 gate passes as
-written; benchmark runs use the pinned agents in .claude/agents/. A failing gate gets one
-remediation round; if it still fails or a kill criterion holds, stop, record the NO-GO with
-numbers in HISTORY and the plan, and tell me. Escalate only what the doctrine requires. Never
+updates docs/PROGRESS.md and ticks its row. Close a phase with its lean gate (§10.3): objective
+checks, a review page for visual changes, and at most 6 end-to-end runs for a cost claim; no judge
+panels. A failing check gets one fix round, then the row ships without that feature and HISTORY
+says so. Follow AGENTS.md "Testing budget". Escalate only what the doctrine requires. Never
 commit images, downloads or scratch files; raw downloads go to .cache/. Never put personal data
 in request headers. Prefer the CLI and capture tools over reading code.
 ```

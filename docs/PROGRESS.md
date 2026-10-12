@@ -38,7 +38,7 @@ the background on something.
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
-**Asset system plan** (stopped at gate G2 on 2026-10-12; waiting for the user's decision):
+**Asset system plan** (resumed in slim form on 2026-10-12; next row 3.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -62,8 +62,8 @@ no kill criterion held. Round 1 met quality (15 of 24 pairs won) but not tokens 
 `tok_cum` 0.56, edits 0.39, 29/30 accepted) but not quality (10 of 24 pairs, rubric Δ −0.18).
 Those token ratios count wrapper traffic only: end to end its runs cost about 9% less than arm
 A's, since each model call re-reads a ~55k-token fixed prompt and they make more calls (HISTORY).
-Phases 3-6 have not started: stop, re-judge or change the gate is the user's call
-(`docs/ESCALATIONS.md`).
+The user then closed G2 (format 2 stays) and resumed Phases 3-6 in slim form: only features that
+are needed and showed a benefit, with lean gates (plan §10.3; deferred items listed in §11).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

@@ -5,6 +5,28 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan re-plan: Phases 3-6 slimmed, lean gates — 2026-10-12
+
+The user answered the G2 escalation: finish the asset system with only the features that are
+needed and showed a benefit, and test it the cheap way.
+- **G2 closed.** Format 2 stays: it works, agents' assets are accepted more often (29/30 against
+  25/30) with half the lint findings, and it was not shown to look worse. Its cost and looks
+  claims count as no proven benefit.
+- **Testing budget.** The user's prototype testing policy is now a section of `AGENTS.md`: the
+  fewest runs that give confidence, objective checks first, the user's eye on a comparison page
+  for looks, cost counted end to end, and a cost estimate before any bigger test.
+- **Lean gates** (plan §10.3) replace G3-G5's benchmark batches and judge panels: each row's own
+  objective checks, a review page for visual changes, and at most 6 end-to-end runs where cost is
+  the claim.
+- **Kept, 11 rows:** materials (core, renderer with parity and budget, props and tools, theme
+  materials), the library core (names, tiers, retrieval, credits, ~30 reviewed exemplars, static
+  props and data-driven dressing), the import pilot (readers, fit, CPU metrics, catalogs and the
+  licence gate) and its scale-out after a GO.
+- **Deferred:** parametric families, exemplar waves to ~520, theme kits, item and weapon models,
+  monster gear, town as data, texture-library fits, the Physically Based importer, extra material
+  growth, the GPU fit cross-check, re-authorings beyond the core set, and every judge panel. Test
+  games built on the engine decide whether any of them returns.
+
 ## Asset plan: G2's token pass doesn't hold end to end — 2026-10-12
 
 A correction to the G2 record in the next entry, from the session's own transcripts. The NO-GO

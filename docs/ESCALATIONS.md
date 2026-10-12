@@ -6,6 +6,15 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-12 — Asset plan resumed in slim form (answer to the G2 escalation below)
+- **Question:** the G2 NO-GO below: stop, re-judge, change the gate, or go on.
+- **Decided by:** the user, in chat: finish Phases 3-6 with only the features that are needed and
+  showed a benefit, without exhaustive testing, under the prototype testing budget now in
+  `AGENTS.md`.
+- **Call:** G2 is closed and format 2 stays (no proven cost or looks benefit, not shown worse).
+  Phases 3-6 are cut to 11 rows with lean gates (plan §10.3); the rest is deferred (plan §11).
+- **PR:** the re-plan PR that adds this entry.
+
 ## 2026-10-12 — Asset plan stopped at gate G2 (approval to go past a NO-GO)
 - **Question:** Gate G2 of `docs/ASSET_SYSTEM_PLAN.md` failed after its one remediation round,
   with no kill criterion holding:
