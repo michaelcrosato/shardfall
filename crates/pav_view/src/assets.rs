@@ -272,6 +272,34 @@ mod tests {
     }
 
     #[test]
+    fn a_two_sided_mesh_part_draws_its_back_lit() {
+        use pav_core::props::mesh::{MeshFile, install as install_mesh};
+        let sheet = |two_sided| MeshFile {
+            name: "sheet".into(),
+            budget: 4096,
+            two_sided,
+            palette: vec!["#a02020".into()],
+            v: vec![[0, 0, 0], [500, 0, 0], [0, 500, 0]],
+            f: vec![[0, 1, 2, 0]],
+            source: None,
+        };
+        install_mesh("view_two/both", sheet(true)).unwrap();
+        install_mesh("view_two/front", sheet(false)).unwrap();
+        install(
+            r#"{"format":2,"name":"x","unit":"cm","parts":{"a":{"mesh":"view_two/both"},"b":{"mesh":"view_two/front","pos":[100,0,0]}}}"#,
+            "view_two_sided",
+        );
+        let mut scene = Scene::default();
+        emit_asset(&mut scene, "WORKSHOP/view_two_sided", Placement::at(Vec3::ZERO), 0, &Palette::new()).unwrap();
+        let two = |x: f32| {
+            let m = scene.meshes.iter().find(|m| (m.transform.w_axis.x - x).abs() < 1e-4).unwrap();
+            m.flags & pav_render::scene::flags::TWO_SIDED != 0
+        };
+        assert!(two(0.0) && !two(1.0));
+        props::remove("WORKSHOP/view_two_sided").unwrap();
+    }
+
+    #[test]
     fn bad_names_and_palettes_say_what_is_wrong() {
         let mut scene = Scene::default();
         let none = Palette::new();

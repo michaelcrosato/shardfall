@@ -1,5 +1,6 @@
 //! Translation (plan §8.5): a normalised `Scene` into a format-2 prop, deterministic and
-//! single-threaded per asset.
+//! single-threaded per asset. A model more than 1% see-through (alpha mask or blend) is refused:
+//! props are opaque.
 //!
 //! 1. `segment`: connected parts per (node, material), split by colour where a part clearly has
 //!    two; face colours are 7-sample texture means in linear light.
@@ -31,8 +32,9 @@ use pav_core::props::mesh::MeshFile;
 use pav_core::props::{Doc, lint};
 
 use super::metrics::{self, Fidelity};
+use super::normalize;
 use super::raster::{self, Tri};
-use super::scene::Scene;
+use super::scene::{Alpha, Scene};
 use frame::Frame;
 use prims::Cand;
 use segment::Piece;
@@ -72,6 +74,8 @@ pub struct Source {
     pub title: Option<String>,
     pub license: Option<String>,
     pub url: Option<String>,
+    /// The normalisation's words when `check` would not otherwise read the source the same way.
+    pub norm: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -196,6 +200,8 @@ fn assemble(fitted: &[Fitted], o: &Options, source: &[Tri], total_area: f64, nam
     let mut meshes = Vec::new();
     if !mesh_tris.is_empty() {
         let mut file = mesh::mesh_file(&o.name, &mesh_tris).ok_or_else(|| anyhow!("the mesh part has no faces"))?;
+        // Open double-sided surfaces show their backs: drawn lit, not as cut-open caps.
+        file.two_sided = fitted.iter().any(|f| matches!(f.choice, Choice::Mesh) && f.piece.two_sided);
         let mut src = serde_json::Map::new();
         if let Some(l) = &o.source.library {
             src.insert("library".into(), l.clone().into());
@@ -253,11 +259,41 @@ fn node_names(s: &Scene) -> Vec<String> {
     s.nodes.iter().map(|n| n.name.clone()).collect()
 }
 
+/// A model whose see-through share is above this is refused.
+pub const SEE_THROUGH: f64 = 0.01;
+
+/// The share of a scene's area that is see-through: faces of an alpha-mask or blend material
+/// whose alpha (base × texture × vertex colour, the face's mean) is under 0.99. Props are
+/// opaque, and the metrics compare opaque silhouettes, so such models are refused rather than
+/// translated with their holes and glass filled in.
+pub fn see_through(s: &Scene) -> f64 {
+    let (mut total, mut clear) = (0.0, 0.0);
+    for (mi, m) in s.meshes.iter().enumerate() {
+        let blended = m.material.and_then(|i| s.materials.get(i)).is_some_and(|mt| mt.alpha != Alpha::Opaque);
+        for (ti, t) in m.tris.iter().enumerate() {
+            let p = t.map(|i| DVec3::from(m.pos[i as usize].map(f64::from)));
+            let area = (p[1] - p[0]).cross(p[2] - p[0]).length() * 0.5;
+            total += area;
+            if blended && normalize::face_colour(s, mi, ti)[3] < 0.99 {
+                clear += area;
+            }
+        }
+    }
+    if total > 0.0 { clear / total } else { 0.0 }
+}
+
 /// Translates a normalised scene.
 pub fn translate(s: &Scene, o: &Options) -> Result<Translation> {
     let source = raster::scene_tris(s);
     if source.is_empty() {
         bail!("the model has no triangles");
+    }
+    let clear = see_through(s);
+    if clear > SEE_THROUGH {
+        bail!(
+            "alpha: {:.0}% of its surface is see-through (alpha mask or blend); props are opaque, so it is not translated",
+            (clear * 100.0).max(1.0)
+        );
     }
     let pieces: Vec<Piece> = segment::pieces(s).into_iter().filter(|p| p.area > 0.0).collect();
     if pieces.is_empty() {

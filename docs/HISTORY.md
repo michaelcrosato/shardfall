@@ -82,6 +82,19 @@ Row 5.2 (I3 + I4's CPU half) of `docs/ASSET_SYSTEM_PLAN.md`, ahead of Phases 3-4
     the table does not carry mesh files yet.
   - tools/list stays under G0's 48,000 chars (47,981): the `mocap` help lost its list of
     databases (its no-args reply has them).
+- **Review fixes** (9 Codex findings). Ids that make the same name (`Foo`/`foo`, `a/b`/`a_b`)
+  get distinct ones (an id that already is its name keeps it, the others `_2`, `_3`...). A model
+  more than 1% see-through (alpha mask or blend) is refused (`alpha: ...`): props are opaque. A
+  single file in the `fail` tier is not written either. Placement other than the pack's pin or
+  the default is recorded in `source.norm` (`"scale=0.5 place=center"`), which `check` replays. A
+  file or folder inside a downloaded pack translates only its models (surveying part of a pack
+  needs `out=`). Thin small parts (under 3 cm and 0.5% of the asset's box, plan §8.5 step 9) are
+  `solid:false`, a mesh part too (mesh parts now take `solid`). Open surfaces of double-sided
+  materials make the mesh file `two_sided`: the view draws its backs lit (`TWO_SIDED`), not as the
+  cut-open cap (both windings would z-fight: the mesh pipeline does not cull). More than 16 mesh
+  parts after copies is an error. `core/<name>` meshes load from the embedded files (the
+  browser). Mini Dungeon re-surveyed: only floor-detail changed (5 stones `solid:false`, 1,013 →
+  1,083 chars); 10 of its mesh files are two-sided.
 
 ## Asset plan 4.2, part 1: pack licences, credits, publish to LIB/core, review pages — 2026-10-12
 

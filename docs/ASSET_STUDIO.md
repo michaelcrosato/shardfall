@@ -51,10 +51,10 @@ centre. Part names: lowercase letters, digits, _ and -.
   intensity} and fx:{preset} (fire, smoke, sparks, embers, steam, magic …) sit at a visible part.
   chance, jitter and a group's pick:n vary copies by seed. sockets: sit, grip, grip2, tip, top,
   hang, wall_mount. {"ref":"BUILTIN/crate","pos":[…],"scale":0.5} reuses an asset.
-  {"mesh":"kenney_mini_dungeon/chair"} is a mesh part `asset_import` wrote: place, scale, mirror or
-  recolor:{"0":"#rrggbb"} it; never edit its file.
+  {"mesh":"kenney_mini_dungeon/chair"} is a mesh part `asset_import` wrote: place, scale, mirror,
+  recolor:{"0":"#rrggbb"} or solid:false it; never edit its file.
 
-Limits: 256 nodes, 1,024 parts after copies, 4 lights. `asset_edit action=schema [topic=node]` is
+Limits: 256 nodes, 1,024 parts after copies, 4 lights, 16 mesh parts. `asset_edit action=schema [topic=node]` is
 the field guide (also tags, category, spin, sway, segments, half, half_height, remap, source, fit,
 mesh, recolor; material base, roughness, metallic, map, turn, layers).
 

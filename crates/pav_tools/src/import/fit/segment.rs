@@ -30,6 +30,8 @@ pub struct Piece {
     /// The area-weighted mean Oklab distance of its faces' colours from `colour`.
     pub spread: f64,
     pub multicolour: bool,
+    /// An open surface (an edge with one face) in a double-sided material: seen from behind too.
+    pub two_sided: bool,
 }
 
 impl Piece {
@@ -50,7 +52,7 @@ impl Piece {
         let multicolour = cl.len() > 1 && cl[1..].iter().any(|c| c.1 >= SECOND_SHARE * total && dist(c.0, cl[0].0) >= SECOND_DE);
         let mean = oklab(colour);
         let spread = if area > 0.0 { tris.iter().map(|t| tri_area(t) * dist(oklab(t.c), mean)).sum::<f64>() / area } else { 0.0 };
-        Piece { node, tris, area, colour, spread, multicolour }
+        Piece { node, tris, area, colour, spread, multicolour, two_sided: false }
     }
 
     /// The box round its corners.
@@ -124,8 +126,26 @@ pub fn pieces(s: &Scene) -> Vec<Piece> {
                 Tri { p: t.map(|i| DVec3::from(m.pos[i as usize].map(f64::from))), c: [c[0], c[1], c[2]] }
             })
             .collect();
-        let piece = Piece::from_tris(part.node, tris);
+        let double_sided = part.material.and_then(|i| s.materials.get(i)).is_some_and(|m| m.double_sided);
+        let open = double_sided && is_open(&tris);
+        let piece = Piece { two_sided: open, ..Piece::from_tris(part.node, tris) };
         out.push(piece);
     }
     out
+}
+
+/// Whether a surface has an edge only one of its faces uses (corners welded at 0.1 mm): an open
+/// sheet or shell, whose back can be seen.
+fn is_open(tris: &[Tri]) -> bool {
+    let key = |p: DVec3| [p.x, p.y, p.z].map(|c| (c / normalize::WELD).round() as i64);
+    let mut uses: BTreeMap<([i64; 3], [i64; 3]), u32> = BTreeMap::new();
+    for t in tris {
+        let k = t.p.map(key);
+        for (a, b) in [(k[0], k[1]), (k[1], k[2]), (k[2], k[0])] {
+            if a != b {
+                *uses.entry((a.min(b), a.max(b))).or_default() += 1;
+            }
+        }
+    }
+    uses.values().any(|&n| n == 1)
 }

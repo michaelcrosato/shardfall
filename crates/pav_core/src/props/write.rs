@@ -400,6 +400,7 @@ impl Doc {
                 ("author", &s.author),
                 ("sha256", &s.sha256),
                 ("title", &s.title),
+                ("norm", &s.norm),
             ] {
                 f.opt(key, value.as_ref(), |v| quoted(v));
             }

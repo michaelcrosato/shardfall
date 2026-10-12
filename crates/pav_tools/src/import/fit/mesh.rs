@@ -123,5 +123,5 @@ pub fn mesh_file(name: &str, tris: &[Tri]) -> Option<MeshFile> {
         });
         f.push([idx[0], idx[1], idx[2], *p as u32]);
     }
-    Some(MeshFile { name: name.to_string(), budget: MAX_TRIS as u32, palette, v: used, f, source: None })
+    Some(MeshFile { name: name.to_string(), budget: MAX_TRIS as u32, two_sided: false, palette, v: used, f, source: None })
 }

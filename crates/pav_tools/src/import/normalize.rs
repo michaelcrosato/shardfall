@@ -71,6 +71,43 @@ impl Norm {
         Ok(n)
     }
 
+    /// The words that make this normalisation (`up=z yaw=90 scale=0.01 place=floor`), the
+    /// default ones left out: a translation's `source.norm`, read back by `from_words`.
+    pub fn words(&self) -> String {
+        let mut w = Vec::new();
+        if self.z_up {
+            w.push("up=z".to_string());
+        }
+        if self.yaw != 0 {
+            w.push(format!("yaw={}", self.yaw));
+        }
+        if self.scale != 1.0 {
+            w.push(format!("scale={}", self.scale));
+        }
+        match self.place {
+            Place::Keep => {}
+            Place::Floor => w.push("place=floor".into()),
+            Place::Center => w.push("place=center".into()),
+        }
+        w.join(" ")
+    }
+
+    /// `words` read back.
+    pub fn from_words(text: &str) -> Result<Norm> {
+        let (mut up, mut yaw, mut scale, mut place) = (None, None, None, None);
+        for word in text.split_whitespace() {
+            let number = |v: &str| v.parse::<f64>().map_err(|_| anyhow::anyhow!("{word}: not a number"));
+            match word.split_once('=') {
+                Some(("up", v)) => up = Some(v),
+                Some(("yaw", v)) => yaw = Some(number(v)?),
+                Some(("scale", v)) => scale = Some(number(v)?),
+                Some(("place", v)) => place = Some(v),
+                _ => bail!("{word}: up=, yaw=, scale= or place="),
+            }
+        }
+        Norm::parse(up, yaw, scale, place)
+    }
+
     /// The axis, facing and unit change as one matrix (placement comes after, from the bounds).
     pub fn matrix(&self) -> DMat4 {
         // Exact quarter turns (no rounding noise from sin and cos): z up is −90° about x,
@@ -378,5 +415,10 @@ mod tests {
         assert!(Norm::parse(None, Some(45.0), None, None).is_err());
         assert!(Norm::parse(None, None, None, Some("top")).is_err());
         assert_eq!(Norm::parse(None, Some(-90.0), None, None).unwrap().yaw, 270);
+        // Words round-trip, the defaults left out.
+        assert_eq!(n.words(), "up=z yaw=90 scale=0.01");
+        assert_eq!(Norm::from_words(&n.words()).unwrap(), n);
+        assert_eq!(Norm::default().words(), "");
+        assert!(Norm::from_words("tilt=3").is_err());
     }
 }

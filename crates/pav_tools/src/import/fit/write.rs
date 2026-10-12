@@ -2,7 +2,8 @@
 //! cheapest of its equivalent forms (the turn with the fewest angles; axis fields for round
 //! shapes on a frame axis), angles in whole degrees, centimetres to 0.1; mirror pairs in x then
 //! z folded into `mirror`, three or more equal parts at an equal step into `array`; names from
-//! the node or the colour and shape; the colour most of the area has at the root.
+//! the node or the colour and shape; the colour most of the area has at the root; thin small
+//! parts (and a thin small mesh part) `solid:false` (step 9).
 
 use std::collections::BTreeMap;
 
@@ -11,7 +12,7 @@ use pav_core::props::geom::Primitive;
 use serde_json::{Map, Value, json};
 
 use super::frame::{self, snap};
-use super::segment::dist;
+use super::segment::{bounds, dist};
 use super::{Choice, Fitted, Options};
 use crate::import::metrics::Fidelity;
 use crate::import::raster::oklab;
@@ -21,6 +22,24 @@ use crate::import::scene::hex;
 const SAME_COLOUR: f64 = 0.02;
 /// Positions this close (metres) count as mirror images or equal steps.
 const NEAR: f64 = 0.002;
+/// Plan §8.5 step 9: a part thinner than this (metres, its box's thinnest side in its own
+/// frame)...
+pub const THIN: f64 = 0.03;
+/// ...whose box is under this share of the asset's box is decorative: `solid:false`, out of
+/// the collider (banners, blades, leaves, trim). Thin but large parts (a table top, a floor
+/// tile) stay solid.
+pub const SMALL: f64 = 0.005;
+
+/// A box's volume, each side at least a millimetre (flat models have a volume too).
+fn volume(size: DVec3) -> f64 {
+    size.max(DVec3::splat(0.001)).element_product()
+}
+
+/// Whether a part of box `size` stays out of the collider of an asset whose box holds `asset`
+/// cubic metres.
+fn decorative(size: DVec3, asset: f64) -> bool {
+    size.min_element() < THIN && volume(size) < SMALL * asset
+}
 
 /// Centimetres as a JSON number: whole when that is within 3% of `scale` (metres: the extent
 /// the number sizes or places) of the exact value, else to 0.1 (D1: prop-scale numbers become
@@ -389,6 +408,8 @@ struct Node {
     base: String,
     mirror: Vec<&'static str>,
     array: Option<(usize, DVec3)>,
+    /// In the collider (not a thin small part).
+    solid: bool,
 }
 
 /// The `fit` field: the numbers as the ledger rounds them.
@@ -409,6 +430,10 @@ pub fn fit_field(f: &Fidelity, mesh_pct: f64) -> Value {
 
 /// The document (without `fit`) for fitted pieces; `mesh` names the asset's mesh part.
 pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: &[String]) -> Value {
+    // The asset's box, which decorative parts are small against.
+    let all: Vec<_> = fitted.iter().flat_map(|f| f.piece.tris.iter().copied()).collect();
+    let (lo, hi) = bounds(&all);
+    let asset = volume(hi - lo);
     // Every primitive written its cheapest way, with its colour and area.
     let mut nodes: Vec<Node> = Vec::new();
     let mut shapes: Vec<(Primitive, DMat3, DVec3)> = Vec::new();
@@ -421,7 +446,16 @@ pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: 
             Some(n) if !n.is_empty() => part_name(n),
             _ => format!("{}_{}", colour_name(f.piece.colour), written.fields["type"].as_str().unwrap_or("part")),
         };
-        nodes.push(Node { written, colour: hex(f.piece.colour), area: f.piece.area, base, mirror: Vec::new(), array: None });
+        let solid = !decorative(cand.prim.local_box().1.as_dvec3() * 2.0, asset);
+        nodes.push(Node {
+            written,
+            colour: hex(f.piece.colour),
+            area: f.piece.area,
+            base,
+            mirror: Vec::new(),
+            array: None,
+            solid,
+        });
         shapes.push((cand.prim.clone(), w, pos));
     }
     // Colours that look alike become one, the largest area's.
@@ -522,6 +556,9 @@ pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: 
         if root.as_deref() != Some(n.colour.as_str()) {
             part.insert("color".into(), json!(n.colour));
         }
+        if !n.solid {
+            part.insert("solid".into(), json!(false));
+        }
         match n.mirror.as_slice() {
             [] => {}
             [one] => {
@@ -538,7 +575,14 @@ pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: 
     }
     if let Some(mesh) = mesh {
         let name = if parts.contains_key("mesh") { "mesh_part".to_string() } else { "mesh".to_string() };
-        parts.insert(name, json!({"mesh": mesh}));
+        let tris: Vec<_> =
+            fitted.iter().filter(|f| matches!(f.choice, Choice::Mesh)).flat_map(|f| f.piece.tris.iter().copied()).collect();
+        let (lo, hi) = bounds(&tris);
+        let mut part = json!({"mesh": mesh});
+        if decorative(hi - lo, asset) {
+            part["solid"] = json!(false);
+        }
+        parts.insert(name, part);
     }
     let mut doc = Map::new();
     doc.insert("format".into(), json!(2));
@@ -548,9 +592,13 @@ pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: 
         doc.insert("color".into(), json!(root));
     }
     let mut source = Map::new();
-    for (k, v) in
-        [("library", &o.source.library), ("title", &o.source.title), ("license", &o.source.license), ("url", &o.source.url)]
-    {
+    for (k, v) in [
+        ("library", &o.source.library),
+        ("title", &o.source.title),
+        ("license", &o.source.license),
+        ("url", &o.source.url),
+        ("norm", &o.source.norm),
+    ] {
         if let Some(v) = v {
             source.insert(k.into(), json!(v));
         }

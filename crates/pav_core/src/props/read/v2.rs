@@ -61,7 +61,7 @@ pub const DOCUMENT_FIELDS: &[(&str, &str)] = &[
         "category",
         "furniture | container | architecture | lighting | vegetation | rock | weapon | armour | tool | food | town | dungeon | signage",
     ),
-    ("source", "{library,url,license,author,sha256,title}: where it came from (tools write it)"),
+    ("source", "{library,url,license,author,sha256,title,norm}: where it came from (tools write it)"),
     ("fit", "{mean_mm,worst_mm,iou,de,mesh_pct,parts_hash}: how well it fits its source (tools write it)"),
     ("materials", "{key: {color,look,emissive,roughness,metallic,map,scale,turn,layers}}; parts say mat:key"),
     ("parts", "{id: node}: 1-256 nodes, groups and refs included (required)"),
@@ -384,7 +384,9 @@ fn allowed(kind: &str, prim: Option<PrimType>) -> Vec<&'static str> {
     keys.extend(NODE_ORDER.iter().copied().filter(|key| match *key {
         "from" | "to" | "spin" => ends,
         "axis" => prim.is_some_and(PrimType::takes_axis),
-        "mat" | "color" | "look" | "emissive" | "solid" => shaped,
+        "mat" | "color" | "look" | "emissive" => shaped,
+        // A mesh part may stay out of the collider (decorative sheets).
+        "solid" => shaped || kind == "mesh",
         "hidden" | "light" | "fx" | "sway" => kind == "type",
         "pick" | "parts" => kind == "parts",
         "scale" => matches!(kind, "ref" | "mesh"),
@@ -412,6 +414,8 @@ struct Totals {
     parts: usize,
     lights: usize,
     fx: usize,
+    /// Mesh parts after copies (each draws and collides on its own).
+    meshes: usize,
 }
 
 struct Reader<'a> {
@@ -827,9 +831,12 @@ impl Reader<'_> {
                 None
             }
         };
-        for (what, count, max) in
-            [("parts", totals.parts, MAX_RESOLVED), ("lights", totals.lights, MAX_LIGHTS), ("fx", totals.fx, MAX_FX)]
-        {
+        for (what, count, max) in [
+            ("parts", totals.parts, MAX_RESOLVED),
+            ("lights", totals.lights, MAX_LIGHTS),
+            ("fx", totals.fx, MAX_FX),
+            ("mesh parts", totals.meshes, crate::props::mesh::MAX_MESH_NODES),
+        ] {
             if count > max {
                 self.push(
                     Issue::error("parts", Code::Limit, format!("{count} {what} after copies")).expected(format!("at most {max}")),
@@ -875,7 +882,8 @@ impl Reader<'_> {
     }
 
     fn source(&mut self, value: &Value) -> Option<Source> {
-        let object = self.object("source", value, &["library", "url", "license", "author", "sha256", "title"], "source")?;
+        let object =
+            self.object("source", value, &["library", "url", "license", "author", "sha256", "title", "norm"], "source")?;
         let mut field = |key: &str| object.get(key).and_then(|v| self.text(&format!("source.{key}"), v));
         let source = Source {
             library: field("library"),
@@ -884,6 +892,7 @@ impl Reader<'_> {
             author: field("author"),
             sha256: field("sha256"),
             title: field("title"),
+            norm: field("norm"),
         };
         if let Some(sha) = source
             .sha256
@@ -1150,6 +1159,9 @@ impl Reader<'_> {
         }
         if allowed.contains(&"mat") {
             node.surface = self.surface(path, object);
+        } else if allowed.contains(&"solid") {
+            // A mesh part: its colours are its own, but it may stay out of the collider.
+            node.surface.solid = object.get("solid").and_then(|v| self.boolean(&join(path, "solid"), v));
         }
         if let Some((p, v)) = field("hidden") {
             node.hidden = self.boolean(&p, v);
@@ -1229,14 +1241,21 @@ impl Reader<'_> {
                 totals.lights += copies * usize::from(node.light.is_some());
                 totals.fx += copies * usize::from(node.fx.is_some());
             }
-            Kind::Mesh(_) => totals.parts += copies,
+            Kind::Mesh(_) => {
+                totals.parts += copies;
+                totals.meshes += copies;
+            }
             Kind::Ref(name) => {
-                // Its lights and emitters come along and count toward this document's.
-                let (parts, lights, fx) = (self.assets)(name)
-                    .map_or((1, 0, 0), |def| (def.compiled.parts.len(), def.compiled.lights.len(), def.compiled.fx.len()));
+                // Its lights, emitters and mesh parts come along and count toward this document's.
+                let (parts, lights, fx, meshes) = (self.assets)(name).map_or((1, 0, 0, 0), |def| {
+                    let c = &def.compiled;
+                    let meshes = c.parts.iter().filter(|p| matches!(p.prim, crate::props::geom::Primitive::Mesh { .. })).count();
+                    (c.parts.len(), c.lights.len(), c.fx.len(), meshes)
+                });
                 totals.parts += copies * parts;
                 totals.lights += copies * lights;
                 totals.fx += copies * fx;
+                totals.meshes += copies * meshes;
             }
             _ => {}
         }

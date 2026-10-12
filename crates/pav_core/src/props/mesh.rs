@@ -6,10 +6,13 @@
 //! The file, `<props root>/lib/<pack>/meshes/<name>.json` (or `local/<pack>/meshes/`):
 //! `{"format":1,"name":..,"unit":"mm","tris":N,"budget":4096,"palette":["#rrggbb",..],
 //! "v":[x,y,z,..],"f":[a,b,c,p,..]}`: integer millimetres in the part's frame, and per face three
-//! vertex indices (counter-clockwise seen from outside) and a palette index.
+//! vertex indices (counter-clockwise seen from outside) and a palette index. `"two_sided":true`
+//! (after `budget`) marks a mesh with open surfaces seen from both sides (a double-sided source
+//! material): its back faces are drawn lit, not as the dark cap of a cut-open solid.
 //!
-//! Meshes are found in the installed set first (the importer installs what it writes), then on
-//! disk under `$PAV_ASSETS` (else `assets/props`), and kept once read.
+//! Meshes are found in the installed set first (the importer installs what it writes), then for
+//! the core pack (`core/<name>`) in the files every build embeds (`lib/core/meshes/`), then on
+//! disk under `$PAV_ASSETS` (else `assets/props`; native builds), and kept once read.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -23,7 +26,8 @@ use super::{fnv, validate_name};
 pub const MAX_TRIS: usize = 4_096;
 /// Colours one mesh file may have.
 pub const MAX_PALETTE: usize = 64;
-/// Mesh nodes one asset may have.
+/// Mesh parts one asset may have after copies, mirrors and references (each is drawn and
+/// collides as a hull of its own).
 pub const MAX_MESH_NODES: usize = 16;
 
 /// A mesh file as written.
@@ -33,6 +37,8 @@ pub struct MeshFile {
     pub name: String,
     /// The triangle budget it was made within.
     pub budget: u32,
+    /// Open surfaces seen from both sides: back faces are drawn lit.
+    pub two_sided: bool,
     /// `#rrggbb` colours.
     pub palette: Vec<String>,
     /// Vertices in integer millimetres.
@@ -49,7 +55,7 @@ impl MeshFile {
         let value: Value = serde_json::from_str(text).map_err(|e| format!("not JSON: {e}"))?;
         let o = value.as_object().ok_or("a mesh file is a JSON object")?;
         for key in o.keys() {
-            if !["format", "name", "unit", "tris", "budget", "palette", "v", "f", "source"].contains(&key.as_str()) {
+            if !["format", "name", "unit", "tris", "budget", "two_sided", "palette", "v", "f", "source"].contains(&key.as_str()) {
                 return Err(format!("unknown key {key}"));
             }
         }
@@ -62,6 +68,10 @@ impl MeshFile {
         let name = o.get("name").and_then(Value::as_str).ok_or("missing name")?.to_string();
         validate_name(&name)?;
         let budget = o.get("budget").and_then(Value::as_u64).unwrap_or(MAX_TRIS as u64).min(MAX_TRIS as u64) as u32;
+        let two_sided = match o.get("two_sided") {
+            None => false,
+            Some(v) => v.as_bool().ok_or("two_sided is true or false")?,
+        };
         let palette: Vec<String> = o
             .get("palette")
             .and_then(Value::as_array)
@@ -111,7 +121,7 @@ impl MeshFile {
             return Err(format!("tris says {t} but f has {}", f.len()));
         }
         let source = o.get("source").and_then(Value::as_object).cloned();
-        Ok(Self { name, budget, palette, v, f, source })
+        Ok(Self { name, budget, two_sided, palette, v, f, source })
     }
 
     /// The canonical text: a header line, then the palette, the vertices and the faces, each on
@@ -119,10 +129,11 @@ impl MeshFile {
     pub fn text(&self) -> String {
         let nums = |it: &mut dyn Iterator<Item = i64>| it.map(|n| n.to_string()).collect::<Vec<_>>().join(",");
         let mut out = format!(
-            "{{\"format\":1,\"name\":{},\"unit\":\"mm\",\"tris\":{},\"budget\":{},\n",
+            "{{\"format\":1,\"name\":{},\"unit\":\"mm\",\"tris\":{},\"budget\":{},{}\n",
             json!(self.name),
             self.f.len(),
-            self.budget
+            self.budget,
+            if self.two_sided { "\"two_sided\":true," } else { "" }
         );
         if let Some(source) = &self.source {
             out.push_str(&format!("\"source\":{},\n", Value::Object(source.clone())));
@@ -199,15 +210,22 @@ pub fn files(name: &str) -> Vec<std::path::PathBuf> {
     ["lib", "local"].iter().map(|tier| root.join(tier).join(pack).join("meshes").join(format!("{leaf}.json"))).collect()
 }
 
-/// The mesh `name`: installed, else read from disk once.
+/// The text of an embedded mesh: the core pack's (`core/<name>`, from `lib/core/meshes/`).
+fn embedded(name: &str) -> Option<&'static str> {
+    let (pack, leaf) = check_name(name).ok()?;
+    (pack == super::store::CORE).then(|| super::store::embedded_file(&format!("lib/core/meshes/{leaf}.json")))?
+}
+
+/// The mesh `name`: installed, else read once from the embedded core pack or (native) disk.
 pub fn get(name: &str) -> Option<Arc<LoadedMesh>> {
     if let Some(mesh) = registry().read().unwrap().get(name) {
         return Some(mesh.clone());
     }
-    if cfg!(target_arch = "wasm32") {
-        return None;
-    }
-    let text = files(name).into_iter().find_map(|path| std::fs::read_to_string(path).ok())?;
+    let text = match embedded(name) {
+        Some(text) => text.to_string(),
+        None if cfg!(target_arch = "wasm32") => return None,
+        None => files(name).into_iter().find_map(|path| std::fs::read_to_string(path).ok())?,
+    };
     let file = MeshFile::parse(&text).ok()?;
     install(name, file).ok()
 }
@@ -220,6 +238,7 @@ mod tests {
         MeshFile {
             name: "tetra".into(),
             budget: 4096,
+            two_sided: false,
             palette: vec!["#ff0000".into(), "#00ff00".into()],
             v: vec![[0, 0, 0], [100, 0, 0], [0, 100, 0], [0, 0, 100]],
             f: vec![[0, 2, 1, 0], [0, 1, 3, 1], [0, 3, 2, 0], [1, 2, 3, 1]],
@@ -238,6 +257,9 @@ mod tests {
         assert!(MeshFile::parse(&text.replace("\"mm\"", "\"cm\"")).is_err());
         assert!(check_name("Kenney/barrel").is_err());
         assert!(check_name("kenney_md/barrel").is_ok());
+        let two = MeshFile { two_sided: true, ..m.clone() };
+        assert!(two.text().lines().next().unwrap().ends_with(r#""budget":4096,"two_sided":true,"#), "{}", two.text());
+        assert_eq!(MeshFile::parse(&two.text()).unwrap(), two);
         let loaded = install("test_pack/tetra", m).unwrap();
         assert_eq!(loaded.hi, Vec3::splat(0.1));
         assert_eq!(get("test_pack/tetra").unwrap().key, loaded.key);
@@ -275,5 +297,15 @@ mod tests {
         assert!(crate::issue::render(&missing).contains("no mesh \"test_parts/nope\""));
         let bad = Doc::read(&text.replace(r#""1":"gold""#, r#""7":"gold""#)).unwrap_err();
         assert!(crate::issue::render(&bad).contains("recolor.7"), "{}", crate::issue::render(&bad));
+        // Copies count: 9 × 2 mirrored is over the 16 mesh parts an asset may have.
+        let many = Doc::read(&text.replace(r#""mirror":"x","#, r#""mirror":"x","array":{"count":9,"step":[0,0,20]},"#));
+        let many = crate::issue::render(&many.unwrap_err());
+        assert!(many.contains("18 mesh parts after copies") && many.contains("at most 16"), "{many}");
+        let eight = text.replace(r#""mirror":"x","#, r#""mirror":"x","array":{"count":8,"step":[0,0,20]},"#);
+        assert!(Doc::read(&eight).is_ok());
+        // A decorative mesh part stays out of the collider.
+        let loose = Doc::read(&text.replace(r#""mirror":"x","#, r#""mirror":"x","solid":false,"#)).unwrap();
+        let loose = PropDef::new(loose).unwrap();
+        assert!(loose.compiled.parts.iter().filter(|p| p.id.starts_with("body")).all(|p| !p.solid));
     }
 }

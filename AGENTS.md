@@ -284,7 +284,8 @@ import: `asset_import` (`pav help` for args).
   fidelity (six-view IoU, ΔE, Chamfer mm, tier); `survey=<lib/pack|folder>` fits without writing
   and fills the ledger (`assets/catalogs/<lib>/<pack>.tsv`, keeping each row's `note`; `fit=false`:
   census only); `check=<asset.json> compare=true` measures a translation again and returns
-  source-over-translation views. `up= yaw= scale= place=` bring a model into the engine's frame.
+  source-over-translation views. `up= yaw= scale= place=` bring a model into the engine's frame
+  (a translation records them in `source.norm` for `check`).
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,

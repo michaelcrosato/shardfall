@@ -161,6 +161,87 @@ fn a_noisy_blob_is_a_mesh_part_within_budget() {
     assert_eq!((again.text, again.meshes[0].1.text()), (t.text.clone(), mesh.text()));
 }
 
+/// A model of one material (`material` is its glTF JSON, given the colour).
+fn with_material(pos: &[[f32; 3]], idx: &[u32], material: Value) -> Vec<u8> {
+    let mut b = MeshBuilder::new();
+    let m = b.material(material);
+    let p = b.tri_prim(pos, idx, Some(m));
+    let mesh = b.mesh(vec![p]);
+    b.node(json!({"mesh": mesh}));
+    b.glb(&[0])
+}
+
+#[test]
+fn see_through_models_are_refused_and_open_double_sided_meshes_show_both_sides() {
+    let dir = temp_dir("fit_alpha");
+    let (pos, _, idx) = cuboid([-0.2, 0.0, -0.2], [0.2, 0.4, 0.2]);
+    let glass = json!({"alphaMode": "BLEND", "pbrMetallicRoughness": {"baseColorFactor": [0.3, 0.5, 0.8, 0.4]}});
+    let path = write(&dir, "glass.glb", with_material(&pos, &idx, glass));
+    let mut s = read_model(&path).unwrap();
+    normalize::normalize(&mut s, &Norm::default());
+    let o = Options { mode: Mode::Auto, pack: "test_fit".into(), name: "glass".into(), source: Default::default() };
+    let e = fit::translate(&s, &o).err().expect("a see-through model is refused");
+    assert!(e.to_string().starts_with("alpha: 100% of its surface is see-through"), "{e}");
+    // Blend with nothing see-through is opaque.
+    let opaque = json!({"alphaMode": "BLEND", "pbrMetallicRoughness": {"baseColorFactor": [0.3, 0.5, 0.8, 1.0]}});
+    translate(&write(&dir, "opaque.glb", with_material(&pos, &idx, opaque)), "opaque", Mode::Auto);
+
+    // A sheet (one open quad) seen from both sides: its mesh part draws its back lit.
+    let sheet = [[-0.3, 0.0, 0.0], [0.3, 0.0, 0.0], [0.3, 0.6, 0.0], [-0.3, 0.6, 0.0]];
+    let banner = |double: bool| json!({"doubleSided": double, "pbrMetallicRoughness": {"baseColorFactor": [0.6, 0.1, 0.1, 1.0]}});
+    let two = translate(&write(&dir, "two.glb", with_material(&sheet, &[0, 1, 2, 0, 2, 3], banner(true))), "two", Mode::Mesh);
+    assert!(two.meshes[0].1.two_sided && two.meshes[0].1.text().contains(r#""two_sided":true"#));
+    let one = translate(&write(&dir, "one.glb", with_material(&sheet, &[0, 1, 2, 0, 2, 3], banner(false))), "one", Mode::Mesh);
+    assert!(!one.meshes[0].1.two_sided, "single-sided: its back is not meant to be seen");
+    let closed = translate(&write(&dir, "closed.glb", with_material(&pos, &idx, banner(true))), "closed", Mode::Mesh);
+    assert!(!closed.meshes[0].1.two_sided, "a closed solid's back is never seen");
+    engine_accepts(&two);
+}
+
+#[test]
+fn thin_small_parts_stay_out_of_the_collider() {
+    let dir = temp_dir("fit_solid");
+    // A crate with a small plaque on its front; a floor tile alone.
+    let crate_ = model(&[boxed([-0.3, 0.0, -0.3], [0.3, 0.6, 0.3], BROWN), boxed([-0.05, 0.25, 0.3], [0.05, 0.35, 0.31], DARK)]);
+    let t = translate(&write(&dir, "crate.glb", crate_), "crate", Mode::Auto);
+    let doc: Value = serde_json::from_str(&t.text).unwrap();
+    let parts = doc["parts"].as_object().unwrap();
+    assert_eq!(parts.values().filter(|p| p["solid"] == json!(false)).count(), 1, "{}", t.text);
+    assert!(parts.values().any(|p| p["size"] == json!([10, 10, 1]) && p["solid"] == json!(false)), "{}", t.text);
+    engine_accepts(&t);
+    let tile =
+        translate(&write(&dir, "tile.glb", model(&[boxed([-0.5, 0.0, -0.5], [0.5, 0.02, 0.5], BROWN)])), "tile", Mode::Auto);
+    assert!(!tile.text.contains("solid"), "a thin part as large as its asset stays solid: {}", tile.text);
+}
+
+/// A cube whose faces alternate red and blue (vertex colours, one material).
+fn two_colour_cube() -> Vec<u8> {
+    let (pos, _, idx) = cuboid([-0.2, 0.0, -0.2], [0.2, 0.4, 0.2]);
+    let mut col = Vec::new();
+    for face in 0..6 {
+        let c: [u8; 4] = if face % 2 == 0 { [255, 0, 0, 255] } else { [0, 0, 255, 255] };
+        for _ in 0..4 {
+            col.extend_from_slice(&c);
+        }
+    }
+    let mut b = MeshBuilder::new();
+    let (pa, ia, ca) = (b.vec3(&pos), b.indices(&idx), b.unorm8(&col, "VEC4"));
+    let p = b.prim(pa, Some(ia), &[("COLOR_0", ca)], None);
+    let m = b.mesh(vec![p]);
+    b.node(json!({"mesh": m}));
+    b.glb(&[0])
+}
+
+/// One box of `size` metres, for folders of many models.
+fn cube(size: f32) -> Vec<u8> {
+    model(&[boxed([-size / 2.0, 0.0, -size / 2.0], [size / 2.0, size, size / 2.0], BROWN)])
+}
+
+fn title(file: &Path) -> String {
+    let v: Value = serde_json::from_str(&std::fs::read_to_string(file).unwrap()).unwrap();
+    v["source"]["title"].as_str().unwrap().to_string()
+}
+
 fn tool(s: &mut Session, args: Value) -> anyhow::Result<Value> {
     match call(s, "asset_import", args.as_object().unwrap())? {
         Output::Json(v) => Ok(v),
@@ -217,4 +298,57 @@ fn the_tool_translates_checks_compares_and_surveys() {
     assert!(census.get("fit").is_none(), "{census}");
     let e = tool(&mut s, json!({"from": models.to_str().unwrap(), "fit": "best"})).unwrap_err();
     assert!(e.to_string().contains("auto, prims or mesh"), "{e}");
+
+    // An import placed another way records it, and check reads the source the same way.
+    let placed = dir.join("placed");
+    let args = json!({"from": models.join("table.glb").to_str().unwrap(), "out": placed.to_str().unwrap(), "scale": 0.5, "place": "center"});
+    let moved = tool(&mut s, args).unwrap();
+    let text = std::fs::read_to_string(placed.join("table.json")).unwrap();
+    assert!(text.contains(r#""norm":"scale=0.5 place=center""#), "{text}");
+    let again = tool(&mut s, json!({"check": placed.join("table.json").to_str().unwrap()})).unwrap();
+    assert_eq!(again["iou"], moved["iou"], "{again}");
+
+    // A failed translation of one file is not written either.
+    let cube_file = write(&models, "cube.glb", two_colour_cube());
+    let fail = dir.join("fail");
+    let e =
+        tool(&mut s, json!({"from": cube_file.to_str().unwrap(), "out": fail.to_str().unwrap(), "fit": "prims"})).unwrap_err();
+    assert!(e.to_string().contains("the translation fails") && e.to_string().contains("not written"), "{e}");
+    assert!(!fail.join("cube.json").exists());
+
+    // Ids that make the same name get distinct ones: none is written over.
+    let clash = dir.join("clash");
+    std::fs::create_dir_all(clash.join("a")).unwrap();
+    for (i, f) in ["Foo.glb", "foo.glb", "a/b.glb", "a_b.glb"].iter().enumerate() {
+        write(&clash, f, cube(0.2 + 0.1 * i as f32));
+    }
+    let clash_out = dir.join("clash_out");
+    let all = tool(&mut s, json!({"from": clash.to_str().unwrap(), "out": clash_out.to_str().unwrap()})).unwrap();
+    assert_eq!(all["written"], 4, "{all}");
+    let titles: Vec<String> =
+        ["foo", "foo_2", "a_b", "a_b_2"].iter().map(|n| title(&clash_out.join(format!("{n}.json")))).collect();
+    assert_eq!(titles, ["foo", "Foo", "a_b", "a/b"]);
+
+    // A folder inside a downloaded pack: only its models, under the pack's catalog.
+    let catalogs = dir.join("catalogs");
+    std::fs::create_dir_all(&catalogs).unwrap();
+    let catalog = r#"{"$library": "testlib", "$sources": {"pack1": {"license": "CC0-1.0", "models": "models/**/*.glb", "pack": "test_pack1"}}}"#;
+    write(&catalogs, "testlib.json", catalog);
+    // SAFETY: only this test reads the variable.
+    unsafe { std::env::set_var("PAV_CATALOGS", &catalogs) };
+    let pack = dir.join("cache/assets/testlib/pack1/models");
+    for (sub, size) in [("a", 0.2), ("a", 0.3), ("b", 0.4)] {
+        std::fs::create_dir_all(pack.join(sub)).unwrap();
+        write(&pack.join(sub), &format!("m{}.glb", (size * 10.0) as i32), cube(size));
+    }
+    let part_out = dir.join("part_out");
+    let part = tool(&mut s, json!({"from": pack.join("a").to_str().unwrap(), "out": part_out.to_str().unwrap()})).unwrap();
+    assert_eq!((part["written"].as_u64(), part["from"].as_str()), (Some(2), Some("testlib/pack1/models/a")), "{part}");
+    assert_eq!(title(&part_out.join("a_m2.json")), "a/m2");
+    let ledger = dir.join("part.tsv");
+    let census = tool(&mut s, json!({"survey": pack.join("a").to_str().unwrap(), "out": ledger.to_str().unwrap(), "fit": false}));
+    assert_eq!(census.unwrap()["models"], 2);
+    // The pack's own ledger holds every model: part of the pack goes to out= only.
+    let e = tool(&mut s, json!({"survey": pack.join("a/m2.glb").to_str().unwrap()})).unwrap_err();
+    assert!(e.to_string().contains("part of testlib/pack1"), "{e}");
 }

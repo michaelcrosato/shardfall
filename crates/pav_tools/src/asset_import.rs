@@ -28,7 +28,7 @@ use pav_core::props::mesh::MeshFile;
 use crate::import::fit::{self, Mode, Translation, segment};
 use crate::import::ledger::Ledger;
 use crate::import::libraries::{self, lib_pack, models_in};
-use crate::import::normalize::{self, Norm, Normalized};
+use crate::import::normalize::{self, Norm, Normalized, Place};
 use crate::import::raster::{self, Tri};
 use crate::import::report::write_text;
 use crate::import::scene::{Alpha, Scene, hex};
@@ -61,6 +61,22 @@ fn allowed(a: &Args) -> Result<()> {
 
 fn num(a: &Args, k: &str) -> Result<Option<f64>> {
     Ok(if a.contains_key(k) { Some(get_f32(a, k, 0.0)? as f64) } else { None })
+}
+
+/// A normalisation as a catalog's placement fields, for `norm` to read arguments over.
+fn norm_map(n: &Norm) -> serde_json::Map<String, Value> {
+    let place = match n.place {
+        Place::Keep => "keep",
+        Place::Floor => "floor",
+        Place::Center => "center",
+    };
+    let up = if n.z_up { "z" } else { "y" };
+    serde_json::Map::from_iter([
+        ("up".to_string(), json!(up)),
+        ("yaw".to_string(), json!(n.yaw)),
+        ("scale".to_string(), json!(n.scale)),
+        ("place".to_string(), json!(place)),
+    ])
 }
 
 /// Normalisation from the arguments over a pack's pinned placement.
@@ -345,9 +361,16 @@ struct Src {
     dir: PathBuf,
     files: Vec<PathBuf>,
     ids: Vec<String>,
+    /// Each model's prop name (`names`: distinct).
+    names: Vec<String>,
     norm: Norm,
+    /// What `check` reads the source with when a translation records no `norm`: the pack's
+    /// pinned placement, else the default.
+    base_norm: Norm,
     /// The catalog's `lib/pack`, when they come from a downloaded pack.
     lib_pack: Option<String>,
+    /// Only some of the pack's models (a file or folder inside it).
+    partial: bool,
     /// The library pack translations belong to (the catalog's `pack`; `import` for others).
     pack: String,
     license: Option<String>,
@@ -355,7 +378,7 @@ struct Src {
 }
 
 /// A library pack (`lib/pack`), a folder, or one model file; a file or folder inside a
-/// downloaded pack counts as that pack's.
+/// downloaded pack counts as that pack's (only its models, with the pack's catalog data).
 fn source_of(a: &Args, what: &str) -> Result<Src> {
     let path = PathBuf::from(what);
     if !path.exists() {
@@ -368,7 +391,8 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
     if let Ok(rel) = canon(&path).strip_prefix(canon(&cache)) {
         let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
         if parts.len() >= 2 && libraries::source(&parts[0], &parts[1]).is_ok() {
-            let only = path.is_file().then(|| rel.iter().skip(2).collect::<PathBuf>());
+            let inside: PathBuf = rel.iter().skip(2).collect();
+            let only = (!inside.as_os_str().is_empty()).then_some(inside);
             return pack_source(a, &parts[0], &parts[1], only);
         }
     }
@@ -385,15 +409,19 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
     Ok(Src {
         dir,
         files,
+        names: names(&ids),
         ids,
         norm: norm(a, None)?,
+        base_norm: Norm::default(),
         lib_pack: None,
+        partial: false,
         pack: "import".into(),
         license: None,
         label: what.to_string(),
     })
 }
 
+/// A pack's models; `only`: the one file, or the folder's models, at that path inside it.
 fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result<Src> {
     let src = libraries::source(lib, pack)?;
     let dir = libraries::pack_dir(lib, pack);
@@ -403,26 +431,41 @@ fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result
     let glob = src.get("models").and_then(Value::as_str).map(str::to_string);
     let all = models_in(&dir, glob.as_deref());
     let all_ids = ids(&all, glob.as_deref());
-    let (files, ids) = match only {
+    // Names over the whole pack, so a part of it gets the names the whole would.
+    let all_names = names(&all_ids);
+    let keep: Vec<usize> = match &only {
         Some(f) => {
-            let i =
-                all.iter().position(|g| *g == f).ok_or_else(|| anyhow!("{} is not one of {lib}/{pack}'s models", f.display()))?;
-            (vec![all[i].clone()], vec![all_ids[i].clone()])
+            let keep: Vec<usize> = (0..all.len()).filter(|&i| all[i].starts_with(f)).collect();
+            if keep.is_empty() {
+                bail!(
+                    "{} holds none of {lib}/{pack}'s models{}",
+                    f.display(),
+                    glob.as_ref().map(|g| format!(" ({g})")).unwrap_or_default()
+                );
+            }
+            keep
         }
-        None => (all, all_ids),
+        None => (0..all.len()).collect(),
     };
-    if files.is_empty() {
+    if keep.is_empty() {
         bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default());
     }
+    let pick = |v: &[String]| keep.iter().map(|&i| v[i].clone()).collect::<Vec<_>>();
     Ok(Src {
         dir,
-        files,
-        ids,
+        files: keep.iter().map(|&i| all[i].clone()).collect(),
+        ids: pick(&all_ids),
+        names: pick(&all_names),
         norm: norm(a, Some(&src))?,
+        base_norm: norm(&Args::new(), Some(&src))?,
         lib_pack: Some(format!("{lib}/{pack}")),
+        partial: keep.len() < all.len(),
         pack: src.get("pack").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}")),
         license: src.get("license").and_then(Value::as_str).map(str::to_string),
-        label: format!("{lib}/{pack}"),
+        label: match &only {
+            Some(f) => format!("{lib}/{pack}/{}", f.to_string_lossy().replace('\\', "/")),
+            None => format!("{lib}/{pack}"),
+        },
     })
 }
 
@@ -433,6 +476,30 @@ fn leaf(id: &str) -> String {
         s = format!("m_{s}");
     }
     s.chars().take(64).collect()
+}
+
+/// Each id's prop name, all distinct: ids that come out the same (`Foo`/`foo`, `a/b`/`a_b`)
+/// would write over each other's asset and mesh. An id that already is its name keeps it; the
+/// others take `_2`, `_3`... in id order, skipping names in use. The same files give the same
+/// names.
+fn names(ids: &[String]) -> Vec<String> {
+    let base: Vec<String> = ids.iter().map(|id| leaf(id)).collect();
+    let mut order: Vec<usize> = (0..ids.len()).collect();
+    order.sort_by(|&a, &b| (base[a] != ids[a]).cmp(&(base[b] != ids[b])).then(ids[a].cmp(&ids[b])));
+    let mut taken = std::collections::BTreeSet::new();
+    let mut out = vec![String::new(); ids.len()];
+    for i in order {
+        let mut name = base[i].clone();
+        let mut k = 2;
+        while taken.contains(&name) {
+            let tail = format!("_{k}");
+            name = format!("{}{tail}", base[i].chars().take(64 - tail.len()).collect::<String>());
+            k += 1;
+        }
+        taken.insert(name.clone());
+        out[i] = name;
+    }
+    out
 }
 
 /// Where a pack's translations are written, and their mesh files in `meshes/` beside them:
@@ -490,12 +557,15 @@ fn process(src: &Src, i: usize, mode: Option<Mode>) -> Done {
     let o = fit::Options {
         mode,
         pack: src.pack.clone(),
-        name: leaf(id),
+        name: src.names[i].clone(),
         source: fit::Source {
             library: src.lib_pack.clone(),
             title: Some(id.clone()),
             license: src.license.clone(),
             url: src.lib_pack.is_none().then(|| src.dir.join(&src.files[i]).to_string_lossy().replace('\\', "/")),
+            // Recorded when `check` would otherwise read the source another way (`up=y`: the
+            // defaults, over a pack's pinned placement).
+            norm: (src.norm != src.base_norm).then(|| Some(src.norm.words()).filter(|w| !w.is_empty()).unwrap_or("up=y".into())),
         },
     };
     match fit::translate(&s, &o) {
@@ -608,6 +678,10 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
     let src = source_of(a, what)?;
     let ledger_path = match (get_str(a, "out"), &src.lib_pack) {
         (Some(o), _) => PathBuf::from(o),
+        // The pack's ledger has a row for every model: a part of it would drop the others'.
+        (None, Some(lp)) if src.partial => {
+            bail!("survey={what}: part of {lp}, whose ledger holds the whole pack: survey={lp}, or out=<file>.tsv for this part")
+        }
         (None, Some(lp)) => {
             let (lib, pack) = lib_pack(lp)?;
             libraries::catalogs_dir().join(lib).join(format!("{pack}.tsv"))
@@ -751,6 +825,19 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
             bail!("{}: a rigged model (skinned); rigs belong to the creature tools, not props", src.ids[0]);
         }
         let t = d.translation.as_ref().ok_or_else(|| anyhow!("{}", d.error.clone().unwrap_or_default()))?;
+        // Like a folder's: a failed translation is not written (plan §8.6).
+        if t.tier == "fail" {
+            let f = &t.fidelity;
+            let hint = if mode == Mode::Mesh { "" } else { "; fit=mesh keeps the whole model as a mesh part" };
+            bail!(
+                "{}: the translation fails (iou {:.3}, iou_mean {:.3}, de {:.1}, {} chars), so it is not written{hint}",
+                src.ids[0],
+                f.iou,
+                f.iou_mean,
+                f.de,
+                t.chars
+            );
+        }
         let path = write_translation(&dir, t)?;
         let reply = translation_reply(t, &path);
         if get_bool(a, "compare", false)? {
@@ -813,11 +900,17 @@ fn check(a: &Args, file: &str) -> Result<Output> {
     }
     let (doc, compiled) = fit::read_back(&text)?;
     let source = doc.source.clone().ok_or_else(|| anyhow!("check={file}: the asset has no source to compare with"))?;
-    let model = match (&source.library, &source.url) {
+    let mut model = match (&source.library, &source.url) {
         (Some(lp), _) => source_of(a, lp)?,
         (None, Some(url)) => source_of(a, url)?,
         _ => bail!("check={file}: its source names no library or file"),
     };
+    // Read the source as the import did: its recorded normalisation, under any up=, yaw=,
+    // scale= or place= given here.
+    if let Some(words) = &source.norm {
+        let recorded = Norm::from_words(words).map_err(|e| anyhow!("check={file}: source.norm \"{words}\": {e}"))?;
+        model.norm = norm(a, Some(&norm_map(&recorded)))?;
+    }
     let i = match &source.title {
         Some(t) if model.files.len() > 1 => {
             model.ids.iter().position(|id| id == t).ok_or_else(|| anyhow!("{} has no model {t}", model.label))?

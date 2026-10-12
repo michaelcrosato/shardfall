@@ -263,7 +263,8 @@ const ONE_TOKEN: &[&str] = &[
     "format", "name", "unit", "color", "type", "size", "pos", "yaw", "pitch", "roll", "parts", "points", "depth", "radius",
     "height", "profile", "segments", "mirror", "array", "count", "step", "mesh", "source", "library", "license", "title", "fit",
     "iou", "de", "box", "cylinder", "cone", "sphere", "capsule", "cm", "axis", "mean", "worst", "pct", "url", "end", "blue",
-    "red", "grey", "green", "brown", "dark", "light", "white", "black", "pink", "teal", "orange", "yellow", "purple",
+    "red", "grey", "green", "brown", "dark", "light", "white", "black", "pink", "teal", "orange", "yellow", "purple", "solid",
+    "false",
 ];
 
 /// An estimate of the o200k tokens in a text, from its pre-tokens: runs of marks (a line break

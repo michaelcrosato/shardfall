@@ -520,6 +520,10 @@ pub struct Source {
     pub author: Option<String>,
     pub sha256: Option<String>,
     pub title: Option<String>,
+    /// How an importer brought the model into the engine's frame when that was not the
+    /// default (`asset_import`'s words: `up=z yaw=90 scale=0.01 place=floor`), so it can read
+    /// the source the same way again.
+    pub norm: Option<String>,
 }
 
 /// How closely a translated asset fits its source (written by tools).
