@@ -393,7 +393,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
         "replace" => &["asset", "if_revision", "dry_run"],
         "undo" | "redo" => &["if_revision"],
         "schema" => &["topic", "format"],
-        "publish" => &["review"],
+        "publish" => &["review", "if_revision"],
         _ => bail!(
             "{}",
             Issue::error("action", Code::UnknownValue, format!("unknown action \"{action}\""))
@@ -632,7 +632,10 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     if action == "publish" {
         let def = read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'"))?;
         let review = get_str(a, "review").ok_or_else(|| anyhow!("review= says what the sheet review found"))?;
-        return read_only(crate::asset_library::publish(root, &name, &def, check_lines(&def), props::store::CORE, review)?);
+        let reviewed =
+            get_str(a, "if_revision").ok_or_else(|| anyhow!("if_revision= is the revision whose sheet you reviewed"))?;
+        let found = check_lines(&def);
+        return read_only(crate::asset_library::publish(root, &name, &def, reviewed, found, props::store::CORE, review)?);
     }
     if !props::editable(&name) {
         let what = if name.starts_with("BUILTIN/") { "built-in templates are" } else { "library assets are" };
@@ -1114,20 +1117,35 @@ mod tests {
         let name = "test_asset_publish_post";
         let mut post = json!({"format":2,"name":name,"unit":"cm","description":"A wooden post.",
             "parts":{"post":{"type":"box","size":[10,100,10],"pos":[0,50,0],"color":"#806040"}}});
-        edit(&root, json!({"action":"create","name":name,"asset":post}));
-        let publish =
-            |review: &str| edit_at(&root, &args(json!({"action":"publish","name":name,"review":review}))).err().unwrap();
-        assert!(publish("ok").to_string().contains("PACK.json"), "a pack needs its licence");
+        let first = edit(&root, json!({"action":"create","name":name,"asset":post}));
+        let publish = |review: &str, revision: &Value| {
+            let a = json!({"action":"publish","name":name,"review":review,"if_revision":revision});
+            edit_at(&root, &args(a)).err().unwrap().to_string()
+        };
+        assert!(publish("ok", &first["revision"]).contains("PACK.json"), "a pack needs its licence");
         std::fs::create_dir_all(root.join("lib/core")).unwrap();
         let licence = r#"{"pack":"core","title":"Core","license":"CC0-1.0","credit":"Test","source":"own"}"#;
         std::fs::write(root.join("lib/core/PACK.json"), licence).unwrap();
-        let error = publish("ok").to_string();
+        let error = publish("ok", &first["revision"]);
         assert!(error.contains("missing: category") && error.contains("missing: 2-6 tags"), "{error}");
         post["category"] = json!("town");
         post["tags"] = json!(["wood", "fence"]);
-        edit(&root, json!({"action":"replace","name":name,"asset":post}));
-        assert!(publish(" ").to_string().contains("review="), "a review is required");
-        let done = edit(&root, json!({"action":"publish","name":name,"review":"ok: reads at game distance"}));
+        post["source"] = json!({"library":"somewhere"});
+        let sourced = edit(&root, json!({"action":"replace","name":name,"asset":post}));
+        assert!(publish("ok", &sourced["revision"]).contains("license: its source names no licence"));
+        post.as_object_mut().unwrap().remove("source");
+        let current = edit(&root, json!({"action":"replace","name":name,"asset":post}));
+        assert!(publish(" ", &current["revision"]).contains("review="), "a review is required");
+        assert!(publish("ok", &first["revision"]).contains("not the reviewed"), "the reviewed revision is published");
+        // A ledger that does not read stops the publish before anything is written.
+        std::fs::write(root.join("lib/core/review.tsv"), "name\trevision\treview\nLIB/core/x\tprop2-1\t\n").unwrap();
+        assert!(publish("ok", &current["revision"]).contains("a review"));
+        assert!(!root.join(format!("lib/core/{name}.json")).exists());
+        std::fs::remove_file(root.join("lib/core/review.tsv")).unwrap();
+        let done = edit(
+            &root,
+            json!({"action":"publish","name":name,"review":"ok: reads at game distance","if_revision":current["revision"]}),
+        );
         let published = format!("LIB/core/{name}");
         assert_eq!(done["published"], published.as_str());
         assert!(root.join(format!("lib/core/{name}.json")).is_file());

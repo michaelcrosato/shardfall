@@ -65,17 +65,15 @@ fn committed_packs_fit_budget() {
     assert!(total <= 40_000_000, "the packs on disk are {total} bytes (budget 40,000,000)");
 }
 
-/// Every committed pack has a `PACK.json` whose licence may be shared, and no asset in it names a
-/// source licence the pack may not hold.
+/// Every committed pack has a `PACK.json` whose licence may be shared, with its credit lines, and
+/// each asset in it is own work or names the pack's licence.
 #[test]
 fn committed_packs_are_redistributable() {
     let root = assets().join("props");
     for (pack, folder) in asset_library::committed_packs(&root) {
-        asset_library::read_pack(&folder).unwrap();
+        let info = asset_library::read_pack(&folder).unwrap();
         for (name, def) in pack_assets(&pack, &folder) {
-            if let Some(license) = def.doc.source.as_ref().and_then(|source| source.license.as_deref()) {
-                asset_library::license_allowed(&pack, license).unwrap_or_else(|e| panic!("{name}: {e}"));
-            }
+            asset_library::source_allowed(def.doc.source.as_ref(), &info.license).unwrap_or_else(|e| panic!("{name}: {e}"));
         }
     }
 }
@@ -94,9 +92,10 @@ fn core_assets_are_reviewed() {
     let root = assets().join("props");
     let folder = root.join("lib/core");
     let reviews = asset_library::reviews(&folder).unwrap();
+    let core = asset_library::read_pack(&folder).unwrap();
     for (name, def) in pack_assets("core", &folder) {
         let mut found = pav_tools::asset_tools::check_lines(&def);
-        found.extend(asset_library::gate(&def, "core"));
+        found.extend(asset_library::gate(&def, &core));
         assert!(found.is_empty(), "{name}: {found:?}");
         assert!(
             reviews.iter().any(|(row, revision, _)| *row == name && *revision == def.revision),

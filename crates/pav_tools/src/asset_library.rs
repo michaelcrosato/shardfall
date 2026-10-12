@@ -43,7 +43,25 @@ pub fn read_pack(folder: &Path) -> Result<Pack> {
         bail!("{}: pack \"{}\" must name its folder \"{folder_name}\"", path.display(), pack.pack);
     }
     license_allowed(&pack.pack, &pack.license).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    for (field, value) in [("title", &pack.title), ("credit", &pack.credit), ("source", &pack.source)] {
+        if value.trim().is_empty() {
+            bail!("{}: {field} is empty (the credits need it)", path.display());
+        }
+    }
     Ok(pack)
+}
+
+/// Whether an asset's `source` may sit in a pack licensed `pack_license`: own work has no
+/// `source`; anything with one names a licence, and it is the pack's.
+pub fn source_allowed(source: Option<&props::doc::Source>, pack_license: &str) -> Result<()> {
+    let Some(source) = source else { return Ok(()) };
+    match source.license.as_deref() {
+        None => bail!("its source names no licence"),
+        Some(license) if license != pack_license => {
+            bail!("its source's licence {license} is not the pack's ({pack_license}); keep it in a pack of its own licence")
+        }
+        Some(_) => Ok(()),
+    }
 }
 
 /// Whether `license` may be committed in `lib/<pack>`.
@@ -105,7 +123,7 @@ fn token_cap(category: Option<Category>) -> usize {
 /// What keeps `def` out of `lib/<pack>` besides `check`'s findings: what retrieval needs (a
 /// description, a category, 2-6 tags), its token cap, references outside the library, and its
 /// source's licence.
-pub fn gate(def: &PropDef, pack: &str) -> Vec<String> {
+pub fn gate(def: &PropDef, pack: &Pack) -> Vec<String> {
     let doc = &def.doc;
     let mut found = Vec::new();
     let chars = doc.description.trim().chars().count();
@@ -125,15 +143,13 @@ pub fn gate(def: &PropDef, pack: &str) -> Vec<String> {
         found.push(format!("tokens: {tok} (cap {cap} for its category)"));
     }
     for dep in &def.deps {
-        let library = dep.starts_with("BUILTIN/") || matches!(store::pack(dep), Some(p) if p == store::CORE || p == pack);
+        let library = dep.starts_with("BUILTIN/") || matches!(store::pack(dep), Some(p) if p == store::CORE || p == pack.pack);
         if !library {
             found.push(format!("refs: {dep} is outside the library; publish it first and reference its LIB/ name"));
         }
     }
-    if let Some(license) = doc.source.as_ref().and_then(|source| source.license.as_deref()) {
-        if let Err(error) = license_allowed(pack, license) {
-            found.push(format!("license: {error}"));
-        }
+    if let Err(error) = source_allowed(doc.source.as_ref(), &pack.license) {
+        found.push(format!("license: {error}"));
     }
     found
 }
@@ -152,8 +168,10 @@ pub fn reviews(folder: &Path) -> Result<Vec<(String, String, String)>> {
         .filter(|row| !row.trim().is_empty())
         .enumerate()
         .map(|(i, row)| match row.split('\t').collect::<Vec<_>>()[..] {
-            [name, revision, review] => Ok((name.to_owned(), revision.to_owned(), review.to_owned())),
-            _ => Err(anyhow!("{} line {}: expected name, revision, review", path.display(), i + 2)),
+            [name, revision, review] if !review.trim().is_empty() => {
+                Ok((name.to_owned(), revision.to_owned(), review.to_owned()))
+            }
+            _ => Err(anyhow!("{} line {}: expected name, revision and a review", path.display(), i + 2)),
         })
         .collect()
 }
@@ -161,7 +179,15 @@ pub fn reviews(folder: &Path) -> Result<Vec<(String, String, String)>> {
 /// `asset_edit action=publish name=WORKSHOP/x pack=core review="ok: …"`: `def` (the workshop
 /// asset, with `findings` from `check`) passes the gate, then goes into `lib/<pack>/<leaf>.json`
 /// with its index row, its review at this revision, and the credits rewritten.
-pub fn publish(root: &Path, name: &str, def: &PropDef, findings: Vec<String>, pack: &str, review: &str) -> Result<Value> {
+pub fn publish(
+    root: &Path,
+    name: &str,
+    def: &PropDef,
+    reviewed: &str,
+    findings: Vec<String>,
+    pack: &str,
+    review: &str,
+) -> Result<Value> {
     if name.starts_with("WORKSHOP_LOCAL/") {
         bail!("{name} stays on this machine: WORKSHOP_LOCAL holds copies of sources that may not be shared");
     }
@@ -173,17 +199,18 @@ pub fn publish(root: &Path, name: &str, def: &PropDef, findings: Vec<String>, pa
     if review.is_empty() || review.chars().count() > 200 {
         bail!("review= says what the sheet review found (1-200 characters), e.g. \"ok: reads at game distance, front +z\"");
     }
+    if reviewed != def.revision {
+        bail!("{name} is at revision {}, not the reviewed {reviewed}: look at its sheet again", def.revision);
+    }
     let folder = root.join("lib").join(pack);
-    read_pack(&folder)?;
+    let pack_info = read_pack(&folder)?;
     let mut found = findings;
-    found.extend(gate(def, pack));
+    found.extend(gate(def, &pack_info));
     if !found.is_empty() {
         bail!("{name} does not pass the library gate: {}", found.join("; "));
     }
     let leaf = props::leaf(name);
     let published = format!("LIB/{pack}/{leaf}");
-    let file = folder.join(format!("{leaf}.json"));
-    std::fs::write(&file, def.doc.text()).map_err(|e| anyhow!("write {}: {e}", file.display()))?;
     let mut ledger: Vec<_> = reviews(&folder)?.into_iter().filter(|(row, _, _)| *row != published).collect();
     ledger.push((published.clone(), def.revision.clone(), review));
     ledger.sort();
@@ -191,8 +218,23 @@ pub fn publish(root: &Path, name: &str, def: &PropDef, findings: Vec<String>, pa
     for (row, revision, review) in &ledger {
         text.push_str(&format!("{row}\t{revision}\t{review}\n"));
     }
-    std::fs::write(folder.join("review.tsv"), text).map_err(|e| anyhow!("write review.tsv: {e}"))?;
-    crate::asset_search::reindex(root, pack)?;
+    // The asset, its review and the index change together: a failure puts the files back.
+    let file = folder.join(format!("{leaf}.json"));
+    let ledger_file = folder.join("review.tsv");
+    let old = [&file, &ledger_file].map(|path| std::fs::read(path).ok());
+    let written = std::fs::write(&file, def.doc.text())
+        .and_then(|()| std::fs::write(&ledger_file, text))
+        .map_err(|e| anyhow!("write {}: {e}", folder.display()))
+        .and_then(|()| crate::asset_search::reindex(root, pack));
+    if let Err(error) = written {
+        for (path, bytes) in [&file, &ledger_file].into_iter().zip(old) {
+            let _ = match bytes {
+                Some(bytes) => std::fs::write(path, bytes),
+                None => std::fs::remove_file(path),
+            };
+        }
+        return Err(error);
+    }
     let mut result = json!({"published": published, "revision": def.revision, "file": file});
     if pack == store::CORE {
         result["note"] = json!("LIB/core is embedded: rebuild to load it");

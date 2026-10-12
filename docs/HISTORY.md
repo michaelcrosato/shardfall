@@ -19,12 +19,14 @@ follow in part 2, once row 3.3 lets props wear materials.
   so not listed); test `credits_file_is_current`. The studio package ships it, and the README
   links it. The plan's `assets credits=true|write` args are left out: reindexing writes the
   file, and the tools/list cap had no room.
-- **Publish:** `asset_edit action=publish name=x review="ok: …"` puts a workshop asset into
-  `LIB/core` after a sheet review. The gate: no `check` findings, a description of 1-120
+- **Publish:** `asset_edit action=publish name=x if_revision=R review="ok: …"` puts a workshop
+  asset into `LIB/core` after a sheet review of revision R (a newer revision is refused). The gate: no `check` findings, a description of 1-120
   characters, a category, 2-6 tags, a token cap by category (400 food/tool/signage, 600
   container/lighting/rock/vegetation, 800 most, 2,000 town/dungeon), references to BUILTIN or
-  LIB/core only, and a source licence core may hold. It writes `lib/core/x.json`, its index row,
-  a `review.tsv` line (`name revision review`) at this revision and the credits. Test
+  LIB/core only, and own work or a source naming the pack's licence (every asset with a `source`
+  names one). It reads everything first, then writes `lib/core/x.json`, its index row, a
+  `review.tsv` line (`name revision review`, a review never empty) and the credits, putting the
+  files back if any write fails. `PACK.json` needs a title, credit and source. Test
   `core_assets_are_reviewed`: every core asset passes the gate and has a review of its current
   revision, so an edited core asset needs a new review. Other packs come from import (row 5.3),
   so publish has no `pack=` arg; the `review` arg was paid for by trimming the clip library's

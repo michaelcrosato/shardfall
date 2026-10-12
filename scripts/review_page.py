@@ -257,6 +257,9 @@ def main() -> None:
     verdicts = manifest.get("verdicts", ["ok", "fix", "drop"])
     if not 1 <= len(verdicts) <= 3:
         sys.exit("verdicts: one to three labels")
+    ids = [item["id"] for item in manifest["items"]]
+    if len(set(ids)) != len(ids):
+        sys.exit(f"item ids must be unique: {sorted({i for i in ids if ids.count(i) > 1})}")
     items = []
     for item in manifest["items"]:
         images = []
