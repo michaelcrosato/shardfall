@@ -25,7 +25,8 @@ repo's headless engine or on downloaded library files during planning.
 | End to end | Replaying the dogfood stall session costs `tok_x` 10.8k tokens (50k with context re-reads). The same stall in format 2 projects to ~5.5k (~17.7k). |
 
 **Conditions.**
-1. The format-2 gate G2 (§10) must pass before Phases 3-6.
+1. The format-2 gate G2 (§10) must pass before Phases 3-6. *Superseded on 2026-10-12: the user
+   closed G2 after its NO-GO and resumed Phases 3-6 in slim form (§10.3).*
 2. Bulk import waits for the pilot GO (§8.8).
 3. Materials stay within the frame budget and pass the browser shader check.
 
@@ -41,6 +42,11 @@ the executing agent stops, records the numbers, and advises against continuing. 
 are useful even if everything after them stops.
 
 ## 1. Goals and how they are measured
+
+*Superseded on 2026-10-12 for Phases 3-6 by the slim targets in §10.3: the kept rows' objective
+checks and budgets (the "still runs well" row below stands), a reviewed core library of ~30
+exemplars, the pilot's objective GO, and the user's review pages instead of judged win rates.
+The table is the original target, kept for the record.*
 
 | goal | measure (final gate G4 unless noted) |
 |---|---|
@@ -1282,7 +1288,10 @@ After the G2 NO-GO the user resumed Phases 3-6 in slim form under the prototype 
   cheaper (lower on at least 5 of 6); otherwise it counts as no proven benefit.
 - **G3** = the MAT checks (parity ≥ 99.9% per kernel, the D8 frame budget, the Chromium WGSL
   check, slot-0 goldens) + the 8-theme review page. **G4** = the library and game checks of the
-  G4 row above + the Level 1 review page. **G5** = the §8.8 pilot GO/NO-GO, already objective.
+  G4 row above + the Level 1 review page. **G5** = the §8.8 pilot criteria that the kept rows
+  measure: ≥ 80% in the `fit` tier, median IoU ≥ 0.90, median asset ≤ 2,500 chars, ≥ 40% of fit
+  assets `editable`, 0 panics and byte-identical rebuilds, plus a review page of a sample. The GPU
+  cross-check and the 30 re-authorings are deferred with I4's GPU part and I7.
 - A check that fails gets one fix round. If it still fails, the row ships without that feature and
   HISTORY says so.
 
@@ -1295,10 +1304,10 @@ lands it.
 | 0 (L) | hygiene, errors, baseline | GA, G0 | ~70% smaller replies, ~60% smaller saved props, errors that name the part/op, a baseline table |
 | 1 (L) | agent loop on format 1 | G1 | `check` findings in edit replies, one-call 4-view sheets with a 1.8 m figure, `capture stats=only` |
 | 2 (XL) | format 2 core | **G2, the main go/no-go** | new primitives, mirror/array/radial, attach, sockets, seeded variants; bench template fixed |
-| 3 (XL) | materials | G3 | planks, brick and shingles on props; flagstones and coursed walls in every theme |
-| 4 (XL) | library + Shardfall use | G4 | `assets find=`, ~30 curated exemplars, the Level 1 restyle (§9.7) |
-| 5 (XL) | import pilot | G5 | `asset_import`, Kenney/KayKit/Quaternius packs on disk, ≥ 30 re-authored exemplars, credits |
-| 6 (XL+) | scale-out, each item gated | per wave | ~520 exemplars, weapons in hand and on the ground, monster gear, town as data |
+| 3 (XL) | materials | G3 (lean) | planks, brick and shingles on props; flagstones and stone walls in every theme |
+| 4 (XL) | library + Shardfall use | G4 (lean) | `assets find=`, ~30 curated exemplars, dressed rooms on theme materials (no theme kits) |
+| 5 (XL) | import pilot | G5 (lean) | `asset_import`, a ~250-model Kenney/KayKit/Quaternius pilot with fidelity numbers, credits |
+| 6 (L) | scale-out after a GO | pilot checks per pack | the GO packs on disk, searchable from `assets find=` |
 
 Why this order:
 - Phases 0-1 pay off even if format 2 stops, and they build the harness's scoring tools.
