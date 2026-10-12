@@ -12,6 +12,7 @@ it would normally get, make better assets for fewer tokens?
   bench.py report [--gate GA] [--vs GA/A]          gate summary (and ratios to a baseline) -> summary.json
   bench.py calib [--bin PATH] | --report           judge calibration: 12 planted-defect pairs, both orders
   bench.py votes --gate G1 --arm T [--bin PATH]    before/after images of each edit run, for judges
+  bench.py pairs --gate G2 --arm F --vs GA/A       each authoring run above or below the baseline's, for judges
   bench.py judgment IMAGE JUDGE '{"pref":1,...}'   record one judge's answer -> results/judgments.tsv
   bench.py selftest                                two scripted replays: equal tok_x, cap enforced
 
@@ -247,6 +248,16 @@ def sheet(binary, folder, name, out):
     if "path" not in reply:
         sys.exit(f"no sheet of {name} in {folder}: {reply}")
     shutil.move(Path(folder) / reply["path"], out)
+
+
+def try_sheet(binary, folder, name, out):
+    """sheet(), or False when the asset does not draw (it does not load, or draws nothing)."""
+    replies = engine(binary, folder, [json.dumps({"tool": "asset_preview", "args": {"name": f"WORKSHOP/{name}", **SHEET}})])
+    reply = replies[0] if replies else {}
+    if "path" not in reply:
+        return False
+    shutil.move(Path(folder) / reply["path"], out)
+    return True
 
 
 def image_id(*key):
@@ -538,7 +549,9 @@ def check_asset(binary, run, name, needs, size, tol):
         return facts
     lo, hi = inspect["bounds"]
     cm = [round((hi[i] - lo[i]) * 100, 1) for i in range(3)]
-    facts.update(parts=len(inspect["asset"]["parts"]), size_cm="x".join(f"{c:g}" for c in cm))
+    # Drawn parts after copies and mirrors, where the engine lists them (format 1: its parts).
+    parts = inspect.get("part_bounds") or inspect["asset"]["parts"]
+    facts.update(parts=len(parts), size_cm="x".join(f"{c:g}" for c in cm))
     if size:
         for axis, actual, target in zip("xyz", cm, size):
             if abs(actual - target) > tol * target:
@@ -554,11 +567,17 @@ def check_asset(binary, run, name, needs, size, tol):
         facts["problems"].append(f"{name}: below_floor ({min_y:.1f} cm)")
     elif min_y > 0.5:
         facts["problems"].append(f"{name}: not_grounded ({min_y:.1f} cm)")
-    if "light" in needs:
-        parts = inspect["asset"]["parts"].values()
-        if not any(p.get("emissive", 0) > 0.5 or p.get("light") for p in parts):
-            facts["problems"].append(f"{name}: gives off no light")
     check = replies[1] if len(replies) > 1 else {}
+    # Light: a light field, or a part glowing above emissive 0.5 (the cost line counts both, in
+    # either format, materials and groups included).
+    lights = re.search(r"(\d+) lights", check.get("cost", ""))
+    if lights is None:
+        parts = inspect["asset"]["parts"].values()
+        glows = any(p.get("emissive", 0) > 0.5 or p.get("light") for p in parts)
+    else:
+        glows = int(lights.group(1)) > 0
+    if "light" in needs and not glows:
+        facts["problems"].append(f"{name}: gives off no light")
     if "error" in check:
         facts["check"] = "na"  # the scoring engine has no lint; score with a newer one
     else:
@@ -696,6 +715,48 @@ def compare(mine, baseline):
     }
 
 
+# §10.2 thresholds per gate: token ratios are medians over tasks, against the baseline's mean.
+GATES = {"G2": {"authoring_tok_x": 0.75, "authoring_tok_cum": 0.65, "edits_tok_x": 0.60, "pairs": 24,
+                "parity": 12, "rubric": -0.1, "k1_tok_x": 0.90, "k1_wins": 15, "k2": 8, "k3_points": 15,
+                "k3_failed": 3}}
+
+
+def gate_verdict(gate, key, mine, vs):
+    """The §10.2 pass checks and kill criteria of a gate with authoring, edit and pair results."""
+    limit = GATES[gate]
+    authoring = compare([r for r in mine if r["task"].startswith("P")], vs)
+    edits = compare([r for r in mine if r["task"].startswith("E")], vs)
+    pairs = pair_results(key + "/")
+    outcomes = [p["outcome"] for p in pairs.values()]
+    wins, ties, losses = outcomes.count("win"), outcomes.count("tie"), outcomes.count("loss")
+    deltas = [p["delta"] for p in pairs.values() if p["delta"] is not None]
+    rubric = round(statistics.mean(deltas), 3) if deltas else None
+    whole = compare(mine, vs)
+    accepted, theirs, runs = whole["accepted"], whole["baseline_accepted"], len(mine)
+    failed = statistics.median(int(r["failed"]) for r in mine)
+    points = round((accepted - theirs) / runs * 100, 1) if runs else 0
+    score = wins + ties / 2
+    checks = {
+        "authoring_tok_x": (authoring["median_tok_x_ratio"], authoring["median_tok_x_ratio"] <= limit["authoring_tok_x"]),
+        "authoring_tok_cum": (authoring["median_tok_cum_ratio"],
+                              authoring["median_tok_cum_ratio"] <= limit["authoring_tok_cum"]),
+        "edits_tok_x": (edits["median_tok_x_ratio"], edits["median_tok_x_ratio"] <= limit["edits_tok_x"]),
+        "acceptance": (f"{accepted}/{runs} vs {theirs}", accepted >= theirs - 1),
+        "median_failed": (failed, failed <= 1),
+        "wins_ties": (f"{wins}+{ties}/2 of {len(pairs)}", score >= limit["parity"] and len(pairs) == limit["pairs"]),
+        "rubric_delta": (rubric, rubric is not None and rubric >= limit["rubric"]),
+    }
+    kills = {
+        "K1": authoring["median_tok_x_ratio"] > limit["k1_tok_x"] and wins < limit["k1_wins"],
+        "K2": score <= limit["k2"],
+        "K3": points < -limit["k3_points"] or failed >= limit["k3_failed"],
+    }
+    return {"checks": {k: {"value": v, "pass": ok} for k, (v, ok) in checks.items()},
+            "pairs": {"wins": wins, "ties": ties, "losses": losses, "judged": sum(1 for p in pairs.values() if p["judges"])},
+            "acceptance_points": points, "kills": kills,
+            "passed": all(ok for _, ok in checks.values()), "killed": any(kills.values())}
+
+
 def cmd_report(args):
     rows = [r for r in read_runs() if not args.gate or r["gate"] == args.gate]
     summary = load(RESULTS / "summary.json", {})
@@ -729,6 +790,9 @@ def cmd_report(args):
             if args.vs and args.vs != key:
                 s["vs"] = compare(mine, args.vs)
                 print(f"  vs {args.vs}: {json.dumps(s['vs'])}")
+                if gate in GATES:
+                    s["gate"] = gate_verdict(gate, key, mine, args.vs)
+                    print(f"  {gate}: {json.dumps(s['gate'])}")
     with open(RESULTS / "summary.json", "w") as f:
         json.dump(summary, f, indent=1, sort_keys=True)
         f.write("\n")
@@ -863,6 +927,97 @@ def cmd_votes(args):
     save_keys(keys)
 
 
+def task_brief(task):
+    """What a judge reads with a comparison: the brief and, when it has one, the size."""
+    brief = task["brief"]
+    if "size" in task:
+        w, h, d = task["size"]
+        brief += f" About {w} x {h} x {d} cm (width x height x depth)."
+    return brief
+
+
+def cmd_pairs(args):
+    """Each authoring run of an arm above or below the baseline's run of the same task (§10.1
+    Quality), in an order drawn from the run's name, for three judges. A task with several
+    assets stacks each side's sheets. A side with nothing to draw loses without judges."""
+    binary = newest(args.bin)
+    table = tasks()
+    base_gate, base_arm = args.vs.split("/")
+    keys = judge_keys()
+    prefix = f"{args.gate}/{args.arm}/"
+    for name in [k for k, v in keys.items() if v["kind"] == "pair" and v["target"].startswith(prefix)]:
+        Path(keys.pop(name)["path"]).unlink(missing_ok=True)
+    folder = JUDGE / "work" / f"pairs-{args.gate}-{args.arm}"
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "props/workshop").mkdir(parents=True)
+    (folder / "sheets").mkdir()
+    IMAGES.mkdir(parents=True, exist_ok=True)
+    for run in run_dirs(args.gate, args.arm):
+        config = load(run / "run.json")
+        task = table[config["task"]]
+        if task["kind"] != "author":
+            continue
+        target = f"{prefix}{config['task']}-r{config['run']}"
+        sides = {}
+        for side, source in (("arm", run), ("base", RUNS / base_gate / base_arm / f"{config['task']}-r{config['run']}")):
+            sheets = []
+            for i, asset_name in enumerate(names(task)):
+                path = source / "props/workshop" / f"{asset_name}.json"
+                leaf = f"{config['task'].lower()}_{side}_{i}"
+                out = folder / "sheets" / f"{leaf}.png"
+                if path.exists():
+                    (folder / "props/workshop" / f"{leaf}.json").write_text(
+                        json.dumps(json.loads(path.read_text()) | {"name": leaf}))
+                    if try_sheet(binary, folder, leaf, out):
+                        sheets.append(out)
+            # A set is judged only whole.
+            sides[side] = sheets if len(sheets) == len(names(task)) else []
+        name = image_id("pair", target, args.vs, binary.stat().st_mtime_ns)
+        key = {"kind": "pair", "target": target, "vs": args.vs, "brief": task_brief(task),
+               "path": str(IMAGES / f"{name}.png")}
+        if not sides["arm"] or not sides["base"]:
+            key |= {"order": "unjudged", "missing": "both" if sides["arm"] == sides["base"] else
+                    "arm" if not sides["arm"] else "base"}
+            keys[name] = key
+            print(f"{target}: nothing to draw on the {key['missing']} side; no judges")
+            continue
+        arm_top = random.Random(target).random() < 0.5
+        top, bottom = (sides["arm"], sides["base"]) if arm_top else (sides["base"], sides["arm"])
+        count = len(names(task))
+        stack(top + bottom, IMAGES / f"{name}.png", [8] * (count - 1) + [40 if count > 1 else 8] + [8] * (count - 1))
+        if count > 1:
+            key["brief"] += (f" Each asset is a set of {count} objects: the top {count} rows are asset 1, the bottom"
+                             f" {count} asset 2.")
+        keys[name] = key | {"order": "arm-top" if arm_top else "arm-bottom", "arm_at": 1 if arm_top else 2}
+        print(f"{name}\t{key['path']}\t{key['brief']}")
+    save_keys(keys)
+
+
+def pair_results(prefix):
+    """Per judged pair: the majority's verdict for the arm and the rubric difference (the arm's
+    median score minus the baseline's, averaged over the five criteria)."""
+    votes = [r for r in read_judgments() if r["kind"] == "pair"]
+    results = {}
+    for name, key in judge_keys().items():
+        if key["kind"] != "pair" or not key["target"].startswith(prefix):
+            continue
+        if key.get("missing"):
+            outcome = {"arm": "loss", "base": "win", "both": "tie"}[key["missing"]]
+            results[key["target"]] = {"outcome": outcome, "judges": 0, "delta": None}
+            continue
+        rows = [r for r in votes if r["image"] == name]
+        pick, at = majority(rows, "pref"), str(key["arm_at"])
+        outcome = "win" if pick == at else "tie" if pick in ("0", None) else "loss"
+
+        def medians(field):
+            scores = [[int(x) for x in r[field].split(",")] for r in rows if r[field]]
+            return [statistics.median(c) for c in zip(*scores)] if scores else None
+        mine, theirs = (medians("s1"), medians("s2")) if at == "1" else (medians("s2"), medians("s1"))
+        delta = statistics.mean(a - b for a, b in zip(mine, theirs)) if mine and theirs else None
+        results[key["target"]] = {"outcome": outcome, "judges": len(rows), "delta": delta}
+    return results
+
+
 def cmd_judgment(args):
     key = judge_keys().get(args.image)
     if key is None:
@@ -957,6 +1112,11 @@ def main():
     p = sub.add_parser("votes")
     p.add_argument("--gate", required=True)
     p.add_argument("--arm", required=True)
+    p.add_argument("--bin")
+    p = sub.add_parser("pairs")
+    p.add_argument("--gate", required=True)
+    p.add_argument("--arm", required=True)
+    p.add_argument("--vs", default="GA/A", help="baseline gate/arm whose runs each run is paired with")
     p.add_argument("--bin")
     p = sub.add_parser("judgment")
     p.add_argument("image")

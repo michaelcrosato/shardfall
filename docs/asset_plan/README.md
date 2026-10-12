@@ -4,8 +4,6 @@ Planning artefacts for `docs/ASSET_SYSTEM_PLAN.md` (§14 there says which work i
 They are starting points, not product code: the Rust implementation in the plan is the single
 source of truth. Delete each file when the work item that uses it lands.
 
-- `examples/format2/`: five format-2 assets and three semantic probes (the conformance corpus,
-  §5.9). Already follow the plan's final rules.
 - `examples/materials/`: example materials in the house unit (cm), including `pb/` presets.
 - `examples/families/fence.f2.json`: a parametric family (§9.4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1
@@ -15,6 +13,7 @@ source of truth. Delete each file when the work item that uses it lands.
 - `prototypes/material_fit/`, `prototypes/import/`: numpy prototypes of the texture and mesh fits.
 - `prototypes/families/apply_params.py`: parameter application for families.
 - The 23 error probes are `crates/pav_tools/tests/fixtures/asset_errors.jsonl`; the two
-  format-1 dogfood assets used as baselines are in `crates/pav_core/tests/fixtures/props/`.
+  format-1 dogfood assets used as baselines are in `crates/pav_core/tests/fixtures/props/`, and
+  the format-2 conformance corpus (§5.9) is in `crates/pav_core/tests/fixtures/props/format2/`.
 
 Paths inside the scripts that pointed at the planning scratch folder read `<scratch>`.

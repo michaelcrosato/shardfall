@@ -13,8 +13,8 @@ runs the same frozen tasks (`tasks.toml`) on a new arm and compares it with arm 
   with cwd RUN and the run's own `props/` and `creatures/`, so saved assets persist and nothing
   else does. It prints replies unchanged, logs every command to `RUN/log.jsonl`, and refuses
   commands past the run's cap (default 30 commands, 6 images).
-- `bench.py`: setup, build, prepare, score, collect, report, calib, votes, judgment, selftest
-  (`bench.py -h`).
+- `bench.py`: setup, build, prepare, score, collect, report, calib, votes, pairs, judgment,
+  selftest (`bench.py -h`).
 - `.claude/agents/asset-bench-author.md` and `asset-bench-judge.md`: the pinned runners (author:
   Sonnet at medium effort; judge: Opus at medium effort). A session that started before these
   files existed cannot launch them by name; use a general-purpose agent with the same model,
@@ -37,10 +37,20 @@ scripts/asset_bench/bench.py prepare --gate GA --arm A --tasks edits
 scripts/asset_bench/bench.py votes --gate GA --arm A       # edit runs: before/after images
 # three asset-bench-judge agents per image ("Your task: EDIT"), each answer recorded with
 # bench.py judgment IMAGE JUDGE '{"done":true,...}'
+scripts/asset_bench/bench.py pairs --gate G2 --arm F --vs GA/A   # authoring runs vs the baseline's
+# three asset-bench-judge agents per image ("Your task:", the image and its brief), recorded with
+# bench.py judgment IMAGE JUDGE '{"pref":1,"s1":[...],"s2":[...],...}'
 scripts/asset_bench/bench.py score --gate GA
 scripts/asset_bench/bench.py collect --gate GA
 scripts/asset_bench/bench.py report --gate GA [--vs GA/A]   # --vs: the §10.2 ratios to a baseline
 ```
+
+`report --vs` splits authoring and edit tasks, and for a gate with pass rules in `GATES` (G2 so
+far) applies §10.2: the token ratios, acceptance against the baseline's run 1 of the same tasks,
+the median of failed commands, and the pairs. Each pair is decided by the majority of its three
+judges (a split or a majority for "equal" is a tie), and the rubric difference is the arm's median
+score minus the baseline's, averaged over the five criteria and then over the pairs. A side that
+draws nothing loses its pair without judges.
 
 Run author agents one at a time. They write scratch files to `/tmp` under short names, and in
 G1's first batch eight concurrent runs overwrote each other's (three ran another task's asset),

@@ -295,9 +295,9 @@ Keep `{op, part, fields}`:
 - **Rooms.** `asset=`/`scale=` stay. `ObjectDef` gains optional `seed` and `params`, written by `object_toml` when set. `room_check` reports unknown assets with did-you-mean. (Row 2.4: `seed` and the palette `roles` landed; `params` waits for LIB-4 with `PropInstance.params`.)
 
 ### 5.9 Conformance corpus
-The five examples and three probes in `docs/asset_plan/examples/format2/` become
-`crates/pav_core/tests/prop_format2.rs`, with the fixtures as inline strings. Golden resolved
-values are in cm, with tolerance 0.01 cm and 0.05°.
+The five examples and three probes (once `docs/asset_plan/examples/format2/`) became
+`crates/pav_core/tests/prop_format2.rs` and its fixtures in `tests/fixtures/props/format2/`.
+Golden resolved values are in cm, with tolerance 0.01 cm and 0.05°.
 - bench `leg_back~x` (−85, 70.5, −41), pitch −12.01.
 - well:
   - `rim` y 85;
@@ -1393,7 +1393,7 @@ Why this order:
 ## 14. Reference material (`docs/asset_plan/`)
 These are planning artefacts. Use them as starting points, not product code. Delete each one when
 the work item that uses it lands. Each is listed with the work item that uses it.
-- `examples/format2/`: bench, market_stall, well, wall_torch, greatsword, and probes probe_mirror, probe_frames, probe_attach (F3, F8, the §5.9 corpus). The torch flame and the stall planks already follow the final rules.
+- `examples/format2/`: removed when F8 landed; the bench, market_stall, well, wall_torch, greatsword and the probes probe_mirror, probe_frames, probe_attach are `crates/pav_core/tests/fixtures/props/format2/` (the §5.9 corpus).
 - `examples/materials/`: 10 materials plus `pb/gold`, `pb/iron`, converted to `unit:"cm"` (MAT-1).
 - `examples/families/fence.f2.json` (LIB-4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1. Run it with `--anchors fix`. It treats capsule from/to as cap centres; §5.2 supersedes that.

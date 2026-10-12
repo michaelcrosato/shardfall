@@ -1,7 +1,0 @@
-{"format":2,"name":"probe_frames","unit":"cm",
-"description":"Three 40x4 boards: exactly vertical, leaning 1 degree toward +x, leaning 1 degree toward +z.",
-"materials":{"a":{"color":"#c08040"},"b":{"color":"#40a0c0"},"c":{"color":"#a040c0"}},
-"parts":{
-"board_vertical":{"type":"box","size":[40,4],"from":[-70,0,0],"to":[-70,100,0],"mat":"a"},
-"board_lean_x":{"type":"box","size":[40,4],"from":[0,0,0],"to":[1.75,100,0],"mat":"b"},
-"board_lean_z":{"type":"box","size":[40,4],"from":[70,0,0],"to":[70,100,1.75],"mat":"c"}}}
