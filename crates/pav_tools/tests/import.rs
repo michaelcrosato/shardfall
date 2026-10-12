@@ -11,7 +11,8 @@ use common::{MeshBuilder, cuboid, png_rgba, temp_dir, zip};
 use glam::DVec3;
 use pav_tools::import::fetch::RemoteZip;
 use pav_tools::import::normalize::{self, Norm, Place};
-use pav_tools::import::scene::{Alpha, Scene, srgb_to_linear};
+use pav_tools::import::obj::tex_map;
+use pav_tools::import::scene::{Alpha, Scene, Wrap, XFORM_IDENTITY, srgb_to_linear};
 use pav_tools::import::{gltf, read_model};
 use pav_tools::{Output, Session, call};
 use serde_json::{Value, json};
@@ -354,6 +355,22 @@ fn malformed_input_is_an_error_not_a_panic() {
         let e = read_model(&write(&dir, "huge.glb", b.glb(&[0]))).unwrap_err();
         assert!(format!("{e:#}").contains(want), "{key}: {e:#}");
     }
+    // A skin whose inverse bind matrices are not MAT4, or fewer than its joints.
+    for (ty, floats, joints, want) in [("VEC3", 18, 1, "not MAT4"), ("MAT4", 16, 2, "inverse bind matrices")] {
+        let mut b = MeshBuilder::new();
+        let p = b.vec3(&[[0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]);
+        let j = b.unorm8(&[0u8; 12], "VEC4");
+        b.accessors[j]["normalized"] = json!(false);
+        let w = b.floats(&[1.0, 0.0, 0.0, 0.0].repeat(3), "VEC4");
+        let ibm = b.floats(&vec![0.0; floats], ty);
+        let prim = b.prim(p, None, &[("JOINTS_0", j), ("WEIGHTS_0", w)], None);
+        let m = b.mesh(vec![prim]);
+        let bone = b.node(json!({"name": "bone"}));
+        let body = b.node(json!({"mesh": m, "skin": 0}));
+        b.extra.insert("skins".into(), json!([{"joints": vec![bone; joints], "inverseBindMatrices": ibm}]));
+        let e = read_model(&write(&dir, "skin.glb", b.glb(&[bone, body]))).unwrap_err();
+        assert!(format!("{e:#}").contains(want), "{ty}: {e:#}");
+    }
     // Indices past the vertices, a required Draco mesh, a file outside the folder.
     let mut b = MeshBuilder::new();
     let p = b.vec3(&[[0.0; 3]; 3]);
@@ -475,4 +492,115 @@ fn the_tool_gets_lists_and_surveys() {
     assert!(e.to_string().contains("5.2"), "{e}");
     let e = tool(&mut s, json!({"from": "x.glb", "list": true, "yaw": 45})).unwrap_err();
     assert!(e.to_string().contains("multiple of 90"), "{e}");
+    let e = tool(&mut s, json!({"survey": cache.join("test/mini/Models/GLB").to_str().unwrap()})).unwrap_err();
+    assert!(e.to_string().contains("out=<file>.tsv"), "{e}");
+
+    // A changed pin replaces the pack whole: the table, gone upstream, goes here too. A wrong
+    // pin is refused first and leaves the old pack as it was.
+    let archive = zip(&[("Models/GLB/cube.glb", &cube, false), ("License.txt", licence, false)], None);
+    write(&pack, "pack.zip", &archive);
+    let sha2 = pav_tools::import::fetch::sha256_hex(&archive);
+    write(&cats, "test.json", catalog(&"1".repeat(64)));
+    assert!(tool(&mut s, json!({"get": "test/mini"})).is_err());
+    assert!(cache.join("test/mini/Models/GLB/table.glb").exists());
+    write(&cats, "test.json", catalog(&sha2));
+    let got = tool(&mut s, json!({"get": "test/mini"})).unwrap();
+    assert_eq!(got["got"][0]["models"], 1, "{got}");
+    assert!(!cache.join("test/mini/Models/GLB/table.glb").exists(), "no old file under the new pin");
+    let source: Value = serde_json::from_str(&std::fs::read_to_string(cache.join("test/mini/SOURCE.json")).unwrap()).unwrap();
+    assert_eq!(source["sha256"].as_str(), Some(sha2.as_str()));
+    // The same pin again completes in place.
+    let again = tool(&mut s, json!({"get": "test/mini"})).unwrap();
+    assert_eq!(
+        (again["got"][0]["models"].as_u64(), again["got"][0]["notes"].as_array().map(Vec::len)),
+        (Some(1), Some(0)),
+        "{again}"
+    );
+}
+
+/// Ledger ids come from each file's own path, so they hold as other files come and go, and an
+/// agent's note follows its model (by id, else by file).
+#[test]
+fn ledger_ids_and_notes_hold_as_files_come_and_go() {
+    let dir = temp_dir("ids");
+    let mut b = MeshBuilder::new();
+    let p = b.box_prim([0.0; 3], [1.0; 3], None);
+    let m = b.mesh(vec![p]);
+    b.node(json!({"mesh": m}));
+    let cube = b.glb(&[0]);
+    std::fs::create_dir_all(dir.join("models/props")).unwrap();
+    write(&dir.join("models/props"), "chair.glb", &cube);
+    let out = dir.join("census.tsv");
+    let mut s = Session::new("empty", 1).unwrap();
+    let mut survey = || {
+        tool(&mut s, json!({"survey": dir.join("models").to_str().unwrap(), "out": out.to_str().unwrap()})).unwrap();
+        std::fs::read_to_string(&out).unwrap()
+    };
+    let text = survey();
+    assert!(text.contains("\nprops/chair\tprops/chair.glb\t"), "{text}");
+    std::fs::write(&out, text.replace("\t\n", "\twobbly leg\n")).unwrap();
+    // A second chair elsewhere: the first keeps its id and its note.
+    std::fs::create_dir_all(dir.join("models/other")).unwrap();
+    write(&dir.join("models/other"), "chair.glb", &cube);
+    let text = survey();
+    assert!(text.contains("\nprops/chair\tprops/chair.glb\t") && text.contains("\nother/chair\tother/chair.glb\t"), "{text}");
+    assert_eq!(text.matches("wobbly leg").count(), 1, "{text}");
+    // A ledger written under other ids keeps its notes through the file column.
+    std::fs::write(&out, text.replace("props/chair\tprops/chair.glb", "chair\tprops/chair.glb")).unwrap();
+    let text = survey();
+    assert!(text.contains("\nprops/chair\tprops/chair.glb\t") && text.contains("wobbly leg"), "{text}");
+    // Same name, another format, same folder: those two keep their extension, and the note.
+    write(&dir.join("models/props"), "chair.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    let text = survey();
+    assert!(text.contains("\nprops/chair.glb\tprops/chair.glb\t") && text.contains("\nprops/chair.obj\t"), "{text}");
+    assert!(text.lines().any(|l| l.starts_with("props/chair.glb") && l.ends_with("wobbly leg")), "{text}");
+}
+
+/// Texel lookups follow each texture's sampler: repeat, clamp to edge, mirrored repeat.
+#[test]
+fn samplers_wrap_texture_coordinates() {
+    let png = png_rgba(2, 1, &[[255, 0, 0, 255], [0, 0, 255, 255]]);
+    let mut b = MeshBuilder::new();
+    let t0 = b.png_texture(&png, "red_blue");
+    b.textures[t0]["sampler"] = json!(0);
+    b.textures.push(json!({"source": 0, "sampler": 1}));
+    b.textures.push(json!({"source": 0, "sampler": 2}));
+    b.extra.insert(
+        "samplers".into(),
+        json!([{"wrapS": 10497, "wrapT": 10497}, {"wrapS": 33071, "wrapT": 33071}, {"wrapS": 33648, "wrapT": 33648}]),
+    );
+    let mut prims = Vec::new();
+    for (t, u) in [(0, 1.25f32), (1, 1.25), (2, 1.75)] {
+        let mat = b.material(json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": t}}}));
+        let (pa, ua) = (b.vec3(&[[0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]), b.vec2(&[[u, 0.5]; 3]));
+        prims.push(b.prim(pa, None, &[("TEXCOORD_0", ua)], Some(mat)));
+    }
+    let m = b.mesh(prims);
+    b.node(json!({"mesh": m}));
+    let dir = temp_dir("wrap");
+    let s = read_model(&write(&dir, "wrap.glb", b.glb(&[0]))).unwrap();
+    let wraps: Vec<[Wrap; 2]> = s.materials.iter().map(|m| m.base_tex.unwrap().wrap).collect();
+    assert_eq!(wraps, [[Wrap::Repeat; 2], [Wrap::Clamp; 2], [Wrap::Mirror; 2]]);
+    let (red, blue) = ([1.0, 0.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]);
+    // u 1.25 repeats to 0.25 (red) and clamps to 1 (blue); 1.75 mirrors to 0.25 (red).
+    assert_eq!([0, 1, 2].map(|k| normalize::face_colour(&s, k, 0)), [red, blue, red]);
+}
+
+/// `map_Kd` options are read, and the rest of the line is the file, spaces and all.
+#[test]
+fn mtl_texture_options_and_spaced_names_read() {
+    let dir = temp_dir("mtl");
+    std::fs::create_dir_all(dir.join("textures")).unwrap();
+    write(&dir.join("textures"), "wood floor.png", png_rgba(2, 1, &[[255, 0, 0, 255], [0, 0, 255, 255]]));
+    write(&dir, "floor.mtl", "newmtl floor\nKd 1 1 1\nmap_Kd -s 1 1 1 -clamp on textures/wood floor.png\n");
+    let obj = "mtllib floor.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 1.25 0\nusemtl floor\nf 1/1 2/1 3/1\n";
+    let s = read_model(&write(&dir, "floor.obj", obj)).unwrap();
+    assert!(s.info.warnings.is_empty(), "{:?}", s.info.warnings);
+    assert_eq!((s.images[0].name.as_str(), s.images[0].rgba.len()), ("textures/wood floor.png", 8));
+    let t = s.materials[0].base_tex.unwrap();
+    assert_eq!((t.wrap, t.xform), ([Wrap::Clamp; 2], XFORM_IDENTITY));
+    assert_eq!(normalize::face_colour(&s, 0, 0), [0.0, 0.0, 1.0, 1.0], "u 1.25 clamps to the right texel");
+    let m = tex_map("-o 0.5 0.25 -s 2 2 1 -bm 0.3 -blendu off a b.png").unwrap();
+    assert_eq!((m.file.as_str(), m.offset, m.scale, m.clamp), ("a b.png", [0.5, 0.25, 0.0], [2.0, 2.0, 1.0], false));
+    assert!(tex_map("-clamp on").is_none());
 }

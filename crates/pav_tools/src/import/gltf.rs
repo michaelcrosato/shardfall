@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use super::image;
 use super::scene::{
-    Alpha, Image, Info, MAX_IMAGES, MAX_TRIS, Material, Mesh, Node, Scene, TexRef, XFORM_IDENTITY, normal_matrix,
+    Alpha, Image, Info, MAX_IMAGES, MAX_TRIS, Material, Mesh, Node, Scene, TexRef, Wrap, XFORM_IDENTITY, normal_matrix,
 };
 
 /* ---- column-major 4x4 matrices, quaternions [x, y, z, w] ---- */
@@ -551,10 +551,13 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
                     Some(img) => {
                         let (xform, over) = tex_xform(bt);
                         base_images.insert(img as usize);
+                        let sampler = tex["sampler"].as_u64().and_then(|s| j["samplers"].get(s as usize));
+                        let wrap = |k: &str| Wrap::from_gl(sampler.and_then(|s| s[k].as_u64()));
                         Some(TexRef {
                             image: img as usize,
                             uv_set: over.unwrap_or(bt["texCoord"].as_u64().unwrap_or(0) as u32),
                             xform,
+                            wrap: [wrap("wrapS"), wrap("wrapT")],
                         })
                     }
                     None => {
@@ -639,7 +642,10 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
                 info.warnings.push(format!("{at}: no POSITION, skipped"));
                 continue;
             };
-            let (pos, _) = g.read(pa as usize).map_err(|e| anyhow!("{at}: {e}"))?;
+            let (pos, pn) = g.read(pa as usize).map_err(|e| anyhow!("{at}: {e}"))?;
+            if pn != 3 {
+                bail!("{at}: POSITION is not VEC3");
+            }
             let nv = pos.len() / 3;
             let idx: Vec<u32> = match prim["indices"].as_u64() {
                 Some(ia) => g.read(ia as usize).map_err(|e| anyhow!("{at}: {e}"))?.0.iter().map(|&v| v as u32).collect(),
@@ -745,7 +751,16 @@ fn skin_matrices(g: &Gltf, skin: &Value, world: &[M4], joints: &Value, weights: 
     let list: Vec<usize> =
         skin["joints"].as_array().into_iter().flatten().filter_map(Value::as_u64).map(|v| v as usize).collect();
     let ibm: Vec<M4> = match skin["inverseBindMatrices"].as_u64() {
-        Some(a) => g.read(a as usize)?.0.chunks(16).map(|c| std::array::from_fn(|i| c[i])).collect(),
+        Some(a) => {
+            let (flat, n) = g.read(a as usize)?;
+            if n != 16 {
+                bail!("the skin's inverseBindMatrices (accessor {a}) is not MAT4");
+            }
+            if flat.len() / 16 < list.len() {
+                bail!("the skin has {} joints but {} inverse bind matrices", list.len(), flat.len() / 16);
+            }
+            flat.as_chunks::<16>().0.to_vec()
+        }
         None => vec![IDENTITY; list.len()],
     };
     let jm: Vec<DMat4> =

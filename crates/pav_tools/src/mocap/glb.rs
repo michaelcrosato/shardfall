@@ -255,6 +255,16 @@ pub fn read(path: &Path, fps: f64) -> Result<Library> {
                 continue;
             };
             let (pos, jn, wt) = (g.accessor(pos)?, g.accessor(jn)?, g.accessor(wt)?);
+            // Malformed shapes are errors, not panics below.
+            if ibm.iter().any(|m| m.len() != 16)
+                || jn.len() < pos.len()
+                || wt.len() < pos.len()
+                || pos.first().is_some_and(|p| p.len() < 3)
+                || jn.first().is_some_and(|j| j.len() < 4)
+                || wt.first().is_some_and(|w| w.len() < 4)
+            {
+                bail!("{file}: a skinned mesh's POSITION, JOINTS_0, WEIGHTS_0 or inverseBindMatrices has the wrong shape");
+            }
             for v in 0..pos.len() {
                 let mut best = 0;
                 for k in 1..4 {

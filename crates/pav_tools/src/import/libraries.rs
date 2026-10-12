@@ -159,7 +159,7 @@ pub fn glob_match(glob: &str, path: &str) -> bool {
 }
 
 /// The folder part of a glob before its first wildcard (`Models/GLB format/`).
-fn glob_root(glob: &str) -> &str {
+pub fn glob_root(glob: &str) -> &str {
     let w = glob.find(['*', '?']).unwrap_or(glob.len());
     glob[..w].rfind('/').map_or("", |i| &glob[..=i])
 }
@@ -215,14 +215,34 @@ fn today() -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
+/// The source fields that decide a pack's bytes: when any changes, the pack is fetched afresh.
+const PIN_KEYS: [&str; 7] = ["url", "repo", "version", "sha256", "files", "models", "licence_file"];
+
 /// Downloads a pinned pack. Returns what it did, for the reply.
+///
+/// A pack already fetched under the same pin is completed in place. A new or changed pin is
+/// fetched into a staging folder beside it, checked (archive and licence SHA-256), and only then
+/// swapped in, so no old file survives under a new `SOURCE.json` and a failed check leaves the
+/// old pack as it was.
 pub fn get(lib: &str, pack: &str) -> Result<Value> {
     let src = source(lib, pack)?;
     let s = |k: &str| src.get(k).and_then(Value::as_str);
+    let pin: Map<String, Value> = PIN_KEYS.iter().filter_map(|k| src.get(*k).map(|v| (k.to_string(), v.clone()))).collect();
     let dir = pack_dir(lib, pack);
-    std::fs::create_dir_all(&dir)?;
+    let current = std::fs::read(dir.join("SOURCE.json"))
+        .ok()
+        .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
+        .is_some_and(|v| v["pin"] == Value::Object(pin.clone()));
+    let work = if current { dir.clone() } else { dir.with_file_name(format!(".{pack}.part")) };
+    if !current && work.exists() {
+        std::fs::remove_dir_all(&work)?;
+    }
+    std::fs::create_dir_all(&work)?;
     let mut files: Vec<String> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
+    if !current && dir.exists() {
+        notes.push("a new or changed pin: the pack is fetched afresh".into());
+    }
     let (sha, version) = if let Some(url) = s("url") {
         let globs = s("models").unwrap_or("**/*.glb");
         let roots: Vec<&str> = globs.split(',').map(|g| glob_root(g.trim())).collect();
@@ -231,7 +251,7 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
         let size = fetch::size_as(ASSET_AGENT, url)?;
         let (zip, sha) = if size.is_some_and(|n| n <= WHOLE_ZIP) {
             let name = url.rsplit('/').next().filter(|n| !n.is_empty()).unwrap_or("pack.zip");
-            let path = dir.join(name);
+            let path = work.join(name);
             fetch::get_as(Some(ASSET_AGENT), url, &path)?;
             let sha = fetch::sha256_hex(&std::fs::read(&path)?);
             if let Some(want) = s("sha256").filter(|w| *w != sha) {
@@ -250,7 +270,7 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
         };
         for e in zip.entries.iter().filter(|e| wanted(&e.name)) {
             let Some(rel) = e.rel_path() else { continue };
-            let out = dir.join(&rel);
+            let out = work.join(&rel);
             if !out.exists() {
                 let bytes = zip.read(e)?;
                 if let Some(d) = out.parent() {
@@ -273,7 +293,7 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
                 bail!("{lib}/{pack}: {f} is not a plain relative path");
             }
             let url = format!("https://raw.githubusercontent.com/{repo}/{commit}/{}", f.replace(' ', "%20"));
-            fetch::get_as(Some(ASSET_AGENT), &url, &dir.join(&rel))?;
+            fetch::get_as(Some(ASSET_AGENT), &url, &work.join(&rel))?;
             files.push(f.to_string());
         }
         let mut manifest = files.clone();
@@ -286,7 +306,7 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
     // The licence text, checked against its pin.
     let mut licence_sha = None;
     if let Some(l) = s("licence_file") {
-        let p = dir.join(l);
+        let p = work.join(l);
         let text = std::fs::read(&p).map_err(|_| anyhow!("{lib}/{pack}: the licence file {l} is not in the pack"))?;
         let h = fetch::sha256_hex(&text);
         if let Some(want) = s("licence_sha256").filter(|w| *w != h) {
@@ -294,12 +314,19 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
         }
         licence_sha = Some(h);
     }
+    // Everything checked: the staged pack replaces the old one whole.
+    if work != dir {
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir)?;
+        }
+        std::fs::rename(&work, &dir)?;
+    }
     files.sort();
     let models = models_in(&dir, s("models")).len();
     let record = json!({
         "url": s("url").map(str::to_string).or_else(|| s("repo").map(|r| format!("https://github.com/{r}"))),
         "version": version, "sha256": sha, "licence": s("license"), "licence_sha256": licence_sha,
-        "files": files, "fetched": today(),
+        "files": files, "fetched": today(), "pin": pin,
     });
     std::fs::write(dir.join("SOURCE.json"), serde_json::to_string_pretty(&record)? + "\n")?;
     Ok(json!({

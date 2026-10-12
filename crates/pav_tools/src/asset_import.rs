@@ -228,18 +228,24 @@ fn census(s: &Scene, done: &Normalized) -> BTreeMap<&'static str, String> {
     ])
 }
 
-/// Each model's id: its file name without the extension, or its path when two share a name.
-fn ids(files: &[PathBuf]) -> Vec<String> {
-    let stem = |p: &PathBuf| p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+/// Each model's id, from its own path alone so it never changes as other files come and go:
+/// the path below the pack's model folder (the longest folder part of its `models` globs; for a
+/// plain folder, the path inside it) without the extension. Two files that differ only in
+/// their extension (`chair.glb`, `chair.obj`) keep it.
+fn ids(files: &[PathBuf], glob: Option<&str>) -> Vec<String> {
+    let roots: Vec<&str> = glob.map(|g| g.split(',').map(|g| libraries::glob_root(g.trim())).collect()).unwrap_or_default();
+    let rel = |f: &PathBuf| f.to_string_lossy().replace('\\', "/");
+    let bare = |f: &PathBuf| {
+        let r = rel(f);
+        let root = roots.iter().filter(|root| r.starts_with(*root)).max_by_key(|root| root.len()).copied().unwrap_or("");
+        let id = &r[root.len()..];
+        id.rsplit_once('.').filter(|(stem, _)| !stem.is_empty() && !stem.ends_with('/')).map_or(id, |(stem, _)| stem).to_string()
+    };
     files
         .iter()
         .map(|f| {
-            let st = stem(f);
-            if files.iter().filter(|g| stem(g) == st).count() > 1 {
-                f.with_extension("").to_string_lossy().replace('\\', "/")
-            } else {
-                st
-            }
+            let id = bare(f);
+            if files.iter().filter(|g| bare(g) == id).count() > 1 { rel(f) } else { id }
         })
         .collect()
 }
@@ -277,7 +283,7 @@ fn list_folder(a: &Args, dir: &Path, n: &Norm) -> Result<Output> {
     if files.is_empty() {
         bail!("{}: no .glb, .gltf or .obj files", dir.display());
     }
-    let ids = ids(&files);
+    let ids = ids(&files, None);
     let rows = rows(dir, &files, n);
     let limit = get_u64(a, "limit", 20)? as usize;
     let lines: Vec<String> = ids.iter().zip(&rows).map(|(id, r)| short(id, r)).collect();
@@ -322,7 +328,14 @@ pub fn ledger_text(ids: &[String], files: &[PathBuf], rows: &[(BTreeMap<&'static
 fn survey(a: &Args, what: &str) -> Result<Output> {
     let as_dir = PathBuf::from(what);
     let (dir, glob, n, ledger_path, label) = if as_dir.is_dir() {
-        (as_dir.clone(), None, norm(a, None)?, get_str(a, "out").map(PathBuf::from), as_dir.display().to_string())
+        // A plain folder is not a library's pack, so it has no place among the catalogs'
+        // ledgers (plan §8.7): the caller names the file.
+        let out = get_str(a, "out").map(PathBuf::from).ok_or_else(|| {
+            anyhow!(
+                "survey={what}: a folder's census needs out=<file>.tsv (a library's packs go to assets/catalogs/<lib>/<pack>.tsv); from={what} list=true shows the rows without writing"
+            )
+        })?;
+        (as_dir.clone(), None, norm(a, None)?, out, as_dir.display().to_string())
     } else {
         let (lib, pack) = lib_pack(what).map_err(|e| anyhow!("{e} (or a folder of models)"))?;
         let src = libraries::source(lib, pack).ok();
@@ -334,15 +347,27 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
         let out = get_str(a, "out")
             .map(PathBuf::from)
             .unwrap_or_else(|| libraries::catalogs_dir().join(lib).join(format!("{pack}.tsv")));
-        (dir, glob, norm(a, src.as_ref())?, Some(out), what.to_string())
+        (dir, glob, norm(a, src.as_ref())?, out, what.to_string())
     };
     let files = models_in(&dir, glob.as_deref());
     if files.is_empty() {
         bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default());
     }
-    let ids = ids(&files);
+    let ids = ids(&files, glob.as_deref());
     let read = rows(&dir, &files, &n);
-    let old = ledger_path.as_ref().map(|p| Ledger::read(p)).unwrap_or_default();
+    let old = Ledger::read(&ledger_path);
+    // An agent's note, by the model's id, else by its file (a ledger written under another id).
+    let col = |c: &str| old.cols.iter().position(|x| x == c);
+    let note_of = |id: &str, file: &str| -> String {
+        old.get(id, "note")
+            .filter(|n| !n.is_empty())
+            .or_else(|| {
+                let (fc, nc) = (col("file")?, col("note")?);
+                old.rows.iter().find(|r| r.get(fc).map(String::as_str) == Some(file)).and_then(|r| r.get(nc)).map(String::as_str)
+            })
+            .unwrap_or("")
+            .to_string()
+    };
     let failed: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_some()).map(|(id, r)| short(id, r)).collect();
     let ok: Vec<&Row> = read.iter().filter(|r| r.error.is_none()).collect();
     let num_of = |r: &Row, k: &str| r.cols.get(k).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
@@ -353,16 +378,14 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
             *flag_count.entry(f.to_string()).or_default() += 1;
         }
     }
-    let written = match &ledger_path {
-        Some(p) => {
-            let with_notes: Vec<(BTreeMap<&'static str, String>, String)> =
-                ids.iter().zip(&read).map(|(id, r)| (r.cols.clone(), old.get(id, "note").unwrap_or("").to_string())).collect();
-            let text = ledger_text(&ids, &files, &with_notes);
-            write_text(p, &text)?;
-            Some(p.display().to_string())
-        }
-        None => None,
-    };
+    let with_notes: Vec<(BTreeMap<&'static str, String>, String)> = ids
+        .iter()
+        .zip(&files)
+        .zip(&read)
+        .map(|((id, f), r)| (r.cols.clone(), note_of(id, &f.to_string_lossy().replace('\\', "/"))))
+        .collect();
+    write_text(&ledger_path, &ledger_text(&ids, &files, &with_notes))?;
+    let written = ledger_path.display().to_string();
     let limit = get_u64(a, "limit", 20)? as usize;
     let lines: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_none()).map(|(id, r)| short(id, r)).collect();
     let (failed_shown, failed_more) = (json!(failed.iter().take(limit).collect::<Vec<_>>()), failed.len().saturating_sub(limit));

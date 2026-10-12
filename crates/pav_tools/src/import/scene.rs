@@ -54,16 +54,53 @@ pub enum Alpha {
     Blend,
 }
 
-/// A texture on a material: which image, which coordinate set, and the 2×3 transform applied to
-/// the coordinates first (`u' = a·u + b·v + c`, `v' = d·u + e·v + f`, KHR_texture_transform).
+/// A texture on a material: which image, which coordinate set, the 2×3 transform applied to
+/// the coordinates first (`u' = a·u + b·v + c`, `v' = d·u + e·v + f`, KHR_texture_transform),
+/// and how coordinates outside 0..1 wrap in u and v (the glTF sampler's `wrapS`/`wrapT`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TexRef {
     pub image: usize,
     pub uv_set: u32,
     pub xform: [f32; 6],
+    pub wrap: [Wrap; 2],
 }
 
 pub const XFORM_IDENTITY: [f32; 6] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+
+/// How a texture coordinate outside 0..1 lands on the image.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Wrap {
+    /// The image tiles (glTF's default, REPEAT 10497).
+    #[default]
+    Repeat,
+    /// Held at the edge (CLAMP_TO_EDGE 33071).
+    Clamp,
+    /// Tiles mirrored every other time (MIRRORED_REPEAT 33648).
+    Mirror,
+}
+
+impl Wrap {
+    /// From a glTF sampler's wrap code (missing or unknown: repeat).
+    pub fn from_gl(code: Option<u64>) -> Wrap {
+        match code {
+            Some(33071) => Wrap::Clamp,
+            Some(33648) => Wrap::Mirror,
+            _ => Wrap::Repeat,
+        }
+    }
+
+    /// A coordinate brought into 0..=1.
+    pub fn apply(self, t: f64) -> f64 {
+        match self {
+            Wrap::Repeat => t - t.floor(),
+            Wrap::Clamp => t.clamp(0.0, 1.0),
+            Wrap::Mirror => {
+                let m = t.rem_euclid(2.0);
+                if m > 1.0 { 2.0 - m } else { m }
+            }
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Material {

@@ -1,7 +1,8 @@
 //! Wavefront OBJ with its MTL materials, read with `tobj` into a `Scene`: one node per named
 //! object (`o`/`g`), one mesh per object and material, faces triangulated as fans. `Kd` is read
 //! as linear (as Blender writes it), `d` as alpha, `Ke` as emissive and `map_Kd` as the base
-//! colour texture (PNG). Texture coordinates are turned to v down, as glTF has them. OBJ has no
+//! colour texture (PNG; its `-o`, `-s` and `-clamp` options kept, the rest of the line the file
+//! name, spaces and all). Texture coordinates are turned to v down, as glTF has them. OBJ has no
 //! units or up axis: normalisation's `scale` and `up` say them.
 
 use std::io::BufReader;
@@ -11,7 +12,7 @@ use anyhow::{Result, anyhow, bail};
 use glam::DMat4;
 
 use super::image;
-use super::scene::{Alpha, Image, Info, MAX_IMAGES, MAX_TRIS, Material, Mesh, Node, Scene, TexRef, XFORM_IDENTITY};
+use super::scene::{Alpha, Image, Info, MAX_IMAGES, MAX_TRIS, Material, Mesh, Node, Scene, TexRef, Wrap};
 
 /// A file an OBJ or MTL names, kept inside the model's folder.
 fn inside(dir: &Path, name: &str) -> Option<PathBuf> {
@@ -21,6 +22,73 @@ fn inside(dir: &Path, name: &str) -> Option<PathBuf> {
 
 fn floats(s: &str) -> Vec<f32> {
     s.split_whitespace().filter_map(|v| v.parse().ok()).collect()
+}
+
+/// A texture statement of an MTL file (`map_Kd [options] file`): the file (the rest of the line
+/// after the options, spaces included), its offset and scale (`-o`, `-s`) and `-clamp`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TexMap {
+    pub file: String,
+    pub offset: [f32; 3],
+    pub scale: [f32; 3],
+    pub clamp: bool,
+}
+
+/// The first word of `s` and what follows it (leading spaces dropped).
+fn word(s: &str) -> (&str, &str) {
+    let s = s.trim_start();
+    let end = s.find(char::is_whitespace).unwrap_or(s.len());
+    (&s[..end], s[end..].trim_start())
+}
+
+/// Reads `[options] file` (the MTL texture options, each with its arguments).
+pub fn tex_map(spec: &str) -> Option<TexMap> {
+    let mut m = TexMap { file: String::new(), offset: [0.0; 3], scale: [1.0; 3], clamp: false };
+    let mut rest = spec.trim();
+    loop {
+        let (opt, after) = word(rest);
+        if !opt.starts_with('-') || opt.len() < 2 || opt.parse::<f64>().is_ok() {
+            break;
+        }
+        rest = after;
+        let mut args = |n: usize, numbers: bool| -> Vec<String> {
+            let mut out = Vec::new();
+            while out.len() < n {
+                let (a, after) = word(rest);
+                if a.is_empty() || (numbers && a.parse::<f32>().is_err()) {
+                    break;
+                }
+                out.push(a.to_string());
+                rest = after;
+            }
+            out
+        };
+        match opt {
+            "-o" | "-s" | "-t" => {
+                let v: Vec<f32> = args(3, true).iter().filter_map(|a| a.parse().ok()).collect();
+                let target = match opt {
+                    "-o" => Some(&mut m.offset),
+                    "-s" => Some(&mut m.scale),
+                    _ => None,
+                };
+                if let Some(t) = target {
+                    for (k, x) in v.into_iter().enumerate() {
+                        t[k] = x;
+                    }
+                }
+            }
+            "-mm" => {
+                args(2, true);
+            }
+            "-clamp" => m.clamp = args(1, false).first().is_some_and(|a| a == "on"),
+            "-blendu" | "-blendv" | "-cc" | "-imfchan" | "-texres" | "-type" | "-bm" | "-boost" => {
+                args(1, false);
+            }
+            _ => {}
+        }
+    }
+    m.file = rest.trim().to_string();
+    (!m.file.is_empty()).then_some(m)
 }
 
 pub fn scene(path: &Path) -> Result<Scene> {
@@ -50,8 +118,10 @@ pub fn scene(path: &Path) -> Result<Scene> {
         let d = m.dissolve.unwrap_or(1.0).clamp(0.0, 1.0);
         let kd = m.diffuse.unwrap_or([0.8, 0.8, 0.8]);
         let ke = m.unknown_param.get("Ke").map(|v| floats(v)).filter(|v| v.len() >= 3).map_or([0.0; 3], |v| [v[0], v[1], v[2]]);
-        let base_tex = match m.diffuse_texture.as_deref().and_then(|t| t.split_whitespace().last()) {
-            Some(name) => {
+        let map = m.diffuse_texture.as_deref().and_then(tex_map);
+        let base_tex = match &map {
+            Some(map) => {
+                let name = map.file.as_str();
                 let at = match images.iter().position(|i| i.name == name) {
                     Some(i) => Some(i),
                     None => match inside(&dir, name).map(|p| std::fs::read(&p).map_err(|e| anyhow!("{}: {e}", p.display()))) {
@@ -72,7 +142,11 @@ pub fn scene(path: &Path) -> Result<Scene> {
                         }
                     },
                 };
-                at.map(|image| TexRef { image, uv_set: 0, xform: XFORM_IDENTITY })
+                // The options act on OBJ's v-up coordinates (u·s + o); ours run v down.
+                let ([su, sv, _], [ou, ov, _]) = (map.scale, map.offset);
+                let xform = [su, 0.0, ou, 0.0, sv, 1.0 - sv - ov];
+                let wrap = if map.clamp { [Wrap::Clamp; 2] } else { [Wrap::Repeat; 2] };
+                at.map(|image| TexRef { image, uv_set: 0, xform, wrap })
             }
             None => None,
         };

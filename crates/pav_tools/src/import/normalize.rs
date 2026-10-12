@@ -265,8 +265,8 @@ pub fn face_colour(s: &Scene, mesh: usize, tri: usize) -> [f64; 4] {
                 });
                 let x = tex.xform.map(f64::from);
                 let (u, v) = (x[0] * mid[0] + x[1] * mid[1] + x[2], x[3] * mid[0] + x[4] * mid[1] + x[5]);
-                let px = (((u - u.floor()) * img.w as f64) as u32).min(img.w - 1);
-                let py = (((v - v.floor()) * img.h as f64) as u32).min(img.h - 1);
+                let px = ((tex.wrap[0].apply(u) * img.w as f64) as u32).min(img.w - 1);
+                let py = ((tex.wrap[1].apply(v) * img.h as f64) as u32).min(img.h - 1);
                 let o = ((py * img.w + px) * 4) as usize;
                 let texel = &img.rgba[o..o + 4];
                 for k in 0..3 {
