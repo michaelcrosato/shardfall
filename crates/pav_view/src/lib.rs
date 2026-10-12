@@ -6,6 +6,7 @@ pub mod camera;
 pub mod creatures;
 pub mod fx;
 pub mod look;
+pub mod materials;
 pub mod vehicles;
 pub mod water;
 

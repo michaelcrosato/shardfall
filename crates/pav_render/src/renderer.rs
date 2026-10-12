@@ -53,7 +53,10 @@ struct GpuPointLight {
 struct GpuMeshInstance {
     model: [[f32; 4]; 4],
     color: [f32; 4],
+    /// style, flags, group, material (slot | seed << 12).
     params: [u32; 4],
+    /// xyz: half extents for materials (0 = from the columns).
+    ext: [f32; 4],
 }
 
 #[repr(C)]
@@ -169,7 +172,7 @@ pub struct RenderStats {
     pub custom_meshes: usize,
     /// Point lights in this frame (after the nearest-lights limit).
     pub lights: usize,
-    /// Material slots in use (procedural materials; 0 until they exist).
+    /// Procedural material rows in the scene's table (besides row 0, none).
     pub materials: usize,
 }
 
@@ -217,13 +220,101 @@ pub struct Renderer {
     /// Point lights that may cast shadows (each costs six depth passes), at most
     /// `shadows::MAX_SHADOW_LIGHTS`.
     pub max_shadow_lights: usize,
+    /// The procedural material table (group 1, binding 2 of the mesh and SDF pipelines).
+    materials: MaterialBuffer,
+}
+
+/// The scene shader: the material library in front of scene.wgsl (it reads the globals that
+/// scene.wgsl declares). `examples/dump_wgsl.rs` writes it out for `scripts/check-wgsl.sh`.
+pub const SCENE_WGSL: &str = concat!(include_str!("shaders/materials.wgsl"), include_str!("shaders/scene.wgsl"));
+
+/// Every WGSL module the renderer compiles, by name, exactly as compiled.
+pub const WGSL_MODULES: &[(&str, &str)] = &[
+    ("scene", SCENE_WGSL),
+    ("post", include_str!("shaders/post.wgsl")),
+    ("bloom", include_str!("shaders/bloom.wgsl")),
+    ("distort", include_str!("shaders/distort.wgsl")),
+    ("particle_update", include_str!("shaders/particle_update.wgsl")),
+    ("particle_draw", include_str!("shaders/particle_draw.wgsl")),
+    ("upscale", crate::upscale::SHADER),
+];
+
+/// Rows the material buffer starts with; it grows to the next power of two.
+const MATERIAL_ROWS: usize = 16;
+
+/// The material storage buffer and its bind group, re-uploaded when the scene's
+/// `materials_version` changes.
+struct MaterialBuffer {
+    layout: wgpu::BindGroupLayout,
+    buf: wgpu::Buffer,
+    bg: wgpu::BindGroup,
+    rows: usize,
+    version: Option<u64>,
+    /// Rows in the scene's table (instances naming a row past it draw plain).
+    len: usize,
+}
+
+impl MaterialBuffer {
+    fn new(device: &wgpu::Device) -> Self {
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("materials"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+        let (buf, bg) = Self::alloc(device, &layout, MATERIAL_ROWS);
+        Self { layout, buf, bg, rows: MATERIAL_ROWS, version: None, len: 0 }
+    }
+
+    fn alloc(device: &wgpu::Device, layout: &wgpu::BindGroupLayout, rows: usize) -> (wgpu::Buffer, wgpu::BindGroup) {
+        let buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("materials"),
+            size: (rows * std::mem::size_of::<crate::scene::GpuMaterial>()) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("materials"),
+            layout,
+            entries: &[wgpu::BindGroupEntry { binding: 2, resource: buf.as_entire_binding() }],
+        });
+        (buf, bg)
+    }
+
+    fn upload(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, scene: &Scene) {
+        if self.version == Some(scene.materials_version) {
+            return;
+        }
+        let table = scene.materials.as_slice();
+        if table.len() > self.rows {
+            self.rows = table.len().next_power_of_two();
+            (self.buf, self.bg) = Self::alloc(device, &self.layout, self.rows);
+        }
+        if !table.is_empty() {
+            queue.write_buffer(&self.buf, 0, bytemuck::cast_slice(table));
+        }
+        self.len = table.len();
+        self.version = Some(scene.materials_version);
+    }
+
+    /// An instance's material word, or 0 when it names a row the table doesn't have.
+    fn param(&self, material: u32) -> u32 {
+        if (material & (crate::scene::MATERIAL_SLOTS - 1)) as usize >= self.len { 0 } else { material }
+    }
 }
 
 fn vertex_layouts() -> [wgpu::VertexBufferLayout<'static>; 2] {
     const VERT: [wgpu::VertexAttribute; 4] =
         wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 9 => Float32x4];
-    const INST: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
-        3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Uint32x4
+    const INST: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
+        3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Uint32x4, 10 => Float32x4
     ];
     [
         wgpu::VertexBufferLayout {
@@ -268,7 +359,7 @@ impl Renderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene.wgsl"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/scene.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(SCENE_WGSL.into()),
         });
         let post_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("post.wgsl"),
@@ -398,9 +489,10 @@ impl Renderer {
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: shadow_globals_buf.as_entire_binding() }],
         });
 
+        let materials = MaterialBuffer::new(device);
         let main_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("main"),
-            bind_group_layouts: &[Some(&globals_layout)],
+            bind_group_layouts: &[Some(&globals_layout), Some(&materials.layout)],
             immediate_size: 0,
         });
         let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -748,6 +840,7 @@ impl Renderer {
             stats: RenderStats::default(),
             render_scale: 1.0,
             max_shadow_lights: crate::shadows::MAX_SHADOW_LIGHTS,
+            materials,
         }
     }
 
@@ -982,7 +1075,8 @@ impl Renderer {
             ground_color: scene.ambient.ground.extend(1.0).to_array(),
             cut: [cut.focus.x, cut.focus.y, cut.focus.z, cut.cut_height],
             cut2: [cut.cut_radius, if cut.height_cut { 1.0 } else { 0.0 }, cut.fade_radius, if cut.fade { 1.0 } else { 0.0 }],
-            params: [scene.time, n_lights as f32, texel, 0.0],
+            // w: metres per pixel at 1 m (perspective) or in all (orthographic), for materials.
+            params: [scene.time, n_lights as f32, texel, 2.0 / (cam.proj.y_axis.y.abs().max(1e-6) * size.1.max(1) as f32)],
             style: [scene.style.flat_shadow, scene.style.cel_bands, scene.style.rim, scene.style.specular],
             viewport: [size.0 as f32, size.1 as f32, 1.0 / size.0.max(1) as f32, 1.0 / size.1.max(1) as f32],
             fog: scene.fog.color.extend(if scene.fog.enabled { 1.0 } else { 0.0 }).to_array(),
@@ -996,6 +1090,7 @@ impl Renderer {
             push: scene.wind.pusher.extend(scene.wind.push_radius).to_array(),
         };
         self.queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
+        self.materials.upload(&self.device, &self.queue, scene);
         let globals_sun_dir = globals.sun_dir;
         globals.view_proj = mat(light_vp);
         globals.eye = [0.0, 0.0, 0.0, 0.0];
@@ -1069,7 +1164,8 @@ impl Renderer {
             gpu_meshes.push(GpuMeshInstance {
                 model: mat(m.transform),
                 color: m.color.extend(m.emissive).to_array(),
-                params: [m.style as u32, m.flags, m.group, 0],
+                params: [m.style as u32, m.flags, m.group, self.materials.param(m.material)],
+                ext: m.ext.extend(0.0).to_array(),
             });
             match batches.last_mut() {
                 Some(b) if b.0 == m.mesh => b.2 = idx + 1,
@@ -1089,7 +1185,8 @@ impl Renderer {
                 gpu_meshes.push(GpuMeshInstance {
                     model: mat(Mat4::IDENTITY),
                     color: d.color.extend(d.emissive).to_array(),
-                    params: [d.style as u32, d.flags, d.group, 0],
+                    params: [d.style as u32, d.flags, d.group, self.materials.param(d.material)],
+                    ext: [0.0; 4],
                 });
                 dyn_draws.push((
                     idx.len() as u32,
@@ -1131,7 +1228,7 @@ impl Renderer {
                 a: [s.a.x, s.a.y, s.a.z, s.ra],
                 b: [s.b.x, s.b.y, s.b.z, s.rb],
                 color: s.color.extend(s.emissive).to_array(),
-                params: [s.style as u32, s.flags, s.group, 0],
+                params: [s.style as u32, s.flags, s.group, self.materials.param(s.material)],
             })
             .collect();
         let sdf_count = gpu_sdfs.len() as u32;
@@ -1277,6 +1374,7 @@ impl Renderer {
                 multiview_mask: None,
             });
             pass.set_bind_group(0, &self.globals_bg, &[]);
+            pass.set_bind_group(1, &self.materials.bg, &[]);
             pass.set_pipeline(&self.mesh_pipeline);
             pass.set_vertex_buffer(1, self.mesh_instances.buf.slice(..));
             for b in &batches {
@@ -1417,7 +1515,7 @@ impl Renderer {
             mesh_bytes: self.meshes.values().map(|m| (m.vbuf.size() + m.ibuf.size()) as usize).sum(),
             custom_meshes: self.meshes.keys().filter(|k| matches!(k, MeshKey::Custom(_))).count(),
             lights: n_lights,
-            materials: 0,
+            materials: self.materials.len.saturating_sub(1),
         };
     }
 }

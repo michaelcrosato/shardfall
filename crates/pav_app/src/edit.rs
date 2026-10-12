@@ -187,6 +187,8 @@ impl Editor {
                     style: Style::Unlit,
                     flags: fl,
                     group: 0xffe0,
+                    material: 0,
+                    ext: Vec3::ZERO,
                 });
             }
         }

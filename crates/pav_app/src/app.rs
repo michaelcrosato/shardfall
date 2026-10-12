@@ -1259,6 +1259,8 @@ impl App {
                 style: Style::Unlit,
                 flags: rflags::NO_SHADOW | rflags::NO_CUT,
                 group: 0,
+                material: 0,
+                ext: Vec3::ZERO,
             };
             let a = Vec3::new(a.x, feet.y, a.z);
             scene.meshes.push(mark(a, 0.9, Vec3::new(1.0, 0.78, 0.4)));
@@ -1288,6 +1290,8 @@ impl App {
                     style: Style::Unlit,
                     flags: rflags::NO_SHADOW | rflags::NO_CUT,
                     group: 0,
+                    material: 0,
+                    ext: Vec3::ZERO,
                 });
             }
         }

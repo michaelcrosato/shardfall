@@ -60,6 +60,7 @@ pub(crate) fn emit(scene: &mut Scene, frame: &CreatureFrame, style: Style) -> Re
             style,
             flags: flags::OBJECT | if two_sided { flags::TWO_SIDED } else { 0 },
             group: frame.id.0 + 2,
+            material: 0,
         });
     }
     Ok(())

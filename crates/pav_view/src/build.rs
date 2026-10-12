@@ -22,6 +22,7 @@ use pav_render::text::{Anchor, Text3d};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::CameraRig;
+use crate::materials::MaterialTable;
 
 choice_enum! {
     pub enum StyleOverride { PerObject => "per object", Flat => "flat", Cel => "cel", Lit => "lit" }
@@ -600,6 +601,8 @@ struct Effect {
 struct RegionCache {
     version: u64,
     style: StyleOverride,
+    /// `MaterialTable::instance_generation` when built (materials' colours are baked in).
+    materials: u64,
     meshes: Vec<MeshInstance>,
     sdfs: Vec<SdfInstance>,
     lights: Vec<rs::PointLight>,
@@ -630,6 +633,8 @@ pub struct ViewBuilder {
     /// blasts: centre, radius, depth).
     water: HashMap<[i32; 6], crate::water::WaterSurface>,
     water_dents: Vec<(Vec3, f32, f32)>,
+    /// Procedural materials in this view: stable rows, attached to every built scene.
+    materials: MaterialTable,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -685,6 +690,13 @@ impl ViewBuilder {
     pub fn clear_particles(&mut self) {
         self.emit_carry.clear();
         self.pending_particles.clear();
+    }
+
+    /// The material table: intern a material here (`MaterialTable::resolve`) and give its
+    /// `MatSlot::param(seed)` to the instances that wear it; every built scene carries the
+    /// table.
+    pub fn materials(&mut self) -> &mut MaterialTable {
+        &mut self.materials
     }
 
     /// Turns simulation events into visual effects (explosions, dust).
@@ -844,6 +856,8 @@ impl ViewBuilder {
                     style,
                     flags: rs::flags::NO_SHADOW,
                     group: 1,
+                    material: 0,
+                    ext: Vec3::ZERO,
                 });
                 continue;
             }
@@ -862,6 +876,7 @@ impl ViewBuilder {
                 style,
                 flags: rs::flags::NO_SHADOW,
                 group: 1,
+                material: 0,
             });
         }
         self.water.retain(|_, w| w.used);
@@ -1081,18 +1096,22 @@ impl ViewBuilder {
 
         // Static geometry (cached per region version).
         self.static_cache.retain(|k, _| curr.statics.chunks.contains_key(k));
+        let materials = self.materials.instance_generation();
         for (key, chunk) in &curr.statics.chunks {
-            let fresh = self.static_cache.get(key).is_some_and(|c| c.version == chunk.version && c.style == settings.style);
+            let fresh = self
+                .static_cache
+                .get(key)
+                .is_some_and(|c| c.version == chunk.version && c.style == settings.style && c.materials == materials);
             if !fresh {
                 let mut sdfs = Vec::new();
                 let mut lights = Vec::new();
                 let mut list = Vec::with_capacity(chunk.blocks.len());
                 for b in chunk.blocks.iter().filter(|b| b.alive) {
                     let size = b.max - b.min;
-                    let (mesh, scale) = if b.has(block_flags::ROUNDED) {
-                        (MeshKey::rounded_box(size * 0.5, (size.min_element() * 0.2).min(0.15)), Vec3::ONE)
+                    let (mesh, scale, ext) = if b.has(block_flags::ROUNDED) {
+                        (MeshKey::rounded_box(size * 0.5, (size.min_element() * 0.2).min(0.15)), Vec3::ONE, size * 0.5)
                     } else {
-                        (MeshKey::Cube, size)
+                        (MeshKey::Cube, size, Vec3::ZERO)
                     };
                     list.push(MeshInstance {
                         mesh,
@@ -1102,6 +1121,9 @@ impl ViewBuilder {
                         style: style_of(b.look, settings.style),
                         flags: 0,
                         group: 1,
+                        // Blocks are world-mapped (seed 0): the hook for statics' materials.
+                        material: 0,
+                        ext,
                     });
                 }
                 for l in &chunk.ladders {
@@ -1125,6 +1147,7 @@ impl ViewBuilder {
                                 style,
                                 1,
                                 flags,
+                                0,
                             );
                         }
                     }
@@ -1141,7 +1164,7 @@ impl ViewBuilder {
                 });
                 self.static_cache.insert(
                     *key,
-                    RegionCache { version: chunk.version, style: settings.style, meshes: list, sdfs, lights, terrain },
+                    RegionCache { version: chunk.version, style: settings.style, materials, meshes: list, sdfs, lights, terrain },
                 );
             }
             for l in &chunk.labels {
@@ -1181,6 +1204,8 @@ impl ViewBuilder {
                     style: style_of(Look::Cel, settings.style),
                     flags: rs::flags::CUT_VERTEX,
                     group: 1,
+                    material: 0,
+                    ext: Vec3::ZERO,
                 });
             }
         }
@@ -1246,6 +1271,7 @@ impl ViewBuilder {
                             style: Style::Unlit,
                             flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
                             group: o.id.0 + 2,
+                            material: 0,
                         });
                     }
                 }
@@ -1255,7 +1281,7 @@ impl ViewBuilder {
                             self.emit_prop(&mut scene, &o, prop, settings, time, dt);
                             live.push(o.id.0);
                         }
-                        None => emit_object(&mut scene, &o, settings.style, now),
+                        None => emit_object(&mut scene, &o, settings.style, now, 0),
                     }
                     if let Some(v) = &o.vehicle {
                         crate::vehicles::emit_vehicle(
@@ -1308,6 +1334,7 @@ impl ViewBuilder {
                 PixelTarget::Environment => flags & rs::flags::OBJECT == 0,
             });
         }
+        self.materials.attach(&mut scene);
         scene
     }
 }
@@ -1415,6 +1442,7 @@ fn emit_soft(scene: &mut Scene, o: &RenderObject, s: &pav_core::frame::SoftView,
             style,
             flags: if s.two_sided { rs::flags::TWO_SIDED } else { 0 },
             group,
+            material: 0,
         });
     }
     let r = s.radius.max(0.02);
@@ -1431,6 +1459,7 @@ fn emit_soft(scene: &mut Scene, o: &RenderObject, s: &pav_core::frame::SoftView,
                 style,
                 flags: 0,
                 group,
+                material: 0,
             });
         }
     }
@@ -1449,6 +1478,8 @@ fn emit_zone(list: &mut Vec<MeshInstance>, z: &Zone, ov: StyleOverride) {
             style,
             flags,
             group: 1,
+            material: 0,
+            ext: Vec3::ZERO,
         })
     };
     let floor = Vec3::new((z.min.x + z.max.x) * 0.5, z.min.y + 0.012, (z.min.z + z.max.z) * 0.5);
@@ -1527,6 +1558,8 @@ fn emit_ladder(list: &mut Vec<MeshInstance>, l: &Ladder, style: Style) {
             style,
             flags: 0,
             group: 3,
+            material: 0,
+            ext: Vec3::ZERO,
         })
     };
     let rail = |s: f32| wall_side + lat * s * (width * 0.5 - 0.04);
@@ -1560,12 +1593,15 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
             style,
             flags,
             group: o.id.0 + 2,
+            material: 0,
         });
     }
 }
 
 /// Adds one object's instances to the scene (props are drawn by `ViewBuilder::emit_prop`).
-pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: f32) {
+/// `material` is the instances' material word (`MatSlot::param(materials::seed(id, 0))`, or 0
+/// for the plain colour).
+pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: f32, material: u32) {
     let v = &o.visual;
     let style = style_of(v.look, ov);
     let mut color = v3(v.color);
@@ -1603,6 +1639,7 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
                 style,
                 group,
                 flags,
+                material,
             );
         }
     }
@@ -1620,6 +1657,8 @@ fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) ->
         style,
         flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
         group: 0,
+        material: 0,
+        ext: Vec3::ZERO,
     }
 }
 
@@ -1710,6 +1749,8 @@ fn emit_prim(
             style,
             flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
             group: 0,
+            material: 0,
+            ext: Vec3::ZERO,
         });
         return;
     }
@@ -1719,7 +1760,7 @@ fn emit_prim(
         // A part with a light of its own does not also light the scene with its glow.
         let mut unlit = Vec::new();
         let lights = if part.glow_light { &mut scene.point_lights } else { &mut unlit };
-        emit_shape(&mut scene.meshes, &mut scene.sdfs, lights, &shape, pos, rot, color, emissive, style, group, flags);
+        emit_shape(&mut scene.meshes, &mut scene.sdfs, lights, &shape, pos, rot, color, emissive, style, group, flags, 0);
         return;
     }
     let mesh = |mesh, size: Vec3| MeshInstance {
@@ -1730,6 +1771,8 @@ fn emit_prim(
         style,
         flags,
         group,
+        material: 0,
+        ext: Vec3::ZERO,
     };
     if let Some(g) = generated_mesh {
         let key = generated.key(scene, &g);
@@ -1752,6 +1795,7 @@ fn emit_prim(
                     style,
                     flags,
                     group,
+                    material: 0,
                 });
             }
             // Every other shape is format 1's or generated.
@@ -1769,7 +1813,7 @@ fn emit_prim(
 }
 
 /// Instances for one shape (meshes for boxes/cylinders, SDF impostors for spheres/capsules).
-#[allow(clippy::too_many_arguments)]
+/// `material` is their material word (`MatSlot::param`, 0 = the plain colour).
 pub fn emit_shape(
     meshes: &mut Vec<MeshInstance>,
     sdfs: &mut Vec<SdfInstance>,
@@ -1782,6 +1826,7 @@ pub fn emit_shape(
     style: Style,
     group: u32,
     flags: u32,
+    material: u32,
 ) {
     let mesh = |mesh, scale: Vec3| MeshInstance {
         mesh,
@@ -1791,19 +1836,35 @@ pub fn emit_shape(
         style,
         flags,
         group,
+        material,
+        ext: Vec3::ZERO,
     };
     match *shape {
         Shape::Box { half } => meshes.push(mesh(MeshKey::Cube, half * 2.0)),
-        Shape::RoundedBox { half, radius } => meshes.push(mesh(MeshKey::rounded_box(half, radius), Vec3::ONE)),
+        // A rounded box is built at its size: its half extents travel with it.
+        Shape::RoundedBox { half, radius } => {
+            meshes.push(MeshInstance { ext: half, ..mesh(MeshKey::rounded_box(half, radius), Vec3::ONE) })
+        }
         Shape::Cylinder { half_height, radius } => {
             meshes.push(mesh(MeshKey::Cylinder, Vec3::new(radius * 2.0, half_height * 2.0, radius * 2.0)))
         }
         Shape::Sphere { radius } => {
-            sdfs.push(SdfInstance { a: pos, b: pos, ra: radius, rb: radius, color, emissive, style, flags, group })
+            sdfs.push(SdfInstance { a: pos, b: pos, ra: radius, rb: radius, color, emissive, style, flags, group, material })
         }
         Shape::Capsule { half_height, radius } => {
             let axis = rot * Vec3::Y * half_height;
-            sdfs.push(SdfInstance { a: pos - axis, b: pos + axis, ra: radius, rb: radius, color, emissive, style, flags, group })
+            sdfs.push(SdfInstance {
+                a: pos - axis,
+                b: pos + axis,
+                ra: radius,
+                rb: radius,
+                color,
+                emissive,
+                style,
+                flags,
+                group,
+                material,
+            })
         }
     }
     if emissive > 0.5 {
@@ -1892,6 +1953,7 @@ mod tests {
                         visual.emissive,
                         style_of(visual.look, StyleOverride::PerObject),
                         o.id.0 + 2,
+                        0,
                         0,
                     );
                 }

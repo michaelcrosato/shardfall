@@ -2320,6 +2320,7 @@ dependencies = [
  "epaint_default_fonts",
  "glam 0.33.11",
  "log",
+ "pav_core",
  "png",
  "pollster",
  "wgpu",

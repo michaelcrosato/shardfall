@@ -121,7 +121,9 @@ crates/
               diamonds, dissolve, mosaic, blinds, fade); wind in the vertex shader for instances
               flagged `flags::SWAY` (leaves) / `flags::GRASS` (tufts that part around the player)).
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
-              the world (text.rs). `render_scale` draws below the target's resolution and
+              the world (text.rs). Procedural materials: rows of a storage buffer read by one
+              kernel library (shaders/materials.wgsl, matched pixel for pixel by
+              `pav_core::material::eval`); `pav_view::materials` interns them into slots. `render_scale` draws below the target's resolution and
               upscale.rs stretches it over (phones). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
@@ -189,6 +191,7 @@ scripts/smoke-windows.sh 25        # run the .exe under Wine+lavapipe, screensho
 scripts/smoke-linux.sh 10          # same for the native Linux build
 scripts/build-web.sh               # browser build -> target/web/ (serve over HTTP; Chrome/Edge)
 scripts/build-web.sh --single-file # -> target/web/shardfall.html: one ~10 MB page, runs from file://
+scripts/check-wgsl.sh              # after any WGSL change: Chromium's Tint compiles every module
 ```
 `--single-file` packs web/index.html, the JS glue and the gzipped wasm into one page with no
 other loads (`scripts/pack_single_html.py`; `--title --description --theme-color --scene NAME --out PATH`).
@@ -454,7 +457,9 @@ captured dodges).
 View: `pav_view/tests/pixel_art.rs`, `parts.rs` (characters & objects vs environment, filters per
 part, styles per part, styles/haze reach the renderer, transition loop), `look.rs` (look
 sections, presets, whole looks), `water.rs` (ripples spread and fade, rain, pool strips merge)
-and `learn.rs` (station guides and the field guide stay consistent with the engine).
+and `learn.rs` (station guides and the field guide stay consistent with the engine);
+`material_parity.rs` renders every material kernel on the GPU (lavapipe will do) and compares
+it with the CPU reference.
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 
 ## Disk space

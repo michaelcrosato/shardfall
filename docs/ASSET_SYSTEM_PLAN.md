@@ -493,6 +493,7 @@ per layer: m = AA mask × facing × prev-mask
   - `pav_view/tests/material_parity.rs`: ≥ 99.9% of pixels within 1/255 per kernel;
   - `pav_render/examples/material_bench.rs`: typical ≤ +25%, all-3-layer ≤ +60%;
   - `scripts/check-wgsl.sh`: dump the WGSL and run `createShaderModule` + `getCompilationInfo` in headless Chromium with the AGENTS.md SwiftShader flags, on every WGSL change, because naga is laxer than Tint.
+- (Row 3.2: all four checks pass. Slot-0 captures of `test`, `town` and `level/3` are byte-identical; parity is 100% within 1/255 for all 10 kernels, world-mapped and object-mapped (turned, scaled, seeded); the bench gives +16% typical and +48% with three layers everywhere on llvmpipe at 960×540; every renderer module compiles clean in Chromium. Rows are keyed by (name, map, the role colours the layers use): a library change re-packs a row in place, while a palette with new colours gets a row of its own, so cached instances never see another palette's colours. Slots are never freed in a session; past 4,095 a material draws in its plain colour. The view's hooks take a material word (`emit_shape`, `emit_object`, blocks, decor) and pass 0 until 3.3 gives props and statics materials.)
 
 ### 6.6 Material tools
 - `kind=material` on `assets`/`asset_edit`/`asset_preview`.
@@ -1327,7 +1328,7 @@ Why this order:
 - [x] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [x] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs): **G2 NO-GO**, stopped
 - [x] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
-- [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
+- [x] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
 - [ ] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
@@ -1440,7 +1441,7 @@ the work item that uses it lands. Each is listed with the work item that uses it
 - `examples/materials/`: moved when MAT-1 landed; the 10 materials plus `pb/gold`, `pb/iron` are the core library `assets/materials/`.
 - `examples/families/fence.f2.json` (LIB-4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1. Run it with `--anchors fix`. It treats capsule from/to as cap centres; §5.2 supersedes that.
-- `prototypes/materials/`: `materials.wgsl` (494-line kernel library), diffs against `scene.wgsl`/`renderer.rs`/`scene.rs`, and the parity/bench harness `main.rs`, which includes the CPU mirror (MAT-1..3).
+- `prototypes/materials/`: removed when MAT-2/MAT-3 landed; the kernel library is `crates/pav_render/src/shaders/materials.wgsl`, the parity and bench harness `pav_view/tests/material_parity.rs` and `pav_render/examples/material_bench.rs`.
 - `prototypes/material_fit/fitprobe.py` (MAT-7, numpy).
 - `prototypes/lint4.py`: removed when TOOLS-5 landed (`crates/pav_core/src/props/lint.rs`).
 - `prototypes/tools/`: removed when TOOLS-1 (`trim.py`) and TOOLS-3 (`schema_v1.json`) landed.

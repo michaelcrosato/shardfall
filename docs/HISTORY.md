@@ -5,6 +5,50 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 3.2: the renderer draws materials — 2026-10-12
+
+Row 3.2 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-2, MAT-3): procedural materials draw on the GPU,
+pixel for pixel as the CPU reference evaluates them. Nothing in the game wears one yet: props
+and statics name materials in 3.3, themes in 3.4.
+- **Renderer.** `pav_render/src/shaders/materials.wgsl` (the kernel library, ported from the
+  prototype with 3.1's fixes) is compiled in front of `scene.wgsl`. Materials are rows of a
+  storage buffer (group 1, binding 2; bindings 0-1 are the font's), 368 bytes each
+  (`GpuMaterial`, Pod, cast from `pav_core`'s packed words), grown to the next power of two and
+  uploaded only when `Scene::materials_version` changes. `MeshInstance`, `SdfInstance` and
+  `DynamicMesh` gain `material` (`slot | seed << 12`; 0 is the old path, untouched) and
+  `MeshInstance` gains `ext` (half extents; set for rounded boxes, which are built at size).
+  `Globals.params.w` is the pixel footprint (no derivatives, so the kernels are Tint-safe in
+  loops and after `fs_sdf`'s discard); meshes pass a part-local frame from the vertex shader,
+  SDFs build one along a→b. `shade` takes roughness/metallic (a cel highlight band for metals,
+  a roughness-driven lit exponent); the outline buffer keeps the geometric normal. A slot past
+  the table draws plain.
+- **View.** `pav_view::materials::MaterialTable` (on `ViewBuilder`, `materials()`) interns
+  (name, map, the role colours the layers use) into stable slots and attaches the table to every
+  built scene; `refresh(lib)` re-packs rows in place after a library change, and
+  `instance_generation` invalidates the static region caches, which bake the base colour.
+  `MatSlot::param(seed)` gives the instance word (world maps take seed 0; `seed(entity, part)`
+  for the others). `emit_shape` and `emit_object` take a material word; blocks, decor and props
+  pass 0 until 3.3.
+- **Checks** (the lean gate's objective part). Slot-0 captures of `test`, `town` and `level/3`
+  at 640×360 are byte-identical to captures from before the change. `pav_view/tests/
+  material_parity.rs` renders every kernel (variants as extra layers) world-mapped on a floor
+  and object-mapped on a turned, scaled, seeded slab, and compares with `eval_packed`: 100% of
+  pixels within 1/255 in all 20 cases. `pav_render/examples/material_bench.rs` (a Shardfall-like
+  room at the game camera, 960×540, llvmpipe): 68.9 ms with materials off, +16% typical, +48%
+  with three-layer mossy stone on every surface (D8 budgets +25% and +60%).
+  `scripts/check-wgsl.sh` dumps every renderer module (`examples/dump_wgsl.rs`) and compiles it
+  with `createShaderModule` + `getCompilationInfo` in headless Chromium: all clean.
+- **Decisions.** A palette with new role colours gets a row of its own instead of re-packing in
+  place, so a cached instance never shows another palette's colours; slots aren't freed in a
+  session (4,095 at most, then a material draws in its plain colour; a warning past 256).
+  Table versions are unique across tables, so a renderer that outlives a view never keeps a
+  stale table. The prototype folder `docs/asset_plan/prototypes/materials/` is removed.
+- **Shared target dirs.** Cargo hashes workspace crates by their path relative to the
+  workspace, so two worktrees building into one `CARGO_TARGET_DIR` overwrite each other's
+  crates and can silently test another checkout's code. A per-package profile tweak (e.g.
+  `--config 'profile.dev.package.pav_core.codegen-units=255'`, likewise `pav_render`) gives a
+  worktree its own crate hashes while sharing the compiled dependencies.
+
 ## Asset plan 5.1: the import refactor and the reading half of `asset_import` — 2026-10-12
 
 Row 5.1 (I1 + I2) of `docs/ASSET_SYSTEM_PLAN.md`, moved ahead of Phases 3-4 as §11 allows.

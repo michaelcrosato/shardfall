@@ -24,6 +24,8 @@ fn main() -> anyhow::Result<()> {
         style,
         flags: 0,
         group,
+        material: 0,
+        ext: Vec3::ZERO,
     };
     scene.meshes.push(inst(
         MeshKey::Cube,
@@ -41,13 +43,17 @@ fn main() -> anyhow::Result<()> {
             *style,
             10 + i as u32,
         ));
-        scene.meshes.push(inst(
-            MeshKey::rounded_box(Vec3::new(0.5, 0.4, 0.5), 0.15),
-            Mat4::from_translation(Vec3::new(x, 0.4, 4.2)),
-            srgb(90, 140, 230),
-            *style,
-            20 + i as u32,
-        ));
+        let half = Vec3::new(0.5, 0.4, 0.5);
+        scene.meshes.push(MeshInstance {
+            ext: half,
+            ..inst(
+                MeshKey::rounded_box(half, 0.15),
+                Mat4::from_translation(Vec3::new(x, 0.4, 4.2)),
+                srgb(90, 140, 230),
+                *style,
+                20 + i as u32,
+            )
+        });
         let mut s = SdfInstance::sphere(Vec3::new(x, 0.7, -0.5), 0.7, srgb(240, 200, 60));
         s.style = *style;
         s.group = 30 + i as u32;

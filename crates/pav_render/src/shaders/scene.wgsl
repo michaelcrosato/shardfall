@@ -1,4 +1,5 @@
-// Main scene shader: instanced meshes, analytic SDF impostors, shadow passes.
+// Main scene shader: instanced meshes, analytic SDF impostors, shadow passes. The renderer
+// compiles it with materials.wgsl (procedural materials) in front.
 
 struct Globals {
     view_proj: mat4x4<f32>,
@@ -12,7 +13,8 @@ struct Globals {
     ground_color: vec4<f32>,
     cut: vec4<f32>,          // xyz focus; w = cut height
     cut2: vec4<f32>,         // x cut radius, y height cut on, z fade radius, w fade on
-    params: vec4<f32>,       // x time, y point light count, z shadow texel (world), w unused
+    params: vec4<f32>,       // x time, y point light count, z shadow texel (world), w pixel footprint:
+                             // metres per pixel at 1 m (perspective) or in all (orthographic)
     style: vec4<f32>,        // x flat shadow, y cel bands, z rim, w specular
     viewport: vec4<f32>,     // w, h, 1/w, 1/h
     fog: vec4<f32>,          // rgb colour, w = enabled
@@ -204,7 +206,8 @@ fn quantize(x: f32, bands: f32) -> f32 {
     return (f + smoothstep(0.45, 0.55, s - f)) / bands;
 }
 
-fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u32, flags: u32) -> vec3<f32> {
+// `pbr`: a material's roughness and metallic; x < 0 keeps the legacy shading exactly.
+fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u32, flags: u32, pbr: vec2<f32>) -> vec3<f32> {
     if (style == 3u) {
         return apply_fog(p, albedo * max(1.0, 1.0 + emissive));
     }
@@ -225,11 +228,23 @@ fn shade(p: vec3<f32>, n: vec3<f32>, albedo: vec3<f32>, emissive: f32, style: u3
         let amount = select(lit, direct, g.style.y <= 2.0);
         let rim = step(0.72, 1.0 - max(dot(n, v), 0.0)) * g.style.z * (0.4 + 0.6 * amount);
         col = albedo * (hemi + g.sun_color.rgb * amount) + albedo * rim;
+        if (pbr.x >= 0.0 && pbr.y > 0.0) {
+            // Metals in cel: a hard highlight band, tighter when smoother.
+            let hh = normalize(l + v);
+            let hl = step(mix(0.995, 0.93, pbr.x), dot(n, hh)) * sh;
+            col += g.sun_color.rgb * hl * pbr.y * mix(albedo, vec3<f32>(1.0), 0.5);
+        }
     } else {
         let dl = max(ndl, 0.0) * sh;
         let h = normalize(l + v);
-        let spec = pow(max(dot(n, h), 0.0), 40.0) * g.style.w * sh;
-        col = albedo * (hemi + g.sun_color.rgb * dl) + g.sun_color.rgb * spec;
+        if (pbr.x < 0.0) {
+            let spec = pow(max(dot(n, h), 0.0), 40.0) * g.style.w * sh;
+            col = albedo * (hemi + g.sun_color.rgb * dl) + g.sun_color.rgb * spec;
+        } else {
+            let spec = pow(max(dot(n, h), 0.0), mix(80.0, 6.0, pbr.x)) * g.style.w * sh * (1.2 - pbr.x);
+            let tint = mix(vec3<f32>(1.0), albedo, pbr.y);
+            col = albedo * (1.0 - 0.6 * pbr.y) * (hemi + g.sun_color.rgb * dl) + g.sun_color.rgb * spec * tint;
+        }
     }
     let count = u32(g.params.y);
     for (var i = 0u; i < count; i++) {
@@ -291,7 +306,8 @@ struct InstIn {
     @location(5) m2: vec4<f32>,
     @location(6) m3: vec4<f32>,
     @location(7) color: vec4<f32>,
-    @location(8) params: vec4<u32>,   // style, flags, group, unused
+    @location(8) params: vec4<u32>,   // style, flags, group, material (slot | seed << 12)
+    @location(10) ext: vec4<f32>,     // xyz half extents for materials (0 = from the columns)
 };
 
 struct MeshOut {
@@ -300,6 +316,10 @@ struct MeshOut {
     @location(1) normal: vec3<f32>,
     @location(2) color: vec4<f32>,
     @location(3) @interpolate(flat) params: vec4<u32>,
+    // Materials: the part-local metric position and normal (before sway) and half extents.
+    @location(4) local: vec3<f32>,
+    @location(5) lnormal: vec3<f32>,
+    @location(6) @interpolate(flat) ext: vec3<f32>,
 };
 
 @vertex
@@ -340,6 +360,14 @@ fn vs_mesh(v: MeshIn, i: InstIn) -> MeshOut {
     o.normal = normalize(n);
     o.color = vec4<f32>(i.color.rgb * v.color.rgb, i.color.a);
     o.params = i.params;
+    if ((i.params.w & 0xfffu) != 0u) {
+        // The part-local metric frame (unit axes along the columns), for materials.
+        let ax = vec3<f32>(length(c0), length(c1), length(c2));
+        let rel = wp.xyz - i.m3.xyz;
+        o.local = vec3<f32>(dot(rel, c0) / max(ax.x, 1e-6), dot(rel, c1) / max(ax.y, 1e-6), dot(rel, c2) / max(ax.z, 1e-6));
+        o.lnormal = v.normal / max(ax, vec3<f32>(1e-6));
+        o.ext = select(0.5 * ax, i.ext.xyz, any(i.ext.xyz != vec3<f32>(0.0)));
+    }
     return o;
 }
 
@@ -349,9 +377,20 @@ fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
         discard;
     }
     var o: FsOut;
+    var albedo = in.color.rgb;
+    var emis = in.color.a;
+    var pbr = vec2<f32>(-1.0, 0.0);
+    let mid = in.params.w & 0xfffu;
+    if (mid != 0u && (front || (in.params.y & FLAG_TWO_SIDED) != 0u)) {
+        let side = select(-1.0, 1.0, front);
+        let mo = eval_material(mid, in.params.w >> 12u, albedo, in.local, side * normalize(in.lnormal), in.world, side * normalize(in.normal), in.ext);
+        albedo = mo.albedo;
+        emis += mo.glow;
+        pbr = materials[mid].pbr.xy;
+    }
     if (!front && (in.params.y & FLAG_TWO_SIDED) != 0u) {
         let nb = -normalize(in.normal);
-        o.color = vec4<f32>(shade(in.world, nb, in.color.rgb * 0.85, in.color.a, in.params.x, in.params.y), 1.0);
+        o.color = vec4<f32>(shade(in.world, nb, albedo * 0.85, emis, in.params.x, in.params.y, pbr), 1.0);
         o.normal = group_out(nb, in.params.z, in.params.y);
         return o;
     }
@@ -362,7 +401,8 @@ fn fs_mesh(in: MeshOut, @builtin(front_facing) front: bool) -> FsOut {
         return o;
     }
     let n = normalize(in.normal);
-    o.color = vec4<f32>(shade(in.world, n, in.color.rgb, in.color.a, in.params.x, in.params.y), 1.0);
+    o.color = vec4<f32>(shade(in.world, n, albedo, emis, in.params.x, in.params.y, pbr), 1.0);
+    // The outline buffer always gets the geometric normal.
     o.normal = group_out(n, in.params.z, in.params.y);
     return o;
 }
@@ -537,7 +577,31 @@ fn fs_sdf(in: SdfOut) -> SdfFsOut {
     let n = normalize(hit.yzw);
     let clip = g.view_proj * vec4<f32>(p, 1.0);
     var o: SdfFsOut;
-    o.color = vec4<f32>(shade(p, n, in.color.rgb, in.color.a, in.params.x, in.params.y), 1.0);
+    var albedo = in.color.rgb;
+    var emis = in.color.a;
+    var pbr = vec2<f32>(-1.0, 0.0);
+    let mid = in.params.w & 0xfffu;
+    if (mid != 0u) {
+        // The local frame runs along a->b, built as vs_sdf builds it; y is the axis.
+        let axis = in.b.xyz - in.a.xyz;
+        let len = length(axis);
+        var dir = vec3<f32>(0.0, 1.0, 0.0);
+        if (len > 1e-5) {
+            dir = axis / len;
+        }
+        let up = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(dir.y) > 0.9);
+        let t1 = normalize(cross(dir, up));
+        let t2 = cross(t1, dir);
+        let rel = p - (in.a.xyz + in.b.xyz) * 0.5;
+        let lp = vec3<f32>(dot(rel, t1), dot(rel, dir), dot(rel, t2));
+        let ln = vec3<f32>(dot(n, t1), dot(n, dir), dot(n, t2));
+        let r = max(in.a.w, in.b.w);
+        let mo = eval_material(mid, in.params.w >> 12u, albedo, lp, ln, p, n, vec3<f32>(r, len * 0.5 + r, r));
+        albedo = mo.albedo;
+        emis += mo.glow;
+        pbr = materials[mid].pbr.xy;
+    }
+    o.color = vec4<f32>(shade(p, n, albedo, emis, in.params.x, in.params.y, pbr), 1.0);
     o.normal = group_out(n, in.params.z, in.params.y);
     o.depth = clip.z / clip.w;
     return o;

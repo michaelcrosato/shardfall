@@ -2,13 +2,13 @@
 //!
 //! `Material::pack` writes the storage-buffer row the renderer's uber-shader reads
 //! (`GpuMaterial`, 368 bytes: a header and three 112-byte `GpuLayer`s). `eval_packed` is a
-//! line-for-line port of `eval_material` in the prototype kernel library
-//! (`docs/asset_plan/prototypes/materials/materials.wgsl`) and of the prototype harness's CPU
-//! mirror: the same PCG hash and constants, the same f32 operations in the same order, and
-//! the same parameters, because it reads the packed row exactly as the shader does. Keep the
-//! two in step: the renderer's parity test compares them pixel by pixel.
+//! line-for-line port of `eval_material` in the renderer's kernel library
+//! (`crates/pav_render/src/shaders/materials.wgsl`): the same PCG hash and constants, the
+//! same f32 operations in the same order, and the same parameters, because it reads the packed
+//! row exactly as the shader does. Keep the two in step: `pav_view/tests/material_parity.rs`
+//! compares them pixel by pixel, every kernel.
 //!
-//! Where it differs from the prototype WGSL (the renderer's copy must match):
+//! Where both differ from the planning prototype they were ported from:
 //! - voronoi spots: the feature is the spot's diameter, `2·b.x·a.x` (precheck and
 //!   `pat_cells`), and the cellular cavity mean divides by that feature;
 //! - a layer with cells fades to its cells' mean linear colour, packed in `b.yzw`: an

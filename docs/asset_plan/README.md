@@ -8,8 +8,9 @@ source of truth. Delete each file when the work item that uses it lands.
 - `examples/families/fence.f2.json`: a parametric family (§9.4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1
   (`python3 -I f2expand.py IN.f2.json --resolved OUT.json > OUT.v1.json`).
-- `prototypes/materials/`: WGSL kernel library, diffs against the renderer at `a9ca003`, and the
-  parity/bench harness with the CPU mirror.
+- `prototypes/materials/`: removed when MAT-2/MAT-3 landed: the kernel library is
+  `crates/pav_render/src/shaders/materials.wgsl`, the harness `pav_view/tests/material_parity.rs`
+  and `pav_render/examples/material_bench.rs`.
 - `prototypes/material_fit/`, `prototypes/import/`: numpy prototypes of the texture and mesh fits.
 - `prototypes/families/apply_params.py`: parameter application for families.
 - The 23 error probes are `crates/pav_tools/tests/fixtures/asset_errors.jsonl`; the two

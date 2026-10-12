@@ -44,6 +44,7 @@ pub fn emit_cone(scene: &mut Scene, c: &pav_core::stealth::ConeView, group: u32)
         style: Style::Unlit,
         flags: rs::flags::NO_SHADOW | rs::flags::TWO_SIDED | rs::flags::NO_CUT,
         group,
+        material: 0,
     });
 }
 
@@ -57,7 +58,7 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
     let accent = hex(&v.accent, "#2b2f3a");
     let mut lights = Vec::new();
     let mut part = |scene: &mut Scene, shape: Shape, pos: Vec3, r: Quat, color: Vec3, emissive: f32| {
-        emit_shape(&mut scene.meshes, &mut scene.sdfs, &mut lights, &shape, pos, r, color, emissive, style, group, 0);
+        emit_shape(&mut scene.meshes, &mut scene.sdfs, &mut lights, &shape, pos, r, color, emissive, style, group, 0, 0);
     };
     match v.kind {
         VehicleKind::Car => {
@@ -130,6 +131,7 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
                 style,
                 flags: 0,
                 group,
+                material: 0,
             });
             part(scene, Shape::Box { half: Vec3::new(0.04, 0.38, 0.22) }, boom_b + up * 0.3, rot, accent, 0.0);
             let tail_rot = rot * Quat::from_rotation_x(v.rotor * 1.7);
@@ -153,6 +155,7 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
                 style,
                 flags: 0,
                 group,
+                material: 0,
             });
             for k in 0..2 {
                 let q = rot * Quat::from_rotation_y(v.rotor + k as f32 * std::f32::consts::FRAC_PI_2);
@@ -171,6 +174,7 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
                     style,
                     flags: 0,
                     group,
+                    material: 0,
                 });
                 for z in [-0.5f32, 0.5] {
                     let top = o.pos + right * (s * h.x * 0.7) - up * (h.y * 0.8) + fwd * (z * h.z);
@@ -184,6 +188,7 @@ pub fn emit_vehicle(scene: &mut Scene, o: &RenderObject, v: &VehicleView, style:
                         style,
                         flags: 0,
                         group,
+                        material: 0,
                     });
                 }
             }

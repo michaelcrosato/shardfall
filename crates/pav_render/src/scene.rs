@@ -126,6 +126,9 @@ pub struct DynamicMesh {
     pub style: Style,
     pub flags: u32,
     pub group: u32,
+    /// Procedural material: `slot | seed << 12` (see `MeshInstance::material`; its local
+    /// frame is the world's).
+    pub material: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -141,6 +144,14 @@ pub struct MeshInstance {
     /// Outline group: edges are drawn where the group changes. 0 = background, use 1 for
     /// static level geometry and unique ids for objects.
     pub group: u32,
+    /// Procedural material: a row of `Scene::materials` in bits 0-11 (0 = none, the plain
+    /// colour) and a per-instance seed in bits 12-31 (`material_param`). `color` and
+    /// `emissive` are the material's base colour and glow, so one row serves every tint.
+    pub material: u32,
+    /// Half extents of the part in its own frame, for the material's axis map and gradients.
+    /// ZERO derives them from the transform's columns (meshes that fill the unit cube);
+    /// meshes built at their real size, like rounded boxes, set them.
+    pub ext: Vec3,
 }
 
 /// Analytic SDF primitive, ray-traced per pixel: a rounded cone between `a` and `b` with
@@ -156,16 +167,69 @@ pub struct SdfInstance {
     pub style: Style,
     pub flags: u32,
     pub group: u32,
+    /// Procedural material, as `MeshInstance::material`; the local frame runs along a→b.
+    pub material: u32,
 }
 
 impl SdfInstance {
     pub fn sphere(center: Vec3, r: f32, color: Vec3) -> Self {
-        Self { a: center, b: center, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1 }
+        Self { a: center, b: center, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1, material: 0 }
     }
     pub fn capsule(a: Vec3, b: Vec3, r: f32, color: Vec3) -> Self {
-        Self { a, b, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1 }
+        Self { a, b, ra: r, rb: r, color, emissive: 0.0, style: Style::Cel, flags: 0, group: 1, material: 0 }
     }
 }
+
+/// Material slots per scene (bits 0-11 of an instance's `material`; slot 0 is none).
+pub const MATERIAL_SLOTS: u32 = 4096;
+
+/// An instance's `material` word: the table row `slot` and a per-instance `seed` (20 bits).
+pub fn material_param(slot: u32, seed: u32) -> u32 {
+    (slot & (MATERIAL_SLOTS - 1)) | (seed & 0xfffff) << 12
+}
+
+/// One pattern layer of a material row, laid out as `MatLayer` in `shaders/materials.wgsl`.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuLayer {
+    /// x: kernel | variant<<8 | axis<<12 | facing<<16 | mask<<20 | paint<<24 | ncells<<28;
+    /// y: salt.
+    pub head: [u32; 4],
+    /// rgb linear colour (paint 0) or r the linear shade factor (paint 1); a strength.
+    pub paint: [f32; 4],
+    pub a: [f32; 4],
+    pub b: [f32; 4],
+    /// x vary, y cavity, z glow, w bevel.
+    pub c: [f32; 4],
+    /// Up to four sRGB8 cell colours (r in the low byte).
+    pub cells: [u32; 4],
+    /// xyz: unit axis for 1D patterns.
+    pub dir: [f32; 4],
+}
+
+/// One row of the material table (368 bytes), laid out as `Material` in
+/// `shaders/materials.wgsl`. `pav_core::material` packs it; the renderer only uploads it.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct GpuMaterial {
+    /// x layer count, y map (0 object, 1 world, 2 axis), z bit 0: turn.
+    pub head: [u32; 4],
+    /// x roughness (< 0 = the legacy shading), y metallic, z 1/scale.
+    pub pbr: [f32; 4],
+    pub layers: [GpuLayer; 3],
+}
+
+impl GpuMaterial {
+    /// u32 words in a row.
+    pub const WORDS: usize = 92;
+
+    /// A row from its words as packed (`pav_core::material::GpuMaterial::words`).
+    pub fn from_words(words: &[u32; Self::WORDS]) -> Self {
+        bytemuck::pod_read_unaligned(bytemuck::cast_slice(words))
+    }
+}
+
+const _: () = assert!(std::mem::size_of::<GpuMaterial>() == GpuMaterial::WORDS * 4);
 
 #[derive(Clone, Copy, Debug)]
 pub struct CameraData {
@@ -559,6 +623,11 @@ pub struct Scene {
     pub distortions: Vec<Distortion>,
     pub wind: Wind,
     pub time: f32,
+    /// The procedural material table: row 0 is none (instances with material 0 draw exactly
+    /// as before materials existed). Uploaded when `materials_version` changes, so keep the
+    /// same `Arc` and version while the rows are unchanged.
+    pub materials: std::sync::Arc<Vec<GpuMaterial>>,
+    pub materials_version: u64,
 }
 
 impl Default for Scene {
@@ -583,6 +652,8 @@ impl Default for Scene {
             distortions: Vec::new(),
             wind: Wind::default(),
             time: 0.0,
+            materials: std::sync::Arc::default(),
+            materials_version: 0,
         }
     }
 }

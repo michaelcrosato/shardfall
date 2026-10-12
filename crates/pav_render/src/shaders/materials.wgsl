@@ -1,23 +1,31 @@
-// Procedural surface materials (prototype). Data-driven: one fixed pattern library, materials
-// are rows of a storage buffer. No derivatives anywhere: anti-aliasing uses an analytic pixel
-// footprint (g.params.w), so this code may run in non-uniform control flow (Tint-safe).
+// Procedural surface materials (asset plan §6.4). One fixed pattern library; materials are rows
+// of a storage buffer, so an edit is a 368-byte upload and never rebuilds a pipeline. This file
+// is concatenated in front of scene.wgsl (it reads `g`, the globals declared there).
+//
+// No derivatives anywhere: anti-aliasing uses the analytic pixel footprint in `g.params.w`, so
+// the code may run in non-uniform control flow (inside loops, after fs_sdf's discard).
+//
+// `pav_core::material::eval_packed` is the CPU port of `eval_material`: the same hash, the same
+// f32 operations in the same order. Keep the two in step; `pav_view/tests/material_parity.rs`
+// compares them pixel by pixel.
 
 struct MatLayer {
-    head: vec4<u32>,   // x: kind | variant<<8 | axis<<12 | facing<<16 | mask<<20 | paint<<24 | ncells<<28 ; y: salt
+    head: vec4<u32>,   // x: kernel | variant<<8 | axis<<12 | facing<<16 | mask<<20 | paint<<24 | ncells<<28 ; y: salt
     paint: vec4<f32>,  // rgb linear colour (paint 0) or r = linear shade factor (paint 1); a = strength
     a: vec4<f32>,
-    b: vec4<f32>,
+    b: vec4<f32>,      // x: the kernel's; yzw: the cells' mean linear colour (layers with cells)
     c: vec4<f32>,      // x vary, y cavity, z glow, w bevel
-    cells: vec4<u32>,  // up to 4 sRGB8 colours
+    cells: vec4<u32>,  // up to 4 sRGB8 colours, r in the low byte
     dir: vec4<f32>,    // xyz unit axis for 1D patterns
 };
 
 struct Material {
-    head: vec4<u32>,   // x layer count, y map (0 object, 1 world, 2 axis), z, w
-    pbr: vec4<f32>,    // x roughness (<0 = legacy), y metallic, z 1/scale, w
+    head: vec4<u32>,   // x layer count, y map (0 object, 1 world, 2 axis), z bit 0: turn
+    pbr: vec4<f32>,    // x roughness (< 0 = legacy shading), y metallic, z 1/scale
     layers: array<MatLayer, 3>,
 };
 
+// Bindings 0-1 of group 1 are the font's (text pipeline); the mesh and SDF pipelines bind this.
 @group(1) @binding(2) var<storage, read> materials: array<Material>;
 
 fn pcg(v: u32) -> u32 {
@@ -127,13 +135,12 @@ fn pat_grid(uv: vec2<f32>, l: MatLayer, fw: f32, salt: u32, random_offset: bool)
     let fv = uv.y / h - row;
     let du = min(fu, 1.0 - fu) * w;
     let dv = min(fv, 1.0 - fv) * h;
-    let d = min(du, dv);
     var o: Pat;
     o.m = max(pulse(du, gap, fw), pulse(dv, gap, fw));
     o.mean = 1.0 - (1.0 - min(gap / w, 1.0)) * (1.0 - min(gap / h, 1.0));
     o.feat = min(w, h);
     o.cell = hash3i(i32(col), i32(row), 1, salt) | 1u;
-    o.d = d;
+    o.d = min(du, dv);
     o.gap = gap;
     return o;
 }
@@ -146,7 +153,6 @@ fn pat_cells(uv: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32) -> Pa
     let ic = floor(q);
     var d1 = 1e9;
     var d2 = 1e9;
-    var best = vec2<f32>(0.0);
     var bid = vec2<i32>(0);
     for (var j = -1; j <= 1; j++) {
         for (var i = -1; i <= 1; i++) {
@@ -158,7 +164,6 @@ fn pat_cells(uv: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32) -> Pa
             if (dd < d1) {
                 d2 = d1;
                 d1 = dd;
-                best = fp;
                 bid = ci;
             } else if (dd < d2) {
                 d2 = dd;
@@ -168,15 +173,15 @@ fn pat_cells(uv: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32) -> Pa
     var o: Pat;
     o.cell = hash3i(bid.x, bid.y, 3, salt) | 1u;
     o.feat = size;
-    let edge = 0.5 * (d2 - d1) * size; // approx distance to the cell border (m)
+    let edge = 0.5 * (d2 - d1) * size; // approximate distance to the cell border (m)
     o.d = edge;
     o.gap = gap;
     if (variant == 0u) {
-        // spots: discs of radius r (fraction of a cell) around the feature points
+        // spots: discs of radius r (a fraction of a cell) around the feature points
         let r = l.b.x * size;
         o.m = pulse(d1 * size, 2.0 * r, fw);
         o.mean = l.a.w;
-        o.feat = r;
+        o.feat = 2.0 * r;
     } else if (variant == 1u) {
         o.m = pulse(edge, gap, fw);
         o.mean = min(2.2 * gap / size, 1.0);
@@ -187,16 +192,12 @@ fn pat_cells(uv: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32) -> Pa
     return o;
 }
 
-fn pat_shingles(uv0: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32, flip: bool) -> Pat {
-    var uv = uv0;
-    if (flip) {
-        uv.y = -uv.y;
-    }
+fn pat_shingles(uv: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32) -> Pat {
     let w = l.a.x;
     let h = l.a.y;
     let gap = l.a.z;
     var row = floor(uv.y / h);
-    var fv = uv.y / h - row;
+    let fv = uv.y / h - row;
     var off = l.a.w * w * (row - 2.0 * floor(row * 0.5));
     var x = (uv.x - off) / w;
     var col = floor(x);
@@ -221,7 +222,7 @@ fn pat_shingles(uv0: vec2<f32>, l: MatLayer, variant: u32, fw: f32, salt: u32, f
     }
     let dside = (0.5 - abs(fu)) * w;
     var o: Pat;
-    // Outline along the tongue edge (distance approximated vertically) and the tile sides.
+    // Outline along the tongue edge (distance taken vertically) and the tile sides.
     o.m = max(pulse(min(dy, h - dy), gap, fw), pulse(dside, gap, fw));
     o.mean = min(gap / h + gap / w, 1.0);
     o.feat = min(w, h);
@@ -237,16 +238,19 @@ fn magic(p: vec3<f32>, depth: u32, distort: f32) -> f32 {
     var y = cos((-p.x + p.y - p.z) * 5.0);
     var z = -cos((-p.x - p.y + p.z) * 5.0);
     if (depth > 0u) {
-        x *= distort; y = -cos(x - y - z) * distort;
+        x *= distort;
+        y = -cos(x - y - z) * distort;
     }
     if (depth > 1u) {
-        z = sin(-x - y - z) * distort; x = -cos(-x + y - z) * distort;
+        z = sin(-x - y - z) * distort;
+        x = -cos(-x + y - z) * distort;
     }
     if (depth > 2u) {
-        y = -sin(-x + y + z) * distort; z = cos(x + y + z) * distort;
+        y = -sin(-x + y + z) * distort;
+        z = cos(x + y + z) * distort;
     }
     if (depth > 3u) {
-        x = cos(-x - y + z) * distort; y = sin(x - y + z) * distort;
+        x = cos(-x - y + z) * distort;
     }
     if (distort != 0.0) {
         x = x / distort;
@@ -259,8 +263,9 @@ struct MatOut {
     glow: f32,
 };
 
-// Evaluates material `mid` on top of `base` (instance colour). `p`/`n`: local position and
-// normal (object/axis maps) ; `wp`/`wn`: world position and normal; `ext`: part half extents.
+// Evaluates material row `mid` over `base` (the instance colour). `p_loc`/`n_loc`: the part's
+// local metric position and normal (object and axis maps); `wp`/`wn`: world position and
+// normal; `ext`: the part's half extents; `seed`: the instance's 20-bit seed.
 fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: vec3<f32>, wp: vec3<f32>, wn: vec3<f32>, ext: vec3<f32>) -> MatOut {
     let mhead = materials[mid].head;
     let count = min(mhead.x, 3u);
@@ -272,7 +277,7 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
         p = wp;
         n = wn;
     }
-    // Analytic footprint: metres per pixel on the surface.
+    // Analytic footprint: metres per pixel on the surface (`material::footprint` on the CPU).
     let to_eye = g.eye.xyz - wp;
     let dist = select(1.0, length(to_eye), g.eye.w > 0.5);
     let vdir = select(-g.forward.xyz, to_eye / max(length(to_eye), 1e-4), g.eye.w > 0.5);
@@ -295,7 +300,7 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
         let fw = fw0;
         var uv: vec2<f32>;
         if (map == 2u && abs(n.y) < 0.7) {
-            // around the part's local Y axis: u = arc length, v = height
+            // around the part's local y axis: u = arc length, v = height
             let r = max(ext.x, 1e-3) * inv_scale;
             uv = vec2<f32>(atan2(p.x, p.z) * r, p.y);
             if (axis == 1u) {
@@ -305,7 +310,7 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
             uv = plane_uv(p, n, axis);
         }
         if ((mhead.z & 1u) != 0u) {
-            uv = uv.yx; // material "turn": 2D patterns run the other way
+            uv = uv.yx; // material `turn`: 2D patterns run the other way
         }
         var pt: Pat;
         pt.cell = 0u;
@@ -319,9 +324,10 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
         switch kind {
             case 1u, 8u: { feat = l.a.x * select(0.5, 0.3, kind == 8u); mean = l.a.w; }
             case 2u: {
-                feat = select(l.a.x, l.b.x * l.a.x, variant == 0u);
+                // spots: the spot's diameter
+                feat = select(l.a.x, 2.0 * l.b.x * l.a.x, variant == 0u);
                 mean = select(select(l.a.w, min(2.2 * l.a.z / l.a.x, 1.0), variant == 1u), l.a.w, variant == 0u);
-                cav_mean = l.c.y * min(l.c.w / l.a.x, 1.0) * 0.5;
+                cav_mean = l.c.y * min(l.c.w / feat, 1.0) * 0.5;
             }
             case 3u, 10u: {
                 feat = min(l.a.x, l.a.y);
@@ -338,6 +344,9 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
             pt.m = mean;
             pt.mean = mean;
             pt.feat = feat;
+            if (ncells > 0u) {
+                c = l.b.yzw; // the cells' mean colour
+            }
             c *= (1.0 - cav_mean) * (1.0 - cav_mean);
         }
         switch select(0u, kind, resolved) {
@@ -351,10 +360,10 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
                 pt.mean = l.a.w;
                 pt.feat = l.a.x * 0.5;
             }
-            case 2u: {
+            case 2u: { // voronoi, cobbles
                 pt = pat_cells(uv, l, variant, fw, salt);
             }
-            case 3u: {
+            case 3u: { // brick, tiles, planks
                 pt = pat_grid(uv, l, fw, salt, variant == 1u);
             }
             case 4u: { // checker (3D)
@@ -373,7 +382,7 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
                 pt.mean = pt.m;
                 pt.feat = 1e9;
             }
-            case 6u: { // bands / rings (wave, stripes)
+            case 6u: { // bands or rings (wave, stripes)
                 var t: f32;
                 if (variant == 1u) {
                     t = length(p - l.dir.xyz * dot(p, l.dir.xyz));
@@ -384,12 +393,12 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
                     t += l.a.z * l.a.x * (fbm(p3 / (l.a.x * 4.0), 2u, l.a.x * 4.0, fw, salt) - 0.5);
                 }
                 let dd = abs(fract(t / l.a.x) - 0.5) * l.a.x; // distance to the band centre
-                let half = l.a.y * l.a.x * 0.5;
+                let hw = l.a.y * l.a.x * 0.5;
                 let sw = max(l.b.x * l.a.x * 0.25, 0.0);
                 if (sw > 0.0) {
-                    pt.m = 1.0 - smoothstep(half - sw, half + sw, dd);
+                    pt.m = 1.0 - smoothstep(hw - sw, hw + sw, dd);
                 } else {
-                    pt.m = pulse(dd, 2.0 * half, fw);
+                    pt.m = pulse(dd, 2.0 * hw, fw);
                 }
                 pt.mean = l.a.y;
                 pt.feat = l.a.x * min(l.a.y, 1.0 - l.a.y);
@@ -401,9 +410,9 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
                 let warp = l.a.z * (vnoise(vec3<f32>(along / (l.a.x * 12.0), r / (l.a.x * 3.0), 0.0) + 5.1, salt) - 0.5);
                 let t = r / l.a.x + warp;
                 let dd = abs(fract(t) - 0.5) * l.a.x;
-                let half = l.a.y * l.a.x * 0.5;
+                let hw = l.a.y * l.a.x * 0.5;
                 let sw = max(l.b.x * l.a.x * 0.25, 0.0);
-                pt.m = 1.0 - smoothstep(half - sw, half + sw, dd);
+                pt.m = 1.0 - smoothstep(hw - sw, hw + sw, dd);
                 pt.mean = l.a.y;
                 pt.feat = l.a.x * min(l.a.y, 1.0 - l.a.y);
             }
@@ -421,25 +430,15 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
                 let col = floor(x);
                 let h = hash3i(i32(col), i32(row), 5, salt);
                 let ctr = vec2<f32>(0.5) + l.a.w * (vec2<f32>(rnd(h), rnd_lo(h)) - 0.5);
-                let local = vec2<f32>(x - col, uv.y / s - row);
-                let dd = length(local - ctr) * s;
+                let cp = vec2<f32>(x - col, uv.y / s - row);
+                let dd = length(cp - ctr) * s;
                 pt.m = pulse(dd, 2.0 * l.a.y, fw);
                 pt.mean = min(3.14159 * l.a.y * l.a.y / (s * s), 1.0);
                 pt.feat = 2.0 * l.a.y;
                 pt.cell = h | 1u;
             }
-            case 10u: {
-                pt = pat_shingles(uv, l, variant, fw, salt, axis == 4u);
-            }
-            case 12u: { // debug: y coordinate
-                pt.m = clamp(0.5 - p3.y * 100.0, 0.0, 1.0);
-                pt.mean = 0.5;
-                pt.feat = 1e9;
-            }
-            case 11u: { // debug: raw value noise
-                pt.m = vnoise(p3 / l.a.x, salt);
-                pt.mean = 0.5;
-                pt.feat = 1e9;
+            case 10u: { // shingles
+                pt = pat_shingles(uv, l, variant, fw, salt);
             }
             default: {
                 if (resolved) {
@@ -467,15 +466,16 @@ fn eval_material(mid: u32, seed: u32, base: vec3<f32>, p_loc: vec3<f32>, n_loc: 
         if (pt.cell != 0u) {
             if (ncells > 0u) {
                 let pick = min(u32(rnd(pcg(pt.cell ^ 0x51u)) * f32(ncells)), ncells - 1u);
-                c = mix(c, srgb8_to_linear(l.cells[pick]), k);
+                // Fades to the cells' mean colour, as an unresolved layer shows it.
+                c = mix(l.b.yzw, srgb8_to_linear(l.cells[pick]), k);
             }
             let vary = l.c.x * (2.0 * rnd(pt.cell) - 1.0) * k;
             c *= (1.0 + vary) * (1.0 + vary);
             if (l.c.y > 0.0) {
                 let bev = max(l.c.w, 1e-4);
                 let prof = 1.0 - smoothstep(pt.gap * 0.5, pt.gap * 0.5 + bev, pt.d);
-                let s = 1.0 - l.c.y * mix(min(bev / max(pt.feat, 1e-4), 1.0) * 0.5, prof, fade(bev, fw));
-                c *= s * s;
+                let sh = 1.0 - l.c.y * mix(min(bev / max(pt.feat, 1e-4), 1.0) * 0.5, prof, fade(bev, fw));
+                c *= sh * sh;
             }
         }
         var col = l.paint.rgb;

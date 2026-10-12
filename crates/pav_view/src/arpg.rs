@@ -66,6 +66,7 @@ fn decal(scene: &mut Scene, data: MeshData, color: Vec3, emissive: f32) {
         style: Style::Unlit,
         flags: rs::flags::NO_SHADOW | rs::flags::TWO_SIDED | rs::flags::NO_CUT | rs::flags::NO_RECEIVE_SHADOW,
         group: 1,
+        material: 0,
     });
 }
 
@@ -123,6 +124,7 @@ impl ArpgView {
                     style: Style::Unlit,
                     flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
                     group: 1,
+                    material: 0,
                 });
                 if particles {
                     scene.particles.push(burst(pos, 1, c.extend(0.6), c.extend(0.0), |b| {
@@ -143,6 +145,7 @@ impl ArpgView {
                 style: Style::Unlit,
                 flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
                 group: 1,
+                material: 0,
             });
             if i < 24 {
                 scene.point_lights.push(rs::PointLight { position: pos, color: c * 1.6, radius: 4.5, shadows: false });
@@ -259,6 +262,7 @@ impl ArpgView {
                             style: Style::Unlit,
                             flags: rs::flags::NO_SHADOW | rs::flags::NO_CUT,
                             group: 1,
+                            material: 0,
                         });
                         scene.point_lights.push(rs::PointLight { position: rock, color: c * 3.0, radius: 9.0, shadows: false });
                         if particles {
@@ -407,6 +411,7 @@ impl ArpgView {
                 style: Style::Lit,
                 flags: rs::flags::NO_CUT,
                 group: 1,
+                material: 0,
             });
             if l.rarity >= Rarity::Magic && l.rest {
                 let pulse = 0.7 + 0.3 * (time * 3.0 + l.id as f32).sin();
@@ -457,6 +462,7 @@ impl ArpgView {
                 style: Style::Lit,
                 flags: rs::flags::NO_CUT,
                 group: 1,
+                material: 0,
             });
         }
         // The spot the hero can use right now: a soft ring at its feet.
