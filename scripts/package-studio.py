@@ -9,6 +9,7 @@ import zipfile
 
 REPO = Path(__file__).resolve().parents[1]
 FOLDER = "Shardfall-Studio"
+PACK_LIMIT = 30_000_000
 QUICK_START = """# Shardfall Studio
 
 ## Start
@@ -92,6 +93,10 @@ def main():
                         help="directory containing official win-x64 node.exe and LICENSE")
     parser.add_argument("--creature-demo", type=Path, required=True,
                         help="validated demo root containing workshop/*.json and .compiled/*.json")
+    parser.add_argument("--packs", default="",
+                        help="comma list of on-disk object packs (assets/props/lib/<pack>) to ship; core is embedded")
+    parser.add_argument("--allow-large", action="store_true",
+                        help=f"ship packs above {PACK_LIMIT // 1_000_000} MB in total")
     args = parser.parse_args()
     binaries = args.binaries.resolve()
     files = {
@@ -110,6 +115,20 @@ def main():
     }
     for path in sorted((REPO / "assets/props/templates").glob("*.json")):
         files[str(path.relative_to(REPO))] = path
+    # Library packs on disk (docs/ASSET_SYSTEM_PLAN.md §9.1): the exe embeds lib/core; other
+    # committed packs ship only when named. Local packs never ship.
+    pack_bytes = 0
+    for pack in filter(None, (name.strip() for name in args.packs.split(","))):
+        folder = REPO / "assets/props/lib" / pack
+        if pack == "core":
+            parser.error("--packs: core is embedded in the executables")
+        if not folder.is_dir():
+            parser.error(f"--packs: no pack folder {folder.relative_to(REPO)}")
+        for path in sorted(p for p in folder.rglob("*") if p.is_file()):
+            files[str(path.relative_to(REPO))] = path
+            pack_bytes += path.stat().st_size
+    if pack_bytes > PACK_LIMIT and not args.allow_large:
+        parser.error(f"--packs come to {pack_bytes:,} bytes (limit {PACK_LIMIT:,}); pass --allow-large to ship them")
     compiler = REPO / "tools/creature-compiler"
     for name in ("worker.mjs", "dist/worker.mjs", "dist/THIRD_PARTY_NOTICES.txt", "pin.json",
                  "catalog.json", "blueprint.schema.json", "UPSTREAM.md"):

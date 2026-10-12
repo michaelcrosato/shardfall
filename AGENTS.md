@@ -129,6 +129,7 @@ crates/
               look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
               water.rs (water zones ripple: a CPU wave equation on a height grid, stirred by
               whatever crosses the waterline, splashes, blasts and rain; drawn as a dynamic mesh),
+              assets.rs (`emit_asset`: a library asset drawn from game state each frame),
               interpolation between ticks, visual settings (ViewSettings)
   pav_audio   synthesized sound: oscillators/noise/envelopes/filters, event -> sound bank,
               cpal output (optional), offline .wav rendering
@@ -233,11 +234,13 @@ Use the returned `revision` as `if_revision` on later edits. Copy source clips b
 keep local source copies and their history in `anim/local`.
 
 Object Studio: `scripts/asset-studio.sh` or `shardfall --asset-studio` opens reusable prop
-authoring on the same live bridge (`.mcp.studio.json`). `assets` lists embedded templates and
-saved definitions. `asset_edit` creates/copies/inspects/patches readable JSON with stable part
-names, atomic batches, revisions, and 32-step history. `asset_preview` opens the isolated
-stage; `views=true` returns a framed 4-view contact sheet (`figure=true` adds a 1.8 m figure)
-and leaves the stage and camera as they were. `capture stats=only` returns render cost without
+authoring on the same live bridge (`.mcp.studio.json`). `assets find=words` searches templates
+(`BUILTIN/`), library packs (`LIB/pack/name`; `LIB/core` is embedded in every build, other packs
+load from disk natively, `assets/props/local/` is git-ignored) and saved definitions, ranked,
+with `category= tags= tier= similar=` filters. `asset_edit` creates/copies/inspects/patches
+readable JSON with stable part names, atomic batches, revisions, and 32-step history.
+`asset_preview` opens the isolated stage; `views=true` returns a framed 4-view contact sheet
+(`figure=true` adds a 1.8 m figure) and leaves the stage and camera as they were. `capture stats=only` returns render cost without
 an image. `asset_spawn` places one-root instances in the preserved scene. Edits refresh visuals
 and compound collision together. Native file changes reload after 250 ms of quiet. Saved
 definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props root).
@@ -245,7 +248,10 @@ definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props
 Animations / Objects / Game tabs retain each workspace's controls and camera. See
 `docs/ASSET_STUDIO.md` (tools and format) and `docs/ASSET_STUDIO_LIVE.md` (the live studio).
 Keep procedural parts as text; use `if_revision` and batch related part changes in one `ops`
-array.
+array. Game code draws units and scenery from its own state with library assets, one call per
+thing per frame: `pav_view::assets::emit_asset(scene, "BUILTIN/crate",
+Placement::at(pos).yaw(deg).id(id), seed, &palette)` (no physics needed; `docs/ASSET_STUDIO.md`,
+"Library assets in game code"). Game data and rooms may name only embedded assets.
 
 Creature Studio: `scripts/creature-studio.sh` or `shardfall --creature-studio` opens the
 procedural creature stage. `tools/creature-compiler` vendors the exact SpawnForge core/modules

@@ -17,3 +17,8 @@
 /tools/creature-compiler/runtime
 /assets/creatures/.compiled
 /assets/creatures/.editor
+
+# Object assets whose sources' licences forbid sharing them (docs/ASSET_SYSTEM_PLAN.md §9.1, D5):
+# local packs, WORKSHOP_LOCAL copies and local materials stay on this machine.
+/assets/props/local
+/assets/materials/local

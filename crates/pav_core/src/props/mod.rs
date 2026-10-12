@@ -4,9 +4,11 @@
 pub mod compile;
 pub mod doc;
 pub mod geom;
+pub mod index;
 pub mod lint;
 mod patch;
 mod read;
+pub mod store;
 pub mod table;
 mod write;
 
@@ -30,6 +32,7 @@ pub use read::v2 as format2;
 pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, migrate, schema, strict_value};
 /// Reader helpers the material reader shares, so both word their errors alike.
 pub(crate) use read::{amount, color_fix, is_color, look_hint, number, wrong_type};
+pub use store::{Tier, canonical, disk_root, editable, leaf};
 pub use table::PropDefTable;
 
 pub const MAX_PARTS: usize = 256;
@@ -412,19 +415,6 @@ pub fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Normalize tool input. A bare name selects the workshop; explicit prefixes select a set.
-pub fn canonical(name: &str) -> Result<String, String> {
-    let (set, leaf) = name.split_once('/').unwrap_or(("WORKSHOP", name));
-    let set = match set.to_ascii_uppercase().as_str() {
-        "BUILTIN" => "BUILTIN",
-        "WORKSHOP" => "WORKSHOP",
-        _ => return Err("prop names use BUILTIN/name or WORKSHOP/name".into()),
-    };
-    let leaf = leaf.to_ascii_lowercase();
-    validate_name(&leaf)?;
-    Ok(format!("{set}/{leaf}"))
-}
-
 /// A definition in the library: the document, its compiled parts and what it depends on.
 #[derive(Debug)]
 pub struct PropDef {
@@ -438,6 +428,9 @@ pub struct PropDef {
     pub deps: Vec<String>,
     /// How deep references nest below this asset: 0 without any.
     pub ref_depth: u8,
+    /// Whether a seed changes anything (`chance`, `jitter` or `pick`, here or in a reference).
+    /// Without them every seed draws `compiled`.
+    pub varies: bool,
     /// Seed 0, which a placed copy draws unless it has a seed of its own.
     pub compiled: Arc<CompiledProp>,
     variants: Mutex<BTreeMap<u32, Arc<CompiledProp>>>,
@@ -480,6 +473,12 @@ impl PropDef {
         refs(&doc.parts, &mut names);
         let pinned: BTreeMap<String, Arc<PropDef>> = names.iter().filter_map(|name| Some((name.clone(), deps(name)?))).collect();
         let ref_depth = pinned.values().map(|dep| dep.ref_depth + 1).max().unwrap_or(0);
+        fn varies(parts: &BTreeMap<String, doc::Node>) -> bool {
+            parts.values().any(|node| {
+                node.chance.is_some() || node.jitter.is_some() || node.pick.is_some() || node.children().is_some_and(varies)
+            })
+        }
+        let varies = varies(&doc.parts) || pinned.values().any(|dep| dep.varies);
         let revision = doc.revision();
         let key = if pinned.is_empty() {
             revision.clone()
@@ -495,6 +494,7 @@ impl PropDef {
             key,
             deps: names.into_iter().collect(),
             ref_depth,
+            varies,
             compiled: Arc::new(compiled),
             variants: Mutex::default(),
             pinned,
@@ -507,9 +507,10 @@ impl PropDef {
         self.pinned.get(&canonical(name).ok()?).cloned()
     }
 
-    /// The parts for one seed. Seed 0 is `compiled`; others are compiled once and kept, up to 64.
+    /// The parts for one seed. Seed 0 is `compiled`, and so is every seed of an asset that does
+    /// not vary; others are compiled once and kept, up to 64.
     pub fn variant(&self, seed: u32) -> Arc<CompiledProp> {
-        if seed == 0 {
+        if seed == 0 || !self.varies {
             return self.compiled.clone();
         }
         if let Some(variant) = self.variants.lock().unwrap().get(&seed) {
@@ -635,23 +636,17 @@ impl PropLibrary {
     }
 }
 
-const TEMPLATES: &[(&str, &str)] = &[
-    ("box", include_str!("../../../../assets/props/templates/box.json")),
-    ("crate", include_str!("../../../../assets/props/templates/crate.json")),
-    ("bench", include_str!("../../../../assets/props/templates/bench.json")),
-    ("lantern", include_str!("../../../../assets/props/templates/lantern.json")),
-];
-
 static LIBRARY: OnceLock<RwLock<Arc<PropLibrary>>> = OnceLock::new();
 
 fn shared() -> &'static RwLock<Arc<PropLibrary>> {
     LIBRARY.get_or_init(|| {
+        // The templates are format 1 and compiled up front; `LIB/core` compiles on first use.
         let mut library = PropLibrary::default();
-        for (name, text) in TEMPLATES {
+        for (name, text) in store::embedded_assets().filter(|(name, _)| name.starts_with("BUILTIN/")) {
             let asset = PropAsset::parse(text).unwrap_or_else(|e| panic!("built-in prop {name}: {e}"));
-            assert_eq!(asset.name, *name, "template name matches its file");
+            assert_eq!(asset.name, leaf(&name), "template name matches its file");
             let def = PropDef::from_v1(Arc::new(asset)).unwrap_or_else(|e| panic!("built-in prop {name}: {}", issue::render(&e)));
-            library.insert(format!("BUILTIN/{name}"), Arc::new(def));
+            library.insert(name, Arc::new(def));
         }
         RwLock::new(Arc::new(library))
     })
@@ -661,19 +656,67 @@ pub fn library() -> Arc<PropLibrary> {
     shared().read().unwrap().clone()
 }
 
-/// A definition with its compiled parts.
+/// A definition with its compiled parts. A library pack's asset is read and compiled on first
+/// use: `LIB/core` from the embedded data, other packs from `disk_root()` (native builds).
 pub fn get(name: &str) -> Option<Arc<PropDef>> {
-    let name = canonical(name).ok()?;
-    library().defs.get(&name).cloned()
+    lookup(name, None).ok().flatten()
 }
 
-/// Why `name` names no asset, with the closest library name when one is near.
+/// `get`, with why it failed: an unknown name (and the nearest known one), or a library file
+/// that does not read or compile. Game code and rooms resolve their references with this.
+pub fn resolve_ref(name: &str) -> Result<Arc<PropDef>, String> {
+    lookup(name, None)?.ok_or_else(|| unknown_asset(name))
+}
+
+/// `get` from `root` instead of `disk_root()` (tests, tools).
+pub fn resolve_in(root: &std::path::Path, name: &str) -> Result<Option<Arc<PropDef>>, String> {
+    lookup(name, Some(root))
+}
+
+thread_local! {
+    /// Library assets being compiled on this thread: a reference back to one is unknown.
+    static LOADING: std::cell::RefCell<BTreeSet<String>> = const { std::cell::RefCell::new(BTreeSet::new()) };
+}
+
+fn lookup(name: &str, root: Option<&std::path::Path>) -> Result<Option<Arc<PropDef>>, String> {
+    let name = canonical(name)?;
+    if let Some(def) = library().defs.get(&name) {
+        return Ok(Some(def.clone()));
+    }
+    if store::pack(&name).is_none() || LOADING.with(|loading| loading.borrow().contains(&name)) {
+        return Ok(None);
+    }
+    let root = root.map(std::path::Path::to_path_buf).unwrap_or_else(disk_root);
+    let Some(text) = store::library_text(&root, &name) else { return Ok(None) };
+    LOADING.with(|loading| loading.borrow_mut().insert(name.clone()));
+    let compiled = (|| {
+        let error = |issues: Vec<Issue>| format!("{name}: {}", issue::render(&issues));
+        let deps = |dep: &str| lookup(dep, Some(&root)).ok().flatten();
+        let doc = Doc::from_value_in(&strict_value(&text?).map_err(|e| error(vec![e]))?, &deps).map_err(error)?;
+        if doc.name != leaf(&name) {
+            return Err(format!("{name}: its file names \"{}\"; a library asset's name is its file's", doc.name));
+        }
+        PropDef::with_deps(doc, &deps, None).map_err(error)
+    })();
+    LOADING.with(|loading| loading.borrow_mut().remove(&name));
+    install(&name, compiled?)?;
+    Ok(library().defs.get(&name).cloned())
+}
+
+/// Every name `get` finds without reading a disk: the library's and the embedded assets'.
+pub fn known_names() -> Vec<String> {
+    let mut names: BTreeSet<String> = library().defs.keys().cloned().collect();
+    names.extend(store::embedded_assets().map(|(name, _)| name));
+    names.into_iter().collect()
+}
+
+/// Why `name` names no asset, with the closest known name when one is near.
 pub fn unknown_asset(name: &str) -> String {
-    let library = library();
+    let names = known_names();
     let wanted = canonical(name).unwrap_or_else(|_| name.to_string());
-    match issue::suggestion(&wanted, library.defs.keys().map(String::as_str)) {
+    match issue::suggestion(&wanted, names.iter().map(String::as_str)) {
         Some(fix) => format!("no prop '{name}' — {fix}"),
-        None => format!("no prop '{name}' (assets lists available props)"),
+        None => format!("no prop '{name}' (assets find=WORDS searches the library)"),
     }
 }
 
@@ -696,7 +739,7 @@ pub fn check_install(name: &str, def: &PropDef) -> Result<(), String> {
 
 fn installable(library: &PropLibrary, name: &str, def: &PropDef) -> Result<String, String> {
     let name = canonical(name)?;
-    if name.split_once('/').map(|(_, leaf)| leaf) != Some(def.doc.name.as_str()) {
+    if leaf(&name) != def.doc.name {
         return Err(format!("{name} does not match the prop's name '{}'", def.doc.name));
     }
     if def.deps.contains(&name) || closure(library, &def.deps).contains(&name) {
@@ -747,6 +790,9 @@ pub fn check_remove(name: &str) -> Result<(), String> {
 fn removable(library: &PropLibrary, name: &str) -> Result<(), String> {
     if name.starts_with("BUILTIN/") {
         return Err("built-in templates cannot be removed".into());
+    }
+    if !editable(name) {
+        return Err(format!("{name} is a library asset; library assets cannot be removed"));
     }
     let users: Vec<&str> =
         library.defs.iter().filter(|(_, def)| def.deps.iter().any(|dep| dep == name)).map(|(n, _)| n.as_str()).collect();

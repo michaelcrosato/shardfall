@@ -54,15 +54,17 @@ fn document(def: &PropDef) -> Result<Value> {
 
 /// Asset files use this root in the app, CLI, live bridge and file watcher.
 pub fn root() -> PathBuf {
-    std::env::var_os("PAV_ASSETS").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("assets/props"))
+    props::disk_root()
 }
 
+/// A workshop asset's file: `workshop/<leaf>.json`, or `local/workshop/` for WORKSHOP_LOCAL.
 fn asset_path(root: &Path, name: &str) -> PathBuf {
-    root.join("workshop").join(format!("{}.json", name.split_once('/').expect("canonical name").1))
+    props::store::disk_file(root, name).expect("an editable name")
 }
 
 fn history_path(root: &Path, name: &str) -> PathBuf {
-    root.join(".editor").join(format!("{}.json", name.split_once('/').expect("canonical name").1))
+    let folder = if name.starts_with("WORKSHOP_LOCAL/") { root.join("local").join(".editor") } else { root.join(".editor") };
+    folder.join(format!("{}.json", props::leaf(name)))
 }
 
 fn lock_editor(root: &Path) -> Result<File> {
@@ -100,7 +102,8 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     result
 }
 
-fn file_definition(path: &Path) -> Result<(String, PropDef)> {
+/// A workshop file's definition, named `<set>/<leaf>` (WORKSHOP or WORKSHOP_LOCAL).
+fn file_definition(path: &Path, set: &str) -> Result<(String, PropDef)> {
     let leaf = path.file_stem().and_then(|s| s.to_str()).ok_or_else(|| anyhow!("invalid asset file name"))?;
     props::validate_name(leaf).map_err(|e| anyhow!("{}: {e}", path.display()))?;
     let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
@@ -109,7 +112,7 @@ fn file_definition(path: &Path) -> Result<(String, PropDef)> {
         bail!("{} must contain name '{leaf}', but it contains '{}'", path.display(), doc.name);
     }
     let def = compiled(doc).map_err(|e| anyhow!("{}: {e}", path.display()))?;
-    Ok((format!("WORKSHOP/{leaf}"), def))
+    Ok((format!("{set}/{leaf}"), def))
 }
 
 /// Install a definition unless the library has it already. Returns it and the definitions
@@ -144,7 +147,7 @@ pub fn reload_file(path: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
             return Ok(Vec::new());
         }
     }
-    let (name, def) = file_definition(path)?;
+    let (name, def) = file_definition(path, "WORKSHOP")?;
     publish_if_changed(&name, def)
 }
 
@@ -163,19 +166,21 @@ pub fn reload_authored() -> Result<Vec<(String, Arc<PropDef>)>> {
 }
 
 fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
-    let folder = root.join("workshop");
-    if !folder.exists() {
+    let folders = [(root.join("workshop"), "WORKSHOP"), (root.join("local").join("workshop"), "WORKSHOP_LOCAL")];
+    if folders.iter().all(|(folder, _)| !folder.exists()) {
         return Ok(Vec::new());
     }
     let _lock = lock_editor(root)?;
     let mut paths = Vec::new();
-    for entry in std::fs::read_dir(&folder).with_context(|| format!("read {}", folder.display()))? {
-        let path = entry?.path();
-        if path.is_file()
-            && path.extension().is_some_and(|ext| ext == "json")
-            && path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with('.'))
-        {
-            paths.push(path);
+    for (folder, set) in folders.iter().filter(|(folder, _)| folder.exists()) {
+        for entry in std::fs::read_dir(folder).with_context(|| format!("read {}", folder.display()))? {
+            let path = entry?.path();
+            if path.is_file()
+                && path.extension().is_some_and(|ext| ext == "json")
+                && path.file_name().is_some_and(|name| !name.to_string_lossy().starts_with('.'))
+            {
+                paths.push((path, *set));
+            }
         }
     }
     paths.sort();
@@ -186,12 +191,12 @@ fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
     loop {
         errors.clear();
         let tried = paths.len();
-        for path in std::mem::take(&mut paths) {
-            match file_definition(&path).and_then(|(name, def)| publish_if_changed(&name, def)) {
+        for (path, set) in std::mem::take(&mut paths) {
+            match file_definition(&path, set).and_then(|(name, def)| publish_if_changed(&name, def)) {
                 Ok(published) => changed.extend(published),
                 Err(error) => {
                     errors.push(format!("{error:#}"));
-                    paths.push(path);
+                    paths.push((path, set));
                 }
             }
         }
@@ -205,15 +210,17 @@ fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
     Ok(changed)
 }
 
+/// A workshop asset as its file holds it; templates and library packs from the library.
 fn read_asset(root: &Path, name: &str) -> Result<Option<Arc<PropDef>>> {
-    if name.starts_with("BUILTIN/") {
-        return Ok(props::get(name));
+    if !props::editable(name) {
+        return props::resolve_in(root, name).map_err(|e| anyhow!(e));
     }
     let path = asset_path(root, name);
     if !path.exists() {
         return Ok(None);
     }
-    file_definition(&path).map(|(_, def)| Some(Arc::new(def)))
+    let set = name.split_once('/').expect("canonical name").0;
+    file_definition(&path, set).map(|(_, def)| Some(Arc::new(def)))
 }
 
 fn revision(def: Option<&PropDef>) -> String {
@@ -274,11 +281,11 @@ struct Extras {
 fn inspect(root: &Path, name: &str, preview: bool, extras: Extras) -> Result<Edited> {
     let def = read_asset(root, name)?;
     let history_file = history_path(root, name);
-    if def.is_none() && (!name.starts_with("WORKSHOP/") || !history_file.is_file()) {
+    if def.is_none() && (!props::editable(name) || !history_file.is_file()) {
         bail!("no asset '{name}'; assets find=WORDS searches the library");
     }
     let history =
-        if name.starts_with("WORKSHOP/") { read_history(&history_file, &revision(def.as_deref()))? } else { History::default() };
+        if props::editable(name) { read_history(&history_file, &revision(def.as_deref()))? } else { History::default() };
     let mut result = report(name, def.as_deref(), &history, false);
     result.as_object_mut().expect("report is an object").remove("saved");
     result["asset"] = match &def {
@@ -438,7 +445,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
 
 fn definition(value: Value, name: &str, creating: bool) -> Result<Doc> {
     let mut object = value.as_object().ok_or_else(|| anyhow!("asset must be a JSON object"))?.clone();
-    let leaf = name.split_once('/').expect("canonical name").1;
+    let leaf = props::leaf(name);
     if creating {
         object.entry("format").or_insert(json!(1));
         object.insert("name".into(), json!(leaf));
@@ -614,10 +621,11 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         }
         return read_only(result);
     }
-    if !name.starts_with("WORKSHOP/") {
-        bail!("built-in templates are read-only; use action=copy from={name} name=your_name first");
+    if !props::editable(&name) {
+        let what = if name.starts_with("BUILTIN/") { "built-in templates are" } else { "library assets are" };
+        bail!("{what} read-only; use action=copy from={name} name=your_name first");
     }
-    let leaf = name.split_once('/').expect("canonical name").1;
+    let leaf = props::leaf(&name);
     let _lock = lock_editor(root)?;
     let before = read_asset(root, &name)?;
     let current_revision = revision(before.as_deref());
@@ -806,80 +814,6 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         result["check"] = json!(check);
     }
     Ok(Edited { report: result, def, dependents, mutation: true, preview })
-}
-
-/// A listing row's description: the start, cut at a word.
-fn summary(text: &str) -> String {
-    const MAX: usize = 80;
-    if text.len() <= MAX {
-        return text.into();
-    }
-    let mut end = MAX;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    let cut = text[..end].rfind(' ').filter(|at| *at > MAX / 2).unwrap_or(end);
-    format!("{}…", text[..cut].trim_end_matches([',', ';', ':', ' ']))
-}
-
-/// Search the registry. Rows are compact; `asset_edit inspect` returns one definition.
-pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
-    for key in a.keys() {
-        if !["find", "limit", "page", "scene", "seed", "ticks"].contains(&key.as_str()) {
-            let accepted = ["kind", "find", "limit", "page"];
-            bail!(
-                "{}",
-                Issue::error(key.as_str(), Code::UnknownKey, "not an assets argument")
-                    .expected(accepted.join(", "))
-                    .maybe_fix(issue::suggestion(key, accepted))
-            );
-        }
-    }
-    if a.get("find").is_some_and(|value| !value.is_string()) {
-        bail!("find must be text");
-    }
-    let limit = match a.get("limit") {
-        None => 30,
-        Some(value) => value
-            .as_u64()
-            .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
-            .filter(|value| (1..=1000).contains(value))
-            .ok_or_else(|| anyhow!("limit must be an integer from 1 to 1000"))?,
-    } as usize;
-    let page = match a.get("page") {
-        None => 1,
-        Some(value) => value
-            .as_u64()
-            .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
-            .filter(|value| *value >= 1)
-            .ok_or_else(|| anyhow!("page must be an integer from 1"))?,
-    } as usize;
-    let find = get_str(a, "find").unwrap_or("").to_ascii_lowercase();
-    let library = props::library();
-    let matched = library
-        .defs
-        .iter()
-        .filter(|(name, def)| {
-            name.to_ascii_lowercase().contains(&find) || def.doc.description.to_ascii_lowercase().contains(&find)
-        })
-        .collect::<Vec<_>>();
-    let skip = (page - 1).saturating_mul(limit);
-    let rows = matched
-        .iter()
-        .skip(skip)
-        .take(limit)
-        .map(|(name, def)| json!([name, def.bounds(1.0).size_cm(), def.compiled.parts.len(), summary(&def.doc.description)]))
-        .collect::<Vec<_>>();
-    let mut result = json!({
-        "cols": "name size_cm parts desc",
-        "rows": rows,
-        "total": library.defs.len(),
-        "matched": matched.len(),
-    });
-    if skip.saturating_add(limit) < matched.len() {
-        result["next"] = json!(page + 1);
-    }
-    Ok(Output::Json(result))
 }
 
 /// Create, inspect and alter an asset. Options are parsed before disk mutation; a later
@@ -1088,6 +1022,37 @@ mod tests {
         assert!(edit_at(&root, &args(json!({"action":"check","name":name,"target":"2x2"}))).is_err());
         assert!(edit_at(&root, &args(json!({"action":"undo","name":name,"dry_run":true}))).is_err(), "undo has no dry run");
         props::remove(&canonical).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn library_assets_are_read_only_and_copy_into_either_workshop() {
+        let root = temp_root("library");
+        let pack = root.join("lib").join("unitpack");
+        std::fs::create_dir_all(&pack).unwrap();
+        std::fs::write(
+            pack.join("post.json"),
+            r##"{"format":2,"name":"post","unit":"cm","tags":["wood"],"parts":{"post":{"type":"box","size":[10,100,10],"pos":[0,50,0],"color":"#806040"}}}"##,
+        )
+        .unwrap();
+        // A pack on disk loads on first use.
+        let inspected = edit(&root, json!({"action":"inspect","name":"lib/UnitPack/post"}));
+        assert_eq!((inspected["name"].as_str(), inspected["size_cm"].as_str()), (Some("LIB/unitpack/post"), Some("10x100x10")));
+        let error = edit_at(&root, &args(json!({"action":"patch","name":"LIB/unitpack/post","ops":[]}))).err().unwrap();
+        assert_eq!(
+            error.to_string(),
+            "library assets are read-only; use action=copy from=LIB/unitpack/post name=your_name first"
+        );
+        // WORKSHOP_LOCAL saves under local/ (git-ignored), with its own history.
+        let copied = edit(&root, json!({"action":"copy","from":"LIB/unitpack/post","name":"WORKSHOP_LOCAL/unit_post"}));
+        assert_eq!(copied["name"], "WORKSHOP_LOCAL/unit_post");
+        assert!(root.join("local/workshop/unit_post.json").is_file() && root.join("local/.editor/unit_post.json").is_file());
+        assert!(!root.join("workshop").exists());
+        props::remove("WORKSHOP_LOCAL/unit_post").unwrap();
+        assert_eq!(reload_authored_at(&root).unwrap().len(), 1, "a restart loads the local workshop too");
+        assert_eq!(props::get("WORKSHOP_LOCAL/unit_post").unwrap().revision, copied["revision"]);
+        assert!(props::remove("LIB/unitpack/post").is_err(), "library assets stay");
+        props::remove("WORKSHOP_LOCAL/unit_post").unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
 

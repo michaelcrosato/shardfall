@@ -632,14 +632,19 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "assets",
-        help: "Find reusable assets: object rows (kind=prop, default) or compiled creatures (kind=creature).",
+        help: "Find reusable assets: object rows (kind=prop, default; find= ranks words, similar= likeness) or compiled creatures (kind=creature).",
         args: &[
             arg("kind", "string", "prop (default) | creature"),
-            arg("find", "string", "words in the name or description"),
-            arg("limit", "integer", "rows per page (default 30)"),
-            arg("page", "integer", "page number (default 1); replies give next"),
+            arg("find", "string", "words; all must match"),
+            arg("category", "string", "e.g. furniture, container, lighting"),
+            arg("tags", "string", "required tags; @sit: a socket"),
+            arg("tier", "string", "embedded, disk, local, workshop"),
+            arg("similar", "string", "rank like this asset"),
+            arg("limit", "integer", "rows per page (20, ≤100)"),
+            arg("page", "integer", "page (1); replies give next"),
+            arg("reindex", "string", "templates or a pack: write index.tsv"),
         ],
-        run: crate::asset_tools::t_assets,
+        run: crate::asset_search::t_assets,
     },
     Tool {
         name: "asset_edit",
@@ -648,7 +653,7 @@ pub static TOOLS: &[Tool] = &[
             arg("kind", "string", "prop (default) or creature"),
             arg("action", "string", "default inspect; surface and rebuild are kind=creature only"),
             arg("name", "string", "lowercase name or WORKSHOP/name; inspect also reads BUILTIN/name"),
-            arg("from", "string", "copy source, e.g. BUILTIN/bench"),
+            arg("from", "string", "copy source, e.g. BUILTIN/bench, LIB/core/x"),
             arg("template", "string", "box, crate, bench or lantern (default box)"),
             arg("description", "string", "description for create or copy"),
             arg("asset", "object", "a whole definition (create, replace)"),
@@ -691,7 +696,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_catalog",
-        help: "Discover the pinned local SpawnForge procedural generator: templates, body modules, wings, tails, parts, animation and surface parameters. No hosted AI service or credentials are used. Listing and JSON schema inspection never launch Node. Use named paths from this catalog for creature_edit patch operations.",
+        help: "Discover the pinned local SpawnForge generator: templates, body modules, wings, tails, parts, animation and surface parameters (local; never launches Node). Use its named paths in creature_edit patch ops.",
         args: &[
             arg("kind", "string", "filter generator modules by kind"),
             arg("module", "string", "inspect one generator module by id"),
@@ -722,7 +727,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_preview",
-        help: "View compiled creatures through Shardfall's renderer, including skinned wings and named baked animation clips. action=open resumes this workspace or opens an empty stage before the first build. The game, other studios, camera and controls are preserved. Select name, play/pause, scrub exact time, step source frames, rotate a turntable, or fit rest bounds. action=pose returns stage-space joints. capture and filmstrip use this same stage and clock. A saved source without a compiled cache needs creature_edit action=rebuild first.",
+        help: "View compiled creatures (skinned wings, baked clips) with the game's renderer; the game and other studios are preserved. action=open resumes or opens an empty stage. Select name, play/pause, scrub time, step frames, turntable, fit bounds; action=pose returns joints. capture/filmstrip share this stage. Uncompiled sources need creature_edit action=rebuild.",
         args: &[
             arg("action", "string", "status | open | fit | close | play | pause | restart | pose"),
             arg("name", "string", "CREATURE/name or lowercase leaf"),
@@ -741,7 +746,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_status",
-        help: "Read asynchronous build jobs without waiting or rendering. States: queued, building, ready (saved, awaiting session publication), published, failed, superseded. A published job includes source revision, diff, timings, warnings and any live feedback ticket; feedback submitted means the native window submitted that exact edit. Jobs belong to the current process/session. No args lists recent jobs, authored assets and the current preview.",
+        help: "Read asynchronous build jobs without waiting. States: queued, building, ready (saved, not yet published), published, failed, superseded. A published job has source revision, diff, timings, warnings and any live feedback ticket. Jobs belong to this session. No args lists recent jobs, authored assets and the preview.",
         args: &[
             arg("job", "integer", "specific job id returned by creature_edit"),
             arg("name", "string", "filter jobs by creature name"),
@@ -1552,8 +1557,8 @@ fn t_room_check(_: &mut Session, a: &Args) -> Result<Output> {
                 .iter()
                 .filter_map(|o| {
                     let asset = o.asset.as_ref()?;
-                    let missing = pav_core::props::get(asset).is_none();
-                    missing.then(|| format!("object '{}': {}", o.name, pav_core::props::unknown_asset(asset)))
+                    let error = pav_core::props::resolve_ref(asset).err();
+                    error.map(|error| format!("object '{}': {error}", o.name))
                 })
                 .collect();
             let mut out =

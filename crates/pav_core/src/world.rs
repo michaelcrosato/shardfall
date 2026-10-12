@@ -386,8 +386,7 @@ impl Sim {
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
             if let Some(asset) = &o.asset {
-                let placed = crate::props::get(asset)
-                    .ok_or_else(|| crate::props::unknown_asset(asset))
+                let placed = crate::props::resolve_ref(asset)
                     .and_then(|definition| {
                         crate::prop_instance::PropInstance::new(asset, definition, o.scale, o.body == BodyKind::Fixed)
                     })

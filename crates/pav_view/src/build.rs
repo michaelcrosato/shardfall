@@ -889,7 +889,15 @@ impl ViewBuilder {
     }
 
     /// A placed prop: its compiled parts, their lights, and their particles.
-    fn emit_prop(&mut self, scene: &mut Scene, o: &RenderObject, prop: &PropFrame, settings: &ViewSettings, time: f32, dt: f32) {
+    pub(crate) fn emit_prop(
+        &mut self,
+        scene: &mut Scene,
+        o: &RenderObject,
+        prop: &PropFrame,
+        settings: &ViewSettings,
+        time: f32,
+        dt: f32,
+    ) {
         let compiled = &prop.parts;
         let scale = prop.scale;
         let at = |pos: Vec3| o.pos + o.rot * (pos * scale);
@@ -1664,10 +1672,10 @@ fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) ->
 
 /// Meshes generated for prop parts, kept by key and sent to the renderer once per frame.
 #[derive(Default)]
-struct GeneratedMeshes {
-    built: HashMap<u64, Arc<MeshData>>,
+pub(crate) struct GeneratedMeshes {
+    pub(crate) built: HashMap<u64, Arc<MeshData>>,
     /// Keys this frame's scene already carries.
-    sent: HashSet<u64>,
+    pub(crate) sent: HashSet<u64>,
 }
 
 impl GeneratedMeshes {
@@ -1707,7 +1715,7 @@ fn mesh_data(mesh: &GeomMesh) -> MeshData {
 
 /// A colour as written, with a theme role (`$light`) through the copy's palette, else the
 /// default one.
-fn role_hex<'a>(color: &'a str, roles: &'a BTreeMap<String, String>) -> &'a str {
+pub(crate) fn role_hex<'a>(color: &'a str, roles: &'a BTreeMap<String, String>) -> &'a str {
     match color.strip_prefix('$') {
         Some(_) => roles
             .get(color)
@@ -1725,7 +1733,7 @@ fn part_color(color: &str, tint: f32, roles: &BTreeMap<String, String>) -> Vec3 
 /// One compiled part of a prop. Format 1's shapes go through `emit_shape`, so a format-1 asset
 /// draws exactly what it always drew; ellipsoids, cones and round cones use the renderer's own
 /// meshes and distance fields; everything else a generated mesh.
-fn emit_prim(
+pub(crate) fn emit_prim(
     scene: &mut Scene,
     generated: &mut GeneratedMeshes,
     part: &ResolvedPart,

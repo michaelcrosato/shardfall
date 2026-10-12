@@ -1,0 +1,5 @@
+name	cat	size_cm	parts	tok	fid	src	tags	sockets	note	desc
+BUILTIN/bench	furniture	220x142x98	7	344	authored	own	wood seat park town			A wooden bench: broad seat, four legs, a backrest leaning on the rear legs.
+BUILTIN/box	architecture	100x100x100	1	77	authored	own	block plain starter			One neutral box standing on the floor. A starting point for a new prop.
+BUILTIN/crate	container	126x120x130	5	242	authored	own	wood box storage cargo dungeon town			A wooden crate with dark edge bands and diagonal braces.
+BUILTIN/lantern	lighting	70x206x70	6	276	authored	own	lamp light metal glow street town			A standing metal lantern with a warm glowing globe and a dark cap.

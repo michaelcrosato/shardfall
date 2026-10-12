@@ -1,5 +1,5 @@
 // Embeds every room file in /rooms into the binary (rooms.rs in OUT_DIR), so adding a room
-// file is enough for it to ship.
+// file is enough for it to ship; likewise game data, animation data and the embedded assets.
 use std::io::Write;
 
 fn main() {
@@ -88,6 +88,45 @@ fn main() {
         writeln!(f, "    ({name:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
     }
     writeln!(f, "];").unwrap();
+
+    // Object assets, the embedded tier (docs/ASSET_SYSTEM_PLAN.md §9.1): the templates and the
+    // core library (assets, meshes, index.tsv), keyed by their path under assets/props. Other
+    // packs stay on disk, and local ones on this machine.
+    let props = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/props");
+    let mut files = Vec::new();
+    for folder in ["templates", "lib/core"] {
+        let dir = props.join(folder);
+        if dir.is_dir() {
+            println!("cargo:rerun-if-changed={}", dir.display());
+            collect_ext(&dir, &["json", "tsv"], &mut files);
+        }
+    }
+    files.sort();
+    let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("asset_data.rs");
+    let mut f = std::fs::File::create(out).unwrap();
+    writeln!(f, "pub const ASSET_DATA: &[(&str, &str)] = &[").unwrap();
+    for p in files {
+        let key = p.strip_prefix(&props).unwrap().to_string_lossy().replace('\\', "/");
+        let abs = p.canonicalize().unwrap();
+        writeln!(f, "    ({key:?}, include_str!({:?})),", abs.display().to_string()).unwrap();
+    }
+    writeln!(f, "];").unwrap();
+}
+
+/// Files under `dir` with one of `extensions`, skipping hidden files and folders.
+fn collect_ext(dir: &std::path::Path, extensions: &[&str], out: &mut Vec<std::path::PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    for e in rd.filter_map(|e| e.ok()) {
+        let p = e.path();
+        if p.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.')) {
+            continue;
+        }
+        if p.is_dir() {
+            collect_ext(&p, extensions, out);
+        } else if p.extension().is_some_and(|x| extensions.iter().any(|e| x == *e)) {
+            out.push(p);
+        }
+    }
 }
 
 fn collect(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {

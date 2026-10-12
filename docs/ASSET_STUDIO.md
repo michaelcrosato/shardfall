@@ -6,8 +6,10 @@ into broken commands.
 
 ## The loop
 
-1. `assets [find=words]` lists templates (BUILTIN/box, crate, bench, lantern) and saved objects
-   (WORKSHOP/name).
+1. `assets find=words` finds a starting point: templates (BUILTIN/box, crate, bench, lantern),
+   library packs (LIB/pack/name, read-only: copy one) and saved objects (WORKSHOP/name). Rows
+   are name cat size_cm parts tok tags desc, best first; filters `category=`, `tags=` (`@sit`: a
+   socket), `tier=embedded` (what every build has), `similar=NAME`; `next` pages.
 2. Make the object and look at it in one go: a create command like the one below and, on the
    next line, `asset_preview name=x views=true figure=true`. The create reply has size_cm and
    check (what is wrong); the preview writes a sheet of four views beside a 1.8 m figure, the
@@ -78,3 +80,28 @@ the wall. Sheets also take views=[front,top,30], elevation= and tile=.
 `asset_spawn action=add name=x pos=[x,y,z]` places a copy in the world. Saves go to
 assets/props/workshop/name.json; a metre template's copy is in metres: send
 {"op":"unit","to":"cm"} before centimetres.
+
+## Names and tiers
+
+BUILTIN/name (templates) and LIB/core/name are embedded in every build, the browser's too: game
+data and rooms may name only these. Other packs (assets/props/lib/pack/) load on first use in
+native builds; assets/props/local/ (packs, and WORKSHOP_LOCAL/name copies of their assets) is
+git-ignored, for sources whose licences forbid sharing. Each pack folder has an index.tsv that
+`assets` reads; `assets reindex=pack` (or `=templates`) rewrites it, keeping its note column.
+
+## Library assets in game code
+
+A game that keeps its own state draws an asset for a unit or a piece of scenery each frame with
+one call, in its view code while the frame's scene is built (as `pav_view/src/arpg.rs` draws
+Shardfall):
+
+```rust
+use pav_view::assets::{emit_asset, Palette, Placement};
+let at = Placement::at(unit.pos).yaw(unit.heading_deg).id(unit.id); // .scale(1.5), .rot(quat)
+emit_asset(scene, "BUILTIN/crate", at, unit.id % 8, &Palette::new())?; // any name assets lists
+```
+
+It draws what a placed copy draws (parts, glow, lights; not `fx` particles). The seed picks the
+variant (0 as authored; keep to a few seeds per asset); the palette colours `$roles`
+({"$wall":"#5a6b7c"}); `id` keeps each unit's outline its own. Unknown names fail with the
+nearest one. Units need no physics: the game owns their positions.

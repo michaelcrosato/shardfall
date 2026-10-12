@@ -23,7 +23,7 @@ cost at cache reads 0.1, cache writes 1.25, visible output 5; hidden reasoning i
 | A supported second-game path: a `Game` hook for step, frame, view and HUD instead of editing `sim.rs`, `frame.rs`, `build.rs` and `app.rs` | 1 | high | waiting for a pattern |
 | Entities, shots, health and AI that don't require rapier (`health.rs`, `projectile.rs`) | 1 | high | waiting |
 | A single-file web build (gzip + inline) | 1 | high | **done**: `scripts/build-web.sh --single-file` |
-| Primitive-part models drawn per frame from game state (props can't be) | 1 | medium | in the asset plan, row 4.1 |
+| Primitive-part models drawn per frame from game state (props can't be) | 1 | medium | **done**: `pav_view::assets::emit_asset` (plan row 4.1) |
 | Stock HUD widgets (bars, radar, off-screen markers, boss bar, banner) | 1 | medium | waiting |
 | Data-driven sound bank (`pav_audio::sounds_for` is a closed match) | 1 | medium | waiting |
 | Per-scene default camera on `load` | 1 | medium | waiting |

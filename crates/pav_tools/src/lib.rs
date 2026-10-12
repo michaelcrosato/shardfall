@@ -7,6 +7,7 @@ pub mod anim_tools;
 pub mod animation_tools;
 pub mod asset_import;
 pub mod asset_preview_tools;
+pub mod asset_search;
 pub mod asset_tools;
 pub mod bridge;
 pub mod creature_preview_tools;

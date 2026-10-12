@@ -382,7 +382,7 @@ impl Sim {
             Some(name) => props::canonical(name)?,
             None => self.state.prop_preview.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "BUILTIN/bench".into()),
         };
-        let definition = props::get(&name).ok_or_else(|| format!("no prop '{name}' (assets lists available props)"))?;
+        let definition = props::resolve_ref(&name)?;
         if self.state.prop_preview.as_ref().is_none_or(|p| p.name != name) {
             self.state.prop_preview = Some(PropPreviewState::new(name, definition.bounds(1.0)));
         }

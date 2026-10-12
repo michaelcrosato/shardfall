@@ -940,6 +940,7 @@ Helper agents get briefs of 10 assets each (the M4-M9 precedent). Each gets the 
 - **Tests.**
   - pav_core: `embedded_assets_fit_budget`, `embedded_library_is_valid`, and `game_asset_refs_are_embedded` (every ref in `game/**/*.toml` and `rooms/*.toml` resolves to BUILTIN or LIB/core);
   - pav_tools: `committed_packs_fit_budget`, `committed_packs_are_redistributable`, `index_files_are_current`.
+  - *As built (4.1):* all but `committed_packs_are_redistributable`, which needs `PACK.json` licences and moves to LIB-3 (4.2) with `CREDITS.md`. Names `WORKSHOP_LOCAL/x` keep their history in `local/.editor/`; pack `workshop` is reserved (it is `local/workshop/`). `NAME:preset` waits for LIB-4 (deferred). `lib/core/` holds only its header-only `index.tsv` until 4.2 publishes the W0 exemplars. The native file watcher still watches `workshop/` only; `WORKSHOP_LOCAL` files load at startup and through tools.
 - **Browser.** wasm has only the embedded tier. Unknown refs are load errors on every platform, replacing today's silent fallbacks.
 - **`scripts/package-studio.py`** adds `CREDITS.md` and `--packs a,b`, and fails above 30 MB unless `--allow-large`.
 
@@ -957,6 +958,7 @@ Helper agents get briefs of 10 assets each (the M4-M9 precedent). Each gets the 
   - `page`/`limit` (20, ≤ 100); `credits=true|write`; `reindex=<pack>`.
 - Reply: `{"cols":"name cat size_cm parts tok fid src tags params/@sockets","rows":[["LIB/core/barrel","container","56x90x56",5,180,"authored","own","wood dungeon town","height girth hoops lid"],…]}`.
   It costs ~35 tokens per row, against 105 today.
+- *As built (4.1):* index columns `name cat size_cm parts tok fid src tags sockets note desc` (`params` waits for LIB-4; `desc` lets queries match descriptions without reading assets). The templates' index carries their `cat` and `tags`, which format 1 cannot hold; reindexing keeps them, and `note`. Args `find category tags tier similar limit page reindex`: `tags=@sit` is `has_socket`, `tier=` (embedded, disk, local, workshop) stands in for `pack`, and `max_tokens`, `family`, `name=` cards and `credits` are left until a need shows (`asset_edit inspect` is the card). Reply `{"cols":"name cat size_cm parts tok tags desc","rows":[["BUILTIN/crate","container","126x120x130",5,242,"wood box storage cargo","A wooden crate with dark edge bands…"],…],"matched":2}` (`assets find=wood`): `fid`/`src` are left out while every row is authored and own; tags (the first 4, then `@sockets`) and the description are cut to keep a row ≤ 116 bytes, 33-36 o200k tokens on the templates. The tools/list cap (TOOLS-3) rises from 47,000 to 47,500 characters for these args.
 - **Copy, then modify** is the default loop: `asset_edit copy from=LIB/… name=x` accepts `:preset`,
   `params=` and `bake=true`. Evidence: SceneCraft without its learned library fell from CLIP 69.8
   to 48.3. The dogfood from-scratch stall took ~2.6k tokens over 15 calls to reach ~65% of Kenney.
@@ -1331,7 +1333,7 @@ Why this order:
 - [x] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
-- [ ] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
+- [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L)
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)

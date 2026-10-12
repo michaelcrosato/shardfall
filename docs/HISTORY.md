@@ -5,6 +5,45 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 4.1: library names and tiers, `assets find=`, assets drawn from game code — 2026-10-12
+
+Row 4.1 of `docs/ASSET_SYSTEM_PLAN.md` (LIB-1, LIB-2) plus what Capital Strike asked for.
+- **Names and tiers** (`pav_core/src/props/store.rs`): `BUILTIN/x`, `WORKSHOP/x`,
+  `WORKSHOP_LOCAL/x` and `LIB/<pack>/x` (pack `[a-z][a-z0-9_]{0,31}`; `core` is the embedded
+  one). The build script's new `ASSET_DATA` table embeds `assets/props/templates/` and
+  `lib/core/**` (json, index) and replaces the hand-listed templates. `props::get` reads a
+  pack's asset on first use: `LIB/core` from the embedded data, other packs from
+  `disk_root()/lib/<pack>/` or `local/<pack>/` (native only); `props::resolve_ref` says why a
+  name fails (unknown, with the nearest known name, or a file that does not compile), and rooms,
+  `spawn_prop`, `room_check`, previews and `emit_asset` use it. Library assets are read-only:
+  `asset_edit copy from=LIB/...` first. `WORKSHOP_LOCAL` saves to `local/workshop/` (git-ignored
+  with all of `assets/props/local`). Existing names and `prop1-` revisions are unchanged.
+- **Budgets and packaging:** tests `embedded_assets_fit_budget` (3 MB, 16 KB a prop, 64 KB a
+  mesh), `embedded_library_is_valid`, `game_asset_refs_are_embedded` (every `asset`/`model` in
+  rooms and game data is BUILTIN or LIB/core and resolves), `committed_packs_fit_budget` (40 MB,
+  1 MB a file) and `index_files_are_current`. `.vercelignore` drops packs other than core, local
+  tiers and fitted materials; `scripts/package-studio.py --packs a,b` ships on-disk packs and
+  refuses more than 30 MB of them without `--allow-large`.
+- **Retrieval** (`pav_tools/src/asset_search.rs`): each folder's `index.tsv` (`name cat size_cm
+  parts tok fid src tags sockets note desc`; `assets reindex=templates|<pack>` writes it and
+  keeps `note`, and `cat`/`tags` that a format-1 document cannot hold) is what queries read;
+  workshop rows are made live. `assets find=` needs every word and ranks leaf 5, tag/socket/
+  category 3, name 2, description 1, ties to fewer tokens; `category= tags= (@sit: a socket)
+  tier= similar=NAME limit= page=`. Rows are `name cat size_cm parts tok tags desc`, cut to
+  ≤ 116 bytes: 33-36 o200k tokens measured with tiktoken (the reply-budget test counts 3 bytes a
+  token). The four templates got categories and tags.
+- **Assets drawn from game code** (`pav_view/src/assets.rs`): `emit_asset(scene, name,
+  Placement::at(pos).yaw(deg).id(id), seed, &palette)` draws a unit or a piece of scenery from a
+  game's own state each frame, exactly what a placed copy draws (tested against `emit_prop`),
+  with generated meshes cached across calls and sent once per scene. No `fx` particles (they
+  need per-emitter state). `PropDef::varies` makes every seed of an asset without
+  chance/jitter/pick reuse its compiled parts, so per-unit seeds cost nothing there.
+- **Decisions:** `desc` joins the index so descriptions are searchable without reading assets;
+  `params` waits for LIB-4; reply rows leave out `fid`/`src` while all rows are authored and own;
+  `committed_packs_are_redistributable` and `CREDITS.md` move to 4.2 with the licences;
+  `lib/core` stays empty (a header-only index) until 4.2 publishes reviewed exemplars; the
+  tools/list cap goes from 47,000 to 47,500 characters for the new `assets` args.
+
 ## Asset plan 3.2: the renderer draws materials — 2026-10-12
 
 Row 3.2 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-2, MAT-3): procedural materials draw on the GPU,

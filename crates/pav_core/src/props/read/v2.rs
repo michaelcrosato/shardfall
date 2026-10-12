@@ -1280,8 +1280,8 @@ impl Reader<'_> {
             }
         };
         if (self.assets)(&canonical).is_none() {
-            let library = crate::props::library();
-            let names: Vec<&str> = library.defs.keys().map(String::as_str).collect();
+            let known = crate::props::known_names();
+            let names: Vec<&str> = known.iter().map(String::as_str).collect();
             self.push(
                 Issue::error(path, Code::UnknownAsset, format!("no asset \"{name}\""))
                     .maybe_fix(issue::suggestion(&canonical, names.iter().copied())),

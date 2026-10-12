@@ -85,7 +85,7 @@ impl PropInstance {
     pub fn new(asset: &str, definition: Arc<PropDef>, scale: f32, collide: bool) -> Result<Self, String> {
         let asset = props::canonical(asset)?;
         validate_scale(scale)?;
-        if asset.split_once('/').map(|(_, leaf)| leaf) != Some(definition.doc.name.as_str()) {
+        if props::leaf(&asset) != definition.doc.name {
             return Err("asset reference does not match its embedded definition".into());
         }
         Ok(Self { asset, definition, scale, collide, seed: 0, roles: BTreeMap::new() })
@@ -210,7 +210,7 @@ impl Sim {
         collide: bool,
         region: Option<RegionKey>,
     ) -> Result<EntityId, String> {
-        let definition = props::get(asset).ok_or_else(|| props::unknown_asset(asset))?;
+        let definition = props::resolve_ref(asset)?;
         self.place_prop(PropInstance::new(asset, definition, scale, collide)?, pos, rot, region)
     }
 
@@ -269,7 +269,7 @@ impl Sim {
     /// Old snapshots retain their own definitions. Transforms and entity identities stay put.
     pub fn refresh_prop_instances(&mut self, name: &str, definition: Arc<PropDef>) -> usize {
         let Ok(name) = props::canonical(name) else { return 0 };
-        if name.split_once('/').map(|(_, leaf)| leaf) != Some(definition.doc.name.as_str()) {
+        if props::leaf(&name) != definition.doc.name {
             return 0;
         }
         let ids: Vec<_> =

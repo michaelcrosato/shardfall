@@ -51,9 +51,7 @@ fn status(s: &Session) -> Value {
 /// only explicit edits and the watcher also refresh every affected placed collider.
 fn ensure_asset(name: &str) -> Result<String> {
     let name = props::canonical(name).map_err(|e| anyhow!(e))?;
-    if props::get(&name).is_none() {
-        bail!("no prop '{name}' (assets lists available props)");
-    }
+    props::resolve_ref(&name).map_err(|e| anyhow!(e))?;
     Ok(name)
 }
 

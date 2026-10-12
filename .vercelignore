@@ -1,3 +1,10 @@
 target/
 out/
 anim/cmu/
+# Object asset tiers (docs/ASSET_SYSTEM_PLAN.md §9.1): the browser build embeds the templates and
+# lib/core; other packs, local tiers and fitted materials stay out of the upload.
+assets/props/lib/*
+!assets/props/lib/core/
+assets/props/local/
+assets/materials/fit/
+assets/materials/local/

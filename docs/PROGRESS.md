@@ -75,6 +75,10 @@ time, `scripts/check-wgsl.sh`); props and statics wear them next (3.3).
 Row 5.1 is done early: the importers share `pav_tools/src/import/`, and `asset_import` reads glTF
 and OBJ into one `Scene`, normalises it, downloads pinned packs and writes census ledgers (all 12
 Khronos core models read). Translation into props is row 5.2.
+Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, other packs on
+disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
+`similar=` and ~35-token rows read from each folder's `index.tsv`, and
+`pav_view::assets::emit_asset`, which draws a library asset from a game's own state each frame.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,
