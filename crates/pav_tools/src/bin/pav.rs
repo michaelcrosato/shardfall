@@ -32,8 +32,23 @@ fn parse_line(line: &str) -> Result<Option<(String, Args)>> {
     if line.is_empty() || line.starts_with('#') {
         return Ok(None);
     }
+    // A JSON command spread over several lines arrives a line at a time: say so once per line,
+    // briefly, instead of echoing each piece back as an unknown tool.
+    const ONE_LINE: &str = "send each JSON command on one line";
+    if line.starts_with(['"', '}', ']', '[', ',']) {
+        return Err(anyhow!("this line is a piece of a JSON command; {ONE_LINE}"));
+    }
     if line.starts_with('{') {
-        let value: Value = serde_json::from_str(line)?;
+        let value: Value = serde_json::from_str(line).map_err(|error| {
+            if error.is_eof() {
+                return anyhow!("this JSON command continues on the next line; {ONE_LINE}");
+            }
+            let mut values = serde_json::Deserializer::from_str(line).into_iter::<Value>();
+            if values.next().is_some_and(|v| v.is_ok()) && values.next().is_some_and(|v| v.is_ok()) {
+                return anyhow!("this line holds more than one command; put each on its own line");
+            }
+            anyhow!(error)
+        })?;
         let name = value
             .get("tool")
             .and_then(Value::as_str)
@@ -167,6 +182,19 @@ mod tests {
         assert_eq!(tool, "anim_preview");
         assert_eq!(args["time"], 0.5);
         assert_eq!(args["playing"], false);
+    }
+
+    #[test]
+    fn json_spread_over_lines_gets_one_short_error_per_line() {
+        let opened = parse_line(r#"{"tool":"asset_edit","args":{"action":"create","asset":{"#).unwrap_err().to_string();
+        assert_eq!(opened, "this JSON command continues on the next line; send each JSON command on one line");
+        for piece in [r#""seat":{"type":"box","size":[40,4,40]},"#, "}}}", "],", "[0, 8, 0],"] {
+            let error = parse_line(piece).unwrap_err().to_string();
+            assert_eq!(error, "this line is a piece of a JSON command; send each JSON command on one line");
+        }
+        let two = parse_line(r#"{"tool":"assets"}{"tool":"asset_preview","args":{"name":"BUILTIN/bench"}}"#);
+        assert_eq!(two.unwrap_err().to_string(), "this line holds more than one command; put each on its own line");
+        assert!(parse_line(r#"{"tool":"assets"} trailing"#).unwrap_err().to_string().contains("trailing characters"));
     }
 
     #[test]

@@ -328,6 +328,19 @@ fn extras_sockets_and_warnings_resolve() {
 }
 
 #[test]
+fn a_mirror_copy_overlaps_only_when_its_shape_does() {
+    let overlaps = |parts: &str| -> Vec<String> {
+        let text = format!(r##"{{"format":2,"name":"probe","unit":"cm","color":"#808080","parts":{{{parts}}}}}"##);
+        compiled("probe", &text).warnings.into_iter().filter(|w| w.code == "mirror_overlap").flat_map(|w| w.ids).collect()
+    };
+    // A blade's outline drawn off its origin mirrors to the other side.
+    let blade = r#""blade":{"type":"extrude","points":[[3,0],[18,0],[3,40]],"depth":2,"mirror":"x"}"#;
+    assert_eq!(overlaps(blade), Vec::<String>::new());
+    // A centred slab on the mirror plane lies on its copy.
+    assert_eq!(overlaps(r#""slab":{"type":"box","size":[10,2,10],"pos":[0,1,0],"mirror":"x"}"#), ["slab~x"]);
+}
+
+#[test]
 fn fixtures_lint_on_their_resolved_parts() {
     use pav_core::props::lint::{Options, lint};
     let lines = |name: &str| {
@@ -383,11 +396,14 @@ fn the_object_doc_names_every_checked_key() {
     assert!(missing.is_empty(), "ASSET_STUDIO.md never names {missing:?}");
 
     let blocks: Vec<&str> = text.split("```json\n").skip(1).map(|block| block.split("```").next().unwrap()).collect();
-    let bench = read("the doc's bench", blocks[0]);
+    assert!(blocks.iter().all(|block| block.trim_end().lines().count() == 1), "each example is one command line");
+    let create: serde_json::Value = serde_json::from_str(blocks[0]).unwrap();
+    assert_eq!(create["args"]["action"], "create");
+    let bench = read("the doc's bench", &create["args"]["asset"].to_string());
     let def = PropDef::new(bench.clone()).unwrap();
     assert!(lint(&def.compiled, &Options::default()).is_empty(), "the doc's bench is clean");
-    assert_eq!(def.bounds(1.0).size_cm(), "220x142x98", "the size the doc quotes");
-    let call: serde_json::Value = serde_json::from_str(&blocks[1].replace('\n', "")).unwrap();
+    assert_eq!(def.bounds(1.0).size_cm(), "220x142x98", "the template bench's size");
+    let call: serde_json::Value = serde_json::from_str(blocks[1]).unwrap();
     let patched = patch_document(&bench, &call["args"]["ops"], &get).unwrap_or_else(|issues| panic!("{}", render(&issues)));
     assert!(patched.doc.parts.contains_key("arm") && !patched.doc.parts.contains_key("crossbar"));
 }

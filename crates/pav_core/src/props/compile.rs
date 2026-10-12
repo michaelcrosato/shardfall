@@ -1044,7 +1044,9 @@ impl<'a> Compiler<'a> {
             let sources: HashMap<&str, &ResolvedPart> = parts.iter().map(|part| (part.id.as_str(), part)).collect();
             for part in parts {
                 let Some(original) = mirror(&part.id).and_then(|source| sources.get(source)) else { continue };
-                if original.pos.distance(part.pos) < 0.0005 {
+                // The shapes' boxes, not their origins: an outline drawn off its origin (a blade's
+                // extrude) mirrors to the other side.
+                if original.centre.distance(part.centre) < 0.0005 {
                     warnings.push(Finding {
                         code: "mirror_overlap",
                         ids: vec![part.id.clone()],

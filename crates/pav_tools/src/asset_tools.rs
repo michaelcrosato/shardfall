@@ -628,7 +628,10 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
             );
         }
     }
-    if matches!(action, "create" | "copy") && before.is_some() {
+    if action == "create" && before.is_some() {
+        bail!("{name} already exists; send the whole document with action=replace, or patch it");
+    }
+    if action == "copy" && before.is_some() {
         bail!("{name} already exists; choose a new name or edit the existing asset");
     }
     let history_file = history_path(root, &name);

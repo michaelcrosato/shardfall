@@ -268,6 +268,7 @@ fn hint(level: &str, key: &str, value: &Value) -> Option<String> {
         ("node", "material" | "materials" | "texture") => "use mat (a key in materials)".into(),
         ("node", "children" | "items" | "nodes") => "use parts (a group's children)".into(),
         ("node", "count" | "copies" | "repeat" | "times") => "use array:{count,step} (or grid, radial)".into(),
+        ("node", "cycle") => "cycle goes inside the copies: array:{count,step,cycle:[...]} (or grid, radial)".into(),
         ("node", "collide" | "collision" | "collider" | "collidable" | "physics") => {
             "use solid (true: part of the collider)".into()
         }
@@ -635,9 +636,19 @@ impl Reader<'_> {
     }
 
     fn dir(&mut self, path: &str, value: &Value) -> Option<Dir> {
-        let plus =
-            |text: &str| text.strip_prefix('+').filter(|axis| Dir::parse(axis).is_some()).map(|axis| format!("write \"{axis}\""));
-        self.choice(path, value, "direction", Dir::NAMES, Dir::parse, plus)
+        let hint = |text: &str| {
+            let axis = match text.to_ascii_lowercase().as_str() {
+                "up" | "top" => Some("y"),
+                "down" | "bottom" => Some("-y"),
+                "front" | "forward" => Some("z"),
+                "back" | "backward" | "rear" => Some("-z"),
+                "right" => Some("x"),
+                "left" => Some("-x"),
+                _ => text.strip_prefix('+').filter(|axis| Dir::parse(axis).is_some()),
+            };
+            axis.map(|axis| format!("write \"{axis}\""))
+        };
+        self.choice(path, value, "direction", Dir::NAMES, Dir::parse, hint)
     }
 
     /// `#rrggbb` or a theme role.
@@ -2314,6 +2325,10 @@ mod tests {
                 &["parts.a.count: unknown key — use array:{count,step} (or grid, radial)"],
             ),
             (
+                r#""a":{"type":"box","size":[10,10,10],"mat":"wood","array":{"count":2,"step":[20,0,0]},"cycle":["wood"]}"#,
+                &["parts.a.cycle: unknown key — cycle goes inside the copies: array:{count,step,cycle:[...]} (or grid, radial)"],
+            ),
+            (
                 r#""a":{"type":"box","size":[10,10,10],"mat":"wood","collide":false}"#,
                 &["parts.a.collide: unknown key — use solid (true: part of the collider)"],
             ),
@@ -2414,6 +2429,10 @@ mod tests {
             (
                 r#""a":{"type":"cylinder","radius":2,"height":4,"axis":"+x","mat":"wood"}"#,
                 &[r#"parts.a.axis: unknown direction "+x" (expected x, y, z, -x, -y, -z) — write "x""#],
+            ),
+            (
+                r#""a":{"type":"cylinder","radius":5,"height":2,"axis":"x","arc":180,"facing":"up","mat":"wood"}"#,
+                &[r#"parts.a.facing: unknown direction "up" (expected x, y, z, -x, -y, -z) — write "y""#],
             ),
             (
                 r#""a":{"type":"extrude","points":[[0,0],[10,10],[10,0],[0,10]],"depth":1,"mat":"wood"}"#,
