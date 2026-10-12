@@ -27,9 +27,11 @@ fix a mismatch when it gets in the way.
   internals, fix the API or the error message.
 - **Versions (9):** current pins stay (Rust 1.98.1, wgpu 30, rapier 0.36, egui 0.36, glam 0.33,
   cpal 0.18). The rule applies to new dependencies and to upgrades.
-- **Assets (4):** no image, model, texture or audio files; fonts are allowed; animation is
-  readable text. Animation libraries whose licences forbid redistribution are translated only into
-  the git-ignored `anim/local`.
+- **Assets (4):** no image, model, texture or audio files; fonts are allowed. Animation and
+  objects are readable text: key poses (`clip_import`) and props made of named primitive parts
+  (`docs/ASSET_STUDIO.md`). Raw downloads go to `.cache/` (git-ignored); never commit
+  .glb/.obj/.fbx/.png. Keep each source's credit and licence; libraries whose licences forbid
+  redistribution are translated only into git-ignored local tiers (`anim/local`).
 - **Escalation:** ask in chat and log it in `docs/ESCALATIONS.md`. If you can schedule a check-in
   (e.g. `send_later`), set one for 15 minutes and carry on with other work; if not, make the call,
   log it and continue.
@@ -147,7 +149,8 @@ Key rules:
 - No asset files (images, models, audio). Geometry, effects and sound come from code. Fonts OK.
   Animation clips are allowed as readable key poses (anim/*.json, the format `clips.rs`
   documents): plain text a model can read and edit, translated from openly licensed libraries
-  with `clip_import`. Keep each set's credit and licence; never add binary animation files.
+  with `clip_import`. Objects are readable JSON parts (`assets/props`, `docs/ASSET_STUDIO.md`).
+  Keep each set's credit and licence; never add binary animation files.
   Downloaded captures (.glb, .fbx, .amc, .bvh) go to .cache/mocap (git-ignored), never into the
   repo. A library whose licence is non-commercial or forbids sharing what is made from it
   (Bandai Namco, LaFAN1, Mixamo) is translated into anim/local only: never commit it.
@@ -213,8 +216,9 @@ and compound collision together. Native file changes reload after 250 ms of quie
 definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props root).
 `studio_status ticket=N` confirms frame submission for live edits without a capture. The
 Animations / Objects / Game tabs retain each workspace's controls and camera. See
-`docs/ASSET_STUDIO.md`. Keep procedural parts as text; use `if_revision` and batch related
-part changes in one `ops` array.
+`docs/ASSET_STUDIO.md` (tools and format) and `docs/ASSET_STUDIO_LIVE.md` (the live studio).
+Keep procedural parts as text; use `if_revision` and batch related part changes in one `ops`
+array.
 
 Creature Studio: `scripts/creature-studio.sh` or `shardfall --creature-studio` opens the
 procedural creature stage. `tools/creature-compiler` vendors the exact SpawnForge core/modules
@@ -319,8 +323,14 @@ theme_swatch`; looks: `look`; teaching: `guide`; animation: `clips clip_import m
 - Look at captures with your image-reading tool; prefer small sizes (e.g. `width=640 height=360`).
 
 ### Adding a tool
-Write `fn t_name(s: &mut Session, a: &Args) -> Result<Output>` in `crates/pav_tools/src/tools.rs`
-and add a `Tool { .. }` entry to `TOOLS`. It is automatically in the CLI, REPL and MCP.
+1. Write `fn t_name(s: &mut Session, a: &Args) -> Result<Output>` in the tool family's module
+   (`asset_tools.rs`, `game_tools.rs`, ...); it rejects unknown arguments, naming the nearest.
+2. Add a `Tool { .. }` entry to `TOOLS` in `tools.rs` (help ≤ 50 tokens, each argument ≤ 12
+   words). It is then in the CLI, REPL and MCP.
+3. Put enums and op shapes in `schema()`; a new asset kind is a `KIND_ROUTES` row, not a new tool.
+4. Add actions that change what the live studio shows to `live_feedback::changes_studio`.
+5. Add a clause to the `mcp.rs` instructions if agents should find the tool first.
+6. Test it on `Session::new("empty", 1)`.
 
 ### Adding a room (preferred: data only, no rebuild)
 Every room is a station of the world demo and teaches: give it a `[learn]` block (what you see,

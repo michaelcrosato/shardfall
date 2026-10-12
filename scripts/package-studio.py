@@ -71,7 +71,8 @@ With the studio open, run from a command prompt in this folder:
 Each example uses its own asset name. The creature example queues an asynchronous
 build; poll creature_status for its returned job before a dependent edit.
 
-Read CREATURE_STUDIO.md, ASSET_STUDIO.md and ANIMATION_STUDIO.md for tool details.
+Read CREATURE_STUDIO.md, ASSET_STUDIO.md, ASSET_STUDIO_LIVE.md and ANIMATION_STUDIO.md
+for tool details.
 BUILD.json records source, compiler pin, and executable hashes.
 The programs target 64-bit Windows.
 """
@@ -98,6 +99,7 @@ def main():
         "pav.exe": binaries / "pav.exe",
         "anim/moves.toml": REPO / "anim/moves.toml",
         "ASSET_STUDIO.md": REPO / "docs/ASSET_STUDIO.md",
+        "ASSET_STUDIO_LIVE.md": REPO / "docs/ASSET_STUDIO_LIVE.md",
         "CREATURE_STUDIO.md": REPO / "docs/CREATURE_STUDIO.md",
         "creature-ridgeback.jsonl": REPO / "scripts/examples/creature-ridgeback.jsonl",
         "runtime/node.exe": args.node_runtime / "node.exe",

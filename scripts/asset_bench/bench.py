@@ -9,32 +9,52 @@ it would normally get, make better assets for fewer tokens?
   bench.py note RUN key=value ...                  record what the runner reported (model, tok_run)
   bench.py score [--gate GA] [--bin PATH]          metrics and acceptance -> results/runs.tsv
   bench.py collect [--gate GA]                     final assets as text -> results/assets/
-  bench.py report [--gate GA]                      gate summary -> results/summary.json
+  bench.py report [--gate GA] [--vs GA/A]          gate summary (and ratios to a baseline) -> summary.json
+  bench.py calib [--bin PATH] | --report           judge calibration: 12 planted-defect pairs, both orders
+  bench.py votes --gate G1 --arm T [--bin PATH]    before/after images of each edit run, for judges
+  bench.py judgment IMAGE JUDGE '{"pref":1,...}'   record one judge's answer -> results/judgments.tsv
   bench.py selftest                                two scripted replays: equal tok_x, cap enforced
 
 Runs live in .cache/asset_bench/runs/<gate>/<arm>/<task>-r<k>/ (git-ignored). Each author run is
 one fresh `asset-bench-author` agent (.claude/agents/) that reads RUN/brief.md and RUN/docs/ and
-drives the engine only through scripts/asset_bench/pav RUN.
+drives the engine only through scripts/asset_bench/pav RUN. Each judgment is one fresh
+`asset-bench-judge` agent shown one image (.cache/asset_bench/judge/) and its brief.
 """
 
 import argparse
+import colorsys
+import hashlib
 import json
 import math
 import os
+import random
 import re
 import shutil
 import statistics
+import struct
 import subprocess
 import sys
 import time
 import tomllib
+import zlib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 BENCH = REPO / "scripts/asset_bench"
 CACHE = REPO / ".cache/asset_bench"
-RUNS, BIN, VENV = CACHE / "runs", CACHE / "bin", CACHE / "venv"
+RUNS, BIN, VENV, JUDGE = CACHE / "runs", CACHE / "bin", CACHE / "venv", CACHE / "judge"
+IMAGES = JUDGE / "img"  # every judged image, under a name that says nothing about it
 RESULTS = BENCH / "results"
+JUDGMENTS = RESULTS / "judgments.tsv"
+JUDGMENT_COLUMNS = ["kind", "image", "target", "order", "judge", "pref", "done", "s1", "s2", "why", "model",
+                    "effort", "judged"]
+# What judges see: the sheet every gate renders with the newest build (§10.1 Quality).
+SHEET = {"views": True, "tile": 320, "elevation": 20, "figure": True}
+# Calibration (§10.1): three templates and three Gate-A assets, each with two planted defects, so
+# each of the six defects appears twice.
+CALIB = [("crate", "colours"), ("crate", "spheres"), ("bench", "float"), ("bench", "delete"),
+         ("lantern", "stretch"), ("lantern", "poke"), ("P01", "float"), ("P01", "colours"),
+         ("P07", "poke"), ("P07", "spheres"), ("P19", "delete"), ("P19", "stretch")]
 TIKTOKEN = "tiktoken==0.12.0"  # the newest release at least 12 months old (doctrine 9)
 BASELINE_REV = "a9ca003"
 S8 = ["P01", "P03", "P05", "P07", "P13", "P19", "P21", "P24"]
@@ -147,6 +167,173 @@ def engine(binary, run, lines):
         except ValueError:
             replies.append({"error": line})
     return replies
+
+
+# --- images: 8-bit RGBA PNGs with the standard library ------------------------------------------
+
+def png_read(path):
+    """(width, rows) of an 8-bit RGBA PNG, each row a bytearray."""
+    data = Path(path).read_bytes()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        sys.exit(f"{path} is not a PNG")
+    pos, idat, width, height = 8, bytearray(), 0, 0
+    while pos < len(data):
+        (length,), kind = struct.unpack(">I", data[pos:pos + 4]), data[pos + 4:pos + 8]
+        body = data[pos + 8:pos + 8 + length]
+        if kind == b"IHDR":
+            width, height, depth, color, _, _, interlace = struct.unpack(">IIBBBBB", body)
+            if (depth, color, interlace) != (8, 6, 0):
+                sys.exit(f"{path}: expected 8-bit RGBA without interlacing")
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + length
+    raw, stride = zlib.decompress(bytes(idat)), width * 4
+    rows, prev = [], bytearray(stride)
+    for y in range(height):
+        start = y * (stride + 1)
+        kind, line = raw[start], bytearray(raw[start + 1:start + 1 + stride])
+        for i in range(stride):
+            a = line[i - 4] if i >= 4 else 0
+            b, c = prev[i], prev[i - 4] if i >= 4 else 0
+            if kind == 1:
+                line[i] = (line[i] + a) & 255
+            elif kind == 2:
+                line[i] = (line[i] + b) & 255
+            elif kind == 3:
+                line[i] = (line[i] + (a + b) // 2) & 255
+            elif kind == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        rows.append(line)
+        prev = line
+    return width, rows
+
+
+def png_write(path, width, rows):
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+    raw = b"".join(b"\x00" + bytes(row) for row in rows)
+    header = struct.pack(">IIBBBBB", width, len(rows), 8, 6, 0, 0, 0)
+    Path(path).write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(raw, 6))
+                           + chunk(b"IEND", b""))
+
+
+def stack(images, out, gaps):
+    """Images one above another; gaps[i] white rows follow image i."""
+    loaded = [png_read(path) for path in images]
+    width = max(w for w, _ in loaded)
+    rows = []
+    for (w, image), gap in zip(loaded, list(gaps) + [0]):
+        rows += [row + bytearray([255] * 4 * (width - w)) for row in image]
+        rows += [bytearray([255] * 4 * width) for _ in range(gap)]
+    png_write(out, width, rows)
+
+
+def newest(binary):
+    """The engine that renders and scores: --bin, else this checkout's release or debug build."""
+    if binary:
+        return Path(binary)
+    for path in (REPO / "target/release/pav", REPO / "target/debug/pav"):
+        if path.exists():
+            return path
+    sys.exit("build pav first (cargo build -p pav_tools --bin pav) or pass --bin")
+
+
+def sheet(binary, folder, name, out):
+    """Render WORKSHOP/<name> from folder/props as judges see it (SHEET), to out."""
+    replies = engine(binary, folder, [json.dumps({"tool": "asset_preview", "args": {"name": f"WORKSHOP/{name}", **SHEET}})])
+    reply = replies[0] if replies else {}
+    if "path" not in reply:
+        sys.exit(f"no sheet of {name} in {folder}: {reply}")
+    shutil.move(Path(folder) / reply["path"], out)
+
+
+def image_id(*key):
+    """A name that tells a judge nothing: a hash of what the image shows."""
+    return hashlib.sha256("/".join(map(str, key)).encode()).hexdigest()[:12]
+
+
+# --- judges ------------------------------------------------------------------------------------
+
+def read_judgments():
+    if not JUDGMENTS.exists():
+        return []
+    header, *body = JUDGMENTS.read_text().splitlines()
+    return [dict(zip(header.split("\t"), line.split("\t"))) for line in body]
+
+
+def write_judgments(rows):
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    with open(JUDGMENTS, "w") as f:
+        f.write("\t".join(JUDGMENT_COLUMNS) + "\n")
+        for r in rows:
+            f.write("\t".join(str(r.get(c, "")).replace("\t", " ").replace("\n", " ") for c in JUDGMENT_COLUMNS) + "\n")
+
+
+def judge_keys():
+    return load(JUDGE / "keys.json", {})
+
+
+def save_keys(keys):
+    JUDGE.mkdir(parents=True, exist_ok=True)
+    with open(JUDGE / "keys.json", "w") as f:
+        json.dump(keys, f, indent=1, sort_keys=True)
+
+
+def part_volume(box):
+    lo, hi = box
+    return max(hi[0] - lo[0], 0) * max(hi[1] - lo[1], 0) * max(hi[2] - lo[2], 0)
+
+
+def plant(asset, bounds, defect, rng):
+    """Plant one §10.1 calibration defect in a format-1 definition, using its part bounds."""
+    parts = asset["parts"]
+    by_volume = sorted(parts, key=lambda k: part_volume(bounds[k]), reverse=True)
+
+    def holds(below, above):
+        """below carries above: its top meets above's bottom, they overlap in plan, above is bigger."""
+        (a0, a1), (b0, b1) = bounds[below], bounds[above]
+        touching = abs(a1[1] - b0[1]) <= 0.02 or b0[1] < a1[1] <= b1[1]
+        overlap = all(a0[i] < b1[i] and b0[i] < a1[i] for i in (0, 2))
+        return touching and overlap and part_volume(bounds[above]) > part_volume(bounds[below])
+    if defect == "float":  # the largest part that rests on another rises 10 cm, leaving a gap
+        held = [k for k in by_volume if any(holds(other, k) for other in parts if other != k)]
+        part = parts[(held or by_volume)[0]]
+        x, y, z = part.get("pos", [0, 0, 0])
+        part["pos"] = [x, y + 0.10, z]
+    elif defect == "stretch":  # the whole object 1.8 times as tall
+        for part in parts.values():
+            x, y, z = part.get("pos", [0, 0, 0])
+            part["pos"] = [x, y * 1.8, z]
+            shape = part["shape"]
+            if shape["type"] in ("box", "rounded_box"):
+                shape["half"][1] *= 1.8
+            elif shape["type"] in ("cylinder", "capsule"):
+                shape["half_height"] *= 1.8
+    elif defect == "colours":  # random saturated colours
+        for part in parts.values():
+            r, g, b = colorsys.hsv_to_rgb(rng.random(), 1.0, 1.0)
+            part["color"] = "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+    elif defect == "delete":  # the largest part removed
+        del parts[by_volume[0]]
+    elif defect == "poke":  # the tallest supporting part pushed up 30% of its height, through what it holds
+        supports = [k for k in parts if any(holds(k, other) for other in parts if other != k)]
+        if not supports:
+            sys.exit(f"{asset['name']}: no part holds another, so no poke defect")
+        name = max(supports, key=lambda k: bounds[k][1][1] - bounds[k][0][1])
+        x, y, z = parts[name].get("pos", [0, 0, 0])
+        parts[name]["pos"] = [x, y + 0.3 * (bounds[name][1][1] - bounds[name][0][1]), z]
+    elif defect == "spheres":  # every part replaced by its bounding sphere
+        for name, part in parts.items():
+            lo, hi = bounds[name]
+            part["pos"] = [(lo[i] + hi[i]) / 2 for i in range(3)]
+            part["shape"] = {"type": "sphere", "radius": max(0.001, math.dist(lo, hi) / 2)}
+            for key in ("yaw", "pitch", "roll"):
+                part.pop(key, None)
+    else:
+        sys.exit(f"unknown defect {defect}")
+    return asset
 
 
 # --- commands ------------------------------------------------------------------------------
@@ -343,7 +530,7 @@ def check_asset(binary, run, name, needs, size, tol):
     """Acceptance facts for one saved asset, read with the newest engine."""
     replies = engine(binary, run, [json.dumps({"tool": "asset_edit", "args": {
         "action": "inspect", "name": f"WORKSHOP/{name}", "bounds": True}}),
-        json.dumps({"tool": "asset_edit", "args": {"action": "check", "name": f"WORKSHOP/{name}"}})])
+        json.dumps({"tool": "asset_edit", "args": {"action": "check", "name": f"WORKSHOP/{name}", "all": True}})])
     inspect = replies[0] if replies else {"error": "no reply"}
     facts = {"loads": bool(inspect.get("asset")), "problems": []}
     if not facts["loads"]:
@@ -373,15 +560,23 @@ def check_asset(binary, run, name, needs, size, tol):
             facts["problems"].append(f"{name}: gives off no light")
     check = replies[1] if len(replies) > 1 else {}
     if "error" in check:
-        facts["check"] = "na"  # the arm's engine has no lint yet; re-scored when it does
+        facts["check"] = "na"  # the scoring engine has no lint; score with a newer one
     else:
-        facts["check"] = "ok"
-        blocking = {"floating", "unit_suspect"}
-        if "hang" not in needs and "wall" not in needs:
+        facts.update(check="ok", lint_block=0, lint_other=0)
+        blocking, expected = {"floating", "unit_suspect"}, set()
+        if "hang" in needs or "wall" in needs:
+            expected = {"below_floor", "not_grounded"}  # off the floor by design
+        else:
             blocking |= {"below_floor", "not_grounded"}
         for line in check.get("check", []):
-            if line.split(":")[0] in blocking:
+            code = line.split(":")[0]
+            if code in blocking:
                 facts["problems"].append(f"{name}: {line}")
+                facts["lint_block"] += 1
+            elif code not in expected:
+                facts["lint_other"] += 1
+        cost = check.get("cost", "")
+        facts["tris"] = int(cost.split()[0]) if cost[:1].isdigit() else 0
     return facts
 
 
@@ -391,6 +586,7 @@ def cmd_score(args):
     binary = Path(args.bin) if args.bin else (BIN / "pav-HEAD" if (BIN / "pav-HEAD").exists()
                                                else REPO / "target/debug/pav")
     table = tasks()
+    judgments = read_judgments()
     columns = ["gate", "arm", "task", "run", "done", "accepted", "tok_x", "tok_cum", "tok_run", "turns", "calls",
                "failed", "refused", "first_ok", "lint_block", "lint_other", "check", "wall_s", "engine_ms", "parts",
                "tris", "size_cm", "copied_from", "model", "effort", "problems"]
@@ -401,13 +597,24 @@ def cmd_score(args):
         metrics, log = token_metrics(run, enc)
         done = load(run / "done.json") is not None
         first_ok, copied = first_edit_ok(log)
-        problems, parts, sizes, check = [], 0, [], "na"
+        problems, parts, sizes, check, lint, tris = [], 0, [], "na", [0, 0], 0
         for name in config["names"]:
             facts = check_asset(binary, run, name, task.get("needs", []), task.get("size"), task.get("tol", 0.15))
             problems += facts["problems"]
             parts += facts.get("parts", 0)
             sizes.append(facts.get("size_cm", "-"))
             check = facts.get("check", check)
+            lint = [lint[0] + facts.get("lint_block", 0), lint[1] + facts.get("lint_other", 0)]
+            tris += facts.get("tris", 0)
+        if task["kind"] == "edit":
+            # Edits also need the change made: at least 2 of 3 judges on a before/after image.
+            target = f"{config['gate']}/{config['arm']}/{config['task']}-r{config['run']}"
+            votes = [j for j in judgments if j["kind"] == "edit" and j["target"] == target]
+            made = sum(1 for j in votes if j["done"] == "1")
+            if len(votes) < 3:
+                problems.append(f"edit: {len(votes)} of 3 judge votes so far")
+            elif made < 2:
+                problems.append(f"edit: {made} of {len(votes)} judges saw the change made")
         logged = [r for _, _, _, r in log]
         times = [r["t"] for r in logged]
         wall = round(max(r["t"] + r["ms"] / 1000 for r in logged) - min(times), 1) if logged else 0
@@ -418,9 +625,10 @@ def cmd_score(args):
             "tok_run": runner.get("tok_run", ""), "calls": sum(1 for r in logged if not r["refused"]),
             "failed": sum(1 for r in logged if not r["refused"] and r["reply"].startswith('{"error"')),
             "refused": sum(1 for r in logged if r["refused"]),
-            "first_ok": "" if first_ok is None else int(first_ok), "lint_block": "na" if check == "na" else "",
-            "lint_other": "na" if check == "na" else "", "check": check, "wall_s": wall,
-            "engine_ms": sum(r["ms"] for r in logged), "parts": parts, "tris": "na", "size_cm": "/".join(sizes),
+            "first_ok": "" if first_ok is None else int(first_ok), "lint_block": "na" if check == "na" else lint[0],
+            "lint_other": "na" if check == "na" else lint[1], "check": check, "wall_s": wall,
+            "engine_ms": sum(r["ms"] for r in logged), "parts": parts, "tris": "na" if check == "na" else tris,
+            "size_cm": "/".join(sizes),
             "copied_from": copied, "model": runner.get("model", config.get("model", "")),
             "effort": runner.get("effort", config.get("effort", "")), "problems": "; ".join(problems)})
     RESULTS.mkdir(parents=True, exist_ok=True)
@@ -463,6 +671,31 @@ def read_runs():
     return [dict(zip(header.split("\t"), line.split("\t"))) for line in body]
 
 
+def compare(mine, baseline):
+    """§10.2 ratios: per task, this arm's tokens over the baseline's mean on that task (median over
+    tasks); acceptance and lint_other per accepted asset against the baseline's run 1 of the same tasks."""
+    gate, arm = baseline.split("/")
+    base = [r for r in read_runs() if r["gate"] == gate and r["arm"] == arm]
+    ratios = {"tok_x": [], "tok_cum": []}
+    for r in mine:
+        theirs = [b for b in base if b["task"] == r["task"]]
+        for metric in ratios:
+            if theirs:
+                ratios[metric].append(int(r[metric]) / statistics.mean(int(b[metric]) for b in theirs))
+    matched = [b for b in base if b["run"] == "1" and b["task"] in {r["task"] for r in mine}]
+
+    def lint_per_accepted(rows):
+        accepted = [r for r in rows if r["accepted"] == "1" and r["lint_other"] not in ("", "na")]
+        return round(sum(int(r["lint_other"]) for r in accepted) / len(accepted), 3) if accepted else None
+    return {
+        "tasks": len(ratios["tok_x"]),
+        "median_tok_x_ratio": round(statistics.median(ratios["tok_x"]), 3) if ratios["tok_x"] else None,
+        "median_tok_cum_ratio": round(statistics.median(ratios["tok_cum"]), 3) if ratios["tok_cum"] else None,
+        "accepted": sum(int(r["accepted"]) for r in mine), "baseline_accepted": sum(int(b["accepted"]) for b in matched),
+        "lint_other_per_accepted": lint_per_accepted(mine), "baseline_lint_other_per_accepted": lint_per_accepted(matched),
+    }
+
+
 def cmd_report(args):
     rows = [r for r in read_runs() if not args.gate or r["gate"] == args.gate]
     summary = load(RESULTS / "summary.json", {})
@@ -493,9 +726,165 @@ def cmd_report(args):
                   f"median tok_x {s['median_tok_x']:g}, tok_cum {s['median_tok_cum']:g}, "
                   f"failed {s['median_failed']:g}; S8 |ln ratio| median {s['median_abs_ln_tok_x_ratio']} "
                   f"over {s['s8_pairs']} pairs (ln 1.5 = {math.log(1.5):.3f})")
+            if args.vs and args.vs != key:
+                s["vs"] = compare(mine, args.vs)
+                print(f"  vs {args.vs}: {json.dumps(s['vs'])}")
     with open(RESULTS / "summary.json", "w") as f:
         json.dump(summary, f, indent=1, sort_keys=True)
         f.write("\n")
+
+
+def calib_sources(table):
+    """(name, definition, brief) of each calibration source asset."""
+    sources = {}
+    for source, _ in CALIB:
+        if source in sources:
+            continue
+        if source in table:
+            path = RESULTS / "assets/GA/A" / f"{source}-r1.json"
+            task = table[source]
+            w, h, d = task["size"]
+            brief = f"{task['brief']} About {w} x {h} x {d} cm (width x height x depth)."
+        else:
+            path = REPO / "assets/props/templates" / f"{source}.json"
+            brief = None
+        asset = json.loads(path.read_text())
+        sources[source] = (asset["name"], asset, brief or asset["description"])
+    return sources
+
+
+def cmd_calib(args):
+    if args.report:
+        return calib_report()
+    binary = newest(args.bin)
+    table = tasks()
+    folder = JUDGE / "work/calib"
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "props/workshop").mkdir(parents=True)
+    (folder / "sheets").mkdir()
+    IMAGES.mkdir(parents=True, exist_ok=True)
+    keys = judge_keys()
+    for name in [k for k, v in keys.items() if v["kind"] == "calib"]:
+        Path(keys.pop(name)["path"]).unlink(missing_ok=True)
+    rng = random.Random(1)
+    for number, (source, defect) in enumerate(CALIB, 1):
+        _, asset, brief = calib_sources(table)[source]
+        pair = f"c{number:02d}"
+        intact = dict(asset, name=f"{pair}_a")
+        (folder / "props/workshop" / f"{pair}_a.json").write_text(json.dumps(intact))
+        bounds = engine(binary, folder, [json.dumps({"tool": "asset_edit", "args": {
+            "action": "inspect", "name": f"WORKSHOP/{pair}_a", "bounds": True}})])[0]["part_bounds"]
+        broken = plant(json.loads(json.dumps(intact)) | {"name": f"{pair}_b"}, bounds, defect, rng)
+        (folder / "props/workshop" / f"{pair}_b.json").write_text(json.dumps(broken))
+        for side in "ab":
+            sheet(binary, folder, f"{pair}_{side}", folder / "sheets" / f"{pair}_{side}.png")
+        for order, top, bottom, intact_at in (("intact-top", "a", "b", 1), ("intact-bottom", "b", "a", 2)):
+            name = image_id("calib", pair, order, binary.stat().st_mtime_ns)
+            stack([folder / "sheets" / f"{pair}_{top}.png", folder / "sheets" / f"{pair}_{bottom}.png"],
+                  IMAGES / f"{name}.png", [8])
+            keys[name] = {"kind": "calib", "target": pair, "order": order, "intact": intact_at, "source": source,
+                          "defect": defect, "brief": brief, "path": str(IMAGES / f"{name}.png")}
+    save_keys(keys)
+    for name, key in sorted(keys.items(), key=lambda kv: kv[1]["path"]):
+        if key["kind"] == "calib":
+            print(f"{name}\t{key['path']}\t{key['brief']}")
+
+
+def majority(rows, field):
+    """The value most judges gave, or None on a tie."""
+    counts = {}
+    for r in rows:
+        counts[r[field]] = counts.get(r[field], 0) + 1
+    best = max(counts.values(), default=0)
+    winners = [v for v, n in counts.items() if n == best]
+    return winners[0] if len(winners) == 1 and best * 2 > len(rows) else None
+
+
+def calib_report():
+    rows = [r for r in read_judgments() if r["kind"] == "calib"]
+    pairs = sorted({r["target"] for r in rows})
+    picks, intact_wins, flips = {}, {"intact-top": 0, "intact-bottom": 0}, 0
+    for pair in pairs:
+        for order, intact_at in (("intact-top", "1"), ("intact-bottom", "2")):
+            votes = [r for r in rows if r["target"] == pair and r["order"] == order]
+            pick = majority(votes, "pref")
+            picks[(pair, order)] = None if pick is None else pick == intact_at
+            intact_wins[order] += int(pick == intact_at)
+        flips += int(picks[(pair, "intact-top")] != picks[(pair, "intact-bottom")])
+    complete = all(sum(1 for r in rows if r["target"] == p and r["order"] == o) >= 3
+                   for p in pairs for o in intact_wins)
+    passed = complete and len(pairs) == len(CALIB) and min(intact_wins.values()) >= 10 and flips <= 2
+    result = {"pairs": len(pairs), "judgments": len(rows), "intact_picked": intact_wins, "order_flips": flips,
+              "missed": sorted(f"{p} {o}" for (p, o), ok in picks.items() if not ok), "passed": passed}
+    summary = load(RESULTS / "summary.json", {})
+    summary["calibration"] = result
+    with open(RESULTS / "summary.json", "w") as f:
+        json.dump(summary, f, indent=1, sort_keys=True)
+        f.write("\n")
+    print(json.dumps(result))
+
+
+def cmd_votes(args):
+    """Before (the source run's asset) above after (the edit run's asset), one image per edit run."""
+    binary = newest(args.bin)
+    table = tasks()
+    keys = judge_keys()
+    folder = JUDGE / "work" / f"edit-{args.gate}-{args.arm}"
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "props/workshop").mkdir(parents=True)
+    (folder / "sheets").mkdir()
+    IMAGES.mkdir(parents=True, exist_ok=True)
+    for run in run_dirs(args.gate, args.arm):
+        config = load(run / "run.json")
+        task = table[config["task"]]
+        if task["kind"] != "edit":
+            continue
+        target = f"{args.gate}/{args.arm}/{config['task']}-r{config['run']}"
+        source_run = RUNS / args.gate / args.arm / f"{task['from']}-r1"
+        befores, afters = [], []
+        for before, after in zip(names(table[task["from"]]), config["names"]):
+            for tag, path, out in (("before", source_run / "props/workshop" / f"{before}.json", befores),
+                                   ("after", run / "props/workshop" / f"{after}.json", afters)):
+                leaf = f"{config['task'].lower()}_{tag}_{len(out)}"
+                if path.exists():
+                    asset = json.loads(path.read_text()) | {"name": leaf}
+                    (folder / "props/workshop" / f"{leaf}.json").write_text(json.dumps(asset))
+                    sheet(binary, folder, leaf, folder / "sheets" / f"{leaf}.png")
+                    out.append(folder / "sheets" / f"{leaf}.png")
+        if not afters:
+            print(f"skip {target}: no edited asset")
+            continue
+        name = image_id("edit", target, binary.stat().st_mtime_ns)
+        gaps = [8] * (len(befores) - 1) + [40] + [8] * (len(afters) - 1)
+        stack(befores + afters, IMAGES / f"{name}.png", gaps)
+        keys[name] = {"kind": "edit", "target": target, "order": "before-top", "brief": task["brief"],
+                      "path": str(IMAGES / f"{name}.png")}
+        print(f"{name}\t{IMAGES / f'{name}.png'}\t{task['brief']}")
+    save_keys(keys)
+
+
+def cmd_judgment(args):
+    key = judge_keys().get(args.image)
+    if key is None:
+        sys.exit(f"unknown image {args.image} (bench.py calib / votes list them)")
+    try:
+        answer = json.loads(args.answer)
+    except ValueError:
+        sys.exit(f"the judge's answer is not JSON: {args.answer[:200]}")
+    if key["kind"] == "edit":
+        if not isinstance(answer.get("done"), bool):
+            sys.exit(f"an edit vote needs done: true|false: {answer}")
+    elif answer.get("pref") not in (0, 1, 2) or len(answer.get("s1", [])) != 5 or len(answer.get("s2", [])) != 5:
+        sys.exit(f"a comparison needs pref 0|1|2 and five scores each in s1 and s2: {answer}")
+    rows = [r for r in read_judgments() if not (r["image"] == args.image and r["judge"] == str(args.judge))]
+    rows.append({"kind": key["kind"], "image": args.image, "target": key["target"], "order": key["order"],
+                 "judge": args.judge, "pref": answer.get("pref", ""),
+                 "done": "" if "done" not in answer else int(answer["done"]),
+                 "s1": ",".join(map(str, answer.get("s1", []))), "s2": ",".join(map(str, answer.get("s2", []))),
+                 "why": str(answer.get("why", ""))[:160], "model": args.model, "effort": args.effort,
+                 "judged": time.strftime("%Y-%m-%d %H:%M")})
+    rows.sort(key=lambda r: (r["kind"], r["target"], r["order"], r["image"], str(r["judge"])))
+    write_judgments(rows)
 
 
 def cmd_selftest(args):
@@ -561,6 +950,20 @@ def main():
     p.add_argument("--gate")
     p = sub.add_parser("report")
     p.add_argument("--gate")
+    p.add_argument("--vs", help="baseline gate/arm for token ratios and acceptance, e.g. GA/A")
+    p = sub.add_parser("calib")
+    p.add_argument("--bin")
+    p.add_argument("--report", action="store_true")
+    p = sub.add_parser("votes")
+    p.add_argument("--gate", required=True)
+    p.add_argument("--arm", required=True)
+    p.add_argument("--bin")
+    p = sub.add_parser("judgment")
+    p.add_argument("image")
+    p.add_argument("judge", type=int)
+    p.add_argument("answer")
+    p.add_argument("--model", default="opus")
+    p.add_argument("--effort", default="medium")
     sub.add_parser("selftest")
     args = parser.parse_args()
     globals()[f"cmd_{args.command}"](args)

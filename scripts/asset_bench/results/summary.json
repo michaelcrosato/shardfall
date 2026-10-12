@@ -16,5 +16,20 @@
   ],
   "runs": 38,
   "s8_pairs": 8
+ },
+ "calibration": {
+  "intact_picked": {
+   "intact-bottom": 11,
+   "intact-top": 10
+  },
+  "judgments": 72,
+  "missed": [
+   "c07 intact-bottom",
+   "c07 intact-top",
+   "c09 intact-top"
+  ],
+  "order_flips": 1,
+  "pairs": 12,
+  "passed": true
  }
 }

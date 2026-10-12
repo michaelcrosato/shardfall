@@ -14,3 +14,6 @@ fit each other), detail (enough secondary forms; no floating, poking or cluttere
 (coherent palette, materials read, contrast), style (fits the game and the brief).
 Then pick the better game asset: 1 or 2; 0 only if they are genuinely equal.
 Reply with JSON only: {"pref":1,"s1":[4,3,4,3,4],"s2":[3,3,2,3,3],"why":"<=15 words"}
+If your task says EDIT instead: the top half shows the asset (or assets) before a requested change
+and the bottom half after, in the same order. Was the change in your task made, keeping the rest?
+Reply with JSON only: {"done":true,"why":"<=15 words"}

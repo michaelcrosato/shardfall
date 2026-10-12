@@ -1,310 +1,99 @@
-# Live Object Studio
+# Object Studio
 
-Build reusable objects from named primitive parts. An LLM can create a new object, copy a
-template, inspect its parts, change several parts at once, and place copies in the game.
-The open studio shows each accepted edit through Shardfall's normal renderer.
+Objects (props) are readable JSON made of named primitive parts. Four tools find, edit, view and
+place them, the same from the CLI, `pav repl`, MCP and the live studio, where people watch each
+accepted edit (`ASSET_STUDIO_LIVE.md`: starting it, connecting a client, frame feedback). A
+command is one line: `tool key=value ...`, or `{"tool":"…","args":{…}}` when a value has spaces
+or is JSON. The examples below wrap; send each command on one line.
 
-The human gives direction in their LLM client. The client calls the engine through MCP.
-The native controls call the same tools, with the same validation, saves, and undo history.
-The engine does not need a model API key or a separate render service.
+## The loop
 
-## Start and connect
+1. `assets [find=words]`: rows of name, size, parts and description. Templates are `BUILTIN/box`,
+   `BUILTIN/crate`, `BUILTIN/bench` and `BUILTIN/lantern`; saved objects are `WORKSHOP/name`.
+2. `asset_edit action=inspect name=BUILTIN/bench`: a definition, defaults left out.
+3. Make the object in one call: `asset_edit action=create name=x asset={…}` with a whole
+   definition, or `action=copy from=BUILTIN/bench name=x`.
+4. Change it with `asset_edit action=patch name=x if_revision=R ops=[…]`, where R is the last
+   reply's `revision`.
+5. Every edit reply lists under `check` what that edit got wrong; fix it in the next batch.
+6. Look at it: `asset_preview name=x views=true figure=true`. Send an edit and its sheet together.
+7. `asset_spawn action=add name=x pos=[x,y,z]` places a copy in the world.
 
-From source, on Linux:
-
-```sh
-scripts/asset-studio.sh
-```
-
-On Windows with a native Rust toolchain:
-
-```powershell
-./scripts/asset-studio.ps1
-```
-
-The scripts build `shardfall` and `pav`, then open the object workspace and the live bridge.
-With built programs, use:
-
-```sh
-shardfall --asset-studio
-shardfall --asset-studio WORKSHOP/garden_bench
-shardfall --asset-studio --scene level/1
-```
-
-`--studio` is an alias for `--asset-studio`. An explicit scene is preserved behind the stage.
-The default studio scene is empty. You can also open Object Studio from the game's pause
-menu. The top bar switches between Animations, Objects, and Game. The two workspaces retain
-their selections, controls, and cameras when you switch.
-
-For the Windows download, extract the whole ZIP to a writable folder. Double-click
-`Start-Object-Studio.cmd`. Use `Start-Animation-Studio.cmd` to start with animations instead.
-Both launchers keep file paths relative to the extracted folder.
-
-Use `.mcp.studio.json` as the source checkout's MCP configuration. Set the server's working
-directory to the repository root. In the Windows package,
-copy `mcp-live.example.json` into your client's MCP settings. Set `command` to the full path
-of the extracted `pav.exe`. Keep the arguments `mcp`, `--live`. Reconnect the MCP server.
-The default live address is `127.0.0.1:7878`.
+## Definition (format 1)
 
 ```json
-{
-  "mcpServers": {
-    "shardfall": {
-      "command": "C:/path/to/Shardfall-Studio/pav.exe",
-      "args": ["mcp", "--live"]
-    }
-  }
-}
+{"format":1,"name":"marker","description":"A glowing marker on a post.","parts":{
+ "post":{"shape":{"type":"cylinder","half_height":0.6,"radius":0.05},"pos":[0,0.6,0],"color":"#26313e"},
+ "light":{"shape":{"type":"sphere","radius":0.16},"pos":[0,1.3,0],"color":"#79debd","emissive":2,"solid":false}}}
 ```
 
-The client must support a local MCP server. A server started without `--live` runs its own
-headless session. To use another address, start the game with `--bridge 127.0.0.1:7879` and
-the server with `pav mcp --live 127.0.0.1:7879`.
+Metres: x right, y up, z forward (+z is the front). The origin is the placement point, normally on
+the floor under the object's centre. `pos` is a part's centre.
 
-## First prompt
-
-> Copy the bench template to garden_bench. Make the seat and backrest teal. Use dark metal
-> legs. Add an armrest on each side. Keep the object about 2.2 metres wide. Apply each design
-> change as one patch and show it in the live studio. Keep my camera in place. Use the last
-> revision for each edit. Take a capture when the first version is ready, then wait for my
-> next direction.
-
-Useful follow-up prompts include “make the backrest taller,” “move both armrests out by
-10 centimetres,” “undo the last change,” and “place two copies beside the entrance.”
-The agent should ask for a world position or inspect the scene when a placement direction
-does not identify a clear location.
-
-## Agent loop
-
-| Tool | Use |
+| field | meaning (default) |
 | --- | --- |
-| `assets` | Find templates and saved objects. Returns compact rows: name, size, parts, description. |
-| `asset_edit` | Create, copy, inspect, patch, replace, undo, or redo an object. |
-| `asset_preview` | Open, fit, rotate, or close the isolated object stage; `views` makes a contact sheet. |
-| `asset_spawn` | Add, list, update, or remove placed instances in the preserved scene. |
-| `studio_status` | Read the current workspace and confirm a live frame submission. |
-| `capture` | Return a PNG through MCP from the same renderer and camera; `stats=only` returns render cost instead. |
-| `snapshot_save` | Save exact scene state, including placed object definitions. |
+| `shape` | `box` `half:[x,y,z]` (half extents: a 1 m cube has 0.5); `rounded_box` adds `radius`; `sphere` `radius`; `cylinder` and `capsule` `radius` and `half_height` along the part's y. A cylinder is 2·half_height tall, a capsule 2·(half_height+radius). |
+| `pos` | `[x,y,z]`, the part's centre (`[0,0,0]`) |
+| `yaw`, `pitch`, `roll` | degrees about y, then x, then z (0): +yaw turns +z toward +x, +pitch tips +z down |
+| `color` | `#rrggbb` (`#e8704a` orange: set it) |
+| `look` | `cel`, `flat`, `lit`, `unlit` or `cutout` (`cel`) |
+| `emissive` | glow 0-32 (0); above 0.5 the part also lights its surroundings |
+| `solid` | part of a placed copy's collider (`true`) |
 
-Use `assets` to discover names, then inspect or copy one. Built-in objects are `BUILTIN/box`,
-`BUILTIN/crate`, `BUILTIN/bench`, and `BUILTIN/lantern`. Saved objects use `WORKSHOP/name`.
-Names are lowercase. Start a new object with `create`, using a template or a complete
-definition in `asset`.
+Part names are lowercase letters, digits, `_` and `-`. 1-256 parts; sizes 0.001-1000 m.
+`asset_edit action=schema` is the full field guide (`topic=shapes` returns one section).
 
-All REPLs accept JSON lines. The same tool name and `args` object work in MCP:
+## Edits
 
 ```json
-{"tool":"asset_edit","args":{"action":"copy","from":"BUILTIN/bench","name":"garden_bench"}}
-{"tool":"asset_edit","args":{"action":"inspect","name":"WORKSHOP/garden_bench"}}
+{"tool":"asset_edit","args":{"action":"patch","name":"x","if_revision":"prop1-…","ops":[
+ {"op":"set","part":"seat","fields":{"color":"#3e9a9e","pos":[0,0.5,0]}},
+ {"op":"add","part":"arm_left","value":{"shape":{"type":"box","half":[0.05,0.1,0.4]},"pos":[-1,0.6,0],"color":"#26313e"}},
+ {"op":"remove","part":"crossbar"}]}}
 ```
 
-Inspect returns the definition with default fields left out, its revision, its size as
-`size_cm` (`"220x143x86"`: width, height, depth) and any undo/redo steps. Add `legend:true`
-for the field guide and `bounds:true` for asset and part bounds in metres. Edit replies carry
-`name`, `revision`, `saved`, `size_cm` and the undo/redo steps; `create` and `copy` add the
-part count and `file`, other edits list `changed_parts`. `refreshed_instances`,
-`history_reset` and `preview_error` appear only when they apply. Numbers print at the
-engine's own precision (`1.17`, not `1.1699999570846558`). Pass the returned `revision` as
-`if_revision` on the next edit. If it is stale, inspect again before making another change.
+`set` merges the listed fields (a `shape` replaces the whole shape); `add` takes a new part name
+and a whole part; `remove` deletes one. A batch is checked whole: one bad op rejects it and
+nothing changes. `replace` swaps in a whole definition; `undo` and `redo` step through the last 32
+batches; `dry_run:true` returns the reply, with `revision_next`, without saving.
 
-Saved files use one canonical layout: a header line, then one line per part, defaults left
-out. Hand edits in any layout load; the next tool save rewrites the canonical one.
-
-```json
-{
-  "tool": "asset_edit",
-  "args": {
-    "action": "patch",
-    "name": "WORKSHOP/garden_bench",
-    "if_revision": "COPY_THE_LAST_REVISION_HERE",
-    "ops": [
-      {"op":"set","part":"seat","fields":{"color":"#3e9a9e"}},
-      {"op":"set","part":"backrest","fields":{"color":"#3e9a9e"}},
-      {
-        "op":"add",
-        "part":"armrest_left",
-        "value": {
-          "shape":{"type":"rounded_box","half":[0.07,0.06,0.42],"radius":0.025},
-          "pos":[-1.0,1.12,0],
-          "color":"#26313e"
-        }
-      }
-    ]
-  }
-}
-```
-
-`set` changes only the listed fields. A supplied `shape` replaces the whole shape object.
-`add` needs a new part ID and a complete part in `value`. `remove` needs an existing part ID.
-The final object must contain at least one part. There is a limit of 256 parts.
-`asset_edit action=schema` returns the field guide: every field with its default, the shapes,
-the operations and the limits (`topic=shapes` returns one section).
-
-Errors say where, what is valid and how to fix it, one problem per line (up to 20):
+Replies carry `name`, `revision`, `saved`, `size_cm` (`"220x143x86"`: width x height x depth),
+`undo`/`redo` counts, `changed_parts`, and `check` when the edit introduced problems. A stale
+`if_revision` is refused: inspect again. Errors name the place, what is valid and a fix:
 
 ```
-parts.lamp.shape.height: unknown key (expected type, radius, half_height) — use "half_height":0.5 (height = 2*half_height)
 ops[2] seat.color: "grey" is not a #rrggbb colour — use a hex colour such as "#808080"
 ```
 
-A file path names a part as `parts.<id>`; a batch names the operation first, `ops[i] <id>`.
-A JSON object that repeats a key is refused, not silently overwritten.
+## Check
 
-`asset_edit action=check name=X` (optional `target=WxHxD` in cm) lists geometry problems, one
-line each: `floating`, `below_floor`, `not_grounded`, `poke`, `hidden`, `z_fight`, `mirror`,
-`size`, `tiny`, `unit_suspect`, `default_color`, and the budgets `heavy`, `meshes`, `lights`; a
-`cost` line counts triangles, meshes and lights. Every accepted edit lists the findings it
-introduced under `check`. `dry_run:true` on create, copy, patch or replace returns that reply
-without saving; `revision_next` is the revision the edit would get.
+`asset_edit action=check name=x [target=WxHxD]` (cm) lists every problem, one line each, plus a
+`cost` line (triangles, meshes, lights). Codes: `floating` (not joined to the rest or the floor),
+`below_floor`, `not_grounded` (nothing reaches the floor), `poke` (through another part's
+surface), `hidden` (inside another part), `z_fight` (faces that coincide and flicker), `mirror` (a
+left/right pair that is not mirrored), `size` (against `target`), `tiny`, `unit_suspect`
+(centimetres typed as metres), `default_color`, and the budgets `heavy`, `meshes` and `lights`.
+An object whose top is at its origin hangs from it; one on a wall (its back at z 0, off the
+floor) is joined to the wall, and `not_grounded` only notes that it is off the floor.
 
-`asset_preview name=X views=true` returns one PNG (960×240) of the front, right, back and a
-3/4 view, each framed to fit. `views` also takes `left`, `top` and degrees round from the front
-(`[front,30,top]`); `elevation` is the camera's degrees above the horizon (default 20; `game`
-matches the game camera); `tile` sets pixels per view; `figure:true` adds a 1.8 m figure beside
-objects 0.5-20 m in size. The stage and the human's camera are left as they were.
-`capture stats=only` reports what the view costs to draw (triangles, batches, meshes, lights).
+## Sheets
 
-The whole batch is checked before it is saved or published. One failed operation rejects
-the entire batch. One accepted batch is one undo step. Each object keeps up to 32 undo/redo
-steps on disk. `undo` after initial creation removes the authored file; `redo` restores it.
-Existing placed copies retain their embedded definition if their source file is removed.
-Use `asset_spawn action=remove` to remove a placed copy.
+`asset_preview name=x views=true` returns one 960×240 image of the front, right, back and a 3/4
+view, each framed to fit. `views=[front,top,30]` picks the sides (`left`, `top`, or degrees round
+from the front); `elevation=` is the camera's angle above the horizon (20; `game` is the game's
+camera); `tile=` the pixels per view (240); `figure=true` adds a 1.8 m figure for objects 0.5-20 m
+in size. `capture stats=only` reports what the current view costs to draw.
 
-By default, an accepted edit opens its object in the preview. Use `preview:false` to update
-placed copies while keeping the current workspace. Editing the selected object preserves
-the preview clock and camera. Use `asset_preview action=fit` after a large size change.
+## Placing copies
 
-## Fast feedback
+`asset_spawn action=add name=x pos=[3,0,2] [yaw=90] [scale=1] [collide=false]` returns the copy's
+`id`; `action=list`, `update id=… pos=… yaw=…` and `remove id=…` manage copies. A copy moves,
+collides and deletes as one object. Accepted edits refresh every placed copy; snapshots keep the
+exact definitions they were saved with.
 
-The live bridge publishes the edited scene after the tool returns. The window draws it on
-its next available frame. Edits use the existing renderer; there is no code build or page
-reload for changes to a definition.
+## Files
 
-Live edit replies contain `feedback.ticket`. Use this optional check:
-
-```json
-{"tool":"studio_status","args":{"ticket":12}}
-```
-
-`feedback.state` is `pending`, `submitted`, `superseded`, or `unknown`. A submitted ticket
-means a frame with that edit and its camera changes was submitted by the native window.
-It does not measure GPU completion or the monitor's physical display. If a later edit
-replaces an earlier one before it is drawn, the earlier ticket is reported as superseded.
-The last 64 tickets are retained. Tickets are separate from content revisions and world
-ticks, so paused edits and undo can be confirmed correctly.
-
-The report includes tool application time and time to frame submission. These times exclude
-transport from the LLM client. Headless sessions have no window feedback tracker.
-
-For a short human feedback loop:
-
-1. Combine related part changes in one `ops` batch.
-2. Keep the studio open and keep its camera in place.
-3. Use metadata or `studio_status` for routine confirmation.
-4. Request a contact sheet at a visual checkpoint, or when the agent needs to inspect form.
-
-Capture runs on a second GPU device and encodes an image. It costs more than an ordinary edit.
-The normal edit path does not make a capture. File edits are also supported: native file
-watching waits for 250 ms of quiet before it reads a changed file. A bad file reports an error
-and leaves its last valid definition active. Tool saves publish directly and skip this delay.
-
-## Definition format
-
-An asset is a readable JSON document. Map keys under `parts` are stable part IDs:
-
-```json
-{
-  "format": 1,
-  "name": "marker",
-  "description": "A small glowing marker on a post.",
-  "parts": {
-    "post": {
-      "shape": {"type":"cylinder","half_height":0.6,"radius":0.05},
-      "pos": [0,0.6,0],
-      "color": "#26313e"
-    },
-    "light": {
-      "shape": {"type":"sphere","radius":0.16},
-      "pos": [0,1.3,0],
-      "color": "#79debd",
-      "emissive": 2,
-      "solid": false
-    }
-  }
-}
-```
-
-| Field | Meaning |
-| --- | --- |
-| `shape` | `box`, `rounded_box`, `sphere`, `capsule`, or `cylinder`. |
-| `pos` | Local centre in metres: X right, Y up, Z forward. Defaults to `[0,0,0]`. |
-| `yaw`, `pitch`, `roll` | Degrees about Y, X, Z in that order. Default 0. |
-| `color` | sRGB `#rrggbb`. |
-| `look` | `flat`, `cel`, `lit`, `unlit`, or `cutout`. Ordinary prop cutout uses a flat look. |
-| `emissive` | Glow strength from 0 to 32. Default 0. |
-| `solid` | Include this part in a colliding instance's compound shape. Default true. |
-
-Boxes use `half:[x,y,z]`; a rounded box also needs `radius`. A sphere needs `radius`.
-Cylinders and capsules need `half_height` and `radius`. A cylinder's total height is twice
-`half_height`. A capsule's total height is twice `half_height + radius`.
-
-Place the asset's origin at a useful reference point, usually the floor. The preview lifts
-its lowest point to the stage. A placed instance uses its explicit origin position.
-Unknown fields, bad colors, invalid sizes, duplicate part IDs, and non-finite values fail
-validation with an error. There is no executable script in the definition.
-
-## Place and preserve objects
-
-```json
-{"tool":"asset_spawn","args":{"action":"add","name":"WORKSHOP/garden_bench","pos":[3,0,2],"yaw":90,"scale":1,"collide":true}}
-{"tool":"asset_spawn","args":{"action":"list"}}
-{"tool":"asset_spawn","args":{"action":"update","id":123,"pos":[4,0,2],"yaw":45}}
-{"tool":"asset_spawn","args":{"action":"remove","id":123}}
-```
-
-Use the ID returned by `add`; `123` is an example. Each instance has one root ID. It moves
-and deletes as one object. Colliding instances use one fixed compound collider made from
-solid parts. `collide:false` makes a visual-only instance. Dynamic multipart bodies are
-outside this increment.
-
-Accepted definition changes refresh the visuals and collision for active and sleeping
-instances of that asset. Their positions, scales, root IDs, and room assignments stay in
-place. Fixed-object changes invalidate the game's cached navigation map. Existing native
-F10 move and delete controls work on the whole object, including while the world is paused.
-
-Instances live in the current scene and full snapshots. Ordinary hero saves are not a
-level layout file. In a pavilion room, F10 Save writes `asset` and `scale` references in its
-`[[object]]` entries. Keep the corresponding workshop JSON with the room. Snapshots embed
-exact definitions, so loading an old snapshot does not silently use a newer library shape.
-Later accepted edits can refresh its instances again.
-
-## Files and scope
-
-Templates are readable files in `assets/props/templates`, embedded in the programs.
-Accepted work saves in `assets/props/workshop/name.json`; history is in `assets/props/.editor`.
-Set `PAV_ASSETS` on the game process to use another props root. The first save creates missing
-folders. A cold CLI or MCP process loads saved definitions before constructing a scene.
-
-This increment adds procedural objects, surface controls, and scene placement. Imported
-mesh models, texture painting, and a general level layout editor are future asset types.
-Animation authoring remains available in the same studio; see `ANIMATION_STUDIO.md`.
-
-Run the supplied example with the studio open:
-
-```sh
-pav live --stop-on-error < scripts/examples/object-lantern.jsonl
-```
-
-It creates `WORKSHOP/garden_lantern`. It stops if that name already exists. The Windows
-package includes the same example at its top level.
-
-## Verification
-
-`scripts/smoke-asset-studio.py` checks the real native window through MCP. It covers saved
-editing, rendered changes, bad batches, revision guards, undo/redo, placed instance refresh,
-file reloads, workspace switching, cold startup, and frame feedback. It uses temporary asset
-folders and writes captures plus a JSON result to `out/asset-studio-smoke`.
-
-The focused Rust tests cover schema validation, atomic persistence, snapshot definitions,
-compound collision and streaming wake, room references, CPU scene building, paused picking,
-and passive UI frames. The build checks also cover the native, Windows, and browser targets.
+Templates are `assets/props/templates/*.json`, built in. Saves go to
+`assets/props/workshop/name.json` in one canonical layout (a header line, one line per part);
+`PAV_ASSETS` moves the props root. Hand edits load too: the live studio reloads a changed file
+after 250 ms of quiet, and a bad file keeps its last valid definition.

@@ -551,3 +551,34 @@ key = "procedural generation"
 name = "Procedural generation"
 text = "Making content from rules and random seeds instead of by hand: the wilderness, the dungeon levels, monsters and loot. The same seed always gives the same result."
 see = ["determinism"]
+
+# ---------------------------------------------------------------- objects and surfaces
+[[term]]
+key = "z-fighting"
+name = "Z-fighting"
+text = "Two surfaces in the same plane flicker through each other because the depth buffer cannot tell which one is in front. The object check (`asset_edit action=check`) reports such faces as z_fight; moving one part a few millimetres fixes it."
+see = ["depth buffer"]
+
+[[term]]
+key = "vertex color"
+name = "Vertex colour"
+text = "A colour stored at each corner of a mesh and blended across its triangles, so a model is painted without an image texture. Many low-poly model packs are coloured this way."
+see = ["flat shading", "gltf"]
+
+[[term]]
+key = "procedural material"
+name = "Procedural material"
+text = "A surface pattern such as planks, bricks or noise, computed in the fragment shader from the surface position and a few numbers instead of read from an image. It needs no texture memory and stays sharp at any distance."
+see = ["fragment shader", "triplanar mapping", "procedural generation"]
+
+[[term]]
+key = "triplanar mapping"
+name = "Triplanar mapping"
+text = "Projecting a pattern onto a surface from the three axis directions and blending the three by the surface's normal, so shapes need no texture coordinates and no face stretches the pattern."
+see = ["procedural material"]
+
+[[term]]
+key = "gltf"
+name = "glTF"
+text = "The open 3D asset format (JSON plus binary buffers) most free model packs ship in. The engine keeps no binary models: its tools translate what they use into readable text (`clip_import` reads glTF animation), and downloads stay in the git-ignored .cache/ folder."
+see = ["vertex color", "retargeting"]

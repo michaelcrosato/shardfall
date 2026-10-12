@@ -1,0 +1,73 @@
+kind	image	target	order	judge	pref	done	s1	s2	why	model	effort	judged
+calib	9b1f17cdba64	c01	intact-bottom	1	2		3,3,2,1,2	3,3,3,4,3	Asset 2 reads as wood; asset 1 neon colours. Both have sparse braces.	opus	medium	2026-10-12 04:14
+calib	9b1f17cdba64	c01	intact-bottom	2	2		3,3,3,1,2	4,4,3,4,4	Asset 2 reads as wood with dark bands; asset 1 garish non-wood colours.	opus	medium	2026-10-12 04:17
+calib	9b1f17cdba64	c01	intact-bottom	3	2		3,3,2,1,1	3,4,3,4,3	Same shape; asset 1 neon colours break wood read, asset 2 reads wooden.	opus	medium	2026-10-12 04:20
+calib	47c98914bd11	c01	intact-top	1	1		3,3,3,4,3	3,3,3,1,2	Asset 1 reads as wood; asset 2 uses garish neon, unreadable materials.	opus	medium	2026-10-12 04:13
+calib	47c98914bd11	c01	intact-top	2	1		3,4,3,4,3	3,4,3,1,1	Same geometry; asset 2 neon colours break wood read. Sparse braces both.	opus	medium	2026-10-12 04:16
+calib	47c98914bd11	c01	intact-top	3	1		3,4,3,4,3	3,4,3,1,1	Asset 1 reads as wood; asset 2 neon colours break the brief	opus	medium	2026-10-12 04:19
+calib	09ec65e19e8a	c02	intact-bottom	1	2		1,2,1,2,1	4,4,3,3,4	Asset 1 is spherical blobs, not a crate; asset 2 reads clearly.	opus	medium	2026-10-12 04:12
+calib	09ec65e19e8a	c02	intact-bottom	2	2		1,1,1,2,1	4,3,3,3,3	Asset 1 is blobby spheres, not a crate; 2 reads as a crate with one brace	opus	medium	2026-10-12 04:16
+calib	09ec65e19e8a	c02	intact-bottom	3	2		1,1,1,2,1	4,3,3,3,3	Asset 1 is blobby spheres, not a crate; asset 2 reads clearly as a braced crate.	opus	medium	2026-10-12 04:19
+calib	3e3f2da79380	c02	intact-top	1	1		4,4,3,3,4	1,1,1,2,1	Asset 1 reads as a banded, braced crate; asset 2 is oversized overlapping spheres.	opus	medium	2026-10-12 04:13
+calib	3e3f2da79380	c02	intact-top	2	1		4,4,3,3,4	1,1,1,2,1	Asset 1 reads as a banded crate; asset 2 is broken overlapping blobs.	opus	medium	2026-10-12 04:16
+calib	3e3f2da79380	c02	intact-top	3	1		4,4,3,4,3	1,1,1,2,1	Asset 1 reads as a banded, braced crate; asset 2 is an oversized sphere blob	opus	medium	2026-10-12 04:19
+calib	ffa971dab3e5	c03	intact-bottom	1	2		4,3,3,3,3	4,3,3,3,4	Near identical; asset 2 has plank split on backrest and sturdier posts	opus	medium	2026-10-12 04:14
+calib	ffa971dab3e5	c03	intact-bottom	2	2		4,4,3,4,4	4,4,3,4,4	Near identical; asset 2's split backrest plank adds slight wood detail.	opus	medium	2026-10-12 04:17
+calib	ffa971dab3e5	c03	intact-bottom	3	2		4,3,3,3,4	4,3,3,3,4	Nearly identical; asset 2's two-plank backrest reads more like wood.	opus	medium	2026-10-12 04:20
+calib	91ab3f1b179a	c03	intact-top	1	1		4,4,3,3,4	4,4,3,3,4	Nearly identical; asset 1's back view shows slightly more plank detail.	opus	medium	2026-10-12 04:14
+calib	91ab3f1b179a	c03	intact-top	2	1		4,4,3,4,4	4,4,3,4,4	Near-identical; asset 1's back view reads more clearly as a bench	opus	medium	2026-10-12 04:17
+calib	91ab3f1b179a	c03	intact-top	3	1		4,4,3,4,4	4,4,3,4,4	Nearly identical; asset 1's back has a plank split for more detail.	opus	medium	2026-10-12 04:20
+calib	d9d471e99be7	c04	intact-bottom	1	2		2,2,1,3,2	4,4,3,4,4	Asset 1 has no seat at all; asset 2 is a complete, readable bench	opus	medium	2026-10-12 04:14
+calib	d9d471e99be7	c04	intact-bottom	2	2		2,2,1,3,2	4,4,3,4,4	Asset 1 lacks a seat and has disconnected legs; asset 2 is a complete bench.	opus	medium	2026-10-12 04:17
+calib	d9d471e99be7	c04	intact-bottom	3	2		2,2,1,3,2	4,4,3,4,4	Asset 1 has no seat and loose posts; asset 2 is a complete bench.	opus	medium	2026-10-12 04:20
+calib	8bdc772facf9	c04	intact-top	1	1		4,4,3,4,4	2,2,1,3,2	Asset 2 lacks a seat and has stray legs; asset 1 reads as a bench	opus	medium	2026-10-12 04:14
+calib	8bdc772facf9	c04	intact-top	2	1		4,4,3,4,4	2,2,1,3,2	Asset 2 lacks a seat; its legs are detached. Asset 1 is a complete bench.	opus	medium	2026-10-12 04:17
+calib	8bdc772facf9	c04	intact-top	3	1		4,3,3,4,4	2,2,1,3,2	Asset 2 lacks a seat and has disconnected legs; asset 1 is complete.	opus	medium	2026-10-12 04:20
+calib	5a1b6def296c	c05	intact-bottom	1	2		3,3,3,4,3	4,4,3,4,4	Asset 2 chunkier, bigger globe reads better; asset 1 pole too thin, tall	opus	medium	2026-10-12 04:13
+calib	5a1b6def296c	c05	intact-bottom	2	2		3,3,3,4,3	4,4,3,4,4	Asset 2 chunkier, bigger globe and cap read better; asset 1 spindly pole	opus	medium	2026-10-12 04:16
+calib	5a1b6def296c	c05	intact-bottom	3	2		3,3,3,4,3	4,4,3,4,4	Asset 2 chunkier with bigger globe; asset 1 too tall, spindly pole	opus	medium	2026-10-12 04:19
+calib	30ea945ed6ae	c05	intact-top	1	1		4,3,3,4,4	3,3,3,4,3	Asset 1 chunkier, reads better from high camera; asset 2 pole too thin.	opus	medium	2026-10-12 04:13
+calib	30ea945ed6ae	c05	intact-top	2	1		4,4,3,4,4	3,3,3,4,3	Asset 1 chunkier, better scale; asset 2 tall, spindly pole reads thin	opus	medium	2026-10-12 04:16
+calib	30ea945ed6ae	c05	intact-top	3	1		4,4,3,4,4	3,3,3,4,3	Asset 1 chunkier, better scaled; asset 2 spindly pole, tiny base, oversized height.	opus	medium	2026-10-12 04:19
+calib	4e1ebe344cbb	c06	intact-bottom	1	2		4,3,2,4,4	4,4,3,4,4	Asset 1's pole floats above its base; asset 2's pole sits in the base.	opus	medium	2026-10-12 04:13
+calib	4e1ebe344cbb	c06	intact-bottom	2	2		3,3,2,3,3	4,3,3,3,4	Near-identical; asset 1's pole floats above its base, asset 2's connects.	opus	medium	2026-10-12 04:16
+calib	4e1ebe344cbb	c06	intact-bottom	3	2		3,3,2,4,3	4,3,3,4,4	Asset 1 pole floats above its base; asset 2's pole meets the base.	opus	medium	2026-10-12 04:19
+calib	c0564161805f	c06	intact-top	1	1		4,3,3,4,4	4,3,2,4,3	Nearly identical; asset 2's pole floats above its base disc.	opus	medium	2026-10-12 04:14
+calib	c0564161805f	c06	intact-top	2	1		4,3,3,4,3	3,3,2,4,3	Nearly identical; asset 2's pole floats above its base, a visible gap.	opus	medium	2026-10-12 04:17
+calib	c0564161805f	c06	intact-top	3	1		4,3,3,4,4	4,3,3,4,4	Near identical; asset 1 base has a pole collar, reads slightly finished	opus	medium	2026-10-12 04:20
+calib	d0edc2f3255f	c07	intact-bottom	1	0		4,4,3,3,3	4,4,3,3,3	Renders look identical: X-trestles and stretcher present, flat untextured top, sparse detail	opus	medium	2026-10-12 04:14
+calib	d0edc2f3255f	c07	intact-bottom	2	0		4,4,3,3,4	4,4,3,3,4	Visually identical trestle tables; correct scale, X-braces and stretcher, plain colouring	opus	medium	2026-10-12 04:17
+calib	d0edc2f3255f	c07	intact-bottom	3	0		4,4,3,3,3	4,4,3,3,3	Visually identical trestle tables; plain top lacks plank seams, otherwise correct.	opus	medium	2026-10-12 04:20
+calib	18a45f7ec30a	c07	intact-top	1	0		4,4,3,4,4	4,4,3,4,4	Near-identical trestle tables; X-braces, stretcher, scale all match brief equally.	opus	medium	2026-10-12 04:13
+calib	18a45f7ec30a	c07	intact-top	2	0		4,4,3,3,3	4,4,3,3,3	Nearly identical trestle tables; plain slab top lacks plank detail in both.	opus	medium	2026-10-12 04:16
+calib	18a45f7ec30a	c07	intact-top	3	0		4,4,3,3,3	4,4,3,3,3	Near-identical trestle tables; thin legs, plain colour, not chunky enough	opus	medium	2026-10-12 04:19
+calib	304cd7b71037	c08	intact-bottom	1	2		3,3,3,1,2	3,3,3,3,3	Same geometry; asset 1 has neon debug colours, asset 2 reads as wood	opus	medium	2026-10-12 04:13
+calib	304cd7b71037	c08	intact-bottom	2	2		3,3,3,1,2	3,3,3,3,3	Same geometry; asset 1 uses garish debug colours, asset 2 reads as wood	opus	medium	2026-10-12 04:16
+calib	304cd7b71037	c08	intact-bottom	3	2		3,3,3,1,2	4,4,3,3,3	Same trestle geometry; asset 1 uses garish debug colours, asset 2 reads as wood	opus	medium	2026-10-12 04:19
+calib	fb41c0f06104	c08	intact-top	1	1		4,4,3,4,4	3,3,3,1,2	Same trestle form; asset 2 uses garish debug-like neon colours.	opus	medium	2026-10-12 04:14
+calib	fb41c0f06104	c08	intact-top	2	1		4,4,3,4,4	3,3,3,1,2	Same geometry; asset 2 uses garish debug colours, asset 1 reads as wood.	opus	medium	2026-10-12 04:17
+calib	fb41c0f06104	c08	intact-top	3	1		4,4,3,4,4	3,3,2,1,2	Asset 2 has debug neon colours and spindly legs; asset 1 reads as wood	opus	medium	2026-10-12 04:20
+calib	84f0597fa8e9	c09	intact-bottom	1	2		3,3,2,4,3	3,3,2,4,3	Near identical; asset 2's splayed legs read more tripod-like. Neither has curved legs.	opus	medium	2026-10-12 04:13
+calib	84f0597fa8e9	c09	intact-bottom	2	2		3,3,2,3,3	3,3,2,3,3	Near identical; asset 2 legs splay more, closer to curved tripod brief	opus	medium	2026-10-12 04:17
+calib	84f0597fa8e9	c09	intact-bottom	3	2		3,3,2,3,3	3,3,2,3,3	Near identical; asset 2 bowl tapers slightly more. Both have straight, uncurved legs.	opus	medium	2026-10-12 04:20
+calib	ca7aa3d99fef	c09	intact-top	1	2		3,3,2,3,3	3,3,2,3,3	Near-identical; 2 has slight coal texture. Both lack curved legs, coal forms.	opus	medium	2026-10-12 04:14
+calib	ca7aa3d99fef	c09	intact-top	2	2		3,3,2,3,3	3,3,3,3,3	Near-identical; asset 2 has visible coal specks, both legs straight not curved	opus	medium	2026-10-12 04:17
+calib	ca7aa3d99fef	c09	intact-top	3	2		3,3,2,3,3	3,3,3,3,3	Near-identical; asset 2 adds coal specks. Both have straight, thin legs, not curved.	opus	medium	2026-10-12 04:20
+calib	2a022ab36009	c10	intact-bottom	1	2		1,2,1,2,1	4,4,3,4,4	Asset 1 is dark blobs with no legs or coals; asset 2 reads clearly.	opus	medium	2026-10-12 04:13
+calib	2a022ab36009	c10	intact-bottom	2	2		1,2,1,1,1	4,4,3,4,4	Asset 1 is a dark sphere blob; asset 2 reads as glowing tripod brazier.	opus	medium	2026-10-12 04:16
+calib	2a022ab36009	c10	intact-bottom	3	2		1,2,1,2,1	4,4,3,4,4	Asset 1 is shapeless dark blobs; asset 2 reads clearly as glowing tripod brazier.	opus	medium	2026-10-12 04:19
+calib	31e2c942acbe	c10	intact-top	1	1		4,3,3,4,3	1,2,1,1,1	Asset 1 reads as glowing brazier; asset 2 is dark sphere blob.	opus	medium	2026-10-12 04:13
+calib	31e2c942acbe	c10	intact-top	2	1		4,3,3,4,4	1,2,1,1,1	Asset 1 reads as glowing tripod brazier; asset 2 is dark blob spheres.	opus	medium	2026-10-12 04:16
+calib	31e2c942acbe	c10	intact-top	3	1		4,3,3,4,4	1,2,1,1,1	Asset 1 reads as glowing tripod brazier; asset 2 is dark blob pile.	opus	medium	2026-10-12 04:19
+calib	ddde51643986	c11	intact-bottom	1	2		3,3,3,3,2	4,3,3,4,4	Asset 2 has canvas load per brief; asset 1 is an empty cart	opus	medium	2026-10-12 04:14
+calib	ddde51643986	c11	intact-bottom	2	2		2,3,2,3,2	3,3,3,3,3	Asset 2 has the canvas load; neither shows clear pull shafts	opus	medium	2026-10-12 04:17
+calib	ddde51643986	c11	intact-bottom	3	2		2,3,2,3,3	3,3,3,3,3	Asset 2 has the canvas load; neither shows clear pull shafts	opus	medium	2026-10-12 04:20
+calib	9b60c184c398	c11	intact-top	1	1		3,3,3,4,3	2,3,2,3,2	Asset 2 lacks canvas load; neither shows clear pull shafts.	opus	medium	2026-10-12 04:14
+calib	9b60c184c398	c11	intact-top	2	1		3,3,3,4,3	2,3,2,3,2	Asset 1 has canvas load; asset 2 lacks load, shafts unclear on both	opus	medium	2026-10-12 04:17
+calib	9b60c184c398	c11	intact-top	3	1		3,3,3,3,3	2,3,2,3,2	Asset 2 lacks the canvas-covered load; asset 1 meets brief, shafts weak.	opus	medium	2026-10-12 04:20
+calib	2d7a452213be	c12	intact-bottom	1	2		3,3,2,3,3	4,3,3,4,4	Asset 2 has clean, readable wheels; asset 1's wheels are jumbled and cluttered.	opus	medium	2026-10-12 04:13
+calib	2d7a452213be	c12	intact-bottom	2	2		3,3,2,3,3	4,3,3,4,4	Asset 2 has clean readable wheels; asset 1 wheels cluttered, poking beams	opus	medium	2026-10-12 04:16
+calib	2d7a452213be	c12	intact-bottom	3	2		2,3,2,3,2	4,3,3,3,4	Asset 2 has clean, readable wheels; asset 1 has cluttered, poking wheel geometry.	opus	medium	2026-10-12 04:19
+calib	7df9cb244f66	c12	intact-top	1	1		3,3,3,4,3	2,3,2,3,2	Asset 2 has sideways shafts and spiky, cluttered wheels; asset 1 reads cleaner	opus	medium	2026-10-12 04:13
+calib	7df9cb244f66	c12	intact-top	2	1		4,4,3,4,4	2,3,2,3,2	Asset 1 clean cart with readable wheels; asset 2 has broken, poking wheel spokes	opus	medium	2026-10-12 04:16
+calib	7df9cb244f66	c12	intact-top	3	1		4,3,3,4,3	2,3,2,3,2	Asset 1 cleaner wheels and frame; asset 2 has poking spokes and clutter	opus	medium	2026-10-12 04:19
