@@ -14,19 +14,22 @@ stands and the plan stays stopped at row 2.5.
   agent's fixed prompt and tools, about 55k tokens before its first command, and a run's own
   content is only 11-14% of what it reads. So a run's cost follows its number of model calls.
 - **End to end.** `scripts/asset_bench/results/agent_tokens.tsv` has each author run's model
-  calls and context sizes. Matched with arm A's run 1 of the 24 authoring tasks (medians of the
-  per-task ratios):
-  - Tokens read, cached or not: arm F 1.20 times arm A's (lower on 7 of 24 tasks), arm F2 1.21
-    (6 of 24). Model calls per run (median): A 5, F 7, F2 6. The harness's `turns` count
+  calls, context sizes and visible output. Compared as the gate compares (each of the 24
+  authoring tasks against the mean of arm A's runs; medians of the per-task ratios), with the
+  fixed prompt held at arm A's 54,827 tokens (F2's batch got 59,280 for reasons outside the
+  format):
+  - Tokens read, cached or not: arm F 1.20 times arm A's (lower on 9 of 24 tasks), arm F2 1.01
+    (12 of 24). Model calls per run (median): A 5, F 7, F2 6. The harness's `turns` count
     wrapper calls only.
-  - Priced with every read as a cache read (a tenth) and each run's own context written once
-    (1.25): F 1.11, F2 1.00 (lower on 12 of 24).
-  - The runs' own context did shrink (F2 0.77 of A's), but the extra model call cancels it.
-  - Caveats: arm A ran ten hours earlier with a prompt one line shorter, and the fixed prompt was
-    59k tokens for F2's batch against 55k for A's and F's, about 7% of a run on its own.
-- **So** round 2's token pass holds for wrapper traffic only: end to end, format 2 didn't make a
-  run cheaper. Its other objective results stand (29/30 accepted against 25, lint findings per
-  accepted asset 0.48 against 1.08, median failed calls 0), and the quality vote stays a fail.
+  - Priced with every read as a cache read (a tenth), each run's own context written once
+    (1.25) and its visible output (tool calls and text, in o200k tokens) at 5: F 1.10, F2 0.91
+    (lower on 15 of 24). The transcripts keep no hidden reasoning, so that is left out.
+  - Caveat: arm A ran about ten hours earlier with a prompt one line shorter.
+- **So** round 2's wrapper saving (`tok_x` 0.51, `tok_cum` 0.56) mostly doesn't carry through:
+  end to end, F2's runs cost about 9% less than arm A's, lower on 15 of 24 tasks, which these
+  runs can't tell from noise. Its other objective results stand (29/30 accepted against 25, lint
+  findings per accepted asset 0.48 against 1.08, median failed calls 0), and the quality vote
+  stays a fail.
 - **What the testing cost.** The session that ran rows 0.1-2.5 took about 13 hours. Weighting
   tokens by price (cache reads 0.1, cache writes 1.25, output 5), it used about 127M, about 40%
   of it on benchmark runs, judging and their analysis (G2 alone about 35M). Each of the 288 judge

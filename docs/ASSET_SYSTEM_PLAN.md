@@ -1260,10 +1260,11 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
     rubric Δ −0.183 (limit −0.1). 11 of 24 tasks changed outcome between rounds against the
     same arm-A assets; pooled, 25 of 48 pairs went to format 2.
   - Correction, same day: the token checks count wrapper traffic only. Counted end to end from
-    the transcripts (`results/agent_tokens.tsv`), F2's runs read 1.21 times arm A's tokens (F
-    1.20); at cache prices F2's cost the same (1.00) and F's 1.11. Every model call re-reads the
-    author's ~55k-token fixed prompt, and the format-2 runs made more calls (median 6 and 7
-    against 5). Round 2's token pass does not hold end to end.
+    the transcripts (`results/agent_tokens.tsv`: per-task ratios against arm A's mean, the
+    fixed prompt held equal, visible output at 5 times input), F2's runs read 1.01 times arm
+    A's tokens and cost 0.91 at cache prices (lower on 15 of 24 tasks); F's 1.20 and 1.10.
+    Every model call re-reads the author's ~55k-token fixed prompt, and the format-2 runs made
+    more calls (median 6 and 7 against 5). Round 2's token pass does not hold end to end.
 - **Total load:** ~135 author runs and ~320 judge calls (calibration 72, edit votes 54, G2 72, G3 24, G4 96).
 
 ## 11. Roadmap and progress checklist
