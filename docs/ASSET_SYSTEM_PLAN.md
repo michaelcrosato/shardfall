@@ -121,20 +121,21 @@ asset_import: library zip/GLB/OBJ ─▶ Scene ─▶ segment ─▶ fit primiti
 - `props.rs` splits into `props/{mod,doc,read,write,compile,geom,patch,lint}.rs`; the module path
   `crate::props` stays. Reader pipeline:
   1. `read::strict_value` rejects duplicate keys at any depth.
-  2. `read::migrate(&mut Value)`: format range check; 1→2 is additive.
+  2. `read::migrate(&mut Value)`: format range check; 1→2 is additive (row 2.1: `migrate(&Value) -> Result<u32, Issue>`, since 1→2 needs no rewrite of the Value).
   3. `read::check(&Value) -> Vec<Issue>`: field tables per node type, ranges, exclusivity,
      references; up to 20 issues with part paths and did-you-mean.
   4. Typed parse into the flat model; v1 nested `shape` is mapped.
   5. `compile`.
+- Row 2.1 landed steps 1-4 (`props/doc.rs`, `props/read/v2.rs`). Until their phases land, `MAT/…` materials, mesh parts and `params`/`presets` are refused as not yet available, and inline material layers are checked by pattern and parameter name only.
 - Revisions:
   - v1 keeps `prop1-` + the existing FNV-1a over a `V1Mirror` of today's serde layout (props.rs:274-280), so untouched assets, `if_revision` values and history heads stay valid;
   - v2 uses `prop2-` + FNV over the canonical compact text;
   - assets with `ref` or mesh dependencies also get a closure key `propk-` = FNV(revision + sorted dependency keys).
 - Canonical writer (`write::text`, replaces `to_string_pretty` at props.rs:290):
-  - defaults omitted; numbers as shortest f32 round-trip, integers without `.0`, never exponents;
+  - defaults omitted (row 2.1: format 2 writes each field as written and never adds one; an explicit default stays, because surface fields cascade and an explicit `look:"cel"` overrides a group's look); numbers as shortest f32 round-trip, integers without `.0`, never exponents;
   - engine-computed numbers rounded to 0.1 mm absolute;
   - layout: a header line (`format, name, unit`, root defaults), then `description`, `tags`, `category`, `source`, `fit`, `materials`, `parts`, `sockets`, `params`, `presets`, each starting a line;
-  - every map entry on its own line, nested groups indented 2 spaces per depth;
+  - every map entry on its own line, in key order, nested groups indented 2 spaces per depth (row 2.1: tool inputs are JSON objects with no order, and a revision must not depend on how a document arrived; the examples' authored order reads to the same text);
   - part key order: kind (`type|ref|mesh`), shape fields, `from,to,pos,attach,offset`, `axis,yaw,pitch,roll,spin`, `mat,color,look,emissive`, `solid,hidden,light,fx,sway`, `mirror,array,grid,radial`, `chance,jitter,pick`, `scale,remap,recolor`, `parts` last;
   - idempotent.
 
@@ -202,7 +203,7 @@ Surface cascade (nearest level wins):
 3. A v2 part with no surface source anywhere is an error (v1 keeps its default `#e8704a`).
 
 ### 5.5 Sockets, roles, variation, extras, provenance, mesh parts
-- **sockets**: `"sockets":{"grip":{pos|attach, axis|yaw…}}`, at most 16. +y is the socket's working direction. Vocabulary: `grip, grip2, tip` (+y along the blade), `top` (+y up), `wall_mount` (+y into the wall), `hang`, `sit`.
+- **sockets**: `"sockets":{"grip":{pos|attach, axis|yaw…}}`, at most 16. +y is the socket's working direction. Vocabulary: `grip, grip2, tip` (+y along the blade), `top` (+y up), `wall_mount` (+y into the wall), `hang`, `sit` (row 2.1: a closed set; other names get did-you-mean).
 - **roles**: a `color` may be `$floor $floor2 $wall $pillar $accent $light`, the same names as the `ThemeDef` colour fields. They resolve at render time from the instance's palette, else `props::DEFAULT_ROLES`. `PropInstance` gains `seed: u32`, `roles` and `params` (all serde default).
 - **variation**: `chance` (0-1), `jitter:{pos:[x,y,z], rot:[y,p,r], scale:[lo,hi], color}` and group `pick:n`.
   - The random value is u = FNV-1a64(`"{seed}:{resolved id}:{field}"`) mapped to [−1,1], so adding parts never reshuffles others and `SimState.rng` is never touched.
@@ -1272,7 +1273,7 @@ Why this order:
 - [x] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
 - [x] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
 - [x] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
-- [ ] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.2) (L)
+- [x] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.2) (L)
 - [ ] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
 - [ ] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [ ] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)

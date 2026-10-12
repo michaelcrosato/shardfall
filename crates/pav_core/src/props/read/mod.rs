@@ -3,6 +3,8 @@
 //! with its path, the valid values and a fix. The typed model is built only from a document
 //! that passed. `schema` renders the same tables as the field guide.
 
+pub mod v2;
+
 use std::cell::RefCell;
 
 use serde::de::{DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
@@ -57,9 +59,7 @@ angles within 36000 degrees; 1024 ops per batch";
 /// The field guide for `asset_edit action=schema`. Topics: legend, document, part, shapes, ops,
 /// limits; none gives all of them.
 pub fn schema(topic: Option<&str>) -> Result<Value, String> {
-    let pairs = |rows: &[(&str, &str)]| Value::Object(rows.iter().map(|(k, v)| ((*k).into(), json!(v))).collect());
-    let triples = |rows: &[(&str, &[&str], &str)]| Value::Object(rows.iter().map(|(k, _, v)| ((*k).into(), json!(v))).collect());
-    let sections = [
+    let sections = vec![
         ("legend", json!(LEGEND)),
         ("document", pairs(DOCUMENT_FIELDS)),
         ("part", pairs(PART_FIELDS)),
@@ -67,13 +67,26 @@ pub fn schema(topic: Option<&str>) -> Result<Value, String> {
         ("ops", triples(OPS)),
         ("limits", json!(LIMITS)),
     ];
-    let mut out = json!({"kind":"prop","format":1});
+    guide(1, sections, topic, "asset_edit action=copy from=BUILTIN/bench name=x, then one patch batch")
+}
+
+fn pairs(rows: &[(&str, &str)]) -> Value {
+    Value::Object(rows.iter().map(|(k, v)| ((*k).into(), json!(v))).collect())
+}
+
+fn triples(rows: &[(&str, &[&str], &str)]) -> Value {
+    Value::Object(rows.iter().map(|(k, _, v)| ((*k).into(), json!(v))).collect())
+}
+
+/// A field guide: every section, or the one `topic` names.
+fn guide(format: u32, sections: Vec<(&str, Value)>, topic: Option<&str>, next: &str) -> Result<Value, String> {
+    let mut out = json!({"kind":"prop","format":format});
     match topic {
         None => {
             for (key, value) in sections {
                 out[key] = value;
             }
-            out["next"] = json!("asset_edit action=copy from=BUILTIN/bench name=x, then one patch batch");
+            out["next"] = json!(next);
         }
         Some(topic) => {
             let names: Vec<&str> = sections.iter().map(|(key, _)| *key).collect();
@@ -87,6 +100,21 @@ pub fn schema(topic: Option<&str>) -> Result<Value, String> {
         }
     }
     Ok(out)
+}
+
+// --- Formats -------------------------------------------------------------------------------
+
+/// The format a document is read as: 2, or 1 (which includes a missing or malformed format,
+/// reported by the format-1 check). A newer format is refused here. Format 1 needs no rewrite
+/// to be read as format 2: the typed reader maps its nested shapes and implicit metres.
+pub fn migrate(doc: &Value) -> Result<u32, Issue> {
+    match doc.get("format") {
+        Some(format) if format.as_u64() == Some(2) => Ok(2),
+        Some(format) if format.as_u64().is_some_and(|format| format > 2) => {
+            Err(Issue::error("format", Code::Format, format!("format {format} needs a newer engine")).expected("1 or 2"))
+        }
+        _ => Ok(1),
+    }
 }
 
 // --- Strict JSON ---------------------------------------------------------------------------
@@ -386,8 +414,8 @@ pub fn check(doc: &Value) -> Vec<Issue> {
     match object.get("format") {
         None => issues.push(Issue::error("format", Code::Missing, "missing").fix("add \"format\":1")),
         Some(value) if value.as_u64() == Some(1) => {}
-        Some(value) if value.as_u64().is_some_and(|format| format > 1) => {
-            issues.push(Issue::error("format", Code::Format, format!("format {value} needs a newer engine")).expected("1"))
+        Some(value) if value.as_u64().is_some_and(|format| format > 2) => {
+            issues.push(Issue::error("format", Code::Format, format!("format {value} needs a newer engine")).expected("1 or 2"))
         }
         Some(value) => issues.push(Issue::error("format", Code::UnknownValue, format!("{value} is not a format")).expected("1")),
     }

@@ -1,6 +1,7 @@
 //! Readable procedural props. Named parts use the engine's shapes, colors and surface looks.
 //! A published definition is immutable; placed instances can keep it in their snapshots.
 
+pub mod doc;
 pub mod lint;
 mod patch;
 mod read;
@@ -17,8 +18,11 @@ use crate::color::Color;
 use crate::issue::{self, Issue};
 use crate::shape::{Look, Shape, Visual};
 
+pub use doc::Doc;
 pub use patch::MAX_OPS;
-pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, schema, strict_value};
+/// Format 2's field tables, legend and field guide.
+pub use read::v2 as format2;
+pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, migrate, schema, strict_value};
 
 pub const MAX_PARTS: usize = 256;
 const MAX_SIZE: f32 = 1_000.0;
@@ -315,8 +319,28 @@ impl PropAsset {
         Self::from_value(read::strict_value(text).map_err(|issue| vec![issue])?)
     }
 
-    /// The typed model of a checked document. The typed validation stays as a backstop.
+    /// The typed model of a checked document. A format-2 document is read and checked whole;
+    /// it builds when format 1 holds it, and otherwise is refused until format 2 compiles.
     pub fn from_value(value: Value) -> Result<Self, Vec<Issue>> {
+        if read::migrate(&value).map_err(|issue| vec![issue])? == 2 {
+            let doc = read::v2::doc(&value, &get)?;
+            return doc.to_v1().ok_or_else(|| {
+                let (path, what) = doc.needs_format2().unwrap_or_else(|| (String::new(), "this document".into()));
+                vec![
+                    Issue::error(
+                        path,
+                        issue::Code::Format,
+                        format!("{what} needs format 2, which this engine checks but cannot build yet"),
+                    )
+                    .fix("write format 1 (asset_edit action=schema)"),
+                ]
+            });
+        }
+        Self::from_v1_value(value)
+    }
+
+    /// The format-1 check, then the typed model. The typed validation stays as a backstop.
+    pub(crate) fn from_v1_value(value: Value) -> Result<Self, Vec<Issue>> {
         let issues = read::check(&value);
         if !issues.is_empty() {
             return Err(issues);
@@ -349,8 +373,7 @@ impl PropAsset {
         // BTreeMap order and explicit defaults make reformatting a file keep its revision.
         // This is a content identifier for edit guards, not a security hash.
         let bytes = serde_json::to_vec(self).expect("prop definition serializes");
-        let hash = bytes.iter().fold(0xcbf29ce484222325u64, |h, b| (h ^ *b as u64).wrapping_mul(0x100000001b3));
-        format!("prop1-{hash:016x}")
+        format!("prop1-{:016x}", fnv(&bytes))
     }
 
     pub fn bounds(&self, scale: f32) -> Bounds {
@@ -360,6 +383,11 @@ impl PropAsset {
             .reduce(Bounds::union)
             .unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO })
     }
+}
+
+/// FNV-1a, 64 bits: revisions are content identifiers for edit guards, not security hashes.
+pub(crate) fn fnv(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325u64, |h, b| (h ^ *b as u64).wrapping_mul(0x100000001b3))
 }
 
 pub fn validate_part_name(name: &str) -> Result<(), String> {
@@ -602,16 +630,26 @@ mod tests {
         );
         // Values exactly at an f32 bound pass, as the typed model reads them.
         assert!(PropAsset::parse(&doc(r#"{"shape":{"type":"sphere","radius":0.001}}"#)).is_ok());
-        let document = errors(r#"{"format":2,"name":"Bad Name","colour":"x","parts":{}}"#);
+        let document = errors(r#"{"format":1,"name":"Bad Name","colour":"x","parts":{}}"#);
         assert_eq!(
             document,
             [
                 r#"colour: unknown key (expected format, name, description, parts) — spelled "color""#,
-                "format: format 2 needs a newer engine (expected 1)",
                 r#"name: "Bad Name" is not a usable name: use 1 to 64 lowercase letters, digits, underscores or hyphens, starting with a letter"#,
                 "parts: 0 parts (expected 1 to 256)",
             ]
         );
+        // Format 2 reads through its own check; a newer format is refused before any other check.
+        assert_eq!(
+            errors(r#"{"format":2,"name":"Bad Name","colour":"x","parts":{}}"#),
+            [
+                r#"colour: unknown key — spelled "color""#,
+                r#"unit: missing (expected cm or m) — add "unit":"cm" (the house unit) or "unit":"m""#,
+                r#"name: "Bad Name" is not a usable name: use 1 to 64 lowercase letters, digits, underscores or hyphens, starting with a letter"#,
+                "parts: 0 nodes (expected 1 to 256, groups and refs included)",
+            ]
+        );
+        assert_eq!(errors(r#"{"format":3,"name":"x","parts":{}}"#), ["format: format 3 needs a newer engine (expected 1 or 2)"]);
         assert_eq!(errors("{\"format\":1,"), ["(root): not valid JSON: EOF while parsing a value at line 1 column 12"]);
     }
 

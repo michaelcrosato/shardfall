@@ -5,6 +5,62 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 2.1: format 2 reads, checks and writes — 2026-10-12
+
+Row 2.1 of `docs/ASSET_SYSTEM_PLAN.md` (F1, F2), the first of Phase 2. Format 2 is read, checked
+and written, but not built: compile is row 2.2, so an asset that needs format 2 is refused with
+the reason, after its errors.
+- **Source model** (`props/doc.rs`): `Doc` is the document as written, in its own unit: a tree of
+  nodes (primitive, group, `ref`, mesh), materials, sockets, tags, category, source and fit, each
+  optional field kept as written (None: not written). Both formats read into it; a format-1 file
+  is in metres and its nested `shape` maps onto the flat part. `PropAsset` stays the built model
+  the engine uses until the consumers move (F5).
+- **Reader.** `read::migrate` routes by format and refuses a newer one ("format 3 needs a newer
+  engine (expected 1 or 2)"); 1→2 needs no rewrite of the Value. The format-2 check
+  (`props/read/v2.rs`) builds the typed model as it reads: field tables per node kind; types and
+  ranges in the document's unit (a length error names the unit, and a metre value in a cm
+  document gets the conversion); one of `pos`, `from`/`to` or `attach`(+`offset`); `from`/`to`
+  only on the six end-placed types and never with `axis` or Euler angles; `spin` only with them;
+  box sizes `[x,y,z]` or `[across,thick]`; capsule ends at least `r + r_end` apart; the tube,
+  torus and rounded-box radius limits; `facing` across the axis in the parent frame; one
+  replication per node; cycles of material keys, hex colours and roles; `hidden` parts solid;
+  material keys with did-you-mean; attach targets resolved siblings first (a copy needs its
+  index, a mirror copy its `~axis`; attaching to itself, its own group, its own part or round in
+  a circle is refused); `ref` targets that exist; the limits (256 nodes, groups 4 deep, 64 copies,
+  grids 32×32 and 256, 1,024 parts, 4 lights and 4 fx after copies); and every part gets a colour
+  from itself, a group, the root or a cycle. The guesses in §5.7 get their fix (colour,
+  rotation, position, dimensions, half_extents with the doubled size, diameter with the halved
+  radius, material, length, children, count, collide, cube, frustum, ring, ramp, mesh, a nested
+  `shape`), and a fix that names a field replaces that field's "missing" line. An unknown key
+  lists the valid keys only when it has no fix, since a node takes about thirty.
+- **Not yet available**, and the errors say so: library materials (`MAT/…`, Phase 3), mesh parts
+  (Phase 5), `params`/`presets` (Phase 4). Inline materials are checked against the 14 patterns
+  and their parameter names; layer values stay checked JSON until materials are evaluated (MAT-1).
+- **Writer and revisions** (`props/write.rs`): §5.1's layout. A header line (format, name, unit,
+  the root's surface defaults); each section on a line; each map entry on its own line, group
+  children indented two spaces per depth; §5.1's key order; numbers as the shortest f32 round
+  trip, zero as `0`. Fields are written as written: an explicit default stays, since surface
+  fields cascade and an explicit `look:"cel"` overrides a group's look. Map entries are written in key order: tool inputs arrive as JSON objects
+  with no order, and a revision must not depend on how a document arrived, so the plan's
+  examples (the bench lists its seat first) read to the same text. `prop2-` revisions hash the
+  compact text (the same without line breaks), so a layout change keeps them. `needed_format` is
+  1 for metres with only format 1's shapes, fields and keys; such a document is written as format 1
+  and keeps a `prop1-` revision.
+- **Tools.** `PropAsset::from_value` reads format 2 whole. A document format 1 holds is built and
+  saved as format 1; anything else is refused at its first format-2 feature: `unit: unit "cm"
+  needs format 2, which this engine checks but cannot build yet — write format 1 (asset_edit
+  action=schema)`. The tools' field guide stays format 1; `props::format2::schema` holds format
+  2's (legend, document, node, shapes, materials, limits) for row 2.5.
+- **Tests.** `pav_core/tests/prop_format2.rs` holds the five examples and three probes inline, in
+  canonical form (the §5.9 corpus; compile goldens join in 2.2). Each rewrites byte-identically
+  with a pinned `prop2-` revision, the authored bench and the probes' layouts read to the
+  canonical text, a document using every field round-trips, and the four templates and both
+  dogfood files keep their golden `prop1-` revisions through the source model. Unit tests pin the
+  checker's messages; `pav_tools/tests/asset_format2.rs` covers create, dry run and saving.
+- Decisions: socket names are the closed vocabulary (grip, grip2, tip, top, wall_mount, hang,
+  sit), with did-you-mean for others. A wedge's `peak` defaults to 0, a gable. `half` and
+  `half_height` stay readable on format 1's shapes only.
+
 ## Asset plan 1.3: agent-first object docs, judge calibration, gate G1 passes — 2026-10-12
 
 Row 1.3 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-9, EVAL-3, the GA re-score, EVAL-4). Phase 1 is
