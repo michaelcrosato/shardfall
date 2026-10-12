@@ -55,7 +55,7 @@ material path in the theme's own colours.
   touches; `cargo check -p pav_app --target wasm32-unknown-unknown` passes. No shader change, so
   no bench. The 8-theme review (one capture per theme with `material_detail=off` and one with
   `full`, same seed, room and frame, 960×540 at the game camera, `.cache/g3/manifest.json` for
-  `scripts/review_page.py`) went to the user.
+  `scripts/review_page.py`) were captured for review.
 - **Decisions.** Caps are a role, not a colour: the walls' top course and the furniture slabs
   (pillar-coloured on rings and crosses) wear `wall_cap`, whose layers only shade, so any base
   colour works. The palette rides in `Mood` (view data the level already carries) rather than in
@@ -69,6 +69,9 @@ material path in the theme's own colours.
 - **Review:** under the user's rule (AGENTS.md, "Testing budget"), the orchestrator judged the
   8 before/after captures (plain colours vs materials, same seed and camera) instead of a human
   review page; floors, walls and pillars read clearly in every theme and monsters stay distinct.
+- **Also fixed:** `reply_budget` assumed the whole asset listing fits on one page. With the 28
+  core assets from 4.2 it is now 33 rows, past the default page of 20, so the test failed on main
+  as well. It now checks pages against the listing's `matched` count.
 
 ## Asset plan 4.2, part 2: 28 core exemplars — 2026-10-12
 

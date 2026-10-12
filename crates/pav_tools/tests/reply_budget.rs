@@ -48,7 +48,8 @@ fn asset_replies_fit_their_budgets() {
     let listing: Value = serde_json::from_str(&call(&mut s, "assets", json!({}))).unwrap();
     assert_eq!(listing["cols"], "name cat size_cm parts tok tags desc");
     let rows = listing["rows"].as_array().unwrap();
-    assert!(rows.len() >= 5 && listing.get("next").is_none());
+    let matched = listing["matched"].as_u64().unwrap() as usize;
+    assert!(matched >= 5 && rows.len() == matched.min(20) && listing.get("next").is_some() == (matched > 20));
     // ≤ 40 tokens a row (plan §9.2). o200k reads these rows at 3.0-3.8 bytes per token (tiktoken
     // on the template rows), so at most 3 bytes a token is a safe count without a tokenizer.
     let found: Value = serde_json::from_str(&call(&mut s, "assets", json!({"find":"wood"}))).unwrap();
@@ -60,7 +61,8 @@ fn asset_replies_fit_their_budgets() {
     }
     let paged: Value = serde_json::from_str(&call(&mut s, "assets", json!({"limit":2}))).unwrap();
     assert_eq!((paged["rows"].as_array().unwrap().len(), paged["next"].as_u64()), (2, Some(2)));
-    let last: Value = serde_json::from_str(&call(&mut s, "assets", json!({"limit":2,"page":3}))).unwrap();
-    assert!(last["rows"].as_array().unwrap().len() == 1 && last.get("next").is_none());
+    let pages = matched.div_ceil(2);
+    let last: Value = serde_json::from_str(&call(&mut s, "assets", json!({"limit":2,"page":pages}))).unwrap();
+    assert!(last["rows"].as_array().unwrap().len() == 2 - matched % 2 && last.get("next").is_none());
     let _ = std::fs::remove_dir_all(&root);
 }
