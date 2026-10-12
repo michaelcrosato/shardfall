@@ -1,0 +1,14 @@
+{"format":2,"name":"stalagmite","unit":"cm","mat":"stone",
+"description":"A tapering cave spire, 1-2 m, rising from a low skirt of stone with smaller spires at its foot.",
+"tags":["stalagmite","spire","cave","stone","rock","dungeon"],
+"category":"rock",
+"materials":{
+"stone":{"color":"$wall","layers":[{"type":"noise","size":18,"detail":2,"cover":0.4,"shade":0.88}]}},
+"parts":{
+"side_a":{"pos":[38,0,18],"chance":0.7,"jitter":{"rot":[60,0,0],"scale":[0.8,1.2]},"parts":{
+  "s":{"type":"cone","radius":14,"height":56,"segments":7,"pos":[0,28,0]}}},
+"side_b":{"pos":[-30,0,-28],"chance":0.6,"jitter":{"rot":[60,0,0],"scale":[0.8,1.2]},"parts":{
+  "s":{"type":"cone","radius":11,"height":38,"segments":7,"pos":[0,19,0]}}},
+"spire":{"jitter":{"rot":[60,0,0],"scale":[0.72,1.22],"color":0.1},"parts":{
+  "main":{"type":"lathe","profile":[[34,0],[30,20],[25,48],[23,66],[16,100],[11,124],[0,158]],"segments":9},
+  "skirt":{"type":"cylinder","radius":48,"radius_end":32,"height":14,"segments":9,"pos":[0,7,0]}}}}}

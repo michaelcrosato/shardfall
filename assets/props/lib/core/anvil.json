@@ -1,0 +1,12 @@
+{"format":2,"name":"anvil","unit":"cm",
+"description":"A blacksmith's iron anvil with a tapered horn, set on a squat wooden stump.",
+"tags":["anvil","smithy","forge","iron","tool"],
+"category":"tool",
+"parts":{
+"anvil":{"color":"#3b3f46","parts":{
+  "face":{"type":"box","size":[40,10,16],"pos":[-3,74,0],"color":"#7a8088"},
+  "foot":{"type":"box","size":[34,8,22],"pos":[0,53,0]},
+  "horn":{"type":"cone","radius":5,"radius_end":0.8,"from":[17,74,0],"to":[40,74,0],"color":"#7a8088"},
+  "waist":{"type":"box","size":[18,12,13],"pos":[0,63,0]}}},
+"stump":{"type":"cylinder","radius":24,"radius_end":22,"height":48,"pos":[0,24,0],"color":"#5d4330"},
+"stump_top":{"type":"cylinder","radius":21.5,"height":1,"pos":[0,48.5,0],"color":"#b8905e"}}}

@@ -71,6 +71,9 @@ measuring exactly how much.
   traffic: every model call re-reads the agent's whole context.
 - Before any test bigger than a few runs, state its estimated token cost and the decision it
   changes; afterwards, report what it cost.
+- Assets made through the documented loop (a brief, `check` to zero findings, a 4-view sheet at
+  the game camera, at most two fix rounds, `publish` with a review) need no human review: the user
+  accepted 28 of 28 (2026-10-12). Show the user only edge cases, or complex ones you are unsure of.
 
 ## Architecture map
 ```

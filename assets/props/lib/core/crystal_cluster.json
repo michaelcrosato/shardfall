@@ -1,0 +1,19 @@
+{"format":2,"name":"crystal_cluster","unit":"cm",
+"description":"Two to four glowing hexagonal crystals, 0.4-1.2 m, leaning out of a rock base; lights the room in the accent colour.",
+"tags":["crystal","glow","magic","cave","light","dungeon"],
+"category":"rock",
+"materials":{
+"glow":{"color":"$accent","look":"unlit","emissive":1.1},
+"glow_soft":{"color":"$accent","look":"unlit","emissive":0.5},
+"rock":{"color":"$wall"}},
+"parts":{
+"base":{"type":"rounded_box","size":[60,16,46],"radius":7,"pos":[-4,8,-2],"yaw":15,"mat":"rock"},
+"base2":{"type":"rounded_box","size":[40,12,34],"radius":5,"pos":[16,6,10],"yaw":-35,"mat":"rock"},
+"c1":{"pos":[2,10,-4],"pitch":-5,"roll":-6,"mat":"glow","jitter":{"rot":[60,0,0],"scale":[0.9,1.05]},"parts":{
+  "p":{"type":"lathe","profile":[[0,-6],[14,-6],[14,88],[0,114]],"segments":6,"light":{"color":"$accent","radius":450,"intensity":1,"pulse":0.3}}}},
+"c2":{"pos":[-24,10,6],"roll":22,"mat":"glow_soft","jitter":{"rot":[60,0,0],"scale":[0.85,1.1]},"parts":{
+  "p":{"type":"lathe","profile":[[0,-6],[11,-6],[11,58],[0,76]],"segments":6}}},
+"c3":{"pos":[24,10,-8],"roll":-24,"mat":"glow_soft","chance":0.6,"jitter":{"rot":[60,0,0],"scale":[0.85,1.1]},"parts":{
+  "p":{"type":"lathe","profile":[[0,-6],[9,-6],[9,40],[0,54]],"segments":6}}},
+"c4":{"pos":[4,10,20],"pitch":24,"mat":"glow_soft","chance":0.5,"jitter":{"rot":[60,0,0],"scale":[0.85,1.1]},"parts":{
+  "p":{"type":"lathe","profile":[[0,-6],[8,-6],[8,28],[0,40]],"segments":6}}}}}

@@ -1,0 +1,14 @@
+{"format":2,"name":"bench","unit":"cm",
+"description":"A long plank bench on two notched trestle legs joined by a stretcher; seats two or three.",
+"tags":["bench","seat","wood","tavern","furniture","inn"],
+"category":"furniture",
+"materials":{
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"seat":"MAT/oak_planks"},
+"parts":{
+"cleat":{"type":"box","size":[4,4,36],"pos":[-60,38,0],"mat":"frame","mirror":"x"},
+"seat":{"type":"rounded_box","size":[180,5,40],"radius":1,"pos":[0,42.5,0],"mat":"seat"},
+"stretcher":{"type":"box","size":[6,5],"from":[-65.5,18,0],"to":[65.5,18,0],"mat":"frame"},
+"trestle":{"type":"extrude","points":[[-17,0],[-7,0],[0,9],[7,0],[17,0],[15,40],[-15,40]],"depth":5,"pos":[68,0,0],"yaw":90,"mat":"frame","mirror":"x"}},
+"sockets":{
+"sit":{"pos":[0,45,0]}}}

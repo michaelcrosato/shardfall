@@ -950,7 +950,7 @@ Helper agents get briefs of 10 assets each (the M4-M9 precedent). Each gets the 
 - **Tests.**
   - pav_core: `embedded_assets_fit_budget`, `embedded_library_is_valid`, and `game_asset_refs_are_embedded` (every ref in `game/**/*.toml` and `rooms/*.toml` resolves to BUILTIN or LIB/core);
   - pav_tools: `committed_packs_fit_budget`, `committed_packs_are_redistributable`, `index_files_are_current`.
-  - *As built (4.1):* all but `committed_packs_are_redistributable`, which needs `PACK.json` licences and moves to LIB-3 (4.2) with `CREDITS.md`. Names `WORKSHOP_LOCAL/x` keep their history in `local/.editor/`; packs `workshop` (it is `local/workshop/`) and `templates` (`assets reindex=templates`) are reserved; a `local/` pack named like a `lib/` pack is reported and not listed. `NAME:preset` waits for LIB-4 (deferred). `lib/core/` holds only its header-only `index.tsv` until 4.2 publishes the W0 exemplars. The native file watcher still watches `workshop/` only; `WORKSHOP_LOCAL` files load at startup and through tools.
+  - *As built (4.1):* all but `committed_packs_are_redistributable`, which needs `PACK.json` licences and moves to LIB-3 (4.2) with `CREDITS.md`. Names `WORKSHOP_LOCAL/x` keep their history in `local/.editor/`; packs `workshop` (it is `local/workshop/`) and `templates` (`assets reindex=templates`) are reserved; a `local/` pack named like a `lib/` pack is reported and not listed. `NAME:preset` waits for LIB-4 (deferred). `lib/core/` holds the 28 W0 exemplars that 4.2 published. The native file watcher still watches `workshop/` only; `WORKSHOP_LOCAL` files load at startup and through tools.
 - **Browser.** wasm has only the embedded tier. Unknown refs are load errors on every platform, replacing today's silent fallbacks.
 - **`scripts/package-studio.py`** adds `CREDITS.md` and `--packs a,b`, and fails above 30 MB unless `--allow-large`.
 
@@ -1345,7 +1345,7 @@ Why this order:
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
-- [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L) — part 1 (tooling) done; exemplars next
+- [x] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L): 28 exemplars (no theme-kit pieces: SF-3 deferred), all accepted by the user
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)

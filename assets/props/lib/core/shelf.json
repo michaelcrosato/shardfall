@@ -1,0 +1,26 @@
+{"format":2,"name":"shelf","unit":"cm",
+"description":"A tall oak bookcase for a wall: five shelves of leaning books, jars and a lying stack; back at z 0.",
+"tags":["shelf","bookcase","books","wood","library","furniture"],
+"category":"furniture",
+"materials":{
+"back":{"base":"MAT/oak_planks","color":"#5e4029","turn":true},
+"blue":{"color":"#2f4a7a"},
+"brown":{"color":"#5a3a26"},
+"case":"MAT/oak_planks",
+"green":{"color":"#3d6a3a"},
+"jar":{"color":"#7a8a7a","roughness":0.4},
+"red":{"color":"#8a2f2a"},
+"tan":{"color":"#b08850"}},
+"parts":{
+"back":{"type":"box","size":[114,178,1.5],"pos":[0,90,0.75],"mat":"back"},
+"board":{"type":"box","size":[114,2.5,33.5],"pos":[0,91.25,18.25],"mat":"case","array":{"count":5,"step":[0,42.5,0]}},
+"books":{"pos":[-29,92.5,19],"grid":{"count":[12,3],"step":[4.3,42.5],"plane":"xy","cycle":["red","blue","tan","green","brown"]},"chance":0.85,"jitter":{"pos":[0,0,1.5],"scale":[0.8,1.08]},"parts":{
+  "book":{"type":"box","size":[3.4,24,19],"pos":[0,12,0]}}},
+"books_b":{"pos":[33,92.5,19],"grid":{"count":[6,2],"step":[4.3,85],"plane":"xy","cycle":["blue","brown","red"]},"chance":0.8,"jitter":{"pos":[0,0,1.5],"scale":[0.85,1.08]},"parts":{
+  "book":{"type":"box","size":[3.4,22,18],"pos":[0,11,0]}}},
+"jar":{"type":"cylinder","radius":6,"height":14,"pos":[30,14.5,18],"mat":"jar","array":{"count":3,"step":[14,0,0]},"chance":0.8},
+"kick":{"type":"box","size":[114,5,2],"pos":[0,2.5,34],"mat":"case"},
+"side":{"type":"box","size":[3,180,35],"pos":[58.5,90,17.5],"mat":"case","mirror":"x"},
+"stack":{"type":"box","size":[22,3.5,17],"pos":[38,94.25,19],"array":{"count":3,"step":[0,3.5,0],"cycle":["tan","green","red"]},"jitter":{"rot":[8,0,0]}}},
+"sockets":{
+"wall_mount":{"pos":[0,90,0]}}}

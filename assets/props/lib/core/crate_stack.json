@@ -1,0 +1,22 @@
+{"format":2,"name":"crate_stack","unit":"cm",
+"description":"A plank crate with dark edge bands and braces; half the seeds stack a smaller crate on top.",
+"tags":["crate","box","wood","storage","cargo","dungeon"],
+"category":"container",
+"materials":{
+"dark":{"color":"#4a3322"},
+"trim":{"color":"#b78350"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"crate":{"jitter":{"rot":[25,0,0],"scale":[0.86,1.14],"color":0.08},"parts":{
+  "band_hi":{"type":"box","size":[100,10,100],"pos":[0,90.5,0],"mat":"dark"},
+  "band_lo":{"type":"box","size":[100,10,100],"pos":[0,5.5,0],"mat":"dark"},
+  "body":{"type":"rounded_box","size":[96,96,96],"radius":2,"pos":[0,48,0],"mat":"wood"},
+  "brace":{"type":"box","size":[10,3],"from":[-38,14,49.5],"to":[38,82,49.5],"spin":90,"mat":"trim","mirror":"z"},
+  "brace_side":{"type":"box","size":[10,3],"from":[49.5,14,38],"to":[49.5,82,-38],"spin":90,"mat":"trim","mirror":"x"},
+  "post":{"type":"box","size":[10,95,10],"pos":[46,48,46],"mat":"dark","mirror":["x","z"]},
+  "top":{"pos":[0,96,0],"chance":0.5,"jitter":{"pos":[10,0,10],"rot":[40,0,0]},"parts":{
+    "band_hi":{"type":"box","size":[76,8,76],"pos":[0,67.5,0],"mat":"dark"},
+    "band_lo":{"type":"box","size":[76,8,76],"pos":[0,4.5,0],"mat":"dark"},
+    "body":{"type":"rounded_box","size":[72,72,72],"radius":2,"pos":[0,36,0],"mat":"wood"},
+    "brace":{"type":"box","size":[8,3],"from":[-28,11,37.5],"to":[28,61,37.5],"spin":90,"mat":"trim","mirror":"z"},
+    "post":{"type":"box","size":[8,71,8],"pos":[35,36,35],"mat":"dark","mirror":["x","z"]}}}}}}}

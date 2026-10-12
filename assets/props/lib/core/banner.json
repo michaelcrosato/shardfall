@@ -1,0 +1,24 @@
+{"format":2,"name":"banner","unit":"cm","solid":false,
+"description":"A pointed cloth banner with a gold emblem hanging from an iron rod on two wall brackets; back at z 0.",
+"tags":["banner","flag","cloth","wall","heraldry","dungeon"],
+"category":"dungeon",
+"materials":{
+"cloth":{"color":"$accent"},
+"dark":{"color":"#2a2420"},
+"gold":"MAT/gold_trim",
+"iron":"MAT/wrought_iron"},
+"parts":{
+"bracket":{"type":"box","size":[4,4,8],"pos":[44,240,4],"mat":"iron","mirror":"x"},
+"cloth":{"type":"extrude","points":[[-40,4],[40,4],[40,-136],[0,-162],[-40,-136]],"depth":1.5,"pos":[0,236,6],"mat":"cloth","jitter":{"color":0.08}},
+"emblem":{"pos":[0,172,7.25],"pick":1,"parts":{
+  "diamond":{"parts":{
+    "back":{"type":"extrude","points":[[0,21],[16,0],[0,-21],[-16,0]],"depth":1,"mat":"dark"},
+    "front":{"type":"extrude","points":[[0,15],[11,0],[0,-15],[-11,0]],"depth":1,"pos":[0,0,1],"mat":"gold"}}},
+  "disc":{"parts":{
+    "back":{"type":"cylinder","radius":16,"height":1,"segments":12,"axis":"z","mat":"dark"},
+    "front":{"type":"cylinder","radius":11,"height":1,"segments":12,"pos":[0,0,1],"axis":"z","mat":"gold"}}}}},
+"finial":{"type":"sphere","radius":3.6,"pos":[53,240,6],"mat":"gold","mirror":"x"},
+"hem":{"type":"box","size":[84,6,2.5],"pos":[0,234,6],"mat":"gold"},
+"rod":{"type":"cylinder","radius":2.2,"height":104,"pos":[0,240,6],"axis":"x","mat":"iron"}},
+"sockets":{
+"wall_mount":{"pos":[0,240,0],"axis":"-z"}}}

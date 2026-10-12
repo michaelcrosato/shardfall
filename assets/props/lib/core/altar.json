@@ -1,0 +1,22 @@
+{"format":2,"name":"altar","unit":"cm",
+"description":"A stone altar on a low plinth, a cloth runner draped over its top and front, two lit candles at the back.",
+"tags":["altar","shrine","candle","cloth","temple","dungeon"],
+"category":"dungeon",
+"materials":{
+"cloth":{"color":"$accent"},
+"flame":{"color":"$light","look":"unlit","emissive":2},
+"stone":{"color":"$pillar","layers":[{"type":"noise","size":18,"detail":2,"cover":0.35,"shade":0.9}]},
+"stone_dark":{"color":"$pillar","layers":[{"type":"noise","size":12,"detail":1,"cover":1,"shade":0.7}]},
+"wax":{"color":"#eee4cc"}},
+"parts":{
+"block":{"type":"rounded_box","size":[128,80,64],"radius":3,"pos":[0,50,0],"mat":"stone"},
+"candle":{"pos":[54,100,-22],"mirror":"x","jitter":{"scale":[0.7,1.1]},"parts":{
+  "dish":{"type":"cylinder","radius":8.5,"height":2,"pos":[0,1,0],"mat":"MAT/wrought_iron"},
+  "flame":{"type":"cone","radius":3.6,"height":11,"pos":[0,33.5,0],"mat":"flame","solid":false,"light":{"color":"$light","radius":320,"intensity":0.9,"flicker":0.35}},
+  "wax":{"type":"cylinder","radius":5.5,"height":26,"pos":[0,15,0],"mat":"wax"}}},
+"hang":{"type":"box","size":[40,52,1.5],"pos":[0,75.5,38.25],"mat":"cloth"},
+"hem":{"type":"box","size":[42,4,2.5],"pos":[0,51,38.25],"mat":"MAT/gold_trim"},
+"panel":{"type":"box","size":[30,50,2],"pos":[44,50,32.5],"mat":"stone_dark","mirror":"x"},
+"plinth":{"type":"box","size":[150,10,84],"pos":[0,5,0],"mat":"stone"},
+"runner":{"type":"box","size":[40,1.5,74],"pos":[0,100.75,1],"mat":"cloth"},
+"slab":{"type":"box","size":[144,10,74],"pos":[0,95,0],"mat":"stone"}}}

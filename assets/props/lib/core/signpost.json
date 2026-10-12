@@ -1,0 +1,15 @@
+{"format":2,"name":"signpost","unit":"cm",
+"description":"A wooden crossroads signpost: a capped post with two arrow boards pointing different ways, stones at its foot.",
+"tags":["signpost","sign","road","wood","town","crossroads"],
+"category":"town",
+"materials":{
+"board":{"base":"MAT/oak_planks","color":"#b08454"},
+"post":{"base":"MAT/oak_planks","color":"#6b4e33","turn":true}},
+"parts":{
+"arrow_a":{"pos":[0,205,0],"yaw":-15,"parts":{
+  "board":{"type":"extrude","points":[[0,-11],[54,-11],[68,0],[54,11],[0,11]],"depth":3,"pos":[5,0,0],"mat":"board"}}},
+"arrow_b":{"pos":[0,178,0],"yaw":200,"parts":{
+  "board":{"type":"extrude","points":[[0,-10],[48,-10],[61,0],[48,10],[0,10]],"depth":3,"pos":[5,0,0],"mat":"board","color":"#9c7246"}}},
+"cap":{"type":"cone","radius":7.2,"height":7,"segments":4,"pos":[0,235.5,0],"yaw":45,"mat":"post"},
+"post":{"type":"box","size":[10,10],"from":[0,0,0],"to":[0,232,0],"mat":"post"},
+"stones":{"type":"ellipsoid","size":[22,12,18],"pos":[0,6,0],"color":"$wall","radial":{"count":3,"radius":12,"start":30},"jitter":{"scale":[0.8,1.2]}}}}

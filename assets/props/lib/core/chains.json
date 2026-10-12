@@ -1,0 +1,19 @@
+{"format":2,"name":"chains","unit":"cm","mat":"iron","solid":false,
+"description":"Two iron chains with manacles hanging from rings on wall plates; back on the wall at z 0.",
+"tags":["chains","manacles","iron","wall","prison","dungeon"],
+"category":"dungeon",
+"materials":{
+"iron":"MAT/wrought_iron"},
+"parts":{
+"chain_l":{"pos":[-30,180,3],"jitter":{"rot":[0,0,5]},"parts":{
+  "cuff":{"type":"lathe","profile":[[4.7,0],[6.5,1.8],[8.3,0],[6.5,-1.8],[4.7,0]],"segments":10,"pos":[0,-97,0],"roll":90},
+  "link_a":{"type":"lathe","profile":[[2.6,0],[3.8,1.2],[5,0],[3.8,-1.2],[2.6,0]],"segments":8,"pos":[0,-43,0],"pitch":90,"array":{"count":8,"step":[0,-11,0]}},
+  "link_b":{"type":"lathe","profile":[[2.6,0],[3.8,1.2],[5,0],[3.8,-1.2],[2.6,0]],"segments":8,"pos":[0,-48.5,0],"roll":90,"array":{"count":8,"step":[0,-11,0]}}}},
+"chain_r":{"pos":[30,180,3],"jitter":{"rot":[0,0,5]},"parts":{
+  "cuff":{"type":"lathe","profile":[[4.7,0],[6.5,1.8],[8.3,0],[6.5,-1.8],[4.7,0]],"segments":10,"pos":[0,-64,0],"roll":90,"chance":0.6},
+  "link_a":{"type":"lathe","profile":[[2.6,0],[3.8,1.2],[5,0],[3.8,-1.2],[2.6,0]],"segments":8,"pos":[0,-26.5,0],"pitch":90,"array":{"count":5,"step":[0,-11,0]}},
+  "link_b":{"type":"lathe","profile":[[2.6,0],[3.8,1.2],[5,0],[3.8,-1.2],[2.6,0]],"segments":8,"pos":[0,-32,0],"roll":90,"array":{"count":5,"step":[0,-11,0]}}}},
+"plate":{"type":"box","size":[14,16,2],"pos":[30,196,1],"mirror":"x"},
+"ring":{"type":"lathe","profile":[[4.5,0],[6,1.5],[7.5,0],[6,-1.5],[4.5,0]],"segments":10,"pos":[30,186,3],"pitch":90,"mirror":"x"}},
+"sockets":{
+"wall_mount":{"pos":[0,190,0],"axis":"-z"}}}

@@ -1,0 +1,22 @@
+{"format":2,"name":"column_broken","unit":"cm","mat":"stone",
+"description":"A snapped stone column, 1.2-1.8 m, on its plinth; its fallen drum lies beside it with a few chips.",
+"tags":["column","pillar","ruin","broken","stone","dungeon"],
+"category":"architecture",
+"materials":{
+"stone":{"color":"$pillar","layers":[{"type":"noise","size":18,"detail":2,"cover":0.35,"shade":0.92}]}},
+"parts":{
+"base_ring":{"type":"torus","radius":44,"minor_radius":7,"pos":[0,23,0]},
+"chip_a":{"type":"rounded_box","size":[32,16,24],"radius":5,"pos":[-48,8,74],"yaw":30,"chance":0.7,"jitter":{"pos":[10,0,8],"rot":[90,0,0]}},
+"chip_b":{"type":"rounded_box","size":[26,14,20],"radius":4,"pos":[66,7,-64],"yaw":-20,"chance":0.7,"jitter":{"pos":[8,0,10],"rot":[90,0,0]}},
+"drum":{"pos":[122,0,12],"jitter":{"pos":[12,0,15],"rot":[40,0,0]},"parts":{
+  "drum":{"type":"cylinder","radius":40,"height":88,"segments":16,"pos":[0,40,0],"axis":"x","yaw":25}}},
+"plinth":{"type":"box","size":[104,16,104],"pos":[0,8,0]},
+"stump":{"pick":1,"parts":{
+  "short":{"parts":{
+    "break":{"type":"cylinder","radius":39,"height":20,"segments":16,"pos":[0,102,0],"pitch":-14,"roll":-12},
+    "shaft":{"type":"cylinder","radius":42,"radius_end":40,"segments":16,"from":[0,20,0],"to":[0,100,0]},
+    "shard":{"type":"cone","radius":14,"height":30,"segments":5,"pos":[-14,104,-16],"roll":8}}},
+  "tall":{"parts":{
+    "break":{"type":"cylinder","radius":39,"height":20,"segments":16,"pos":[0,146,0],"pitch":16,"roll":10},
+    "shaft":{"type":"cylinder","radius":42,"radius_end":40,"segments":16,"from":[0,20,0],"to":[0,144,0]},
+    "shard":{"type":"cone","radius":15,"height":34,"segments":5,"pos":[14,152,16],"pitch":8}}}}}}}

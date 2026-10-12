@@ -1,0 +1,15 @@
+{"format":2,"name":"rock_cluster","unit":"cm","mat":"stone",
+"description":"Three rounded boulders of varied size huddled on the floor; stone tinted by the room's wall colour.",
+"tags":["rock","boulder","stone","cave","dungeon","scatter"],
+"category":"rock",
+"materials":{
+"stone":{"color":"$wall","layers":[{"type":"noise","size":22,"detail":2,"cover":0.4,"shade":0.88}]}},
+"parts":{
+"big":{"pos":[-28,0,-14],"jitter":{"pos":[12,0,12],"rot":[50,0,0],"scale":[0.88,1.12],"color":0.1},"parts":{
+  "cap":{"type":"rounded_box","size":[64,40,58],"radius":14,"pos":[-6,80,4],"yaw":52,"pitch":-6,"roll":10},
+  "rock":{"type":"rounded_box","size":[92,80,84],"radius":18,"pos":[0,40,0],"yaw":18}}},
+"mid":{"pos":[40,0,16],"jitter":{"pos":[12,0,12],"rot":[60,0,0],"scale":[0.85,1.15],"color":0.12},"parts":{
+  "cap":{"type":"rounded_box","size":[46,26,40],"radius":10,"pos":[6,45,-4],"yaw":12,"roll":-12},
+  "rock":{"type":"rounded_box","size":[72,44,62],"radius":15,"pos":[0,22,0],"yaw":-32}}},
+"small":{"pos":[2,0,48],"jitter":{"pos":[10,0,8],"rot":[90,0,0],"scale":[0.8,1.2],"color":0.12},"parts":{
+  "rock":{"type":"rounded_box","size":[42,30,38],"radius":11,"pos":[0,15,0],"yaw":35}}}}}

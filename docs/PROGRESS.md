@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.4, 4.2 part 2, 5.3):
+**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.4, 5.3, then 4.3 and 6.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -89,8 +89,10 @@ disk, `assets/props/local` kept off git) with budget tests, `assets find=` with 
 (wearing its materials).
 Row 4.2's tooling is in (part 1): `PACK.json` licences with `assets/props/CREDITS.md`,
 `asset_edit action=publish` into `LIB/core` behind a library gate and a review ledger, and
-`scripts/review_page.py` (review pages whose verdicts the agent reads back). The ~30 core
-exemplars come next (part 2).
+`scripts/review_page.py` (review pages whose verdicts the agent reads back); part 2 put 28
+reviewed exemplars into `LIB/core` (the six hard-coded Shardfall kinds as assets, dungeon dressing,
+town and furniture), all accepted by the user, who then ruled that such assets need no routine
+review (AGENTS.md, "Testing budget").
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

@@ -1,0 +1,13 @@
+{"format":2,"name":"urn","unit":"cm",
+"description":"A terracotta urn on a small foot with a dark painted band, a flared lip and two loop handles.",
+"tags":["urn","pot","ceramic","clay","storage","dungeon"],
+"category":"container",
+"materials":{
+"clay":{"color":"#b4643c","roughness":0.6},
+"rim":{"color":"#a3583a"}},
+"parts":{
+"band":{"type":"tube","radius":24.4,"thickness":1.2,"height":5,"pos":[0,33,0],"color":"#3e2a22"},
+"body":{"type":"lathe","profile":[[12,0],[13,2.5],[10,6],[15,12],[22,24],[24,34],[21.5,46],[14.5,55],[10.5,60],[11,64],[15,68],[14.5,70]],"segments":20,"mat":"clay"},
+"handle":{"type":"torus","radius":8,"minor_radius":2,"arc":270,"facing":"x","pos":[17,52,0],"axis":"z","mat":"rim","mirror":"x"},
+"lip":{"type":"torus","radius":14.2,"minor_radius":1.8,"pos":[0,69.5,0],"mat":"rim"},
+"mouth":{"type":"cylinder","radius":10.8,"height":1,"pos":[0,63.5,0],"color":"#2a1a14","solid":false}}}

@@ -1,0 +1,12 @@
+{"format":2,"name":"fence","unit":"cm",
+"description":"A 2 m post-and-rail fence segment; end posts sit on x=+-100 so segments join end to end.",
+"tags":["fence","wood","rail","town","farm","modular"],
+"category":"town",
+"materials":{
+"post":{"base":"MAT/oak_planks","color":"#6b4e33","turn":true},
+"rail":{"base":"MAT/oak_planks","color":"#94704a"}},
+"parts":{
+"cap":{"type":"cone","radius":7.8,"height":7,"segments":4,"pos":[0,111.5,0],"mat":"post","array":{"count":3,"step":[100,0,0]}},
+"post":{"type":"box","size":[11,108,11],"pos":[0,54,0],"mat":"post","array":{"count":3,"step":[100,0,0]}},
+"rail_low":{"type":"box","size":[200,10,4],"pos":[0,42,0],"mat":"rail","jitter":{"rot":[0,0,1.5]}},
+"rail_top":{"type":"box","size":[200,10,4],"pos":[0,88,0],"mat":"rail","jitter":{"rot":[0,0,1]}}}}

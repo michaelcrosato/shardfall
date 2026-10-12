@@ -1,0 +1,15 @@
+{"format":2,"name":"sack","unit":"cm",
+"description":"A plump burlap grain sack, its floppy neck tied with rope under a flared, bunched top.",
+"tags":["sack","grain","burlap","storage","farm","cargo"],
+"category":"container",
+"materials":{
+"burlap":{"color":"#b89868"},
+"rope":{"color":"#4e3820"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0],[22,0.3],[27,4],[29,14],[27.5,30],[22,43],[14,51],[8.5,56],[6.5,59]],"segments":24,"mat":"burlap"},
+"patch":{"type":"box","size":[13,11,1],"pos":[7,24,27.4],"yaw":14,"pitch":-4,"color":"#8f7046","chance":0.5},
+"top":{"pos":[0,57,0],"roll":-14,"mat":"burlap","parts":{
+  "neck":{"type":"cylinder","radius":6.5,"radius_end":5.5,"height":6,"pos":[0,3,0]},
+  "rope_end":{"type":"capsule","radius":1.2,"from":[5,4,4],"to":[7,-5,9],"mat":"rope"},
+  "tie":{"type":"torus","radius":6.3,"minor_radius":1.8,"pos":[0,4.5,0],"mat":"rope"},
+  "tuft":{"type":"cone","radius":5.5,"radius_end":12.5,"height":9,"segments":7,"pos":[0,10,0],"color":"#c8aa78"}}}}}

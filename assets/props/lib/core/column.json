@@ -1,0 +1,14 @@
+{"format":2,"name":"column","unit":"cm","mat":"stone",
+"description":"A 2.8 m stone column: square plinth, round moulded base, tapering shaft and a flared capital.",
+"tags":["column","pillar","stone","temple","dungeon","hall"],
+"category":"architecture",
+"materials":{
+"stone":{"color":"$pillar","layers":[{"type":"noise","size":18,"detail":2,"cover":0.35,"shade":0.92}]}},
+"parts":{
+"col":{"jitter":{"color":0.06},"parts":{
+  "abacus":{"type":"box","size":[96,14,96],"pos":[0,273,0]},
+  "base_ring":{"type":"torus","radius":44,"minor_radius":7,"pos":[0,23,0]},
+  "echinus":{"type":"cylinder","radius":37,"radius_end":48,"segments":16,"from":[0,252,0],"to":[0,266,0]},
+  "neck":{"type":"torus","radius":37,"minor_radius":4,"pos":[0,248,0]},
+  "plinth":{"type":"box","size":[104,16,104],"pos":[0,8,0]},
+  "shaft":{"type":"cylinder","radius":42,"radius_end":37,"segments":16,"from":[0,20,0],"to":[0,254,0]}}}}}

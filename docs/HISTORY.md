@@ -5,6 +5,44 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 4.2, part 2: 28 core exemplars — 2026-10-12
+
+The exemplar half of row 4.2 (LIB-5 W0). `LIB/core` now holds 28 reviewed assets, embedded in
+every build and found by `assets find=`.
+- **What:**
+  - The six hard-coded Shardfall kinds as library assets: `rock_cluster`, `crate_stack`,
+    `column` (plus `column_broken`), `crystal_cluster`, `bone_pile` and `mushroom_cluster`. Their
+    sizes match the code's, and they use the same theme roles (`$wall`, `$pillar`, `$accent`).
+  - Dungeon dressing: `rubble_pile`, `stalagmite`, `altar`, `cage`, `chains`, `banner`,
+    `wall_torch`.
+  - Town and furniture: `barrel`, `sack`, `urn`, `brazier`, `candle_cluster`, `table`, `chair`,
+    `bench`, `shelf`, `fence`, `well`, `market_stall`, `signpost`, `anvil`.
+  
+  All are format 2 in cm, with core or inline materials only. They have 4-68 parts and
+  266-718 tokens each (median about 470).
+- **How they were made:** two fresh agents, each with a 14-asset brief, used only the CLI
+  (`pav repl`) against private copies of `assets/props`. They followed the documented loop:
+  create, `check` to zero findings, a 4-view sheet at the game elevation with the 1.8 m figure,
+  at most two fix rounds, then `asset_edit action=publish` with `if_revision` and a review. The
+  two sets took 62 and about 111 tool calls (about 160k and 230k agent tokens).
+- **Review:** the user looked at all 28 sheets on a review page
+  (`scripts/review_page.py`, verdicts stored in the page) and accepted all 28. `review.tsv` lines
+  read `ok (user review 2026-10-12); author: …`. The user then ruled that assets made this way
+  need no routine human review: only edge cases or complex ones go to them (AGENTS.md, "Testing
+  budget").
+- **Found while authoring** (fixed or noted):
+  - An outer material's glow leaked into parts that wear their own material. This is fixed in
+    row 3.3: only the nearest material counts.
+  - A glowing part (emissive > 0.5) adds a light that counts toward the 4-light budget.
+  - `jitter`/`chance` vary seed 0 too.
+  - Sheets show wall props standing on the floor; in game they hang from their `wall_mount`.
+  - The `BUILTIN/crate` template has `poke` findings of its own.
+  - A new core asset can be referenced only after a rebuild (it is embedded).
+- **Left out:** the plan's W0 theme-kit pieces (`kit_wall`, `kit_trim`, `kit_corner`,
+  `kit_door_frame`, `kit_pilaster`), since SF-3 theme kits are deferred, and side-by-side
+  sheets against the old hard-coded kinds (the Level 1 before/after of row 4.3 shows them in
+  game).
+
 ## Asset plan 3.3: props and statics wear materials, material tools — 2026-10-12
 
 Row 3.3 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-4, MAT-5): props name procedural materials, statics

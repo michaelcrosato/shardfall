@@ -1,0 +1,17 @@
+{"format":2,"name":"chair","unit":"cm",
+"description":"A wooden tavern chair: plank seat at 45 cm, four legs, a raked back with top rail and splat.",
+"tags":["chair","seat","wood","tavern","furniture","inn"],
+"category":"furniture",
+"materials":{
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"seat":"MAT/oak_planks"},
+"parts":{
+"leg_back":{"type":"box","size":[4.5,4.5],"from":[18,0,-16.5],"to":[18,96,-21],"mat":"frame","mirror":"x"},
+"leg_front":{"type":"box","size":[4.5,4.5],"from":[18,0,18],"to":[18,41,18],"mat":"frame","mirror":"x"},
+"rung_front":{"type":"box","size":[3,3],"from":[-18,22,18],"to":[18,22,18],"mat":"frame"},
+"rung_side":{"type":"box","size":[3,3],"from":[18,15,18],"to":[18,15,-17.2],"mat":"frame","mirror":"x"},
+"seat":{"type":"rounded_box","size":[44,4,42],"radius":1,"pos":[0,43,1],"mat":"seat"},
+"splat":{"type":"box","size":[12,40.5,2],"pos":[0,65,-19.6],"pitch":-2.7,"mat":"seat"},
+"top_rail":{"type":"box","size":[40,9,3.5],"pos":[0,89,-20.7],"pitch":-2.7,"mat":"frame"}},
+"sockets":{
+"sit":{"pos":[0,45,2]}}}

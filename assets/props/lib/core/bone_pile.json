@@ -1,0 +1,22 @@
+{"format":2,"name":"bone_pile","unit":"cm",
+"description":"Three long bones and a skull scattered on the floor, about 1 m across.",
+"tags":["bones","skull","remains","crypt","dungeon","scatter"],
+"category":"dungeon",
+"materials":{
+"bone":{"color":"#d9d0bb"},
+"dark":{"color":"#40362c"}},
+"parts":{
+"bone_a":{"pos":[-20,0,6],"yaw":18,"mat":"bone","jitter":{"pos":[8,0,8],"rot":[30,0,0],"scale":[0.88,1.08]},"parts":{
+  "knob":{"type":"sphere","radius":6.5,"pos":[27,6.5,3.5],"mirror":["x","z"]},
+  "shaft":{"type":"capsule","radius":4.5,"from":[-28,6.5,0],"to":[28,6.5,0]}}},
+"bone_b":{"pos":[24,0,24],"yaw":-58,"mat":"bone","jitter":{"pos":[8,0,8],"rot":[30,0,0],"scale":[0.8,1]},"parts":{
+  "knob":{"type":"sphere","radius":6.5,"pos":[27,6.5,3.5],"mirror":["x","z"]},
+  "shaft":{"type":"capsule","radius":4.5,"from":[-28,6.5,0],"to":[28,6.5,0]}}},
+"bone_c":{"pos":[-8,0,-26],"yaw":-12,"mat":"bone","jitter":{"pos":[8,0,8],"rot":[40,0,0],"scale":[0.85,1.05]},"parts":{
+  "knob":{"type":"sphere","radius":6.5,"pos":[27,6.5,3.5],"mirror":["x","z"]},
+  "shaft":{"type":"capsule","radius":4.5,"from":[-28,6.5,0],"to":[28,6.5,0]}}},
+"skull":{"pos":[30,0,-14],"yaw":-30,"mat":"bone","jitter":{"pos":[6,0,6],"rot":[70,0,0]},"parts":{
+  "cranium":{"type":"ellipsoid","size":[24,22,28],"pos":[0,13,0]},
+  "eye":{"type":"sphere","radius":3.6,"pos":[5.5,13,12.4],"mat":"dark","mirror":"x"},
+  "jaw":{"type":"rounded_box","size":[16,9,12],"radius":3,"pos":[0,4.5,9]},
+  "nose":{"type":"sphere","radius":2,"pos":[0,8.5,14.2],"mat":"dark"}}}}}

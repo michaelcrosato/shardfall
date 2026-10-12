@@ -1,0 +1,14 @@
+{"format":2,"name":"rubble_pile","unit":"cm","mat":"stone",
+"description":"Fallen masonry: squared stone blocks, one tipped on the others, a broken wedge and scattered chips.",
+"tags":["rubble","ruin","stone","debris","dungeon","scatter"],
+"category":"rock",
+"materials":{
+"stone":{"color":"$wall","layers":[{"type":"noise","size":18,"detail":2,"cover":0.35,"shade":0.9}]}},
+"parts":{
+"b1":{"type":"rounded_box","size":[56,30,34],"radius":3,"pos":[-24,15,-10],"yaw":12,"jitter":{"rot":[14,0,0],"color":0.1}},
+"b2":{"type":"rounded_box","size":[48,28,32],"radius":3,"pos":[30,14,-2],"yaw":-22,"jitter":{"rot":[14,0,0],"color":0.1}},
+"b3":{"type":"rounded_box","size":[50,24,30],"radius":3,"pos":[4,42,-6],"yaw":74,"roll":5,"chance":0.65,"jitter":{"rot":[12,0,0],"color":0.12}},
+"chips":{"pos":[2,0,48],"array":{"count":4,"step":[26,0,-4]},"chance":0.8,"jitter":{"pos":[10,0,10],"rot":[90,0,0],"scale":[0.7,1.25],"color":0.12},"parts":{
+  "c":{"type":"box","size":[19,11,15],"pos":[0,5.5,0]}}},
+"tipped":{"type":"rounded_box","size":[44,26,28],"radius":3,"pos":[-42,18,26],"yaw":-30,"pitch":-22,"jitter":{"color":0.1}},
+"wedge":{"type":"wedge","size":[40,24,32],"peak":0.5,"pos":[22,12,34],"yaw":40,"jitter":{"rot":[40,0,0],"color":0.1}}}}

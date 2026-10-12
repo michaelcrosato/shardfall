@@ -1,0 +1,14 @@
+{"format":2,"name":"table","unit":"cm",
+"description":"A sturdy tavern table: an oak plank top on four square legs with aprons and an H-stretcher.",
+"tags":["table","wood","tavern","furniture","inn"],
+"category":"furniture",
+"materials":{
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"top":"MAT/oak_planks"},
+"parts":{
+"apron_long":{"type":"box","size":[134,10,3],"pos":[0,67,31],"mat":"frame","mirror":"z"},
+"apron_short":{"type":"box","size":[3,10,54],"pos":[71,67,0],"mat":"frame","mirror":"x"},
+"leg":{"type":"box","size":[8,8],"from":[71,0,31],"to":[71,72,31],"mat":"frame","mirror":["x","z"]},
+"stretcher_mid":{"type":"box","size":[5,5],"from":[-69,14,0],"to":[69,14,0],"mat":"frame"},
+"stretcher_side":{"type":"box","size":[5,5,54],"pos":[71,14,0],"mat":"frame","mirror":"x"},
+"top":{"type":"rounded_box","size":[160,6,80],"radius":1.5,"pos":[0,75,0],"mat":"top"}}}
