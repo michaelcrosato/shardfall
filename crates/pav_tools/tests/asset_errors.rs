@@ -62,7 +62,7 @@ fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
     );
     assert_eq!(
         error(&mut s, "asset_spawn", json!({"action":"list","nmae":"x"})),
-        r#"nmae: unknown argument (expected action, name, id, pos, yaw, scale, collide, room) — did you mean "name"?"#
+        r#"nmae: unknown argument (expected action, name, id, pos, yaw, scale, collide, room, roles) — did you mean "name"?"#
     );
     assert_eq!(error(&mut s, "asset_edt", json!({})), r#"unknown tool "asset_edt" — did you mean "asset_edit"?"#);
 }

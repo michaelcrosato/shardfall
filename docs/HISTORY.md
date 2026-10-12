@@ -58,6 +58,9 @@ carries each definition once, and placed copies take a seed and a palette.
     its asset name.
   - The placement tools name the variant `seed=`, as the plan does. Like other tools' seeds, a
     one-shot `pav <tool> seed=N` also seeds that call's session.
+  - `tools/list` stays under 47,000 chars (46,993) with the seven new arguments, by shortening
+    the asset tools' argument descriptions. Dogfood probe 21 (a `mirror` op with `path` on the
+    format-1 well) now gets format 2's reply: `path` is unknown, address a part with `part`.
 
 ## Asset plan 2.3: compiled parts drive every consumer — 2026-10-12
 
