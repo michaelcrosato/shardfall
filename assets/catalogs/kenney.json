@@ -1,0 +1,13 @@
+// Kenney (www.kenney.nl), CC0: each pack's pinned source for `asset_import get=kenney/<pack>`
+// (url, archive SHA-256, licence file and its SHA-256, the model files, placement). Model
+// entries (tags, descriptions, skips) come with the import pilot (plan row 5.3).
+{
+  "$library": "kenney",
+  "$sources": {
+    "mini_dungeon": {"label": "Kenney Mini Dungeon", "origin": "Mini Dungeon 2.0 by Kenney (www.kenney.nl), GLB", "license": "CC0-1.0",
+      "url": "https://kenney.nl/media/pages/assets/mini-dungeon/6cd72dc849-1785314274/kenney_mini-dungeon.zip", "version": "2.0",
+      "sha256": "19c4648680cb1d2e8836cade96cbf9781c0c1f45fbc6d2ce41cee8239a3ec4d8",
+      "licence_file": "License.txt", "licence_sha256": "f8b470068a1c043854101c9ff7161d376ba02c36239da3c1dbdfa928b08444b6",
+      "models": "Models/GLB format/*.glb", "pack": "kenney_mini_dungeon", "yaw": 0, "scale": 1, "place": "keep"}
+  }
+}

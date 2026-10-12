@@ -10,7 +10,8 @@ use anyhow::{Result, anyhow, bail};
 use pav_core::clips::{self, ClipSet};
 use serde_json::{Value, json};
 
-use crate::mocap::{self, Catalog, Done, Entry, Ledger, Library, Options, fetch, readable::Rest, takes::Pick};
+use crate::import::report::{report, set_out, write_set_to};
+use crate::mocap::{self, Catalog, Entry, Ledger, Library, Options, fetch, readable::Rest, takes::Pick};
 use crate::session::Session;
 use crate::tools::{Args, Output, get_bool, get_f32, get_str, get_u64};
 
@@ -103,39 +104,6 @@ fn options(a: &Args, cat: &Catalog) -> Result<Options> {
 /// Writes a set where `out=` says (else anim/<set>.json) once it reads back.
 fn write_set(set: &ClipSet, a: &Args) -> Result<(PathBuf, usize)> {
     write_set_to(set, &set_out(a, &set.set, false))
-}
-
-fn write_set_to(set: &ClipSet, out: &Path) -> Result<(PathBuf, usize)> {
-    let text = set.to_text();
-    let back = ClipSet::parse(&text).map_err(|e| anyhow!("{}: the translated set does not read back: {e}", set.set))?;
-    if back.clips.len() != set.clips.len() {
-        bail!("{}: clips lost in translation", set.set);
-    }
-    let out = out.to_path_buf();
-    if let Some(d) = out.parent().filter(|d| !d.as_os_str().is_empty()) {
-        std::fs::create_dir_all(d)?;
-    }
-    std::fs::write(&out, &text)?;
-    Ok((out, text.len()))
-}
-
-fn report(a: &Args, set: &ClipSet, done: &[Done], file: &Path, bytes: usize, log: Vec<String>) -> Output {
-    let n = done.len().max(1) as f64;
-    let mean = done.iter().map(|d| d.mean).sum::<f64>() / n;
-    let worst = done.iter().max_by(|x, y| x.max.total_cmp(&y.max));
-    let shown = get_u64(a, "log", 60).unwrap_or(60) as usize;
-    Output::Json(json!({
-        "set": set.set,
-        "clips": done.len(),
-        "key_poses": done.iter().map(|d| d.keys).sum::<usize>(),
-        "bytes": bytes,
-        "mean_fit_mm": (mean * 10.0).round() / 10.0,
-        "worst": worst.map(|d| json!({ "clip": d.name, "mm": d.max.round() })),
-        "file": file.display().to_string(),
-        "log": log.iter().take(shown).collect::<Vec<_>>(),
-        "log_more": log.len().saturating_sub(shown),
-        "next": format!("anim_reload picks the set up; clips set={} lists it; animsheet clip={}/<clip> shows one", set.set, set.set),
-    }))
 }
 
 /// glTF libraries (`sources=` each one's id, `rest=` each one's rest-pose clip).
@@ -301,15 +269,6 @@ fn bvh_db_library(
         _ => "100STYLE",
     };
     mocap::bvh_library(id, picks, &files, Some(about.unwrap_or_else(|| mocap::about(library))), None, fps, log)
-}
-
-/// Where a set goes: `out=`, else anim/<set>.json (a library whose licence forbids sharing
-/// what is made from it: anim/local, which is not committed).
-fn set_out(a: &Args, set: &str, local: bool) -> PathBuf {
-    get_str(a, "out").map(PathBuf::from).unwrap_or_else(|| {
-        let dir = if local { anim_dir().join("local") } else { anim_dir() };
-        dir.join(format!("{}.json", set.to_lowercase()))
-    })
 }
 
 /// Set files (my-3D2dge set scripts or readable sets), or a folder of them.

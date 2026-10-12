@@ -70,6 +70,9 @@ The user then closed G2 (format 2 stays) and resumed Phases 3-6 in slim form: on
 are needed and showed a benefit, with lean gates (plan §10.3; deferred items listed in §11).
 Procedural materials exist as data with a CPU reference evaluator (`pav_core::material`, 12 core
 materials; 3.1); the renderer draws them next.
+Row 5.1 is done early: the importers share `pav_tools/src/import/`, and `asset_import` reads glTF
+and OBJ into one `Scene`, normalises it, downloads pinned packs and writes census ledgers (all 12
+Khronos core models read). Translation into props is row 5.2.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

@@ -5,6 +5,54 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 5.1: the import refactor and the reading half of `asset_import` — 2026-10-12
+
+Row 5.1 (I1 + I2) of `docs/ASSET_SYSTEM_PLAN.md`, moved ahead of Phases 3-4 as §11 allows.
+- **I1, no behaviour change.** What the motion importer shares with the asset importer moved to
+  `crates/pav_tools/src/import/`: `fetch` (downloads; `cache_dir_for("assets")` =
+  `$PAV_ASSET_CACHE` else `.cache/assets`), `catalog` (`Json`, `Catalog`, `Entry`), `ledger`
+  (`Ledger`, `csv_line`), `gltf` (the container, accessors, matrices, node hierarchy) and `report`
+  (`write_set_to`, the clip report, `set_out`). `mocap` re-exports them, so old paths hold.
+  Hardened on the way: GLB chunk types, `bufferView.buffer`, view bounds with checked arithmetic,
+  accessors capped at 16M elements, zip entries CRC-32-checked and capped at 256 MiB inflated,
+  names written to disk as their base name. `cargo test -p pav_tools` passes unchanged and
+  `clip_import` rebuilds MESH2MOTION byte for byte as before the move. The committed
+  `anim/mesh2motion.json` differs from today's rebuild only by one legend line added to
+  `clips.rs` after it was made (and the title and credit it was given by hand).
+- **I2, one intermediate.** `import::scene::Scene` (nodes, world-space meshes in metres with CCW
+  front faces, linear colours, materials, decoded images). Readers: glTF 2.0 in-house (.glb;
+  .gltf with .bin files or data URIs; indices and strip/fan modes; normals, two UV sets, vertex
+  colours; sparse accessors; materials with KHR_texture_transform, emissive strength and unlit;
+  PNG images; skinned meshes in their bind pose; required Draco/meshopt/Basis/WebP named in the
+  error) and OBJ/MTL through `tobj` 4.0.3 (`Kd` linear, `d`, `Ke`, `map_Kd`; v turned down).
+  JPEG is listed but not decoded (deferred, I9). `import::normalize`: up axis, yaw in exact
+  quarter turns, metres per unit, `place=keep|floor|center`, inside-out primitives flipped,
+  0.1 mm welds, connected parts per (node, material), face colours (base × texel × vertex colour,
+  in linear light) and a main-colour palette merged in Oklab.
+- **The tool, read-only for now.** `asset_import`: no args, the library directory; `get=lib/pack`
+  downloads a pack pinned in `assets/catalogs/<lib>.json` (whole zip up to 64 MB with its SHA-256
+  checked, else members by ranges; git sources as listed files at a commit), unpacks only the
+  model folder and the licence, checks the licence's SHA-256 and writes `SOURCE.json`;
+  `from=<model> list=true` summarises one model, `from=<folder> list=true` a row each;
+  `survey=lib/pack|folder` writes a census ledger (`id file tris mats tex comps size_cm flags`,
+  the fit columns empty, notes kept). Kenney Mini Dungeon 2.0 is pinned: 30 models read in
+  0.17 s, 5,493 triangles, median 4 parts, two skinned characters; two surveys give identical
+  bytes.
+- **Khronos corpus.** `tests/import_khronos.rs` (ignored; downloads 12 core models at commit
+  `edc7c9e`): all 12 read. OrientationTest's arrow tips land 0.003 units from their targets,
+  NegativeScaleTest's faces all agree with their normals, sparse values apply, alpha modes,
+  vertex colours, second UV sets and texture transforms read. The `gltf` crate fallback is not
+  needed.
+- **Decisions.** Sizes are reported in cm (D1) while the `Scene` stays in metres (§8.4).
+  Placement is `place=` in catalogs and the tool: the plan's catalog example used `origin` for
+  both the credit text and the placement. `list=true` is the per-model summary; `find=`,
+  `from=` translation, `catalog=`, `check=`/`compare=` and the licence gate arrive with rows 5.2
+  and 5.3. KayKit's GitHub listing needs the API, which this container's proxy refuses; git
+  sources take an explicit file list until then. `tests/mocap.rs` keeps its own glb helper so the
+  existing tests stay untouched; `tests/common` has the importer's builders. G0's tools/list cap
+  in `tests/asset_errors.rs` rises from 47,000 to 48,000 chars: the list stood at 46,994 and
+  `asset_import` adds 956 (§8.2 budgets up to 2 KB).
+
 ## Asset plan 3.1: materials, the core and the CPU reference — 2026-10-12
 
 Row 3.1 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-1): procedural materials exist as data and can be

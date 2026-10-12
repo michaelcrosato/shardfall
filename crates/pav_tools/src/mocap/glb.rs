@@ -17,6 +17,7 @@ use anyhow::{Result, anyhow, bail};
 use serde_json::{Value, json};
 
 use super::readable::{Cap, P, POINTS, hypot, js_round};
+use crate::import::gltf::{Gltf, Hierarchy, M4, Trs, V, mat, mul, rest_trs, xf};
 use libm::{acos, sin};
 
 const MM: f64 = 1000.0;
@@ -117,48 +118,6 @@ fn bones(rig: &str) -> Vec<(String, At)> {
 /// The root bone's name (else the first node's topmost parent).
 const ROOT: &str = "root";
 
-/* ---- column-major 4x4 matrices, quaternions [x, y, z, w] ---- */
-type M4 = [f64; 16];
-type V = [f64; 3];
-
-fn mat(t: V, q: [f64; 4], s: V) -> M4 {
-    let [x, y, z, w] = q;
-    let (xx, yy, zz, xy, xz, yz, wx, wy, wz) = (x * x, y * y, z * z, x * y, x * z, y * z, w * x, w * y, w * z);
-    [
-        (1.0 - 2.0 * (yy + zz)) * s[0],
-        2.0 * (xy + wz) * s[0],
-        2.0 * (xz - wy) * s[0],
-        0.0,
-        2.0 * (xy - wz) * s[1],
-        (1.0 - 2.0 * (xx + zz)) * s[1],
-        2.0 * (yz + wx) * s[1],
-        0.0,
-        2.0 * (xz + wy) * s[2],
-        2.0 * (yz - wx) * s[2],
-        (1.0 - 2.0 * (xx + yy)) * s[2],
-        0.0,
-        t[0],
-        t[1],
-        t[2],
-        1.0,
-    ]
-}
-fn mul(a: &M4, b: &M4) -> M4 {
-    let mut o = [0.0; 16];
-    for c in 0..4 {
-        for r in 0..4 {
-            o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
-        }
-    }
-    o
-}
-fn xf(m: &M4, p: V) -> V {
-    [
-        m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
-        m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
-        m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14],
-    ]
-}
 fn slerp(a: &[f64], b: &[f64], t: f64) -> Vec<f64> {
     let mut d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
     let mut s = 1.0;
@@ -184,79 +143,6 @@ fn pct(v: &[f64], p: f64) -> f64 {
     let mut s = v.to_vec();
     s.sort_by(|a, b| a.total_cmp(b));
     s[(s.len() - 1).min((p * s.len() as f64).floor() as usize)]
-}
-
-struct Gltf {
-    json: Value,
-    buf: Vec<u8>,
-    bin: usize,
-}
-
-impl Gltf {
-    fn open(path: &Path) -> Result<Gltf> {
-        let buf = std::fs::read(path).map_err(|e| anyhow!("{}: {e}", path.display()))?;
-        let u32le = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]) as usize;
-        if buf.len() < 20 || u32le(0) != 0x4654_6c67 {
-            bail!("{} is not a binary glTF (.glb) file", path.display());
-        }
-        let jl = u32le(12);
-        let json: Value = serde_json::from_slice(buf.get(20..20 + jl).ok_or_else(|| anyhow!("truncated .glb"))?)?;
-        Ok(Gltf { json, buf, bin: 20 + jl + 8 })
-    }
-
-    /// An accessor's elements, each as its components.
-    fn accessor(&self, i: &Value) -> Result<Vec<Vec<f64>>> {
-        let a = &self.json["accessors"][i.as_u64().ok_or_else(|| anyhow!("an accessor index is missing"))? as usize];
-        let n = match a["type"].as_str().unwrap_or("") {
-            "SCALAR" => 1,
-            "VEC2" => 2,
-            "VEC3" => 3,
-            "VEC4" => 4,
-            "MAT4" => 16,
-            t => bail!("accessor type {t} is not read"),
-        };
-        let count = a["count"].as_u64().unwrap_or(0) as usize;
-        let ct = a["componentType"].as_u64().unwrap_or(0);
-        let bytes = match ct {
-            5126 | 5125 => 4,
-            5123 | 5122 => 2,
-            5121 | 5120 => 1,
-            _ => bail!("component type {ct} is not read"),
-        };
-        let norm = if a["normalized"].as_bool().unwrap_or(false) {
-            match ct {
-                5123 => 65535.0,
-                5121 => 255.0,
-                5122 => 32767.0,
-                5120 => 127.0,
-                _ => 1.0,
-            }
-        } else {
-            1.0
-        };
-        let Some(bvi) = a["bufferView"].as_u64() else {
-            return Ok(vec![vec![0.0; n]; count]);
-        };
-        let bv = &self.json["bufferViews"][bvi as usize];
-        let base = self.bin + bv["byteOffset"].as_u64().unwrap_or(0) as usize + a["byteOffset"].as_u64().unwrap_or(0) as usize;
-        let stride = bv["byteStride"].as_u64().map(|s| s as usize).filter(|&s| s > 0).unwrap_or(n * bytes);
-        let b = &self.buf;
-        let need = base + count.saturating_sub(1) * stride + n * bytes;
-        if count > 0 && need > b.len() {
-            bail!("an accessor reads past the end of the file");
-        }
-        let read = |o: usize| -> f64 {
-            match ct {
-                5126 => f32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as f64,
-                5125 => u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as f64,
-                5123 => u16::from_le_bytes([b[o], b[o + 1]]) as f64,
-                5122 => i16::from_le_bytes([b[o], b[o + 1]]) as f64,
-                5121 => b[o] as f64,
-                _ => b[o] as i8 as f64,
-            }
-        };
-        Ok((0..count).map(|k| (0..n).map(|c| read(base + k * stride + c * bytes) / norm).collect()).collect())
-    }
 }
 
 /// Bone names, matched whatever their case (Quaternius' Library 2 says `Head`, Mesh2Motion's
@@ -300,20 +186,6 @@ pub struct Library {
     pub notes: Vec<String>,
 }
 
-#[derive(Clone)]
-struct Trs {
-    t: V,
-    r: [f64; 4],
-    s: V,
-}
-
-fn arr<const N: usize>(v: &Value, d: [f64; N]) -> [f64; N] {
-    match v.as_array() {
-        Some(a) if a.len() == N => std::array::from_fn(|i| a[i].as_f64().unwrap_or(d[i])),
-        _ => d,
-    }
-}
-
 /// The file's clips, bones and the rig it is recognised as (nothing is converted).
 pub fn list(path: &Path) -> Result<Value> {
     let g = Gltf::open(path)?;
@@ -334,14 +206,7 @@ pub fn read(path: &Path, fps: f64) -> Result<Library> {
     let file = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
     let g = Gltf::open(path)?;
     let nodes = g.json["nodes"].as_array().cloned().unwrap_or_default();
-    let mut parent = vec![usize::MAX; nodes.len()];
-    for (i, n) in nodes.iter().enumerate() {
-        for c in n["children"].as_array().into_iter().flatten() {
-            if let Some(c) = c.as_u64().filter(|&c| (c as usize) < nodes.len()) {
-                parent[c as usize] = i;
-            }
-        }
-    }
+    let Hierarchy { parent, order } = Hierarchy::new(&nodes);
     let names = Names::new(&nodes);
     let rig = RIGS.iter().find(|(_, test)| names.get(test).is_some()).map(|(r, _)| *r).ok_or_else(|| {
         anyhow!("{file}: the rig is not one the importer knows (Rigify DEF- bones, Unreal-style names or Mixamo's)")
@@ -353,40 +218,7 @@ pub fn read(path: &Path, fps: f64) -> Result<Library> {
         bail!("{file} lacks bones the {rig} map needs: {}", missing.join(", "));
     }
     let node = |b: &str| names.get(b).unwrap();
-    let rest: Vec<Trs> = nodes
-        .iter()
-        .map(|n| {
-            let m = arr::<16>(&n["matrix"], [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
-            if n.get("matrix").is_some() && n.get("translation").is_none() && n.get("rotation").is_none() {
-                // A node placed by a matrix: its translation, rotation and scale.
-                let (s, r, t) = glam::DMat4::from_cols_array(&m).to_scale_rotation_translation();
-                return Trs { t: t.to_array(), r: r.to_array(), s: s.to_array() };
-            }
-            Trs {
-                t: arr(&n["translation"], [0.0; 3]),
-                r: arr(&n["rotation"], [0.0, 0.0, 0.0, 1.0]),
-                s: arr(&n["scale"], [1.0; 3]),
-            }
-        })
-        .collect();
-    // Parents before children.
-    let mut order = Vec::with_capacity(nodes.len());
-    let mut seen = vec![false; nodes.len()];
-    for i in 0..nodes.len() {
-        let mut chain = vec![i];
-        while let Some(&p) = chain.last().map(|&c| &parent[c]) {
-            if p == usize::MAX || seen[p] || chain.contains(&p) {
-                break;
-            }
-            chain.push(p);
-        }
-        for &c in chain.iter().rev() {
-            if !seen[c] {
-                seen[c] = true;
-                order.push(c);
-            }
-        }
-    }
+    let rest: Vec<Trs> = nodes.iter().map(rest_trs).collect();
     let world = |trs: &[Trs]| -> Vec<M4> {
         let mut w = vec![[0.0; 16]; trs.len()];
         for &i in &order {

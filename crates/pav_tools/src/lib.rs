@@ -5,6 +5,7 @@
 pub mod agent_tools;
 pub mod anim_tools;
 pub mod animation_tools;
+pub mod asset_import;
 pub mod asset_preview_tools;
 pub mod asset_tools;
 pub mod bridge;
@@ -12,6 +13,7 @@ pub mod creature_preview_tools;
 pub mod creature_tools;
 pub mod creature_worker;
 pub mod game_tools;
+pub mod import;
 pub mod live_feedback;
 pub mod mcp;
 pub mod mocap;

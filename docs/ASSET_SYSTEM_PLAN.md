@@ -1334,7 +1334,7 @@ Why this order:
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L)
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
-- [ ] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
+- [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [ ] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L)
 - [ ] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M)
 - [ ] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L)

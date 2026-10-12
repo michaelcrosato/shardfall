@@ -88,7 +88,8 @@ fn the_field_guide_and_tool_list_stay_compact() {
     assert!(v1.to_string().len() < 2_600, "format 1's field guide is {} chars", v1.to_string().len());
     let list = pav_tools::mcp::tool_list();
     let chars = list.to_string().len();
-    assert!(chars <= 47_000, "tools/list is {chars} chars");
+    // G0's 47,000 plus `asset_import` (plan §8.2 budgets its schema at ≤ 2 KB; it is ~0.96 KB).
+    assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();
     for item in edit["inputSchema"]["properties"]["ops"]["items"]["oneOf"].as_array().unwrap() {

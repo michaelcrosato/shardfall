@@ -42,7 +42,7 @@ pub fn get_all(dir: &Path, ledger: &Ledger, log: &mut Vec<String>) -> Result<usi
         let z = fetch::RemoteZip::open_file(&zip)?;
         let mut got = 0;
         for e in &z.entries {
-            let base = e.name.rsplit('/').next().unwrap_or("");
+            let base = e.base();
             if is_take_file(base) && !dir.join(base).exists() {
                 std::fs::write(dir.join(base), z.read(e)?)?;
                 got += 1;

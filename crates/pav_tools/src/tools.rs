@@ -537,6 +537,23 @@ pub static TOOLS: &[Tool] = &[
         run: crate::anim_tools::t_clip_import,
     },
     Tool {
+        name: "asset_import",
+        help: "Model libraries (glTF, OBJ) read into the engine's frame, sizes in cm. No args: the libraries. get=lib/pack downloads a pinned pack; from=FILE|FOLDER list=true summarises; survey=lib/pack|FOLDER writes a census ledger.",
+        args: &[
+            arg("get", "string", "lib/pack to download"),
+            arg("survey", "string", "lib/pack or folder to census"),
+            arg("from", "string", "model file or folder"),
+            arg("list", "boolean", "summarise from="),
+            arg("up", "string", "file's up axis: y or z"),
+            arg("yaw", "number", "degrees about up, multiple of 90"),
+            arg("scale", "number", "metres per file unit"),
+            arg("place", "string", "origin: keep, floor or center"),
+            arg("out", "string", "ledger file (survey)"),
+            arg("limit", "integer", "rows shown (default 20)"),
+        ],
+        run: crate::asset_import::t_asset_import,
+    },
+    Tool {
         name: "mocap",
         help: "Open motion-capture databases, translated on demand. No args describes them (CMU, 100STYLE, Bandai Namco and LaFAN1 into anim/local, Mesh2Motion, Quaternius, Mixamo). find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits one moment into a set (at=FROM-TO, loop=true, name=, set=, tags=, desc=). survey=ledger measures the CMU takes into anim/cmu/takes.tsv; survey=library translates them into anim/cmu.",
         args: &[

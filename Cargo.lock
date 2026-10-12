@@ -2341,6 +2341,7 @@ dependencies = [
  "png",
  "serde",
  "serde_json",
+ "tobj",
 ]
 
 [[package]]
@@ -3149,6 +3150,12 @@ dependencies = [
  "displaydoc",
  "zerovec",
 ]
+
+[[package]]
+name = "tobj"
+version = "4.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04aca6092e5978e708ee784e8ab9b5cf3cdb598b28f99a2f257446e7081a7025"
 
 [[package]]
 name = "tokio"
