@@ -450,7 +450,8 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
         norm: norm(a, None)?,
         base_norm: Norm::default(),
         lib_pack: None,
-        partial: false,
+        // Loose imports share local/import: one never removes another's files.
+        partial: true,
         pack: "import".into(),
         license: None,
         pack_info: None,
@@ -461,6 +462,9 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
 /// A model's catalog line, checked: a category first, then 2-6 tags.
 fn catalog_meta(cat: &Catalog, lib: &str, key: &str) -> Result<Meta> {
     let mut m = Meta { skip: cat.skip.get(key).cloned(), listed: cat.skip.contains_key(key), ..Default::default() };
+    if cat.has(key) && cat.entry(key).is_none() {
+        bail!("assets/catalogs/{lib}.json \"{key}\": a model line is [\"<category> <tags>\", \"<description>\"]");
+    }
     if let Some(e) = cat.entry(key) {
         m.listed = true;
         let mut words = e.tags.into_iter();
@@ -994,6 +998,13 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
     let mode = fit_arg(a)?.ok_or_else(|| anyhow!("fit=false translates nothing: use list=true or survey="))?;
     let keep_local = src.pack_info.as_ref().and_then(|p| p.local.as_deref());
     let dest = out_dir(&src.pack, src.license.as_deref(), keep_local, get_str(a, "out"))?;
+    // A lib/ pack credits the catalog's pinned source, so it is translated only from that.
+    if let (Some("lib"), Some(lp)) = (dest.tier, &src.lib_pack) {
+        let (lib, pack) = lib_pack(lp)?;
+        if !libraries::is_current(lib, pack)? {
+            bail!("{lp}: the cached pack is not the one the catalog pins: asset_import get={lp} first");
+        }
+    }
     let dir = dest.dir.clone();
     let started = std::time::Instant::now();
     let done = process_all(&src, Some(mode));

@@ -70,8 +70,9 @@ Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now lib
   0.91-0.97 on those, their size rose 2-3× (cocktail 360 → 1,006 chars) and castle towers lost
   their crenellations; limited to splits costing ≤ 0.02 IoU it gave +6. No proven benefit:
   dropped, and the four packs ship local, as §10.3 says.
-- **Smaller fixes and decisions.** A view in which the source draws under 1% of its pixels (a
-  zigzag sheet edge-on: Food Kit's bacon read IoU 0 and `fail`) is skipped like a sliver. Food's
+- **Smaller fixes and decisions.** A view in which the source and the translation both draw
+  under 1% of their pixels (a zigzag sheet edge-on: Food Kit's bacon read IoU 0 and `fail`) is
+  skipped like a sliver. Food's
   whisk fails at scale 0.3 (wires under the mesh part's millimetre grid). `check=` calls a
   whole-mesh `auto` translation `exact` where the translation said `fit` (5.2's rule, left). Facing
   stays per pack: KayKit's chair faces −x. The plan's `find=` over ledgers, `catalog=` rebuilds
@@ -81,6 +82,15 @@ Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now lib
   tiers, checking one asset), linked from `ASSET_STUDIO.md`; test `tests/import_library.rs`
   (routing, `PACK.json`, credits, index, catalog tags, `local`, refusals) and the licence table's
   unit test.
+- **Review fixes (Codex, PR #48).**
+  - A view is skipped only when both renders are thin. A translation 20 times too big no longer
+    reads as a perfect fit.
+  - Loose imports into `local/import/` keep each other: the stale-file cleanup is for whole
+    catalog packs only.
+  - `from=` into `lib/` needs the cache that `get` fetched under the catalog's current pin.
+    Pinning the hash a first `get` recorded counts as the same pin.
+  - A catalog model line that is not an array is refused, not read as missing.
+  - Both committed packs rebuild byte-identically under these rules.
 
 ## Asset plan 3.4: theme materials in levels, lean G3 — 2026-10-12
 

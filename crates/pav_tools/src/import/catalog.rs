@@ -141,6 +141,11 @@ impl Catalog {
         self.clips.keys()
     }
 
+    /// Whether the catalog has a line for this name (well-formed or not).
+    pub fn has(&self, name: &str) -> bool {
+        self.clips.contains_key(name)
+    }
+
     pub fn entry(&self, name: &str) -> Option<Entry> {
         let v = self.clips.get(name)?.as_array()?;
         let s = |i: usize| v.get(i).and_then(|x| x.as_str()).unwrap_or("").to_string();

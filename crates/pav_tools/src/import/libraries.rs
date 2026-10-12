@@ -221,6 +221,29 @@ fn today() -> String {
 /// The source fields that decide a pack's bytes: when any changes, the pack is fetched afresh.
 const PIN_KEYS: [&str; 7] = ["url", "repo", "version", "sha256", "files", "models", "licence_file"];
 
+fn pin_of(src: &Map<String, Value>) -> Map<String, Value> {
+    PIN_KEYS.iter().filter_map(|k| src.get(*k).map(|v| (k.to_string(), v.clone()))).collect()
+}
+
+/// Whether the pack's `SOURCE.json` says `get` fetched it under this pin. A pin that only adds
+/// the `sha256` that fetch recorded (the usual first `get`, then the hash pinned) is the same.
+fn fetched_under(dir: &Path, pin: &Map<String, Value>) -> bool {
+    let Some(record) = std::fs::read(dir.join("SOURCE.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()) else {
+        return false;
+    };
+    let Some(mut fetched) = record["pin"].as_object().cloned() else { return false };
+    if pin.contains_key("sha256") && !fetched.contains_key("sha256") && !record["sha256"].is_null() {
+        fetched.insert("sha256".into(), record["sha256"].clone());
+    }
+    &fetched == pin
+}
+
+/// Whether the cached pack is the one the catalog pins now (fetched by `get` under the same
+/// pin), so what is translated from it may be credited to that source.
+pub fn is_current(lib: &str, pack: &str) -> Result<bool> {
+    Ok(fetched_under(&pack_dir(lib, pack), &pin_of(&source(lib, pack)?)))
+}
+
 /// Downloads a pinned pack. Returns what it did, for the reply.
 ///
 /// A pack already fetched under the same pin is completed in place. A new or changed pin is
@@ -230,12 +253,9 @@ const PIN_KEYS: [&str; 7] = ["url", "repo", "version", "sha256", "files", "model
 pub fn get(lib: &str, pack: &str) -> Result<Value> {
     let src = source(lib, pack)?;
     let s = |k: &str| src.get(k).and_then(Value::as_str);
-    let pin: Map<String, Value> = PIN_KEYS.iter().filter_map(|k| src.get(*k).map(|v| (k.to_string(), v.clone()))).collect();
+    let pin = pin_of(&src);
     let dir = pack_dir(lib, pack);
-    let current = std::fs::read(dir.join("SOURCE.json"))
-        .ok()
-        .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-        .is_some_and(|v| v["pin"] == Value::Object(pin.clone()));
+    let current = fetched_under(&dir, &pin);
     let work = if current { dir.clone() } else { dir.with_file_name(format!(".{pack}.part")) };
     if !current && work.exists() {
         std::fs::remove_dir_all(&work)?;
@@ -356,6 +376,21 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_pack_is_current_under_its_pin_or_the_hash_its_fetch_recorded() {
+        let dir = std::env::temp_dir().join(format!("pav-pin-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let record = json!({"sha256": "abc", "pin": {"url": "u", "models": "*.glb"}});
+        std::fs::write(dir.join("SOURCE.json"), record.to_string()).unwrap();
+        let pin = |v: Value| v.as_object().unwrap().clone();
+        assert!(fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb"}))));
+        assert!(fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb", "sha256": "abc"}))));
+        assert!(!fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb", "sha256": "abd"}))));
+        assert!(!fetched_under(&dir, &pin(json!({"url": "v", "models": "*.glb"}))));
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(!fetched_under(&dir, &pin(json!({"url": "u"}))));
+    }
 
     #[test]
     fn globs_match_folders_and_names() {

@@ -48,9 +48,10 @@ pub fn compare(source: &[Tri], fit: &[Tri]) -> Fidelity {
         }
         let Some(win) = Window::around(source.iter().chain(fit), &view, 0.05, VIEW_PX, VIEW_PX) else { continue };
         let (a, b) = (raster::draw(source, &view, &win), raster::draw(fit, &view, &win));
-        // Seen edge-on all over (a zigzag sheet from its side), the source draws almost nothing
-        // and the view says nothing about its shape.
-        if a.cover.iter().filter(|c| **c).count() * 100 < a.cover.len() {
+        // Seen edge-on all over (a zigzag sheet from its side), both draw almost nothing and the
+        // view says nothing about the shape. A translation far larger than its source still
+        // counts: there the source is small only beside it.
+        if a.covered() * 100 < a.cover.len() && b.covered() * 100 < b.cover.len() {
             continue;
         }
         out.views.push((name, raster::iou(&a, &b)));
@@ -395,6 +396,10 @@ mod tests {
         let red = cube(DVec3::ZERO, 0.5, [0.8, 0.0, 0.0]);
         assert!(compare(&a, &red).de > 10.0);
         assert!(compare_png(&a, &b).starts_with(&[0x89, b'P', b'N', b'G']));
+        // Twenty times too big: the source is a speck beside it, and every view still counts.
+        let huge = cube(DVec3::ZERO, 10.0, [0.5, 0.2, 0.1]);
+        let h = compare(&a, &huge);
+        assert!(h.views.len() == 6 && h.iou < 0.01, "{h:?}");
     }
 
     #[test]

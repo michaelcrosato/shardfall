@@ -48,6 +48,9 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     for (name, size) in [("a", 0.4), ("b", 0.6), ("c", 0.2)] {
         std::fs::write(models.join(format!("{name}.glb")), cube(size)).unwrap();
     }
+    // What `get` records: the pin the pack was fetched under.
+    let fetched = dir.join("cache/testlib/pack1/SOURCE.json");
+    std::fs::write(&fetched, r#"{"pin": {"url": "https://example.invalid/pack1.zip", "models": "models/*.glb"}}"#).unwrap();
     // SAFETY: the only test in this binary; nothing else reads the variables.
     unsafe {
         std::env::set_var("PAV_ASSET_CACHE", dir.join("cache"));
@@ -58,8 +61,14 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     let mut s = Session::new("empty", 1).unwrap();
     let props = dir.join("props");
 
-    // CC0: lib/, with its licence, credits and index; the catalog's skip is skipped.
+    // CC0: lib/, with its licence, credits and index; the catalog's skip is skipped. Only from
+    // the pack the catalog pins: a cache fetched under another pin is refused.
     catalog(&dir, r#""license": "CC0-1.0""#, lines);
+    let pin = std::fs::read_to_string(&fetched).unwrap();
+    std::fs::write(&fetched, pin.replace("pack1.zip", "pack0.zip")).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("not the one the catalog pins: asset_import get=testlib/pack1"), "{e}");
+    std::fs::write(&fetched, pin).unwrap();
     let r = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap();
     assert_eq!((r["to"].as_str(), r["written"].as_u64()), (Some("lib"), Some(2)), "{r}");
     assert!(r["rows"].to_string().contains("c skipped: not a prop"), "{r}");
@@ -93,4 +102,17 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     catalog(&dir, r#""license": "CC0-1.0""#, r#""pack1/a": ["crate wood", ""]"#);
     let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
     assert!(e.contains("\"pack1/a\": the first word is a category"), "{e}");
+    catalog(&dir, r#""license": "CC0-1.0""#, r#""pack1/a": "container crate wood""#);
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("\"pack1/a\": a model line is"), "{e}");
+
+    // Loose files share local/import, and one import keeps the others.
+    let loose = dir.join("loose");
+    std::fs::create_dir_all(&loose).unwrap();
+    for (name, size) in [("stool", 0.4), ("crate", 0.6)] {
+        let file = loose.join(format!("{name}.glb"));
+        std::fs::write(&file, cube(size)).unwrap();
+        run(&mut s, "asset_import", json!({"from": file.to_str().unwrap()})).unwrap();
+    }
+    assert!(props.join("local/import/stool.json").exists() && props.join("local/import/crate.json").exists());
 }

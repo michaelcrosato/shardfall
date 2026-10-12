@@ -40,6 +40,9 @@ asset_import survey=kenney/castle_kit             # fit without writing: the led
 - `from=` writes `<pack>/<name>.json` and `<pack>/meshes/<name>.json`, removes files of models it
   no longer writes, then reindexes the pack and rewrites `assets/props/CREDITS.md`. The reply
   has the tiers, medians and one row per model; `to` says where it went and `why`.
+- A `lib/` pack is translated only from the cache `get` fetched under the catalog's current pin
+  (after changing the pin, `get=` again). Loose files and folders go to `local/import/`, where
+  each import keeps the others.
 
 ## Where translations go (the licence gate)
 
