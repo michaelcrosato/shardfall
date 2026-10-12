@@ -35,14 +35,17 @@
 <div id="turn">Turn your phone sideways for the best view</div>
 <script type="module">
   // Start in a demo room with ?room=NAME, or the pavilion with ?scene=world.
+  // Messages name the game by the page title (a single-file build may retitle it).
+  const name = document.title;
   const msg = document.getElementById('msg');
   if (!navigator.gpu) {
-    msg.innerHTML = 'Shardfall needs WebGPU.<br>Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled.';
+    msg.replaceChildren(`${name} needs WebGPU.`, document.createElement('br'),
+      'Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled.');
   } else {
     // The game hides this message once its canvas exists, and takes keyboard focus.
     new MutationObserver((_, obs) => {
       const c = document.querySelector('canvas');
-      if (c) { c.setAttribute('aria-label', 'Shardfall game'); msg.remove(); c.focus(); obs.disconnect(); }
+      if (c) { c.setAttribute('aria-label', `${name} game`); msg.remove(); c.focus(); obs.disconnect(); }
     }).observe(document.body, { childList: true });
     // Phones and tablets: the first tap goes full screen and turns sideways, where the browser
     // allows it (Android; an iPhone keeps its bars, or plays full screen from the home screen).
@@ -57,11 +60,13 @@
       }, { once: true, capture: true });
     }
     try {
-      const game = await import('./shardfall.js');
-      await game.default();
+      // The game is shardfall.js and its .wasm beside this page. A single-file build
+      // (scripts/pack_single_html.py) carries both inside the page and sets window.loadGame.
+      if (window.loadGame) await window.loadGame();
+      else await (await import('./shardfall.js')).default();
     } catch (error) {
-      console.error('Shardfall failed to load:', error);
-      msg.textContent = 'Shardfall could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled.';
+      console.error(`${name} failed to load:`, error);
+      msg.textContent = `${name} could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled.`;
       document.body.append(msg);
     }
   }

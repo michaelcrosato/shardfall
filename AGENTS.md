@@ -187,7 +187,10 @@ scripts/build-windows.sh           # -> target/x86_64-pc-windows-gnu/dist/shardf
 scripts/smoke-windows.sh 25        # run the .exe under Wine+lavapipe, screenshot + log in out/smoke/
 scripts/smoke-linux.sh 10          # same for the native Linux build
 scripts/build-web.sh               # browser build -> target/web/ (serve over HTTP; Chrome/Edge)
+scripts/build-web.sh --single-file # -> target/web/shardfall.html: one ~10 MB page, runs from file://
 ```
+`--single-file` packs web/index.html, the JS glue and the gzipped wasm into one page with no
+other loads (`scripts/pack_single_html.py`; `--title --description --theme-color --scene NAME --out PATH`).
 Browser build: `cfg(target_arch = "wasm32")` branches live in `pav_app` only (no threads, async
 GPU setup, no files). Check it with `cargo clippy -p pav_app --target wasm32-unknown-unknown`.
 Phones: emulate one in headless Chromium with Playwright (`viewport 844x390, isMobile, hasTouch,
