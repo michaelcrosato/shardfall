@@ -1330,7 +1330,8 @@ Why this order:
 - [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
-- [ ] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval (M)
+- [ ] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
+  library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L)
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
 - [ ] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
@@ -1436,7 +1437,7 @@ re-authorings beyond the core exemplars, I9, and every judge panel.
 These are planning artefacts. Use them as starting points, not product code. Delete each one when
 the work item that uses it lands. Each is listed with the work item that uses it.
 - `examples/format2/`: removed when F8 landed; the bench, market_stall, well, wall_torch, greatsword and the probes probe_mirror, probe_frames, probe_attach are `crates/pav_core/tests/fixtures/props/format2/` (the §5.9 corpus).
-- `examples/materials/`: 10 materials plus `pb/gold`, `pb/iron`, converted to `unit:"cm"` (MAT-1).
+- `examples/materials/`: moved when MAT-1 landed; the 10 materials plus `pb/gold`, `pb/iron` are the core library `assets/materials/`.
 - `examples/families/fence.f2.json` (LIB-4).
 - `prototypes/f2expand.py`: independent stdlib reference expander, format 2 → format 1. Run it with `--anchors fix`. It treats capsule from/to as cap centres; §5.2 supersedes that.
 - `prototypes/materials/`: `materials.wgsl` (494-line kernel library), diffs against `scene.wgsl`/`renderer.rs`/`scene.rs`, and the parity/bench harness `main.rs`, which includes the CPU mirror (MAT-1..3).

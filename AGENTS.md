@@ -97,8 +97,9 @@ crates/
               wander, patrol, circle, follow; they drive characters through InputFrames),
               nav.rs (walkable grid from blocks and props, A* paths, flow fields),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
-              vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter),
-              health.rs (shootable objects: hp, score, boss phases/bar, finish),
+              vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter: flight only,
+              no weapons, damage or fuel), health.rs (shootable rapier objects: hp, score, boss
+              phases/bar, finish),
               stealth.rs (guard sight cones with line of sight and an alert meter),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
