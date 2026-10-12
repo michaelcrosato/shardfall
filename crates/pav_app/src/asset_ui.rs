@@ -654,6 +654,7 @@ mod tests {
             turntable: true,
             yaw: 270.0,
             scale: 1.0,
+            seed: 0,
         };
         for _ in 0..3 {
             let raw = egui::RawInput {
