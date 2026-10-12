@@ -239,9 +239,36 @@ fn fetched_under(dir: &Path, pin: &Map<String, Value>) -> bool {
 }
 
 /// Whether the cached pack is the one the catalog pins now (fetched by `get` under the same
-/// pin), so what is translated from it may be credited to that source.
+/// pin, its licence text checked for the same licence), so what is translated from it may be
+/// credited to that source.
 pub fn is_current(lib: &str, pack: &str) -> Result<bool> {
-    Ok(fetched_under(&pack_dir(lib, pack), &pin_of(&source(lib, pack)?)))
+    let (src, dir) = (source(lib, pack)?, pack_dir(lib, pack));
+    Ok(fetched_under(&dir, &pin_of(&src)) && licence_checked(&dir, &src))
+}
+
+/// Whether `get` checked the licence text for the catalog's `license` (and `licence_sha256`).
+fn licence_checked(dir: &Path, src: &Map<String, Value>) -> bool {
+    let Some(record) = std::fs::read(dir.join("SOURCE.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()) else {
+        return false;
+    };
+    let want = |k: &str| src.get(k).cloned().unwrap_or(Value::Null);
+    record["licence"] == want("license")
+        && (want("licence_sha256").is_null() || record["licence_sha256"] == want("licence_sha256"))
+}
+
+/// The library pack other than `lib/pack` whose translations also go to the output pack
+/// `name`, if any: two sources writing one folder would credit or prune each other's assets.
+pub fn pack_name_owner(lib: &str, pack: &str, name: &str) -> Option<String> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(catalogs_dir()).ok()?.flatten().map(|e| e.path()).collect();
+    files.sort();
+    files.iter().filter(|p| p.extension().is_some_and(|e| e == "json")).find_map(|p| {
+        let other_lib = p.file_stem()?.to_str()?;
+        let cat = Catalog::read(p).ok()?;
+        cat.sources.iter().find_map(|(other, v)| {
+            let out = v.get("pack").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{other_lib}_{other}"));
+            (out == name && (other_lib, other.as_str()) != (lib, pack)).then(|| format!("{other_lib}/{other}"))
+        })
+    })
 }
 
 /// Downloads a pinned pack. Returns what it did, for the reply.
@@ -384,6 +411,13 @@ mod tests {
         let record = json!({"sha256": "abc", "pin": {"url": "u", "models": "*.glb"}});
         std::fs::write(dir.join("SOURCE.json"), record.to_string()).unwrap();
         let pin = |v: Value| v.as_object().unwrap().clone();
+        let record =
+            json!({"sha256": "abc", "licence": "CC0-1.0", "licence_sha256": "f00", "pin": {"url": "u", "models": "*.glb"}});
+        std::fs::write(dir.join("SOURCE.json"), record.to_string()).unwrap();
+        assert!(licence_checked(&dir, &pin(json!({"license": "CC0-1.0", "licence_sha256": "f00"}))));
+        assert!(licence_checked(&dir, &pin(json!({"license": "CC0-1.0"}))));
+        assert!(!licence_checked(&dir, &pin(json!({"license": "CC-BY-4.0", "licence_sha256": "f00"}))));
+        assert!(!licence_checked(&dir, &pin(json!({"license": "CC0-1.0", "licence_sha256": "f01"}))));
         assert!(fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb"}))));
         assert!(fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb", "sha256": "abc"}))));
         assert!(!fetched_under(&dir, &pin(json!({"url": "u", "models": "*.glb", "sha256": "abd"}))));

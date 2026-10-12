@@ -90,6 +90,13 @@ Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now lib
   - `from=` into `lib/` needs the cache that `get` fetched under the catalog's current pin.
     Pinning the hash a first `get` recorded counts as the same pin.
   - A catalog model line that is not an array is refused, not read as missing.
+  - Second round: the licence counts as part of the pin (`SOURCE.json`'s checked licence and
+    licence hash must match the catalog's). A CC-BY pack's licence text must name its version
+    and none of ShareAlike, NonCommercial or NoDerivatives. Two catalog sources may not write one
+    pack. A model that errors on a whole-pack rebuild keeps its last files. A pack that changed
+    tiers moves only whole.
+  - Not done: requiring descriptions on imported assets. Their names, categories and tags drive
+    `assets find=`, and 61 hand-written lines are not worth it until search misses something.
   - Both committed packs rebuild byte-identically under these rules.
 
 ## Asset plan 3.4: theme materials in levels, lean G3 — 2026-10-12

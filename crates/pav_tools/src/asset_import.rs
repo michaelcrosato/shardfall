@@ -525,6 +525,10 @@ fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result
             None => bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default()),
         }
     }
+    let out_pack = text("pack").map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}"));
+    if let Some(other) = libraries::pack_name_owner(lib, pack, &out_pack) {
+        bail!("{lib}/{pack} and {other} both translate into the pack {out_pack}: give one of them another \"pack\"");
+    }
     let pick = |v: &[String]| keep.iter().map(|&i| v[i].clone()).collect::<Vec<_>>();
     let source = match (text("url"), text("repo"), text("version")) {
         (Some(url), _, _) => url.to_string(),
@@ -541,7 +545,7 @@ fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result
         base_norm: norm(&Args::new(), Some(&src))?,
         lib_pack: Some(format!("{lib}/{pack}")),
         partial: keep.len() < pool.len(),
-        pack: text("pack").map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}")),
+        pack: out_pack,
         license: text("license").map(str::to_string),
         pack_info: Some(PackInfo {
             title: text("label").unwrap_or(pack).to_string(),
@@ -1005,6 +1009,17 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
             bail!("{lp}: the cached pack is not the one the catalog pins: asset_import get={lp} first");
         }
     }
+    // A pack that moved tiers moves whole: a part of it would sit behind the old copy.
+    if let (Some(tier), true) = (dest.tier, src.partial) {
+        let other = crate::asset_tools::root().join(if tier == "lib" { "local" } else { "lib" }).join(&src.pack);
+        if other.is_dir() && src.lib_pack.is_some() {
+            bail!(
+                "{}: the pack is in {} now and goes to {tier}/: translate the whole pack to move it",
+                src.label,
+                other.display()
+            );
+        }
+    }
     let dir = dest.dir.clone();
     let started = std::time::Instant::now();
     let done = process_all(&src, Some(mode));
@@ -1068,7 +1083,11 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
         "next": format!("asset_import check={}/<name>.json compare=true; assets find=<words> tier=disk|local", dir.display()),
     });
     if dest.tier.is_some() {
-        reply["index"] = finish_tier(&src, &dest, &written)?;
+        // A model that could not be read or translated this time keeps its last files; only a
+        // model the pack no longer has, or one that now fails, loses them.
+        let errored = src.names.iter().zip(&done).filter(|(_, d)| d.error.is_some()).map(|(n, _)| n.clone());
+        let keep: Vec<String> = written.iter().cloned().chain(errored).collect();
+        reply["index"] = finish_tier(&src, &dest, &keep)?;
         reply["to"] = json!(dest.tier);
         if let Some(why) = &dest.why {
             reply["why"] = json!(why);

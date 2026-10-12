@@ -41,8 +41,10 @@ asset_import survey=kenney/castle_kit             # fit without writing: the led
   no longer writes, then reindexes the pack and rewrites `assets/props/CREDITS.md`. The reply
   has the tiers, medians and one row per model; `to` says where it went and `why`.
 - A `lib/` pack is translated only from the cache `get` fetched under the catalog's current pin
-  (after changing the pin, `get=` again). Loose files and folders go to `local/import/`, where
-  each import keeps the others.
+  and licence (after changing either, `get=` again: it re-reads the licence file). Loose files and
+  folders go to `local/import/`, where each import keeps the others.
+- Each catalog source writes its own `pack`: two sources naming one pack are refused. A model that
+  cannot be read on a rebuild keeps its last files; a pack that changed tiers moves only whole.
 
 ## Where translations go (the licence gate)
 

@@ -48,9 +48,13 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     for (name, size) in [("a", 0.4), ("b", 0.6), ("c", 0.2)] {
         std::fs::write(models.join(format!("{name}.glb")), cube(size)).unwrap();
     }
-    // What `get` records: the pin the pack was fetched under.
+    // What `get` records: the pin the pack was fetched under and the licence its text says.
     let fetched = dir.join("cache/testlib/pack1/SOURCE.json");
-    std::fs::write(&fetched, r#"{"pin": {"url": "https://example.invalid/pack1.zip", "models": "models/*.glb"}}"#).unwrap();
+    std::fs::write(
+        &fetched,
+        r#"{"licence": "CC0-1.0", "pin": {"url": "https://example.invalid/pack1.zip", "models": "models/*.glb"}}"#,
+    )
+    .unwrap();
     // SAFETY: the only test in this binary; nothing else reads the variables.
     unsafe {
         std::env::set_var("PAV_ASSET_CACHE", dir.join("cache"));
@@ -80,6 +84,12 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     assert!(std::fs::read_to_string(props.join("CREDITS.md")).unwrap().contains("## LIB/test_pack: Test Pack"));
     let found = run(&mut s, "assets", json!({"find": "crate wood"})).unwrap();
     assert!(found["rows"].as_array().unwrap().iter().any(|r| r[0] == "LIB/test_pack/a"), "{found}");
+    // A model that cannot be read this time keeps its last translation.
+    let a_glb = models.join("a.glb");
+    std::fs::write(&a_glb, b"not a model").unwrap();
+    let r = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap();
+    assert!(r["written"] == 1 && lib.join("a.json").exists() && lib.join("b.json").exists(), "{r}");
+    std::fs::write(&a_glb, cube(0.4)).unwrap();
 
     // Kept local by its catalog: the lib/ copy moves to local/, its notes kept.
     let index = lib.join("index.tsv");
@@ -91,6 +101,10 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     assert!(!lib.exists() && props.join("local/test_pack/b.json").exists());
     assert!(std::fs::read_to_string(props.join("local/test_pack/index.tsv")).unwrap().contains("\tseen\t"));
     assert!(!std::fs::read_to_string(props.join("CREDITS.md")).unwrap().contains("test_pack"));
+    // Back to lib/ only whole: one model of it would sit behind the local copy.
+    catalog(&dir, r#""license": "CC0-1.0""#, lines);
+    let e = run(&mut s, "asset_import", json!({"from": models.join("b.glb").to_str().unwrap()})).unwrap_err().to_string();
+    assert!(e.contains("translate the whole pack to move it"), "{e}");
 
     // Share-alike stays local; an unknown licence and a line without a category are refused.
     catalog(&dir, r#""license": "CC-BY-SA-4.0""#, lines);
@@ -105,6 +119,13 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     catalog(&dir, r#""license": "CC0-1.0""#, r#""pack1/a": "container crate wood""#);
     let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
     assert!(e.contains("\"pack1/a\": a model line is"), "{e}");
+    // Two sources may not write one pack.
+    let two = r#"{"$library": "testlib", "$sources": {
+      "pack1": {"url": "https://example.invalid/pack1.zip", "models": "models/*.glb", "pack": "test_pack", "license": "CC0-1.0"},
+      "pack2": {"url": "https://example.invalid/pack2.zip", "models": "models/*.glb", "pack": "test_pack", "license": "CC0-1.0"}}}"#;
+    std::fs::write(dir.join("catalogs/testlib.json"), two).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("testlib/pack1 and testlib/pack2 both translate into the pack test_pack"), "{e}");
 
     // Loose files share local/import, and one import keeps the others.
     let loose = dir.join("loose");

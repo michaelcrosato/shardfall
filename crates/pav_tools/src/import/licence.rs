@@ -59,16 +59,26 @@ pub fn route(pack: &str, license: &str) -> Result<Route> {
 pub fn markers(license: &str) -> &'static [&'static str] {
     match license {
         "CC0-1.0" => &["CC0", "publicdomain/zero", "Creative Commons Zero"],
-        l if l.starts_with("CC-BY") => &["creativecommons.org/licenses/by", "Attribution"],
+        "CC-BY-3.0" => &["creativecommons.org/licenses/by/3.0", "Attribution 3.0"],
+        "CC-BY-4.0" => &["creativecommons.org/licenses/by/4.0", "Attribution 4.0"],
         _ => &[],
     }
 }
+
+/// Words of the restricted Creative Commons variants: plain CC-BY text never has them.
+const RESTRICTED: &[&str] =
+    &["ShareAlike", "NonCommercial", "NoDerivatives", "NoDerivs", "licenses/by-sa", "licenses/by-nc", "licenses/by-nd"];
 
 /// Whether `text` (a pack's licence file) says `license`.
 pub fn check_text(license: &str, text: &str) -> Result<()> {
     let m = markers(license);
     if !m.is_empty() && !m.iter().any(|w| text.contains(w)) {
         bail!("the licence file does not say {license} (none of {m:?}): review the pack before using it");
+    }
+    if license.starts_with("CC-BY-") && !LOCAL_ONLY.iter().any(|l| license.starts_with(l)) {
+        if let Some(w) = RESTRICTED.iter().find(|w| text.contains(*w)) {
+            bail!("the licence file says {w}, so it is not plain {license}: review the pack before using it");
+        }
     }
     Ok(())
 }
@@ -92,5 +102,12 @@ mod tests {
         assert!(check_text("CC0-1.0", "License: (Creative Commons Zero, CC0)").is_ok());
         assert!(check_text("CC0-1.0", "All rights reserved").is_err());
         assert!(check_text("LicenseRef-Mixamo", "anything").is_ok());
+        let by = "Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/";
+        assert!(check_text("CC-BY-4.0", by).is_ok());
+        assert!(check_text("CC-BY-3.0", by).is_err());
+        let sa = "Attribution-ShareAlike 4.0 International, https://creativecommons.org/licenses/by-sa/4.0/";
+        assert!(check_text("CC-BY-4.0", sa).is_err());
+        let both = format!("{by}; models: Attribution-ShareAlike 4.0");
+        assert!(check_text("CC-BY-4.0", &both).unwrap_err().to_string().contains("ShareAlike"));
     }
 }
