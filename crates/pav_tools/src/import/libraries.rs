@@ -6,8 +6,11 @@
 //! A pinned zip source: `url` (a whole archive up to 64 MB, else its members by ranged reads),
 //! `sha256` (of the archive), `models` (a glob of the model files, relative to the archive's
 //! root), `licence_file` and `licence_sha256`. A git source: `repo` (owner/name), `version` (the
-//! commit) and `files` (paths at that commit, fetched one by one). Placement: `up`, `yaw`,
-//! `scale`, `place`.
+//! commit), `files` (paths at that commit, fetched one by one) and `sha256` (of the files'
+//! `sha256sum` lines). Placement: `up`, `yaw`, `scale`, `place`. The licence file must also say
+//! the source's `license` (`licence::check_text`). For translation: `pack` (the LIB pack),
+//! `label` and `credit` (its `PACK.json`), `listed: true` (only models with a catalog line) and
+//! `local: "<why>"` (kept in the local tier though its licence could be shared).
 
 use std::path::{Path, PathBuf};
 
@@ -39,15 +42,15 @@ pub const LIBRARIES: &[Library] = &[
         what: "~4,600 low-poly game models in themed kits (dungeon, castle, nature, food...), GLB/OBJ/FBX",
         licence: "CC0-1.0",
         access: "pack page -> version-hashed zip; range requests work",
-        packs: "mini_dungeon (pinned); castle_kit, nature_kit, food_kit",
+        packs: "mini_dungeon, castle_kit, nature_kit, food_kit",
     },
     Library {
         id: "kaykit",
         name: "KayKit",
         what: "low-poly kits (dungeon, furniture, ...) in 10 GitHub repos, glTF",
         licence: "CC0-1.0",
-        access: "raw files at a pinned commit (listing needs the GitHub API)",
-        packs: "dungeon_remastered, furniture_bits",
+        access: "raw files at a pinned commit, listed in the catalog (the GitHub API is blocked here)",
+        packs: "dungeon_remastered; furniture_bits",
     },
     Library {
         id: "quaternius",
@@ -55,7 +58,7 @@ pub const LIBRARIES: &[Library] = &[
         what: "low-poly packs (house interior, modular dungeon, ...); OBJ mirrors on OpenGameArt",
         licence: "CC0-1.0 (Bestiary: QAL, local only)",
         access: "OpenGameArt zips, 10 s crawl delay (Google Drive is quota-blocked)",
-        packs: "lowpoly_house_interior, modular_dungeon",
+        packs: "medieval_village (OBJ); more on OpenGameArt",
     },
     Library {
         id: "polypizza",
@@ -287,6 +290,7 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
         if list.is_empty() {
             bail!("{lib}/{pack}: a git source lists its files (\"files\": [paths at the commit])");
         }
+        let mut manifest = Vec::new();
         for f in list {
             let rel = PathBuf::from(f);
             if rel.components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
@@ -294,11 +298,18 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
             }
             let url = format!("https://raw.githubusercontent.com/{repo}/{commit}/{}", f.replace(' ', "%20"));
             fetch::get_as(Some(ASSET_AGENT), &url, &work.join(&rel))?;
+            manifest.push(format!("{}  {f}\n", fetch::sha256_hex(&std::fs::read(work.join(&rel))?)));
             files.push(f.to_string());
         }
-        let mut manifest = files.clone();
-        manifest.sort();
-        let sha = fetch::sha256_hex(manifest.join("\n").as_bytes());
+        // The SHA-256 of the files' `sha256sum` lines, sorted by path.
+        manifest.sort_by(|a, b| a[66..].cmp(&b[66..]));
+        let sha = fetch::sha256_hex(manifest.concat().as_bytes());
+        if let Some(want) = s("sha256").filter(|w| *w != sha) {
+            bail!("{lib}/{pack}: the files' SHA-256 manifest is {sha}, not the pinned {want}: review the change and re-pin");
+        }
+        if s("sha256").is_none() {
+            notes.push(format!("no sha256 pinned: pin {sha} in assets/catalogs/{lib}.json"));
+        }
         (Some(sha), Some(commit.to_string()))
     } else {
         bail!("{lib}/{pack}: its source has neither url nor repo + version");
@@ -311,6 +322,13 @@ pub fn get(lib: &str, pack: &str) -> Result<Value> {
         let h = fetch::sha256_hex(&text);
         if let Some(want) = s("licence_sha256").filter(|w| *w != h) {
             bail!("{lib}/{pack}: {l} changed (SHA-256 {h}, pinned {want}): review the licence before using the pack");
+        }
+        if s("licence_sha256").is_none() {
+            notes.push(format!("no licence_sha256 pinned: pin {h} in assets/catalogs/{lib}.json"));
+        }
+        if let Some(license) = s("license") {
+            super::licence::check_text(license, &String::from_utf8_lossy(&text))
+                .map_err(|e| anyhow!("{lib}/{pack}: {l}: {e}"))?;
         }
         licence_sha = Some(h);
     }

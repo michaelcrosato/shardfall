@@ -5,9 +5,12 @@
 //! - `get=lib/pack`: downloads a pack its catalog pins into `.cache/assets/<lib>/<pack>/`;
 //! - `from=<model> list=true`: one model summarised (parts, triangles, size, materials, main
 //!   colours, images, extensions, warnings); `from=<folder> list=true`: a row per model;
-//! - `from=<model|folder|lib/pack>`: translated (`fit=auto|prims|mesh`) and written to
-//!   `out_dir` (the pack's local-tier folder, or `out=`), mesh parts in `meshes/` beside;
-//!   `compare=true` adds the source-over-translation image;
+//! - `from=<model|folder|lib/pack>`: translated (`fit=auto|prims|mesh`) with the catalog's
+//!   category and tags, and written where `out_dir` routes it: `out=`, else by the licence gate
+//!   to `lib/<pack>/` (CC0, CC-BY: committed, with `PACK.json`) or `local/<pack>/` (other known
+//!   licences, packs the catalog keeps local, files outside a pinned pack), mesh parts in
+//!   `meshes/` beside, then the pack's index and the credits; `compare=true` adds the
+//!   source-over-translation image;
 //! - `survey=lib/pack|folder`: every model censused and translated without writing (`fit=false`:
 //!   census only), into the pack's ledger (`assets/catalogs/<lib>/<pack>.tsv`, or `out=`),
 //!   keeping each row's `note`;
@@ -23,11 +26,15 @@ use anyhow::{Result, anyhow, bail};
 use pav_core::issue::{self, Code, Issue};
 use serde_json::{Value, json};
 
+use pav_core::props::doc::Category;
 use pav_core::props::mesh::MeshFile;
 
+use crate::asset_library;
+use crate::import::catalog::Catalog;
 use crate::import::fit::{self, Mode, Translation, segment};
 use crate::import::ledger::Ledger;
 use crate::import::libraries::{self, lib_pack, models_in};
+use crate::import::licence::{self, Route};
 use crate::import::normalize::{self, Norm, Normalized, Place};
 use crate::import::raster::{self, Tri};
 use crate::import::report::write_text;
@@ -269,7 +276,9 @@ fn ids(files: &[PathBuf], glob: Option<&str>) -> Vec<String> {
         let r = rel(f);
         let root = roots.iter().filter(|root| r.starts_with(*root)).max_by_key(|root| root.len()).copied().unwrap_or("");
         let id = &r[root.len()..];
-        id.rsplit_once('.').filter(|(stem, _)| !stem.is_empty() && !stem.ends_with('/')).map_or(id, |(stem, _)| stem).to_string()
+        let stem = id.rsplit_once('.').filter(|(stem, _)| !stem.is_empty() && !stem.ends_with('/')).map_or(id, |(stem, _)| stem);
+        // KayKit names its binaries `chair.gltf.glb`.
+        stem.strip_suffix(".gltf").filter(|s| !s.is_empty() && !s.ends_with('/')).unwrap_or(stem).to_string()
     };
     files
         .iter()
@@ -355,6 +364,29 @@ pub fn ledger_text(ids: &[String], files: &[PathBuf], rows: &[(BTreeMap<&'static
 
 // --- Sources: a library's pack, a folder or one file ------------------------------------------
 
+/// What a pack's catalog says about one model (plan §8.7): `"<pack>/<id>": ["<category> <tag>
+/// ...", "<description>"]`, or a `$skip` line with the reason.
+#[derive(Clone, Debug, Default)]
+struct Meta {
+    category: Option<String>,
+    tags: Vec<String>,
+    description: String,
+    skip: Option<String>,
+    /// The catalog has a line for it (a `listed` source translates only those).
+    listed: bool,
+}
+
+/// A pinned pack's credits, for its `PACK.json`, and whether its catalog keeps it local.
+#[derive(Clone, Debug)]
+struct PackInfo {
+    title: String,
+    credit: String,
+    source: String,
+    catalog: String,
+    /// Why a pack whose licence could be shared stays in the local tier (`"local": "..."`).
+    local: Option<String>,
+}
+
 /// Where models come from.
 struct Src {
     /// The folder `files` are relative to.
@@ -363,6 +395,8 @@ struct Src {
     ids: Vec<String>,
     /// Each model's prop name (`names`: distinct).
     names: Vec<String>,
+    /// Each model's catalog line.
+    meta: Vec<Meta>,
     norm: Norm,
     /// What `check` reads the source with when a translation records no `norm`: the pack's
     /// pinned placement, else the default.
@@ -374,6 +408,7 @@ struct Src {
     /// The library pack translations belong to (the catalog's `pack`; `import` for others).
     pack: String,
     license: Option<String>,
+    pack_info: Option<PackInfo>,
     label: String,
 }
 
@@ -408,6 +443,7 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
     let ids = ids(&files, None);
     Ok(Src {
         dir,
+        meta: vec![Meta::default(); files.len()],
         files,
         names: names(&ids),
         ids,
@@ -417,51 +453,99 @@ fn source_of(a: &Args, what: &str) -> Result<Src> {
         partial: false,
         pack: "import".into(),
         license: None,
+        pack_info: None,
         label: what.to_string(),
     })
 }
 
-/// A pack's models; `only`: the one file, or the folder's models, at that path inside it.
+/// A model's catalog line, checked: a category first, then 2-6 tags.
+fn catalog_meta(cat: &Catalog, lib: &str, key: &str) -> Result<Meta> {
+    let mut m = Meta { skip: cat.skip.get(key).cloned(), listed: cat.skip.contains_key(key), ..Default::default() };
+    if let Some(e) = cat.entry(key) {
+        m.listed = true;
+        let mut words = e.tags.into_iter();
+        let category = words.next().unwrap_or_default();
+        if Category::parse(&category).is_none() {
+            bail!(
+                "assets/catalogs/{lib}.json \"{key}\": the first word is a category ({}), not \"{category}\"",
+                Category::NAMES.join(", ")
+            );
+        }
+        m.tags = words.collect();
+        if !(2..=6).contains(&m.tags.len()) {
+            bail!("assets/catalogs/{lib}.json \"{key}\": 2-6 tags after the category (has {})", m.tags.len());
+        }
+        m.category = Some(category);
+        m.description = e.desc;
+    }
+    Ok(m)
+}
+
+/// A pack's models; `only`: the one file, or the folder's models, at that path inside it. A
+/// `listed` source keeps only the models its catalog has a line for.
 fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result<Src> {
     let src = libraries::source(lib, pack)?;
     let dir = libraries::pack_dir(lib, pack);
     if !dir.is_dir() {
         bail!("{lib}/{pack} is not downloaded: asset_import get={lib}/{pack}");
     }
-    let glob = src.get("models").and_then(Value::as_str).map(str::to_string);
+    let text = |k: &str| src.get(k).and_then(Value::as_str);
+    let glob = text("models").map(str::to_string);
     let all = models_in(&dir, glob.as_deref());
     let all_ids = ids(&all, glob.as_deref());
     // Names over the whole pack, so a part of it gets the names the whole would.
     let all_names = names(&all_ids);
-    let keep: Vec<usize> = match &only {
-        Some(f) => {
-            let keep: Vec<usize> = (0..all.len()).filter(|&i| all[i].starts_with(f)).collect();
-            if keep.is_empty() {
-                bail!(
-                    "{} holds none of {lib}/{pack}'s models{}",
-                    f.display(),
-                    glob.as_ref().map(|g| format!(" ({g})")).unwrap_or_default()
-                );
-            }
-            keep
-        }
-        None => (0..all.len()).collect(),
-    };
+    let cat = libraries::catalog(lib).unwrap_or_default();
+    let all_meta: Vec<Meta> = all_ids.iter().map(|id| catalog_meta(&cat, lib, &format!("{pack}/{id}"))).collect::<Result<_>>()?;
+    // A catalog line that names no model is a typo: the model it meant would go unlisted.
+    let prefix = format!("{pack}/");
+    let stray: Vec<&str> = cat
+        .names()
+        .chain(cat.skip.keys())
+        .filter_map(|k| k.strip_prefix(prefix.as_str()))
+        .filter(|id| !all_ids.iter().any(|x| x == id))
+        .collect();
+    if !stray.is_empty() {
+        bail!("assets/catalogs/{lib}.json names models {lib}/{pack} does not have: {}", stray.join(", "));
+    }
+    let listed = src.get("listed").and_then(Value::as_bool).unwrap_or(false);
+    let pool: Vec<usize> = (0..all.len()).filter(|&i| !listed || all_meta[i].listed).collect();
+    let keep: Vec<usize> = pool.iter().copied().filter(|&i| only.as_ref().is_none_or(|f| all[i].starts_with(f))).collect();
     if keep.is_empty() {
-        bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default());
+        match &only {
+            Some(f) => bail!(
+                "{} holds none of {lib}/{pack}'s models{}",
+                f.display(),
+                glob.as_ref().map(|g| format!(" ({g}{})", if listed { ", listed" } else { "" })).unwrap_or_default()
+            ),
+            None => bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default()),
+        }
     }
     let pick = |v: &[String]| keep.iter().map(|&i| v[i].clone()).collect::<Vec<_>>();
+    let source = match (text("url"), text("repo"), text("version")) {
+        (Some(url), _, _) => url.to_string(),
+        (None, Some(repo), Some(commit)) => format!("https://github.com/{repo} at {commit}"),
+        _ => format!("{lib}/{pack}"),
+    };
     Ok(Src {
         dir,
         files: keep.iter().map(|&i| all[i].clone()).collect(),
         ids: pick(&all_ids),
         names: pick(&all_names),
+        meta: keep.iter().map(|&i| all_meta[i].clone()).collect(),
         norm: norm(a, Some(&src))?,
         base_norm: norm(&Args::new(), Some(&src))?,
         lib_pack: Some(format!("{lib}/{pack}")),
-        partial: keep.len() < all.len(),
-        pack: src.get("pack").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}")),
-        license: src.get("license").and_then(Value::as_str).map(str::to_string),
+        partial: keep.len() < pool.len(),
+        pack: text("pack").map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}")),
+        license: text("license").map(str::to_string),
+        pack_info: Some(PackInfo {
+            title: text("label").unwrap_or(pack).to_string(),
+            credit: text("credit").or(text("origin")).unwrap_or_default().to_string(),
+            source,
+            catalog: format!("assets/catalogs/{lib}.json"),
+            local: text("local").map(str::to_string),
+        }),
         label: match &only {
             Some(f) => format!("{lib}/{pack}/{}", f.to_string_lossy().replace('\\', "/")),
             None => format!("{lib}/{pack}"),
@@ -502,15 +586,38 @@ fn names(ids: &[String]) -> Vec<String> {
     out
 }
 
-/// Where a pack's translations are written, and their mesh files in `meshes/` beside them:
-/// `out=` (a folder), else the pack's folder in the git-ignored local tier
-/// (`<props root>/local/<pack>/`, plan §9.1) — the licence gate that routes CC0 packs to
-/// `lib/<pack>` comes with plan row 5.3. Library names and tiers (row 4.1) slot in here.
-pub fn out_dir(pack: &str, out: Option<&str>) -> PathBuf {
-    match out {
-        Some(o) => PathBuf::from(o),
-        None => crate::asset_tools::root().join("local").join(pack),
+/// Where a source's translations go.
+#[derive(Clone, Debug)]
+pub struct Dest {
+    pub dir: PathBuf,
+    /// `lib` or `local` under the props root; None for `out=`.
+    pub tier: Option<&'static str>,
+    /// Why a pack goes to the local tier.
+    pub why: Option<String>,
+}
+
+/// Where a pack's translations are written, their mesh files in `meshes/` beside them (plan
+/// §8.7, §9.1): `out=` (a folder), else the licence gate's tier under the props root. A pinned
+/// pack whose licence may be shared (CC0-1.0, CC-BY) goes to `lib/<pack>/` unless its catalog
+/// keeps it local (`keep_local`, the reason); other known licences, and models outside a pinned
+/// pack (no catalog licence), go to the git-ignored `local/<pack>/`; an unknown licence is
+/// refused.
+pub fn out_dir(pack: &str, license: Option<&str>, keep_local: Option<&str>, out: Option<&str>) -> Result<Dest> {
+    if let Some(o) = out {
+        return Ok(Dest { dir: PathBuf::from(o), tier: None, why: None });
     }
+    pav_core::props::store::validate_pack(pack).map_err(|e| anyhow!("{e}"))?;
+    let (tier, why) = match license {
+        None => ("local", Some("no catalog licence (not a pinned pack)".to_string())),
+        Some(l) => match licence::route(pack, l)? {
+            Route::Local => ("local", Some(format!("licence {l} stays on this machine"))),
+            Route::Shared => match keep_local {
+                Some(reason) => ("local", Some(reason.to_string())),
+                None => ("lib", None),
+            },
+        },
+    };
+    Ok(Dest { dir: crate::asset_tools::root().join(tier).join(pack), tier: Some(tier), why })
 }
 
 /// `fit=`: the translation mode, or None for a census only (`fit=false`).
@@ -531,33 +638,56 @@ struct Done {
     cols: BTreeMap<&'static str, String>,
     error: Option<String>,
     translation: Option<Translation>,
-    /// Skipped: a rigged model belongs to the creature domain (plan §8.4).
-    skipped: bool,
+    /// Why it is not translated: its catalog's `$skip` line, or a rigged model (the creature
+    /// domain, plan §8.4).
+    skip: Option<String>,
+    /// Reading or translating it panicked (the pilot counts these; plan §8.8).
+    panicked: bool,
 }
 
+impl Done {
+    fn error(cols: BTreeMap<&'static str, String>, e: String) -> Done {
+        Done { cols, error: Some(e), translation: None, skip: None, panicked: false }
+    }
+}
+
+/// One model processed; a panic is caught and reported as that model's error.
 fn process(src: &Src, i: usize, mode: Option<Mode>) -> Done {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| process_one(src, i, mode))) {
+        Ok(d) => d,
+        Err(p) => {
+            let what = p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned());
+            let mut d = Done::error(
+                BTreeMap::from([("flags", "error".to_string())]),
+                format!("panic: {}", what.unwrap_or_else(|| "unknown".into())),
+            );
+            d.panicked = true;
+            d
+        }
+    }
+}
+
+fn process_one(src: &Src, i: usize, mode: Option<Mode>) -> Done {
     let (s, done) = match read(&src.dir.join(&src.files[i]), &src.norm) {
         Ok(r) => r,
-        Err(e) => {
-            return Done {
-                cols: BTreeMap::from([("flags", "error".to_string())]),
-                error: Some(format!("{e:#}")),
-                translation: None,
-                skipped: false,
-            };
-        }
+        Err(e) => return Done::error(BTreeMap::from([("flags", "error".to_string())]), format!("{e:#}")),
     };
     let mut cols = census(&s, &done);
-    let Some(mode) = mode else { return Done { cols, error: None, translation: None, skipped: false } };
-    if s.info.skinned {
+    let Some(mode) = mode else { return Done { cols, error: None, translation: None, skip: None, panicked: false } };
+    let meta = &src.meta[i];
+    let skip = meta.skip.clone().or_else(|| s.info.skinned.then(|| "rigged (skinned): rigs belong to the creature tools".into()));
+    if skip.is_some() {
         cols.insert("tier", "skip".into());
-        return Done { cols, error: None, translation: None, skipped: true };
+        return Done { cols, error: None, translation: None, skip, panicked: false };
     }
     let id = &src.ids[i];
     let o = fit::Options {
         mode,
         pack: src.pack.clone(),
         name: src.names[i].clone(),
+        category: meta.category.clone(),
+        tags: meta.tags.clone(),
+        description: meta.description.clone(),
         source: fit::Source {
             library: src.lib_pack.clone(),
             title: Some(id.clone()),
@@ -578,11 +708,11 @@ fn process(src: &Src, i: usize, mode: Option<Mode>) -> Done {
             cols.insert("de", format!("{:.1}", t.fidelity.de));
             cols.insert("chars", t.chars.to_string());
             cols.insert("tier", t.tier.to_string());
-            Done { cols, error: None, translation: Some(t), skipped: false }
+            Done { cols, error: None, translation: Some(t), skip: None, panicked: false }
         }
         Err(e) => {
             cols.insert("tier", "fail".into());
-            Done { cols, error: Some(format!("{e:#}")), translation: None, skipped: false }
+            Done { cols, error: Some(format!("{e:#}")), translation: None, skip: None, panicked: false }
         }
     }
 }
@@ -623,7 +753,7 @@ fn row_line(id: &str, d: &Done) -> String {
             g("mesh_pct"),
             g("chars")
         ),
-        (None, None) if d.skipped => format!("{id} skipped (rigged)"),
+        (None, None) if d.skip.is_some() => format!("{id} skipped: {}", d.skip.as_deref().unwrap_or_default()),
         (None, None) => format!("{id} {}t {}p {}cm {}", g("tris"), g("comps"), g("size_cm"), g("flags")).trim_end().to_string(),
     }
 }
@@ -650,7 +780,8 @@ fn fit_summary(done: &[Done], seconds: f64) -> Value {
     let r = rnd;
     json!({
         "translated": ts.len(),
-        "skipped": done.iter().filter(|d| d.skipped).count(),
+        "skipped": done.iter().filter(|d| d.skip.is_some()).count(),
+        "panics": done.iter().filter(|d| d.panicked).count(),
         "tiers": tiers,
         "editable": fits.iter().filter(|t| metrics::editable(t.mesh_pct)).count(),
         "iou": {"median": r(medianf(ts.iter().map(|t| t.fidelity.iou).collect()), 0.001), "min": r(ts.iter().map(|t| t.fidelity.iou).fold(1.0, f64::min), 0.001)},
@@ -812,17 +943,71 @@ fn compare_image(name: &str, source: &[Tri], fit_tris: &[Tri], meta: Value) -> R
     Ok(Output::Image { png, path: Some(path), meta })
 }
 
+/// The pack folder's `PACK.json` (plan §9.1), fields in its documented order.
+fn pack_json(pack: &str, license: &str, p: &PackInfo) -> String {
+    let fields = [("pack", pack), ("title", &p.title), ("license", license), ("credit", &p.credit), ("source", &p.source)];
+    let mut lines: Vec<String> = fields.iter().map(|(k, v)| format!("  \"{k}\": {}", json!(v))).collect();
+    lines.push(format!("  \"catalog\": {}", json!(p.catalog)));
+    format!("{{\n{}\n}}\n", lines.join(",\n"))
+}
+
+/// After translations are written into a tier folder: a `lib/` pack's `PACK.json` (checked by
+/// `asset_library::read_pack`); for a whole pack, the files of models it no longer writes and
+/// its copy in the other tier removed (that copy's index notes kept); then the pack's index and
+/// the credits, as `assets reindex=<pack>` writes them.
+fn finish_tier(src: &Src, dest: &Dest, written: &[String]) -> Result<Value> {
+    let root = crate::asset_tools::root();
+    if dest.tier == Some("lib") {
+        let (Some(info), Some(license)) = (&src.pack_info, &src.license) else { bail!("lib/{} needs a pinned pack", src.pack) };
+        write_text(&dest.dir.join("PACK.json"), &pack_json(&src.pack, license, info))?;
+        asset_library::read_pack(&dest.dir)?;
+    }
+    if !src.partial {
+        let keep: std::collections::BTreeSet<String> = written.iter().map(|n| format!("{n}.json")).collect();
+        for folder in [dest.dir.clone(), dest.dir.join("meshes")] {
+            let Ok(entries) = std::fs::read_dir(&folder) else { continue };
+            for path in entries.flatten().map(|e| e.path()) {
+                let file = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+                if path.is_file() && file.ends_with(".json") && file != "PACK.json" && !keep.contains(&file) {
+                    std::fs::remove_file(&path)?;
+                }
+            }
+        }
+        let other = root.join(if dest.tier == Some("lib") { "local" } else { "lib" }).join(&src.pack);
+        if other.is_dir() {
+            let (from, to) = (other.join("index.tsv"), dest.dir.join("index.tsv"));
+            if from.exists() && !to.exists() {
+                std::fs::rename(&from, &to)?;
+            }
+            std::fs::remove_dir_all(&other)?;
+            if dest.tier == Some("local") {
+                // It left lib/: its credit goes too.
+                asset_library::write_credits(&root)?;
+            }
+        }
+    }
+    crate::asset_search::reindex(&root, &src.pack)
+}
+
 fn translate_from(a: &Args, what: &str) -> Result<Output> {
     let src = source_of(a, what)?;
     let mode = fit_arg(a)?.ok_or_else(|| anyhow!("fit=false translates nothing: use list=true or survey="))?;
-    let dir = out_dir(&src.pack, get_str(a, "out"));
+    let keep_local = src.pack_info.as_ref().and_then(|p| p.local.as_deref());
+    let dest = out_dir(&src.pack, src.license.as_deref(), keep_local, get_str(a, "out"))?;
+    let dir = dest.dir.clone();
     let started = std::time::Instant::now();
     let done = process_all(&src, Some(mode));
     let seconds = started.elapsed().as_secs_f64();
+    // Every asset in a lib/ pack carries the pack's licence (plan §9.5).
+    if let (Some("lib"), Some(license)) = (dest.tier, src.license.as_deref()) {
+        for t in done.iter().filter_map(|d| d.translation.as_ref()) {
+            asset_library::source_allowed(t.doc.source.as_ref(), license).map_err(|e| anyhow!("{}: {e}", t.doc.name))?;
+        }
+    }
     if src.files.len() == 1 {
         let d = &done[0];
-        if d.skipped {
-            bail!("{}: a rigged model (skinned); rigs belong to the creature tools, not props", src.ids[0]);
+        if let Some(why) = &d.skip {
+            bail!("{}: skipped: {why}", src.ids[0]);
         }
         let t = d.translation.as_ref().ok_or_else(|| anyhow!("{}", d.error.clone().unwrap_or_default()))?;
         // Like a folder's: a failed translation is not written (plan §8.6).
@@ -839,31 +1024,46 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
             );
         }
         let path = write_translation(&dir, t)?;
-        let reply = translation_reply(t, &path);
+        let mut reply = translation_reply(t, &path);
+        if dest.tier.is_some() {
+            finish_tier(&src, &dest, std::slice::from_ref(&t.doc.name))?;
+            reply["to"] = json!(dest.tier);
+            if let Some(why) = &dest.why {
+                reply["why"] = json!(why);
+            }
+        }
         if get_bool(a, "compare", false)? {
             let (s, _) = read(&src.dir.join(&src.files[0]), &src.norm)?;
             return compare_image(&t.doc.name, &raster::scene_tris(&s), &raster::prop_tris(&t.compiled), reply);
         }
         return Ok(Output::Json(reply));
     }
-    let mut written = 0;
+    let mut written = Vec::new();
     for d in &done {
         if let Some(t) = d.translation.as_ref().filter(|t| t.tier != "fail") {
             write_translation(&dir, t)?;
-            written += 1;
+            written.push(t.doc.name.clone());
         }
     }
     let limit = get_u64(a, "limit", 20)? as usize;
     let lines: Vec<String> = src.ids.iter().zip(&done).map(|(id, d)| row_line(id, d)).collect();
-    Ok(Output::Json(json!({
+    let mut reply = json!({
         "from": src.label,
         "dir": dir.display().to_string(),
-        "written": written,
+        "written": written.len(),
         "fit": fit_summary(&done, seconds),
         "rows": lines.iter().take(limit).collect::<Vec<_>>(),
         "rows_more": lines.len().saturating_sub(limit),
-        "next": format!("asset_import check={}/<name>.json compare=true; survey= writes the ledger", dir.display()),
-    })))
+        "next": format!("asset_import check={}/<name>.json compare=true; assets find=<words> tier=disk|local", dir.display()),
+    });
+    if dest.tier.is_some() {
+        reply["index"] = finish_tier(&src, &dest, &written)?;
+        reply["to"] = json!(dest.tier);
+        if let Some(why) = &dest.why {
+            reply["why"] = json!(why);
+        }
+    }
+    Ok(Output::Json(reply))
 }
 
 /// The mesh names a document's parts use.

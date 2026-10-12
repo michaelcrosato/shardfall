@@ -1,0 +1,15 @@
+{"format":2,"name":"wood-structure","unit":"cm","color":"#d07c57",
+"tags":["wood","structure","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"wood-structure"},
+"fit":{"mean_mm":0.6,"worst_mm":4,"iou":0.99,"de":1.1,"mesh_pct":7},
+"parts":{
+"mesh":{"mesh":"kenney_mini_dungeon/wood-structure"},
+"orange_box":{"type":"box","size":[10,10,70],"pos":[42.5,85,0],"color":"#f1976c","mirror":"x"},
+"orange_box2":{"type":"box","size":[70,10,10],"pos":[0,85,42.5],"color":"#f1976c","mirror":"z"},
+"red_box":{"type":"box","size":[15,100,15],"pos":[42.5,50,42.5],"mirror":["x","z"]},
+"red_extrude":{"type":"extrude","points":[[-7,-12],[7,-12],[12,-7],[12,7],[7,12],[-7,12],[-12,7],[-12,-7]],"depth":16,"pos":[42,85,42],"pitch":-90,"mirror":["x","z"]},
+"red_extrude2":{"type":"extrude","points":[[22,-5],[12,5],[-12,5],[-22,-5]],"depth":5,"pos":[42.5,68,-23],"yaw":90,"roll":-45},
+"red_extrude3":{"type":"extrude","points":[[22,-5],[12,5],[-12,5],[-22,-5]],"depth":5,"pos":[-42.5,68,-23],"yaw":90,"roll":-45},
+"red_extrude4":{"type":"extrude","points":[[-22,-5],[22,-5],[12,5],[-12,5]],"depth":5,"pos":[-23,68,-42.5],"roll":45},
+"red_extrude5":{"type":"extrude","points":[[-22,-5],[22,-5],[12,5],[-12,5]],"depth":5,"pos":[-23,68,42.5],"roll":45}}}

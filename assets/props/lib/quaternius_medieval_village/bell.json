@@ -1,0 +1,9 @@
+{"format":2,"name":"bell","unit":"cm","color":"#af8136",
+"tags":["bell","village"],
+"category":"town",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bell"},
+"fit":{"mean_mm":28.3,"worst_mm":107,"iou":0.96,"de":0.1,"mesh_pct":0},
+"parts":{
+"brown_extrude":{"type":"extrude","points":[[-30,-22],[-21,-19],[-23,-7],[-19,3],[-11,10],[-3,12],[11,10],[18,3],[23,-6],[21,-18],[31,-21],[32,-5],[27,9],[14,19],[-3,22],[-16,18],[-27,7],[-32,-6]],"depth":10,"pos":[0,198,0]},
+"brown_lathe":{"type":"lathe","profile":[[94,-92],[94,-73],[78,-62],[63,-30],[52,59],[40,82],[18,92]],"pos":[0,92,0]},
+"brown_lathe2":{"type":"lathe","profile":[[14,-9],[14,-2],[11,3],[6,7],[1,9]],"pos":[0,189,0]}}}

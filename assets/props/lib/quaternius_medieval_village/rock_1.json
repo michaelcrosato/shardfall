@@ -1,0 +1,7 @@
+{"format":2,"name":"rock_1","unit":"cm",
+"tags":["village","quaternius"],
+"category":"rock",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Rock_1"},
+"fit":{"mean_mm":0.2,"worst_mm":0,"iou":1,"de":0.1,"mesh_pct":100},
+"parts":{
+"mesh":{"mesh":"quaternius_medieval_village/rock_1"}}}

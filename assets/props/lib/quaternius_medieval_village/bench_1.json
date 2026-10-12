@@ -1,0 +1,16 @@
+{"format":2,"name":"bench_1","unit":"cm","color":"#624226",
+"tags":["bench","village"],
+"category":"furniture",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bench_1"},
+"fit":{"mean_mm":1.9,"worst_mm":10,"iou":0.92,"de":0.1,"mesh_pct":0},
+"parts":{
+"brown_extrude":{"type":"extrude","points":[[33,-13],[97,-11],[97,10],[-97,10],[-97,-11],[-56,-9]],"depth":5.3,"pos":[0,41,-2],"pitch":-90},
+"brown_extrude10":{"type":"extrude","points":[[-3,-28],[4.3,-28],[2.5,28],[-4,28],[-4,2],[-3.5,-27]],"depth":10.7,"pos":[-93.5,28,-15],"yaw":90},
+"brown_extrude2":{"type":"extrude","points":[[48,-13],[56,-9],[97,-11],[97,12],[-97,12],[-97,-11],[-14,-9]],"depth":4.6,"pos":[0,40.6,23],"pitch":-90},
+"brown_extrude3":{"type":"extrude","points":[[14,-12],[97,-10],[97,11],[64,6],[46,11],[8,8],[-12,13],[-50,13],[-97,11],[-97,-10],[-31,-10],[-25,-6],[-25,-10]],"depth":3.8,"pos":[0,80,41.5],"pitch":16},
+"brown_extrude4":{"type":"extrude","points":[[-97,-12],[97,-12],[97,11],[14,9],[-48,13],[-52,9],[-97,11]],"depth":4,"pos":[0,57,37.3],"pitch":5},
+"brown_extrude5":{"type":"extrude","points":[[-0.5,-47],[7,-47],[8,13],[-0.5,47],[-8,46],[-8,44],[-2.5,31],[0.5,15]],"depth":10.7,"pos":[-93.5,47,41],"yaw":90},
+"brown_extrude6":{"type":"extrude","points":[[-0.5,-47],[7,-47],[8,13],[-0.5,47],[-8,46],[-8,44],[-2.5,31],[0.5,15]],"depth":10.7,"pos":[93.5,47,41],"yaw":90},
+"brown_extrude7":{"type":"extrude","points":[[-6,-33],[7,-33],[7,33],[-6,33],[-7,2],[-4.5,-4],[-4.5,-15]],"depth":5.4,"pos":[93,59.2,9],"pitch":-90},
+"brown_extrude8":{"type":"extrude","points":[[-7,-33],[6,-33],[5,-3],[7,3],[7,11],[6,33],[-7,33]],"depth":5.4,"pos":[-93,59.2,9],"pitch":-90},
+"brown_extrude9":{"type":"extrude","points":[[-3,-28],[4.3,-28],[2.5,28],[-4,28],[-4,2],[-3.5,-27]],"depth":10.7,"pos":[93.5,28,-15],"yaw":90}}}

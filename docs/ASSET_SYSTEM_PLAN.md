@@ -1343,14 +1343,14 @@ Why this order:
 - [x] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
 - [x] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [x] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
-- [x] 3.4 MAT-6 theme materials in levels; lean G3 (M): all 8 themes; levels identical for 5 seeds; review page with the user
+- [x] 3.4 MAT-6 theme materials in levels; lean G3 (M): all 8 themes; levels identical for 5 seeds; 8 before/after captures judged by the orchestrator
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [x] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L): 28 exemplars (no theme-kit pieces: SF-3 deferred), all accepted by the user
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)
-- [ ] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M)
+- [x] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M): 267 models from 6 packs, 99% `fit`, median IoU 0.983, median 521 chars, 0 panics, identical rebuilds, but 31% of fits editable; GO for the two packs that pass every criterion (Kenney Mini Dungeon, Quaternius Medieval Village: `lib/`, 288 KB), the other four (Castle, Nature, Food, KayKit Dungeon: 20-35% editable) kept local with the reason in their catalogs; the colour-split fix round was dropped (HISTORY). As built: catalog model lines `"<pack>/<id>": ["<category> <tags>", "<desc>"]`, `listed`, `local`; Quaternius via OpenGameArt's Medieval Village Pack; `find=`/`catalog=` args and per-asset placement left out
 - [ ] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L)
 
 **Deferred on 2026-10-12** (no shown need yet; feedback from the test games decides whether any

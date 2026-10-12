@@ -5,6 +5,83 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 5.3: catalogs, the licence gate, the import pilot (lean G5: two packs GO) — 2026-10-12
+
+Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now library packs that
+`assets find=` ranks; the pilot decided which are committed.
+- **Licence gate and tiers** (`import/licence.rs`, `asset_import::out_dir`). `from=lib/pack`
+  routes by the pack's SPDX licence: CC0-1.0 and CC-BY-3.0/4.0 (`asset_library::license_allowed`)
+  to `assets/props/lib/<pack>/`, with a `PACK.json` (pack, title, licence, credit, source,
+  catalog; checked by `read_pack`) and every asset's `source.license` the pack's
+  (`source_allowed`); share-alike, NC, ND, OGA-BY, GPL, QAL and store licences, packs whose
+  catalog source says `"local": "why"`, and files outside a pinned pack to the git-ignored
+  `local/<pack>/`; anything else is refused ("unknown licence X: review it, then add it to
+  …licence.rs"); `core` is never an import target. A whole pack's run removes files of models it
+  no longer writes, moves the pack out of the other tier (keeping its index notes), then
+  reindexes it and rewrites `CREDITS.md` (`assets reindex=<pack>` does the same by hand). `get`
+  also refuses a licence file that does not say the catalog's licence (`CC0`, `publicdomain/zero`
+  …), and a git source is pinned by the SHA-256 of its files' sha256sum lines (it was the file
+  names only).
+- **Catalogs** (`assets/catalogs/{kenney,kaykit,quaternius}.json`): pins (URL or repo and commit,
+  archive and licence SHA-256), placement, `label`/`credit`, then one line per model,
+  `"<pack>/<id>": ["<category> <2-6 tags>", "<description>"]`, which translations write as
+  `category` and `tags`; `$skip` with the reason (Mini Dungeon's two rigged characters,
+  Quaternius's smoke puff); `"listed": true` translates only lined models; a line naming no model,
+  or one whose first word is not a category, is an error. The 267 lines were made by a script from
+  the model names (a keyword table for the category, the name's words and the pack's theme as
+  tags) and read over. KayKit's ids drop the `.gltf` of `chair.gltf.glb`.
+- **Sources reached from this container:** Kenney Castle, Nature and Food Kits (zips, 2-11 MB);
+  KayKit Dungeon Remastered at commit `b0ca9bd` (raw files; the GitHub API and github.com are
+  refused here, so the file list came from a blob-less git clone's tree); Quaternius's LowPoly
+  Medieval Village Pack (Dec 2020) from OpenGameArt, 8.3 MB of OBJ (the plan's House Interior and
+  Modular Dungeon are not among Quaternius's OpenGameArt uploads; the Fantasy Props MegaKit is,
+  but 74 MB with trim-sheet textures). Pilot subsets are systematic, not picked by fit: Nature 50
+  of 329 (colour variants folded, every 5th by name), Food 40 of 200 (every 5th), KayKit 40 of 203
+  (colour variants folded, every 4th), all 34 Quaternius props. Food Kit is scaled 0.3 (its apple
+  was 20 cm, its carrot 72 cm) and Quaternius 3 (its barrel 20 cm, its door 72 cm); the modular
+  kits keep their own scale.
+- **Pilot (lean G5, plan §10.3)**, from the ledgers `assets/catalogs/<lib>/<pack>.tsv`:
+
+  | pack | translated | fit (≥ 80%) | median IoU (≥ 0.90) | median chars (≤ 2,500) | editable (≥ 40% of fit) | G5 | goes to |
+  |---|---|---|---|---|---|---|---|
+  | Kenney Mini Dungeon | 28 (+2 skipped) | 28 (100%) | 0.983 | 721 | 15 (54%) | pass | lib |
+  | Kenney Castle Kit | 76 | 76 (100%) | 0.998 | 398 | 15 (20%) | editable short | local |
+  | Kenney Nature Kit (50 of 329) | 50 | 50 (100%) | 0.985 | 521 | 15 (30%) | editable short | local |
+  | Kenney Food Kit (40 of 200) | 40 | 39 (98%) | 0.971 | 318 | 7 (18%) | editable short | local |
+  | KayKit Dungeon Remastered (40 of 203) | 40 | 40 (100%) | 0.993 | 897 | 14 (35%) | editable short | local |
+  | Quaternius Medieval Village props | 33 (+1 skipped) | 31 (94%) | 0.961 | 1,186 | 15 (48%) | pass | lib |
+  | **overall** | 267 (+3 skipped) | 264 (99%) | 0.983 | 521 | 81 (31%) | editable short | |
+
+  0 panics (each model now runs under `catch_unwind`; the summary counts `panics`); every pack
+  rebuilds byte for byte (two translations of each into fresh folders, identical trees). Not a
+  full GO (editable 31% overall) and far from a NO-GO (99% fit, against < 60%): **the two packs
+  that pass every criterion are committed** (`lib/kenney_mini_dungeon` 57 KB, 46 files;
+  `lib/quaternius_medieval_village` 231 KB, 55 files: 288 KB of the 40 MB disk budget, largest
+  file 18 KB); Castle, Nature, Food and KayKit stay in the local tier, each catalog source saying
+  why (the whole pilot would have been 1.1 MB). Per pack 2-7 s. The GPU cross-check and the 30
+  re-authorings stay deferred. Review sample: 12 compare images in `.cache/g5/` (manifest for
+  `scripts/review_page.py`).
+- **Why editability fails:** Kenney paints a model in bands of one texture on one connected mesh
+  (castle towers and walls, most food), and organic shapes (canopies, bread, bananas) fit no
+  primitive, so the asset loop keeps them as one mesh part: exact to look at (IoU ~1), cheap in
+  tokens, but not editable. **The fix round** cut multicoloured pieces along their colours (each
+  colour patch's connected parts fitted, flat patches as 3-8 mm slabs on their face): +17
+  editable assets of 627 (199 → 216 on the four whole Kenney packs), but worst-view IoU fell to
+  0.91-0.97 on those, their size rose 2-3× (cocktail 360 → 1,006 chars) and castle towers lost
+  their crenellations; limited to splits costing ≤ 0.02 IoU it gave +6. No proven benefit:
+  dropped, and the four packs ship local, as §10.3 says.
+- **Smaller fixes and decisions.** A view in which the source draws under 1% of its pixels (a
+  zigzag sheet edge-on: Food Kit's bacon read IoU 0 and `fail`) is skipped like a sliver. Food's
+  whisk fails at scale 0.3 (wires under the mesh part's millimetre grid). `check=` calls a
+  whole-mesh `auto` translation `exact` where the translation said `fit` (5.2's rule, left). Facing
+  stays per pack: KayKit's chair faces −x. The plan's `find=` over ledgers, `catalog=` rebuilds
+  and per-asset placement are left out (no need shown); the tool's help is unchanged (tools/list
+  stays under its cap). The library tests install each pack's mesh files, since they run outside
+  the repository root the engine reads them from. New doc `docs/ASSET_IMPORT.md` (importing,
+  tiers, checking one asset), linked from `ASSET_STUDIO.md`; test `tests/import_library.rs`
+  (routing, `PACK.json`, credits, index, catalog tags, `local`, refusals) and the licence table's
+  unit test.
+
 ## Asset plan 3.4: theme materials in levels, lean G3 — 2026-10-12
 
 Row 3.4 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-6), in slim form: every dungeon theme now has

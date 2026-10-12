@@ -1,0 +1,7 @@
+{"format":2,"name":"bag_open","unit":"cm",
+"tags":["bag","open","village"],
+"category":"container",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bag_Open"},
+"fit":{"mean_mm":0.2,"worst_mm":0,"iou":0.99,"de":0.1,"mesh_pct":100},
+"parts":{
+"mesh":{"mesh":"quaternius_medieval_village/bag_open"}}}

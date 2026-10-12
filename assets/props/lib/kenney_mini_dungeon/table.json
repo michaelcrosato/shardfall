@@ -1,0 +1,11 @@
+{"format":2,"name":"table","unit":"cm","color":"#844e47",
+"tags":["table","dungeon"],
+"category":"furniture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"table"},
+"fit":{"mean_mm":2.4,"worst_mm":11,"iou":0.92,"de":1.2,"mesh_pct":0},
+"parts":{
+"brown_box":{"type":"box","size":[66,11,44],"pos":[0,14,0]},
+"brown_extrude":{"type":"extrude","points":[[9,-10],[5,10],[-9,10],[-3,-10]],"depth":15,"pos":[32,10,21],"yaw":-11,"mirror":"x"},
+"brown_extrude2":{"type":"extrude","points":[[-9,-10],[3,-10],[4,-5],[5,-4],[7,4],[8,4],[9,9],[9,10],[-5,10]],"depth":15,"pos":[-32,10,-21],"yaw":-11},
+"brown_extrude3":{"type":"extrude","points":[[-3,-10],[9,-10],[5,10],[-9,10]],"depth":15,"pos":[32,10,-21],"yaw":11},
+"red_extrude":{"type":"extrude","points":[[-19,-33],[17,-33],[22,-27],[28,-30],[40,-29],[44,4],[40,29],[37,30],[31,30],[20,32],[-12,32],[-15,29],[-17,29],[-19,32],[-25,32],[-40,29],[-44,-4],[-40,-29]],"depth":12,"pos":[0,25.5,0],"pitch":-90,"color":"#d07b54"}}}

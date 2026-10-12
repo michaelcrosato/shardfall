@@ -1,0 +1,16 @@
+{"format":2,"name":"gazebo","unit":"cm","color":"#624226",
+"tags":["gazebo","village"],
+"category":"town",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Gazebo"},
+"fit":{"mean_mm":5.5,"worst_mm":17,"iou":0.96,"de":0.1,"mesh_pct":29},
+"parts":{
+"brown_box":{"type":"box","size":[277,17,11.6],"pos":[-1,201,161.6],"mirror":"z"},
+"brown_box2":{"type":"box","size":[241,11.6,6],"pos":[8,172,160.7],"mirror":"z"},
+"brown_box3":{"type":"box","size":[14,160,6.7],"pos":[-1,287,161.7],"mirror":"z"},
+"brown_extrude":{"type":"extrude","points":[[-115,-91],[-8,65],[3,70],[115,-91],[126,-91],[126,-80],[11,81],[-3,92],[-129,-88]],"depth":318,"pos":[-2,290,0],"color":"#60281d"},
+"brown_extrude2":{"type":"extrude","points":[[-129,-106],[-122,-103],[-3,69],[3,69],[122,-103],[129,-106],[156,-90],[113,-53],[3,105],[-3,105],[-113,-53],[-156,-90]],"depth":17,"pos":[-2,290,161]},
+"brown_extrude3":{"type":"extrude","points":[[-129,-106],[-122,-103],[-7,69],[3,72],[122,-103],[129,-106],[156,-90],[113,-53],[3,105],[-3,105],[-113,-53],[-156,-90]],"depth":17,"pos":[-2,290,-161]},
+"brown_extrude4":{"type":"extrude","points":[[-10,-11],[10,-11],[5,11],[-5,11]],"depth":378,"pos":[-2,394,3]},
+"brown_extrude5":{"type":"extrude","points":[[36,-17],[46,-8],[44,-4],[33,8],[9,17],[-20,14],[-42,2],[-46,-1],[-44,-15],[-16,1],[10,3],[24,-4]],"depth":9,"pos":[-49,243,161.3],"roll":-42,"mirror":"z"},
+"brown_extrude6":{"type":"extrude","points":[[-36,-17],[-24,-4],[-10,3],[16,1],[44,-15],[46,-1],[37,5],[20,14],[-11,17],[-33,8],[-44,-4],[-46,-8]],"depth":9,"pos":[47,243,161.3],"roll":42,"mirror":"z"},
+"mesh":{"mesh":"quaternius_medieval_village/gazebo"}}}

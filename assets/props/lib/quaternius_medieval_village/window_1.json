@@ -1,0 +1,10 @@
+{"format":2,"name":"window_1","unit":"cm","color":"#624226",
+"tags":["window","village"],
+"category":"architecture",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Window_1"},
+"fit":{"mean_mm":6.8,"worst_mm":49,"iou":0.98,"de":1,"mesh_pct":0},
+"parts":{
+"brown_box":{"type":"box","size":[90,12.5,7.6],"pos":[0,1,26.7]},
+"brown_box2":{"type":"box","size":[12.5,90,7.6],"pos":[0,1,25]},
+"brown_extrude":{"type":"extrude","points":[[2,-57],[11,-53],[29,-50],[50,-29],[57,2],[53,11],[50,29],[29,50],[-2,57],[-11,53],[-29,50],[-50,29],[-57,-2],[-53,-11],[-50,-29],[-29,-50]],"depth":36,"pos":[0,0,18],"color":"#4b321d"},
+"dark_ellipsoid":{"type":"ellipsoid","size":[106,106,0.1],"pos":[0,0,24.7],"color":"#2f2f2f","solid":false}}}

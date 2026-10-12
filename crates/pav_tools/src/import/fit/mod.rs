@@ -46,9 +46,10 @@ pub const ASSET_IOU: f64 = 0.90;
 pub const ASSET_DE: f64 = 6.0;
 
 /// How pieces are translated.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Mode {
     /// Primitives, with the mesh part for what they cannot fit.
+    #[default]
     Auto,
     /// Primitives only.
     Prims,
@@ -78,7 +79,7 @@ pub struct Source {
     pub norm: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Options {
     pub mode: Mode,
     /// The library pack the asset and its mesh belong to (`kenney_mini_dungeon`).
@@ -86,6 +87,11 @@ pub struct Options {
     /// The asset's name (its file's leaf).
     pub name: String,
     pub source: Source,
+    /// What retrieval reads (`assets find=`), from the catalog: a category, tags and a
+    /// description.
+    pub category: Option<String>,
+    pub tags: Vec<String>,
+    pub description: String,
 }
 
 /// A translated asset.

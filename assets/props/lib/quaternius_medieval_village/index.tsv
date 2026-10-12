@@ -1,0 +1,34 @@
+name	cat	size_cm	parts	tok	fid	src	tags	sockets	note	desc
+LIB/quaternius_medieval_village/bag	container	46x18x33	1	110	mesh100	CC0-1.0 quaternius/medieval_village	bag village			
+LIB/quaternius_medieval_village/bag_open	container	45x31x61	1	118	mesh100	CC0-1.0 quaternius/medieval_village	bag open village			
+LIB/quaternius_medieval_village/bags	container	81x32x72	1	110	mesh100	CC0-1.0 quaternius/medieval_village	bags village			
+LIB/quaternius_medieval_village/barrel	container	47x61x48	11	698	mesh42	CC0-1.0 quaternius/medieval_village	barrel village			
+LIB/quaternius_medieval_village/bell	town	188x220x188	3	255	fit96	CC0-1.0 quaternius/medieval_village	bell village			
+LIB/quaternius_medieval_village/bench_1	furniture	200x94x73	10	653	fit92	CC0-1.0 quaternius/medieval_village	bench village			
+LIB/quaternius_medieval_village/bench_2	furniture	200x56x66	10	600	fit92	CC0-1.0 quaternius/medieval_village	bench village			
+LIB/quaternius_medieval_village/bonfire	lighting	122x34x109	14	593	mesh31	CC0-1.0 quaternius/medieval_village	bonfire village			
+LIB/quaternius_medieval_village/bonfire_lit	lighting	122x106x109	15	639	mesh43	CC0-1.0 quaternius/medieval_village	bonfire lit village			
+LIB/quaternius_medieval_village/cart	town	139x239x279	48	2355	mesh22	CC0-1.0 quaternius/medieval_village	cart village			
+LIB/quaternius_medieval_village/cauldron	container	109x75x88	13	815	mesh25	CC0-1.0 quaternius/medieval_village	cauldron village			
+LIB/quaternius_medieval_village/crate	container	48x48x48	14	400	mesh37	CC0-1.0 quaternius/medieval_village	crate village			
+LIB/quaternius_medieval_village/door_round	architecture	151x217x89	51	1947	fit99	CC0-1.0 quaternius/medieval_village	door round village			
+LIB/quaternius_medieval_village/door_straight	architecture	151x213x89	53	1724	fit98	CC0-1.0 quaternius/medieval_village	door straight village			
+LIB/quaternius_medieval_village/fence	architecture	238x98x7.8	4	288	fit90	CC0-1.0 quaternius/medieval_village	fence village			
+LIB/quaternius_medieval_village/gazebo	town	312x405x378	15	597	mesh29	CC0-1.0 quaternius/medieval_village	gazebo village			
+LIB/quaternius_medieval_village/hay	vegetation	36x54x38	5	309	mesh69	CC0-1.0 quaternius/medieval_village	hay village			
+LIB/quaternius_medieval_village/marketstand_1	town	285x315x357	36	1169	mesh40	CC0-1.0 quaternius/medieval_village	market stand village			
+LIB/quaternius_medieval_village/marketstand_2	town	155x313x346	24	811	mesh57	CC0-1.0 quaternius/medieval_village	market stand village			
+LIB/quaternius_medieval_village/package_1	container	84x39x55	4	194	mesh52	CC0-1.0 quaternius/medieval_village	package village			
+LIB/quaternius_medieval_village/package_2	container	57x47x56	5	179	mesh39	CC0-1.0 quaternius/medieval_village	package village			
+LIB/quaternius_medieval_village/path_square	architecture	147x15x144	25	846	fit96	CC0-1.0 quaternius/medieval_village	path square village			
+LIB/quaternius_medieval_village/path_straight	architecture	150x14x293	51	1616	fit96	CC0-1.0 quaternius/medieval_village	path straight village			
+LIB/quaternius_medieval_village/rock_1	rock	77x52x63	1	113	mesh100	CC0-1.0 quaternius/medieval_village	village quaternius			
+LIB/quaternius_medieval_village/rock_2	rock	71x45x30	2	155	mesh69	CC0-1.0 quaternius/medieval_village	village quaternius			
+LIB/quaternius_medieval_village/rock_3	rock	90x24x80	2	149	mesh78	CC0-1.0 quaternius/medieval_village	village quaternius			
+LIB/quaternius_medieval_village/sawmill_saw	tool	213x165x511	8	422	mesh45	CC0-1.0 quaternius/medieval_village	sawmill saw village			
+LIB/quaternius_medieval_village/stairs	architecture	151x37x88	17	618	fit97	CC0-1.0 quaternius/medieval_village	stairs village			
+LIB/quaternius_medieval_village/well	town	200x375x302	71	4060	mesh14	CC0-1.0 quaternius/medieval_village	well village			
+LIB/quaternius_medieval_village/window_1	architecture	114x114x36	4	271	fit98	CC0-1.0 quaternius/medieval_village	window village			
+LIB/quaternius_medieval_village/window_2	architecture	134x112x46	5	369	fit99	CC0-1.0 quaternius/medieval_village	window village			
+LIB/quaternius_medieval_village/window_3	architecture	134x167x46	5	377	fit99	CC0-1.0 quaternius/medieval_village	window village			
+LIB/quaternius_medieval_village/window_4	architecture	134x167x46	7	424	fit99	CC0-1.0 quaternius/medieval_village	window village			

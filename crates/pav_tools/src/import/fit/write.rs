@@ -591,6 +591,15 @@ pub fn document(fitted: &[Fitted], o: &Options, mesh: Option<&str>, node_names: 
     if let Some(root) = root {
         doc.insert("color".into(), json!(root));
     }
+    if !o.description.is_empty() {
+        doc.insert("description".into(), json!(o.description));
+    }
+    if let Some(category) = &o.category {
+        doc.insert("category".into(), json!(category));
+    }
+    if !o.tags.is_empty() {
+        doc.insert("tags".into(), json!(o.tags));
+    }
     let mut source = Map::new();
     for (k, v) in [
         ("library", &o.source.library),

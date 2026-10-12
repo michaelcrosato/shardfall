@@ -1,0 +1,8 @@
+{"format":2,"name":"rock_3","unit":"cm","color":"#636b76",
+"tags":["village","quaternius"],
+"category":"rock",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Rock_3"},
+"fit":{"mean_mm":1.9,"worst_mm":14,"iou":0.96,"de":0.1,"mesh_pct":78},
+"parts":{
+"grey_lathe":{"type":"lathe","profile":[[17,-8],[12,5],[9,8]],"pos":[21,8,-20]},
+"mesh":{"mesh":"quaternius_medieval_village/rock_3"}}}

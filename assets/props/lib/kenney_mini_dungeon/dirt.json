@@ -1,0 +1,7 @@
+{"format":2,"name":"dirt","unit":"cm","color":"#3e3e45",
+"tags":["dirt","kenney"],
+"category":"dungeon",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"dirt"},
+"fit":{"mean_mm":0,"worst_mm":0,"iou":1,"de":1.4,"mesh_pct":0},
+"parts":{
+"dark_box":{"type":"box","size":[100,90,100],"pos":[0,45,0]}}}

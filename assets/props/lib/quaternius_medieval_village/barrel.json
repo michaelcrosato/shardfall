@@ -1,0 +1,17 @@
+{"format":2,"name":"barrel","unit":"cm","color":"#624226",
+"tags":["barrel","village"],
+"category":"container",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Barrel"},
+"fit":{"mean_mm":1.5,"worst_mm":9,"iou":0.99,"de":1.3,"mesh_pct":42},
+"parts":{
+"brown_extrude":{"type":"extrude","points":[[2,-30],[4,-30],[0,-16],[0,-10],[-1.3,-5],[0,16],[4,29],[4,30],[2,30],[-2,17],[-4,-1],[-2,-16],[1.3,-26],[1.3,-29]],"depth":12.5,"pos":[-2,31,19.6],"yaw":84},
+"brown_extrude2":{"type":"extrude","points":[[1.6,-30],[3.6,-30],[-0.3,-16],[-0.3,-10],[-1.6,-5],[-0.3,16],[3.6,29],[3.6,30],[1.6,30],[-2.3,16],[-3.6,-5],[-2.3,-10],[-2.3,-16],[1,-26],[1,-29]],"depth":12.5,"pos":[-10,31,-17],"yaw":-60},
+"brown_extrude3":{"type":"extrude","points":[[-17,-0.7],[17,-0.4],[17,0.7],[-12,0.7],[-17,0.3]],"depth":5.4,"pos":[2,58.7,0],"yaw":85,"solid":false},
+"brown_extrude4":{"type":"extrude","points":[[2.8,-15],[2,-5],[2.4,7],[1.8,15],[-2,13],[-2.6,-7],[-2,-8],[-2.3,-13]],"depth":1.2,"pos":[-9,58.7,-1],"yaw":-8,"pitch":-90,"solid":false},
+"brown_extrude5":{"type":"extrude","points":[[-2,-13],[1.4,-10],[1.6,-8],[2.5,-6],[2.5,-5],[2.2,7],[1,11],[0.8,12],[-2.5,13],[-2.5,-7],[-1.7,-8],[-2.2,-12]],"depth":1.2,"pos":[12,58.7,1],"yaw":-7,"pitch":-90,"solid":false},
+"brown_extrude6":{"type":"extrude","points":[[2.4,-12],[2.4,8],[2,9],[2.4,11],[2.2,12],[2,12],[1,11],[-1.4,9],[-2.2,6],[-2,1],[-2.4,-5],[-1,-9],[0,-10],[1,-11],[1.4,-11]],"depth":1.2,"pos":[-14,58.7,-1],"yaw":-7,"pitch":-90,"solid":false},
+"dark_lathe":{"type":"lathe","profile":[[22,-1],[21,1]],"pos":[0,49,0],"color":"#4f5157"},
+"dark_lathe2":{"type":"lathe","profile":[[21,-1],[22,1]],"pos":[0,12.7,0],"color":"#4f5157"},
+"dark_lathe3":{"type":"lathe","profile":[[19,-1.8],[19,1.8]],"pos":[0,58.6,0],"color":"#4f5157"},
+"dark_lathe4":{"type":"lathe","profile":[[19,-1.8],[19,1.8]],"pos":[0,3,0],"color":"#4f5157"},
+"mesh":{"mesh":"quaternius_medieval_village/barrel"}}}

@@ -1,0 +1,7 @@
+{"format":2,"name":"floor","unit":"cm","color":"#7d829c",
+"tags":["floor","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"floor"},
+"fit":{"mean_mm":0.5,"worst_mm":1,"iou":1,"de":0,"mesh_pct":0},
+"parts":{
+"blue_box":{"type":"box","size":[100,0.1,100],"pos":[0,0,0]}}}

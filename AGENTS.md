@@ -144,7 +144,8 @@ crates/
               poses, number for number what my-3D2dge's own importer writes; the whole CMU
               database surveyed and translated), and the asset importer (import/: what both
               importers share, one `Scene` read from glTF/OBJ, normalisation, translation into
-              props with fidelity metrics; `asset_import`)
+              props with fidelity metrics, the licence gate that routes packs to lib/ or
+              local/; `asset_import`, `docs/ASSET_IMPORT.md`)
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
@@ -288,8 +289,11 @@ import: `asset_import` (`pav help` for args).
   `from=<model> list=true` summarises a .glb/.gltf/.obj (parts, triangles, size in cm, materials,
   main colours, warnings); `from=<model|folder|lib/pack>` translates into format-2 props
   (primitives, plus one read-only vertex-coloured mesh part for what they cannot fit; `fit=prims|mesh`)
-  written to the local tier `assets/props/local/<pack>/` (not committed; or `out=`), with their
-  fidelity (six-view IoU, ΔE, Chamfer mm, tier); `survey=<lib/pack|folder>` fits without writing
+  with the catalog's category and tags, routed by the licence gate: CC0/CC-BY packs to
+  `assets/props/lib/<pack>/` (committed, with `PACK.json`; then the index and `CREDITS.md`),
+  other licences, packs whose catalog says `"local"` and loose files to the git-ignored
+  `assets/props/local/<pack>/` (or `out=`), with their fidelity (six-view IoU, ΔE, Chamfer mm,
+  tier; `docs/ASSET_IMPORT.md`); `survey=<lib/pack|folder>` fits without writing
   and fills the ledger (`assets/catalogs/<lib>/<pack>.tsv`, keeping each row's `note`; `fit=false`:
   census only); `check=<asset.json> compare=true` measures a translation again and returns
   source-over-translation views. `up= yaw= scale= place=` bring a model into the engine's frame
@@ -466,7 +470,9 @@ back exactly, mirrored nodes stay outward, texels give exact face colours, malfo
 errors, normalisation, the `asset_import` tool), `tests/import_fit.rs` (a table folds into a top
 and mirrored legs, a vase is a lathe, a blade an extrusion, a noisy blob a mesh part within budget;
 the engine reads every translation back; byte-identical twice; translate, check, compare and
-survey through the tool) and `tests/import_khronos.rs` (opt-in,
+survey through the tool), `tests/import_library.rs` (packs go to lib/ or local/ by licence
+with their `PACK.json`, credits, index and catalog tags; unknown licences refused) and
+`tests/import_khronos.rs` (opt-in,
 `-- --ignored`: 12 Khronos sample models at a pinned commit). `pav_core/tests/prop_materials.rs`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,
 one edit that adds and uses a material, snapshots) and `pav_tools/tests/material_preview.rs`

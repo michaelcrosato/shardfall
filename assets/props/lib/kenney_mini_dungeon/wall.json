@@ -1,0 +1,11 @@
+{"format":2,"name":"wall","unit":"cm","color":"#99a1c1",
+"tags":["wall","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"wall"},
+"fit":{"mean_mm":0.1,"worst_mm":0,"iou":1,"de":0.3,"mesh_pct":94},
+"parts":{
+"blue_extrude":{"type":"extrude","points":[[-15,-2.6],[15,-2.6],[20,2.5],[-20,2]],"depth":20,"pos":[0,80,47.5],"pitch":-90},
+"blue_extrude2":{"type":"extrude","points":[[-20,-2.6],[20,-2.2],[15,2.5],[-15,2.5]],"depth":20,"pos":[0,80,-47.5],"pitch":-90},
+"blue_extrude3":{"type":"extrude","points":[[2.2,-20],[2.6,20],[-2.5,15],[-2.5,-15]],"depth":20,"pos":[-47.5,80,0],"pitch":-90},
+"blue_extrude4":{"type":"extrude","points":[[-2.5,-20],[2.6,-15],[2.6,15],[-2.5,20]],"depth":20,"pos":[47.5,80,0],"pitch":-90},
+"mesh":{"mesh":"kenney_mini_dungeon/wall"}}}

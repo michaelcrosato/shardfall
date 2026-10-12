@@ -1,0 +1,9 @@
+{"format":2,"name":"shield-rectangle","unit":"cm","color":"#ca714e",
+"tags":["shield","rectangle","dungeon"],
+"category":"armour",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"shield-rectangle"},
+"fit":{"mean_mm":5,"worst_mm":28,"iou":0.9,"de":1.2,"mesh_pct":34},
+"parts":{
+"blue_extrude":{"type":"extrude","points":[[1,-6],[9,-4],[13,-1],[14,2],[12,5],[9,6],[9,6],[5,3],[0,2],[-5,3],[-9,6],[-9,6],[-12,5],[-14,1],[-13,-1],[-8,-4.4]],"depth":6,"pos":[0,3,0.5],"pitch":-90,"color":"#9ea5c6"},
+"mesh":{"mesh":"kenney_mini_dungeon/shield-rectangle"},
+"red_box":{"type":"box","size":[24,18,8],"pos":[0,15,0.3]}}}

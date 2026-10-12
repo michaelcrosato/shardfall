@@ -7,9 +7,10 @@ into broken commands.
 ## The loop
 
 1. `assets find=words` finds a starting point: templates (BUILTIN/box, crate, bench, lantern),
-   library packs (LIB/pack/name, read-only: copy one) and saved objects (WORKSHOP/name). Rows
-   are name cat size_cm parts tok tags desc, best first; filters `category=`, `tags=` (`@sit`: a
-   socket), `tier=embedded` (what every build has), `similar=NAME`; `next` pages.
+   library packs (LIB/pack/name, read-only: copy one; imported packs: docs/ASSET_IMPORT.md) and
+   saved objects (WORKSHOP/name). Rows are name cat size_cm parts tok tags desc, best first;
+   filters `category=`, `tags=` (`@sit`: a socket), `tier=embedded` (what every build has),
+   `similar=NAME`; `next` pages.
 2. Make the object and look at it in one go: a create command like the one below and, on the
    next line, `asset_preview name=x views=true figure=true`. The create reply has size_cm and
    check (what is wrong); the preview writes a sheet of four views beside a 1.8 m figure, the

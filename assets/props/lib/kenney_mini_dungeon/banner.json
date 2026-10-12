@@ -1,0 +1,7 @@
+{"format":2,"name":"banner","unit":"cm",
+"tags":["banner","dungeon"],
+"category":"signage",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"banner"},
+"fit":{"mean_mm":0,"worst_mm":0,"iou":1,"de":0.1,"mesh_pct":100},
+"parts":{
+"mesh":{"mesh":"kenney_mini_dungeon/banner"}}}

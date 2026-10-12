@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next rows 5.3, 4.3, then 6.1):
+**Asset system plan** (resumed in slim form on 2026-10-12; next rows 4.3, then 6.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -78,13 +78,19 @@ legibility from `asset_preview kind=material`, `docs/MATERIALS.md`. Every dungeo
 them (3.4): `themes.toml` `floor_mat/wall_mat/pillar_mat/cap_mat` give all 8 themes flagstone
 floors, dressed-stone walls, drum pillars and coping stones in their own colours (the level's
 palette rides in `Mood` to the view), identical levels and mechanics, and `view.material_detail`
-(`full`, `first_layer` on phones, `off`); its G3 review is 8 before/after captures for the user.
+(`full`, `first_layer` on phones, `off`); its G3 review was 8 before/after captures, judged by
+the orchestrator under the user's rule.
 Rows 5.1 and 5.2 are done early: the importers share `pav_tools/src/import/`; `asset_import` reads
 glTF and OBJ into one `Scene`, downloads pinned packs, translates models into format-2 props
 (primitives, mirrors and arrays, plus one read-only vertex-coloured mesh part the engine now
 draws) and measures them on the CPU (six-view IoU, ΔE, Chamfer, tier; `check=`, `compare=`).
-Kenney Mini Dungeon: median worst-view IoU 0.983 at 293 tokens, byte-identical rebuilds. Next for
-import: row 5.3 (catalogs, licence gate, the pilot).
+Kenney Mini Dungeon: median worst-view IoU 0.983 at 293 tokens, byte-identical rebuilds. Row 5.3
+is done (`docs/ASSET_IMPORT.md`): catalogs give each model a category and tags, and a licence
+gate sends CC0/CC-BY packs to `assets/props/lib/<pack>/` (`PACK.json`, credits, index) and the
+rest to the local tier. The pilot (267 models, 6 packs; lean G5) is 99% `fit` at median IoU 0.983
+and 521 chars, but only 31% of fits are editable (mostly primitives): Kenney Mini Dungeon and
+Quaternius Medieval Village pass and are committed (`assets find=`), Castle, Nature, Food and
+KayKit Dungeon stay local, mostly mesh parts. Scale-out (6.1) applies to passing packs only.
 Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, other packs on
 disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
 `similar=` and ~35-token rows read from each folder's `index.tsv`, and

@@ -1,0 +1,16 @@
+{"format":2,"name":"floor-detail","unit":"cm","color":"#7d829c",
+"tags":["floor","detail","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"floor-detail"},
+"fit":{"mean_mm":0.6,"worst_mm":1,"iou":0.96,"de":0.3,"mesh_pct":13},
+"parts":{
+"blue_box":{"type":"box","size":[100,0.1,100],"pos":[0,0,0]},
+"blue_box2":{"type":"box","size":[10,2.5,10],"pos":[28.5,1.3,14.4],"yaw":-15,"color":"#868ca8"},
+"blue_box3":{"type":"box","size":[10,2.5,10],"pos":[-21,1.3,16.5],"color":"#868ca8"},
+"blue_box4":{"type":"box","size":[10,2.5,10],"pos":[25.4,1.3,-25],"yaw":21,"color":"#868ca8"},
+"blue_box5":{"type":"box","size":[10,1.3,10],"pos":[-35,0.6,31],"yaw":15,"solid":false},
+"blue_box6":{"type":"box","size":[10,1.3,10],"pos":[16,0.6,-1],"yaw":15,"solid":false},
+"blue_box7":{"type":"box","size":[5,2.5,5],"pos":[7.4,1.3,-12.4],"color":"#868ca8","solid":false},
+"blue_box8":{"type":"box","size":[5,1.3,5],"pos":[37.7,0.6,36.7],"yaw":15,"solid":false},
+"blue_box9":{"type":"box","size":[5,1.3,5],"pos":[-20.2,0.6,-41.2],"yaw":15,"solid":false},
+"mesh":{"mesh":"kenney_mini_dungeon/floor-detail"}}}

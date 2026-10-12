@@ -12,16 +12,27 @@ fn assets() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets")
 }
 
-/// The committed index folders: the templates and each pack under lib/ (local/ is not committed).
+/// Installs the mesh files of a pack folder (`meshes/`): imported assets draw their mesh parts
+/// from them, and the tests run outside the repository root the engine reads them from.
+fn install_meshes(pack: &str, folder: &Path) {
+    let Ok(entries) = std::fs::read_dir(folder.join("meshes")) else { return };
+    for path in entries.filter_map(Result::ok).map(|e| e.path()) {
+        let leaf = path.file_stem().unwrap().to_string_lossy().to_string();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let file = pav_core::props::mesh::MeshFile::parse(&text).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        pav_core::props::mesh::install(&format!("{pack}/{leaf}"), file).unwrap();
+    }
+}
+
+/// The committed index folders: the templates and each pack under lib/ (local/ is not committed),
+/// with the packs' mesh files installed.
 fn indexed_folders() -> Vec<(PathBuf, String)> {
     let props = assets().join("props");
     let mut folders = vec![(props.join("templates"), "BUILTIN".to_owned())];
-    folders.extend(
-        index::disk_packs(&props)
-            .into_iter()
-            .filter(|(_, _, tier)| *tier == Tier::Disk)
-            .map(|(pack, folder, _)| (folder, format!("LIB/{pack}"))),
-    );
+    folders.extend(index::disk_packs(&props).into_iter().filter(|(_, _, tier)| *tier == Tier::Disk).map(|(pack, folder, _)| {
+        install_meshes(&pack, &folder);
+        (folder, format!("LIB/{pack}"))
+    }));
     folders.push((props.join("lib").join("core"), "LIB/core".to_owned()));
     folders
 }
@@ -107,6 +118,7 @@ fn core_assets_are_reviewed() {
 
 /// The assets of a pack folder, read from their files.
 fn pack_assets(pack: &str, folder: &Path) -> Vec<(String, std::sync::Arc<props::PropDef>)> {
+    install_meshes(pack, folder);
     let mut paths: Vec<PathBuf> = std::fs::read_dir(folder)
         .unwrap()
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))

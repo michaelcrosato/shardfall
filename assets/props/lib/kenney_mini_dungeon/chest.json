@@ -1,0 +1,8 @@
+{"format":2,"name":"chest","unit":"cm","color":"#9f8697",
+"tags":["chest","dungeon"],
+"category":"container",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"chest"},
+"fit":{"mean_mm":5,"worst_mm":20,"iou":0.98,"de":3.4,"mesh_pct":43},
+"parts":{
+"chest":{"type":"extrude","points":[[-25,-25],[-15,-25],[-15,-22],[15,-22],[15,-25],[25,-25],[25,-15],[22,-15],[22,15],[25,15],[25,25],[15,25],[15,22],[-15,22],[-15,25],[-25,25],[-25,15],[-22,15],[-22,-15],[-25,-15]],"depth":20,"pos":[0,10,0],"pitch":-90},
+"mesh":{"mesh":"kenney_mini_dungeon/chest"}}}

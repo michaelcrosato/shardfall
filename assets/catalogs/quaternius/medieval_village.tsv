@@ -1,0 +1,36 @@
+# asset census and fit (asset_import survey): tris, materials used, textures, connected parts, size WxHxD cm, flags; parts (authored nodes), mesh_pct (area in the mesh part), iou (worst of 6 views) and iou_mean, iou_gpu (deferred), de (Oklab x100), chars, tier
+id	file	tris	mats	tex	comps	size_cm	flags	parts	mesh_pct	iou	iou_mean	iou_gpu	de	chars	tier	used	note
+Bag	Medieval Village Pack - Dec 2020/Props/OBJ/Bag.obj	304	1	0	1	46x18x33		1	100	0.987	0.994		0.1	307	fit		
+Bag_Open	Medieval Village Pack - Dec 2020/Props/OBJ/Bag_Open.obj	280	2	0	2	45x31x61		1	100	0.992	0.996		0.1	329	fit		
+Bags	Medieval Village Pack - Dec 2020/Props/OBJ/Bags.obj	912	1	0	3	81x32x72		1	100	0.998	0.998		0.1	308	fit		
+Barrel	Medieval Village Pack - Dec 2020/Props/OBJ/Barrel.obj	1312	3	0	21	47x61x47		11	42	0.987	0.991		1.3	1953	fit		
+Bell	Medieval Village Pack - Dec 2020/Props/OBJ/Bell.obj	779	1	0	3	190x220x190		3	0	0.960	0.975		0.1	714	fit		
+Bench_1	Medieval Village Pack - Dec 2020/Props/OBJ/Bench_1.obj	376	1	0	10	199x95x73		10	0	0.922	0.941		0.1	1828	fit		
+Bench_2	Medieval Village Pack - Dec 2020/Props/OBJ/Bench_2.obj	276	1	0	10	199x56x67		10	0	0.919	0.951		0.1	1680	fit		
+Bonfire	Medieval Village Pack - Dec 2020/Props/OBJ/Bonfire.obj	602	4	0	31	122x34x109		14	31	0.924	0.949		1.1	1659	fit		
+Bonfire_Lit	Medieval Village Pack - Dec 2020/Props/OBJ/Bonfire_Lit.obj	1162	5	0	36	122x106x109		15	43	0.933	0.959		1.1	1788	fit		
+Cart	Medieval Village Pack - Dec 2020/Props/OBJ/Cart.obj	2660	5	0	71	139x239x278		44	22	0.902	0.951		0.6	6594	draft		
+Cauldron	Medieval Village Pack - Dec 2020/Props/OBJ/Cauldron.obj	1238	4	0	17	108x76x90		12	25	0.955	0.974		1.9	2281	fit		
+Crate	Medieval Village Pack - Dec 2020/Props/OBJ/Crate.obj	784	2	0	37	48x48x48		12	37	0.970	0.977		3.9	1119	fit		
+Door_Round	Medieval Village Pack - Dec 2020/Props/OBJ/Door_Round.obj	990	4	0	51	150x217x89		41	0	0.988	0.991		0.3	5450	fit		
+Door_Straight	Medieval Village Pack - Dec 2020/Props/OBJ/Door_Straight.obj	958	5	0	53	150x212x89		38	0	0.976	0.988		0.3	4826	fit		
+Fence	Medieval Village Pack - Dec 2020/Props/OBJ/Fence.obj	208	1	0	4	237x98x8		4	0	0.904	0.955		0.1	805	fit		
+Gazebo	Medieval Village Pack - Dec 2020/Props/OBJ/Gazebo.obj	698	2	0	90	311x404x378		10	29	0.958	0.977		0.1	1670	fit		
+Hay	Medieval Village Pack - Dec 2020/Props/OBJ/Hay.obj	488	1	0	16	36x54x37		5	69	0.994	0.996		0.1	864	fit		
+MarketStand_1	Medieval Village Pack - Dec 2020/Props/OBJ/MarketStand_1.obj	1548	4	0	44	285x315x357		23	40	0.914	0.968		0.2	3271	fit		
+MarketStand_2	Medieval Village Pack - Dec 2020/Props/OBJ/MarketStand_2.obj	1132	3	0	34	155x313x346		16	57	0.953	0.983		0.1	2270	fit		
+Package_1	Medieval Village Pack - Dec 2020/Props/OBJ/Package_1.obj	420	2	0	4	84x39x55		4	52	0.969	0.983		0.2	543	fit		
+Package_2	Medieval Village Pack - Dec 2020/Props/OBJ/Package_2.obj	464	2	0	5	57x47x56		3	39	0.978	0.986		0.1	499	fit		
+Path_Square	Medieval Village Pack - Dec 2020/Props/OBJ/Path_Square.obj	240	2	0	25	146x15x143		22	0	0.961	0.981		0.2	2368	fit		
+Path_Straight	Medieval Village Pack - Dec 2020/Props/OBJ/Path_Straight.obj	506	2	0	51	149x13x293		44	0	0.956	0.970		0.1	4524	fit		
+Rock_1	Medieval Village Pack - Dec 2020/Props/OBJ/Rock_1.obj	28	1	0	1	77x52x63		1	100	0.998	0.998		0.1	315	fit		
+Rock_2	Medieval Village Pack - Dec 2020/Props/OBJ/Rock_2.obj	56	1	0	2	72x45x28		2	69	0.919	0.970		0.1	432	fit		
+Rock_3	Medieval Village Pack - Dec 2020/Props/OBJ/Rock_3.obj	84	1	0	3	91x24x79		2	78	0.955	0.972		0.1	417	fit		
+Sawmill_saw	Medieval Village Pack - Dec 2020/Props/OBJ/Sawmill_saw.obj	300	5	0	19	212x162x511		8	45	0.919	0.968		0.6	1179	fit		
+Smoke	Medieval Village Pack - Dec 2020/Props/OBJ/Smoke.obj	1216	1	0	3	133x320x82									skip		
+Stairs	Medieval Village Pack - Dec 2020/Props/OBJ/Stairs.obj	212	2	0	17	150x37x88		14	0	0.972	0.986		0.1	1729	fit		
+Well	Medieval Village Pack - Dec 2020/Props/OBJ/Well.obj	1870	5	0	96	200x375x301		71	14	0.947	0.973		0.2	11368	draft		
+Window_1	Medieval Village Pack - Dec 2020/Props/OBJ/Window_1.obj	104	3	0	4	114x114x36		4	0	0.982	0.986		1.0	758	fit		
+Window_2	Medieval Village Pack - Dec 2020/Props/OBJ/Window_2.obj	82	4	0	5	134x112x46		5	0	0.985	0.988		0.8	1033	fit		
+Window_3	Medieval Village Pack - Dec 2020/Props/OBJ/Window_3.obj	82	4	0	5	134x168x46		5	0	0.987	0.994		0.7	1054	fit		
+Window_4	Medieval Village Pack - Dec 2020/Props/OBJ/Window_4.obj	102	4	0	7	134x168x46		7	0	0.987	0.994		1.0	1186	fit		

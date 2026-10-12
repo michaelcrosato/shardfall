@@ -1,0 +1,7 @@
+{"format":2,"name":"bags","unit":"cm",
+"tags":["bags","village"],
+"category":"container",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bags"},
+"fit":{"mean_mm":0.2,"worst_mm":0,"iou":1,"de":0.1,"mesh_pct":100},
+"parts":{
+"mesh":{"mesh":"quaternius_medieval_village/bags"}}}

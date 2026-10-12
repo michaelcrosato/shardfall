@@ -1,0 +1,11 @@
+{"format":2,"name":"window_3","unit":"cm","color":"#7f5632",
+"tags":["window","village"],
+"category":"architecture",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Window_3"},
+"fit":{"mean_mm":2.7,"worst_mm":12,"iou":0.99,"de":0.7,"mesh_pct":0},
+"parts":{
+"brown_box":{"type":"box","size":[8.5,144,12],"pos":[0,47,32]},
+"brown_box2":{"type":"box","size":[95,7,12],"pos":[0,76,32.5]},
+"brown_extrude":{"type":"extrude","points":[[-54,-78],[-41,-78],[-41,25],[-36,43],[-17,60],[4,63],[21,58],[36,43],[41,23],[41,-78],[54,-78],[54,27],[51,32],[48,52],[28,72],[-2,78],[-27,72],[-47,52],[-49,47],[-54,27]],"depth":37,"pos":[0,54,22],"color":"#624226"},
+"dark_extrude":{"type":"extrude","points":[[-17,-6],[23,-6],[23,6],[-23,5.5]],"depth":134,"pos":[0,-29,21],"yaw":90,"color":"#4f5157"},
+"dark_extrude2":{"type":"extrude","points":[[-47,-70],[47,-70],[46,45],[41,48],[41,51],[35,55],[35,58],[30,63],[30,66],[25,70],[-26,70],[-27,66],[-33,61],[-33,58],[-47,43]],"depth":0.1,"pos":[0,48,34.2],"color":"#2f2f2f","solid":false}}}

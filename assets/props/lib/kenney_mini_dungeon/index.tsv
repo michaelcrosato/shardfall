@@ -1,0 +1,29 @@
+name	cat	size_cm	parts	tok	fid	src	tags	sockets	note	desc
+LIB/kenney_mini_dungeon/banner	signage	60x65x10	1	106	mesh100	CC0-1.0 kenney/mini_dungeon	banner dungeon			
+LIB/kenney_mini_dungeon/barrel	container	52x48x52	3	268	fit98	CC0-1.0 kenney/mini_dungeon	barrel dungeon			
+LIB/kenney_mini_dungeon/chair	furniture	35x48x38	6	235	mesh49	CC0-1.0 kenney/mini_dungeon	chair dungeon			
+LIB/kenney_mini_dungeon/chest	container	50x45x50	2	205	mesh43	CC0-1.0 kenney/mini_dungeon	chest dungeon			
+LIB/kenney_mini_dungeon/coin	dungeon	42x42x17	1	158	fit96	CC0-1.0 kenney/mini_dungeon	coin kenney			
+LIB/kenney_mini_dungeon/column	architecture	51x110x51	3	294	fit95	CC0-1.0 kenney/mini_dungeon	column dungeon			
+LIB/kenney_mini_dungeon/dirt	dungeon	100x90x100	1	115	fit100	CC0-1.0 kenney/mini_dungeon	dirt kenney			
+LIB/kenney_mini_dungeon/floor	architecture	100x0.1x100	1	118	fit100	CC0-1.0 kenney/mini_dungeon	floor dungeon			
+LIB/kenney_mini_dungeon/floor-detail	architecture	100x5.1x100	10	410	mesh13	CC0-1.0 kenney/mini_dungeon	floor detail dungeon			
+LIB/kenney_mini_dungeon/gate	architecture	80x75x20	3	195	mesh91	CC0-1.0 kenney/mini_dungeon	gate dungeon			
+LIB/kenney_mini_dungeon/key	tool	59x36x16	3	257	mesh51	CC0-1.0 kenney/mini_dungeon	key dungeon			
+LIB/kenney_mini_dungeon/pot	container	60x43x41	1	104	mesh100	CC0-1.0 kenney/mini_dungeon	pot dungeon			
+LIB/kenney_mini_dungeon/potion	container	33x40x33	3	211	mesh60	CC0-1.0 kenney/mini_dungeon	potion dungeon			
+LIB/kenney_mini_dungeon/rocks	rock	100x50x100	6	332	fit94	CC0-1.0 kenney/mini_dungeon	rocks dungeon			
+LIB/kenney_mini_dungeon/shield-rectangle	armour	28x30x13	3	227	mesh34	CC0-1.0 kenney/mini_dungeon	shield rectangle dungeon			
+LIB/kenney_mini_dungeon/shield-round	armour	38x38x11	3	230	fit96	CC0-1.0 kenney/mini_dungeon	shield round dungeon			
+LIB/kenney_mini_dungeon/stairs	architecture	100x90x100	1	172	fit98	CC0-1.0 kenney/mini_dungeon	stairs dungeon			
+LIB/kenney_mini_dungeon/stones	rock	91x46x82	10	455	fit95	CC0-1.0 kenney/mini_dungeon	stones dungeon			
+LIB/kenney_mini_dungeon/table	furniture	88x32x65	6	355	fit92	CC0-1.0 kenney/mini_dungeon	table dungeon			
+LIB/kenney_mini_dungeon/trap	dungeon	78x28x78	8	182	fit92	CC0-1.0 kenney/mini_dungeon	trap kenney			
+LIB/kenney_mini_dungeon/wall	architecture	100x110x100	5	294	mesh94	CC0-1.0 kenney/mini_dungeon	wall dungeon			
+LIB/kenney_mini_dungeon/wall-half	architecture	100x100x101	7	313	mesh91	CC0-1.0 kenney/mini_dungeon	wall half dungeon			
+LIB/kenney_mini_dungeon/wall-narrow	architecture	100x100x102	8	373	mesh86	CC0-1.0 kenney/mini_dungeon	wall narrow dungeon			
+LIB/kenney_mini_dungeon/wall-opening	architecture	100x100x105	6	266	mesh99	CC0-1.0 kenney/mini_dungeon	wall opening dungeon			
+LIB/kenney_mini_dungeon/weapon-spear	weapon	14x60x12	3	258	mesh38	CC0-1.0 kenney/mini_dungeon	spear dungeon			
+LIB/kenney_mini_dungeon/weapon-sword	weapon	24x45x11	3	325	fit91	CC0-1.0 kenney/mini_dungeon	sword dungeon			
+LIB/kenney_mini_dungeon/wood-structure	architecture	108x100x108	17	463	mesh7	CC0-1.0 kenney/mini_dungeon	wood structure dungeon			
+LIB/kenney_mini_dungeon/wood-support	architecture	108x100x24	7	330	mesh5	CC0-1.0 kenney/mini_dungeon	wood support dungeon			

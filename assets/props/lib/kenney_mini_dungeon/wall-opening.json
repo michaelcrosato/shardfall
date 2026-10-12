@@ -1,0 +1,12 @@
+{"format":2,"name":"wall-opening","unit":"cm","color":"#43434c",
+"tags":["wall","opening","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"wall-opening"},
+"fit":{"mean_mm":0.1,"worst_mm":0,"iou":0.99,"de":0.1,"mesh_pct":99},
+"parts":{
+"dark_box":{"type":"box","size":[15,3.7,15],"pos":[18,91.8,-11],"yaw":15},
+"dark_box2":{"type":"box","size":[7.4,3.7,7.4],"pos":[-37.6,91.8,8.5],"yaw":30},
+"dark_box3":{"type":"box","size":[7.4,3.7,7.4],"pos":[-9,91.8,2.4],"yaw":-30},
+"dark_box4":{"type":"box","size":[7.4,3.7,7.4],"pos":[37,91.8,-10],"yaw":-15},
+"dark_box5":{"type":"box","size":[7.4,3.7,7.4],"pos":[-18,91.8,14.4],"yaw":15},
+"mesh":{"mesh":"kenney_mini_dungeon/wall-opening"}}}

@@ -1,0 +1,9 @@
+{"format":2,"name":"key","unit":"cm","color":"#ffb74d",
+"tags":["key","dungeon"],
+"category":"tool",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"key"},
+"fit":{"mean_mm":1.1,"worst_mm":4,"iou":0.97,"de":1.2,"mesh_pct":51},
+"parts":{
+"mesh":{"mesh":"kenney_mini_dungeon/key"},
+"orange_extrude":{"type":"extrude","points":[[-3,-12],[3,-12],[3,-3],[8,1],[8,8],[3,12],[-3,12],[-8,8],[-8,1],[-3,-3]],"depth":12,"pos":[19,13,0],"yaw":90},
+"orange_extrude2":{"type":"extrude","points":[[0,-6],[4,-4],[4,-4],[5,-2.6],[5,-2],[5,-2],[6,0],[4,4],[4,4],[2.6,5],[2,5],[2,5],[0,6],[-4,4],[-4,4],[-5,2.6],[-5,2],[-5,2],[-6,0],[-4,-4],[-4,-4],[-2.6,-5],[-2,-5],[-2,-5]],"depth":32,"pos":[13,18,0],"yaw":90}}}

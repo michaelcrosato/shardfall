@@ -1,7 +1,8 @@
 //! Fidelity of a translation against its source (plan §8.6), on the CPU and deterministic:
 //! - six orthographic views (front, back, left, right, top, iso) at 128 px: the intersection
 //!   over union of the silhouettes, its minimum (`iou`) and mean (`iou_mean`); a view in which
-//!   the source is a sliver (under 2% as deep as wide) says nothing and is skipped;
+//!   the source is a sliver (under 2% as deep as wide) or draws under 1% of the pixels (a
+//!   sheet seen edge-on all over) says nothing and is skipped;
 //! - `de`: the Oklab distance ×100 between the nearest surfaces' colours where both cover a
 //!   pixel, averaged per view, then over the views;
 //! - `mean_mm` / `worst_mm`: the symmetric Chamfer distance (4,096 surface samples each way,
@@ -47,6 +48,11 @@ pub fn compare(source: &[Tri], fit: &[Tri]) -> Fidelity {
         }
         let Some(win) = Window::around(source.iter().chain(fit), &view, 0.05, VIEW_PX, VIEW_PX) else { continue };
         let (a, b) = (raster::draw(source, &view, &win), raster::draw(fit, &view, &win));
+        // Seen edge-on all over (a zigzag sheet from its side), the source draws almost nothing
+        // and the view says nothing about its shape.
+        if a.cover.iter().filter(|c| **c).count() * 100 < a.cover.len() {
+            continue;
+        }
         out.views.push((name, raster::iou(&a, &b)));
         if let Some(de) = shared_de(&a, &b) {
             des.push(de);

@@ -44,7 +44,7 @@ fn boxed(min: [f32; 3], max: [f32; 3], rgb: [f32; 3]) -> (Vec<[f32; 3]>, Vec<u32
 fn translate(path: &Path, name: &str, mode: Mode) -> Translation {
     let mut s = read_model(path).unwrap();
     normalize::normalize(&mut s, &Norm::default());
-    let o = Options { mode, pack: "test_fit".into(), name: name.into(), source: Default::default() };
+    let o = Options { mode, pack: "test_fit".into(), name: name.into(), ..Default::default() };
     fit::translate(&s, &o).unwrap()
 }
 
@@ -179,7 +179,7 @@ fn see_through_models_are_refused_and_open_double_sided_meshes_show_both_sides()
     let path = write(&dir, "glass.glb", with_material(&pos, &idx, glass));
     let mut s = read_model(&path).unwrap();
     normalize::normalize(&mut s, &Norm::default());
-    let o = Options { mode: Mode::Auto, pack: "test_fit".into(), name: "glass".into(), source: Default::default() };
+    let o = Options { mode: Mode::Auto, pack: "test_fit".into(), name: "glass".into(), ..Default::default() };
     let e = fit::translate(&s, &o).err().expect("a see-through model is refused");
     assert!(e.to_string().starts_with("alpha: 100% of its surface is see-through"), "{e}");
     // Blend with nothing see-through is opaque.

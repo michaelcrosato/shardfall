@@ -1,0 +1,10 @@
+{"format":2,"name":"package_1","unit":"cm","color":"#4b3e21",
+"tags":["package","village"],
+"category":"container",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Package_1"},
+"fit":{"mean_mm":0.4,"worst_mm":1,"iou":0.97,"de":0.2,"mesh_pct":52},
+"parts":{
+"mesh":{"mesh":"quaternius_medieval_village/package_1"},
+"olive_box":{"type":"box","size":[84,39,3],"pos":[14,18,-0.1]},
+"olive_box2":{"type":"box","size":[2.9,37,54],"pos":[37.9,18,0]},
+"olive_box3":{"type":"box","size":[2.9,37,54],"pos":[-10.2,18,0]}}}

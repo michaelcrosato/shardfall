@@ -1,0 +1,9 @@
+{"format":2,"name":"shield-round","unit":"cm","color":"#8a7e91",
+"tags":["shield","round","dungeon"],
+"category":"armour",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"shield-round"},
+"fit":{"mean_mm":3.1,"worst_mm":22,"iou":0.96,"de":5.1,"mesh_pct":0},
+"parts":{
+"blue_cylinder":{"type":"cylinder","radius":5.6,"radius_end":4.6,"height":2.8,"pos":[0,0,3.9],"axis":"z","color":"#a4abcd"},
+"grey_cylinder":{"type":"cylinder","radius":19,"radius_end":18,"height":5.6,"pos":[0,0,2.5],"axis":"z"},
+"red_cylinder":{"type":"cylinder","radius":14,"radius_end":15,"height":5,"pos":[0,0,-2.8],"axis":"z","color":"#ca704e"}}}

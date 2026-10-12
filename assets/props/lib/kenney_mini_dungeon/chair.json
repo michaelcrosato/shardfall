@@ -1,0 +1,10 @@
+{"format":2,"name":"chair","unit":"cm","color":"#a65644",
+"tags":["chair","dungeon"],
+"category":"furniture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"chair"},
+"fit":{"mean_mm":1.3,"worst_mm":5,"iou":0.96,"de":0.6,"mesh_pct":49},
+"parts":{
+"brown_lathe":{"type":"lathe","profile":[[7,-3.7],[5,3.7]],"pos":[9,3.7,10.5],"mirror":"x"},
+"brown_lathe2":{"type":"lathe","profile":[[7,-3.7],[5,3.7]],"pos":[9,3.7,-8],"mirror":"x"},
+"mesh":{"mesh":"kenney_mini_dungeon/chair"},
+"red_extrude":{"type":"extrude","points":[[-17,-8],[0,-5],[2,-6],[17,-8],[17,5],[-1,8],[-17,5]],"depth":20,"pos":[0,38,-11],"pitch":-90,"color":"#d07b54"}}}

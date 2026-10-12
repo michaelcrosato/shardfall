@@ -1,0 +1,7 @@
+{"format":2,"name":"stairs","unit":"cm","color":"#717388",
+"tags":["stairs","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"stairs"},
+"fit":{"mean_mm":1,"worst_mm":10,"iou":0.98,"de":2.2,"mesh_pct":0},
+"parts":{
+"grey_extrude":{"type":"extrude","points":[[-50,-45],[50,-45],[50,45],[24,45],[24,31],[10,31],[10,15],[-5,15],[-5,0],[-20,0],[-20,-15],[-35,-15],[-35,-30],[-50,-30]],"depth":100,"pos":[0,45,0],"yaw":90}}}

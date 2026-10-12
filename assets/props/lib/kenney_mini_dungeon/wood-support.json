@@ -1,0 +1,12 @@
+{"format":2,"name":"wood-support","unit":"cm","color":"#d17c57",
+"tags":["wood","support","dungeon"],
+"category":"architecture",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"wood-support"},
+"fit":{"mean_mm":1.2,"worst_mm":5,"iou":0.98,"de":1.3,"mesh_pct":5},
+"parts":{
+"mesh":{"mesh":"kenney_mini_dungeon/wood-support"},
+"orange_box":{"type":"box","size":[85,10,10],"pos":[0,85,0],"color":"#f1976c"},
+"red_extrude":{"type":"extrude","points":[[0,-50],[7,-50],[7,50],[-7.5,50]],"depth":15,"pos":[42.5,50,0]},
+"red_extrude2":{"type":"extrude","points":[[-7.5,-50],[0,-50],[7,50],[-7.5,50]],"depth":15,"pos":[-42.5,50,0]},
+"red_extrude3":{"type":"extrude","points":[[-7,-12],[7,-12],[12,-7],[12,7],[7,12],[-7,12],[-12,7],[-12,-7]],"depth":16,"pos":[42,85,0],"pitch":-90,"mirror":"x"},
+"red_extrude4":{"type":"extrude","points":[[-22,-5],[22,-5],[12,5],[-12,5]],"depth":5,"pos":[-28,68,0],"roll":45}}}

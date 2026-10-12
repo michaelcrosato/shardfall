@@ -1,0 +1,8 @@
+{"format":2,"name":"rock_2","unit":"cm","color":"#636b76",
+"tags":["village","quaternius"],
+"category":"rock",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Rock_2"},
+"fit":{"mean_mm":2.2,"worst_mm":13,"iou":0.92,"de":0.1,"mesh_pct":69},
+"parts":{
+"grey_cylinder":{"type":"cylinder","radius":15,"radius_end":11,"height":12,"pos":[-22,5.6,-1]},
+"mesh":{"mesh":"quaternius_medieval_village/rock_2"}}}

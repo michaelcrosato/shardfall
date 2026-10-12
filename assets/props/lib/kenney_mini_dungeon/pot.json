@@ -1,0 +1,7 @@
+{"format":2,"name":"pot","unit":"cm",
+"tags":["pot","dungeon"],
+"category":"container",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"pot"},
+"fit":{"mean_mm":0.2,"worst_mm":1,"iou":0.99,"de":0.1,"mesh_pct":100},
+"parts":{
+"mesh":{"mesh":"kenney_mini_dungeon/pot"}}}

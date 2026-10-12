@@ -136,6 +136,11 @@ impl Catalog {
         self.clips.is_empty() && self.sources.is_empty() && self.pick.is_empty()
     }
 
+    /// The names of its item lines, sorted.
+    pub fn names(&self) -> impl Iterator<Item = &String> {
+        self.clips.keys()
+    }
+
     pub fn entry(&self, name: &str) -> Option<Entry> {
         let v = self.clips.get(name)?.as_array()?;
         let s = |i: usize| v.get(i).and_then(|x| x.as_str()).unwrap_or("").to_string();

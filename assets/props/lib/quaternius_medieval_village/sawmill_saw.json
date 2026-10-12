@@ -1,0 +1,14 @@
+{"format":2,"name":"sawmill_saw","unit":"cm","color":"#9a8a61",
+"tags":["sawmill","saw","village"],
+"category":"tool",
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Sawmill_saw"},
+"fit":{"mean_mm":10,"worst_mm":42,"iou":0.92,"de":0.6,"mesh_pct":45},
+"parts":{
+"brown_box":{"type":"box","size":[9,13,54],"pos":[3,151,161],"roll":-42,"color":"#4b321d"},
+"brown_box2":{"type":"box","size":[9,13,54],"pos":[153,2,158],"roll":-42,"color":"#4b321d"},
+"brown_extrude":{"type":"extrude","points":[[9,-31],[27,-19],[33,2],[25,21],[7,30],[1,31],[-20,27],[-33,11],[-33,-12],[-18,-28],[-7,-29],[-12,-28],[-26,-13],[-27,10],[-14,26],[4,30],[20,20],[27,3],[21,-19],[5,-29],[-1,-29]],"depth":511,"pos":[0,112,5],"color":"#624226"},
+"mesh":{"mesh":"quaternius_medieval_village/sawmill_saw"},
+"yellow_box":{"type":"box","size":[31,0.2,24],"pos":[-41,6,-181],"roll":-45,"solid":false},
+"yellow_box2":{"type":"box","size":[31,0.2,24],"pos":[41,88,181],"roll":-45,"solid":false},
+"yellow_box3":{"type":"box","size":[31,0.2,24],"pos":[-41,6,181],"roll":-45,"solid":false},
+"yellow_box4":{"type":"box","size":[31,0.2,24],"pos":[41,88,-181],"roll":-45,"solid":false}}}

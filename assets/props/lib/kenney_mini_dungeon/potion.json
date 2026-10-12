@@ -1,0 +1,9 @@
+{"format":2,"name":"potion","unit":"cm","color":"#9ea5c6",
+"tags":["potion","dungeon"],
+"category":"container",
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"potion"},
+"fit":{"mean_mm":0.6,"worst_mm":3,"iou":0.99,"de":1.2,"mesh_pct":60},
+"parts":{
+"blue_extrude":{"type":"extrude","points":[[-4,-10],[4,-10],[10,-4],[10,4],[4,10],[-4,10],[-10,4],[-10,-4]],"depth":6,"pos":[0,26.5,0],"yaw":23,"pitch":-90},
+"mesh":{"mesh":"kenney_mini_dungeon/potion"},
+"red_lathe":{"type":"lathe","profile":[[7,-5.4],[9,3],[7,5.4]],"segments":8,"pos":[0,35,0],"color":"#d7825c"}}}
