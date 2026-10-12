@@ -5,6 +5,62 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 2.5: format-2 docs, the fixed bench, and a NO-GO at gate G2 — 2026-10-12
+
+Row 2.5 of `docs/ASSET_SYSTEM_PLAN.md` (F8, EVAL-5). The row's work landed, but gate G2 failed
+after its one remediation round, so the plan stops here: Phases 3-6 wait for the user. No kill
+criterion (K1-K3) held in either round.
+- **Docs and the bench (F8).** `docs/ASSET_STUDIO.md` teaches format 2 with the format-2 bench as
+  its example. A test checks that the doc names every key, shape, socket, look and op the reader
+  checks, and that its bench reads, compiles clean and takes the doc's patch. `BUILTIN/bench`'s
+  rear legs now lean with the backrest instead of piercing it (still format 1; 220x142x98 cm,
+  clean check). `asset_edit action=schema` returns format 2's guide unless `format=1` is passed,
+  and `inspect legend=true` gives the legend of the asset's own format.
+- **Harness.** `bench.py pairs` stacks each authoring run over or under the baseline's run of the
+  same task (hashed names, random order). `report --vs` applies G2's pass checks and kill
+  criteria. `score` re-scores every stored run with the newest build.
+- **Format checks: pass.** Revision goldens, the §5.9 corpus, and format-1 template scenes and
+  compounds are unchanged. A 1,024-part asset compiles in 0.42-0.44 ms, and a placed copy
+  serialises in under 64 bytes.
+- **Round 1, arm F (`8a0764d`): fails on tokens.**
+  - Results: 30/30 runs accepted against arm A's 25 of the same 30 tasks. Median ratios to arm A
+    were `tok_x` 0.857 and `tok_cum` 1.217 for authoring (limits 0.75 and 0.65) and 0.534 for
+    edits. Median failed calls were 1 over all 30 runs (3 over the authoring runs alone). Arm F
+    won 15 pairs and lost 9; rubric Δ +0.10.
+  - Where the tokens went: 8 runs sent the doc's multi-line example a line at a time, failing up
+    to 20 lines each, with every piece echoed back. 29 runs followed each sheet with a
+    520-910-token `capture`, as in the run README's example. In 9 runs a create failed on a
+    misuse (`cycle` on the node, `facing:"up"`, `height` beside from/to), and 4 runs re-sent
+    `create` on an existing name. Runs took a median of 3 turns; arm A's took 1.
+- **Remediation (docs, errors, defaults; `c0ae045`).**
+  - Docs: both examples are whole one-line commands. The loop makes and shows the object in one
+    go, says the sheet is the image (no capture needed) and stops when check and sheet are
+    clean. `create` versus `replace`, `cycle` inside the copies, `facing`, the rounded_box radius
+    and which findings are faults are spelled out. The doc went from 1,858 to 1,719 tokens.
+  - Errors: the REPL answers each piece of a split JSON command with one short line, and two
+    commands on one line with a hint. `cycle` on a node and direction words (`up`, `left` ...)
+    get fixes. `create` on an existing name points at `replace`.
+  - Check: `mirror_overlap` compares the parts' boxes, not their origins, so an off-centre blade
+    no longer warns.
+- **Round 2, arm F2 (`c0ae045`): fails on quality.**
+  - Tokens pass: authoring `tok_x` 0.511 and `tok_cum` 0.561, edits 0.392. 29/30 runs accepted
+    (arm A 25), with median failed calls 0, median 2 turns and 4 calls, and 3 captures in 30
+    runs (58 in round 1).
+  - Quality fails: arm A's asset won 14 of 24 pairs. Arm F2 won 10 with no ties, where parity
+    needs 12, and the rubric Δ was −0.183 (limit −0.1). Judges marked down a brazier lost in
+    its own glow, sacks that read as vases, merlons sitting on top of a wall and a cart load
+    shaped like an egg.
+  - The one rejected run (P09) left a tree 0.9 cm off the floor: its agent read a patch reply's
+    empty `check`, which lists only new findings, as a clean asset.
+- **Verdict: NO-GO.** Round 1 met quality but not tokens; round 2 met tokens but not quality. The
+  gate needs both in one round, and its one remediation round is spent. The judging is noisy
+  against identical arm-A assets: 11 of 24 tasks changed outcome between the rounds, and turn
+  counts do not separate wins from losses. Pooled, the format-2 arms won 25 of 48 pairs. Whether
+  to stop, re-judge or change the gate is the user's call; nothing past row 2.5 has started.
+- Everything that landed stays: format 2 reads, compiles, draws, patches and saves, and the
+  remediation's docs and errors are what arm F2 measured. Every final asset is text in
+  `scripts/asset_bench/results/assets/G2/`; the run logs and images are in `.cache/asset_bench/`.
+
 ## Asset plan 2.4: format-2 patches, one definition per snapshot, seeds — 2026-10-12
 
 Row 2.4 of `docs/ASSET_SYSTEM_PLAN.md` (F6, F7). Format-2 assets are edited by patch, a snapshot

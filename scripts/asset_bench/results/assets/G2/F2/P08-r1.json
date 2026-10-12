@@ -1,0 +1,16 @@
+{"format":2,"name":"ring_chandelier","unit":"cm",
+"description":"A wooden ring chandelier with six candles hanging on chains from a ceiling hook.",
+"materials":{
+"flame":{"color":"#ffd060","look":"unlit"},
+"glow":{"color":"#ffd060","emissive":4},
+"iron":{"color":"#3a3a40"},
+"wax":{"color":"#f2ead2"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"candles":{"type":"cylinder","radius":3,"height":14,"pos":[0,-73,0],"mat":"wax","radial":{"count":6,"radius":48}},
+"chain_a":{"type":"cylinder","radius":1,"from":[0,-5,0],"to":[50,-83,0],"mat":"iron","mirror":"x"},
+"chain_b":{"type":"cylinder","radius":1,"from":[0,-5,0],"to":[0,-83,50],"mat":"iron","mirror":"z"},
+"flames":{"type":"sphere","radius":2.2,"pos":[0,-65,0],"mat":"flame","radial":{"count":6,"radius":48}},
+"glow":{"type":"sphere","radius":2.4,"pos":[0,-65,48],"mat":"glow","light":{"color":"#ffc070","radius":400,"intensity":2}},
+"hook":{"type":"cylinder","radius":3,"height":6,"pos":[0,-3,0],"mat":"iron"},
+"ring":{"type":"torus","radius":50,"minor_radius":5,"pos":[0,-85,0],"mat":"wood"}}}

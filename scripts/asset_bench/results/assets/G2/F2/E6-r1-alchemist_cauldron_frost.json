@@ -1,0 +1,17 @@
+{"format":2,"name":"alchemist_cauldron_frost","unit":"cm",
+"description":"Iron cauldron on three legs with bubbling potion, frost theme.",
+"materials":{
+"blue":{"color":"#2f6fc0"},
+"brass":{"color":"#cfe9f5"},
+"glass":{"color":"#e6f8ff"},
+"green":{"color":"#3fa7a0"},
+"ice":{"color":"#d8f6ff"},
+"iron":{"color":"#4d6a8c"},
+"potion":{"color":"#7fe7ff","emissive":2},
+"red":{"color":"#7fb2e0"},
+"wood":{"color":"#a9d4ee"},
+"wood_dark":{"color":"#5f8fb8"}},
+"parts":{
+"leg":{"type":"cylinder","radius":5,"height":30,"pos":[0,15,0],"mat":"brass","radial":{"count":3,"radius":28}},
+"liquid":{"type":"cylinder","radius":33,"height":2,"pos":[0,78,0],"mat":"potion"},
+"pot":{"type":"lathe","profile":[[0,18],[22,18],[36,36],[40,56],[37,74],[40,80],[34,80],[0,76]],"mat":"iron"}}}

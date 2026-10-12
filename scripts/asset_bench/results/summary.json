@@ -93,9 +93,82 @@
    "accepted": 30,
    "baseline_accepted": 25,
    "baseline_lint_other_per_accepted": 1.08,
-   "lint_other_per_accepted": 1.033,
+   "lint_other_per_accepted": 1.0,
    "median_tok_cum_ratio": 0.933,
    "median_tok_x_ratio": 0.744,
+   "tasks": 30
+  }
+ },
+ "G2/F2": {
+  "accepted": 29,
+  "check": [
+   "ok"
+  ],
+  "done": 30,
+  "done_rate": 1.0,
+  "first_ok": 23,
+  "gate": {
+   "acceptance_points": 13.3,
+   "checks": {
+    "acceptance": {
+     "pass": true,
+     "value": "29/30 vs 25"
+    },
+    "authoring_tok_cum": {
+     "pass": true,
+     "value": 0.561
+    },
+    "authoring_tok_x": {
+     "pass": true,
+     "value": 0.511
+    },
+    "edits_tok_x": {
+     "pass": true,
+     "value": 0.392
+    },
+    "median_failed": {
+     "pass": true,
+     "value": 0.0
+    },
+    "rubric_delta": {
+     "pass": false,
+     "value": -0.183
+    },
+    "wins_ties": {
+     "pass": false,
+     "value": "10+0/2 of 24"
+    }
+   },
+   "killed": false,
+   "kills": {
+    "K1": false,
+    "K2": false,
+    "K3": false
+   },
+   "pairs": {
+    "judged": 24,
+    "losses": 14,
+    "ties": 0,
+    "wins": 10
+   },
+   "passed": false
+  },
+  "median_abs_ln_tok_x_ratio": null,
+  "median_failed": 0.0,
+  "median_tok_cum": 8054.0,
+  "median_tok_x": 3347.5,
+  "models": [
+   "sonnet"
+  ],
+  "runs": 30,
+  "s8_pairs": 0,
+  "vs": {
+   "accepted": 29,
+   "baseline_accepted": 25,
+   "baseline_lint_other_per_accepted": 1.08,
+   "lint_other_per_accepted": 0.483,
+   "median_tok_cum_ratio": 0.538,
+   "median_tok_x_ratio": 0.499,
    "tasks": 30
   }
  },

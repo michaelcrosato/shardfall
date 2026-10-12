@@ -1,0 +1,13 @@
+{"format":2,"name":"frost_brazier","unit":"cm",
+"description":"A frost brazier: iron bowl on three tall legs, full of glowing blue coals.",
+"materials":{
+"coal":{"color":"#2a8cff","emissive":3},
+"flame":{"color":"#80d0ff","emissive":6},
+"iron":{"color":"#3a3a40"}},
+"parts":{
+"bowl":{"type":"lathe","profile":[[0,70],[12,71],[24,80],[30,98],[27,98],[22,84],[0,78]],"pos":[0,22.8,0],"mat":"iron"},
+"coals":{"type":"ellipsoid","size":[52,22,52],"pos":[0,117.8,0],"mat":"coal"},
+"flame":{"type":"cone","radius":9,"radius_end":1,"height":14,"pos":[0,128.8,0],"mat":"flame","light":{"color":"#4aa8ff","radius":400,"intensity":2}},
+"leg_a":{"type":"cylinder","radius":3,"from":[0,0,24],"to":[0,98.8,14],"mat":"iron"},
+"leg_b":{"type":"cylinder","radius":3,"from":[-20.8,0,-12],"to":[-12.1,98.8,-7],"mat":"iron"},
+"leg_c":{"type":"cylinder","radius":3,"from":[20.8,0,-12],"to":[12.1,98.8,-7],"mat":"iron"}}}

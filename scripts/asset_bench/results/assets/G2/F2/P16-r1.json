@@ -1,0 +1,14 @@
+{"format":2,"name":"spiked_pauldron","unit":"cm",
+"description":"Layered steel pauldron with three spikes.",
+"materials":{
+"spike":{"color":"#d8dde3"},
+"steel":{"color":"#9aa4b0"},
+"steel_dark":{"color":"#5f6a78"}},
+"parts":{
+"dome":{"type":"ellipsoid","size":[20,9,22],"pos":[0,17,0],"mat":"steel"},
+"lame1":{"type":"rounded_box","size":[32,7,34],"radius":3,"pos":[0,3.5,0],"mat":"steel_dark"},
+"lame2":{"type":"rounded_box","size":[28,7,30],"radius":3,"pos":[0,8.5,0],"mat":"steel"},
+"lame3":{"type":"rounded_box","size":[24,7,26],"radius":3,"pos":[0,13.5,0],"mat":"steel_dark"},
+"spike_c":{"type":"cone","radius":2.5,"radius_end":0,"height":9,"pos":[0,21.5,0],"mat":"spike"},
+"spike_l":{"type":"cone","radius":2.2,"radius_end":0,"height":8,"pos":[-7,20.5,2],"mat":"spike"},
+"spike_r":{"type":"cone","radius":2.2,"radius_end":0,"height":8,"pos":[7,20.5,2],"mat":"spike"}}}

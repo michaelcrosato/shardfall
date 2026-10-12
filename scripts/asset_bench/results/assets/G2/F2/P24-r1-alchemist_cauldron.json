@@ -1,0 +1,16 @@
+{"format":2,"name":"alchemist_cauldron","unit":"cm",
+"description":"Iron cauldron on three legs with bubbling potion.",
+"materials":{
+"blue":{"color":"#2f4f8f"},
+"brass":{"color":"#c9a23a"},
+"glass":{"color":"#8fd6c8"},
+"green":{"color":"#2f6b4f"},
+"iron":{"color":"#3a3a44"},
+"potion":{"color":"#7b3fb0","emissive":2},
+"red":{"color":"#9b2d30"},
+"wood":{"color":"#7a5230"},
+"wood_dark":{"color":"#4a3222"}},
+"parts":{
+"leg":{"type":"cylinder","radius":5,"height":30,"pos":[0,15,0],"mat":"brass","radial":{"count":3,"radius":28}},
+"liquid":{"type":"cylinder","radius":33,"height":2,"pos":[0,78,0],"mat":"potion"},
+"pot":{"type":"lathe","profile":[[0,18],[22,18],[36,36],[40,56],[37,74],[40,80],[34,80],[0,76]],"mat":"iron"}}}

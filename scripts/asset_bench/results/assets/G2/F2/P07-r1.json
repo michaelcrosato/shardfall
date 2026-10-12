@@ -1,0 +1,13 @@
+{"format":2,"name":"tripod_brazier","unit":"cm",
+"description":"A tripod brazier: iron bowl on three curved legs, full of glowing coals.",
+"materials":{
+"coal":{"color":"#ff6a1a","emissive":3},
+"flame":{"color":"#ffb040","emissive":6},
+"iron":{"color":"#3a3a40"}},
+"parts":{
+"bowl":{"type":"lathe","profile":[[0,70],[12,71],[24,80],[30,98],[27,98],[22,84],[0,78]],"pos":[0,0,0],"mat":"iron"},
+"coals":{"type":"ellipsoid","size":[52,22,52],"pos":[0,95,0],"mat":"coal"},
+"flame":{"type":"cone","radius":9,"radius_end":1,"height":14,"pos":[0,106,0],"mat":"flame","light":{"color":"#ff8a30","radius":400,"intensity":2},"fx":{"preset":"fire"}},
+"leg_a":{"type":"cylinder","radius":3,"from":[0,0,24],"to":[0,76,14],"mat":"iron"},
+"leg_b":{"type":"cylinder","radius":3,"from":[-20.8,0,-12],"to":[-12.1,76,-7],"mat":"iron"},
+"leg_c":{"type":"cylinder","radius":3,"from":[20.8,0,-12],"to":[12.1,76,-7],"mat":"iron"}}}

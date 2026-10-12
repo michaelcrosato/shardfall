@@ -1,0 +1,19 @@
+{"format":2,"name":"grain_sacks","unit":"cm",
+"description":"Three tied burlap grain sacks, two upright and one slumped.",
+"materials":{
+"burlap":{"color":"#c9a468"},
+"burlap_dark":{"color":"#a98350"},
+"rope":{"color":"#5a3e26"}},
+"parts":{
+"a_body":{"type":"ellipsoid","size":[38,56,32],"pos":[-36,28,-14],"mat":"burlap"},
+"a_frill":{"type":"cone","radius":6,"radius_end":11,"height":14,"pos":[-36,65,-14],"mat":"burlap"},
+"a_neck":{"type":"cylinder","radius":6,"height":10,"pos":[-36,57,-14],"mat":"burlap_dark"},
+"a_tie":{"type":"torus","radius":6.5,"minor_radius":1.6,"pos":[-36,57,-14],"mat":"rope"},
+"b_body":{"type":"ellipsoid","size":[38,50,32],"pos":[22,25,-14],"mat":"burlap"},
+"b_frill":{"type":"cone","radius":6,"radius_end":11,"height":14,"pos":[22,59,-14],"mat":"burlap"},
+"b_neck":{"type":"cylinder","radius":6,"height":10,"pos":[22,51,-14],"mat":"burlap_dark"},
+"b_tie":{"type":"torus","radius":6.5,"minor_radius":1.6,"pos":[22,51,-14],"mat":"rope"},
+"c_body":{"type":"ellipsoid","size":[56,34,44],"pos":[8,17,10],"mat":"burlap"},
+"c_frill":{"type":"cone","radius":6,"radius_end":11,"from":[8,22,38],"to":[8,24,48],"mat":"burlap"},
+"c_neck":{"type":"cylinder","radius":6,"from":[8,19,28],"to":[8,22,38],"mat":"burlap_dark"},
+"c_tie":{"type":"torus","radius":6.5,"minor_radius":1.6,"pos":[8,21,35],"pitch":80,"mat":"rope"}}}

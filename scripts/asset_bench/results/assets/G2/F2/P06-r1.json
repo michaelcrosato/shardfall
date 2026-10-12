@@ -1,0 +1,12 @@
+{"format":2,"name":"arch_doorway","unit":"cm",
+"description":"Stone arch doorway with voussoirs and keystone around a 200x300 opening.",
+"materials":{
+"key":{"color":"#c4baa0"},
+"stone":{"color":"#a8a090"},
+"stone_dark":{"color":"#85806f"}},
+"parts":{
+"impost":{"type":"box","size":[66,14,62],"pos":[130,207,0],"mat":"stone_dark","mirror":"x"},
+"keystone":{"type":"box","size":[42,84,62],"pos":[0,341,0],"mat":"key"},
+"pier":{"type":"box","size":[60,200,60],"pos":[130,100,0],"mat":"stone","mirror":"x"},
+"plinth":{"type":"box","size":[70,24,62],"pos":[128,12,0],"mat":"stone_dark","mirror":"x"},
+"voussoir":{"type":"box","size":[76,60,58],"pos":[0,200,0],"mat":"stone","radial":{"count":7,"radius":130,"start":-90,"arc":180,"axis":"z"}}}}

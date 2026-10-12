@@ -1,8 +1,9 @@
 # Agent-first asset system: plan
 
-Status: **in progress since 2026-10-12** (§11 checklist; `docs/HISTORY.md` has each row). The
-executing session starts at §15 (prompt) and resumes from the first unticked row of the progress
-checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
+Status: **stopped at gate G2 on 2026-10-12** (NO-GO after its remediation round, no kill
+criterion held; gate log in §10.2). Phases 3-6 wait for the user's decision. Started 2026-10-12
+(§11 checklist; `docs/HISTORY.md` has each row). The executing session starts at §15 (prompt)
+and resumes from the first unticked row of the progress checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
 Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14). A five-lens
 adversarial review was started and stopped early for usage: fix any inconsistency you find in
 this file in the PR that hits it.
@@ -1246,6 +1247,18 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
   `done`. Calibration: intact picked 10/12 and 11/12, 1 order flip; judge prompt frozen (sha256
   `4db5021c`). Phase-1 checks: 7/7 planted lint defects, framing 55-90% with the camera
   restored, exact triangle counts. Gate A re-scored with `check`: 31/38 accepted.
+- G2, 2026-10-12: **NO-GO** after the remediation round (no kill criterion held in either round).
+  Format checks pass (revision goldens, the §5.9 corpus, format-1 scenes identical, 1,024-part
+  compile 0.42-0.44 ms, a placed copy < 64 B).
+  - Round 1, arm F (`8a0764d`): fails on tokens. Authoring `tok_x` 0.857 and `tok_cum` 1.217;
+    edits 0.534; 30/30 accepted (A 25); median failed 1; 15 wins, 9 losses; rubric Δ +0.10.
+  - Remediation (`c0ae045`): one-line doc examples, a one-go loop, the sheet as the image,
+    short errors for split JSON, hints for `cycle` and direction words, `create` points at
+    `replace`, `mirror_overlap` on boxes.
+  - Round 2, arm F2 (`c0ae045`): fails on quality. Authoring `tok_x` 0.511 and `tok_cum` 0.561;
+    edits 0.392; 29/30 accepted (A 25); median failed 0; 10 wins, 14 losses (parity needs 12);
+    rubric Δ −0.183 (limit −0.1). 11 of 24 tasks changed outcome between rounds against the
+    same arm-A assets; pooled, 25 of 48 pairs went to format 2.
 - **Total load:** ~135 author runs and ~320 judge calls (calibration 72, edit votes 54, G2 72, G3 24, G4 96).
 
 ## 11. Roadmap and progress checklist
@@ -1278,7 +1291,7 @@ Why this order:
 - [x] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
 - [x] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [x] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
-- [ ] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs)
+- [x] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs): **G2 NO-GO**, stopped
 - [ ] 3.1 MAT-1 material core + MAT-8 Physically Based presets (L)
 - [ ] 3.2 MAT-2 renderer + MAT-3 view integration, parity, bench, WGSL check (L)
 - [ ] 3.3 MAT-4 props/statics integration + MAT-5 tools, swatch, MATERIALS.md (M)

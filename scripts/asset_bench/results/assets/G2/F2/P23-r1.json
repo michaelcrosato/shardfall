@@ -1,0 +1,23 @@
+{"format":2,"name":"tavern_sign","unit":"cm",
+"description":"A tavern sign on two iron wall brackets with a tankard emblem.",
+"materials":{
+"foam":{"color":"#f4efe0"},
+"iron":{"color":"#33363d"},
+"mug":{"color":"#d9a441"},
+"trim":{"color":"#5a3a20"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"arm":{"type":"box","size":[5,5],"from":[0,70,0],"to":[0,70,9],"mat":"iron"},
+"arm_lo":{"type":"box","size":[5,5],"from":[0,12,0],"to":[0,12,9],"mat":"iron"},
+"board":{"type":"rounded_box","size":[90,76,4],"radius":1.5,"pos":[0,40,8],"mat":"wood"},
+"foam":{"type":"box","size":[30,8,1.6],"pos":[-5,54,11.2],"mat":"foam"},
+"handle_bot":{"type":"box","size":[12,4,2],"pos":[15,26,11],"mat":"mug"},
+"handle_side":{"type":"box","size":[4,24,2],"pos":[21,36,11],"mat":"mug"},
+"handle_top":{"type":"box","size":[12,4,2],"pos":[15,46,11],"mat":"mug"},
+"mug_body":{"type":"box","size":[26,32,2],"pos":[-5,36,11],"mat":"mug"},
+"plate":{"type":"box","size":[12,14,2],"pos":[0,70,1],"mat":"iron"},
+"plate_lo":{"type":"box","size":[12,14,2],"pos":[0,12,1],"mat":"iron"},
+"trim_bot":{"type":"box","size":[90,4,2],"pos":[0,4,10.5],"mat":"trim"},
+"trim_top":{"type":"box","size":[90,4,2],"pos":[0,76,10.5],"mat":"trim"}},
+"sockets":{
+"wall_mount":{"pos":[0,40,0]}}}

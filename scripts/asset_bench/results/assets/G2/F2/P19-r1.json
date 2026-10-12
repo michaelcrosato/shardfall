@@ -1,0 +1,22 @@
+{"format":2,"name":"hand_cart","unit":"cm",
+"description":"A two-wheeled hand cart with shafts and a canvas-covered load.",
+"materials":{
+"canvas":{"color":"#d8cfae"},
+"rope":{"color":"#7a5a35"},
+"wood":{"color":"#bc8150"},
+"wood_dark":{"color":"#594635"}},
+"parts":{
+"axle":{"type":"box","size":[7,7],"from":[-104,45,0],"to":[104,45,0],"mat":"wood_dark"},
+"bed":{"type":"box","size":[170,14,100],"pos":[0,66,-12],"mat":"wood"},
+"handle":{"type":"box","size":[6,6],"from":[-45,62,62],"to":[45,62,62],"mat":"wood"},
+"load":{"type":"ellipsoid","size":[160,76,92],"pos":[0,110,-12],"mat":"canvas"},
+"post":{"type":"box","size":[8,8],"from":[45,45,0],"to":[45,62,0],"mat":"wood_dark","mirror":"x"},
+"rope":{"type":"box","size":[164,3,6],"pos":[0,112,-12],"mat":"rope"},
+"shaft":{"type":"box","size":[6,6],"from":[45,62,-65],"to":[45,62,65],"mat":"wood","mirror":"x"},
+"wheel":{"pos":[106,0,0],"mirror":"x","parts":{
+  "hub":{"type":"cylinder","radius":8,"height":14,"pos":[0,45,0],"axis":"x","mat":"wood"},
+  "rim":{"type":"tube","radius":45,"thickness":6,"height":8,"pos":[0,45,0],"axis":"x","mat":"wood_dark"},
+  "s1":{"type":"box","size":[4,6],"from":[0,3,0],"to":[0,87,0],"mat":"wood"},
+  "s2":{"type":"box","size":[4,6],"from":[0,45,-42],"to":[0,45,42],"mat":"wood"},
+  "s3":{"type":"box","size":[4,6],"from":[0,15,-30],"to":[0,75,30],"mat":"wood"},
+  "s4":{"type":"box","size":[4,6],"from":[0,15,30],"to":[0,75,-30],"mat":"wood"}}}}}

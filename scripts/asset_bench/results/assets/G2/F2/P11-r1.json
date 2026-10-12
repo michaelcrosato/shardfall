@@ -1,0 +1,13 @@
+{"format":2,"name":"boulder_cluster","unit":"cm",
+"description":"Three mossy boulders in a cluster.",
+"materials":{
+"moss":{"color":"#5f8f3a"},
+"rock":{"color":"#8a8780"},
+"rock2":{"color":"#756f6a"}},
+"parts":{
+"big":{"type":"ellipsoid","size":[120,118,110],"pos":[-50,59,-25],"yaw":15,"mat":"rock"},
+"big_moss":{"type":"ellipsoid","size":[84,30,78],"pos":[-50,102,-25],"mat":"moss"},
+"mid":{"type":"ellipsoid","size":[90,72,85],"pos":[65,36,20],"yaw":-20,"mat":"rock2"},
+"mid_moss":{"type":"ellipsoid","size":[62,22,58],"pos":[65,64,20],"mat":"moss"},
+"small":{"type":"ellipsoid","size":[70,52,70],"pos":[-8,26,50],"yaw":40,"mat":"rock"},
+"small_moss":{"type":"ellipsoid","size":[48,18,48],"pos":[-8,45,50],"mat":"moss"}}}

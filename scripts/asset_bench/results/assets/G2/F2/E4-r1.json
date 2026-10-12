@@ -1,0 +1,19 @@
+{"format":2,"name":"single_axe","unit":"cm",
+"description":"A double-bit battle axe with a wrapped haft and pommel cap.",
+"materials":{
+"cap":{"color":"#6b7280"},
+"steel":{"color":"#b8c2cc"},
+"wood":{"color":"#8a5a33"},
+"wrap":{"color":"#5b3a29"}},
+"parts":{
+"blade":{"type":"extrude","points":[[4,80],[18,74],[18,110],[4,104]],"depth":4,"pos":[0,0,0],"mat":"steel"},
+"haft":{"type":"cylinder","radius":2.4,"from":[0,2,0],"to":[0,106,0],"mat":"wood"},
+"hub":{"type":"box","size":[10,26,6],"pos":[0,92,0],"mat":"cap"},
+"pommel":{"type":"cylinder","radius":3,"from":[0,0,0],"to":[0,4,0],"mat":"cap"},
+"spike":{"type":"cone","radius":3.2,"radius_end":0.4,"from":[-4,92,0],"to":[-18,92,0],"mat":"steel"},
+"topcap":{"type":"cylinder","radius":2.8,"from":[0,106,0],"to":[0,110,0],"mat":"cap"},
+"wrap":{"type":"cylinder","radius":3,"height":3,"pos":[0,40,0],"mat":"wrap","array":{"count":8,"step":[0,6,0]}}},
+"sockets":{
+"grip":{"pos":[0,25,0]},
+"grip2":{"pos":[0,50,0]},
+"tip":{"pos":[0,110,0]}}}

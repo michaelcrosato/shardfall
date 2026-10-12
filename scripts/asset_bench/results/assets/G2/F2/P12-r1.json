@@ -1,0 +1,15 @@
+{"format":2,"name":"crystal_outcrop","unit":"cm",
+"description":"Five glowing crystal shards on a rock base.",
+"materials":{
+"crys":{"color":"#5fe0ff","emissive":3},
+"crys2":{"color":"#b080ff","emissive":0.45},
+"rock":{"color":"#5d5868"},
+"rock2":{"color":"#464253"}},
+"parts":{
+"base":{"type":"rounded_box","size":[120,30,100],"radius":12,"pos":[0,15,0],"mat":"rock"},
+"lump":{"type":"rounded_box","size":[66,22,56],"radius":8,"pos":[-15,38,-15],"mat":"rock2"},
+"s_back":{"type":"cone","radius":9,"radius_end":2,"height":70,"pos":[-12,58,-34],"pitch":-12,"mat":"crys"},
+"s_front":{"type":"cone","radius":9,"radius_end":2,"height":60,"pos":[10,52,32],"pitch":14,"mat":"crys2"},
+"s_left":{"type":"cone","radius":11,"radius_end":2,"height":90,"pos":[-38,68,10],"roll":14,"mat":"crys2"},
+"s_main":{"type":"cone","radius":19,"radius_end":2,"height":125,"pos":[0,87,-8],"mat":"crys","light":{"color":"#7fe8ff","radius":300,"intensity":3}},
+"s_right":{"type":"cone","radius":11,"radius_end":2,"height":80,"pos":[38,63,0],"roll":-16,"mat":"crys"}}}

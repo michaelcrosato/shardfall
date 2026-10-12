@@ -1,0 +1,16 @@
+{"format":2,"name":"strongbox","unit":"cm",
+"description":"An iron-banded strongbox with a domed lid, corner caps and a lock plate.",
+"materials":{
+"brass":{"color":"#c9a23c"},
+"iron":{"color":"#3d4148"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"band_body":{"type":"box","size":[8,38,52],"pos":[24,19,0],"mat":"iron","mirror":"x"},
+"band_lid":{"type":"cylinder","radius":26,"height":8,"arc":180,"facing":"y","pos":[24,38,0],"axis":"x","mat":"iron","mirror":"x"},
+"body":{"type":"box","size":[78,38,50],"pos":[0,19,0],"mat":"wood"},
+"cap":{"type":"box","size":[8,10,8],"pos":[38,5,24],"mat":"iron","mirror":["x","z"]},
+"cap_top":{"type":"box","size":[8,8,8],"pos":[38,34,24],"mat":"iron","mirror":["x","z"]},
+"keyhole":{"type":"box","size":[3,6,1],"pos":[0,33,28.5],"mat":"iron"},
+"lid":{"type":"cylinder","radius":25,"height":78,"arc":180,"facing":"y","pos":[0,38,0],"axis":"x","mat":"wood"},
+"lock":{"type":"box","size":[14,16,3],"pos":[0,34,26.5],"mat":"brass"},
+"rim":{"type":"box","size":[80,4,52],"pos":[0,36,0],"mat":"iron"}}}

@@ -38,25 +38,29 @@ the background on something.
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
-**Asset system plan** (in progress since 2026-10-12): `docs/ASSET_SYSTEM_PLAN.md` (format 2,
-procedural materials, library import, curated library, benchmark gates). Execute with the prompt
-in its §15, resuming at the first unticked row of its §11 checklist. Phase 0 is done (gates GA
-and G0 pass): compact asset replies and canonical prop files (0.1), errors that name
-`parts.<id>`/`ops[i]` with a fix and `asset_edit action=schema` (0.2), and the benchmark harness
-`scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Phase 1 is done
-(gate G1 passes: median `tok_x` 0.74 and `tok_cum` 0.88 of arm A's, 14/14 accepted against
-11/14, no lint findings left): `asset_edit action=check` and findings in every edit reply
+**Asset system plan** (stopped at gate G2 on 2026-10-12; waiting for the user's decision):
+`docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
+benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
+Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
+errors that name `parts.<id>`/`ops[i]` with a fix and `asset_edit action=schema` (0.2), and the
+benchmark harness `scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Phase
+1 is done (gate G1 passes: median `tok_x` 0.74 and `tok_cum` 0.88 of arm A's, 14/14 accepted
+against 11/14, no lint findings left): `asset_edit action=check` and findings in every edit reply
 (1.1), contact sheets `asset_preview views=true` and `capture stats=only` (1.2), agent-first
 `docs/ASSET_STUDIO.md` with the live studio in `docs/ASSET_STUDIO_LIVE.md`, and calibrated judges
-(1.3). Phase 2 has begun: format 2 is read, checked (errors with fixes for common guesses) and
-written canonically with `prop2-` revisions (2.1), and compiles to resolved parts with
-generated meshes, seeded variants and compiled definitions in the library; every §5.9 golden
-holds and format-1 parts compile bit-exactly (2.2). Drawing, collision, nav, bounds, previews,
-`check` and the native studio read compiled parts, so format-2 assets are created, drawn and
-placed; format-1 assets draw and collide exactly as before (2.3). Format-2 assets take patch
-ops (rename, copy, mirror, array, expand, move, scale, unit, dotted targets), snapshots carry
-each definition once, and placed copies take a seed and a palette (2.4). Next: row 2.5, the
-fixtures, bench template, docs and legend on format 2, then gate G2.
+(1.3). Phase 2's rows are done: format 2 is read, checked (errors with fixes for common guesses)
+and written canonically with `prop2-` revisions (2.1), and compiles to resolved parts with
+generated meshes, seeded variants and compiled definitions in the library; every §5.9 golden holds
+and format-1 parts compile bit-exactly (2.2). Drawing, collision, nav, bounds, previews, `check`
+and the native studio read compiled parts, so format-2 assets are created, drawn and placed;
+format-1 assets draw and collide exactly as before (2.3). Format-2 assets take patch ops (rename,
+copy, mirror, array, expand, move, scale, unit, dotted targets), snapshots carry each definition
+once, and placed copies take a seed and a palette (2.4). `docs/ASSET_STUDIO.md` teaches format 2
+and `BUILTIN/bench` is fixed (2.5). **Gate G2 is a NO-GO** after its one remediation round, though
+no kill criterion held. Round 1 met quality (15 of 24 pairs won) but not tokens (`tok_x` 0.86,
+`tok_cum` 1.22 of arm A's). Round 2, after the docs and error fixes, met tokens (`tok_x` 0.51,
+`tok_cum` 0.56, edits 0.39, 29/30 accepted) but not quality (10 of 24 pairs, rubric Δ −0.18).
+Phases 3-6 have not started: stop, re-judge or change the gate is the user's call.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

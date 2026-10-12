@@ -1,0 +1,11 @@
+{"format":2,"name":"castle_wall_600","unit":"cm",
+"description":"Castle wall 600 cm wide with stone courses, six merlons and two arrow slits.",
+"materials":{
+"slit":{"color":"#1c1c20"},
+"stone":{"color":"#9a9a96"},
+"stone_dark":{"color":"#7b7b78"}},
+"parts":{
+"body":{"type":"box","size":[600,300,80],"pos":[0,150,0],"mat":"stone"},
+"course":{"type":"box","size":[598,6,82],"pos":[0,150,0],"mat":"stone_dark","array":{"count":5,"step":[0,55,0]}},
+"merlon":{"type":"box","size":[70,62,76],"pos":[0,329,0],"mat":"stone_dark","array":{"count":6,"step":[100,0,0]}},
+"slit":{"type":"box","size":[14,80,84],"pos":[150,170,0],"mat":"slit","mirror":"x"}}}

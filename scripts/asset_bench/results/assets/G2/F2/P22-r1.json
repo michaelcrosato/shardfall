@@ -1,0 +1,20 @@
+{"format":2,"name":"sarcophagus","unit":"cm",
+"description":"A stone sarcophagus with a carved lid and a cracked corner.",
+"materials":{
+"crack":{"color":"#2b2823"},
+"lid":{"color":"#b0aa9c"},
+"stone":{"color":"#9a9488"},
+"stone_dark":{"color":"#6e695f"}},
+"parts":{
+"band":{"type":"box","size":[200,6,3],"pos":[0,50,47.5],"mat":"stone_dark"},
+"body":{"type":"rounded_box","size":[224,64,94],"radius":4,"pos":[0,42,0],"mat":"stone"},
+"chip":{"type":"wedge","size":[12,14,12],"pos":[110,68,44],"mat":"crack"},
+"crack_a":{"type":"box","size":[3,40,3],"pos":[108,50,48],"roll":12,"mat":"crack"},
+"crack_b":{"type":"box","size":[3,26,3],"pos":[112,32,0],"pitch":0,"roll":-15,"mat":"crack"},
+"crack_c":{"type":"box","size":[26,3,3],"pos":[100,74,48],"yaw":0,"roll":-20,"mat":"crack"},
+"lid":{"type":"rounded_box","size":[230,22,100],"radius":5,"pos":[0,85,0],"mat":"lid"},
+"lid_top":{"type":"rounded_box","size":[196,16,66],"radius":6,"pos":[0,102,0],"mat":"lid"},
+"panel":{"type":"box","size":[40,24,3],"pos":[0,50,47.5],"mat":"stone_dark","array":{"count":3,"step":[60,0,0]}},
+"plinth":{"type":"box","size":[230,10,100],"pos":[0,5,0],"mat":"stone_dark"},
+"rib":{"type":"box","size":[150,3,10],"pos":[0,110,0],"mat":"stone_dark"},
+"rib_x":{"type":"box","size":[10,3,44],"pos":[0,110,0],"mat":"stone_dark"}}}

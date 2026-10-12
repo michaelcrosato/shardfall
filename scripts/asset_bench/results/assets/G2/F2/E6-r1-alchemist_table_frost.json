@@ -1,0 +1,23 @@
+{"format":2,"name":"alchemist_table_frost","unit":"cm",
+"description":"Alchemist work table with glassware, frost theme.",
+"materials":{
+"blue":{"color":"#2f6fc0"},
+"brass":{"color":"#cfe9f5"},
+"glass":{"color":"#e6f8ff"},
+"green":{"color":"#3fa7a0"},
+"ice":{"color":"#d8f6ff"},
+"iron":{"color":"#4d6a8c"},
+"potion":{"color":"#7fe7ff","emissive":2},
+"red":{"color":"#7fb2e0"},
+"wood":{"color":"#a9d4ee"},
+"wood_dark":{"color":"#5f8fb8"}},
+"parts":{
+"beaker":{"type":"cylinder","radius":6,"height":14,"pos":[-40,92,5],"mat":"glass"},
+"book":{"type":"box","size":[22,5,16],"pos":[45,87.5,-10],"mat":"red"},
+"burner":{"type":"cylinder","radius":5,"height":6,"pos":[50,88,18],"mat":"brass"},
+"flask":{"type":"sphere","radius":8,"pos":[-10,93,-5],"mat":"potion"},
+"leg":{"type":"box","size":[8,8],"from":[62,0,28],"to":[62,79,28],"mat":"wood_dark","mirror":["x","z"]},
+"neck":{"type":"cylinder","radius":3,"height":12,"pos":[-10,104,-5],"mat":"glass"},
+"rail":{"type":"box","size":[116,6,4],"pos":[0,30,28],"mat":"wood_dark","mirror":"z"},
+"top":{"type":"box","size":[140,6,70],"pos":[0,82,0],"mat":"wood"},
+"tube":{"type":"cylinder","radius":3.5,"height":18,"pos":[20,94,10],"mat":"glass","mirror":"x"}}}
