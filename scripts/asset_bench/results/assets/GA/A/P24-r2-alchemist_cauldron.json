@@ -1,0 +1,333 @@
+{
+  "format": 1,
+  "name": "alchemist_cauldron",
+  "description": "Cauldron on legs.",
+  "parts": {
+    "band": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.52
+      },
+      "pos": [
+        0.0,
+        0.98,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c8963c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "belly": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.52
+      },
+      "pos": [
+        0.0,
+        0.78,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "brew": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.01,
+        "radius": 0.42
+      },
+      "pos": [
+        0.0,
+        1.22,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5fd4c4",
+      "look": "cel",
+      "emissive": 2.5,
+      "solid": true
+    },
+    "bubble0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.06
+      },
+      "pos": [
+        0.1,
+        1.27,
+        0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9ff0e0",
+      "look": "cel",
+      "emissive": 2.5,
+      "solid": true
+    },
+    "bubble1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        -0.15,
+        1.26,
+        -0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9ff0e0",
+      "look": "cel",
+      "emissive": 2.5,
+      "solid": true
+    },
+    "foot0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.35,
+        0.03,
+        -0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e2716",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foot1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.09
+      },
+      "pos": [
+        0.35,
+        0.03,
+        -0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e2716",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foot2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.35,
+        0.03,
+        0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e2716",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foot3": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.09
+      },
+      "pos": [
+        0.35,
+        0.03,
+        0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e2716",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "handle_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.06,
+          0.03,
+          0.03
+        ]
+      },
+      "pos": [
+        -0.52,
+        1.05,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c8963c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "handle_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.06,
+          0.03,
+          0.03
+        ]
+      },
+      "pos": [
+        0.52,
+        1.05,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c8963c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.17,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.35,
+        0.17,
+        -0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.17,
+        "radius": 0.07
+      },
+      "pos": [
+        0.35,
+        0.17,
+        -0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.17,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.35,
+        0.17,
+        0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg3": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.17,
+        "radius": 0.07
+      },
+      "pos": [
+        0.35,
+        0.17,
+        0.35
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lip": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.015,
+        "radius": 0.5
+      },
+      "pos": [
+        0.0,
+        1.24,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c8963c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.04,
+        "radius": 0.47
+      },
+      "pos": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2f38",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

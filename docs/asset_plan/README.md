@@ -15,7 +15,6 @@ source of truth. Delete each file when the work item that uses it lands.
 - `prototypes/material_fit/`, `prototypes/import/`: numpy prototypes of the texture and mesh fits.
 - `prototypes/lint4.py`: lint rules.
 - `prototypes/families/apply_params.py`: parameter application for families.
-- `prototypes/bench/`: benchmark wrapper, token counters, agent prompts, the arm-A replay.
 - The 23 error probes are `crates/pav_tools/tests/fixtures/asset_errors.jsonl`; the two
   format-1 dogfood assets used as baselines are in `crates/pav_core/tests/fixtures/props/`.
 

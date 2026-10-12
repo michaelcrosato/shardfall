@@ -1,0 +1,1497 @@
+{
+  "format": 1,
+  "name": "alchemist_bookshelf_frost",
+  "description": "Alchemist bookshelf with books and jars.",
+  "parts": {
+    "back": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.65,
+          0.95,
+          0.02
+        ]
+      },
+      "pos": [
+        0.0,
+        1.0,
+        -0.18
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.5,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5aa0d6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.18,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.41,
+        0.31,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e6fc0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.21,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.32,
+        0.34,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6cc7c0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.23,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#e3f6ff",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.18,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.14,
+        0.31,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a7fd6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.21,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.05,
+        0.34,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5aa0d6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        0.04,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e6fc0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6cc7c0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.2,
+          0.12
+        ]
+      },
+      "pos": [
+        0.1,
+        1.23,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#e3f6ff",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.14,
+          0.12
+        ]
+      },
+      "pos": [
+        0.2,
+        1.17,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a7fd6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        0.3,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5aa0d6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.2,
+          0.12
+        ]
+      },
+      "pos": [
+        0.4,
+        1.23,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3e6fc0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.14,
+          0.12
+        ]
+      },
+      "pos": [
+        0.5,
+        1.17,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6cc7c0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_lean": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.45,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -12.0,
+      "color": "#5aa0d6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_0a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0309,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.496,
+        0.4991,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_0b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0259,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.496,
+        0.4422,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_1a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0392,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.242,
+        0.4908,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_1b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0342,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.242,
+        0.4173,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_2a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0406,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.035,
+        0.4894,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_2b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0356,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.035,
+        0.4131,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_3a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0303,
+        "radius": 0.025
+      },
+      "pos": [
+        0.277,
+        0.4997,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_3b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0253,
+        "radius": 0.013
+      },
+      "pos": [
+        0.277,
+        0.444,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_4a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0315,
+        "radius": 0.025
+      },
+      "pos": [
+        0.479,
+        0.4985,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_0_4b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0265,
+        "radius": 0.013
+      },
+      "pos": [
+        0.479,
+        0.4405,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_0a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0499,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.502,
+        0.9301,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_0b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0449,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.502,
+        0.8353,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_1a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0509,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.252,
+        0.9291,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_1b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0459,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.252,
+        0.8323,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_2a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.041,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.028,
+        0.939,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_2b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.036,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.028,
+        0.8621,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_3a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0459,
+        "radius": 0.025
+      },
+      "pos": [
+        0.279,
+        0.9341,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_3b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0409,
+        "radius": 0.013
+      },
+      "pos": [
+        0.279,
+        0.8474,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_4a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0381,
+        "radius": 0.025
+      },
+      "pos": [
+        0.519,
+        0.9419,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_1_4b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0331,
+        "radius": 0.013
+      },
+      "pos": [
+        0.519,
+        0.8708,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_0a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0418,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.535,
+        1.3882,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_0b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0368,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.535,
+        1.3096,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_1a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.049,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.243,
+        1.381,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_1b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.044,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.243,
+        1.2881,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_2a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0325,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.038,
+        1.3975,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_2b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0275,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.038,
+        1.3374,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_3a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0516,
+        "radius": 0.025
+      },
+      "pos": [
+        0.248,
+        1.3784,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_3b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0466,
+        "radius": 0.013
+      },
+      "pos": [
+        0.248,
+        1.2801,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_4a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.043,
+        "radius": 0.025
+      },
+      "pos": [
+        0.53,
+        1.387,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_2_4b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.038,
+        "radius": 0.013
+      },
+      "pos": [
+        0.53,
+        1.3061,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_0a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0429,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.466,
+        1.9071,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_0b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0379,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.466,
+        1.8264,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_1a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0399,
+        "radius": 0.025
+      },
+      "pos": [
+        -0.226,
+        1.9101,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_1b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0349,
+        "radius": 0.013
+      },
+      "pos": [
+        -0.226,
+        1.8354,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_2a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0361,
+        "radius": 0.025
+      },
+      "pos": [
+        0.035,
+        1.9139,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_2b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0311,
+        "radius": 0.013
+      },
+      "pos": [
+        0.035,
+        1.8467,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_3a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.052,
+        "radius": 0.025
+      },
+      "pos": [
+        0.218,
+        1.898,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_3b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.047,
+        "radius": 0.013
+      },
+      "pos": [
+        0.218,
+        1.7991,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_4a": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0284,
+        "radius": 0.025
+      },
+      "pos": [
+        0.477,
+        1.9216,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "icicle_3_4b": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.0234,
+        "radius": 0.013
+      },
+      "pos": [
+        0.477,
+        1.8698,
+        0.15
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8e6fa",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.45,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9ff0ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.15,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9a8ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        0.2,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#e3f6ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar4": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.13,
+        "radius": 0.1
+      },
+      "pos": [
+        -0.4,
+        1.61,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9a8ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar4_lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.08
+      },
+      "pos": [
+        -0.4,
+        1.765,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4d6580",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar5": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.08
+      },
+      "pos": [
+        0.35,
+        1.58,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9ff0ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar5_lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.065
+      },
+      "pos": [
+        0.35,
+        1.705,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4d6580",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_big": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        0.45,
+        0.74,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9ff0ff",
+      "look": "cel",
+      "emissive": 0.4,
+      "solid": true
+    },
+    "jar_big_cork": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.05
+      },
+      "pos": [
+        0.45,
+        0.93,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9d6e8",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.45,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4d6580",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.15,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4d6580",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        0.2,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4d6580",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        0.55,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        1.45,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          1.0,
+          0.2
+        ]
+      },
+      "pos": [
+        -0.65,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9d6e8",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          1.0,
+          0.2
+        ]
+      },
+      "pos": [
+        0.65,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9d6e8",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "skull": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.1
+      },
+      "pos": [
+        0.0,
+        1.58,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2fbff",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "top": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.72,
+          0.03,
+          0.22
+        ],
+        "radius": 0.015
+      },
+      "pos": [
+        0.0,
+        1.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

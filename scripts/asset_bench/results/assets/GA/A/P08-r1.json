@@ -1,0 +1,690 @@
+{
+  "format": 1,
+  "name": "ring_chandelier",
+  "description": "Wooden ring chandelier with six candles hanging on chains.",
+  "parts": {
+    "candle_0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        0.5,
+        -0.57,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "candle_1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        0.25,
+        -0.57,
+        0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "candle_2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        -0.25,
+        -0.57,
+        0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "candle_3": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        -0.5,
+        -0.57,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "candle_4": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        -0.25,
+        -0.57,
+        -0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "candle_5": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.07,
+        "radius": 0.032
+      },
+      "pos": [
+        0.25,
+        -0.57,
+        -0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2ead2",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "chain_0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.3905,
+        "radius": 0.012
+      },
+      "pos": [
+        0.2165,
+        -0.34,
+        0.125
+      ],
+      "yaw": -120.0,
+      "pitch": 39.81,
+      "roll": 0.0,
+      "color": "#3a3a40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "chain_1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.3905,
+        "radius": 0.012
+      },
+      "pos": [
+        -0.2165,
+        -0.34,
+        0.125
+      ],
+      "yaw": 120.0,
+      "pitch": 39.81,
+      "roll": 0.0,
+      "color": "#3a3a40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "chain_2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.3905,
+        "radius": 0.012
+      },
+      "pos": [
+        -0.0,
+        -0.34,
+        -0.25
+      ],
+      "yaw": 0.0,
+      "pitch": 39.81,
+      "roll": 0.0,
+      "color": "#3a3a40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cross_0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.25,
+          0.015,
+          0.015
+        ]
+      },
+      "pos": [
+        0.2165,
+        -0.69,
+        0.125
+      ],
+      "yaw": -30.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cross_1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.25,
+          0.015,
+          0.015
+        ]
+      },
+      "pos": [
+        -0.2165,
+        -0.69,
+        0.125
+      ],
+      "yaw": -150.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cross_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.25,
+          0.015,
+          0.015
+        ]
+      },
+      "pos": [
+        -0.0,
+        -0.69,
+        -0.25
+      ],
+      "yaw": -270.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "finial": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.07
+      },
+      "pos": [
+        0.0,
+        -0.83,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "finial_rod": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.06,
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        -0.74,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flame_0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        0.5,
+        -0.475,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame_1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        0.25,
+        -0.475,
+        0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame_2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        -0.25,
+        -0.475,
+        0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame_3": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        -0.5,
+        -0.475,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame_4": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        -0.25,
+        -0.475,
+        -0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame_5": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        0.25,
+        -0.475,
+        -0.433
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffc455",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "hook": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        -0.03,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3a40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hub": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.07
+      },
+      "pos": [
+        0.0,
+        -0.69,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.5,
+        -0.68,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.433,
+        -0.68,
+        0.25
+      ],
+      "yaw": -30.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_10": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.25,
+        -0.68,
+        -0.433
+      ],
+      "yaw": -300.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_11": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.433,
+        -0.68,
+        -0.25
+      ],
+      "yaw": -330.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.25,
+        -0.68,
+        0.433
+      ],
+      "yaw": -60.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        0.0,
+        -0.68,
+        0.5
+      ],
+      "yaw": -90.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.25,
+        -0.68,
+        0.433
+      ],
+      "yaw": -120.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.433,
+        -0.68,
+        0.25
+      ],
+      "yaw": -150.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.5,
+        -0.68,
+        0.0
+      ],
+      "yaw": -180.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_7": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.433,
+        -0.68,
+        -0.25
+      ],
+      "yaw": -210.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_8": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.25,
+        -0.68,
+        -0.433
+      ],
+      "yaw": -240.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "ring_9": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.04,
+          0.145
+        ]
+      },
+      "pos": [
+        -0.0,
+        -0.68,
+        -0.5
+      ],
+      "yaw": -270.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

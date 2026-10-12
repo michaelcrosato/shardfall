@@ -1205,7 +1205,7 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
   `collect` and `report`.
 - `bench.py selftest` replays a scripted session twice; both replays must give identical `tok_x`,
   and the 31st command must be refused.
-- Prototypes of the wrapper, the token counters and the agent prompts are in `docs/asset_plan/prototypes/bench/`.
+- The harness is `scripts/asset_bench/` (README there). A session that started before `.claude/agents/` existed cannot launch the pinned agents by name; it runs a general-purpose agent with the same model, effort and prompt body, and records that.
 
 ### 10.2 Gates and stop rule
 - A gate passes only if every check passes.
@@ -1227,6 +1227,13 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
 | G5 | I: IT1-IT6 + IT6 in arm A (7) | §8.8 pilot GO; ≥ 5/6 tasks accepted; IT6 tok_x ≤ 0.5× the hand-made run with IoU ≥ hand + 0.10 | **K5** pilot < 60% `fit`: stop I8; exact-mesh imports stay local |
 
 - **Sign-test context:** 24 pairs need ≥ 17 wins for p ≈ 0.03; 32 pairs need ≥ 22 wins for p ≈ 0.025.
+
+**Gate log** (details in `docs/HISTORY.md`; numbers in `scripts/asset_bench/results/`):
+- GA, 2026-10-12: **pass.** 38/38 runs wrote `done.json`, 37 accepted (floating parts not yet
+  checked); median `tok_x` 6,480, `tok_cum` 14,242, failed 0. S8 median |ln(tok_x₁/tok_x₂)| =
+  0.257 < ln 1.5, so G2 runs each task once.
+- G0, 2026-10-12: **pass.** Reply budget test, 19 located error probes, golden template
+  revisions, tools/list 46,926 chars, smoke 12/12, `cargo test` green.
 - **Total load:** ~135 author runs and ~320 judge calls (calibration 72, edit votes 54, G2 72, G3 24, G4 96).
 
 ## 11. Roadmap and progress checklist
@@ -1251,7 +1258,7 @@ Why this order:
 **Progress** (sizes: S < 1 day of agent work, M 1-3, L 3-7):
 - [x] 0.1 TOOLS-1 reply hygiene + TOOLS-4 canonical v1 writer (M)
 - [x] 0.2 TOOLS-2 `issue.rs` + format-1 error paths; TOOLS-3 schema trims and `action=schema` (M)
-- [ ] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
+- [x] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
 - [ ] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
 - [ ] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
 - [ ] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
@@ -1384,7 +1391,7 @@ the work item that uses it lands. Each is listed with the work item that uses it
 - `prototypes/tools/`: removed when TOOLS-1 (`trim.py`) and TOOLS-3 (`schema_v1.json`) landed.
 - `prototypes/import/`: `gltfload.py`, `structure.py`, `fitproto3.py`, `summarize3.py` (I3, I4, numpy).
 - `prototypes/families/apply_params.py` (LIB-4).
-- `prototypes/bench/`: `benchpav.py` (wrapper), `tokx.py`, `tokcum.py`, `author.md`, `judge.md`, `stall_replay.cmds` (arm-A baseline replay) (EVAL-1).
+- `prototypes/bench/`: removed when EVAL-1 landed (`scripts/asset_bench/`); the dogfood stall replay is now `scripts/asset_bench/selftest.cmds`.
 - The 23 error probes became `crates/pav_tools/tests/fixtures/asset_errors.jsonl` with TOOLS-2. The format-1 baselines `dogfood_stall_v1.json` and `dogfood_well_v1.json` moved to `crates/pav_core/tests/fixtures/props/` with TOOLS-4 (golden revisions; F2 reuses them).
 
 ## 15. Executing this plan

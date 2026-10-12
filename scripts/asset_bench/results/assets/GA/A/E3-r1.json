@@ -1,0 +1,359 @@
+{
+  "format": 1,
+  "name": "castle_wall_600",
+  "description": "Castle wall kit piece",
+  "parts": {
+    "arrow_slit": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.45,
+          0.03
+        ]
+      },
+      "pos": [
+        -1.1,
+        1.75,
+        0.4
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#15181d",
+      "look": "flat",
+      "emissive": 0.0,
+      "solid": false
+    },
+    "arrow_slit_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.45,
+          0.03
+        ]
+      },
+      "pos": [
+        1.1,
+        1.75,
+        0.4
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#15181d",
+      "look": "flat",
+      "emissive": 0.0,
+      "solid": false
+    },
+    "course_0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        0.25,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8d8a84",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "course_1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        0.75,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a29f97",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "course_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        1.25,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8d8a84",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "course_3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        1.75,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a29f97",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "course_4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        2.25,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8d8a84",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "course_5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          3.1,
+          0.25,
+          0.4
+        ]
+      },
+      "pos": [
+        0.0,
+        2.75,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a29f97",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        -2.75,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        -1.65,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        -0.55,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        0.55,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        1.65,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "merlon_5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.35,
+          0.3,
+          0.4
+        ]
+      },
+      "pos": [
+        2.75,
+        3.3,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9a978f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "slit_sill": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.18,
+          0.04,
+          0.05
+        ]
+      },
+      "pos": [
+        -1.1,
+        1.26,
+        0.4
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6e6b66",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "slit_sill_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.18,
+          0.04,
+          0.05
+        ]
+      },
+      "pos": [
+        1.1,
+        1.26,
+        0.4
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6e6b66",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

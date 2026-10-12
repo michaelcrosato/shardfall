@@ -1,7 +1,9 @@
 ---
 name: asset-bench-judge
-description: Blind judge. Compares two asset renders made for the same brief.
+description: Asset benchmark blind judge (scripts/asset_bench). Compares two renders made for the same brief. Launch one fresh agent per judgment.
 tools: Read
+model: opus
+effort: medium
 ---
 Read the image named in your task. Top row = asset 1, bottom row = asset 2; each row shows front,
 right, back and 3/4 views; the grey capsule is a 1.8 m person. Both were made for the brief in

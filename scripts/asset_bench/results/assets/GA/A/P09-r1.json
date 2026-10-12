@@ -1,0 +1,387 @@
+{
+  "format": 1,
+  "name": "dead_tree",
+  "description": "Dead twisted tree with forked bare branches and spreading roots.",
+  "parts": {
+    "bxn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        -0.66806334,
+        3.67863,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 62.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bxp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        0.6936337,
+        3.7709434,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -58.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bzn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        0.05,
+        3.841435,
+        -0.6803263
+      ],
+      "yaw": 0.0,
+      "pitch": -56.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bzp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        0.05,
+        3.85,
+        0.70621777
+      ],
+      "yaw": 0.0,
+      "pitch": 60.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "fxn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.36,
+        "radius": 0.09
+      },
+      "pos": [
+        -1.4611267,
+        4.3469715,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 30.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "fxp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.36,
+        "radius": 0.09
+      },
+      "pos": [
+        1.4274455,
+        4.4997253,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -25.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "fzn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.36,
+        "radius": 0.09
+      },
+      "pos": [
+        0.0,
+        4.5907087,
+        -1.4008309
+      ],
+      "yaw": 0.0,
+      "pitch": -25.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "fzp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.36,
+        "radius": 0.09
+      },
+      "pos": [
+        0.0,
+        4.5473266,
+        1.4736978
+      ],
+      "yaw": 0.0,
+      "pitch": 28.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rd1": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        0.69318765,
+        0.45257884,
+        0.0
+      ],
+      "yaw": 45.0,
+      "pitch": 0.0,
+      "roll": -98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rd2": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        -0.69318765,
+        0.45257884,
+        0.0
+      ],
+      "yaw": 45.0,
+      "pitch": 0.0,
+      "roll": 98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rd3": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        0.69318765,
+        0.45257884,
+        0.0
+      ],
+      "yaw": -45.0,
+      "pitch": 0.0,
+      "roll": -98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rd4": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.55,
+        "radius": 0.15
+      },
+      "pos": [
+        -0.69318765,
+        0.45257884,
+        0.0
+      ],
+      "yaw": -45.0,
+      "pitch": 0.0,
+      "roll": 98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rxn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.6,
+        "radius": 0.2
+      },
+      "pos": [
+        -0.79221445,
+        0.48866153,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rxp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.6,
+        "radius": 0.2
+      },
+      "pos": [
+        0.79221445,
+        0.48866153,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -98.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rzn": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.6,
+        "radius": 0.2
+      },
+      "pos": [
+        0.0,
+        0.48866153,
+        -0.79221445
+      ],
+      "yaw": 0.0,
+      "pitch": -98.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rzp": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.6,
+        "radius": 0.2
+      },
+      "pos": [
+        0.0,
+        0.48866153,
+        0.79221445
+      ],
+      "yaw": 0.0,
+      "pitch": 98.0,
+      "roll": 0.0,
+      "color": "#3a2e26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "trunk1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.6,
+        "radius": 0.5
+      },
+      "pos": [
+        0.0,
+        0.6,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3b30",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "trunk2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.55,
+        "radius": 0.4
+      },
+      "pos": [
+        0.1,
+        1.6,
+        0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -4.0,
+      "color": "#4a3b30",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "trunk3": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.5,
+        "radius": 0.33
+      },
+      "pos": [
+        -0.05,
+        2.55,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 4.0,
+      "color": "#4a3b30",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "trunk4": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.45,
+        "radius": 0.27
+      },
+      "pos": [
+        0.05,
+        3.4,
+        0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -3.0,
+      "color": "#4a3b30",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

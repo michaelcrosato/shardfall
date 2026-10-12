@@ -1,0 +1,20 @@
+{
+ "GA/A": {
+  "accepted": 37,
+  "check": [
+   "na"
+  ],
+  "done": 38,
+  "done_rate": 1.0,
+  "first_ok": 37,
+  "median_abs_ln_tok_x_ratio": 0.2574,
+  "median_failed": 0.0,
+  "median_tok_cum": 14241.5,
+  "median_tok_x": 6480.0,
+  "models": [
+   "sonnet"
+  ],
+  "runs": 38,
+  "s8_pairs": 8
+ }
+}

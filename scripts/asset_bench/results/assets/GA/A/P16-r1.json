@@ -1,0 +1,156 @@
+{
+  "format": 1,
+  "name": "spiked_pauldron",
+  "description": "Layered steel pauldron with three spikes.",
+  "parts": {
+    "cap": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.09,
+          0.04,
+          0.1
+        ],
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b9c2cd",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lame1": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.16,
+          0.04,
+          0.17
+        ],
+        "radius": 0.025
+      },
+      "pos": [
+        0.0,
+        0.04,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7d8794",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lame2": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.14,
+          0.04,
+          0.15
+        ],
+        "radius": 0.025
+      },
+      "pos": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a3adba",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lame3": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.12,
+          0.04,
+          0.13
+        ],
+        "radius": 0.025
+      },
+      "pos": [
+        0.0,
+        0.15,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8d97a4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spike_a": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.03,
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.21,
+        -0.06
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a424c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spike_b": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.03,
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.21,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a424c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spike_c": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.03,
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.21,
+        0.06
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a424c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

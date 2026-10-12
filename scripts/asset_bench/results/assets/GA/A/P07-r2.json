@@ -1,0 +1,360 @@
+{
+  "format": 1,
+  "name": "tripod_brazier",
+  "description": "Iron tripod brazier with glowing coals",
+  "parts": {
+    "base": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.04,
+        "radius": 0.17
+      },
+      "pos": [
+        0.0,
+        0.73,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bowl": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.09,
+        "radius": 0.27
+      },
+      "pos": [
+        0.0,
+        0.85,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "coal0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.08
+      },
+      "pos": [
+        0.1,
+        0.99,
+        0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffb030",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "coal1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.075
+      },
+      "pos": [
+        -0.1,
+        0.99,
+        0.08
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ff8a2a",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "coal2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.085
+      },
+      "pos": [
+        0.0,
+        0.99,
+        -0.12
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffb030",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "coal3": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.06
+      },
+      "pos": [
+        0.14,
+        0.99,
+        -0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ff8a2a",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "coal4": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.06
+      },
+      "pos": [
+        -0.14,
+        0.99,
+        -0.08
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffb030",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "coals": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.26
+      },
+      "pos": [
+        0.0,
+        0.95,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ff6a1a",
+      "look": "unlit",
+      "emissive": 4.0,
+      "solid": false
+    },
+    "flame": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.04,
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        1.03,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#ffd060",
+      "look": "unlit",
+      "emissive": 8.0,
+      "solid": false
+    },
+    "foot0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        0.05,
+        0.28
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a4d55",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foot1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.2425,
+        0.05,
+        -0.14
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a4d55",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foot2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.2425,
+        0.05,
+        -0.14
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a4d55",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg0_0": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.1640603,
+        "radius": 0.035
+      },
+      "pos": [
+        0.0,
+        0.225,
+        0.24
+      ],
+      "yaw": 0.0,
+      "pitch": -11.59,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg0_1": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.15819679,
+        "radius": 0.035
+      },
+      "pos": [
+        0.0,
+        0.61,
+        0.165
+      ],
+      "yaw": 0.0,
+      "pitch": -10.44,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg1_0": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.1640603,
+        "radius": 0.035
+      },
+      "pos": [
+        0.2078,
+        0.225,
+        -0.12
+      ],
+      "yaw": 120.0,
+      "pitch": -11.59,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg1_1": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.15819679,
+        "radius": 0.035
+      },
+      "pos": [
+        0.1429,
+        0.61,
+        -0.0825
+      ],
+      "yaw": 120.0,
+      "pitch": -10.44,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg2_0": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.1640603,
+        "radius": 0.035
+      },
+      "pos": [
+        -0.2078,
+        0.225,
+        -0.12
+      ],
+      "yaw": 240.0,
+      "pitch": -11.59,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg2_1": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.15819679,
+        "radius": 0.035
+      },
+      "pos": [
+        -0.1429,
+        0.61,
+        -0.0825
+      ],
+      "yaw": 240.0,
+      "pitch": -10.44,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.3
+      },
+      "pos": [
+        0.0,
+        0.95,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3d45",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

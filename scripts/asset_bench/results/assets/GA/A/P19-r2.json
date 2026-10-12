@@ -1,0 +1,903 @@
+{
+  "format": 1,
+  "name": "hand_cart",
+  "description": "Two-wheeled hand cart with shafts and canvas-covered load.",
+  "parts": {
+    "axle": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 1.0,
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bed": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.85,
+          0.06,
+          0.5
+        ],
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.72,
+        -0.2
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "crossbar": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.035,
+          0.035
+        ]
+      },
+      "pos": [
+        0.0,
+        0.7,
+        0.62
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hub_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.1
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hub_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.1
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "load": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.78,
+          0.36,
+          0.42
+        ],
+        "radius": 0.15
+      },
+      "pos": [
+        0.0,
+        1.14,
+        -0.2
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8c9a0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        0.505
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.8775,
+        0.4306
+      ],
+      "yaw": 0.0,
+      "pitch": -30.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l10": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.1194,
+        0.2275
+      ],
+      "yaw": 0.0,
+      "pitch": -300.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l11": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.3225,
+        0.4306
+      ],
+      "yaw": 0.0,
+      "pitch": -330.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        1.0806,
+        0.2275
+      ],
+      "yaw": 0.0,
+      "pitch": -60.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        1.155,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": -90.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        1.0806,
+        -0.3275
+      ],
+      "yaw": 0.0,
+      "pitch": -120.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.8775,
+        -0.5306
+      ],
+      "yaw": 0.0,
+      "pitch": -150.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.605
+      ],
+      "yaw": 0.0,
+      "pitch": -180.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l7": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.3225,
+        -0.5306
+      ],
+      "yaw": 0.0,
+      "pitch": -210.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l8": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.1194,
+        -0.3275
+      ],
+      "yaw": 0.0,
+      "pitch": -240.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_l9": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.045,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": -270.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        0.505
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.8775,
+        0.4306
+      ],
+      "yaw": 0.0,
+      "pitch": -30.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r10": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.1194,
+        0.2275
+      ],
+      "yaw": 0.0,
+      "pitch": -300.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r11": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.3225,
+        0.4306
+      ],
+      "yaw": 0.0,
+      "pitch": -330.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        1.0806,
+        0.2275
+      ],
+      "yaw": 0.0,
+      "pitch": -60.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        1.155,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": -90.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        1.0806,
+        -0.3275
+      ],
+      "yaw": 0.0,
+      "pitch": -120.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.8775,
+        -0.5306
+      ],
+      "yaw": 0.0,
+      "pitch": -150.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.605
+      ],
+      "yaw": 0.0,
+      "pitch": -180.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r7": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.3225,
+        -0.5306
+      ],
+      "yaw": 0.0,
+      "pitch": -210.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r8": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.1194,
+        -0.3275
+      ],
+      "yaw": 0.0,
+      "pitch": -240.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim_r9": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.18,
+          0.045
+        ]
+      },
+      "pos": [
+        1.0,
+        0.045,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": -270.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shaft_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.04,
+          0.55
+        ]
+      },
+      "pos": [
+        -0.55,
+        0.7,
+        0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shaft_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.04,
+          0.55
+        ]
+      },
+      "pos": [
+        0.55,
+        0.7,
+        0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_l0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_l1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 45.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_l2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 90.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_l3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        -1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 135.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_r0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_r1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 45.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_r2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 90.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "spoke_r3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.6,
+          0.035
+        ]
+      },
+      "pos": [
+        1.0,
+        0.6,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 135.0,
+      "roll": 0.0,
+      "color": "#8a5a33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "strap": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.03,
+          0.375,
+          0.44
+        ],
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        1.14,
+        -0.2
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a6a4a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

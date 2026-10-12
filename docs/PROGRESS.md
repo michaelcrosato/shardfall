@@ -40,9 +40,10 @@ the background on something.
 ## Next
 **Asset system plan** (in progress since 2026-10-12): `docs/ASSET_SYSTEM_PLAN.md` (format 2,
 procedural materials, library import, curated library, benchmark gates). Execute with the prompt
-in its §15, resuming at the first unticked row of its §11 checklist. Done: 0.1 (compact asset
-replies, f32-tidy numbers in every tool reply, canonical one-line-per-part prop files), 0.2
-(errors that name `parts.<id>`/`ops[i]` with a fix, `asset_edit action=schema`, leaner schema).
+in its §15, resuming at the first unticked row of its §11 checklist. Phase 0 is done (gates GA
+and G0 pass): compact asset replies and canonical prop files (0.1), errors that name
+`parts.<id>`/`ops[i]` with a fix and `asset_edit action=schema` (0.2), and the benchmark harness
+`scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Next: Phase 1.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

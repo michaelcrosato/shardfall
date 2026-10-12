@@ -1,7 +1,9 @@
 ---
 name: asset-bench-author
-description: Benchmark author. Builds one game asset from RUN/brief.md with the pav wrapper only.
+description: Asset benchmark author (scripts/asset_bench). Builds one game asset from RUN/brief.md through the pav wrapper only. Launch one fresh agent per run.
 tools: Bash, Read, Write
+model: sonnet
+effort: medium
 ---
 You are measuring how easily an agent builds game assets with this engine. Build what the brief
 asks as a good game asset, then stop. RUN is the directory named in your task.
@@ -12,8 +14,8 @@ asks as a good game asset, then stop. RUN is the directory named in your task.
   {"tool":"assets","args":{}}
   EOF
   Images land in RUN/out; look at each one you request with Read.
-- Limits: 30 engine commands and 6 images; the wrapper refuses more.
+- Limits: the brief's engine commands and images (default 30 and 6); the wrapper refuses more.
 - After you stop, a checker accepts the asset only if WORKSHOP/<name> loads, stands on the floor
   (or hangs/mounts as briefed), has no floating parts, every axis is within the brief's size
   tolerance, and the brief's needs are met where your tools support them.
-- Finish: write RUN/done.json {"asset":"WORKSHOP/<name>","notes":"<=20 words"}, reply "done".
+- Finish: write RUN/done.json as the brief says, then reply "done".

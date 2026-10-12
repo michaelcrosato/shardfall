@@ -1,0 +1,263 @@
+{
+  "format": 1,
+  "name": "strongbox",
+  "description": "Iron-banded strongbox",
+  "parts": {
+    "band_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.18,
+          0.265
+        ]
+      },
+      "pos": [
+        -0.22,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b3038",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "band_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.18,
+          0.265
+        ]
+      },
+      "pos": [
+        0.22,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b3038",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "body": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.4,
+          0.18,
+          0.26
+        ],
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_bl": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.19,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.19,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a4048",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_br": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.19,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.19,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a4048",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_fl": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.19,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.19,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a4048",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_fr": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.19,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.19,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a4048",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "keyhole": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.015,
+          0.03,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.29,
+        0.27
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#15171a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.4,
+        "radius": 0.26
+      },
+      "pos": [
+        0.0,
+        0.36,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#8a5630",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lidband_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.265
+      },
+      "pos": [
+        -0.22,
+        0.36,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#2b3038",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lidband_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.265
+      },
+      "pos": [
+        0.22,
+        0.36,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#2b3038",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lock_plate": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.08,
+          0.01
+        ]
+      },
+      "pos": [
+        0.0,
+        0.3,
+        0.26
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c9a23a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

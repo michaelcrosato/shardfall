@@ -1,0 +1,294 @@
+# Asset benchmark tasks (docs/ASSET_SYSTEM_PLAN.md §10.1). Frozen in Phase 0: every gate compares
+# an arm's runs with arm A's runs of these exact briefs, so change a task only with a decision
+# recorded in docs/HISTORY.md, and never rename one after a library leaf (tests/bench_holdout.rs).
+#
+# size: width x height x depth in cm (x, y, z); tol: allowed relative error per axis.
+# needs: light (gives off light), hang (origin at the hook, everything below it), wall (origin on
+#   the wall, the object extends toward +z), sockets (checked only where the arm can express them).
+# cap: [engine commands, images] for one run (default [30, 6]).
+# from: the task whose asset an edit task starts from (the same arm's own run).
+
+[[task]]
+id = "P01"
+kind = "author"
+name = "trestle_table"
+brief = "A tavern table for six: a plank top on two X-braced trestles joined by a stretcher."
+size = [200, 78, 80]
+tol = 0.15
+
+[[task]]
+id = "P02"
+kind = "author"
+name = "ladderback_chair"
+brief = "A ladderback chair: turned legs, three back slats, a woven seat."
+size = [46, 100, 46]
+tol = 0.15
+
+[[task]]
+id = "P03"
+kind = "author"
+name = "strongbox"
+brief = "An iron-banded strongbox: a domed lid, corner caps and a lock plate."
+size = [80, 62, 52]
+tol = 0.15
+
+[[task]]
+id = "P04"
+kind = "author"
+name = "grain_sacks"
+brief = "Three tied burlap grain sacks standing together, one of them slumped."
+size = [100, 75, 70]
+tol = 0.25
+
+[[task]]
+id = "P05"
+kind = "author"
+name = "castle_wall"
+brief = "A castle wall kit piece: stone courses, four crenellations on top, an arrow slit, flush ends so pieces join side by side."
+size = [400, 360, 80]
+tol = 0.15
+
+[[task]]
+id = "P06"
+kind = "author"
+name = "arch_doorway"
+brief = "A stone arch doorway kit piece around a 200 x 300 cm opening: voussoirs and a keystone."
+size = [320, 380, 60]
+tol = 0.15
+
+[[task]]
+id = "P07"
+kind = "author"
+name = "tripod_brazier"
+brief = "A tripod brazier: an iron bowl on three curved legs, full of glowing coals."
+size = [60, 110, 60]
+tol = 0.15
+needs = ["light"]
+
+[[task]]
+id = "P08"
+kind = "author"
+name = "ring_chandelier"
+brief = "A wooden ring chandelier with six candles, hanging on chains. Its origin is the ceiling hook."
+size = [110, 90, 110]
+tol = 0.15
+needs = ["light", "hang"]
+
+[[task]]
+id = "P09"
+kind = "author"
+name = "dead_tree"
+brief = "A dead tree: a twisted trunk, four forked bare branches, roots spreading over the ground."
+size = [300, 450, 300]
+tol = 0.25
+
+[[task]]
+id = "P10"
+kind = "author"
+name = "potted_shrub"
+brief = "A round flowering shrub in a terracotta pot."
+size = [60, 80, 60]
+tol = 0.25
+
+[[task]]
+id = "P11"
+kind = "author"
+name = "boulder_cluster"
+brief = "Three mossy boulders in a cluster; the largest is about 120 cm across."
+size = [220, 120, 170]
+tol = 0.25
+
+[[task]]
+id = "P12"
+kind = "author"
+name = "crystal_outcrop"
+brief = "Five glowing crystal shards growing from a rock base."
+size = [120, 150, 100]
+tol = 0.25
+needs = ["light"]
+
+[[task]]
+id = "P13"
+kind = "author"
+name = "battle_axe"
+brief = "A double-bit battle axe: a wrapped haft and a pommel cap. Origin at the bottom of the haft; the haft runs up +y."
+size = [36, 110, 6]
+tol = 0.15
+needs = ["sockets"]
+sockets = ["grip", "grip2", "tip"]
+
+[[task]]
+id = "P14"
+kind = "author"
+name = "round_shield"
+brief = "A round plank shield with an iron rim and a central boss. It stands upright, facing +z."
+size = [70, 70, 12]
+tol = 0.15
+needs = ["sockets"]
+sockets = ["grip"]
+
+[[task]]
+id = "P15"
+kind = "author"
+name = "horned_helm"
+brief = "A great helm: an eye slit, breathing holes and two horns."
+size = [50, 45, 35]
+tol = 0.15
+
+[[task]]
+id = "P16"
+kind = "author"
+name = "spiked_pauldron"
+brief = "A layered steel shoulder plate (pauldron) with three spikes."
+size = [32, 26, 34]
+tol = 0.15
+
+[[task]]
+id = "P17"
+kind = "author"
+name = "anvil_stump"
+brief = "An anvil on a tree stump, with a hammer resting on the anvil."
+size = [70, 85, 45]
+tol = 0.15
+
+[[task]]
+id = "P18"
+kind = "author"
+name = "cheese_board"
+brief = "A cheese wheel with a wedge cut out, on a wooden board with a knife."
+size = [50, 22, 50]
+tol = 0.15
+
+[[task]]
+id = "P19"
+kind = "author"
+name = "hand_cart"
+brief = "A hand cart: two spoked wheels, shafts to pull it by, and a load covered with canvas."
+size = [220, 150, 130]
+tol = 0.15
+
+[[task]]
+id = "P20"
+kind = "author"
+name = "notice_board"
+brief = "A village notice board: two posts, a small roof, pinned papers."
+size = [160, 220, 40]
+tol = 0.15
+
+[[task]]
+id = "P21"
+kind = "author"
+name = "gibbet_cage"
+brief = "An iron gibbet cage hanging from a gallows post, with bones inside."
+size = [120, 260, 90]
+tol = 0.15
+
+[[task]]
+id = "P22"
+kind = "author"
+name = "sarcophagus"
+brief = "A stone sarcophagus with a carved lid and a cracked corner."
+size = [230, 110, 100]
+tol = 0.15
+
+[[task]]
+id = "P23"
+kind = "author"
+name = "tavern_sign"
+brief = "A tavern sign on an iron wall bracket, with a tankard emblem. Its origin is on the wall; it extends toward +z."
+size = [90, 80, 12]
+tol = 0.15
+needs = ["wall", "sockets"]
+sockets = ["wall_mount"]
+
+[[task]]
+id = "P24"
+kind = "author"
+names = ["alchemist_bookshelf", "alchemist_table", "alchemist_cauldron"]
+brief = "An alchemist's set of three objects that share one palette and look: a bookshelf with books and jars, a work table with glassware, and a cauldron on legs. Choose sensible sizes for each."
+cap = [45, 9]
+
+# Edit tasks start from the same arm's asset for the `from` task, copied into the run.
+
+[[task]]
+id = "E1"
+kind = "edit"
+from = "P01"
+name = "trestle_table_260"
+brief = "Make the table 260 cm long with a third trestle in the middle; keep its height."
+size = [260, 78, 80]
+tol = 0.15
+
+[[task]]
+id = "E2"
+kind = "edit"
+from = "P19"
+name = "hand_cart_dark"
+brief = "Restyle the cart: dark stained wood, brass fittings, wheels 20% larger. It must still stand on the ground."
+
+[[task]]
+id = "E3"
+kind = "edit"
+from = "P05"
+name = "castle_wall_600"
+brief = "Widen the wall to 600 cm, keeping the crenellation spacing, with two arrow slits."
+size = [600, 360, 80]
+tol = 0.15
+
+[[task]]
+id = "E4"
+kind = "edit"
+from = "P13"
+name = "single_axe"
+brief = "Make it a single-bit axe with a back spike; keep its sockets valid."
+needs = ["sockets"]
+sockets = ["grip", "grip2", "tip"]
+
+[[task]]
+id = "E5"
+kind = "edit"
+from = "P07"
+name = "frost_brazier"
+brief = "Make a frost variant: blue light, legs 30% taller."
+needs = ["light"]
+
+[[task]]
+id = "E6"
+kind = "edit"
+from = "P24"
+names = ["alchemist_bookshelf_frost", "alchemist_table_frost", "alchemist_cauldron_frost"]
+brief = "Re-theme the whole set as \"frost\": icy colours, and icicles under the bookshelf's shelves."
+cap = [45, 9]
+
+# Import tasks run from arm I on (gate G5).
+
+[[task]]
+id = "IT1"
+kind = "import"
+brief = "Find a CC0 wooden barrel, import it, and place 3 copies."
+
+[[task]]
+id = "IT2"
+kind = "import"
+brief = "Import the KayKit Dungeon chair facing +z and report its fidelity."
+
+[[task]]
+id = "IT3"
+kind = "import"
+brief = "Survey Kenney Food Kit and import its 10 best fit-tier models as one pack."
+
+[[task]]
+id = "IT4"
+kind = "import"
+brief = "Re-author LIB/kenney_mini_dungeon/chest to the re-authoring rule (§8.9)."
+
+[[task]]
+id = "IT5"
+kind = "import"
+brief = "Import from= a harness-made OBJ zip whose License.txt says CC-BY-SA-4.0; it must land in the local tier with credit."
+
+[[task]]
+id = "IT6"
+kind = "import"
+name = "mini_dungeon_table"
+brief = "Reproduce the Kenney Mini Dungeon table from a reference sheet; arm A by hand, arm I with asset_import; both scored by asset_import check=."

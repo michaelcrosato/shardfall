@@ -1,0 +1,737 @@
+{
+  "format": 1,
+  "name": "alchemist_bookshelf",
+  "description": "Alchemist bookshelf with books and jars.",
+  "parts": {
+    "back": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.65,
+          0.95,
+          0.02
+        ]
+      },
+      "pos": [
+        0.0,
+        1.0,
+        -0.18
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.5,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a63d40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.18,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.41,
+        0.31,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3d5a99",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.21,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.32,
+        0.34,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4f8a4f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.23,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d9a441",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.18,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.14,
+        0.31,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a3d8c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.21,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.05,
+        0.34,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a63d40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_a6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.15,
+          0.12
+        ]
+      },
+      "pos": [
+        0.04,
+        0.28,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3d5a99",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4f8a4f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.2,
+          0.12
+        ]
+      },
+      "pos": [
+        0.1,
+        1.23,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d9a441",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.14,
+          0.12
+        ]
+      },
+      "pos": [
+        0.2,
+        1.17,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a3d8c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        0.3,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a63d40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.2,
+          0.12
+        ]
+      },
+      "pos": [
+        0.4,
+        1.23,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3d5a99",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_b5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.14,
+          0.12
+        ]
+      },
+      "pos": [
+        0.5,
+        1.17,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4f8a4f",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "book_lean": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.17,
+          0.12
+        ]
+      },
+      "pos": [
+        -0.45,
+        1.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": -12.0,
+      "color": "#a63d40",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.45,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5fd1b0",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        -0.15,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9b59d6",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.12,
+        "radius": 0.09
+      },
+      "pos": [
+        0.2,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d9a441",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar4": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.13,
+        "radius": 0.1
+      },
+      "pos": [
+        -0.4,
+        1.61,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#9b59d6",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar4_lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.08
+      },
+      "pos": [
+        -0.4,
+        1.765,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2e3440",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar5": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.08
+      },
+      "pos": [
+        0.35,
+        1.58,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5fd1b0",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar5_lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.065
+      },
+      "pos": [
+        0.35,
+        1.705,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2e3440",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_big": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        0.45,
+        0.74,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5fd1b0",
+      "look": "cel",
+      "emissive": 1.5,
+      "solid": true
+    },
+    "jar_big_cork": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.05
+      },
+      "pos": [
+        0.45,
+        0.93,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a5233",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.45,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2e3440",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.15,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2e3440",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "jar_lid2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.07
+      },
+      "pos": [
+        0.2,
+        0.845,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2e3440",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        0.55,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "shelf3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.6,
+          0.03,
+          0.19
+        ]
+      },
+      "pos": [
+        0.0,
+        1.45,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          1.0,
+          0.2
+        ]
+      },
+      "pos": [
+        -0.65,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a5233",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          1.0,
+          0.2
+        ]
+      },
+      "pos": [
+        0.65,
+        1.0,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a5233",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "skull": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.1
+      },
+      "pos": [
+        0.0,
+        1.58,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#e8e0cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "top": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.72,
+          0.03,
+          0.22
+        ],
+        "radius": 0.015
+      },
+      "pos": [
+        0.0,
+        1.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3220",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

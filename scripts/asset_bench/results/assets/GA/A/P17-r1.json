@@ -1,0 +1,190 @@
+{
+  "format": 1,
+  "name": "anvil_stump",
+  "description": "Anvil on a tree stump with a hammer resting on it.",
+  "parts": {
+    "anvil_base": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.15,
+          0.03,
+          0.12
+        ]
+      },
+      "pos": [
+        0.0,
+        0.43,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3b4350",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "anvil_face": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.225,
+          0.06,
+          0.125
+        ]
+      },
+      "pos": [
+        -0.125,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#59647a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "anvil_horn": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.06
+      },
+      "pos": [
+        0.25,
+        0.7,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#59647a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "anvil_waist": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.09,
+          0.09,
+          0.09
+        ]
+      },
+      "pos": [
+        0.0,
+        0.55,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#444d5c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bark_top": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.01,
+        "radius": 0.185
+      },
+      "pos": [
+        0.0,
+        0.415,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b98a58",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hammer_handle": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.15,
+        "radius": 0.02
+      },
+      "pos": [
+        -0.2,
+        0.78,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#8a5a2b",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hammer_head": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.035,
+          0.045,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.05,
+        0.805,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2f38",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "root_flare": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.05,
+        "radius": 0.225
+      },
+      "pos": [
+        0.0,
+        0.05,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6a4529",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "stump": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.21,
+        "radius": 0.2
+      },
+      "pos": [
+        0.0,
+        0.21,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a5234",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

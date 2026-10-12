@@ -1,0 +1,183 @@
+{
+  "format": 1,
+  "name": "tavern_sign",
+  "description": "Tavern sign on iron wall bracket with tankard emblem.",
+  "parts": {
+    "arm": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.45,
+          0.03,
+          0.06
+        ]
+      },
+      "pos": [
+        0.0,
+        0.77,
+        0.06
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "board": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.45,
+          0.32,
+          0.02
+        ]
+      },
+      "pos": [
+        0.0,
+        0.42,
+        0.08
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "brace": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.03,
+          0.06
+        ]
+      },
+      "pos": [
+        -0.42,
+        0.4,
+        0.06
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "foam": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.11,
+          0.04,
+          0.01
+        ]
+      },
+      "pos": [
+        -0.03,
+        0.56,
+        0.105
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f4efe0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "handle": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.05,
+          0.09,
+          0.01
+        ]
+      },
+      "pos": [
+        0.13,
+        0.38,
+        0.105
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d9a233",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hole": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.025,
+          0.05,
+          0.012
+        ]
+      },
+      "pos": [
+        0.13,
+        0.38,
+        0.106
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a26",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "mug": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.1,
+          0.14,
+          0.01
+        ]
+      },
+      "pos": [
+        -0.03,
+        0.38,
+        0.105
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d9a233",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "plate": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.4,
+          0.015
+        ]
+      },
+      "pos": [
+        -0.42,
+        0.4,
+        0.015
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b2d33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

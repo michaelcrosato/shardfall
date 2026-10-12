@@ -1,0 +1,483 @@
+{
+  "format": 1,
+  "name": "cheese_board",
+  "description": "Cheese wheel with a wedge cut out on a wooden board with a knife.",
+  "parts": {
+    "blade": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.11,
+          0.003,
+          0.016
+        ]
+      },
+      "pos": [
+        -0.08,
+        0.062,
+        0.195
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c8ced6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "board": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.25,
+          0.02,
+          0.25
+        ],
+        "radius": 0.01
+      },
+      "pos": [
+        0.0,
+        0.02,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a8703c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "board_rim": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.23,
+          0.01,
+          0.23
+        ],
+        "radius": 0.005
+      },
+      "pos": [
+        0.0,
+        0.045,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8a5a2e",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_10": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0601,
+        0.135,
+        -0.0901
+      ],
+      "yaw": -135.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_11": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0785,
+        0.135,
+        -0.0625
+      ],
+      "yaw": -112.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_12": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.085,
+        0.135,
+        -0.03
+      ],
+      "yaw": -90.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_13": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0785,
+        0.135,
+        0.0025
+      ],
+      "yaw": -67.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_14": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0601,
+        0.135,
+        0.0301
+      ],
+      "yaw": -45.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0601,
+        0.135,
+        0.0301
+      ],
+      "yaw": 45.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0785,
+        0.135,
+        0.0025
+      ],
+      "yaw": 67.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.085,
+        0.135,
+        -0.03
+      ],
+      "yaw": 90.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_5": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0785,
+        0.135,
+        -0.0625
+      ],
+      "yaw": 112.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_6": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0601,
+        0.135,
+        -0.0901
+      ],
+      "yaw": 135.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_7": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0325,
+        0.135,
+        -0.1085
+      ],
+      "yaw": 157.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_8": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0,
+        0.135,
+        -0.115
+      ],
+      "yaw": 180.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cheese_9": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.042,
+          0.085,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0325,
+        0.135,
+        -0.1085
+      ],
+      "yaw": -157.5,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "core": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.085,
+        "radius": 0.04
+      },
+      "pos": [
+        0.0,
+        0.135,
+        -0.03
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f2c230",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cut_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.004,
+          0.08,
+          0.085
+        ]
+      },
+      "pos": [
+        -0.0472,
+        0.135,
+        0.0407
+      ],
+      "yaw": -33.75,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fbe38a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cut_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.004,
+          0.08,
+          0.085
+        ]
+      },
+      "pos": [
+        0.0472,
+        0.135,
+        0.0407
+      ],
+      "yaw": 33.75,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fbe38a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "handle": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.055,
+          0.012,
+          0.014
+        ],
+        "radius": 0.008
+      },
+      "pos": [
+        0.14,
+        0.07,
+        0.195
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a2a20",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hole1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.015
+      },
+      "pos": [
+        -0.08,
+        0.165,
+        -0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c9951a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "hole2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.012
+      },
+      "pos": [
+        0.07,
+        0.115,
+        -0.11
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c9951a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""The engine for one benchmark run: `scripts/asset_bench/pav RUN < commands`.
+
+Each stdin line is one pav REPL command (`tool key=value ...` or {"tool":..,"args":..}). One
+`pav repl` of the run's arm (RUN/run.json) runs per invocation, with cwd RUN and the run's own
+asset folders, so saved assets persist between invocations and nothing else does. Replies print
+unchanged; RUN/log.jsonl records every command. Past the run's command or image cap a command
+is refused instead of run. Standard library only.
+"""
+
+import json
+import os
+import shlex
+import subprocess
+import sys
+import time
+
+# Tools whose replies are images. asset_preview makes one only with views= or compare=.
+IMAGE_TOOLS = {"capture", "filmstrip", "camera_bench", "animsheet", "turntable", "tree_map", "levelmap", "see",
+               "theme_swatch", "look"}
+
+
+def parse(line):
+    """The tool name and argument names of a REPL line."""
+    line = line.strip()
+    if line.startswith("{"):
+        try:
+            value = json.loads(line)
+            return value.get("tool", ""), set((value.get("args") or {}).keys())
+        except (ValueError, AttributeError):
+            return "", set()
+    try:
+        words = shlex.split(line)
+    except ValueError:
+        words = line.split()
+    if not words:
+        return "", set()
+    return words[0], {w.split("=", 1)[0] for w in words[1:] if "=" in w}
+
+
+def makes_image(tool, keys):
+    if tool == "look":
+        return "bench" in keys
+    if tool == "asset_preview":
+        return bool(keys & {"views", "compare"})
+    return tool in IMAGE_TOOLS
+
+
+def image_size(reply):
+    try:
+        value = json.loads(reply)
+    except ValueError:
+        return None
+    if isinstance(value, dict) and "path" in value and "width" in value and "height" in value:
+        return [value["width"], value["height"]]
+    return None
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit("usage: scripts/asset_bench/pav RUN < commands")
+    run = os.path.abspath(sys.argv[1])
+    try:
+        with open(os.path.join(run, "run.json")) as f:
+            config = json.load(f)
+    except OSError:
+        sys.exit(f"{run} is not a prepared benchmark run (no run.json)")
+    cap_commands, cap_images = config["cap"]
+    state_path = os.path.join(run, "state.json")
+    state = {"commands": 0, "images": 0, "invocations": 0}
+    if os.path.exists(state_path):
+        with open(state_path) as f:
+            state = json.load(f)
+    state["invocations"] += 1
+    env = dict(os.environ, PAV_ASSETS=os.path.join(run, "props"), PAV_CREATURES=os.path.join(run, "creatures"))
+    os.makedirs(os.path.join(run, "out"), exist_ok=True)
+    engine = None
+    with open(os.path.join(run, "log.jsonl"), "a") as log:
+        for line in sys.stdin:
+            line = line.rstrip("\n")
+            if not line.strip() or line.strip().startswith("#"):
+                continue
+            tool, keys = parse(line)
+            refused = None
+            if state["commands"] >= cap_commands:
+                refused = f"benchmark cap reached ({cap_commands} commands): stop and write done.json"
+            elif makes_image(tool, keys) and state["images"] >= cap_images:
+                refused = f"benchmark image cap reached ({cap_images} images): continue without images or stop"
+            started = time.time()
+            if refused:
+                reply, ms, image = json.dumps({"error": refused}), 0, None
+            else:
+                if engine is None:
+                    engine = subprocess.Popen([config["bin"], "repl"], cwd=run, env=env, stdin=subprocess.PIPE,
+                                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                engine.stdin.write(line + "\n")
+                engine.stdin.flush()
+                reply = engine.stdout.readline().rstrip("\n") or json.dumps({"error": "the engine stopped"})
+                ms = int((time.time() - started) * 1000)
+                image = image_size(reply)
+                state["commands"] += 1
+                state["images"] += 1 if image else 0
+            print(reply, flush=True)
+            log.write(json.dumps({"i": state["commands"], "inv": state["invocations"], "t": round(started, 3),
+                                  "line": line, "reply": reply, "ms": ms, "img": image,
+                                  "refused": bool(refused)}) + "\n")
+            log.flush()
+    if engine is not None:
+        engine.stdin.close()
+        engine.wait()
+    with open(state_path, "w") as f:
+        json.dump(state, f)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,139 @@
+{
+  "format": 1,
+  "name": "frost_brazier",
+  "description": "Iron bowl on three legs with glowing coals.",
+  "parts": {
+    "bowl": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.3
+      },
+      "pos": [
+        0.0,
+        1.21,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2b3347",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "coals": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.26
+      },
+      "pos": [
+        0.0,
+        1.33,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#2f8cff",
+      "look": "unlit",
+      "emissive": 6.0,
+      "solid": false
+    },
+    "flame": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.12
+      },
+      "pos": [
+        0.0,
+        1.26,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#a8dcff",
+      "look": "unlit",
+      "emissive": 10.0,
+      "solid": false
+    },
+    "leg0": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.5305,
+        "radius": 0.035
+      },
+      "pos": [
+        0.0,
+        0.563,
+        0.23
+      ],
+      "yaw": 0.0,
+      "pitch": -6.0,
+      "roll": 0.0,
+      "color": "#2b2b33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg1": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.5305,
+        "radius": 0.035
+      },
+      "pos": [
+        0.199,
+        0.563,
+        -0.115
+      ],
+      "yaw": 120.0,
+      "pitch": -6.0,
+      "roll": 0.0,
+      "color": "#2b2b33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg2": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.5305,
+        "radius": 0.035
+      },
+      "pos": [
+        -0.199,
+        0.563,
+        -0.115
+      ],
+      "yaw": 240.0,
+      "pitch": -6.0,
+      "roll": 0.0,
+      "color": "#2b2b33",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.015,
+        "radius": 0.31
+      },
+      "pos": [
+        0.0,
+        1.325,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#46557a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

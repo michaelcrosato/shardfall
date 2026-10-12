@@ -1,0 +1,629 @@
+{
+  "format": 1,
+  "name": "ladderback_chair",
+  "description": "Ladderback chair with turned legs, three slats, woven seat.",
+  "parts": {
+    "back_post_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.485,
+        "radius": 0.028
+      },
+      "pos": [
+        -0.19,
+        0.485,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "back_post_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.485,
+        "radius": 0.028
+      },
+      "pos": [
+        0.19,
+        0.485,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "back_ring_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.04
+      },
+      "pos": [
+        -0.19,
+        0.12,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "back_ring_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.04
+      },
+      "pos": [
+        0.19,
+        0.12,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "back_stretch": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.19,
+          0.012,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.25,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "finial_l": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.03
+      },
+      "pos": [
+        -0.19,
+        0.97,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "finial_r": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.03
+      },
+      "pos": [
+        0.19,
+        0.97,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_leg_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.23,
+        "radius": 0.028
+      },
+      "pos": [
+        -0.19,
+        0.23,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_leg_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.23,
+        "radius": 0.028
+      },
+      "pos": [
+        0.19,
+        0.23,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_ring_a_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.04
+      },
+      "pos": [
+        -0.19,
+        0.12,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_ring_a_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.04
+      },
+      "pos": [
+        0.19,
+        0.12,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_ring_b_l": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.04
+      },
+      "pos": [
+        -0.19,
+        0.32,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_ring_b_r": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.025,
+        "radius": 0.04
+      },
+      "pos": [
+        0.19,
+        0.32,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "front_stretch": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.19,
+          0.012,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.25,
+        0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "seat": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.21,
+          0.025,
+          0.21
+        ]
+      },
+      "pos": [
+        0.0,
+        0.465,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_stretch_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.012,
+          0.012,
+          0.19
+        ]
+      },
+      "pos": [
+        -0.19,
+        0.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "side_stretch_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.012,
+          0.012,
+          0.19
+        ]
+      },
+      "pos": [
+        0.19,
+        0.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5e371c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "slat_1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.19,
+          0.04,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.62,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "slat_2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.19,
+          0.04,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.77,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "slat_3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.19,
+          0.04,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.92,
+        -0.19
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_x0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.2,
+          0.006,
+          0.03
+        ]
+      },
+      "pos": [
+        0.0,
+        0.494,
+        -0.16
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8b878",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_x1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.2,
+          0.006,
+          0.03
+        ]
+      },
+      "pos": [
+        0.0,
+        0.494,
+        -0.08
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_x2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.2,
+          0.006,
+          0.03
+        ]
+      },
+      "pos": [
+        0.0,
+        0.494,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8b878",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_x3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.2,
+          0.006,
+          0.03
+        ]
+      },
+      "pos": [
+        0.0,
+        0.494,
+        0.08
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_x4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.2,
+          0.006,
+          0.03
+        ]
+      },
+      "pos": [
+        0.0,
+        0.494,
+        0.16
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8b878",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_z0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.006,
+          0.2
+        ]
+      },
+      "pos": [
+        -0.16,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_z1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.006,
+          0.2
+        ]
+      },
+      "pos": [
+        -0.08,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8b878",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_z2": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.006,
+          0.2
+        ]
+      },
+      "pos": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_z3": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.006,
+          0.2
+        ]
+      },
+      "pos": [
+        0.08,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8b878",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "weave_z4": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.006,
+          0.2
+        ]
+      },
+      "pos": [
+        0.16,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#b8935a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

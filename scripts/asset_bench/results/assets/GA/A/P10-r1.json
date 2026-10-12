@@ -1,0 +1,443 @@
+{
+  "format": 1,
+  "name": "potted_shrub",
+  "description": "Round flowering shrub in a terracotta pot.",
+  "parts": {
+    "flower0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        0.576,
+        0.254
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.152,
+        0.626,
+        0.177
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower10": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        0.598,
+        -0.246
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower11": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.076,
+        0.475,
+        0.253
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower12": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.092,
+        0.487,
+        0.248
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower13": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.184,
+        0.684,
+        0.052
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower14": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.191,
+        0.664,
+        -0.082
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.152,
+        0.626,
+        0.177
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower3": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.246,
+        0.555,
+        0.082
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower4": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.246,
+        0.555,
+        0.082
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower5": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.0,
+        0.76,
+        0.052
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower6": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.107,
+        0.741,
+        -0.027
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower7": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.107,
+        0.728,
+        0.081
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower8": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.214,
+        0.58,
+        -0.134
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#fff0f4",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "flower9": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        -0.214,
+        0.58,
+        -0.134
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#f06fa0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leaf_b": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        -0.02,
+        0.44,
+        -0.14
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#357f3c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leaf_f": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        0.02,
+        0.44,
+        0.14
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#46a84d",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leaf_l": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        -0.14,
+        0.46,
+        0.02
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#357f3c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leaf_main": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.3
+      },
+      "pos": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3f9a45",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leaf_r": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.16
+      },
+      "pos": [
+        0.14,
+        0.46,
+        -0.02
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#357f3c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "pot": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.14,
+        "radius": 0.22
+      },
+      "pos": [
+        0.0,
+        0.14,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c4673a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.035,
+        "radius": 0.26
+      },
+      "pos": [
+        0.0,
+        0.305,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d4784a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "soil": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.01,
+        "radius": 0.23
+      },
+      "pos": [
+        0.0,
+        0.335,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3326",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "stem": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.1,
+        "radius": 0.04
+      },
+      "pos": [
+        0.0,
+        0.42,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6b4a2e",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

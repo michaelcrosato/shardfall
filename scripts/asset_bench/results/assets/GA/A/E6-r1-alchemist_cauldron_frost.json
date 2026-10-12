@@ -1,0 +1,263 @@
+{
+  "format": 1,
+  "name": "alchemist_cauldron_frost",
+  "description": "Alchemist cauldron on legs.",
+  "parts": {
+    "band": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.53
+      },
+      "pos": [
+        0.0,
+        0.6,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#e3f6ff",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "body": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.5,
+          0.3,
+          0.5
+        ],
+        "radius": 0.22
+      },
+      "pos": [
+        0.0,
+        0.65,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7fa6cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "bubble0": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.07
+      },
+      "pos": [
+        -0.12,
+        1.04,
+        0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8fbff",
+      "look": "cel",
+      "emissive": 1.0,
+      "solid": false
+    },
+    "bubble1": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.05
+      },
+      "pos": [
+        0.15,
+        1.06,
+        -0.1
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8fbff",
+      "look": "cel",
+      "emissive": 1.0,
+      "solid": false
+    },
+    "bubble2": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.04
+      },
+      "pos": [
+        0.05,
+        1.03,
+        0.2
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8fbff",
+      "look": "cel",
+      "emissive": 1.0,
+      "solid": false
+    },
+    "handle-1": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.07,
+          0.05,
+          0.12
+        ],
+        "radius": 0.03
+      },
+      "pos": [
+        -0.58,
+        0.8,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5d82ab",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "handle1": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.07,
+          0.05,
+          0.12
+        ],
+        "radius": 0.03
+      },
+      "pos": [
+        0.58,
+        0.8,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5d82ab",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg-1-1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.2,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.33,
+        0.2,
+        -0.33
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg-11": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.2,
+        "radius": 0.07
+      },
+      "pos": [
+        -0.33,
+        0.2,
+        0.33
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg1-1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.2,
+        "radius": 0.07
+      },
+      "pos": [
+        0.33,
+        0.2,
+        -0.33
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "leg11": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.2,
+        "radius": 0.07
+      },
+      "pos": [
+        0.33,
+        0.2,
+        0.33
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "liquid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.45
+      },
+      "pos": [
+        0.0,
+        1.02,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7fe3ff",
+      "look": "cel",
+      "emissive": 1.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.04,
+        "radius": 0.55
+      },
+      "pos": [
+        0.0,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#8fb4cc",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

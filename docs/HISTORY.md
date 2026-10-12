@@ -5,6 +5,48 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 0.3: the benchmark harness and the arm-A baseline (Gate A, G0) — 2026-10-12
+
+Row 0.3 of `docs/ASSET_SYSTEM_PLAN.md` (EVAL-1, EVAL-2, G0). Phase 0 is closed: both of its gates
+pass.
+- **Harness** (`scripts/asset_bench/`, README there). `tasks.toml` freezes the 24 authoring
+  tasks, 6 edit tasks and 6 import tasks of §10.1. `pav RUN` is a run's only way to the engine:
+  one `pav repl` of the run's arm per call (cwd RUN, relative `props/`), replies unchanged,
+  every command logged, refusals past the cap (30 commands and 6 images; 45/9 for the
+  three-asset tasks). `bench.py` builds arms (release, arm A from a worktree at `a9ca003`,
+  removed after), prepares runs (brief, the arm's own `ASSET_STUDIO.md`, a generated README),
+  records runner reports, scores, collects and reports. `tok_x` reads `*_ms` fields as 0 and
+  the run path as `RUN`, so `bench.py selftest` replays the planning stall session twice to
+  equal numbers and the 31st command is refused. `crates/pav_core/tests/bench_holdout.rs`
+  fails if a library leaf ever takes a task's name.
+- **Agents.** `.claude/agents/asset-bench-author.md` (Sonnet, medium effort; Bash, Read,
+  Write) and `asset-bench-judge.md` (Opus, medium effort; Read). This session started before
+  they existed, and agent definitions load at session start, so every run used a
+  general-purpose agent with model `sonnet`, effort `medium` and the author file's prompt
+  body verbatim (plus "use only Bash, Read and Write"), recorded in each run as
+  `agent=general-purpose+asset-bench-author-prompt`. A fresh session can launch them by name.
+- **Gate A (arm A = `a9ca003`): pass.** 38 runs (24 tasks, the S8 tasks again, E1-E6): 38/38
+  wrote `done.json` (≥ 85% needed), 37 accepted (P19's second cart sits 1 cm below the floor;
+  floating parts are checked once `check` lands in 1.1, and the runs are re-scored then).
+  Median `tok_x` 6,480, `tok_cum` 14,242, failed 0; first create valid in 37/38. Run-to-run
+  spread over S8: median |ln(tok_x₁/tok_x₂)| = 0.257, below ln 1.5, so G2 runs each task once.
+  The runner reported about 68-88k tokens per run (mostly its own context). Results:
+  `results/runs.tsv`, `summary.json` and every final asset as text in `results/assets/GA/A/`.
+- **What the baseline shows.** Arm A agents mostly write the whole asset in one `create`, look
+  at one capture and stop (median 3 commands). Docs are about half of `tok_x` (arm A's
+  `ASSET_STUDIO.md` is 3,002 tokens; HEAD's is 3,347), and arm A's verbose replies cost most in
+  edit tasks (E2 22.6k, E6 29.1k `tok_x`, where inspecting a large asset dominates). Five runs
+  lost 9-15 commands each sending pretty-printed JSON to the line-based REPL; that is the
+  baseline's interface and is measured the same way in every arm. Risk for G1 (`tok_x` ≤ 0.85×
+  A): with so few calls, the docs must not grow; the remediation round may trim them.
+- **G0: pass.** The reply budget test, the 23-probe error fixture (19 located), golden template
+  revisions, tools/list 46,926 chars (≤ 47,000), `scripts/smoke-asset-studio.py` 12/12 and the
+  whole `cargo test`.
+- Decisions: tiktoken is pinned at 0.12.0 (2025-10-06, the newest release at least 12 months
+  old; doctrine 9). Briefs state needs in the user's terms ("it must give off light"), the same
+  for every arm. The prototype bench files were removed; the stall replay is
+  `scripts/asset_bench/selftest.cmds`.
+
 ## Asset plan 0.2: errors that name their place, a field guide, a leaner schema — 2026-10-12
 
 Row 0.2 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-2, TOOLS-3). Format 1 is unchanged; every file

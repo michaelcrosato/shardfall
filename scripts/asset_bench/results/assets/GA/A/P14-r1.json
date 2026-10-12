@@ -1,0 +1,130 @@
+{
+  "format": 1,
+  "name": "round_shield",
+  "description": "Round plank shield with iron rim and boss.",
+  "parts": {
+    "boss": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.018,
+        "radius": 0.09
+      },
+      "pos": [
+        0.0,
+        0.35,
+        0.047
+      ],
+      "yaw": 0.0,
+      "pitch": 90.0,
+      "roll": 0.0,
+      "color": "#6b717b",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "grip": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.1,
+          0.016,
+          0.012
+        ]
+      },
+      "pos": [
+        0.0,
+        0.35,
+        -0.05
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3b2a1a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "planks": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.05,
+        "radius": 0.31
+      },
+      "pos": [
+        0.0,
+        0.35,
+        0.005
+      ],
+      "yaw": 0.0,
+      "pitch": 90.0,
+      "roll": 0.0,
+      "color": "#9a6a3c",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "rim": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.045,
+        "radius": 0.35
+      },
+      "pos": [
+        0.0,
+        0.35,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 90.0,
+      "roll": 0.0,
+      "color": "#4a4f57",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "seam_l": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.012,
+          0.29,
+          0.004
+        ]
+      },
+      "pos": [
+        -0.11,
+        0.35,
+        0.057
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5a3a1e",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "seam_r": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.012,
+          0.29,
+          0.004
+        ]
+      },
+      "pos": [
+        0.11,
+        0.35,
+        0.057
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5a3a1e",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

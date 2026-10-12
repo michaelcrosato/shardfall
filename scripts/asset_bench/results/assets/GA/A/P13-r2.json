@@ -1,0 +1,284 @@
+{
+  "format": 1,
+  "name": "battle_axe",
+  "description": "Double-bit battle axe with wrapped haft and pommel cap.",
+  "parts": {
+    "blade_l": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.07,
+          0.1,
+          0.012
+        ],
+        "radius": 0.008
+      },
+      "pos": [
+        -0.11,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c4ccd6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "blade_r": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.07,
+          0.1,
+          0.012
+        ],
+        "radius": 0.008
+      },
+      "pos": [
+        0.11,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c4ccd6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "collar": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.045,
+          0.08,
+          0.028
+        ],
+        "radius": 0.01
+      },
+      "pos": [
+        0.0,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5b6470",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "edge_l": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.08,
+        "radius": 0.014
+      },
+      "pos": [
+        -0.166,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#eef2f6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "edge_r": {
+      "shape": {
+        "type": "capsule",
+        "half_height": 0.08,
+        "radius": 0.014
+      },
+      "pos": [
+        0.166,
+        0.97,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#eef2f6",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "haft": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.53,
+        "radius": 0.026
+      },
+      "pos": [
+        0.0,
+        0.54,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#7a4a28",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "pommel": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.02,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.02,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5b6470",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "top_cap": {
+      "shape": {
+        "type": "sphere",
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        1.07,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#5b6470",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.2,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3020",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.26,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8c9a0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap2": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.32,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3020",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap3": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.38,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8c9a0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap4": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.44,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#4a3020",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "wrap5": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.014,
+        "radius": 0.03
+      },
+      "pos": [
+        0.0,
+        0.5,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#d8c9a0",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "format": 1,
+  "name": "strongbox",
+  "description": "Iron-banded strongbox with domed lid, corner caps, lock plate.",
+  "parts": {
+    "base_band": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.4,
+          0.03,
+          0.26
+        ]
+      },
+      "pos": [
+        0.0,
+        0.03,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "body": {
+      "shape": {
+        "type": "rounded_box",
+        "half": [
+          0.39,
+          0.18,
+          0.25
+        ],
+        "radius": 0.02
+      },
+      "pos": [
+        0.0,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#6b4a2b",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "body_band0": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.18,
+          0.26
+        ]
+      },
+      "pos": [
+        -0.24,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "body_band1": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.03,
+          0.18,
+          0.26
+        ]
+      },
+      "pos": [
+        0.24,
+        0.18,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_hi_n_n": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.31,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_hi_n_p": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.31,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_hi_p_n": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.31,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_hi_p_p": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.31,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_lo_n_n": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.05,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_lo_n_p": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        -0.36,
+        0.05,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_lo_p_n": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.05,
+        -0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "cap_lo_p_p": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.04,
+          0.05,
+          0.04
+        ]
+      },
+      "pos": [
+        0.36,
+        0.05,
+        0.22
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "keyhole": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.012,
+          0.03,
+          0.008
+        ]
+      },
+      "pos": [
+        0.0,
+        0.33,
+        0.282
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#1a1a1d",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lid": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.39,
+        "radius": 0.25
+      },
+      "pos": [
+        0.0,
+        0.37,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#7a5532",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lid_band0": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.26
+      },
+      "pos": [
+        -0.24,
+        0.37,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lid_band1": {
+      "shape": {
+        "type": "cylinder",
+        "half_height": 0.03,
+        "radius": 0.26
+      },
+      "pos": [
+        0.24,
+        0.37,
+        0.0
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 90.0,
+      "color": "#3a3f47",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lid_front_strip": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.08,
+          0.03,
+          0.02
+        ]
+      },
+      "pos": [
+        0.0,
+        0.405,
+        0.255
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c9a24a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    },
+    "lock_plate": {
+      "shape": {
+        "type": "box",
+        "half": [
+          0.07,
+          0.08,
+          0.015
+        ]
+      },
+      "pos": [
+        0.0,
+        0.34,
+        0.265
+      ],
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "color": "#c9a24a",
+      "look": "cel",
+      "emissive": 0.0,
+      "solid": true
+    }
+  }
+}
