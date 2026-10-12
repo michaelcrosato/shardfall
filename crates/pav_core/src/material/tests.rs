@@ -74,6 +74,13 @@ fn errors_name_the_path_and_a_fix() {
     // masked_by on the first layer is reported once the layer itself reads.
     assert!(problems(json!({"color": "#808080", "layers": [{"type": "tiles", "masked_by": "prev"}]}))
         .contains(&"layers[0].masked_by: the first layer has no layer below it — drop masked_by, or put this layer above the one that masks it".to_string()));
+    // Dots have no border, so no cavity or bevel.
+    assert_eq!(
+        problems(json!({"color": "#808080", "layers": [{"type": "dots", "cavity": 0.3}]})),
+        [
+            "layers[0].cavity: unknown key — cavity is for voronoi, brick, planks, tiles, cobbles, shingles; a dots takes size, radius, offset, jitter, vary, cells, axis, color, shade, strength, glow, facing, masked_by, seed"
+        ]
+    );
     let four = json!({"color": "#808080", "layers": [{"type": "checker"}, {"type": "checker"}, {"type": "checker"}, {"type": "checker"}]});
     assert_eq!(problems(four), ["layers: 4 layers; a material has at most 3 — merge or drop layers"]);
     let bare = read_file("pb/gold", r##"{"name":"gold","color":"#d1a400"}"##).unwrap_err();
@@ -207,6 +214,11 @@ fn budgets_and_legibility_warn() {
             "fine",
             json!({"color": "#808080", "scale": 0.5, "layers": [{"type": "brick", "size": [8, 6], "gap": 1}, {"type": "dots", "radius": 2}]}),
         ),
+        // A spot's feature is its diameter, 2·sqrt(cover/π)·size; edges are a cell across.
+        (
+            "spots",
+            json!({"color": "#808080", "layers": [{"type": "voronoi", "size": 7}, {"type": "voronoi", "size": 7, "feature": "edges"}]}),
+        ),
     ]);
     assert!(lib.get("MAT/heavy").is_some(), "warnings keep the material");
     assert_eq!(
@@ -226,6 +238,12 @@ fn budgets_and_legibility_warn() {
             "layers[1].radius: 2 cm features are under 5 cm: about 1.0 px at the game camera at 540p, where they fade to flat colour — make them 5 cm or larger, or drop the layer",
         ]
     );
+    assert_eq!(
+        issues_of(&lib, "MAT/spots"),
+        [
+            "layers[0].size: 4.3 cm features are under 5 cm: about 2.1 px at the game camera at 540p, where they fade to flat colour — make them 5 cm or larger, or drop the layer"
+        ]
+    );
 }
 
 #[test]
@@ -240,7 +258,12 @@ fn packs_the_gpu_row() {
     assert_eq!(oak.gpu.layers[1].head[0] & 0xff, kernel::WOOD);
     let words = oak.gpu.words();
     assert_eq!((words.len(), words[0], f32::from_bits(words[4]), f32::from_bits(words[8 + 8])), (92, 2, 0.7, 1.2));
-    assert_eq!(core.get("MAT/barrel_staves").unwrap().pack(MapMode::Axis, &[]).gpu.head, [2, 2, 1, 0]);
+    // `turn` swaps u and v in the kernel (head z) and turns 1D directions x to y here.
+    let staves = core.get("MAT/barrel_staves").unwrap().pack(MapMode::Axis, &[]).gpu;
+    assert_eq!(
+        (staves.head, oak.gpu.layers[1].dir, staves.layers[1].dir),
+        ([2, 2, 1, 0], [1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0])
+    );
     // Roles come from the theme's palette, else the props defaults.
     let flag = core.get("MAT/flagstones").unwrap();
     let srgb = |c: Vec3| crate::color::to_hex(crate::Color(c.to_array()));
@@ -294,7 +317,7 @@ fn fnv(text: &str) -> u64 {
 /// them). A change here changes what the renderer must match: re-bless only on purpose.
 const GOLDEN: &[(&str, u64)] = &[
     ("MAT/awning_stripes", 0x0438a3d4446e2dca),
-    ("MAT/barrel_staves", 0x2262dee96f2fb531),
+    ("MAT/barrel_staves", 0xbe3057b135eda4b4),
     ("MAT/brick_wall", 0x2ff7d39f887982f9),
     ("MAT/cobblestone", 0xf5a4e74c229f65a3),
     ("MAT/flagstones", 0x8506d195824beb29),
@@ -334,6 +357,39 @@ fn layers_fade_to_their_mean_below_a_pixel() {
     // At the game camera they are resolved.
     let near: Vec<Vec3> = points.iter().map(|&(x, z)| at(x, z, 0.0104)).collect();
     assert!(near.iter().any(|c| (*c - near[0]).abs().max_element() > 0.01), "{near:?}");
+}
+
+#[test]
+fn cell_colours_fade_to_their_mean() {
+    let tiles = json!({"type": "tiles", "size": 20, "gap": 0, "vary": 0, "cavity": 0, "cells": ["#ff0000", "#0000ff"]});
+    let lib = library(&[("cells", json!({"color": "#808080", "layers": [tiles]}))]);
+    let packed = lib.get("MAT/cells").unwrap().pack(MapMode::World, &[]);
+    let at = |footprint: f32| packed.eval(&Sample::at(Vec3::new(0.13, 0.0, 0.41), Vec3::Y, footprint)).rgb;
+    let mean = Vec3::new(0.5, 0.0, 0.5);
+    assert_eq!(packed.gpu.layers[0].b, [0.0, 0.5, 0.0, 0.5], "b.yzw carries the mean");
+    // 20 cm cells at 50 cm per pixel are skipped: the mean, not the grey base.
+    assert!((at(0.5) - mean).abs().max_element() < 1e-6, "{}", at(0.5));
+    // Just resolved (1.05 px per cell), the fade starts from the mean.
+    assert!((at(0.19) - mean).abs().max_element() < 0.01, "{}", at(0.19));
+    // Fully resolved: one of the cells' colours.
+    assert!([Vec3::X, Vec3::Z].contains(&at(0.001)), "{}", at(0.001));
+}
+
+#[test]
+fn voronoi_spots_resolve_by_their_diameter() {
+    // 30 cm cells, cover 0.3: spots 18.5 cm across (radius 9.3 cm).
+    let lib = library(&[("spots", json!({"color": "#808080", "layers": [{"type": "voronoi", "size": 30}]}))]);
+    let packed = lib.get("MAT/spots").unwrap().pack(MapMode::World, &[]);
+    let points = [(0.1, 0.2), (1.3, -0.7), (-2.2, 0.9), (0.55, 3.1), (0.8, 0.05), (-0.4, -1.6)];
+    let shades = |footprint: f32| -> Vec<Vec3> {
+        points.iter().map(|&(x, z)| packed.eval(&Sample::at(Vec3::new(x, 0.0, z), Vec3::Y, footprint)).rgb).collect()
+    };
+    // 1.24 px per spot: resolved (it was skipped while the radius stood for the size).
+    let near = shades(0.15);
+    assert!(near.iter().any(|c| *c != near[0]), "{near:?}");
+    // 0.93 px per spot: skipped, one flat colour.
+    let far = shades(0.2);
+    assert!(far.iter().all(|c| *c == far[0]), "{far:?}");
 }
 
 #[test]

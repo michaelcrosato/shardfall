@@ -189,11 +189,15 @@ fn cm(metres: f32) -> String {
 }
 
 /// The parameter that sets a layer's feature size, and that size in metres (§6.2: sizes are
-/// feature sizes; a dot's is its diameter). Gradients have none.
+/// feature sizes; a dot's or a voronoi spot's is its diameter). Gradients have none.
 fn feature(layer: &LayerDoc) -> Option<(&'static str, f32)> {
     match layer.pattern {
         Pattern::Gradient => None,
         Pattern::Dots => Some(("radius", 2.0 * layer.num("radius", super::eval::default_radius()))),
+        Pattern::Voronoi if layer.word("feature").unwrap_or("spots") == "spots" => {
+            let size = layer.num("size", super::eval::default_size(Pattern::Voronoi)[0]);
+            Some(("size", 2.0 * (layer.num("cover", 0.3) / std::f32::consts::PI).sqrt() * size))
+        }
         pattern => {
             let size = layer.size2(super::eval::default_size(pattern));
             Some(("size", size[0].min(size[1])))

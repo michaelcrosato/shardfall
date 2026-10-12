@@ -8,6 +8,15 @@
 //! the same parameters, because it reads the packed row exactly as the shader does. Keep the
 //! two in step: the renderer's parity test compares them pixel by pixel.
 //!
+//! Where it differs from the prototype WGSL (the renderer's copy must match):
+//! - voronoi spots: the feature is the spot's diameter, `2·b.x·a.x` (precheck and
+//!   `pat_cells`), and the cellular cavity mean divides by that feature;
+//! - a layer with cells fades to its cells' mean linear colour, packed in `b.yzw`: an
+//!   unresolved layer sets `c = b.yzw` before its cavity mean, and a resolved one sets
+//!   `c = mix(b.yzw, cell colour, k)` instead of `mix(c, cell colour, k)`;
+//! - no shingles flip (axis code 4) and no debug kernels (11, 12);
+//! - `turn` also turns 1D directions, but in the packer (`dir`), so the kernel is unchanged.
+//!
 //! Anti-aliasing uses an analytic footprint instead of derivatives: lines are box-filtered
 //! pulses, a layer fades to its mean between 3 and 1 pixels per feature and is skipped below
 //! one, and fractal noise drops the octaves under a pixel.
@@ -61,6 +70,7 @@ pub struct GpuLayer {
     /// rgb: linear colour (paint 0), or r: linear shade factor (paint 1); a: strength.
     pub paint: [f32; 4],
     pub a: [f32; 4],
+    /// x: the kernel's; yzw: the cells' mean linear colour when the layer has cells.
     pub b: [f32; 4],
     /// x vary, y cavity, z glow, w bevel.
     pub c: [f32; 4],
@@ -213,7 +223,7 @@ impl Material {
         let roughness = self.roughness.unwrap_or(if self.metallic > 0.0 { 0.5 } else { -1.0 });
         gpu.pbr = [roughness, self.metallic, 1.0 / self.scale, 0.0];
         for (index, layer) in self.layers.iter().take(3).enumerate() {
-            gpu.layers[index] = pack_layer(index, layer, roles);
+            gpu.layers[index] = pack_layer(index, layer, self.turn, roles);
         }
         Packed { base: linear(&self.color, roles), emissive: self.emissive, look: self.look, gpu }
     }
@@ -249,7 +259,7 @@ fn rgba8(color: &str, roles: &[(&str, &str)]) -> u32 {
     r as u32 | (g as u32) << 8 | (b as u32) << 16 | 0xff << 24
 }
 
-fn pack_layer(index: usize, l: &LayerDoc, roles: &[(&str, &str)]) -> GpuLayer {
+fn pack_layer(index: usize, l: &LayerDoc, turn: bool, roles: &[(&str, &str)]) -> GpuLayer {
     use Pattern::*;
     let mut o = GpuLayer::default();
     let mut variant = 0u32;
@@ -343,6 +353,9 @@ fn pack_layer(index: usize, l: &LayerDoc, roles: &[(&str, &str)]) -> GpuLayer {
         Some(Param::Word(word)) => named_axis(word),
         _ => named_axis(axis_default),
     };
+    // `turn` turns the pattern 90 degrees about local z: 2D patterns swap u and v in the
+    // kernel; the direction of 1D patterns (bands, wood, gradient) turns here, x to y.
+    let dir = if turn { Vec3::new(-dir.y, dir.x, dir.z) } else { dir };
     o.dir = dir.extend(0.0).to_array();
     let facing = match l.word("facing") {
         Some("up") => 1,
@@ -358,6 +371,13 @@ fn pack_layer(index: usize, l: &LayerDoc, roles: &[(&str, &str)]) -> GpuLayer {
     let cells = l.cells();
     for (k, cell) in cells.iter().take(4).enumerate() {
         o.cells[k] = rgba8(cell, roles);
+    }
+    if !cells.is_empty() {
+        // The cells' mean linear colour: what the layer fades to when its cells are too small.
+        let n = cells.len().min(4);
+        let sum = o.cells[..n].iter().fold(Vec3::ZERO, |sum, cell| sum + srgb8_to_linear(*cell));
+        let mean = sum / n as f32;
+        o.b[1..4].copy_from_slice(&mean.to_array());
     }
     let strength = l.num("strength", 1.0);
     let paint = match l.color() {
@@ -632,7 +652,7 @@ fn pat_cells(uv: Vec2, l: &GpuLayer, variant: u32, fw: f32, salt: u32) -> Pat {
         let r = l.b[0] * size;
         o.m = pulse(d1 * size, 2.0 * r, fw);
         o.mean = l.a[3];
-        o.feat = r;
+        o.feat = 2.0 * r;
     } else if variant == 1 {
         o.m = pulse(edge, gap, fw);
         o.mean = (2.2 * gap / size).min(1.0);
@@ -762,7 +782,8 @@ pub fn eval_packed(mat: &GpuMaterial, base: Vec3, s: &Sample) -> Shaded {
                 mean = l.a[3];
             }
             kernel::CELLS => {
-                feat = if variant == 0 { l.b[0] * l.a[0] } else { l.a[0] };
+                // spots: the spot's diameter
+                feat = if variant == 0 { 2.0 * l.b[0] * l.a[0] } else { l.a[0] };
                 mean = if variant == 0 {
                     l.a[3]
                 } else if variant == 1 {
@@ -770,7 +791,7 @@ pub fn eval_packed(mat: &GpuMaterial, base: Vec3, s: &Sample) -> Shaded {
                 } else {
                     l.a[3]
                 };
-                cav_mean = l.c[1] * (l.c[3] / l.a[0]).min(1.0) * 0.5;
+                cav_mean = l.c[1] * (l.c[3] / feat).min(1.0) * 0.5;
             }
             kernel::GRID | kernel::SHINGLES => {
                 feat = l.a[0].min(l.a[1]);
@@ -796,6 +817,10 @@ pub fn eval_packed(mat: &GpuMaterial, base: Vec3, s: &Sample) -> Shaded {
             pt.m = mean;
             pt.mean = mean;
             pt.feat = feat;
+            if ncells > 0 {
+                // The cells' mean colour.
+                c = Vec3::new(l.b[1], l.b[2], l.b[3]);
+            }
             c *= (1.0 - cav_mean) * (1.0 - cav_mean);
         }
         match if resolved { kind } else { kernel::NONE } {
@@ -904,7 +929,8 @@ pub fn eval_packed(mat: &GpuMaterial, base: Vec3, s: &Sample) -> Shaded {
         if pt.cell != 0 {
             if ncells > 0 {
                 let pick = ((rnd(pcg(pt.cell ^ 0x51)) * ncells as f32) as u32).min(ncells - 1);
-                c = c.lerp(srgb8_to_linear(l.cells[pick as usize]), k);
+                // Fades to the cells' mean colour, as an unresolved layer shows it.
+                c = Vec3::new(l.b[1], l.b[2], l.b[3]).lerp(srgb8_to_linear(l.cells[pick as usize]), k);
             }
             let vary = l.c[0] * (2.0 * rnd(pt.cell) - 1.0) * k;
             c *= (1.0 + vary) * (1.0 + vary);

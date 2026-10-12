@@ -124,11 +124,14 @@ fn takes_pair(pattern: Pattern) -> bool {
 /// The parameters a layer of `pattern` takes, in canonical order.
 pub fn layer_params(pattern: Pattern) -> Vec<&'static str> {
     let own = own_params(pattern);
-    let cellular = is_cellular(pattern);
+    // Dots have no border to shade: no cavity or bevel.
+    let cellular = |key: &str| {
+        is_cellular(pattern) && CELLULAR.contains(&key) && !(pattern == Pattern::Dots && matches!(key, "cavity" | "bevel"))
+    };
     LAYER_KEYS
         .iter()
         .copied()
-        .filter(|key| *key == "type" || own.contains(key) || COMMON.contains(key) || (cellular && CELLULAR.contains(key)))
+        .filter(|key| *key == "type" || own.contains(key) || COMMON.contains(key) || cellular(key))
         .collect()
 }
 
