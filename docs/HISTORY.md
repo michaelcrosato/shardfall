@@ -5,6 +5,50 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 1.3: agent-first object docs, judge calibration, gate G1 passes — 2026-10-12
+
+Row 1.3 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-9, EVAL-3, the GA re-score, EVAL-4). Phase 1 is
+closed: G1 passes on its first round.
+- **Docs and rules (TOOLS-9).** Docs were half of arm A's `tok_x`, so `docs/ASSET_STUDIO.md` is
+  now the agent reference: the loop, format 1, edits, check, sheets, placement and files in 1,684
+  tokens (3,665 before; arm A's was 3,002). Starting the studio, connecting a client, the first
+  prompt, frame feedback and verification moved to `docs/ASSET_STUDIO_LIVE.md`, which the Windows
+  studio package also ships. `AGENTS.md`: the asset rule covers objects and raw downloads
+  (`.cache/`, never .glb/.obj/.fbx/.png), and "Adding a tool" lists the six steps. The MCP
+  instructions give the object loop (+13 tokens). The field guide adds z-fighting, vertex colour,
+  procedural material, triplanar mapping and glTF. The plan's wording for the rule and the MCP
+  clause also names `asset_import` and materials; those words are added when the features land
+  (Phases 3 and 5).
+- **Harness.** `bench.py calib`, `votes`, `judgment` and `report --vs`; `score` counts
+  `lint_block`, `lint_other` and triangles, and an edit run needs 2 of 3 judges to answer `done`
+  on a before/after image. Images are stacked with the standard library and judged under hashed
+  names in one folder, so no path names the arm.
+- **Calibration (EVAL-3): pass, first round.** 12 planted-defect pairs (the crate, bench and
+  lantern templates and Gate-A P01, P07, P19; each defect twice), shown in both orders to three
+  Opus judges at medium effort: 72 judgments. The intact asset won 10/12 pairs with it on top and
+  11/12 with it below, with 1 order flip. The misses: a trestle table's top raised 10 cm (judged
+  identical, both orders) and a brazier leg pushed up through its bowl (read as "coal specks").
+  The judge prompt, which gained the edit-vote question before calibration, is frozen at sha256
+  `4db5021c`.
+- **GA re-scored with `check`:** 31 of 38 arm-A runs are accepted (37 before): floating parts in
+  P17, P20, P21 (both runs), P24 and E6. All six arm-A edits got 3 of 3 `done` votes.
+- **G1 (arm T = `132447c`, this row's first commit): pass.** 14 runs (S8 and E1-E6), all done and
+  accepted (arm A: 11 of the same 14). Median `tok_x` ratio 0.739 (≤ 0.85), median `tok_cum` ratio
+  0.877 (≤ 1), `lint_other` per accepted asset 0 (arm A 0.273); calibration passed; the Phase-1
+  checks hold (7/7 planted lint defects, sheet framing 55-90% with the camera restored, exact
+  triangle counts). Every edit got 3 of 3 `done` votes. Per task, `tok_x` ranged from 0.38 (E2)
+  to 1.51 (P24) of arm A's.
+- **What the runs show.** Arm T agents fixed every finding that edit replies reported, and looked
+  through contact sheets. Most remaining waste is pretty-printed JSON sent to the line-based REPL:
+  P03, P13 and E1 lost 12-18 commands each, the failure arm A also had. A sheet followed by
+  `capture` shows the world, because a sheet leaves the stage as it was. Both are candidates for
+  a later remediation or docs pass.
+- **Incident.** The first G1 batch ran eight authors at once. Arm T agents piped commands
+  through scratch files in `/tmp`, and three runs executed another task's asset. The whole batch
+  was set aside (`.cache/asset_bench/discarded/`) and every run repeated one at a time; Gate A's
+  logs show no crossing. The benchmark README now says to run authors one at a time.
+- TOOLS-11 (the optional help diet) was not done; tools/list stays at 46,840 chars.
+
 ## Asset plan 1.2: contact sheets and render cost — 2026-10-12
 
 Row 1.2 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-6, TOOLS-7).

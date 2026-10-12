@@ -1,8 +1,35 @@
 {
- "GA/A": {
-  "accepted": 37,
+ "G1/T": {
+  "accepted": 14,
   "check": [
-   "na"
+   "ok"
+  ],
+  "done": 14,
+  "done_rate": 1.0,
+  "first_ok": 13,
+  "median_abs_ln_tok_x_ratio": null,
+  "median_failed": 1.0,
+  "median_tok_cum": 16611.5,
+  "median_tok_x": 5407.5,
+  "models": [
+   "sonnet"
+  ],
+  "runs": 14,
+  "s8_pairs": 0,
+  "vs": {
+   "accepted": 14,
+   "baseline_accepted": 11,
+   "baseline_lint_other_per_accepted": 0.273,
+   "lint_other_per_accepted": 0.0,
+   "median_tok_cum_ratio": 0.877,
+   "median_tok_x_ratio": 0.739,
+   "tasks": 14
+  }
+ },
+ "GA/A": {
+  "accepted": 31,
+  "check": [
+   "ok"
   ],
   "done": 38,
   "done_rate": 1.0,

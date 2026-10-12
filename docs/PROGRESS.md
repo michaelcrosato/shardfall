@@ -43,10 +43,12 @@ procedural materials, library import, curated library, benchmark gates). Execute
 in its §15, resuming at the first unticked row of its §11 checklist. Phase 0 is done (gates GA
 and G0 pass): compact asset replies and canonical prop files (0.1), errors that name
 `parts.<id>`/`ops[i]` with a fix and `asset_edit action=schema` (0.2), and the benchmark harness
-`scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Phase 1 so far:
-`asset_edit action=check` (geometry lint and cost line), findings in every edit reply,
-`dry_run` (1.1); one-call contact sheets `asset_preview views=true` with an optional 1.8 m
-figure, and `capture stats=only` render cost (1.2).
+`scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Phase 1 is done
+(gate G1 passes: median `tok_x` 0.74 and `tok_cum` 0.88 of arm A's, 14/14 accepted against
+11/14, no lint findings left): `asset_edit action=check` and findings in every edit reply
+(1.1), contact sheets `asset_preview views=true` and `capture stats=only` (1.2), agent-first
+`docs/ASSET_STUDIO.md` with the live studio in `docs/ASSET_STUDIO_LIVE.md`, and calibrated judges
+(1.3). Next: row 2.1, the format-2 reader and source model.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

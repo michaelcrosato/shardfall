@@ -233,7 +233,7 @@ def stack(images, out, gaps):
 def newest(binary):
     """The engine that renders and scores: --bin, else this checkout's release or debug build."""
     if binary:
-        return Path(binary)
+        return Path(binary).resolve()
     for path in (REPO / "target/release/pav", REPO / "target/debug/pav"):
         if path.exists():
             return path
@@ -583,8 +583,8 @@ def check_asset(binary, run, name, needs, size, tol):
 def cmd_score(args):
     ensure_tokenizer()
     enc = encoder()
-    binary = Path(args.bin) if args.bin else (BIN / "pav-HEAD" if (BIN / "pav-HEAD").exists()
-                                               else REPO / "target/debug/pav")
+    binary = Path(args.bin).resolve() if args.bin else (BIN / "pav-HEAD" if (BIN / "pav-HEAD").exists()
+                                                         else REPO / "target/debug/pav")
     table = tasks()
     judgments = read_judgments()
     columns = ["gate", "arm", "task", "run", "done", "accepted", "tok_x", "tok_cum", "tok_run", "turns", "calls",

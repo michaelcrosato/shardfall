@@ -1,0 +1,16 @@
+{"format":1,"name":"frost_brazier",
+"description":"A tripod brazier: iron bowl on three curved legs, full of glowing coals.",
+"parts":{
+"bowl":{"shape":{"type":"cylinder","radius":0.3,"half_height":0.09},"pos":[0,1.156,0],"color":"#2b2f36"},
+"bowl_base":{"shape":{"type":"cylinder","radius":0.2,"half_height":0.05},"pos":[0,1.056,0],"color":"#2b2f36"},
+"coals":{"shape":{"type":"cylinder","radius":0.26,"half_height":0.04},"pos":[0,1.266,0],"color":"#2e8fff","emissive":3},
+"embers":{"shape":{"type":"sphere","radius":0.15},"pos":[0,1.196,0],"color":"#c8ecff","emissive":6},
+"leg0_knee":{"shape":{"type":"sphere","radius":0.035},"pos":[0,0.585,0.18],"color":"#2b2f36"},
+"leg0_lo":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.2761},"pos":[0,0.2795,0.22],"pitch":-8.33,"color":"#2b2f36"},
+"leg0_up":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.241},"pos":[0,0.8255,0.165],"pitch":-3.57,"color":"#2b2f36"},
+"leg1_knee":{"shape":{"type":"sphere","radius":0.035},"pos":[0.1559,0.585,-0.09],"color":"#2b2f36"},
+"leg1_lo":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.2761},"pos":[0.1905,0.2795,-0.11],"yaw":120,"pitch":-8.33,"color":"#2b2f36"},
+"leg1_up":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.241},"pos":[0.1429,0.8255,-0.0825],"yaw":120,"pitch":-3.57,"color":"#2b2f36"},
+"leg2_knee":{"shape":{"type":"sphere","radius":0.035},"pos":[-0.1559,0.585,-0.09],"color":"#2b2f36"},
+"leg2_lo":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.2761},"pos":[-0.1905,0.2795,-0.11],"yaw":240,"pitch":-8.33,"color":"#2b2f36"},
+"leg2_up":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.241},"pos":[-0.1429,0.8255,-0.0825],"yaw":240,"pitch":-3.57,"color":"#2b2f36"}}}

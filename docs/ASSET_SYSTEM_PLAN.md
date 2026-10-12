@@ -654,6 +654,8 @@ runs) stay out of `live_feedback::changes_studio`.
   exemplar → `asset_edit copy` → one `patch` batch (reply lists `check` findings) →
   `asset_preview views=true` at checkpoints → `asset_spawn`. `asset_edit action=schema` is the field
   guide; `asset_import` translates open libraries."
+- Row 1.3 wrote the parts of the rule and the clause that exist; the materials and `asset_import`
+  wording is added in the rows that land them (Phases 3 and 5).
 - **Other docs.**
   - `docs/ASSET_STUDIO.md` (≤ 14 KB) gets a format-2 Definition section, the agent loop and links to `MATERIALS.md` and `ASSET_IMPORT.md`.
   - `field_guide.toml` adds procedural material, triplanar mapping, vertex color, z-fighting and gltf.
@@ -1149,6 +1151,8 @@ name, and runs record `copied_from`.
   - frontmatter: tools Bash, Read, Write; **model `sonnet`, effort `medium`, pinned**, so gate comparability does not depend on the orchestrator's model or effort;
   - prompt (~290 tokens): read only `RUN/brief.md` and `RUN/docs/`; never read repo code, tests, assets or history; drive the engine only through `scripts/asset_bench/pav RUN`; look at every requested image; ≤ 30 commands and ≤ 6 images; finish with `RUN/done.json`.
   If the pinned model is unavailable, use the closest one, record it, and re-run GA's S8 subset.
+  Authors run one at a time: they keep scratch files in `/tmp`, and concurrent runs in G1's first
+  batch overwrote each other's (that batch was discarded).
 - **Docs.** `RUN/docs/` holds only that arm's `ASSET_STUDIO.md` (via `git show <rev>:…`; import
   tasks add `ASSET_IMPORT.md`) and a generated README. Field guides and the library are reached
   through logged calls.
@@ -1186,7 +1190,7 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
   - they see the image and the brief, never the arm;
   - each returns `{"pref":1|2|0,"s1":[5],"s2":[5],"why"}` on silhouette, proportion, detail, colour/material coherence and style fit, each 1-5.
 - **Aggregation.** The majority of 3 decides each pair; criterion scores take the median.
-- **Calibration** (G1): 12 planted-defect pairs from the BUILTINs and 3 Gate-A assets, shown in both orders.
+- **Calibration** (G1): 12 planted-defect pairs from the BUILTINs and 3 Gate-A assets, shown in both orders (as run: crate, bench, lantern, P01, P07 and P19, two defects each; `bench.py calib`).
   - Defects: one part floated 10 cm, y×1.8, random saturated colours, the largest part deleted, a part pushed 30% through another, every part replaced by its bounding sphere.
   - Pass: the majority picks the intact asset in ≥ 10/12 pairs in both orders, with ≤ 2 order flips.
   - One rubric rewrite is allowed, then `judge.md` is frozen and its hash is recorded.
@@ -1234,6 +1238,12 @@ stall replay: 18 calls, 3 failed, `tok_x` 10,761, `tok_cum` 50,345.
   0.257 < ln 1.5, so G2 runs each task once.
 - G0, 2026-10-12: **pass.** Reply budget test, 19 located error probes, golden template
   revisions, tools/list 46,926 chars, smoke 12/12, `cargo test` green.
+- G1, 2026-10-12: **pass** (first round). Arm T (`132447c`), S8 and E1-E6 (14 runs, authors run
+  one at a time): median `tok_x` ratio 0.739, `tok_cum` 0.877; 14/14 accepted (arm A 11/14 after
+  the re-score with `check`); `lint_other` per accepted asset 0 (arm A 0.273); every edit 3/3
+  `done`. Calibration: intact picked 10/12 and 11/12, 1 order flip; judge prompt frozen (sha256
+  `4db5021c`). Phase-1 checks: 7/7 planted lint defects, framing 55-90% with the camera
+  restored, exact triangle counts. Gate A re-scored with `check`: 31/38 accepted.
 - **Total load:** ~135 author runs and ~320 judge calls (calibration 72, edit votes 54, G2 72, G3 24, G4 96).
 
 ## 11. Roadmap and progress checklist
@@ -1261,7 +1271,7 @@ Why this order:
 - [x] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
 - [x] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
 - [x] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
-- [ ] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
+- [x] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
 - [ ] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.2) (L)
 - [ ] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
 - [ ] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)

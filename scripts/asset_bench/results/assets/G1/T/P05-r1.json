@@ -1,0 +1,15 @@
+{"format":1,"name":"castle_wall",
+"description":"Castle wall section with four merlons and an arrow slit.",
+"parts":{
+"body":{"shape":{"type":"box","half":[2,1.45,0.4]},"pos":[0,1.45,0],"color":"#9a968c"},
+"course_b12":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,1.2,-0.415],"color":"#7b776e"},
+"course_b26":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,2.6,-0.415],"color":"#7b776e"},
+"course_b6":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,0.6,-0.415],"color":"#7b776e"},
+"course_f12":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,1.2,0.415],"color":"#7b776e"},
+"course_f26":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,2.6,0.415],"color":"#7b776e"},
+"course_f6":{"shape":{"type":"box","half":[2,0.04,0.015]},"pos":[0,0.6,0.415],"color":"#7b776e"},
+"merlon0":{"shape":{"type":"box","half":[0.325,0.35,0.4]},"pos":[-1.675,3.25,0],"color":"#aaa69b"},
+"merlon1":{"shape":{"type":"box","half":[0.325,0.35,0.4]},"pos":[-0.5583,3.25,0],"color":"#aaa69b"},
+"merlon2":{"shape":{"type":"box","half":[0.325,0.35,0.4]},"pos":[0.5583,3.25,0],"color":"#aaa69b"},
+"merlon3":{"shape":{"type":"box","half":[0.325,0.35,0.4]},"pos":[1.675,3.25,0],"color":"#aaa69b"},
+"slit":{"shape":{"type":"box","half":[0.06,0.4,0.01]},"pos":[0,1.9,0.405],"color":"#1c1b1f"}}}

@@ -1,0 +1,13 @@
+{"format":1,"name":"single_axe",
+"description":"Double-bit battle axe with wrapped haft and pommel cap.",
+"parts":{
+"blade_r":{"shape":{"type":"rounded_box","half":[0.07,0.09,0.02],"radius":0.01},"pos":[0.11,1.01,0],"color":"#c9d3dc"},
+"collar":{"shape":{"type":"box","half":[0.04,0.08,0.03]},"pos":[0,1.02,0],"color":"#9aa3ad"},
+"haft":{"shape":{"type":"cylinder","radius":0.025,"half_height":0.48},"pos":[0,0.52,0],"color":"#7a4b2a"},
+"pommel":{"shape":{"type":"cylinder","radius":0.032,"half_height":0.02},"pos":[0,0.02,0],"color":"#9aa3ad"},
+"spike":{"shape":{"type":"box","half":[0.06,0.02,0.02]},"pos":[-0.1,1.02,0],"color":"#c9d3dc"},
+"spike_tip":{"shape":{"type":"box","half":[0.02,0.01,0.012]},"pos":[-0.18,1.02,0],"color":"#c9d3dc"},
+"wrap1":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.04},"pos":[0,0.16,0],"color":"#3b2f2a"},
+"wrap2":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.04},"pos":[0,0.3,0],"color":"#3b2f2a"},
+"wrap3":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.04},"pos":[0,0.44,0],"color":"#3b2f2a"},
+"wrap4":{"shape":{"type":"cylinder","radius":0.03,"half_height":0.04},"pos":[0,0.58,0],"color":"#3b2f2a"}}}

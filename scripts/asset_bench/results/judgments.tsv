@@ -71,3 +71,39 @@ calib	2d7a452213be	c12	intact-bottom	3	2		2,3,2,3,2	4,3,3,3,4	Asset 2 has clean,
 calib	7df9cb244f66	c12	intact-top	1	1		3,3,3,4,3	2,3,2,3,2	Asset 2 has sideways shafts and spiky, cluttered wheels; asset 1 reads cleaner	opus	medium	2026-10-12 04:13
 calib	7df9cb244f66	c12	intact-top	2	1		4,4,3,4,4	2,3,2,3,2	Asset 1 clean cart with readable wheels; asset 2 has broken, poking wheel spokes	opus	medium	2026-10-12 04:16
 calib	7df9cb244f66	c12	intact-top	3	1		4,3,3,4,3	2,3,2,3,2	Asset 1 cleaner wheels and frame; asset 2 has poking spokes and clutter	opus	medium	2026-10-12 04:19
+edit	8806175e4782	G1/T/E1-r1	before-top	1		1			Table lengthened, middle trestle added, height and style unchanged.	opus	medium	2026-10-12 04:36
+edit	8806175e4782	G1/T/E1-r1	before-top	2		1			Table visibly longer, middle trestle added, height and style unchanged.	opus	medium	2026-10-12 04:37
+edit	8806175e4782	G1/T/E1-r1	before-top	3		1			Table is noticeably longer with a middle trestle added; height and style look unchanged.	opus	medium	2026-10-12 04:39
+edit	01a1aec44070	G1/T/E2-r1	before-top	1		1			Dark wood, brass hubs/rails, larger wheels grounded; cargo cover also darkened.	opus	medium	2026-10-12 04:36
+edit	01a1aec44070	G1/T/E2-r1	before-top	2		1			Darker wood, brass hubs and rails, wheels about 20% larger; still grounded.	opus	medium	2026-10-12 04:37
+edit	01a1aec44070	G1/T/E2-r1	before-top	3		1			Dark wood, brass hubs/rails, bigger wheels on ground; cargo cloth also darkened	opus	medium	2026-10-12 04:39
+edit	d3e7664f513a	G1/T/E3-r1	before-top	1		1			Wall wider with six merlons at similar spacing, two arrow slits, style kept.	opus	medium	2026-10-12 04:36
+edit	d3e7664f513a	G1/T/E3-r1	before-top	2		1			Wall wider with six evenly spaced merlons, two arrow slits; style and height kept.	opus	medium	2026-10-12 04:37
+edit	d3e7664f513a	G1/T/E3-r1	before-top	3		1			Wall wider with six merlons at the same spacing and two arrow slits; style unchanged.	opus	medium	2026-10-12 04:39
+edit	cf36bae40783	G1/T/E4-r1	before-top	1		1			Double blade now single blade with back spike; haft and head otherwise unchanged.	opus	medium	2026-10-12 04:36
+edit	cf36bae40783	G1/T/E4-r1	before-top	2		1			Double bit became single blade plus back spike; haft and proportions kept.	opus	medium	2026-10-12 04:37
+edit	cf36bae40783	G1/T/E4-r1	before-top	3		1			Double-bit became single blade with back spike; haft and head placement unchanged	opus	medium	2026-10-12 04:39
+edit	ed8801e10363	G1/T/E5-r1	before-top	1		1			Glow now blue; legs visibly ~30% taller, bowl raised; rest unchanged.	opus	medium	2026-10-12 04:36
+edit	ed8801e10363	G1/T/E5-r1	before-top	2		1			Glow now blue, legs visibly ~30% taller, bowl and design otherwise unchanged.	opus	medium	2026-10-12 04:37
+edit	ed8801e10363	G1/T/E5-r1	before-top	3		1			Glow now blue; legs visibly ~30% taller; bowl and tripod form unchanged.	opus	medium	2026-10-12 04:39
+edit	584b128c2452	G1/T/E6-r1	before-top	1		1			All three re-themed icy blue; icicles hang under bookshelf shelves; forms kept.	opus	medium	2026-10-12 04:36
+edit	584b128c2452	G1/T/E6-r1	before-top	2		1			All three assets recoloured icy blue; icicles under bookshelf shelves; forms kept	opus	medium	2026-10-12 04:37
+edit	584b128c2452	G1/T/E6-r1	before-top	3		1			All three re-coloured icy blue; icicles hang under bookshelf shelves; shapes kept.	opus	medium	2026-10-12 04:39
+edit	75b7d390a7f7	GA/A/E1-r1	before-top	1		1			Table visibly longer with a middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:36
+edit	75b7d390a7f7	GA/A/E1-r1	before-top	2		1			Table visibly longer with middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:37
+edit	75b7d390a7f7	GA/A/E1-r1	before-top	3		1			Table visibly longer with middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:39
+edit	dac7789f7462	GA/A/E2-r1	before-top	1		1			Darker wood, brass hubs/brackets added, wheels visibly larger, cart still grounded	opus	medium	2026-10-12 04:36
+edit	dac7789f7462	GA/A/E2-r1	before-top	2		1			Dark wood, brass hubs and fittings, larger wheels; cart still grounded, form kept.	opus	medium	2026-10-12 04:37
+edit	dac7789f7462	GA/A/E2-r1	before-top	3		1			Darker stained wood, brass fittings added, wheels visibly larger; cart still grounded.	opus	medium	2026-10-12 04:39
+edit	dbd6b71b663d	GA/A/E3-r1	before-top	1		1			Wall wider, six merlons at similar spacing, two arrow slits; rest unchanged.	opus	medium	2026-10-12 04:36
+edit	dbd6b71b663d	GA/A/E3-r1	before-top	2		1			Wall widened, merlon spacing kept (six merlons), two arrow slits added	opus	medium	2026-10-12 04:37
+edit	dbd6b71b663d	GA/A/E3-r1	before-top	3		1			Wall visibly wider, six evenly spaced merlons, two arrow slits; style kept.	opus	medium	2026-10-12 04:39
+edit	700fb9c34861	GA/A/E4-r1	before-top	1		1			Double blade replaced by single blade with back spike; haft and grip unchanged.	opus	medium	2026-10-12 04:36
+edit	700fb9c34861	GA/A/E4-r1	before-top	2		1			Double blade replaced by single blade with back spike; haft unchanged	opus	medium	2026-10-12 04:37
+edit	700fb9c34861	GA/A/E4-r1	before-top	3		1			Double-bit head now single blade with back spike; haft and wraps unchanged.	opus	medium	2026-10-12 04:39
+edit	3f25eb2e8cde	GA/A/E5-r1	before-top	1		1			Light now blue, legs visibly ~30% longer, bowl and tripod otherwise unchanged.	opus	medium	2026-10-12 04:36
+edit	3f25eb2e8cde	GA/A/E5-r1	before-top	2		1			Light now blue, legs visibly about 30% longer, rest of brazier unchanged.	opus	medium	2026-10-12 04:37
+edit	3f25eb2e8cde	GA/A/E5-r1	before-top	3		1			Light now blue, legs visibly about 30% taller; brazier shape otherwise unchanged.	opus	medium	2026-10-12 04:39
+edit	b7e6a706513a	GA/A/E6-r1	before-top	1		1			All three are now pale icy blue; small icicles hang under the bookshelf shelves.	opus	medium	2026-10-12 04:36
+edit	b7e6a706513a	GA/A/E6-r1	before-top	2		1			All three re-coloured icy; icicles hang under bookshelf shelves; shapes otherwise unchanged.	opus	medium	2026-10-12 04:37
+edit	b7e6a706513a	GA/A/E6-r1	before-top	3		1			All three re-coloured icy blue; icicles hang under bookshelf shelves; forms kept	opus	medium	2026-10-12 04:39
