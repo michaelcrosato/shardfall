@@ -313,7 +313,8 @@ fn resolved(def: &PropDef) -> Value {
         let (centre, half) = part.prim.local_box();
         let mut row = json!({"type": part.prim.type_name(), "size": point(half * 2.0 * part.scale)});
         if part.ends {
-            let end = |sign: f32| part.pos + part.rot * ((centre + glam::Vec3::Y * half.y * sign) * part.scale);
+            // The ends lie on the axis, wherever an arc's box sits beside it.
+            let end = |sign: f32| part.pos + part.rot * (glam::Vec3::Y * (centre.y + half.y * sign) * part.scale);
             row["from"] = point(end(-1.0));
             row["to"] = point(end(1.0));
         } else {

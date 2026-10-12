@@ -61,7 +61,8 @@ fn ensure_asset(name: &str) -> Result<String> {
 pub fn fit_camera(s: &mut Session) -> Result<()> {
     let preview = s.sim.state.prop_preview.as_ref().ok_or_else(|| anyhow!("no prop preview is selected"))?;
     let definition = props::get(&preview.name).ok_or_else(|| anyhow!("the selected prop is unavailable"))?;
-    let local = definition.bounds(preview.scale);
+    // The variant the stage shows, lifted as the stage lifts it.
+    let local = definition.variant(preview.seed).bounds_at(preview.scale);
     let lift = -Vec3::Y * local.min.y;
     let mut bounds = transform_bounds(local, lift, preview.rotation());
     if preview.turntable {

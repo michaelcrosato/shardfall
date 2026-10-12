@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use glam::Vec3;
 use pav_core::issue::render;
 use pav_core::props::compile::compile;
-use pav_core::props::doc::{Kind, PrimType, Replicate, Unit};
+use pav_core::props::doc::{Kind, Node, PrimType, Replicate, Unit};
 use pav_core::props::{CompiledProp, Doc, ResolvedPart, get, patch_document};
 use serde_json::{Value, json};
 
@@ -34,7 +34,7 @@ fn parts(doc: &Doc) -> CompiledProp {
     compile(doc, &get, 0).unwrap_or_else(|issues| panic!("{}", render(&issues)))
 }
 
-fn node<'a>(doc: &'a Doc, id: &str) -> &'a pav_core::props::doc::Node {
+fn node<'a>(doc: &'a Doc, id: &str) -> &'a Node {
     let mut names = id.split('.');
     let mut node = &doc.parts[names.next().unwrap()];
     for name in names {
@@ -56,6 +56,7 @@ fn same_parts(a: &CompiledProp, b: &CompiledProp, rename: impl Fn(&str) -> Strin
             (other.mirrored, &other.color, other.solid, other.hidden),
             "{id}"
         );
+        assert!((part.tint - other.tint).abs() < 1e-6, "{id}: tint {} against {}", part.tint, other.tint);
         for (p, q) in part.hull(1.0).into_iter().zip(other.hull(1.0)) {
             assert!(p.distance(q) < 1e-4, "{} → {id}: {p} against {q}", part.id);
         }
@@ -193,18 +194,41 @@ fn structure_ops_mirror_array_move_and_scale() {
     assert!(node(&removed, "tilted").mirror.is_empty());
 }
 
-/// Every replicated node of every fixture, expanded, draws what it drew (ids aside).
+/// Scaled about itself, an attached part keeps its offset and still sits on what it attaches
+/// to; about a point, its offset is a length like any other.
+#[test]
+fn scaling_an_attached_part_keeps_it_on_its_attachment() {
+    let attach = doc(PROBE_ATTACH);
+    let ops = json!([{"op":"move","part":"cube","by":[5,0,0]},{"op":"scale","part":"cube","by":2}]);
+    let changed = patch(&attach, ops).unwrap();
+    assert_eq!(node(&changed, "cube").offset, Some(Vec3::new(5.0, 0.0, 0.0)));
+    // The beam's top is 123 cm up; the cube, now 20 cm, stands on it 5 cm along.
+    let cube = parts(&changed).parts.into_iter().find(|part| part.id == "cube").unwrap().bounds(1.0);
+    assert!((cube.min - Vec3::new(-0.05, 1.23, -0.1)).length() < 1e-5, "{cube:?}");
+    assert!((cube.max - Vec3::new(0.15, 1.43, 0.1)).length() < 1e-5, "{cube:?}");
+    let ops = json!([{"op":"move","part":"cube","by":[5,0,0]},{"op":"scale","part":"cube","by":2,"about":[0,0,0]}]);
+    assert_eq!(node(&patch(&attach, ops).unwrap(), "cube").offset, Some(Vec3::new(10.0, 0.0, 0.0)));
+}
+
+/// Every replicated node of every fixture, expanded, draws what it drew (ids aside). A node a
+/// seed varies (chance, jitter or pick, in it or inside it) is refused: its copies' new names
+/// would draw them anew.
 #[test]
 fn expand_keeps_every_copy_where_it_was() {
-    let mut expanded = 0;
+    let (mut expanded, mut refused) = (0, 0);
     for text in FIXTURES {
         let original = doc(text);
         let before = parts(&original);
-        fn replicated(nodes: &BTreeMap<String, pav_core::props::doc::Node>, prefix: &str, out: &mut Vec<String>) {
+        fn seeded(node: &Node) -> bool {
+            node.chance.is_some()
+                || node.jitter.is_some()
+                || node.pick.is_some()
+                || node.children().is_some_and(|children| children.values().any(seeded))
+        }
+        fn replicated(nodes: &BTreeMap<String, Node>, prefix: &str, out: &mut Vec<(String, bool)>) {
             for (name, node) in nodes {
-                let jittered = node.jitter.as_ref().is_some_and(|j| j.pos.is_some() || j.rot.is_some() || j.scale.is_some());
-                if node.replicate.is_some() && !jittered && node.chance.is_none() {
-                    out.push(format!("{prefix}{name}"));
+                if node.replicate.is_some() {
+                    out.push((format!("{prefix}{name}"), seeded(node)));
                 }
                 if let Kind::Group(children) = &node.kind {
                     replicated(children, &format!("{prefix}{name}."), out);
@@ -213,9 +237,15 @@ fn expand_keeps_every_copy_where_it_was() {
         }
         let mut ids = Vec::new();
         replicated(&original.parts, "", &mut ids);
-        for id in ids {
-            let changed =
-                patch(&original, json!([{"op":"expand","part":id}])).unwrap_or_else(|e| panic!("{}: {e}", original.name));
+        for (id, seeded) in ids {
+            let result = patch(&original, json!([{"op":"expand","part":id}]));
+            if seeded {
+                let error = result.unwrap_err();
+                assert!(error.contains("a seed varies its copies"), "{}: {error}", original.name);
+                refused += 1;
+                continue;
+            }
+            let changed = result.unwrap_or_else(|e| panic!("{}: {e}", original.name));
             assert!(node(&changed, &format!("{id}_0")).replicate.is_none());
             // `stones[1].ring[3]` is `stones[1].ring_3` once stones.ring is expanded.
             let segments: Vec<&str> = id.split('.').collect();
@@ -234,7 +264,47 @@ fn expand_keeps_every_copy_where_it_was() {
             expanded += 1;
         }
     }
-    assert_eq!(expanded, 11, "array, grid and radial nodes across the fixtures");
+    assert_eq!((expanded, refused), (6, 5), "array, grid and radial nodes across the fixtures");
+}
+
+/// Chance, jitter and a group's pick draw by name, so expand refuses what they vary; a cycle
+/// needs entries to hand out.
+#[test]
+fn expand_refuses_seeded_copies_and_empty_cycles() {
+    let garden = doc(r##"{"format":2,"name":"garden","unit":"cm","color":"#5a8a40","parts":{
+"trees":{"type":"sphere","radius":20,"pos":[0,20,0],"array":{"count":3,"step":[50,0,0]},"chance":0.5},
+"rows":{"pos":[0,0,100],"array":{"count":2,"step":[0,0,40]},"parts":{
+"bush":{"type":"sphere","radius":10,"pos":[0,10,0],"jitter":{"color":0.2}}}},
+"bed":{"pos":[0,0,200],"pick":1,"parts":{
+"posts":{"type":"box","size":[4,30,4],"pos":[0,15,0],"array":{"count":3,"step":[20,0,0]}},
+"stone":{"type":"sphere","radius":8,"pos":[0,8,20]}}}}}"##);
+    let refusal = |id: &str| patch(&garden, json!([{"op":"expand","part":id}])).unwrap_err();
+    assert_eq!(
+        refusal("trees"),
+        "ops[0] trees: a seed varies its copies (trees.chance), and new names would draw them anew — remove trees.chance \
+         first, or keep it replicated"
+    );
+    assert_eq!(
+        refusal("rows"),
+        "ops[0] rows: a seed varies its copies (rows.bush.jitter), and new names would draw them anew — remove \
+         rows.bush.jitter first, or keep it replicated"
+    );
+    assert_eq!(
+        refusal("bed.posts"),
+        "ops[0] bed.posts: bed picks among its parts by seed, and more parts would change what it picks — remove bed.pick \
+         first, or keep posts replicated"
+    );
+    let unpicked = patch(&garden, json!([{"op":"set","part":"bed","fields":{"pick":null}},{"op":"expand","part":"bed.posts"}]));
+    assert!(node(&unpicked.unwrap(), "bed.posts_2").replicate.is_none());
+
+    let attach = doc(PROBE_ATTACH);
+    for cycle in [json!([]), json!([1, 2])] {
+        let ops = json!([{"op":"set","part":"spokes_y","fields":{"radial.cycle":cycle}},{"op":"expand","part":"spokes_y"}]);
+        assert_eq!(
+            patch(&attach, ops).unwrap_err(),
+            "ops[1] spokes_y: its radial.cycle needs 1 to 64 entries (materials or colours); fix it first"
+        );
+    }
 }
 
 /// Radial copies of parts placed by their ends, turned by yaw/pitch/roll, attached, or cut to

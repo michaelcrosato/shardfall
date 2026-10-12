@@ -384,6 +384,7 @@ impl<'a> Op<'a> {
         let segments = segments(id).map_err(|error| Issue::error(self.on(id), Code::UnknownPart, error.0).maybe_fix(error.1))?;
         let (scope, name) = segments.split_at(segments.len() - 1);
         let name = name[0];
+        let picking = self.kind == "expand" && picks(doc, scope);
         let parent =
             group_mut(doc, scope).map_err(|error| Issue::error(self.on(id), Code::UnknownPart, error.0).maybe_fix(error.1))?;
         let missing = |parent: &Map<String, Value>| {
@@ -438,6 +439,25 @@ impl<'a> Op<'a> {
                 Ok(())
             }
             "expand" => {
+                // A seed varies a part by its id, and its group's pick by its parts' names: new names
+                // would draw the copies anew.
+                if picking {
+                    let group = scope.join(".");
+                    return Err(Issue::error(
+                        self.on(id),
+                        Code::Conflict,
+                        format!("{group} picks among its parts by seed, and more parts would change what it picks"),
+                    )
+                    .fix(format!("remove {group}.pick first, or keep {name} replicated")));
+                }
+                if let Some(at) = seeded(&parent[name], id) {
+                    return Err(Issue::error(
+                        self.on(id),
+                        Code::Conflict,
+                        format!("a seed varies its copies ({at}), and new names would draw them anew"),
+                    )
+                    .fix(format!("remove {at} first, or keep it replicated")));
+                }
                 let names = expand(parent, name).map_err(|error| Issue::error(self.on(id), Code::Conflict, error))?;
                 let prefix: String = scope.iter().map(|s| format!("{s}.")).collect();
                 // Targets naming one copy follow it; one naming the whole node has nothing to follow.
@@ -537,7 +557,12 @@ impl<'a> Op<'a> {
                     Some(_) => self.vector("about")?,
                     None => centre(node),
                 };
+                // About itself a part stays where it is: an attached one keeps its offset.
+                let offset = if self.object.contains_key("about") { None } else { node.get("offset").cloned() };
                 scale_node(node, by, about, true);
+                if let Some(offset) = offset {
+                    node.insert("offset".into(), offset);
+                }
                 Ok(())
             }
             kind => Err(Issue::error(self.on(id), Code::UnknownValue, format!("{kind} does not apply to parts"))),
@@ -680,6 +705,26 @@ fn group_mut<'v>(doc: &'v mut Value, scope: &[&str]) -> Result<&'v mut Map<Strin
         map = map.get_mut(*name).and_then(|node| node.get_mut("parts")).and_then(Value::as_object_mut).expect("checked");
     }
     Ok(map)
+}
+
+/// The group at `scope` picks among its parts by seed (the document's own parts never do).
+fn picks(doc: &Value, scope: &[&str]) -> bool {
+    let mut node = doc;
+    for name in scope {
+        match node.get("parts").and_then(|parts| parts.get(*name)) {
+            Some(child) => node = child,
+            None => return false,
+        }
+    }
+    !scope.is_empty() && node.get("pick").is_some_and(|pick| !pick.is_null())
+}
+
+/// The first chance, jitter or pick in a node or the parts inside it, as `path.key`.
+fn seeded(node: &Value, path: &str) -> Option<String> {
+    if let Some(key) = ["chance", "jitter", "pick"].into_iter().find(|key| node.get(*key).is_some_and(|v| !v.is_null())) {
+        return Some(format!("{path}.{key}"));
+    }
+    node.get("parts").and_then(Value::as_object)?.iter().find_map(|(name, child)| seeded(child, &format!("{path}.{name}")))
 }
 
 /// Merge `fields` into an entry: a dotted key reaches into nested objects and `null` deletes.
@@ -903,11 +948,15 @@ fn copies(node: &Map<String, Value>) -> Result<(Vec<(usize, Vec3, Quat)>, Option
     let number = |object: &Value, key: &str| object.get(key).and_then(Value::as_f64).map(|x| x as f32);
     let count =
         |object: &Value| object.get("count").and_then(Value::as_u64).filter(|n| (1..=1024).contains(n)).map(|n| n as usize);
-    let cycle = |object: &Value| {
-        object
-            .get("cycle")
-            .and_then(Value::as_array)
-            .map(|items| items.iter().filter_map(|i| i.as_str().map(String::from)).collect())
+    // Copy i takes entry i mod n, so a cycle needs its entries before its copies can take them.
+    let cycle = |object: &Value, kind: &str| match object.get("cycle") {
+        None | Some(Value::Null) => Ok(None),
+        Some(cycle) => cycle
+            .as_array()
+            .filter(|items| !items.is_empty())
+            .and_then(|items| items.iter().map(|item| item.as_str().map(String::from)).collect::<Option<Vec<_>>>())
+            .map(Some)
+            .ok_or_else(|| format!("its {kind}.cycle needs 1 to 64 entries (materials or colours); fix it first")),
     };
     let unreadable = |kind: &str| format!("its {kind} is not readable; fix it first");
     if let Some(array) = node.get("array") {
@@ -918,7 +967,7 @@ fn copies(node: &Map<String, Value>) -> Result<(Vec<(usize, Vec3, Quat)>, Option
             _ => return Err(unreadable("array")),
         };
         let copies = (0..n).map(|i| (i, step * (i as f32 - (n as f32 - 1.0) * 0.5), Quat::IDENTITY)).collect();
-        return Ok((copies, cycle(array)));
+        return Ok((copies, cycle(array, "array")?));
     }
     if let Some(grid) = node.get("grid") {
         let pair = |key: &str| grid.get(key).and_then(Value::as_array).filter(|items| items.len() == 2).cloned();
@@ -943,7 +992,7 @@ fn copies(node: &Map<String, Value>) -> Result<(Vec<(usize, Vec3, Quat)>, Option
                 copies.push((ia + na * ib, offset, Quat::IDENTITY));
             }
         }
-        return Ok((copies, cycle(grid)));
+        return Ok((copies, cycle(grid, "grid")?));
     }
     if let Some(radial) = node.get("radial") {
         let n = count(radial).ok_or_else(|| unreadable("radial"))?;
@@ -959,7 +1008,7 @@ fn copies(node: &Map<String, Value>) -> Result<(Vec<(usize, Vec3, Quat)>, Option
                 (i, turn * (zero * radius), turn)
             })
             .collect();
-        return Ok((copies, cycle(radial)));
+        return Ok((copies, cycle(radial, "radial")?));
     }
     Err("it has no array, grid or radial to expand".into())
 }

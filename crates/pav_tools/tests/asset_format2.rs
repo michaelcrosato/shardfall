@@ -154,6 +154,23 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
         "name: WORKSHOP/blocker draws nothing: every part is hidden or left out at seed 0 — asset_edit action=inspect bounds=true measures the hidden parts"
     );
 
+    // The stage frames the variant it shows, and an arc placed by its ends lists them on its axis.
+    let posts = json!({"format":2,"unit":"cm","color":"#8a8f99","parts":{
+        "base":{"type":"box","size":[40,4,40],"pos":[0,2,0]},
+        "post":{"type":"box","size":[4,200,4],"pos":[0,104,0],"chance":0.5},
+        "shell":{"type":"cylinder","radius":10,"arc":180,"from":[0,4,10],"to":[0,30,10]}}});
+    edit(&mut s, json!({"action":"create","name":"posts","asset":posts,"preview":false})).unwrap();
+    let def = pav_core::props::get("WORKSHOP/posts").unwrap();
+    let height = |seed: u32| def.variant(seed).bounds_at(1.0).size().y;
+    let seed = (1..64).find(|seed| height(*seed) != height(0)).unwrap();
+    call(&mut s, "asset_preview", json!({"name":"WORKSHOP/posts","seed":seed})).unwrap();
+    let focus = s.sim.state.prop_preview.as_ref().unwrap().focus;
+    assert!((focus.y - height(seed) * 0.5).abs() < 1e-5, "{focus} frames seed {seed}, {} m tall", height(seed));
+    call(&mut s, "asset_preview", json!({"close":true})).unwrap();
+    let inspected = edit(&mut s, json!({"action":"inspect","name":"posts","resolved":true,"preview":false})).unwrap();
+    let shell = &inspected["resolved"]["shell"];
+    assert_eq!((&shell["from"], &shell["to"]), (&json!([0, 4, 10]), &json!([0, 30, 10])), "{shell}");
+
     // A broken document reports its problems and saves nothing.
     let mut broken = stool.clone();
     broken["parts"]["seat"]["mat"] = json!("wod");

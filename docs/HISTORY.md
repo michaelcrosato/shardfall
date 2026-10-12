@@ -23,12 +23,15 @@ carries each definition once, and placed copies take a seed and a palette.
     stay ends (a spin keeps the cross-section turned), positions take yaw/pitch/roll, attached
     copies shift their offset, cycle entries become each copy's `mat` or `color`, and an arc
     keeps its facing on quarter turns (other turns are refused). An attachment to one copy
-    follows it; one to the whole node is refused. Tests expand all 11 replicated nodes of the
-    fixtures, and radial copies of ends, of turned wedges, of attached tabs and of arcs, and
-    compare every compiled part's hull within 0.01 cm.
+    follows it; one to the whole node is refused. So is a node a seed varies (`chance`,
+    `jitter` or `pick` in it or inside it, or a `pick` on its group), since new names would
+    draw its copies anew. Tests expand the fixtures' 6 replicated nodes without such variation
+    (the other 5 are refused), and radial copies of ends, of turned wedges, of attached tabs
+    and of arcs, and compare every compiled part's tint and hull (within 0.01 cm).
   - `unit` converts every length (parts, steps, light radius, fx area, sockets, material
-    pattern sizes); `scale` multiplies lengths about each part's centre, or the whole asset
-    about the origin (a reference's `scale` grows with it). Every fixture converted to metres
+    pattern sizes); `scale` multiplies lengths about each part's centre (an attached part
+    keeps its offset), or the whole asset about the origin (a reference's `scale` grows with
+    it). Every fixture converted to metres
     and back compiles to the same parts.
   - Format-1 assets keep format 1's own batches (set, add and remove of format-1 fields, with
     the same messages); other ops go through the format-2 view, and the result saves in format
@@ -51,6 +54,10 @@ carries each definition once, and placed copies take a seed and a palette.
   names an asset the library lacks, with did-you-mean.
 - Fix: the end-to-end test stool from row 2.3 had its three legs in one place (a `radial` of
   radius 0 turns copies about their own centre); they now stand 12 cm out.
+- Review fixes: `expand` refused nothing a seed varies (above) and panicked on a cycle without
+  entries, which it now refuses; scaling an attached part about itself multiplied its offset;
+  `inspect resolved=true` put an arc's ends beside its axis; and `asset_preview seed=` framed
+  seed 0's bounds instead of the variant it shows.
 - Decisions:
   - `ObjectDef.params` waits for LIB-4, with `PropInstance.params` (§5.5): before parametric
     families there is nothing for a room's params to set.
