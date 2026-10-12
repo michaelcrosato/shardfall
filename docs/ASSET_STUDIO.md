@@ -78,7 +78,7 @@ does not identify a clear location.
 
 | Tool | Use |
 | --- | --- |
-| `assets` | Find templates and saved objects. Returns names, revisions, and bounds. |
+| `assets` | Find templates and saved objects. Returns compact rows: name, size, parts, description. |
 | `asset_edit` | Create, copy, inspect, patch, replace, undo, or redo an object. |
 | `asset_preview` | Open, fit, rotate, or close the isolated object stage. |
 | `asset_spawn` | Add, list, update, or remove placed instances in the preserved scene. |
@@ -98,9 +98,17 @@ All REPLs accept JSON lines. The same tool name and `args` object work in MCP:
 {"tool":"asset_edit","args":{"action":"inspect","name":"WORKSHOP/garden_bench"}}
 ```
 
-Inspect returns the definition, field guide, part names, bounds, revision, and history state.
-Edit replies return compact metadata. Pass the returned `revision` as `if_revision` on the
-next edit. If it is stale, inspect again before making another change.
+Inspect returns the definition with default fields left out, its revision, its size as
+`size_cm` (`"220x143x86"`: width, height, depth) and any undo/redo steps. Add `legend:true`
+for the field guide and `bounds:true` for asset and part bounds in metres. Edit replies carry
+`name`, `revision`, `saved`, `size_cm` and the undo/redo steps; `create` and `copy` add the
+part count and `file`, other edits list `changed_parts`. `refreshed_instances`,
+`history_reset` and `preview_error` appear only when they apply. Numbers print at the
+engine's own precision (`1.17`, not `1.1699999570846558`). Pass the returned `revision` as
+`if_revision` on the next edit. If it is stale, inspect again before making another change.
+
+Saved files use one canonical layout: a header line, then one line per part, defaults left
+out. Hand edits in any layout load; the next tool save rewrites the canonical one.
 
 ```json
 {

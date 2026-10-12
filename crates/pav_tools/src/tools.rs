@@ -618,13 +618,14 @@ pub static TOOLS: &[Tool] = &[
         args: &[
             arg("kind", "string", "prop (default) | creature"),
             arg("find", "string", "words in the asset name or description"),
-            arg("limit", "integer", "maximum results (default 30)"),
+            arg("limit", "integer", "rows per page (default 30)"),
+            arg("page", "integer", "page of rows (default 1; replies give next)"),
         ],
         run: crate::asset_tools::t_assets,
     },
     Tool {
         name: "asset_edit",
-        help: "Create, copy, inspect, and edit reusable objects. Named parts use existing primitive shapes, local positions in metres, rotations in degrees, colors, surface styles, emissive strength, and a solid flag. A patch is an atomic ops array: set a part's fields, add a part with value, or remove a part. All operations validate and save as one undo step. Use if_revision from the last result. Successful edits refresh placed copies and select the live preview by default. Inspect returns the full definition and field guide; edit replies stay small.",
+        help: "Create, copy, inspect, and edit reusable objects. Named parts use existing primitive shapes, local positions in metres, rotations in degrees, colors, surface styles, emissive strength, and a solid flag. A patch is an atomic ops array: set a part's fields, add a part with value, or remove a part. All operations validate and save as one undo step. Use if_revision from the last result. Successful edits refresh placed copies and select the live preview by default. Inspect returns the definition without default fields; edit replies stay small.",
         args: &[
             arg("kind", "string", "prop (default) | creature; creature forwards to creature_edit with its arguments"),
             arg("action", "string", "create | copy | inspect | patch | replace | undo | redo"),
@@ -648,12 +649,14 @@ pub static TOOLS: &[Tool] = &[
                 "boolean",
                 "show the accepted asset on the isolated stage (default true); false updates placed instances only",
             ),
+            arg("legend", "boolean", "inspect: add the field guide"),
+            arg("bounds", "boolean", "inspect: add asset and part bounds in metres"),
         ],
         run: crate::asset_tools::t_asset_edit,
     },
     Tool {
         name: "asset_preview",
-        help: "View a reusable object through the game's renderer. The world pauses while the stage is open. Use name to select an asset; action=open resumes the previous selection. Same-name edits preserve the camera and controls. Fit frames the full asset. An optional turntable helps inspect all sides. Status includes the part count and bounds; asset_edit action=inspect gives named parts. capture returns an image of this same stage; close returns to the preserved world.",
+        help: "View a reusable object through the game's renderer. The world pauses while the stage is open. Use name to select an asset; action=open resumes the previous selection. Same-name edits preserve the camera and controls. Fit frames the full asset. An optional turntable helps inspect all sides. Status includes the part count and size; asset_edit action=inspect gives named parts. capture returns an image of this same stage; close returns to the preserved world.",
         args: &[
             arg("kind", "string", "prop (default) | creature; creature forwards to creature_preview"),
             arg("action", "string", "status | open | fit | close | play | pause | restart"),
@@ -881,14 +884,15 @@ pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
     // The app acknowledges it after drawing; never wait here on the simulation thread.
     let started = session.feedback.as_ref().filter(|_| crate::live_feedback::changes_studio(name, args)).map(|_| Instant::now());
     let mut output = run(session, args)?;
+    let value = match &mut output {
+        Output::Json(value) => value,
+        Output::Image { meta, .. } => meta,
+    };
+    crate::reply::tidy(value);
     if let (Some(shared), Some(started)) = (&session.feedback, started) {
         if let Ok(mut feedback) = shared.lock() {
             let note = feedback.accepted(name, started);
             session.sim.live_edit_ticket = note["ticket"].as_u64().unwrap_or_default();
-            let value = match &mut output {
-                Output::Json(value) => value,
-                Output::Image { meta, .. } => meta,
-            };
             if let Some(object) = value.as_object_mut() {
                 object.insert("feedback".into(), note);
             }

@@ -78,7 +78,7 @@ def run(game_binary, pav, out, env, samples):
             listed = client.request("tools/list", {})["tools"]
             assert {"assets", "asset_edit", "asset_preview", "asset_spawn", "studio_status", "anim_edit", "anim_preview"} <= {t["name"] for t in listed}
             catalog = client.call("assets")
-            assert {"BUILTIN/box", "BUILTIN/crate", "BUILTIN/bench", "BUILTIN/lantern"} <= {a["name"] for a in catalog["assets"]}
+            assert {"BUILTIN/box", "BUILTIN/crate", "BUILTIN/bench", "BUILTIN/lantern"} <= {row[0] for row in catalog["rows"]}
             initial_world = client.call("status")
             assert initial_world["scene"] == "level/1"
             passed("MCP discovers object tools and all four templates over the live bridge")
@@ -121,7 +121,8 @@ def run(game_binary, pav, out, env, samples):
             assert changed["refreshed_instances"] == 2 and "preview_error" not in changed, changed
             wait_submission(client, changed)
             preview = client.call("asset_preview")
-            assert preview["time"] == 0 and not preview["playing"]
+            # Status lists only controls that differ from a fresh stage (time 0, playing).
+            assert preview.get("time", 0) == 0 and preview.get("playing", True) is False
             assert client.call("params", {"prefix": "camera"}) == camera
             instances = client.call("asset_spawn", {"action": "list", "name": name})["instances"]
             for old in [first, second]:
@@ -196,7 +197,7 @@ def run(game_binary, pav, out, env, samples):
             assert client.call("studio_status")["mode"] == "animation"
             client.call("asset_preview", {"action": "open"})
             assert client.call("asset_preview")["name"] == name
-            assert client.call("asset_preview")["time"] == 0
+            assert client.call("asset_preview").get("time", 0) == 0
             client.call("anim_preview", {"action": "open"})
             assert math.isclose(client.call("anim_preview")["time"], 0.4, abs_tol=1e-6)
             client.call("asset_preview", {"action": "open"})
@@ -214,7 +215,8 @@ def run(game_binary, pav, out, env, samples):
             try:
                 persisted = cold.call("asset_edit", {"action": "inspect", "name": name})
                 assert persisted["asset"]["parts"]["backrest"]["color"] == "#68b7ba"
-                assert cold.call("asset_preview", {"name": name})["available"]
+                reopened = cold.call("asset_preview", {"name": name})
+                assert reopened.get("available", True) and reopened["revision"].startswith("prop1-"), reopened
                 assert cold.call("studio_status")["feedback"]["available"] is False
             finally:
                 cold.close()

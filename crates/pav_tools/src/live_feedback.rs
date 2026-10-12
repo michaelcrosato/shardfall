@@ -71,10 +71,12 @@ impl LiveFeedback {
         }
     }
 
+    /// Times run from tool start to frame submission; they exclude transport and physical
+    /// display latency. Fields without a value are left out.
     pub fn status(&self, ticket: Option<u64>) -> Value {
         let ticket = ticket.unwrap_or(self.next);
         let edit = self.edits.iter().find(|e| e.ticket == ticket);
-        json!({
+        let mut status = json!({
             "available":true,"latest_ticket":self.next,"submitted_ticket":self.submitted,
             "ticket":ticket,
             "state": match edit {
@@ -84,12 +86,18 @@ impl LiveFeedback {
                 None if ticket == 0 => "idle",
                 None => "unknown",
             },
-            "tool":edit.map(|e| &e.tool),
-            "apply_ms":edit.map(|e| e.apply_ms),
-            "submitted_ms":edit.and_then(|e| e.submitted_ms),
-            "superseded_by":edit.and_then(|e| e.superseded_by),
-            "measurement":"tool start to frame submission; excludes transport and physical display latency"
-        })
+        });
+        if let Some(edit) = edit {
+            status["tool"] = json!(edit.tool);
+            status["apply_ms"] = json!(edit.apply_ms);
+            if let Some(ms) = edit.submitted_ms {
+                status["submitted_ms"] = json!(ms);
+            }
+            if let Some(by) = edit.superseded_by {
+                status["superseded_by"] = json!(by);
+            }
+        }
+        status
     }
 }
 
@@ -124,12 +132,27 @@ pub fn t_studio_status(s: &mut Session, a: &Args) -> Result<Output> {
         Some(shared) => shared.lock().map_err(|_| anyhow!("live feedback is unavailable"))?.status(ticket),
         None => json!({"available":false,"state":"headless","connect":"pav mcp --live"}),
     };
+    // Each open workspace appears once; the object stage reports only what identifies it
+    // (asset_preview has the rest).
     let frame = s.sim.frame();
-    Ok(Output::Json(json!({
-        "mode":frame.studio_mode(),"world_tick":s.sim.state.tick,"feedback":feedback,
-        "animation":frame.animation_preview,"asset":frame.prop_preview,"creature":frame.creature_preview,
-        "creature_jobs":crate::creature_tools::snapshot(s.creature_owner)
-    })))
+    let mut status = json!({"mode":frame.studio_mode(),"world_tick":s.sim.state.tick,"feedback":feedback});
+    if let Some(animation) = &frame.animation_preview {
+        status["animation"] = json!(animation);
+    }
+    if let Some(asset) = &frame.prop_preview {
+        status["asset"] = json!({"name":asset.name,"revision":asset.revision});
+    }
+    if let Some(creature) = &frame.creature_preview {
+        status["creature"] = json!(creature);
+    }
+    let jobs = crate::creature_tools::snapshot(s.creature_owner);
+    if jobs["pending"] != 0
+        || jobs["jobs"].as_array().is_some_and(|j| !j.is_empty())
+        || jobs["assets"].as_object().is_some_and(|a| !a.is_empty())
+    {
+        status["creature_jobs"] = jobs;
+    }
+    Ok(Output::Json(status))
 }
 
 #[cfg(test)]

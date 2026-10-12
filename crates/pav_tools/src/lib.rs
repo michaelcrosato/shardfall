@@ -16,6 +16,7 @@ pub mod live_feedback;
 pub mod mcp;
 pub mod mocap;
 pub mod preview_tools;
+pub mod reply;
 pub mod session;
 pub mod tools;
 

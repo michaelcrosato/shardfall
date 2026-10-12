@@ -206,25 +206,32 @@ fn push_history(stack: &mut Vec<Option<PropAsset>>, asset: Option<PropAsset>) {
     }
 }
 
-fn report(root: &Path, name: &str, asset: Option<&PropAsset>, history: &History, saved: bool) -> Value {
+/// The edit reply contract: identity, size and the undo/redo steps available (left out when
+/// none). Callers add what the action changed.
+fn report(name: &str, asset: Option<&PropAsset>, history: &History, saved: bool) -> Value {
     let revision = revision(asset);
     let current = history.head == revision;
-    let editable = name.starts_with("WORKSHOP/");
-    json!({
-        "name": name,
-        "file": editable.then(|| asset_path(root, name)),
-        "editable": editable,
-        "saved": saved,
-        "changed": saved,
-        "revision": revision,
-        "undo": if current { history.undo.len() } else { 0 },
-        "redo": if current { history.redo.len() } else { 0 },
-        "part_count": asset.map(|asset| asset.parts.len()).unwrap_or(0),
-        "bounds": asset.map(|asset| asset.bounds(1.0)),
-    })
+    let mut result = json!({"name": name, "revision": revision, "saved": saved});
+    for (key, steps) in [("undo", &history.undo), ("redo", &history.redo)] {
+        if current && !steps.is_empty() {
+            result[key] = json!(steps.len());
+        }
+    }
+    if let Some(asset) = asset {
+        result["size_cm"] = json!(asset.bounds(1.0).size_cm());
+    }
+    result
 }
 
-fn inspect(root: &Path, name: &str, preview: bool) -> Result<Edited> {
+/// Bounds in metres, rounded to millimetres: `[[min x,y,z],[max x,y,z]]`.
+fn bounds_mm(bounds: props::Bounds) -> Value {
+    let mm = |v: glam::Vec3| v.to_array().map(|x| (x * 1000.0).round() / 1000.0);
+    json!([mm(bounds.min), mm(bounds.max)])
+}
+
+/// The definition as its canonical file writes it: defaults left out. The legend and bounds
+/// are opt-in.
+fn inspect(root: &Path, name: &str, preview: bool, legend: bool, bounds: bool) -> Result<Edited> {
     let asset = read_asset(root, name)?;
     let history_file = history_path(root, name);
     if asset.is_none() && (!name.starts_with("WORKSHOP/") || !history_file.is_file()) {
@@ -235,16 +242,20 @@ fn inspect(root: &Path, name: &str, preview: bool) -> Result<Edited> {
     } else {
         History::default()
     };
-    let mut result = report(root, name, asset.as_deref(), &history, false);
-    result["asset"] = json!(asset.as_deref());
-    result["parts"] = asset
-        .as_ref()
-        .map(|asset| {
-            let bounds = asset.parts.iter().map(|(name, part)| (name.clone(), json!(part.bounds(1.0)))).collect::<Args>();
-            Value::Object(bounds)
-        })
-        .unwrap_or(Value::Null);
-    result["legend"] = json!(props::LEGEND);
+    let mut result = report(name, asset.as_deref(), &history, false);
+    result.as_object_mut().expect("report is an object").remove("saved");
+    result["asset"] = match &asset {
+        Some(asset) => serde_json::from_str(&asset.text()).context("canonical asset text")?,
+        None => Value::Null,
+    };
+    if let (Some(asset), true) = (&asset, bounds) {
+        result["bounds"] = bounds_mm(asset.bounds(1.0));
+        result["part_bounds"] =
+            Value::Object(asset.parts.iter().map(|(name, part)| (name.clone(), bounds_mm(part.bounds(1.0)))).collect());
+    }
+    if legend {
+        result["legend"] = json!(props::LEGEND);
+    }
     Ok(Edited { report: result, asset, mutation: false, preview })
 }
 
@@ -264,7 +275,7 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
     let extra: &[&str] = match action {
         "create" => &["template", "asset", "description", "if_revision"],
         "copy" => &["from", "description", "if_revision"],
-        "inspect" => &[],
+        "inspect" => &["legend", "bounds"],
         "patch" => &["ops", "if_revision"],
         "replace" => &["asset", "if_revision"],
         "undo" | "redo" => &["if_revision"],
@@ -317,7 +328,7 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let (action, preview) = check_args(a)?;
     let name = props::canonical(get_str(a, "name").ok_or_else(|| anyhow!("name= names the asset"))?).map_err(|e| anyhow!(e))?;
     if action == "inspect" {
-        return inspect(root, &name, preview);
+        return inspect(root, &name, preview, get_bool(a, "legend", false)?, get_bool(a, "bounds", false)?);
     }
     if !name.starts_with("WORKSHOP/") {
         bail!("built-in templates are read-only; use action=copy from={name} name=your_name first");
@@ -400,7 +411,7 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let next_revision = revision(next.as_ref());
     let changed_parts = changed_parts(before.as_deref(), next.as_ref());
     if next_revision == current_revision {
-        let mut result = report(root, &name, before.as_deref(), &history, false);
+        let mut result = report(&name, before.as_deref(), &history, false);
         result["changed_parts"] = json!(changed_parts);
         return Ok(Edited { report: result, asset: before, mutation: true, preview });
     }
@@ -432,16 +443,37 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
             props::remove(&name).map_err(|e| anyhow!(e))?;
         }
     }
-    let mut result = report(root, &name, asset.as_deref(), &history, true);
-    result["changed_parts"] = json!(changed_parts);
-    result["history_reset"] = json!(history_reset);
+    let mut result = report(&name, asset.as_deref(), &history, true);
+    if matches!(action, "create" | "copy") {
+        result["parts"] = json!(asset.as_ref().map(|asset| asset.parts.len()).unwrap_or(0));
+        result["file"] = json!(path);
+    } else {
+        result["changed_parts"] = json!(changed_parts);
+    }
+    if history_reset {
+        result["history_reset"] = json!(true);
+    }
     Ok(Edited { report: result, asset, mutation: true, preview })
 }
 
-/// Search the registry without returning complete geometry for every result.
+/// A listing row's description: the start, cut at a word.
+fn summary(text: &str) -> String {
+    const MAX: usize = 80;
+    if text.len() <= MAX {
+        return text.into();
+    }
+    let mut end = MAX;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let cut = text[..end].rfind(' ').filter(|at| *at > MAX / 2).unwrap_or(end);
+    format!("{}…", text[..cut].trim_end_matches([',', ';', ':', ' ']))
+}
+
+/// Search the registry. Rows are compact; `asset_edit inspect` returns one definition.
 pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
     for key in a.keys() {
-        if !["find", "limit", "scene", "seed", "ticks"].contains(&key.as_str()) {
+        if !["find", "limit", "page", "scene", "seed", "ticks"].contains(&key.as_str()) {
             bail!("unknown assets argument '{key}'");
         }
     }
@@ -456,7 +488,14 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
             .filter(|value| (1..=1000).contains(value))
             .ok_or_else(|| anyhow!("limit must be an integer from 1 to 1000"))?,
     } as usize;
-    let root = root();
+    let page = match a.get("page") {
+        None => 1,
+        Some(value) => value
+            .as_u64()
+            .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
+            .filter(|value| *value >= 1)
+            .ok_or_else(|| anyhow!("page must be an integer from 1"))?,
+    } as usize;
     let find = get_str(a, "find").unwrap_or("").to_ascii_lowercase();
     let library = props::library();
     let matched = library
@@ -466,20 +505,22 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
             name.to_ascii_lowercase().contains(&find) || asset.description.to_ascii_lowercase().contains(&find)
         })
         .collect::<Vec<_>>();
-    let result = json!({
+    let skip = (page - 1).saturating_mul(limit);
+    let rows = matched
+        .iter()
+        .skip(skip)
+        .take(limit)
+        .map(|(name, asset)| json!([name, asset.bounds(1.0).size_cm(), asset.parts.len(), summary(&asset.description)]))
+        .collect::<Vec<_>>();
+    let mut result = json!({
+        "cols": "name size_cm parts desc",
+        "rows": rows,
         "total": library.assets.len(),
         "matched": matched.len(),
-        "returned": matched.len().min(limit),
-        "assets": matched.into_iter().take(limit).map(|(name, asset)| json!({
-            "name": name,
-            "description": asset.description,
-            "editable": name.starts_with("WORKSHOP/"),
-            "file": name.starts_with("WORKSHOP/").then(|| asset_path(&root, name)),
-            "revision": asset.revision(),
-            "part_count": asset.parts.len(),
-            "bounds": asset.bounds(1.0),
-        })).collect::<Vec<_>>(),
     });
+    if skip.saturating_add(limit) < matched.len() {
+        result["next"] = json!(page + 1);
+    }
     Ok(Output::Json(result))
 }
 
@@ -490,11 +531,11 @@ pub fn t_asset_edit(s: &mut Session, a: &Args) -> Result<Output> {
     if mutation {
         let name = report["name"].as_str().expect("report has canonical name").to_owned();
         let saved = report["saved"] == true;
-        report["refreshed_instances"] = json!(if saved {
-            asset.as_ref().map(|asset| s.sim.refresh_prop_instances(&name, asset.clone())).unwrap_or(0)
-        } else {
-            0
-        });
+        let refreshed =
+            if saved { asset.as_ref().map(|asset| s.sim.refresh_prop_instances(&name, asset.clone())).unwrap_or(0) } else { 0 };
+        if refreshed > 0 {
+            report["refreshed_instances"] = json!(refreshed);
+        }
         let mut args = Args::new();
         if asset.is_some() && preview {
             args.insert("name".into(), json!(name));
@@ -508,10 +549,8 @@ pub fn t_asset_edit(s: &mut Session, a: &Args) -> Result<Output> {
             }
         }
         if !args.is_empty() {
-            match crate::asset_preview_tools::t_asset_preview(s, &args) {
-                Ok(Output::Json(status)) => report["preview"] = status,
-                Ok(_) => {}
-                Err(error) => report["preview_error"] = json!(format!("{error:#}")),
+            if let Err(error) = crate::asset_preview_tools::t_asset_preview(s, &args) {
+                report["preview_error"] = json!(format!("{error:#}"));
             }
         }
     }
@@ -630,6 +669,31 @@ mod tests {
     }
 
     #[test]
+    fn replies_carry_identity_size_and_only_what_changed() {
+        let root = temp_root("replies");
+        let name = "test_asset_replies";
+        let keys = |value: &Value| value.as_object().unwrap().keys().cloned().collect::<Vec<_>>();
+        let copied = edit(&root, json!({"action":"copy","name":name,"from":"BUILTIN/bench"}));
+        assert_eq!(keys(&copied), ["file", "name", "parts", "revision", "saved", "size_cm", "undo"]);
+        assert_eq!((copied["parts"].as_u64(), copied["size_cm"].as_str()), (Some(7), Some("220x143x86")));
+        let patched =
+            edit(&root, json!({"action":"patch","name":name,"ops":[{"op":"set","part":"seat","fields":{"color":"#3e9a9e"}}]}));
+        assert_eq!(keys(&patched), ["changed_parts", "name", "revision", "saved", "size_cm", "undo"]);
+        let inspected = edit(&root, json!({"action":"inspect","name":"BUILTIN/bench"}));
+        assert_eq!(keys(&inspected), ["asset", "name", "revision", "size_cm"]);
+        let seat = &inspected["asset"]["parts"]["seat"];
+        assert_eq!(keys(seat), ["color", "pos", "shape"], "defaults are left out");
+        let mut full = edit(&root, json!({"action":"inspect","name":"BUILTIN/bench","legend":true,"bounds":true}));
+        crate::reply::tidy(&mut full);
+        assert_eq!(full["legend"], props::LEGEND);
+        assert_eq!(full["bounds"], json!([[-1.1, 0, -0.476], [1.1, 1.428, 0.38]]));
+        assert_eq!(full["part_bounds"]["seat"], json!([[-1.1, 0.71, -0.38], [1.1, 0.89, 0.38]]));
+        assert!(edit_at(&root, &args(json!({"action":"patch","name":name,"legend":true,"ops":[]}))).is_err());
+        props::remove(&format!("WORKSHOP/{name}")).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn history_is_bounded_and_bad_arguments_cannot_write() {
         let root = temp_root("history");
         let name = "test_asset_history";
@@ -660,7 +724,7 @@ mod tests {
         assert_eq!(current["undo"], HISTORY_LIMIT);
         edit(&root, json!({"action":"undo","name":name}));
         let branch = edit(&root, json!({"action":"patch","name":name,"ops":[{"op":"set","part":"body","fields":{"yaw":-10}}]}));
-        assert_eq!(branch["redo"], 0);
+        assert!(branch.get("redo").is_none(), "a new branch has no redo steps");
         let no_op = edit(&root, json!({"action":"patch","name":name,"ops":[]}));
         assert_eq!(no_op["revision"], branch["revision"]);
         assert_eq!(no_op["saved"], false);

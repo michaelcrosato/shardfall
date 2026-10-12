@@ -44,6 +44,17 @@ impl Bounds {
     pub fn union(self, other: Self) -> Self {
         Self { min: self.min.min(other.min), max: self.max.max(other.max) }
     }
+
+    /// Width x height x depth in centimetres, as replies report it: whole centimetres from
+    /// 10 cm up, tenths below.
+    pub fn size_cm(&self) -> String {
+        let cm = |metres: f32| {
+            let cm = metres * 100.0;
+            if cm >= 9.95 { format!("{}", cm.round()) } else { format!("{}", (cm * 10.0).round() / 10.0) }
+        };
+        let size = self.size();
+        format!("{}x{}x{}", cm(size.x), cm(size.y), cm(size.z))
+    }
 }
 
 /// One primitive in the prop's own coordinate frame.
@@ -115,7 +126,59 @@ fn read_shape<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Shape, D::Er
     serde_json::from_value(value).map_err(serde::de::Error::custom)
 }
 
+fn quoted(text: &str) -> String {
+    serde_json::to_string(text).expect("strings serialize")
+}
+
+/// The shortest decimal that reads back as the same f32: integers without `.0`, no exponents.
+/// Negative zero keeps its sign so that a written file keeps its revision.
+fn number(x: f32) -> String {
+    if x == 0.0 && x.is_sign_negative() { "-0.0".into() } else { x.to_string() }
+}
+
+fn numbers(values: &[f32]) -> String {
+    format!("[{}]", values.iter().map(|x| number(*x)).collect::<Vec<_>>().join(","))
+}
+
 impl PropPart {
+    /// Canonical part order: shape, placement, rotation, surface, collision. A field is left
+    /// out only when it is bit-identical to its default.
+    fn write(&self, out: &mut String) {
+        let shape = match self.shape {
+            Shape::Box { half } => format!("{{\"type\":\"box\",\"half\":{}}}", numbers(&half.to_array())),
+            Shape::RoundedBox { half, radius } => {
+                format!("{{\"type\":\"rounded_box\",\"half\":{},\"radius\":{}}}", numbers(&half.to_array()), number(radius))
+            }
+            Shape::Sphere { radius } => format!("{{\"type\":\"sphere\",\"radius\":{}}}", number(radius)),
+            Shape::Capsule { half_height, radius } => {
+                format!("{{\"type\":\"capsule\",\"radius\":{},\"half_height\":{}}}", number(radius), number(half_height))
+            }
+            Shape::Cylinder { half_height, radius } => {
+                format!("{{\"type\":\"cylinder\",\"radius\":{},\"half_height\":{}}}", number(radius), number(half_height))
+            }
+        };
+        out.push_str(&format!("{{\"shape\":{shape}"));
+        if self.pos.to_array().iter().any(|x| x.to_bits() != 0) {
+            out.push_str(&format!(",\"pos\":{}", numbers(&self.pos.to_array())));
+        }
+        for (key, angle) in [("yaw", self.yaw), ("pitch", self.pitch), ("roll", self.roll)] {
+            if angle.to_bits() != 0 {
+                out.push_str(&format!(",\"{key}\":{}", number(angle)));
+            }
+        }
+        out.push_str(&format!(",\"color\":{}", quoted(&self.color)));
+        if self.look != Look::Cel {
+            out.push_str(&format!(",\"look\":{}", serde_json::to_string(&self.look).expect("looks serialize")));
+        }
+        if self.emissive.to_bits() != 0 {
+            out.push_str(&format!(",\"emissive\":{}", number(self.emissive)));
+        }
+        if !self.solid {
+            out.push_str(",\"solid\":false");
+        }
+        out.push('}');
+    }
+
     pub fn rotation(&self) -> Quat {
         Quat::from_euler(glam::EulerRot::YXZ, self.yaw.to_radians(), self.pitch.to_radians(), self.roll.to_radians())
     }
@@ -287,8 +350,21 @@ impl PropAsset {
             .unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO })
     }
 
+    /// The canonical file text: a header line, one line per part, defaults omitted and the
+    /// shortest numbers that read back exactly. Reading it gives the same revision.
     pub fn text(&self) -> String {
-        serde_json::to_string_pretty(self).expect("prop definition serializes") + "\n"
+        let mut out = format!("{{\"format\":{},\"name\":{}", self.format, quoted(&self.name));
+        if !self.description.is_empty() {
+            out += &format!(",\n\"description\":{}", quoted(&self.description));
+        }
+        out += ",\n\"parts\":{";
+        for (index, (name, part)) in self.parts.iter().enumerate() {
+            out += if index == 0 { "\n" } else { ",\n" };
+            out += &quoted(name);
+            out.push(':');
+            part.write(&mut out);
+        }
+        out + "}}\n"
     }
 
     /// Apply a named-part transaction. The original stays unchanged if any operation fails.
@@ -476,6 +552,55 @@ mod tests {
                 .is_err()
         );
         assert!(original.patch(&json!([{"op":"set","part":"seat","fields":{"shape":{"radius":0.4}}}])).is_err());
+    }
+
+    #[test]
+    fn canonical_text_is_exact_compact_and_keeps_revisions() {
+        // Revisions captured before the canonical writer; F2 must keep them too.
+        let golden = [
+            ("BUILTIN/box", "prop1-501ba5dc44b112fd"),
+            ("BUILTIN/crate", "prop1-464f1ac1ee324075"),
+            ("BUILTIN/bench", "prop1-6feb81dece124dfd"),
+            ("BUILTIN/lantern", "prop1-fc44b95ee89f262e"),
+        ];
+        let mut assets: Vec<(PropAsset, &str)> =
+            golden.iter().map(|(name, revision)| ((*get(name).unwrap()).clone(), *revision)).collect();
+        for (text, revision) in [
+            (include_str!("../tests/fixtures/props/dogfood_stall_v1.json"), "prop1-bd43f9ba44a259b0"),
+            (include_str!("../tests/fixtures/props/dogfood_well_v1.json"), "prop1-368eeb091c94f947"),
+        ] {
+            assets.push((PropAsset::parse(text).unwrap(), revision));
+        }
+        for (asset, revision) in &assets {
+            assert_eq!(asset.revision(), *revision, "{}", asset.name);
+            let text = asset.text();
+            let read = PropAsset::parse(&text).unwrap();
+            assert_eq!(&read, asset, "{}", asset.name);
+            assert_eq!(read.revision(), *revision);
+            assert_eq!(read.text(), text, "the writer is idempotent");
+            assert!(!text.contains("e-") && !text.contains("e+") && !text.contains(".0,") && !text.contains(".0]"));
+            assert_eq!(text.lines().count(), asset.parts.len() + 2 + usize::from(!asset.description.is_empty()));
+        }
+        let bench = get("BUILTIN/bench").unwrap().text();
+        assert!(bench.len() <= 1_000, "a copied bench file is {} bytes", bench.len());
+        assert!(bench.contains(r##""backrest":{"shape":{"type":"rounded_box","half":[1.1,0.25,0.065],"radius":0.025},"pos":[0,1.17,-0.36],"pitch":-12,"color":"#bc8150"}"##));
+
+        // Only bit-identical defaults are left out: negative zero survives a save.
+        let mut odd = assets[0].0.clone();
+        let body = odd.parts.get_mut("body").unwrap();
+        body.pos = Vec3::new(-0.0, 0.0, 0.0);
+        body.roll = -0.0;
+        body.look = Look::Lit;
+        body.emissive = 0.5;
+        body.solid = false;
+        body.shape = Shape::Capsule { half_height: 0.0, radius: 1.0e-3 };
+        let text = odd.text();
+        assert!(
+            text.contains(r#""shape":{"type":"capsule","radius":0.001,"half_height":0},"pos":[-0.0,0,0],"roll":-0.0"#),
+            "{text}"
+        );
+        assert!(text.contains(r#""look":"lit","emissive":0.5,"solid":false}"#), "{text}");
+        assert_eq!(PropAsset::parse(&text).unwrap().revision(), odd.revision());
     }
 
     #[test]

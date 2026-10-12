@@ -1,6 +1,6 @@
 # Agent-first asset system: plan
 
-Status: **proposed 2026-10-11, not started.** Planning only; no engine code has changed. The
+Status: **in progress since 2026-10-12** (§11 checklist; `docs/HISTORY.md` has each row). The
 executing session starts at §15 (prompt) and resumes from the first unticked row of the progress
 checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
 Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14). A five-lens
@@ -1249,7 +1249,7 @@ Why this order:
 - I1-I2 may move earlier if other work blocks.
 
 **Progress** (sizes: S < 1 day of agent work, M 1-3, L 3-7):
-- [ ] 0.1 TOOLS-1 reply hygiene + TOOLS-4 canonical v1 writer (M)
+- [x] 0.1 TOOLS-1 reply hygiene + TOOLS-4 canonical v1 writer (M)
 - [ ] 0.2 TOOLS-2 `issue.rs` + format-1 error paths; TOOLS-3 schema trims and `action=schema` (M)
 - [ ] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
 - [ ] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
@@ -1381,11 +1381,11 @@ the work item that uses it lands. Each is listed with the work item that uses it
 - `prototypes/materials/`: `materials.wgsl` (494-line kernel library), diffs against `scene.wgsl`/`renderer.rs`/`scene.rs`, and the parity/bench harness `main.rs`, which includes the CPU mirror (MAT-1..3).
 - `prototypes/material_fit/fitprobe.py` (MAT-7, numpy).
 - `prototypes/lint4.py`: the lint rules with their tuned thresholds (TOOLS-5).
-- `prototypes/tools/`: `trim.py` (reply trimming rules) and `schema_v1.json` (field-guide draft) (TOOLS-1, TOOLS-3).
+- `prototypes/tools/`: `schema_v1.json` (field-guide draft) (TOOLS-3). `trim.py` was removed when TOOLS-1 landed.
 - `prototypes/import/`: `gltfload.py`, `structure.py`, `fitproto3.py`, `summarize3.py` (I3, I4, numpy).
 - `prototypes/families/apply_params.py` (LIB-4).
 - `prototypes/bench/`: `benchpav.py` (wrapper), `tokx.py`, `tokcum.py`, `author.md`, `judge.md`, `stall_replay.cmds` (arm-A baseline replay) (EVAL-1).
-- `fixtures/dogfood_probes.jsonl` (23 error probes, TOOLS-2), plus `fixtures/dogfood_stall_v1.json` and `fixtures/dogfood_well_v1.json` (format-1 baselines).
+- `fixtures/dogfood_probes.jsonl` (23 error probes, TOOLS-2). The format-1 baselines `dogfood_stall_v1.json` and `dogfood_well_v1.json` moved to `crates/pav_core/tests/fixtures/props/` with TOOLS-4 (golden revisions; F2 reuses them).
 
 ## 15. Executing this plan
 

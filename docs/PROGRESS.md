@@ -38,9 +38,10 @@ the background on something.
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
-**Asset system plan** (proposed 2026-10-11): `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural
-materials, library import, curated library, benchmark gates). Execute with the prompt in its §15,
-resuming at the first unticked row of its §11 checklist.
+**Asset system plan** (in progress since 2026-10-12): `docs/ASSET_SYSTEM_PLAN.md` (format 2,
+procedural materials, library import, curated library, benchmark gates). Execute with the prompt
+in its §15, resuming at the first unticked row of its §11 checklist. Done: 0.1 (compact asset
+replies, f32-tidy numbers in every tool reply, canonical one-line-per-part prop files).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

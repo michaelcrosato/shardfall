@@ -13,13 +13,33 @@ use crate::preview_tools::{StudioCheckpoint, opt_bool, opt_float, opt_text, step
 use crate::session::Session;
 use crate::tools::{Args, Output};
 
+/// `open` says whether the object tab is showing. Playback fields appear only when they
+/// differ from a fresh stage (playing, speed 1, time 0, no turntable, yaw 0, scale 1).
 fn status(s: &Session) -> Value {
-    let mut out = s.sim.state.prop_preview.as_ref().map(|p| serde_json::to_value(p.info()).unwrap()).unwrap_or_else(|| json!({}));
-    let active = s.sim.studio_mode() == StudioMode::Prop;
-    out["open"] = json!(active);
-    out["active"] = json!(active);
-    out["studio_mode"] = json!(s.sim.studio_mode());
-    out["scene_preserved"] = json!(s.sim.state.scene);
+    let mut out = json!({"open": s.sim.studio_mode() == StudioMode::Prop});
+    let Some(preview) = s.sim.state.prop_preview.as_ref() else { return out };
+    let info = preview.info();
+    out["name"] = json!(info.name);
+    if info.available {
+        out["revision"] = json!(info.revision);
+        out["parts"] = json!(info.parts);
+        out["size_cm"] = json!(info.bounds.size_cm());
+    } else {
+        out["available"] = json!(false);
+    }
+    let fresh = [
+        ("playing", json!(info.playing), json!(true)),
+        ("speed", json!(info.speed), json!(1.0)),
+        ("time", json!(info.time), json!(0.0)),
+        ("turntable", json!(info.turntable), json!(false)),
+        ("yaw", json!(info.yaw), json!(0.0)),
+        ("scale", json!(info.scale), json!(1.0)),
+    ];
+    for (key, value, default) in fresh {
+        if value != default {
+            out[key] = value;
+        }
+    }
     out
 }
 

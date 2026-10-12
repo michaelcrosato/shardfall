@@ -5,6 +5,41 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 0.1: compact replies and a canonical prop writer — 2026-10-12
+
+First row of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-1, TOOLS-4). No format change: every file,
+revision and history head stays valid.
+- **Numbers.** `pav_tools::reply::tidy` runs once in `tools::call`, so the CLI, REPL, MCP, both
+  bridges and the native UI get it. A number that holds an exact f32 prints as that f32's
+  shortest decimal (`1.17`, not `1.1699999570846558`) and integral numbers print as integers.
+  It is lossless for f32 readers; genuine f64 values (timings) keep their digits.
+- **Asset replies** (o200k tokens, before → after): inspect bench 1,463 → 390, inspect lantern
+  1,214 → 302, `assets` with 4 rows 425 → 143, copy 341 → ~60 with a relative path, patch
+  321 → 50, preview status 143 → 44, `studio_status` 179 → 60. Edit replies keep `name`,
+  `revision`, `saved`, `size_cm` (`"220x143x86"`) and undo/redo when there are steps;
+  create/copy add `parts` and `file`, other edits `changed_parts`; `refreshed_instances`,
+  `history_reset` and `preview_error` appear only when they apply. Inspect leaves default
+  fields out. The `assets` listing is `{cols, rows, total, matched, next}` with a new `page`
+  argument; descriptions in rows stop at 80 characters. Preview status lists only controls
+  that differ from a fresh stage. `studio_status` reports the object stage as name and
+  revision, omits empty workspaces, and its feedback omits empty fields and the constant
+  `measurement` sentence (ASSET_STUDIO.md states what the times measure).
+- **Canonical writer.** `PropAsset::text()` writes a header line, the description, then one
+  line per part in a fixed key order (shape, pos, yaw/pitch/roll, color, look, emissive,
+  solid), leaving out only fields bit-identical to their defaults (negative zero is kept so a
+  saved file always reads back to the same revision). Saved bench 2,772 → 923 bytes; the
+  dogfood stall and well files 2,619 and 2,984 tokens (plan targets 2,619 / 2,982).
+- **Tests.** Golden `prop1-` revisions of the four templates and the two dogfood files (moved
+  to `crates/pav_core/tests/fixtures/props/`; F2 reuses them), writer round trip and
+  idempotence, the reply contract, and `crates/pav_tools/tests/reply_budget.rs`: inspect bench
+  ≤ 1,100 chars, patch ≤ 220, listing rows ≤ 120, preview status ≤ 160, no f32 noise.
+- **Consumers updated** (D11): `asset_ui.rs` classifies replies by `saved`/`asset`;
+  `scripts/smoke-asset-studio.py` reads listing rows and the trimmed preview status.
+- Decisions: the opt-in `legend=true`/`bounds=true` on inspect (listed under TOOLS-3) landed
+  here, because the inspect budget needs the legend out; `action=schema` follows in 0.2.
+  Undo/redo counts are omitted when zero, as the plan's prototype did. `size_cm` uses whole
+  centimetres from 10 cm up and tenths below.
+
 ## Asset system plan (proposal) — 2026-10-11
 
 Planning only; no engine code changed. `docs/ASSET_SYSTEM_PLAN.md` is a self-contained, phased

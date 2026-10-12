@@ -96,9 +96,10 @@ impl AssetUi {
             }
             Ok(value) => {
                 self.error = false;
-                if value.get("editable").is_some() {
+                // Edit replies carry `saved`; inspect replies carry `asset`.
+                if value.get("saved").is_some() || value.get("asset").is_some() {
                     if let Some(name) = value["name"].as_str() {
-                        if self.source != name || value["changed"] == true || value.get("asset").is_some() {
+                        if self.source != name || value["saved"] == true || value.get("asset").is_some() {
                             self.part = None;
                             self.json = None;
                         }
