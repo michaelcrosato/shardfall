@@ -5,6 +5,25 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset system plan (proposal) — 2026-10-11
+
+Planning only; no engine code changed. `docs/ASSET_SYSTEM_PLAN.md` is a self-contained, phased
+plan for an LLM-agent-first asset system, written after mapping the engine, dogfooding Object
+Studio, prototyping, and measuring public libraries. `docs/asset_plan/` holds its examples,
+prototypes and fixtures.
+- Verdict: go, with gates. Measured: format 2 cuts authoring tokens 68-71% on assets with a lot of
+  repetition and 12-29% on small ones; Phase 0 trims replies 72-86%; procedural materials
+  match CPU and GPU on 100% of pixels at about +19% frame time; Kenney Mini Dungeon
+  translates at median silhouette IoU 0.959 and about 260 tokens per asset. Photoreal
+  libraries only restyle.
+- It extends Object Studio format 1 (v1 files keep their revisions), the asset tools, the mocap
+  import pipeline and the renderer hooks; Creature Studio is untouched.
+- Decisions approved with it (its §3): cm house unit with an explicit `unit`, flat part syntax,
+  tool-written readable mesh and material text counts as data under P4, licence tiers, a lean
+  benchmark with pinned subagents. Effort to execute: high, xhigh for Phases 2-3.
+- During research one subagent sent the owner's email once as a crates.io User-Agent; the plan
+  forbids personal data in request headers.
+
 ## Creature Studio: pinned SpawnForge creation in the native agent loop — 2026-10-10
 
 The native window now has Animations / Objects / Creatures / Game workspaces. Creature Studio

@@ -38,6 +38,10 @@ the background on something.
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
+**Asset system plan** (proposed 2026-10-11): `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural
+materials, library import, curated library, benchmark gates). Execute with the prompt in its §15,
+resuming at the first unticked row of its §11 checklist.
+
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,
 `turntable character=`, `animsheet character= skill= swing=`).

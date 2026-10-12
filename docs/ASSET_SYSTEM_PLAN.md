@@ -3,7 +3,9 @@
 Status: **proposed 2026-10-11, not started.** Planning only; no engine code has changed. The
 executing session starts at §15 (prompt) and resumes from the first unticked row of the progress
 checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
-Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14).
+Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14). A five-lens
+adversarial review was started and stopped early for usage: fix any inconsistency you find in
+this file in the PR that hits it.
 
 ## 0. Verdict
 
@@ -1404,8 +1406,7 @@ not speed.
 **Execution prompt** (paste after `/clear`):
 
 ```
-Execute the asset-system plan in docs/ASSET_SYSTEM_PLAN.md (if it is missing on your branch,
-fetch it from origin/claude/bold-pasteur-de6m95). Read docs/DOCTRINE.md, AGENTS.md,
+Execute the asset-system plan in docs/ASSET_SYSTEM_PLAN.md. Read docs/DOCTRINE.md, AGENTS.md,
 docs/PROGRESS.md and the plan, then resume at the first unticked row of the plan's §11 Progress
 checklist; rows run in order and the plan's sections specify each work item. The §3 decisions
 are approved with their defaults unless I say otherwise. Land each row as its own PR into main,
