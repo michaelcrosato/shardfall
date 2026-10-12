@@ -248,8 +248,28 @@ pub fn parts(s: &Scene) -> Vec<Part> {
     out
 }
 
-/// A triangle's colour, linear RGBA: its material's base colour × its texture at the
-/// triangle's middle × its vertex colours' mean.
+/// Where a triangle's texture is sampled: a 7-point rule exact for quintics (Radon), as
+/// barycentric weights of the corners and the sample's share of the area mean.
+const SAMPLES: [([f64; 3], f64); 7] = {
+    const A1: f64 = 0.059_715_871_789_769_82;
+    const B1: f64 = 0.470_142_064_105_115_1;
+    const A2: f64 = 0.797_426_985_353_087_3;
+    const B2: f64 = 0.101_286_507_323_456_3;
+    const W1: f64 = 0.132_394_152_788_506_2;
+    const W2: f64 = 0.125_939_180_544_827_1;
+    [
+        ([1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0], 0.225),
+        ([A1, B1, B1], W1),
+        ([B1, A1, B1], W1),
+        ([B1, B1, A1], W1),
+        ([A2, B2, B2], W2),
+        ([B2, A2, B2], W2),
+        ([B2, B2, A2], W2),
+    ]
+};
+
+/// A triangle's colour, linear RGBA: its material's base colour × the area mean of its texture
+/// (7 samples, in linear light) × its vertex colours' mean.
 pub fn face_colour(s: &Scene, mesh: usize, tri: usize) -> [f64; 4] {
     let m = &s.meshes[mesh];
     let t = m.tris[tri];
@@ -259,20 +279,30 @@ pub fn face_colour(s: &Scene, mesh: usize, tri: usize) -> [f64; 4] {
         let uvs = if tex.uv_set == 1 { &m.uv1 } else { &m.uv };
         if let (Some(img), false) = (s.images.get(tex.image), uvs.is_empty()) {
             if !img.rgba.is_empty() && img.w > 0 && img.h > 0 {
-                let mid = t.iter().fold([0.0f64; 2], |a, &i| {
-                    let uv = uvs[i as usize];
-                    [a[0] + uv[0] as f64 / 3.0, a[1] + uv[1] as f64 / 3.0]
-                });
                 let x = tex.xform.map(f64::from);
-                let (u, v) = (x[0] * mid[0] + x[1] * mid[1] + x[2], x[3] * mid[0] + x[4] * mid[1] + x[5]);
-                let px = ((tex.wrap[0].apply(u) * img.w as f64) as u32).min(img.w - 1);
-                let py = ((tex.wrap[1].apply(v) * img.h as f64) as u32).min(img.h - 1);
-                let o = ((py * img.w + px) * 4) as usize;
-                let texel = &img.rgba[o..o + 4];
-                for k in 0..3 {
-                    c[k] *= srgb_to_linear(texel[k]);
+                let corners = t.map(|i| uvs[i as usize].map(f64::from));
+                let texel = |b: [f64; 3]| -> [f64; 4] {
+                    let uv = [0, 1].map(|k| (0..3).map(|j| b[j] * corners[j][k]).sum::<f64>());
+                    let (u, v) = (x[0] * uv[0] + x[1] * uv[1] + x[2], x[3] * uv[0] + x[4] * uv[1] + x[5]);
+                    let px = ((tex.wrap[0].apply(u) * img.w as f64) as u32).min(img.w - 1);
+                    let py = ((tex.wrap[1].apply(v) * img.h as f64) as u32).min(img.h - 1);
+                    let o = ((py * img.w + px) * 4) as usize;
+                    let p = &img.rgba[o..o + 4];
+                    [srgb_to_linear(p[0]), srgb_to_linear(p[1]), srgb_to_linear(p[2]), p[3] as f64 / 255.0]
+                };
+                // The first sample plus the weighted differences: exact when every sample lands
+                // on one texel.
+                let first = texel(SAMPLES[0].0);
+                let mut mean = first;
+                for (b, w) in &SAMPLES[1..] {
+                    let other = texel(*b);
+                    for k in 0..4 {
+                        mean[k] += w * (other[k] - first[k]);
+                    }
                 }
-                c[3] *= texel[3] as f64 / 255.0;
+                for k in 0..4 {
+                    c[k] *= mean[k];
+                }
             }
         }
     }

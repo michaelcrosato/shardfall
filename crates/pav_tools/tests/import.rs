@@ -489,7 +489,7 @@ fn the_tool_gets_lists_and_surveys() {
     let e = tool(&mut s, json!({"form": "x"})).unwrap_err();
     assert!(e.to_string().contains("did you mean \"from\""), "{e}");
     let e = tool(&mut s, json!({"from": "x.glb"})).unwrap_err();
-    assert!(e.to_string().contains("5.2"), "{e}");
+    assert!(e.to_string().contains("lib/pack"), "{e}");
     let e = tool(&mut s, json!({"from": "x.glb", "list": true, "yaw": 45})).unwrap_err();
     assert!(e.to_string().contains("multiple of 90"), "{e}");
     let e = tool(&mut s, json!({"survey": cache.join("test/mini/Models/GLB").to_str().unwrap()})).unwrap_err();

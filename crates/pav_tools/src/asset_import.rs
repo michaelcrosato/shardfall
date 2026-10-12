@@ -1,15 +1,20 @@
-//! `asset_import`: open model libraries (glTF, OBJ) read into the engine's frame. This stage
-//! reads and measures; translating into readable props (the fitter) comes next (plan row 5.2).
+//! `asset_import`: open model libraries (glTF, OBJ) read into the engine's frame and translated
+//! into readable format-2 props (`import::fit`), with their fidelity measured (`import::metrics`).
 //!
 //! - no arguments: the library directory (`import::libraries`);
 //! - `get=lib/pack`: downloads a pack its catalog pins into `.cache/assets/<lib>/<pack>/`;
 //! - `from=<model> list=true`: one model summarised (parts, triangles, size, materials, main
 //!   colours, images, extensions, warnings); `from=<folder> list=true`: a row per model;
-//! - `survey=lib/pack|folder`: a census of every model, written to the pack's ledger
-//!   (`assets/catalogs/<lib>/<pack>.tsv`, or `out=`), keeping each row's `note`.
+//! - `from=<model|folder|lib/pack>`: translated (`fit=auto|prims|mesh`) and written to
+//!   `out_dir` (the pack's local-tier folder, or `out=`), mesh parts in `meshes/` beside;
+//!   `compare=true` adds the source-over-translation image;
+//! - `survey=lib/pack|folder`: every model censused and translated without writing (`fit=false`:
+//!   census only), into the pack's ledger (`assets/catalogs/<lib>/<pack>.tsv`, or `out=`),
+//!   keeping each row's `note`;
+//! - `check=<asset.json>`: an asset with a `source` measured against that source again.
 //!
-//! Sizes are reported in centimetres, the house unit (D1). The same input gives the same reply
-//! and the same ledger bytes.
+//! Sizes are reported in centimetres, the house unit (D1). The same input gives the same reply,
+//! the same ledger bytes and the same asset files.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -18,19 +23,25 @@ use anyhow::{Result, anyhow, bail};
 use pav_core::issue::{self, Code, Issue};
 use serde_json::{Value, json};
 
+use pav_core::props::mesh::MeshFile;
+
+use crate::import::fit::{self, Mode, Translation, segment};
 use crate::import::ledger::Ledger;
 use crate::import::libraries::{self, lib_pack, models_in};
 use crate::import::normalize::{self, Norm, Normalized};
+use crate::import::raster::{self, Tri};
 use crate::import::report::write_text;
 use crate::import::scene::{Alpha, Scene, hex};
-use crate::import::{self as imp};
+use crate::import::{self as imp, fetch, metrics};
 use crate::session::Session;
 use crate::tools::{Args, Output, get_bool, get_f32, get_str, get_u64};
 
-const ARGS: &[&str] = &["get", "survey", "from", "list", "up", "yaw", "scale", "place", "out", "limit"];
+const ARGS: &[&str] =
+    &["get", "survey", "from", "list", "fit", "check", "compare", "up", "yaw", "scale", "place", "out", "limit"];
 
-/// The ledger's columns (plan §8.2). A census fills the first eight and `note`; the fit columns
-/// stay empty until the fitter writes them.
+/// The ledger's columns (plan §8.2). A census fills the first eight and `note`; a survey that
+/// fits fills `parts` to `tier` (`iou_gpu` stays empty: the GPU cross-check is deferred) and
+/// `used` waits for the library.
 pub const LEDGER_COLS: &[&str] = &[
     "id", "file", "tris", "mats", "tex", "comps", "size_cm", "flags", "parts", "mesh_pct", "iou", "iou_mean", "iou_gpu", "de",
     "chars", "tier", "used", "note",
@@ -73,12 +84,15 @@ pub fn t_asset_import(_: &mut Session, a: &Args) -> Result<Output> {
             "next": "asset_import survey=<lib/pack> censuses it; from=<model> list=true summarises one",
         })));
     }
+    if let Some(file) = get_str(a, "check") {
+        return check(a, file);
+    }
     if let Some(what) = get_str(a, "survey") {
         return survey(a, what);
     }
     if let Some(from) = get_str(a, "from") {
         if !get_bool(a, "list", false)? {
-            bail!("from= is read with list=true for now: translating models into props arrives with the fitter (plan row 5.2)");
+            return translate_from(a, from);
         }
         let path = PathBuf::from(from);
         let n = norm(a, None)?;
@@ -208,7 +222,7 @@ pub fn summary(s: &Scene, done: &Normalized) -> Value {
     if moved != [0.0; 3] {
         out["moved_cm"] = json!(moved);
     }
-    out["next"] = json!("translation into a readable prop arrives with the fitter (plan row 5.2)");
+    out["next"] = json!("from=<this file> translates it into a prop");
     out
 }
 
@@ -304,9 +318,7 @@ fn median(mut v: Vec<usize>) -> usize {
 
 /// The ledger text: a comment, the header, then one row per model (sorted by file).
 pub fn ledger_text(ids: &[String], files: &[PathBuf], rows: &[(BTreeMap<&'static str, String>, String)]) -> String {
-    let mut out = String::from(
-        "# asset census (asset_import survey): tris, materials used, textures, connected parts, size WxHxD cm, flags; fit columns are empty until the fitter\n",
-    );
+    let mut out = String::from(LEDGER_HEAD);
     out.push_str(&LEDGER_COLS.join("\t"));
     out.push('\n');
     for ((id, f), (cols, note)) in ids.iter().zip(files).zip(rows) {
@@ -325,36 +337,288 @@ pub fn ledger_text(ids: &[String], files: &[PathBuf], rows: &[(BTreeMap<&'static
     out
 }
 
-fn survey(a: &Args, what: &str) -> Result<Output> {
-    let as_dir = PathBuf::from(what);
-    let (dir, glob, n, ledger_path, label) = if as_dir.is_dir() {
-        // A plain folder is not a library's pack, so it has no place among the catalogs'
-        // ledgers (plan §8.7): the caller names the file.
-        let out = get_str(a, "out").map(PathBuf::from).ok_or_else(|| {
-            anyhow!(
-                "survey={what}: a folder's census needs out=<file>.tsv (a library's packs go to assets/catalogs/<lib>/<pack>.tsv); from={what} list=true shows the rows without writing"
-            )
-        })?;
-        (as_dir.clone(), None, norm(a, None)?, out, as_dir.display().to_string())
-    } else {
-        let (lib, pack) = lib_pack(what).map_err(|e| anyhow!("{e} (or a folder of models)"))?;
-        let src = libraries::source(lib, pack).ok();
-        let dir = libraries::pack_dir(lib, pack);
-        if !dir.is_dir() {
-            bail!("{what} is not downloaded: asset_import get={what}");
+// --- Sources: a library's pack, a folder or one file ------------------------------------------
+
+/// Where models come from.
+struct Src {
+    /// The folder `files` are relative to.
+    dir: PathBuf,
+    files: Vec<PathBuf>,
+    ids: Vec<String>,
+    norm: Norm,
+    /// The catalog's `lib/pack`, when they come from a downloaded pack.
+    lib_pack: Option<String>,
+    /// The library pack translations belong to (the catalog's `pack`; `import` for others).
+    pack: String,
+    license: Option<String>,
+    label: String,
+}
+
+/// A library pack (`lib/pack`), a folder, or one model file; a file or folder inside a
+/// downloaded pack counts as that pack's.
+fn source_of(a: &Args, what: &str) -> Result<Src> {
+    let path = PathBuf::from(what);
+    if !path.exists() {
+        let (lib, pack) = lib_pack(what).map_err(|e| anyhow!("{e}, a folder or a model file"))?;
+        return pack_source(a, lib, pack, None);
+    }
+    // Inside a downloaded pack: .cache/assets/<lib>/<pack>/...
+    let cache = fetch::cache_dir_for("assets");
+    let canon = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+    if let Ok(rel) = canon(&path).strip_prefix(canon(&cache)) {
+        let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
+        if parts.len() >= 2 && libraries::source(&parts[0], &parts[1]).is_ok() {
+            let only = path.is_file().then(|| rel.iter().skip(2).collect::<PathBuf>());
+            return pack_source(a, &parts[0], &parts[1], only);
         }
-        let glob = src.as_ref().and_then(|s| s.get("models")).and_then(Value::as_str).map(str::to_string);
-        let out = get_str(a, "out")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| libraries::catalogs_dir().join(lib).join(format!("{pack}.tsv")));
-        (dir, glob, norm(a, src.as_ref())?, out, what.to_string())
+    }
+    let (dir, files) = if path.is_dir() {
+        (path.clone(), models_in(&path, None))
+    } else {
+        let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+        (dir, vec![PathBuf::from(path.file_name().ok_or_else(|| anyhow!("{what}: not a model file"))?)])
     };
-    let files = models_in(&dir, glob.as_deref());
+    if files.is_empty() {
+        bail!("{what}: no .glb, .gltf or .obj files");
+    }
+    let ids = ids(&files, None);
+    Ok(Src {
+        dir,
+        files,
+        ids,
+        norm: norm(a, None)?,
+        lib_pack: None,
+        pack: "import".into(),
+        license: None,
+        label: what.to_string(),
+    })
+}
+
+fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result<Src> {
+    let src = libraries::source(lib, pack)?;
+    let dir = libraries::pack_dir(lib, pack);
+    if !dir.is_dir() {
+        bail!("{lib}/{pack} is not downloaded: asset_import get={lib}/{pack}");
+    }
+    let glob = src.get("models").and_then(Value::as_str).map(str::to_string);
+    let all = models_in(&dir, glob.as_deref());
+    let all_ids = ids(&all, glob.as_deref());
+    let (files, ids) = match only {
+        Some(f) => {
+            let i =
+                all.iter().position(|g| *g == f).ok_or_else(|| anyhow!("{} is not one of {lib}/{pack}'s models", f.display()))?;
+            (vec![all[i].clone()], vec![all_ids[i].clone()])
+        }
+        None => (all, all_ids),
+    };
     if files.is_empty() {
         bail!("{}: no models{}", dir.display(), glob.map(|g| format!(" matching {g}")).unwrap_or_default());
     }
-    let ids = ids(&files, glob.as_deref());
-    let read = rows(&dir, &files, &n);
+    Ok(Src {
+        dir,
+        files,
+        ids,
+        norm: norm(a, Some(&src))?,
+        lib_pack: Some(format!("{lib}/{pack}")),
+        pack: src.get("pack").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}")),
+        license: src.get("license").and_then(Value::as_str).map(str::to_string),
+        label: format!("{lib}/{pack}"),
+    })
+}
+
+/// A model id as a prop name: lowercase letters, digits, `_` and `-`, starting with a letter.
+fn leaf(id: &str) -> String {
+    let mut s: String = id.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
+    if !s.starts_with(|c: char| c.is_ascii_lowercase()) {
+        s = format!("m_{s}");
+    }
+    s.chars().take(64).collect()
+}
+
+/// Where a pack's translations are written, and their mesh files in `meshes/` beside them:
+/// `out=` (a folder), else the pack's folder in the git-ignored local tier
+/// (`<props root>/local/<pack>/`, plan §9.1) — the licence gate that routes CC0 packs to
+/// `lib/<pack>` comes with plan row 5.3. Library names and tiers (row 4.1) slot in here.
+pub fn out_dir(pack: &str, out: Option<&str>) -> PathBuf {
+    match out {
+        Some(o) => PathBuf::from(o),
+        None => crate::asset_tools::root().join("local").join(pack),
+    }
+}
+
+/// `fit=`: the translation mode, or None for a census only (`fit=false`).
+fn fit_arg(a: &Args) -> Result<Option<Mode>> {
+    match a.get("fit") {
+        None | Some(Value::Bool(true)) => Ok(Some(Mode::Auto)),
+        Some(Value::Bool(false)) => Ok(None),
+        Some(v) => match v.as_str() {
+            Some("false") => Ok(None),
+            Some(s) => Ok(Some(Mode::parse(s)?)),
+            None => bail!("fit=: auto, prims, mesh or false"),
+        },
+    }
+}
+
+/// One model read, censused and (with a mode) translated.
+struct Done {
+    cols: BTreeMap<&'static str, String>,
+    error: Option<String>,
+    translation: Option<Translation>,
+    /// Skipped: a rigged model belongs to the creature domain (plan §8.4).
+    skipped: bool,
+}
+
+fn process(src: &Src, i: usize, mode: Option<Mode>) -> Done {
+    let (s, done) = match read(&src.dir.join(&src.files[i]), &src.norm) {
+        Ok(r) => r,
+        Err(e) => {
+            return Done {
+                cols: BTreeMap::from([("flags", "error".to_string())]),
+                error: Some(format!("{e:#}")),
+                translation: None,
+                skipped: false,
+            };
+        }
+    };
+    let mut cols = census(&s, &done);
+    let Some(mode) = mode else { return Done { cols, error: None, translation: None, skipped: false } };
+    if s.info.skinned {
+        cols.insert("tier", "skip".into());
+        return Done { cols, error: None, translation: None, skipped: true };
+    }
+    let id = &src.ids[i];
+    let o = fit::Options {
+        mode,
+        pack: src.pack.clone(),
+        name: leaf(id),
+        source: fit::Source {
+            library: src.lib_pack.clone(),
+            title: Some(id.clone()),
+            license: src.license.clone(),
+            url: src.lib_pack.is_none().then(|| src.dir.join(&src.files[i]).to_string_lossy().replace('\\', "/")),
+        },
+    };
+    match fit::translate(&s, &o) {
+        Ok(t) => {
+            let r2 = |x: f64| format!("{:.3}", x);
+            cols.insert("parts", t.parts.to_string());
+            cols.insert("mesh_pct", format!("{}", t.mesh_pct.round() as i64));
+            cols.insert("iou", r2(t.fidelity.iou));
+            cols.insert("iou_mean", r2(t.fidelity.iou_mean));
+            cols.insert("de", format!("{:.1}", t.fidelity.de));
+            cols.insert("chars", t.chars.to_string());
+            cols.insert("tier", t.tier.to_string());
+            Done { cols, error: None, translation: Some(t), skipped: false }
+        }
+        Err(e) => {
+            cols.insert("tier", "fail".into());
+            Done { cols, error: Some(format!("{e:#}")), translation: None, skipped: false }
+        }
+    }
+}
+
+/// Every model processed, on up to 8 threads (each model on one; the results in file order).
+fn process_all(src: &Src, mode: Option<Mode>) -> Vec<Done> {
+    let n = src.files.len();
+    let workers = std::thread::available_parallelism().map_or(1, |p| p.get()).clamp(1, 8).min(n.max(1));
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let slots: Vec<std::sync::Mutex<Option<Done>>> = (0..n).map(|_| std::sync::Mutex::new(None)).collect();
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                loop {
+                    let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    if i >= n {
+                        break;
+                    }
+                    let d = process(src, i, mode);
+                    *slots[i].lock().unwrap() = Some(d);
+                }
+            });
+        }
+    });
+    slots.into_iter().map(|s| s.into_inner().unwrap().expect("every model processed")).collect()
+}
+
+fn row_line(id: &str, d: &Done) -> String {
+    let g = |k: &str| d.cols.get(k).map(String::as_str).unwrap_or("");
+    match (&d.error, &d.translation) {
+        (Some(e), _) => format!("{id}: {e}"),
+        (None, Some(_)) => format!(
+            "{id} {} iou {} mean {} de {} mesh {}% {} chars",
+            g("tier"),
+            g("iou"),
+            g("iou_mean"),
+            g("de"),
+            g("mesh_pct"),
+            g("chars")
+        ),
+        (None, None) if d.skipped => format!("{id} skipped (rigged)"),
+        (None, None) => format!("{id} {}t {}p {}cm {}", g("tris"), g("comps"), g("size_cm"), g("flags")).trim_end().to_string(),
+    }
+}
+
+/// `x` to the nearest multiple of `q` (0.1, 0.001...), without binary noise in the reply.
+fn rnd(x: f64, q: f64) -> f64 {
+    let k = (1.0 / q).round();
+    (x * k).round() / k
+}
+
+fn medianf(mut v: Vec<f64>) -> f64 {
+    v.sort_by(f64::total_cmp);
+    if v.is_empty() { 0.0 } else { v[v.len() / 2] }
+}
+
+/// What a set of translations came to: tiers, medians, the worst.
+fn fit_summary(done: &[Done], seconds: f64) -> Value {
+    let ts: Vec<&Translation> = done.iter().filter_map(|d| d.translation.as_ref()).collect();
+    let mut tiers: BTreeMap<&str, usize> = BTreeMap::new();
+    for t in &ts {
+        *tiers.entry(t.tier).or_default() += 1;
+    }
+    let fits: Vec<&&Translation> = ts.iter().filter(|t| t.tier == "fit").collect();
+    let r = rnd;
+    json!({
+        "translated": ts.len(),
+        "skipped": done.iter().filter(|d| d.skipped).count(),
+        "tiers": tiers,
+        "editable": fits.iter().filter(|t| metrics::editable(t.mesh_pct)).count(),
+        "iou": {"median": r(medianf(ts.iter().map(|t| t.fidelity.iou).collect()), 0.001), "min": r(ts.iter().map(|t| t.fidelity.iou).fold(1.0, f64::min), 0.001)},
+        "iou_mean_median": r(medianf(ts.iter().map(|t| t.fidelity.iou_mean).collect()), 0.001),
+        "de_median": r(medianf(ts.iter().map(|t| t.fidelity.de).collect()), 0.1),
+        "mesh_pct_median": r(medianf(ts.iter().map(|t| t.mesh_pct).collect()), 1.0),
+        "chars_median": medianf(ts.iter().map(|t| t.chars as f64).collect()),
+        "tokens_median": medianf(ts.iter().map(|t| t.tokens as f64).collect()),
+        "seconds": r(seconds, 0.01),
+    })
+}
+
+/// The ledger's comment line.
+const LEDGER_HEAD: &str = "# asset census and fit (asset_import survey): tris, materials used, textures, connected parts, size WxHxD cm, flags; parts (authored nodes), mesh_pct (area in the mesh part), iou (worst of 6 views) and iou_mean, iou_gpu (deferred), de (Oklab x100), chars, tier\n";
+
+fn survey(a: &Args, what: &str) -> Result<Output> {
+    let as_dir = PathBuf::from(what);
+    if as_dir.is_dir() && get_str(a, "out").is_none() {
+        // A plain folder is not a library's pack, so it has no place among the catalogs'
+        // ledgers (plan §8.7): the caller names the file.
+        bail!(
+            "survey={what}: a folder's census needs out=<file>.tsv (a library's packs go to assets/catalogs/<lib>/<pack>.tsv); from={what} list=true shows the rows without writing"
+        );
+    }
+    let src = source_of(a, what)?;
+    let ledger_path = match (get_str(a, "out"), &src.lib_pack) {
+        (Some(o), _) => PathBuf::from(o),
+        (None, Some(lp)) => {
+            let (lib, pack) = lib_pack(lp)?;
+            libraries::catalogs_dir().join(lib).join(format!("{pack}.tsv"))
+        }
+        (None, None) => bail!("survey={what}: needs out=<file>.tsv"),
+    };
+    let mode = fit_arg(a)?;
+    let started = std::time::Instant::now();
+    let read = process_all(&src, mode);
+    let seconds = started.elapsed().as_secs_f64();
+    let (ids, files) = (&src.ids, &src.files);
     let old = Ledger::read(&ledger_path);
     // An agent's note, by the model's id, else by its file (a ledger written under another id).
     let col = |c: &str| old.cols.iter().position(|x| x == c);
@@ -368,9 +632,9 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
             .unwrap_or("")
             .to_string()
     };
-    let failed: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_some()).map(|(id, r)| short(id, r)).collect();
-    let ok: Vec<&Row> = read.iter().filter(|r| r.error.is_none()).collect();
-    let num_of = |r: &Row, k: &str| r.cols.get(k).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
+    let failed: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_some()).map(|(id, r)| row_line(id, r)).collect();
+    let ok: Vec<&Done> = read.iter().filter(|r| r.error.is_none()).collect();
+    let num_of = |r: &Done, k: &str| r.cols.get(k).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
     let tris: Vec<usize> = ok.iter().map(|r| num_of(r, "tris")).collect();
     let mut flag_count: BTreeMap<String, usize> = BTreeMap::new();
     for r in &ok {
@@ -380,17 +644,16 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
     }
     let with_notes: Vec<(BTreeMap<&'static str, String>, String)> = ids
         .iter()
-        .zip(&files)
+        .zip(files)
         .zip(&read)
         .map(|((id, f), r)| (r.cols.clone(), note_of(id, &f.to_string_lossy().replace('\\', "/"))))
         .collect();
-    write_text(&ledger_path, &ledger_text(&ids, &files, &with_notes))?;
-    let written = ledger_path.display().to_string();
+    write_text(&ledger_path, &ledger_text(ids, files, &with_notes))?;
     let limit = get_u64(a, "limit", 20)? as usize;
-    let lines: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_none()).map(|(id, r)| short(id, r)).collect();
+    let lines: Vec<String> = ids.iter().zip(&read).filter(|(_, r)| r.error.is_none()).map(|(id, r)| row_line(id, r)).collect();
     let (failed_shown, failed_more) = (json!(failed.iter().take(limit).collect::<Vec<_>>()), failed.len().saturating_sub(limit));
-    Ok(Output::Json(json!({
-        "survey": label,
+    let mut out = json!({
+        "survey": src.label,
         "models": files.len(),
         "read": ok.len(),
         "failed": failed_shown,
@@ -398,9 +661,209 @@ fn survey(a: &Args, what: &str) -> Result<Output> {
         "tris": {"total": tris.iter().sum::<usize>(), "median": median(tris.clone()), "max": tris.iter().max().copied().unwrap_or(0)},
         "parts_median": median(ok.iter().map(|r| num_of(r, "comps")).collect()),
         "flags": flag_count,
-        "ledger": written,
+        "ledger": ledger_path.display().to_string(),
         "rows": lines.iter().take(limit).collect::<Vec<_>>(),
         "rows_more": lines.len().saturating_sub(limit),
-        "next": "from=<model> list=true shows one; fitting into props arrives with plan row 5.2",
+        "next": "from=<lib/pack|model> translates (writes props); check=<asset.json> compare=true shows one",
+    });
+    if mode.is_some() {
+        out["fit"] = fit_summary(&read, seconds);
+    }
+    Ok(Output::Json(out))
+}
+
+// --- Translation -------------------------------------------------------------------------------
+
+/// Writes a translation: the asset as `<dir>/<name>.json`, its mesh as `<dir>/meshes/<name>.json`
+/// (a stale mesh file of the same name is removed). Returns the asset's path.
+fn write_translation(dir: &Path, t: &Translation) -> Result<PathBuf> {
+    let path = dir.join(format!("{}.json", t.doc.name));
+    write_text(&path, &t.text)?;
+    let mesh = dir.join("meshes").join(format!("{}.json", t.doc.name));
+    match t.meshes.first() {
+        Some((_, file)) => {
+            write_text(&mesh, &file.text())?;
+        }
+        None => {
+            let _ = std::fs::remove_file(&mesh);
+        }
+    }
+    Ok(path)
+}
+
+fn translation_reply(t: &Translation, path: &Path) -> Value {
+    let f = &t.fidelity;
+    let r = rnd;
+    let mut v = json!({
+        "asset": t.doc.name,
+        "file": path.display().to_string(),
+        "tier": t.tier,
+        "editable": t.tier == "fit" && metrics::editable(t.mesh_pct),
+        "iou": r(f.iou, 0.001),
+        "iou_mean": r(f.iou_mean, 0.001),
+        "views": f.views.iter().map(|(n, x)| format!("{n} {:.3}", x)).collect::<Vec<_>>(),
+        "de": r(f.de, 0.1),
+        "mean_mm": r(f.mean_mm, 0.1),
+        "worst_mm": r(f.worst_mm, 0.1),
+        "mesh_pct": r(t.mesh_pct, 0.1),
+        "parts": t.parts,
+        "chars": t.chars,
+        "tokens": t.tokens,
+        "size_cm": t.compiled.bounds.size_cm(),
+    });
+    if !t.meshes.is_empty() {
+        v["mesh"] = json!(
+            t.meshes.iter().map(|(n, m)| format!("{n} {} tris {} colours", m.f.len(), m.palette.len())).collect::<Vec<_>>()
+        );
+    }
+    if !t.findings.is_empty() {
+        v["findings"] = json!(t.findings.iter().take(6).collect::<Vec<_>>());
+    }
+    v["next"] = json!(format!("asset_import check={} compare=true", path.display()));
+    v
+}
+
+/// `compare=`: the source over its translation, written under .cache/asset_import/compare/.
+fn compare_image(name: &str, source: &[Tri], fit_tris: &[Tri], meta: Value) -> Result<Output> {
+    let png = metrics::compare_png(source, fit_tris);
+    let path = fetch::cache_dir_for("assets").parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from(".cache"));
+    let path = path.join("asset_import").join("compare").join(format!("{name}.png"));
+    if let Some(d) = path.parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    std::fs::write(&path, &png).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    let mut meta = meta;
+    meta["image"] =
+        json!(format!("{}: top the source, bottom the translation; front, back, left, right, top, iso", path.display()));
+    Ok(Output::Image { png, path: Some(path), meta })
+}
+
+fn translate_from(a: &Args, what: &str) -> Result<Output> {
+    let src = source_of(a, what)?;
+    let mode = fit_arg(a)?.ok_or_else(|| anyhow!("fit=false translates nothing: use list=true or survey="))?;
+    let dir = out_dir(&src.pack, get_str(a, "out"));
+    let started = std::time::Instant::now();
+    let done = process_all(&src, Some(mode));
+    let seconds = started.elapsed().as_secs_f64();
+    if src.files.len() == 1 {
+        let d = &done[0];
+        if d.skipped {
+            bail!("{}: a rigged model (skinned); rigs belong to the creature tools, not props", src.ids[0]);
+        }
+        let t = d.translation.as_ref().ok_or_else(|| anyhow!("{}", d.error.clone().unwrap_or_default()))?;
+        let path = write_translation(&dir, t)?;
+        let reply = translation_reply(t, &path);
+        if get_bool(a, "compare", false)? {
+            let (s, _) = read(&src.dir.join(&src.files[0]), &src.norm)?;
+            return compare_image(&t.doc.name, &raster::scene_tris(&s), &raster::prop_tris(&t.compiled), reply);
+        }
+        return Ok(Output::Json(reply));
+    }
+    let mut written = 0;
+    for d in &done {
+        if let Some(t) = d.translation.as_ref().filter(|t| t.tier != "fail") {
+            write_translation(&dir, t)?;
+            written += 1;
+        }
+    }
+    let limit = get_u64(a, "limit", 20)? as usize;
+    let lines: Vec<String> = src.ids.iter().zip(&done).map(|(id, d)| row_line(id, d)).collect();
+    Ok(Output::Json(json!({
+        "from": src.label,
+        "dir": dir.display().to_string(),
+        "written": written,
+        "fit": fit_summary(&done, seconds),
+        "rows": lines.iter().take(limit).collect::<Vec<_>>(),
+        "rows_more": lines.len().saturating_sub(limit),
+        "next": format!("asset_import check={}/<name>.json compare=true; survey= writes the ledger", dir.display()),
     })))
+}
+
+/// The mesh names a document's parts use.
+fn mesh_names(v: &Value, out: &mut Vec<String>) {
+    match v {
+        Value::Object(o) => {
+            if let Some(Value::String(m)) = o.get("mesh") {
+                out.push(m.clone());
+            }
+            for x in o.values() {
+                mesh_names(x, out);
+            }
+        }
+        Value::Array(a) => a.iter().for_each(|x| mesh_names(x, out)),
+        _ => {}
+    }
+}
+
+/// `check=<asset.json>`: an asset that carries `source`, measured against that source again.
+fn check(a: &Args, file: &str) -> Result<Output> {
+    let path = PathBuf::from(file);
+    let text = std::fs::read_to_string(&path).map_err(|e| anyhow!("check={file}: {e}"))?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| anyhow!("check={file}: not JSON: {e}"))?;
+    // Its mesh files sit in meshes/ beside it.
+    let mut names = Vec::new();
+    mesh_names(value.get("parts").unwrap_or(&Value::Null), &mut names);
+    for name in names {
+        let Some((_, leaf)) = name.split_once('/') else { continue };
+        let f = path.parent().unwrap_or(Path::new(".")).join("meshes").join(format!("{leaf}.json"));
+        if let Ok(t) = std::fs::read_to_string(&f) {
+            let m = MeshFile::parse(&t).map_err(|e| anyhow!("{}: {e}", f.display()))?;
+            pav_core::props::mesh::install(&name, m).map_err(|e| anyhow!(e))?;
+        }
+    }
+    let (doc, compiled) = fit::read_back(&text)?;
+    let source = doc.source.clone().ok_or_else(|| anyhow!("check={file}: the asset has no source to compare with"))?;
+    let model = match (&source.library, &source.url) {
+        (Some(lp), _) => source_of(a, lp)?,
+        (None, Some(url)) => source_of(a, url)?,
+        _ => bail!("check={file}: its source names no library or file"),
+    };
+    let i = match &source.title {
+        Some(t) if model.files.len() > 1 => {
+            model.ids.iter().position(|id| id == t).ok_or_else(|| anyhow!("{} has no model {t}", model.label))?
+        }
+        _ => 0,
+    };
+    let (s, _) = read(&model.dir.join(&model.files[i]), &model.norm)?;
+    let src_tris = raster::scene_tris(&s);
+    let fit_tris = raster::prop_tris(&compiled);
+    let fidelity = metrics::compare(&src_tris, &fit_tris);
+    let text = doc.text();
+    let chars = text.chars().count();
+    // The mesh part's share of the drawn area stands for its share of the source's.
+    let area = |t: &[Tri]| t.iter().map(segment::tri_area).sum::<f64>();
+    let mesh_area: f64 = compiled
+        .parts
+        .iter()
+        .filter(|p| matches!(p.prim, pav_core::props::geom::Primitive::Mesh { .. }))
+        .map(|p| {
+            let one = pav_core::props::CompiledProp { parts: vec![p.clone()], ..Default::default() };
+            area(&raster::prop_tris(&one))
+        })
+        .sum();
+    let mesh_pct = if area(&src_tris) > 0.0 { (mesh_area / area(&src_tris) * 100.0).min(100.0) } else { 0.0 };
+    let whole_mesh = compiled.parts.iter().all(|p| matches!(p.prim, pav_core::props::geom::Primitive::Mesh { .. }));
+    let tier = metrics::tier(&fidelity, chars, whole_mesh);
+    let r = rnd;
+    let mut reply = json!({
+        "asset": doc.name,
+        "source": format!("{} {}", model.label, model.ids[i]),
+        "tier": tier,
+        "iou": r(fidelity.iou, 0.001),
+        "iou_mean": r(fidelity.iou_mean, 0.001),
+        "views": fidelity.views.iter().map(|(n, x)| format!("{n} {:.3}", x)).collect::<Vec<_>>(),
+        "de": r(fidelity.de, 0.1),
+        "mean_mm": r(fidelity.mean_mm, 0.1),
+        "worst_mm": r(fidelity.worst_mm, 0.1),
+        "mesh_pct": r(mesh_pct, 0.1),
+        "chars": chars,
+        "tokens": metrics::tokens(&text),
+    });
+    if let Some(stored) = &doc.fit {
+        reply["stored"] = json!({"iou": stored.iou, "de": stored.de, "mesh_pct": stored.mesh_pct});
+    }
+    if get_bool(a, "compare", false)? {
+        return compare_image(&doc.name, &src_tris, &fit_tris, reply);
+    }
+    Ok(Output::Json(reply))
 }

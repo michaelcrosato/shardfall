@@ -5,6 +5,84 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 5.2: translation into props and the CPU fidelity metrics — 2026-10-12
+
+Row 5.2 (I3 + I4's CPU half) of `docs/ASSET_SYSTEM_PLAN.md`, ahead of Phases 3-4 like 5.1.
+- **Mesh parts in the engine** (F4's loader, moved to I3). `pav_core::props::mesh`: the mesh file
+  of §5.5 (`{format:1,name,unit:"mm",tris,budget,palette,v,f,source}`, whole millimetres, ≤ 4,096
+  triangles, ≤ 64 colours), parsed with every index checked and written canonically. A part
+  `{"mesh":"<pack>/<name>"}` (placement, mirror, copies, `scale`, `recolor:{"0":"#hex"|material}`)
+  is read by the format-2 reader (an unknown mesh is an error with the fix), compiles to
+  `Primitive::Mesh`, draws as a generated mesh with per-vertex colours (`GeomMesh.colors` →
+  `Vertex.color`; the part's own colour is white), collides as its hull, and keys its definition
+  (`propk-` over the mesh file's FNV). Meshes are found installed (the importer installs what it
+  writes) or on disk under `$PAV_ASSETS` (`lib/<pack>/meshes/`, then `local/<pack>/meshes/`).
+- **I3, `import::fit`** (single-threaded per model, f64, BTreeMap order, no randomness):
+  - `segment`: connected parts per (node, material) at 0.1 mm; face colours are now the 7-sample
+    area mean of the texture (Radon's rule) in linear light × factors, with the sampler's wrap
+    modes (5.1's review fix); each piece's colour spread and multicolour flag (§8.5 step 1).
+  - `frame`: the yaw-only box in 3° then 1° steps, or the principal axes when 15% smaller, angles
+    snapped (whole degrees, quarter turns within 2°).
+  - `prims`: box, ellipsoid or sphere, and down each local axis a cylinder, a least-squares
+    frustum or cone, a capsule, a lathe (side silhouettes' radius per row, Douglas–Peucker 2%,
+    ≤ 12 points) and an extrusion (traced outline, 1 px, ≤ 24 points); when the outline is a
+    regular polygon (5-16 corners), faceted cylinders, frustums and lathes (`segments`, turned to
+    the corners). Score: worst of the three local silhouette IoUs at 64 px (holes filled, since
+    pieces are often open shells, and views in which a flat piece is edge-on skipped) less 0.0002
+    a token. Equal shapes are fitted once. Below 0.85 the piece goes into the mesh part.
+  - The asset loop: while the six-view IoU is under 0.90 the primitive piece with the largest
+    shape error ((1 − IoU) × area) moves into the mesh part; while ΔE is over 6, the one with the
+    largest colour error (spread × area).
+  - `mesh`: one mesh part per asset for every such piece, welded on whole millimetres (over budget:
+    coarser cells, a fifth larger each time, each cell's corners at their mean), the distinct hex
+    colours or a 64-colour Oklab median cut.
+  - `write`: each primitive in the equivalent form with the fewest angles (the cube's 24 turns, a
+    round shape's axis field or one-angle turns either way along its axis, an outline's quarter
+    turns and turn-over, a faceted shape's corner turns); centimetres whole when within 3% of the
+    extent a number sizes or places, else to 0.1; outlines from their lowest corner
+    counter-clockwise; mirror pairs in x then z into `mirror`, three or more equal parts at an
+    equal step into `array`; names `<colour>_<type>` (node names when a model has several), the
+    colour most parts share at the root; then the engine's reader and canonical writer.
+- **I4, `import::metrics` + `import::raster`** (CPU): six orthographic views at 128 px (the source
+  ∪ translation window; a view where the source is under 2% as deep as wide is skipped): `iou`
+  (worst) and `iou_mean`; `de` = Oklab ΔE × 100 over shared pixels; `mean_mm`/`worst_mm` = the
+  symmetric Chamfer distance over 4,096 surface samples each way to the other surface (mean,
+  95th percentile); tiers per §8.6 (`exact` only for `fit=mesh`; `editable` = fit with mesh ≤ 30%);
+  a token estimate (o200k-like pre-tokens, ~4% over tiktoken here); the compare image (source row
+  over translation row, six views at 160 px, lit) in `.cache/asset_import/compare/`. The GPU
+  cross-check (`iou_gpu`) is deferred (§10.3).
+- **The tool.** `from=FILE|DIR|lib/pack` translates (`fit=auto|prims|mesh`) and writes each asset
+  with its mesh file in `meshes/` beside it, to `out_dir()`: `out=`, else the local tier
+  `assets/props/local/<pack>/` (now git-ignored; the licence gate that routes CC0 packs to
+  `lib/<pack>` is row 5.3, and row 4.1's names slot into that one function). `survey=` fits
+  without writing and fills the ledger's `parts mesh_pct iou iou_mean de chars tier` (`iou_gpu`
+  empty; `fit=false`: census only), models on up to 8 threads, each on one. `check=FILE` measures
+  a translation against the source its `source` names; `compare=true` returns the image. Rigged
+  models are skipped (§8.4). Translations carry `source` {library, title, license} and `fit` {iou,
+  de, mesh_pct, mean_mm, worst_mm}.
+- **Kenney Mini Dungeon** (30 models, 2 rigged skipped; `assets/catalogs/kenney/mini_dungeon.tsv`):
+  28/28 in the `fit` tier, 15 of them editable; worst-view IoU median 0.983 (min 0.902), mean-view
+  median 0.991, ΔE median 1.2, mesh share median 13%; o200k tokens (tiktoken 0.12.0) median 293
+  (230 without `source`/`fit`), max 508; 2.75 s on one core for all 30 (0.77 s on 8 threads);
+  two translations of the pack are byte-identical. Targets met: median IoU ≥ 0.95 at ≤ 300 tokens.
+- **Decisions.**
+  - Multicoloured pieces are not split by colour: the patches are open surfaces no primitive
+    fits, and slabs on a face z-fight. They are fitted whole in their mean colour, and the asset
+    loop moves them into the mesh part when the colours are off (the walls, whose texture paints
+    stone and mortar on one mesh, end up mostly mesh).
+  - §8.5's split before the mesh part (cut a piece across an axis, fit both sides, up to four)
+    was built and measured: one asset more editable for 4% more tokens and 5× the time, after
+    filling silhouette holes had already taken the mesh share from 38% to 13%. No proven benefit:
+    dropped.
+  - One mesh part per asset (all its fallback pieces) costs one node; its collider is one hull.
+  - Pack models' `source` names the library pack and the model; the pack's pin (catalog,
+    `SOURCE.json`) holds the URL and SHA-256, which per asset would cost ~60 tokens. No
+    `parts_hash` or tags yet (tags come with the catalog entries of row 5.3).
+  - A snapshot's definitions find their mesh files through the registry or disk when restored;
+    the table does not carry mesh files yet.
+  - tools/list stays under G0's 48,000 chars (47,981): the `mocap` help lost its list of
+    databases (its no-args reply has them).
+
 ## Asset plan 4.2, part 1: pack licences, credits, publish to LIB/core, review pages — 2026-10-12
 
 The tooling half of row 4.2 of `docs/ASSET_SYSTEM_PLAN.md` (LIB-3, LIB-5). The W0 exemplars

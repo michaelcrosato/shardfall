@@ -6,6 +6,7 @@ pub mod doc;
 pub mod geom;
 pub mod index;
 pub mod lint;
+pub mod mesh;
 mod patch;
 mod read;
 pub mod store;
@@ -458,19 +459,22 @@ impl PropDef {
 
     fn with_deps(doc: Doc, deps: compile::Deps, v1: Option<Arc<PropAsset>>) -> Result<Self, Vec<Issue>> {
         let compiled = compile::compile(&doc, deps, 0)?;
-        let mut names = BTreeSet::new();
-        fn refs(parts: &BTreeMap<String, doc::Node>, names: &mut BTreeSet<String>) {
+        let (mut names, mut meshes) = (BTreeSet::new(), BTreeSet::new());
+        fn refs(parts: &BTreeMap<String, doc::Node>, names: &mut BTreeSet<String>, meshes: &mut BTreeSet<String>) {
             for node in parts.values() {
                 match &node.kind {
                     doc::Kind::Ref(name) => {
                         names.insert(canonical(name).unwrap_or_else(|_| name.clone()));
                     }
-                    doc::Kind::Group(children) => refs(children, names),
+                    doc::Kind::Mesh(name) => {
+                        meshes.insert(name.clone());
+                    }
+                    doc::Kind::Group(children) => refs(children, names, meshes),
                     _ => {}
                 }
             }
         }
-        refs(&doc.parts, &mut names);
+        refs(&doc.parts, &mut names, &mut meshes);
         let pinned: BTreeMap<String, Arc<PropDef>> = names.iter().filter_map(|name| Some((name.clone(), deps(name)?))).collect();
         let ref_depth = pinned.values().map(|dep| dep.ref_depth + 1).max().unwrap_or(0);
         fn varies(parts: &BTreeMap<String, doc::Node>) -> bool {
@@ -480,11 +484,16 @@ impl PropDef {
         }
         let varies = varies(&doc.parts) || pinned.values().any(|dep| dep.varies);
         let revision = doc.revision();
-        let key = if pinned.is_empty() {
+        // Mesh files the parts drew, by content: a re-imported mesh changes the key.
+        let mesh_keys: Vec<String> =
+            meshes.iter().filter_map(|name| mesh::get(name).map(|m| format!("{name}:{:016x}", m.key))).collect();
+        let key = if pinned.is_empty() && mesh_keys.is_empty() {
             revision.clone()
         } else {
-            let closure: Vec<&str> =
-                std::iter::once(revision.as_str()).chain(pinned.values().map(|dep| dep.key.as_str())).collect();
+            let closure: Vec<&str> = std::iter::once(revision.as_str())
+                .chain(pinned.values().map(|dep| dep.key.as_str()))
+                .chain(mesh_keys.iter().map(String::as_str))
+                .collect();
             format!("propk-{:016x}", fnv(closure.join("|").as_bytes()))
         };
         let v1 = v1.or_else(|| doc.to_v1().map(Arc::new));

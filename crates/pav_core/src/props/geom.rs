@@ -5,10 +5,12 @@
 //! extrusions are absolute. Meshes are closed and wound counter-clockwise seen from outside.
 
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
+use std::sync::Arc;
 
 use glam::{Mat3, Quat, Vec3};
 use serde::Serialize;
 
+use super::mesh::LoadedMesh;
 use crate::shape::Shape;
 
 /// Segments round a cylinder, cone, tube or torus unless the part says otherwise.
@@ -78,6 +80,38 @@ pub enum Primitive {
         points: Vec<[f32; 2]>,
         half_depth: f32,
     },
+    /// A tool-written mesh file (`<pack>/<name>`), absolute, coloured per face.
+    Mesh {
+        name: String,
+        #[serde(skip)]
+        mesh: MeshShape,
+    },
+}
+
+/// A mesh part's mesh and the colours it is drawn in (its palette after `recolor`, linear).
+#[derive(Clone)]
+pub struct MeshShape {
+    pub mesh: Arc<LoadedMesh>,
+    pub colours: Vec<Vec3>,
+}
+
+impl MeshShape {
+    pub fn new(mesh: Arc<LoadedMesh>) -> Self {
+        let colours = mesh.colours();
+        Self { mesh, colours }
+    }
+}
+
+impl PartialEq for MeshShape {
+    fn eq(&self, other: &Self) -> bool {
+        self.mesh.key == other.mesh.key && self.colours == other.colours
+    }
+}
+
+impl std::fmt::Debug for MeshShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MeshShape({:016x}, {} tris)", self.mesh.key, self.mesh.file.f.len())
+    }
 }
 
 impl Primitive {
@@ -96,6 +130,7 @@ impl Primitive {
             Primitive::Wedge { .. } => "wedge",
             Primitive::Lathe { .. } => "lathe",
             Primitive::Extrude { .. } => "extrude",
+            Primitive::Mesh { .. } => "mesh",
         }
     }
 
@@ -136,6 +171,7 @@ impl Primitive {
                 let (centre, half) = ((min + max) * 0.5, (max - min) * 0.5);
                 (Vec3::new(centre.x, centre.y, 0.0), Vec3::new(half.x, half.y, *half_depth))
             }
+            Primitive::Mesh { mesh, .. } => ((mesh.mesh.lo + mesh.mesh.hi) * 0.5, (mesh.mesh.hi - mesh.mesh.lo) * 0.5),
         }
     }
 
@@ -190,6 +226,7 @@ impl Primitive {
             Primitive::Extrude { points, half_depth } => {
                 points.iter().flat_map(|p| [Vec3::new(p[0], p[1], -half_depth), Vec3::new(p[0], p[1], *half_depth)]).collect()
             }
+            Primitive::Mesh { mesh, .. } => mesh.mesh.positions.clone(),
         }
     }
 
@@ -254,7 +291,7 @@ impl Primitive {
                 (pos, (radial * *radius + Vec3::splat(*minor_radius)) * scale)
             }
             Primitive::Lathe { profile, .. } => discs(&profile.iter().map(|p| (p[1], p[0])).collect::<Vec<_>>()),
-            Primitive::Wedge { .. } | Primitive::Extrude { .. } => points(&self.hull()),
+            Primitive::Wedge { .. } | Primitive::Extrude { .. } | Primitive::Mesh { .. } => points(&self.hull()),
             // An arc: the box of its visible sector.
             _ => {
                 let (centre, half) = self.local_box();
@@ -394,13 +431,14 @@ fn sector_box(outer: f32, inner: f32, arc: f32, low: f32, high: f32, grow: f32) 
 
 // --- Generated meshes ------------------------------------------------------------------------
 
-/// A mesh in pav_core's terms; the view turns it into renderer data. `colors` is empty for a
-/// mesh drawn in its part's colour.
+/// A mesh in pav_core's terms; the view turns it into renderer data. `colors` (linear RGB, one
+/// per vertex) is empty for a mesh drawn in its part's colour.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GeomMesh {
     pub positions: Vec<Vec3>,
     pub normals: Vec<Vec3>,
     pub indices: Vec<u32>,
+    pub colors: Vec<Vec3>,
 }
 
 impl GeomMesh {
@@ -456,7 +494,12 @@ impl GeomMesh {
         for t in indices.as_chunks_mut::<3>().0 {
             t.swap(1, 2);
         }
-        Self { positions: self.positions.iter().map(flip).collect(), normals: self.normals.iter().map(flip).collect(), indices }
+        Self {
+            positions: self.positions.iter().map(flip).collect(),
+            normals: self.normals.iter().map(flip).collect(),
+            indices,
+            colors: self.colors.clone(),
+        }
     }
 }
 
@@ -479,6 +522,7 @@ enum Spec {
     Wedge { peak: i32 },
     Lathe { profile: Vec<[i32; 2]>, segments: u32 },
     Extrude { points: Vec<[i32; 2]>, half_depth: i32 },
+    Mesh { mesh: MeshShape, mirrored: bool },
 }
 
 fn thousandths(x: f32) -> u32 {
@@ -533,6 +577,7 @@ impl Generated {
                 let points = points.iter().map(|p| [decimillimetres(p[0] * x), decimillimetres(p[1])]).collect();
                 (Spec::Extrude { points, half_depth: decimillimetres(*half_depth) }, Vec3::ONE)
             }
+            Primitive::Mesh { mesh, .. } => (Spec::Mesh { mesh: mesh.clone(), mirrored }, Vec3::ONE),
             _ => return None,
         };
         Some(Self { key: spec.key(), scale, spec })
@@ -599,6 +644,13 @@ impl Spec {
                     h.number(p[0] as i64).number(p[1] as i64);
                 }
             }
+            Spec::Mesh { mesh, mirrored } => {
+                h = Hasher::new("mesh");
+                h.number(mesh.mesh.key as i64).number(*mirrored as i64);
+                for c in &mesh.colours {
+                    h.number(c.x.to_bits() as i64).number(c.y.to_bits() as i64).number(c.z.to_bits() as i64);
+                }
+            }
         }
         h.0
     }
@@ -620,8 +672,31 @@ impl Spec {
             Spec::Extrude { points, half_depth } => {
                 extrude(&points.iter().map(|p| [metres(p[0]), metres(p[1])]).collect::<Vec<_>>(), metres(*half_depth))
             }
+            Spec::Mesh { mesh, mirrored } => {
+                let m = faces(mesh);
+                if *mirrored { m.mirrored() } else { m }
+            }
         }
     }
+}
+
+/// A mesh file unwelded: three vertices per face with its flat normal and its colour.
+fn faces(shape: &MeshShape) -> GeomMesh {
+    let mesh = &shape.mesh;
+    let mut m = GeomMesh::default();
+    for f in &mesh.file.f {
+        let [a, b, c] = [f[0], f[1], f[2]].map(|i| mesh.positions[i as usize]);
+        let normal = (b - a).cross(c - a).normalize_or_zero();
+        let colour = shape.colours.get(f[3] as usize).copied().unwrap_or(Vec3::ONE);
+        for p in [a, b, c] {
+            m.positions.push(p);
+            m.normals.push(normal);
+            m.colors.push(colour);
+        }
+        let first = m.positions.len() as u32 - 3;
+        m.indices.extend_from_slice(&[first, first + 1, first + 2]);
+    }
+    m
 }
 
 /// A cylinder or cone from y -0.5 (radius `bottom`) to 0.5 (radius `top`), over an arc centred

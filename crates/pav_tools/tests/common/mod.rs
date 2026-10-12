@@ -132,6 +132,63 @@ pub fn cuboid(min: [f32; 3], max: [f32; 3]) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Ve
     (pos, nrm, idx)
 }
 
+/// A solid of revolution round +y: `profile` is `[r, y]` from the bottom up, turned in
+/// `segments` steps and capped where the radius is above 0. Positions and indices, facing out.
+pub fn revolve(profile: &[[f32; 2]], segments: usize) -> (Vec<[f32; 3]>, Vec<u32>) {
+    let (mut pos, mut idx) = (Vec::new(), Vec::new());
+    let ring = |r: f32, y: f32, j: usize| {
+        let a = std::f32::consts::TAU * j as f32 / segments as f32;
+        [r * a.sin(), y, r * a.cos()]
+    };
+    for (i, p) in profile.iter().enumerate() {
+        for j in 0..segments {
+            pos.push(ring(p[0], p[1], j));
+        }
+        if i == 0 {
+            continue;
+        }
+        let (a, b) = (((i - 1) * segments) as u32, (i * segments) as u32);
+        for j in 0..segments as u32 {
+            let k = (j + 1) % segments as u32;
+            idx.extend_from_slice(&[a + j, b + k, b + j, a + j, a + k, b + k]);
+        }
+    }
+    for (i, up) in [(0usize, false), (profile.len() - 1, true)] {
+        if profile[i][0] <= 0.0 {
+            continue;
+        }
+        let centre = pos.len() as u32;
+        pos.push([0.0, profile[i][1], 0.0]);
+        let base = (i * segments) as u32;
+        for j in 0..segments as u32 {
+            let k = (j + 1) % segments as u32;
+            if up {
+                idx.extend_from_slice(&[centre, base + j, base + k]);
+            } else {
+                idx.extend_from_slice(&[centre, base + k, base + j]);
+            }
+        }
+    }
+    (pos, idx)
+}
+
+/// A flat outline (`[x, y]`, counter-clockwise) extruded `depth` along z, centred: positions
+/// and indices, the caps as fans from their first point (convex or star-shaped outlines).
+pub fn extrusion(outline: &[[f32; 2]], depth: f32) -> (Vec<[f32; 3]>, Vec<u32>) {
+    let n = outline.len() as u32;
+    let mut pos: Vec<[f32; 3]> = outline.iter().map(|p| [p[0], p[1], depth / 2.0]).collect();
+    pos.extend(outline.iter().map(|p| [p[0], p[1], -depth / 2.0]));
+    let mut idx = Vec::new();
+    for i in 1..n - 1 {
+        idx.extend_from_slice(&[0, i, i + 1, n, n + i + 1, n + i]);
+    }
+    for i in 0..n {
+        let j = (i + 1) % n;
+        idx.extend_from_slice(&[i, n + i, n + j, i, n + j, j]);
+    }
+    (pos, idx)
+}
+
 /// glTF made in code: accessors over one buffer, meshes, nodes, materials, textures and
 /// embedded images; written as .glb, .gltf with a data URI, or .gltf with a .bin beside it.
 #[derive(Default)]
@@ -216,6 +273,17 @@ impl MeshBuilder {
             p["material"] = json!(m);
         }
         p
+    }
+
+    /// A primitive of positions and indices in one material.
+    pub fn tri_prim(&mut self, pos: &[[f32; 3]], idx: &[u32], material: Option<usize>) -> Value {
+        let (pa, ia) = (self.vec3(pos), self.indices(idx));
+        self.prim(pa, Some(ia), &[], material)
+    }
+
+    /// A plain material of one colour (linear RGB).
+    pub fn colour(&mut self, rgb: [f32; 3]) -> usize {
+        self.material(json!({"pbrMetallicRoughness": {"baseColorFactor": [rgb[0], rgb[1], rgb[2], 1.0]}}))
     }
 
     /// A box primitive (positions, normals, indices).

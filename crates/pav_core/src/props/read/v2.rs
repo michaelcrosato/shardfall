@@ -321,7 +321,7 @@ fn type_hint(kind: &str) -> Option<&'static str> {
         "ellipse" | "oval" => "use ellipsoid",
         "revolve" | "vase" => "use lathe with a profile",
         "polygon" | "extrusion" => "use extrude with points",
-        "mesh" | "model" | "obj" | "gltf" | "glb" => "imported meshes come from asset_import, which is not available yet",
+        "mesh" | "model" | "obj" | "gltf" | "glb" => "a mesh part is {\"mesh\":\"<pack>/<name>\"}; asset_import writes them",
         "group" => "a group has parts:{...} and no type",
         _ => return None,
     })
@@ -1111,19 +1111,13 @@ impl Reader<'_> {
                 self.push(unknown_key(path, key, &allowed, fix));
             }
         }
-        if kind == "mesh" {
-            self.push(
-                Issue::error(at("mesh"), Code::UnknownAsset, "mesh parts need asset_import, which is not available yet")
-                    .fix("build the shape from primitives"),
-            );
-            return None;
-        }
         if kind == "type" && prim_type.is_none() {
             return None;
         }
         let kind = match kind {
             "type" => Kind::Prim(self.prim(path, object, prim_type?)),
             "ref" => Kind::Ref(self.reference(&at("ref"), &object["ref"])?),
+            "mesh" => Kind::Mesh(self.mesh(&at("mesh"), &object["mesh"])?),
             _ => Kind::Group(BTreeMap::new()),
         };
         let mut node = Node::new(kind);
@@ -1203,6 +1197,9 @@ impl Reader<'_> {
         if let Some((p, v)) = field("remap") {
             node.remap = self.remap(&p, v, &node.kind);
         }
+        if let Some((p, v)) = field("recolor") {
+            node.recolor = self.recolor(&p, v, &node.kind);
+        }
         self.placement(path, object, &node, &allowed);
         if let Kind::Prim(prim) = &node.kind {
             self.prim_rules(path, object, prim, &node);
@@ -1232,6 +1229,7 @@ impl Reader<'_> {
                 totals.lights += copies * usize::from(node.light.is_some());
                 totals.fx += copies * usize::from(node.fx.is_some());
             }
+            Kind::Mesh(_) => totals.parts += copies,
             Kind::Ref(name) => {
                 // Its lights and emitters come along and count toward this document's.
                 let (parts, lights, fx) = (self.assets)(name)
@@ -1288,6 +1286,51 @@ impl Reader<'_> {
             );
         }
         Some(name)
+    }
+
+    /// A mesh part's file, `<pack>/<name>`, which must exist.
+    fn mesh(&mut self, path: &str, value: &Value) -> Option<String> {
+        let name = self.text(path, value)?;
+        if let Err(error) = crate::props::mesh::check_name(&name) {
+            self.push(Issue::error(path, Code::UnknownAsset, format!("\"{name}\" is not a mesh name: {error}")));
+            return None;
+        }
+        if crate::props::mesh::get(&name).is_none() {
+            self.push(
+                Issue::error(path, Code::UnknownAsset, format!("no mesh \"{name}\""))
+                    .fix("asset_import writes mesh files (assets/props/lib|local/<pack>/meshes/<name>.json)"),
+            );
+        }
+        Some(name)
+    }
+
+    /// `{palette index: material or #rrggbb}`: a mesh's colours.
+    fn recolor(&mut self, path: &str, value: &Value, kind: &Kind) -> Option<BTreeMap<String, String>> {
+        let Some(object) = value.as_object() else {
+            self.push(wrong_type(path, "an object {palette index: material or #rrggbb}", value));
+            return None;
+        };
+        let colours = match kind {
+            Kind::Mesh(name) => crate::props::mesh::get(name).map(|m| m.file.palette.len()),
+            _ => None,
+        };
+        let mut out = BTreeMap::new();
+        for (key, value) in object {
+            let at = join(path, key);
+            if !key.parse::<usize>().is_ok_and(|i| colours.is_none_or(|n| i < n)) {
+                let expected = colours.map_or("a palette index".to_string(), |n| format!("0 to {}", n.saturating_sub(1)));
+                self.push(Issue::error(&at, Code::OutOfRange, "not a palette index").expected(expected));
+                continue;
+            }
+            let colour = match value.as_str() {
+                Some(text) if text.starts_with('#') => self.color(&at, value),
+                _ => self.material_ref(&at, value),
+            };
+            if let Some(colour) = colour {
+                out.insert(key.clone(), colour);
+            }
+        }
+        Some(out)
     }
 
     /// `{its material: a material here}`. Format-1 assets have no materials to rename.
@@ -2351,7 +2394,7 @@ mod tests {
             ("ring", "use torus (a ring) or tube (a pipe)"),
             ("ramp", "use wedge with peak"),
             ("gable", "use wedge with peak"),
-            ("mesh", "imported meshes come from asset_import, which is not available yet"),
+            ("mesh", r#"a mesh part is {"mesh":"<pack>/<name>"}; asset_import writes them"#),
         ] {
             let parts = format!(r#""a":{{"type":"{kind}","mat":"wood"}}"#);
             assert_eq!(errors(&parts), [format!(r#"parts.a.type: unknown shape type "{kind}" {types} — {fix}"#)]);
@@ -2646,7 +2689,9 @@ mod tests {
             ),
             (
                 r#""a":{"mesh":"kenney/barrel","pos":[0,0,0]}"#,
-                &["parts.a.mesh: mesh parts need asset_import, which is not available yet — build the shape from primitives"],
+                &[
+                    r#"parts.a.mesh: no mesh "kenney/barrel" — asset_import writes mesh files (assets/props/lib|local/<pack>/meshes/<name>.json)"#,
+                ],
             ),
         ]);
         let many: Vec<String> = (0..300).map(|i| format!(r#""p{i}":{{"type":"box","size":[1,1,1],"mat":"wood"}}"#)).collect();

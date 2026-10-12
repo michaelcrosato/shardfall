@@ -11,7 +11,7 @@ use glam::{EulerRot, Mat3, Quat, Vec3};
 use serde::Serialize;
 
 use super::doc::{Anchor, Attach, Axis, Dir, Doc, Kind, Material, MaterialEntry, Node, Prim, PrimType, Replicate, Surface};
-use super::geom::{self, Generated, Primitive};
+use super::geom::{self, Generated, MeshShape, Primitive};
 use super::lint::Finding;
 use super::read::v2::{MAX_FX, MAX_LIGHTS};
 use super::{Bounds, PropDef, fnv};
@@ -492,7 +492,10 @@ impl<'a> Compiler<'a> {
                 let b = def.compiled.bounds;
                 (b.center(), b.size() * 0.5)
             }),
-            Kind::Mesh(_) => (Vec3::ZERO, Vec3::ZERO),
+            // Unscaled, like a reference.
+            Kind::Mesh(name) => {
+                super::mesh::get(name).map_or((Vec3::ZERO, Vec3::ZERO), |m| ((m.lo + m.hi) * 0.5, (m.hi - m.lo) * 0.5))
+            }
             Kind::Group(children) => {
                 let children = self.siblings(children);
                 let points = children.iter().flat_map(|child| {
@@ -752,7 +755,10 @@ impl<'a> Compiler<'a> {
                         self.part(&node_path, &id, node, prim, &world, levels, tint);
                     }
                     Kind::Ref(name) => self.reference(&node_path, &id, node, name, &world, tint),
-                    Kind::Mesh(_) => self.issue(&node_path(), Code::UnknownAsset, "mesh parts are not available yet"),
+                    Kind::Mesh(name) => match self.mesh(node, name) {
+                        Ok(prim) => self.part(&node_path, &id, node, prim, &world, levels, tint),
+                        Err(message) => self.issue(&node_path(), Code::UnknownAsset, message),
+                    },
                 }
                 levels.pop();
             }
@@ -766,6 +772,24 @@ impl<'a> Compiler<'a> {
             children.keys().map(|name| (fnv(format!("{}:{id}:pick:{name}", self.seed).as_bytes()), name.as_str())).collect();
         ranked.sort();
         Some(ranked.into_iter().take(n).map(|(_, name)| name).collect())
+    }
+
+    /// A mesh part's shape: its file, with `recolor` swapping palette entries for a material's
+    /// colour or a `#rrggbb`.
+    fn mesh(&self, node: &Node, name: &str) -> Result<Primitive, String> {
+        let mesh = super::mesh::get(name).ok_or_else(|| format!("no mesh \"{name}\": asset_import writes mesh files"))?;
+        let mut shape = MeshShape::new(mesh);
+        for (index, with) in node.recolor.iter().flatten() {
+            let slot = index.parse::<usize>().ok().filter(|&i| i < shape.colours.len());
+            let slot = slot.ok_or_else(|| format!("recolor {index}: the palette has {} colours", shape.colours.len()))?;
+            let hex =
+                if with.starts_with('#') { Some(with.as_str()) } else { self.material(with).and_then(|m| m.color.as_deref()) };
+            match hex.filter(|hex| !hex.starts_with('$')) {
+                Some(hex) => shape.colours[slot] = super::mesh::linear(hex),
+                None => return Err(format!("recolor {index}: \"{with}\" is not a material with a #rrggbb colour")),
+            }
+        }
+        Ok(Primitive::Mesh { name: name.to_string(), mesh: shape })
     }
 
     /// The material behind a key, when it is written inline (a referencing document's, when
@@ -795,7 +819,11 @@ impl<'a> Compiler<'a> {
         levels: &[Level],
         tint: f32,
     ) {
-        let color = self.cascade(levels, |l| l.color.map(String::from), |m| m.color.clone());
+        // A mesh carries its own colours.
+        let color = match prim {
+            Primitive::Mesh { .. } => Some("#ffffff".to_string()),
+            _ => self.cascade(levels, |l| l.color.map(String::from), |m| m.color.clone()),
+        };
         let Some(color) = color else {
             self.issue(&path(), Code::Missing, "no colour: nothing gives this part color or mat");
             return;

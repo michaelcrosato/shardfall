@@ -11,16 +11,22 @@
 //! - `scene`: the one intermediate every reader fills.
 //! - `normalize`: units, up axis, facing, origin, winding; welds and parts for the census.
 //! - `libraries`: the open model libraries the importer knows (its directory) and `get`.
+//! - `fit`: translation into a format-2 prop (primitives, the mesh part, mirrors and arrays).
+//! - `raster`: a CPU rasteriser of orthographic views; `metrics`: the fidelity metrics, the
+//!   tiers and the compare image.
 //! - `report`: writing what was made, and the replies.
 
 pub mod catalog;
 pub mod fetch;
+pub mod fit;
 pub mod gltf;
 pub mod image;
 pub mod ledger;
 pub mod libraries;
+pub mod metrics;
 pub mod normalize;
 pub mod obj;
+pub mod raster;
 pub mod report;
 pub mod scene;
 

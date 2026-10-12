@@ -134,7 +134,7 @@ asset_import: library zip/GLB/OBJ ─▶ Scene ─▶ segment ─▶ fit primiti
      references; up to 20 issues with part paths and did-you-mean.
   4. Typed parse into the flat model; v1 nested `shape` is mapped.
   5. `compile`.
-- Row 2.1 landed steps 1-4 (`props/doc.rs`, `props/read/v2.rs`). Until their phases land, `MAT/…` materials, mesh parts and `params`/`presets` are refused as not yet available, and inline material layers are checked by pattern and parameter name only.
+- Row 2.1 landed steps 1-4 (`props/doc.rs`, `props/read/v2.rs`). Until their phases land, `MAT/…` materials and `params`/`presets` are refused as not yet available (mesh parts landed with row 5.2), and inline material layers are checked by pattern and parameter name only.
 - Revisions:
   - v1 keeps `prop1-` + the existing FNV-1a over a `V1Mirror` of today's serde layout (props.rs:274-280), so untouched assets, `if_revision` values and history heads stay valid;
   - v2 uses `prop2-` + FNV over the canonical compact text;
@@ -1338,7 +1338,7 @@ Why this order:
 - [ ] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L) — part 1 (tooling) done; exemplars next
 - [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
-- [ ] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L)
+- [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)
 - [ ] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M)
 - [ ] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L)
 

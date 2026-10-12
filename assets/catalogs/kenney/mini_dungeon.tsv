@@ -1,0 +1,32 @@
+# asset census and fit (asset_import survey): tris, materials used, textures, connected parts, size WxHxD cm, flags; parts (authored nodes), mesh_pct (area in the mesh part), iou (worst of 6 views) and iou_mean, iou_gpu (deferred), de (Oklab x100), chars, tier
+id	file	tris	mats	tex	comps	size_cm	flags	parts	mesh_pct	iou	iou_mean	iou_gpu	de	chars	tier	used	note
+banner	Models/GLB format/banner.glb	200	1	1	2	60x65x10	textured	1	100	0.999	1.000		0.1	245	fit		
+barrel	Models/GLB format/barrel.glb	148	1	1	3	52x48x52	textured	3	0	0.981	0.984		2.2	695	fit		
+chair	Models/GLB format/chair.glb	208	1	1	6	35x48x38	textured	4	49	0.964	0.975		0.6	605	fit		
+character-human	Models/GLB format/character-human.glb	465	1	1	17	78x76x36	skinned animated textured uv1								skip		
+character-orc	Models/GLB format/character-orc.glb	374	1	1	17	78x78x33	skinned animated textured uv1								skip		
+chest	Models/GLB format/chest.glb	288	1	1	2	50x45x50	animated textured	2	43	0.983	0.995		3.4	520	fit		
+coin	Models/GLB format/coin.glb	252	1	1	1	42x42x17	textured	1	0	0.963	0.969		2.4	392	fit		
+column	Models/GLB format/column.glb	104	1	1	3	50x110x50	textured	3	0	0.946	0.951		2.2	767	fit		
+dirt	Models/GLB format/dirt.glb	12	1	1	1	100x90x100	textured	1	0	1.000	1.000		1.4	273	fit		
+floor-detail	Models/GLB format/floor-detail.glb	102	1	1	11	100x5x100	textured	10	13	0.956	0.974		0.3	1013	fit		
+floor	Models/GLB format/floor.glb	2	1	1	1	100x0x100	textured	1	0	0.998	0.999		0.0	275	fit		
+gate	Models/GLB format/gate.glb	76	1	1	3	80x75x20	animated textured	3	91	1.000	1.000		0.2	490	fit		
+key	Models/GLB format/key.glb	176	1	1	3	59x36x16	textured	3	51	0.967	0.981		1.2	674	fit		
+pot	Models/GLB format/pot.glb	284	1	1	1	60x43x41	textured	1	100	0.995	0.998		0.1	241	fit		
+potion	Models/GLB format/potion.glb	120	1	1	3	33x40x33	textured	3	60	0.987	0.992		1.2	536	fit		
+rocks	Models/GLB format/rocks.glb	190	1	1	6	100x50x100	textured	6	0	0.937	0.957		2.4	880	fit		
+shield-rectangle	Models/GLB format/shield-rectangle.glb	134	1	1	4	28x30x13	textured	3	34	0.902	0.960		1.2	573	fit		
+shield-round	Models/GLB format/shield-round.glb	160	1	1	3	38x38x11	textured	3	0	0.958	0.975		5.1	584	fit		
+stairs	Models/GLB format/stairs.glb	124	1	1	1	100x90x100	textured	1	0	0.984	0.995		2.2	423	fit		
+stones	Models/GLB format/stones.glb	248	1	1	10	89x45x80	textured	10	0	0.953	0.959		1.0	1224	fit		
+table	Models/GLB format/table.glb	150	1	1	6	88x31x65	textured	5	0	0.920	0.954		1.2	941	fit		
+trap	Models/GLB format/trap.glb	408	1	1	8	79x28x79	animated textured	2	0	0.920	0.929		5.4	461	fit		
+wall-half	Models/GLB format/wall-half.glb	150	1	1	7	100x100x100	textured	7	91	0.997	0.998		0.4	814	fit		
+wall-narrow	Models/GLB format/wall-narrow.glb	234	1	1	8	100x100x100	textured	8	86	0.993	0.997		0.6	980	fit		
+wall-opening	Models/GLB format/wall-opening.glb	200	1	1	6	100x100x105	textured	6	99	0.994	0.998		0.1	679	fit		
+wall	Models/GLB format/wall.glb	186	1	1	5	100x110x100	textured	5	94	1.000	1.000		0.3	769	fit		
+weapon-spear	Models/GLB format/weapon-spear.glb	58	1	1	3	15x60x12	textured	3	38	0.950	0.968		1.8	672	fit		
+weapon-sword	Models/GLB format/weapon-sword.glb	80	1	1	3	23x45x11	textured	3	0	0.909	0.938		3.1	859	fit		
+wood-structure	Models/GLB format/wood-structure.glb	256	1	1	20	109x100x109	textured	9	7	0.986	0.991		1.1	1230	fit		
+wood-support	Models/GLB format/wood-support.glb	104	1	1	7	109x100x24	textured	6	5	0.983	0.992		1.3	860	fit		

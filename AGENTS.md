@@ -139,7 +139,8 @@ crates/
               Bandai Namco skeletons; loops cut at their best cycle; fitted into readable key
               poses, number for number what my-3D2dge's own importer writes; the whole CMU
               database surveyed and translated), and the asset importer (import/: what both
-              importers share, one `Scene` read from glTF/OBJ, normalisation; `asset_import`)
+              importers share, one `Scene` read from glTF/OBJ, normalisation, translation into
+              props with fidelity metrics; `asset_import`)
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
@@ -277,9 +278,13 @@ import: `asset_import` (`pav help` for args).
 - Import: `asset_import` alone lists the open model libraries; `get=kenney/mini_dungeon` downloads
   a pack its catalog pins (`assets/catalogs/<lib>.json`) into .cache/assets, checked by SHA-256;
   `from=<model> list=true` summarises a .glb/.gltf/.obj (parts, triangles, size in cm, materials,
-  main colours, warnings); `survey=<lib/pack|folder>` writes a census ledger
-  (`assets/catalogs/<lib>/<pack>.tsv`, keeping each row's `note`). `up= yaw= scale= place=` bring
-  a model into the engine's frame. Translating into props comes with the fitter (plan row 5.2).
+  main colours, warnings); `from=<model|folder|lib/pack>` translates into format-2 props
+  (primitives, plus one read-only vertex-coloured mesh part for what they cannot fit; `fit=prims|mesh`)
+  written to the local tier `assets/props/local/<pack>/` (not committed; or `out=`), with their
+  fidelity (six-view IoU, ΔE, Chamfer mm, tier); `survey=<lib/pack|folder>` fits without writing
+  and fills the ledger (`assets/catalogs/<lib>/<pack>.tsv`, keeping each row's `note`; `fit=false`:
+  census only); `check=<asset.json> compare=true` measures a translation again and returns
+  source-over-translation views. `up= yaw= scale= place=` bring a model into the engine's frame.
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
@@ -449,7 +454,10 @@ in tests/fixtures/mocap; the CMU survey measures a take as the committed ledger 
 cuts into a loop that closes; a sidestep take gives a loop each way, facing forward; an FBX file
 written by the test reads as a take); `tests/import.rs` (glTF and OBJ models built in code read
 back exactly, mirrored nodes stay outward, texels give exact face colours, malformed files are
-errors, normalisation, the `asset_import` tool) and `tests/import_khronos.rs` (opt-in,
+errors, normalisation, the `asset_import` tool), `tests/import_fit.rs` (a table folds into a top
+and mirrored legs, a vase is a lathe, a blade an extrusion, a noisy blob a mesh part within budget;
+the engine reads every translation back; byte-identical twice; translate, check, compare and
+survey through the tool) and `tests/import_khronos.rs` (opt-in,
 `-- --ignored`: 12 Khronos sample models at a pinned commit).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the

@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next row 3.3):
+**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.3, 4.2 part 2, 5.3):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -72,9 +72,12 @@ Procedural materials exist as data with a CPU reference evaluator (`pav_core::ma
 materials; 3.1), and the renderer draws them exactly as it evaluates (3.2: a storage-buffer
 uber-shader, `pav_view::materials::MaterialTable`, parity 100% within 1/255, +16%/+48% frame
 time, `scripts/check-wgsl.sh`); props and statics wear them next (3.3).
-Row 5.1 is done early: the importers share `pav_tools/src/import/`, and `asset_import` reads glTF
-and OBJ into one `Scene`, normalises it, downloads pinned packs and writes census ledgers (all 12
-Khronos core models read). Translation into props is row 5.2.
+Rows 5.1 and 5.2 are done early: the importers share `pav_tools/src/import/`; `asset_import` reads
+glTF and OBJ into one `Scene`, downloads pinned packs, translates models into format-2 props
+(primitives, mirrors and arrays, plus one read-only vertex-coloured mesh part the engine now
+draws) and measures them on the CPU (six-view IoU, ΔE, Chamfer, tier; `check=`, `compare=`).
+Kenney Mini Dungeon: median worst-view IoU 0.983 at 293 tokens, byte-identical rebuilds. Next for
+import: row 5.3 (catalogs, licence gate, the pilot).
 Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, other packs on
 disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
 `similar=` and ~35-token rows read from each folder's `index.tsv`, and

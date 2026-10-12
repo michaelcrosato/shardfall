@@ -1708,7 +1708,12 @@ fn mesh_data(mesh: &GeomMesh) -> MeshData {
             .positions
             .iter()
             .zip(&mesh.normals)
-            .map(|(p, n)| Vertex { pos: p.to_array(), normal: n.to_array(), uv: [0.0, 0.0], color: [1.0; 4] })
+            .enumerate()
+            .map(|(i, (p, n))| {
+                // A mesh part's own colours (linear), else white under the part's colour.
+                let color = mesh.colors.get(i).map_or([1.0; 4], |c| [c.x, c.y, c.z, 1.0]);
+                Vertex { pos: p.to_array(), normal: n.to_array(), uv: [0.0, 0.0], color }
+            })
             .collect(),
         indices: mesh.indices.clone(),
     }
