@@ -1,0 +1,5 @@
+{"format":1,"name":"pillar_stone","unit":"cm","description":"Stone drums with fine joints, lightly weathered: pillars and columns in the theme's colours.","tags":["stone","pillar"],"color":"$pillar",
+ "layers":[
+  {"type":"stripes","size":45,"cover":0.06,"axis":"y","shade":0.55,"facing":"side"},
+  {"type":"noise","size":20,"detail":2,"cover":0.5,"shade":0.9}
+ ]}

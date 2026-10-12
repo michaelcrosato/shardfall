@@ -1116,6 +1116,7 @@ fn plan_json(p: &pav_core::arpg::world::LevelPlan) -> Value {
         "endless": p.endless,
         "theme": p.theme.key,
         "palette": { "floor": p.theme.floor, "wall": p.theme.wall, "accent": p.theme.accent, "light": p.theme.light, "sky": p.theme.sky },
+        "materials": { "floor": p.theme.floor_mat, "wall": p.theme.wall_mat, "pillar": p.theme.pillar_mat, "cap": p.theme.cap_mat },
         "mechanics": p.mechanics.iter().map(|m| json!({ "key": m.key(), "name": m.name(), "hint": m.hint(), "weight": p.weight(*m) })).collect::<Vec<_>>(),
         "rooms": p.rooms,
         "boss": p.boss,
@@ -1177,6 +1178,20 @@ pub fn t_level(s: &mut Session, a: &Args) -> Result<Output> {
             .push(json!({ "i": i, "room": f.room, "pos": [round3(f.pos.x), round3(f.pos.z)], "state": state }));
     }
     let hero = g.hero_id.and_then(|h| s.sim.state.entities.get(h)).map(|e| e.pos);
+    if get_bool(a, "rooms", false)? {
+        let rooms: Vec<Value> = lv
+            .layout
+            .rooms
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let (c, size) = (r.rect.center(), r.rect.size());
+                json!({ "i": i, "role": format!("{:?}", r.role).to_lowercase(), "shape": format!("{:?}", r.shape).to_lowercase(),
+                        "center": [round3(c.x), round3(c.y)], "size": [round3(size.x), round3(size.y)], "seen": lv.seen[i] })
+            })
+            .collect();
+        return Ok(Output::Json(json!({ "depth": lv.depth, "hero_room": hero.and_then(|p| lv.room_at(p)), "rooms": rooms })));
+    }
     Ok(Output::Json(json!({
         "depth": lv.depth,
         "label": lv.label,

@@ -780,10 +780,11 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "level",
-        help: "Shardfall levels: with depth= what that depth is (name, theme colours, mechanics, boss, monster level; to= for a range); with no args the level being played (features by kind with positions and state, spots, rooms seen, exit).",
+        help: "Shardfall levels: depth= says what a depth is (name, theme, mechanics, boss, monster level; to= a range); no args: the live level (features with positions and state, spots, exit).",
         args: &[
             arg("depth", "integer", "a depth to describe (1-12 designed, then endless)"),
             arg("to", "integer", "describe depth..to"),
+            arg("rooms", "boolean", "its rooms: role, shape, centre, size"),
         ],
         run: crate::game_tools::t_level,
     },

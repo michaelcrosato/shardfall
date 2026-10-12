@@ -593,6 +593,12 @@ pub fn load() -> Result<Data, String> {
                 return Err(format!("theme '{k}': bad colour '{c}'"));
             }
         }
+        // Game data names embedded materials only.
+        for m in [&t.floor_mat, &t.wall_mat, &t.pillar_mat, &t.cap_mat].into_iter().flatten() {
+            if crate::material::Library::core().get(m).is_none() {
+                return Err(format!("theme '{k}': unknown material '{m}' (core materials: `pav assets kind=material`)"));
+            }
+        }
         d.themes.insert(k, t);
     }
     if d.themes.is_empty() {

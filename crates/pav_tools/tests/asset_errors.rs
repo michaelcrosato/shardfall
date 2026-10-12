@@ -93,8 +93,8 @@ fn the_field_guide_and_tool_list_stay_compact() {
     let chars = list.to_string().len();
     // G0's 47,000 plus `asset_import` (plan §8.2 budgets its schema at ≤ 2 KB; it is ~0.96 KB).
     // Row 4.1's retrieval args (~0.4 KB) were paid for by trimming three creature/job help strings,
-    // row 4.2's `review` arg by trimming the clip library's `load=` help, and kind=material (row
-    // 3.3) by trimming help text.
+    // row 4.2's `review` arg by trimming the clip library's `load=` help, kind=material (row
+    // 3.3) by trimming help text, and `level rooms=` (row 3.4) by trimming `level`'s help.
     assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();

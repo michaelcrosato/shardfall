@@ -399,6 +399,8 @@ pub struct ViewSettings {
     pub light: LightSettings,
     pub cutaway: CutawaySettings,
     pub filter: FilterSettings,
+    /// How much of each procedural material is drawn: every layer, the first only, or none.
+    pub material_detail: crate::materials::MaterialDetail,
 }
 
 impl Default for ViewSettings {
@@ -443,6 +445,7 @@ impl Default for ViewSettings {
             light: LightSettings::default(),
             cutaway: CutawaySettings::default(),
             filter: FilterSettings::default(),
+            material_detail: crate::materials::MaterialDetail::Full,
         }
     }
 }
@@ -526,6 +529,11 @@ impl Tunable for ViewSettings {
         v.bool("fog", &mut self.fog, "Distance fog (hides streaming edges)");
         v.float("fog_start", &mut self.fog_start, 5.0, 300.0, "Fog starts at this distance from the camera target (m)");
         v.float("fog_end", &mut self.fog_end, 10.0, 400.0, "Fog is complete at this distance (m)");
+        self.material_detail.visit_choice(
+            v,
+            "material_detail",
+            "Materials: full, first_layer (cheaper; phones), off (plain colours)",
+        );
         nested(v, "light", &mut self.light);
         nested(v, "cutaway", &mut self.cutaway);
         nested(v, "filter", &mut self.filter);
@@ -603,8 +611,10 @@ struct Effect {
 struct RegionCache {
     version: u64,
     style: StyleOverride,
-    /// `MaterialTable::instance_generation` when built (materials' colours are baked in).
+    /// `MaterialTable::instance_generation` when built (materials' colours are baked in) and
+    /// the hash of the place's palette (its blocks' material roles).
     materials: u64,
+    palette: u64,
     meshes: Vec<MeshInstance>,
     sdfs: Vec<SdfInstance>,
     lights: Vec<rs::PointLight>,
@@ -993,7 +1003,11 @@ impl ViewBuilder {
         self.generated.begin_frame();
         // A workshop edit or reload replaced the library: re-pack the rows it changed.
         let library = Library::current();
-        lock(&self.materials).sync(&library);
+        {
+            let mut table = lock(&self.materials);
+            table.sync(&library);
+            table.set_detail(settings.material_detail);
+        }
         scene.post.bloom = settings.bloom;
         scene.post.bloom_threshold = settings.bloom_threshold;
         scene.post.distortion = settings.distortion;
@@ -1118,11 +1132,15 @@ impl ViewBuilder {
         // Static geometry (cached per region version).
         self.static_cache.retain(|k, _| curr.statics.chunks.contains_key(k));
         let materials = lock(&self.materials).instance_generation();
+        // A level's blocks wear its theme's materials in its colours (`$floor` → the theme's).
+        let palette_map = curr.game.as_ref().and_then(|g| g.level.as_ref()).map(|l| &l.mood.palette);
+        let roles: Vec<(&str, &str)> =
+            palette_map.into_iter().flatten().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
+        let palette = palette_hash(&roles);
         for (key, chunk) in &curr.statics.chunks {
-            let fresh = self
-                .static_cache
-                .get(key)
-                .is_some_and(|c| c.version == chunk.version && c.style == settings.style && c.materials == materials);
+            let fresh = self.static_cache.get(key).is_some_and(|c| {
+                c.version == chunk.version && c.style == settings.style && c.materials == materials && c.palette == palette
+            });
             if !fresh {
                 let mut table = lock(&self.materials);
                 let mut sdfs = Vec::new();
@@ -1130,8 +1148,10 @@ impl ViewBuilder {
                 let mut list = Vec::with_capacity(chunk.blocks.len());
                 for b in chunk.blocks.iter().filter(|b| b.alive) {
                     // Blocks are world-mapped with seed 0, so neighbours (4 m floor tiles) join.
-                    let material =
-                        b.material.as_deref().map_or(0, |name| static_material(&mut table, &library, name, MapMode::World, 0));
+                    let material = b
+                        .material
+                        .as_deref()
+                        .map_or(0, |name| static_material(&mut table, &library, name, MapMode::World, 0, &roles));
                     let size = b.max - b.min;
                     let (mesh, scale, ext) = if b.has(block_flags::ROUNDED) {
                         (MeshKey::rounded_box(size * 0.5, (size.min_element() * 0.2).min(0.15)), Vec3::ONE, size * 0.5)
@@ -1163,7 +1183,8 @@ impl ViewBuilder {
                         };
                         // Decor has no entity: its position seeds it.
                         let at = d.pos.to_array().map(f32::to_bits);
-                        static_material(&mut table, &library, name, map, materials::seed(at[0] ^ at[2].rotate_left(16), at[1]))
+                        let seed = materials::seed(at[0] ^ at[2].rotate_left(16), at[1]);
+                        static_material(&mut table, &library, name, map, seed, &roles)
                     });
                     match d.sway {
                         Sway::Grass => list.push(grass_tuft(&d.shape, d.pos, d.rot, v3(d.color), style, material)),
@@ -1198,7 +1219,16 @@ impl ViewBuilder {
                 });
                 self.static_cache.insert(
                     *key,
-                    RegionCache { version: chunk.version, style: settings.style, materials, meshes: list, sdfs, lights, terrain },
+                    RegionCache {
+                        version: chunk.version,
+                        style: settings.style,
+                        materials,
+                        palette,
+                        meshes: list,
+                        sdfs,
+                        lights,
+                        terrain,
+                    },
                 );
             }
             for l in &chunk.labels {
@@ -1773,12 +1803,31 @@ fn auto_map(material: &pav_core::material::Material, auto: MapMode) -> Option<Ma
 }
 
 /// A static block's or decor's library material: its instance word (seed `seed`; world maps
-/// take 0), or 0 for a plain or missing one. The material's own map wins over `auto`.
-fn static_material(table: &mut MaterialTable, library: &Library, name: &str, auto: MapMode, seed: u32) -> u32 {
+/// take 0), or 0 for a plain or missing one. The material's own map wins over `auto`; its
+/// layers' roles take the place's palette (`roles`, else the defaults).
+fn static_material(
+    table: &mut MaterialTable,
+    library: &Library,
+    name: &str,
+    auto: MapMode,
+    seed: u32,
+    roles: &[(&str, &str)],
+) -> u32 {
     match library.get(name) {
-        Some(material) if !material.is_plain() => table.intern(name, material, auto_map(material, auto), &[]).param(seed),
+        Some(material) if !material.is_plain() => table.intern(name, material, auto_map(material, auto), roles).param(seed),
         _ => 0,
     }
+}
+
+/// A palette's hash for caches (0 for none).
+fn palette_hash(roles: &[(&str, &str)]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    if roles.is_empty() {
+        return 0;
+    }
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    roles.hash(&mut h);
+    h.finish()
 }
 
 /// How one placed prop's parts find their materials: the view's table, the library, the
@@ -2142,12 +2191,16 @@ mod tests {
     fn blocks_lay_materials_in_world_space() {
         let mut table = MaterialTable::default();
         let library = Library::current();
-        let word = static_material(&mut table, &library, "MAT/flagstones", MapMode::World, 0);
+        let word = static_material(&mut table, &library, "MAT/flagstones", MapMode::World, 0, &[]);
         assert_ne!(word & 0xfff, 0);
         assert_eq!(word >> 12, 0, "world maps take seed 0, so neighbouring blocks join");
-        let decor = static_material(&mut table, &library, "MAT/oak_planks", MapMode::Axis, 77);
+        // A level's palette: the stones take its two floor colours, in a row of their own.
+        let ashen = [("$floor", "#4a3f3a"), ("$floor2", "#433834"), ("$wall", "#5a4a44")];
+        let themed = static_material(&mut table, &library, "MAT/flagstones", MapMode::World, 0, &ashen);
+        assert_ne!(themed & 0xfff, word & 0xfff);
+        let decor = static_material(&mut table, &library, "MAT/oak_planks", MapMode::Axis, 77, &[]);
         assert_eq!(decor >> 12, 77);
-        assert_eq!(static_material(&mut table, &library, "MAT/nothing", MapMode::World, 0), 0, "a missing one draws plain");
+        assert_eq!(static_material(&mut table, &library, "MAT/nothing", MapMode::World, 0, &[]), 0, "a missing one draws plain");
         let mut scene = Scene::default();
         table.attach(&mut scene);
         assert_eq!(scene.materials[(word & 0xfff) as usize].head[1], 1, "world");

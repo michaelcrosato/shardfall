@@ -494,6 +494,7 @@ per layer: m = AA mask × facing × prev-mask
   - `pav_render/examples/material_bench.rs`: typical ≤ +25%, all-3-layer ≤ +60%;
   - `scripts/check-wgsl.sh`: dump the WGSL and run `createShaderModule` + `getCompilationInfo` in headless Chromium with the AGENTS.md SwiftShader flags, on every WGSL change, because naga is laxer than Tint.
 - (Row 3.2: all four checks pass. Slot-0 captures of `test`, `town` and `level/3` are byte-identical; parity is 100% within 1/255 for all 10 kernels, world-mapped and object-mapped (turned, scaled, seeded); the bench gives +16% typical and +48% with three layers everywhere on llvmpipe at 960×540; every renderer module compiles clean in Chromium. Rows are keyed by (name, map, the role colours the layers use): a library change re-packs a row in place, while a palette with new colours gets a row of its own, so cached instances never see another palette's colours. Slots are never freed in a session; past 4,095 a material draws in its plain colour. The view's hooks take a material word (`emit_shape`, `emit_object`, blocks, decor) and pass 0 until 3.3 gives props and statics materials.)
+- (Row 3.4: done, lean G3. `ThemeDef` has the four optional materials and all 8 themes use one role-coloured set: `MAT/flagstones` (cells `$floor`/`$floor2`), `dungeon_wall` (`$floor` dust at the foot), `pillar_stone`, `wall_cap`; 2-2.5 cost units, every layer clear at 540p. Floors with a material are `floor[0]` with no checker or jitter; ice keeps its tiles. Walls (rooms and corridors) and the wall-coloured furniture take `wall_mat`, pillars `pillar_mat`, the walls' top course and the furniture slabs `cap_mat`. The palette is `Mood.palette` (role → hex); the static loop interns block and decor materials with it, the region cache keys on its hash. `view.material_detail` = `full | first_layer | off` (rows packed with one layer; slot 0), capped at `first_layer` by the app's Medium and Low quality, which Auto is on touch screens. Checks: `levelmap` and a REPL transcript (features, entities, 20 s of autoplay) byte-identical to 3.3's for 5 seeds, identical `campaign` reports, the 8-theme review page (`material_detail` off against full, same frame). No shader change, so no bench. Not done: per-theme material variety, materials on rocks, crates and mechanic pieces, measuring `first_layer` on a phone.)
 
 ### 6.6 Material tools
 - `kind=material` on `assets`/`asset_edit`/`asset_preview`.
@@ -1342,7 +1343,7 @@ Why this order:
 - [x] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
 - [x] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
 - [x] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
-- [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
+- [x] 3.4 MAT-6 theme materials in levels; lean G3 (M): all 8 themes; levels identical for 5 seeds; review page with the user
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [x] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L): 28 exemplars (no theme-kit pieces: SF-3 deferred), all accepted by the user

@@ -1,0 +1,5 @@
+{"format":1,"name":"dungeon_wall","unit":"cm","description":"Big dressed stone blocks in courses, floor dust at the foot: dungeon walls in the theme's colours.","tags":["stone","wall"],"color":"$wall",
+ "layers":[
+  {"type":"brick","size":[70,35],"gap":4,"vary":0.2,"cavity":0.45},
+  {"type":"gradient","from":0,"to":70,"color":"$floor","strength":0.6}
+ ]}

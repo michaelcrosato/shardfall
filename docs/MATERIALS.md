@@ -6,8 +6,10 @@ layers (planks, brick, cobbles, noise …). No images, no UVs. Props wear them b
 ## Names
 
 - Core, read-only: MAT/oak_planks, barrel_staves (oak planks upright), brick_wall, cobblestone,
-  flagstones ($floor), mossy_stone, roof_shingles, awning_stripes, wrought_iron, gold_trim,
-  pb/gold, pb/iron. `assets kind=material [find=wood]` lists them with layers and cost.
+  mossy_stone, roof_shingles, awning_stripes, wrought_iron, gold_trim, pb/gold, pb/iron, and the
+  dungeon set in theme colours: flagstones (stones in $floor and $floor2), dungeon_wall ($wall,
+  $floor dust at the foot), pillar_stone ($pillar drums), wall_cap (1 m coping stones).
+  `assets kind=material [find=wood]` lists them with layers and cost.
 - Yours: MAT/workshop/x, saved as assets/materials/workshop/x.json.
 
 ## On a prop
@@ -28,6 +30,21 @@ layers (planks, brick, cobbles, noise …). No images, no UVs. Props wear them b
   cylinder, cone, capsule, tube, lathe: around and along the axis, so staves run up a barrel),
   world (world space: neighbouring parts join seamlessly). A material's map overrides.
 - `check` reports unknown_material: an unknown name draws magenta until fixed.
+
+## In levels
+
+A theme in `game/themes.toml` names its materials: `floor_mat`, `wall_mat`, `pillar_mat`,
+`cap_mat` (core names only; all 8 themes use the dungeon set). The level's blocks wear them
+world-mapped, so neighbouring blocks join; a block keeps its own colour as the base, and a layer's
+`$floor $floor2 $wall $pillar $accent $light` take the theme's colours (endless depths: the
+blended theme's). With a floor material the floor is laid in the first floor colour (no checker)
+and the material varies it. Ice keeps its own tiles. Drawing only: levels, packs and mechanics
+are the same with or without materials.
+
+`view.material_detail` (a view setting: `set path=view.material_detail value=off`): `full`
+draws every layer, `first_layer` the first only, `off` plain colours. The game's graphics
+quality Medium or Low draws at most `first_layer`; Auto is Medium on phones and tablets, High
+(`full`) on desktops.
 
 ## A material
 

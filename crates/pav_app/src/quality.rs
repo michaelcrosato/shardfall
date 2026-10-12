@@ -1,7 +1,9 @@
 //! Graphics quality: how much of the screen's resolution the scene is drawn at and which costly
 //! effects run. Auto is High on a desktop (everything, as the game always drew) and Medium on a
-//! phone or tablet, where the resolution also follows the frame rate (dynamic resolution).
+//! phone or tablet, where the resolution also follows the frame rate (dynamic resolution) and
+//! materials draw their first layer only (plan D7).
 
+use pav_view::materials::MaterialDetail;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,8 +44,10 @@ impl Quality {
             Quality::Medium => {
                 v.gi = 0.0;
                 v.shafts = 0.0;
+                v.material_detail = v.material_detail.min(MaterialDetail::FirstLayer);
             }
             Quality::Low => {
+                v.material_detail = v.material_detail.min(MaterialDetail::FirstLayer);
                 v.gi = 0.0;
                 v.shafts = 0.0;
                 v.haze = 0.0;
@@ -141,8 +145,8 @@ mod tests {
         assert!(s.scale > low, "{} {low}", s.scale);
         let mut v = pav_view::ViewSettings { gi: 0.5, ..Default::default() };
         Quality::Auto.trim(false, &mut v);
-        assert_eq!(v.gi, 0.5);
+        assert_eq!((v.gi, v.material_detail), (0.5, MaterialDetail::Full));
         Quality::Auto.trim(true, &mut v);
-        assert_eq!(v.gi, 0.0);
+        assert_eq!((v.gi, v.material_detail), (0.0, MaterialDetail::FirstLayer));
     }
 }

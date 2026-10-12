@@ -31,6 +31,18 @@ pub const SOFT_SLOTS: usize = 256;
 /// one table for another.
 static NEXT_VERSION: AtomicU64 = AtomicU64::new(1);
 
+pav_core::choice_enum! {
+    /// How much of each material is drawn (`view.material_detail`, plan D7): every layer, the
+    /// first layer only (phones), or none (plain colours, as before materials).
+    #[derive(Default, PartialOrd, Ord)]
+    pub enum MaterialDetail {
+        Off => "off",
+        FirstLayer => "first_layer",
+        #[default]
+        Full => "full",
+    }
+}
+
 /// A material ready for instances: its row and what travels in the instance.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MatSlot {
@@ -47,6 +59,9 @@ impl MatSlot {
     /// The instance's `material` word. World-mapped surfaces take seed 0, so neighbouring
     /// blocks (4 m floor tiles) join seamlessly.
     pub fn param(&self, seed: u32) -> u32 {
+        if self.slot == 0 {
+            return 0;
+        }
         material_param(self.slot, if self.map == MapMode::World { 0 } else { seed })
     }
 }
@@ -83,6 +98,7 @@ pub struct MaterialTable {
     full_warned: bool,
     /// The library the rows were last refreshed against (`sync`).
     synced: Option<Arc<Library>>,
+    detail: MaterialDetail,
 }
 
 impl Default for MaterialTable {
@@ -95,6 +111,7 @@ impl Default for MaterialTable {
             generation: 0,
             full_warned: false,
             synced: None,
+            detail: MaterialDetail::Full,
         }
     }
 }
@@ -127,7 +144,26 @@ impl MaterialTable {
     /// inline material): the same name, map and layer palette always get the same slot. A
     /// different `Arc` under a known name is a library change: the row is re-packed in place.
     /// When every slot is taken it returns slot 0 (the plain colour) and warns once.
+    /// With `MaterialDetail::Off` the row is still interned, but the slot handed out is 0.
     pub fn intern(&mut self, name: &str, material: &Arc<Material>, map: Option<MapMode>, roles: &[(&str, &str)]) -> MatSlot {
+        let slot = self.intern_row(name, material, map, roles);
+        if self.detail == MaterialDetail::Off { MatSlot { slot: 0, ..slot } } else { slot }
+    }
+
+    /// How much of each material the rows draw. A change re-packs every row and changes the
+    /// instance generation (static caches rebuild).
+    pub fn set_detail(&mut self, detail: MaterialDetail) {
+        if detail == self.detail {
+            return;
+        }
+        self.detail = detail;
+        for i in 0..self.entries.len() {
+            self.repack(i);
+        }
+        self.generation += 1;
+    }
+
+    fn intern_row(&mut self, name: &str, material: &Arc<Material>, map: Option<MapMode>, roles: &[(&str, &str)]) -> MatSlot {
         let key = Key { name: name.to_owned(), map, palette: palette_hash(material, roles) };
         if let Some(&i) = self.index.get(&key) {
             if !Arc::ptr_eq(&self.entries[i].material, material) {
@@ -163,7 +199,7 @@ impl MaterialTable {
         }
         let roles: Vec<(String, String)> = roles.iter().map(|(role, hex)| (role.to_string(), hex.to_string())).collect();
         // A new row changes no instance already built: the generation holds.
-        let (row, mat_slot) = pack(material, map, &roles, slot as u32);
+        let (row, mat_slot) = pack(material, map, &roles, slot as u32, self.detail);
         self.entries.push(Entry { key: key.clone(), material: material.clone(), roles, slot: mat_slot });
         Arc::make_mut(&mut self.rows).push(row);
         self.index.insert(key, slot - 1);
@@ -205,7 +241,7 @@ impl MaterialTable {
     fn repack(&mut self, i: usize) {
         let entry = &self.entries[i];
         let map = effective_map(entry.key.map, &entry.material);
-        let (row, slot) = pack(&entry.material, map, &entry.roles, entry.slot.slot);
+        let (row, slot) = pack(&entry.material, map, &entry.roles, entry.slot.slot, self.detail);
         if slot != entry.slot {
             self.entries[i].slot = slot;
             self.generation += 1;
@@ -224,10 +260,19 @@ impl MaterialTable {
     }
 }
 
-/// A material's row and what its instances carry.
-fn pack(material: &Material, map: MapMode, roles: &[(String, String)], slot: u32) -> (GpuMaterial, MatSlot) {
+/// A material's row and what its instances carry (`FirstLayer`: the row's layer count is 1).
+fn pack(
+    material: &Material,
+    map: MapMode,
+    roles: &[(String, String)],
+    slot: u32,
+    detail: MaterialDetail,
+) -> (GpuMaterial, MatSlot) {
     let roles: Vec<(&str, &str)> = roles.iter().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
-    let packed = material.pack(map, &roles);
+    let mut packed = material.pack(map, &roles);
+    if detail == MaterialDetail::FirstLayer {
+        packed.gpu.head[0] = packed.gpu.head[0].min(1);
+    }
     let slot = MatSlot { slot, map, base: packed.base, emissive: packed.emissive, look: packed.look };
     (GpuMaterial::from_words(&packed.gpu.words()), slot)
 }
@@ -312,6 +357,29 @@ mod tests {
         table.refresh(&lib2);
         table.attach(&mut scene);
         assert_eq!(scene.materials_version, version);
+    }
+
+    #[test]
+    fn detail_trims_layers_or_draws_plain() {
+        let two = PLAIN.replace(r#"[40,20]}]"#, r#"[40,20]},{"type":"noise","size":30}]"#);
+        let lib = Library::from_sources(&[("plain", &two)]);
+        let mut table = MaterialTable::default();
+        let full = table.resolve(&lib, "MAT/plain", None, &[]).unwrap();
+        let mut scene = Scene::default();
+        let layers = |table: &MaterialTable, scene: &mut Scene| {
+            table.attach(scene);
+            scene.materials[full.slot as usize].head[0]
+        };
+        assert_eq!(layers(&table, &mut scene), 2);
+        let generation = table.instance_generation();
+        table.set_detail(MaterialDetail::FirstLayer);
+        assert_eq!((layers(&table, &mut scene), table.resolve(&lib, "MAT/plain", None, &[]).unwrap()), (1, full));
+        assert_ne!(table.instance_generation(), generation, "static caches rebuild");
+        table.set_detail(MaterialDetail::Off);
+        let off = table.resolve(&lib, "MAT/plain", None, &[]).unwrap();
+        assert_eq!((off.slot, off.param(77), off.base), (0, 0, full.base), "plain colour, same base");
+        table.set_detail(MaterialDetail::Full);
+        assert_eq!((layers(&table, &mut scene), table.resolve(&lib, "MAT/plain", None, &[]).unwrap()), (2, full));
     }
 
     #[test]

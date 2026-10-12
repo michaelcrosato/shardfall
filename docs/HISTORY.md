@@ -5,6 +5,71 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 3.4: theme materials in levels, lean G3 — 2026-10-12
+
+Row 3.4 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-6), in slim form: every dungeon theme now has
+flagstone floors, dressed-stone walls, drum pillars and coping stones, drawn by the 3.2-3.3
+material path in the theme's own colours.
+- **Themes.** `ThemeDef` gains optional `floor_mat`, `wall_mat`, `pillar_mat`, `cap_mat`
+  (`game/themes.toml`; data load refuses a name that is not a core material). The level
+  builder tags its blocks: `floor()` with a material lays `floor[0]` with no checker or jitter
+  (ice keeps its tiles and no material); room and corridor walls wear the wall material, the
+  walls' top course and the slabs on ring and cross furniture the cap material, pillars the
+  pillar material, low split walls, ring blocks and cross corner blocks the wall material.
+  Nothing else changed: no RNG call, block order or geometry, so levels, packs and mechanics are
+  identical. `blend_theme` keeps A's materials (its roles take the turned colours).
+- **Materials** (core, cm, all role-coloured): `flagstones` (now 80 cm cobbles whose cells take
+  `$floor`/`$floor2`, gap 3, cavity 0.25: the theme's two floor colours stone by stone, as the
+  old checker alternated them; 2.5 units), `dungeon_wall` (70×35 cm brick courses, `$floor`
+  dust up to 70 cm; 2), `pillar_stone` (45 cm drum joints on the sides, light noise; 2),
+  `wall_cap` (1 m coping tiles on top faces, which match the 1 m walls on the world grid, light
+  noise; 2). All within the 6-unit cap; every layer "clear" at 540p in `asset_preview
+  kind=material view=game`. The first flagstones (70 cm, gap 4.5, bevel 6, cavity 0.35) read as
+  busy crazy paving with thick black joints in the game: calmer joints won.
+- **Palette for statics.** `Mood` gains `palette` (role → hex, from `ThemeDef::palette`), so it
+  reaches the view with the level (`GameFrame.level.mood`). The static block and decor loop
+  hands it to `MaterialTable::intern` as props hand theirs, so a layer's roles take the theme's
+  colours (one row per material and palette: 4 rows in a level). The region cache keys on the
+  palette's hash beside the materials generation. Outside levels the roles stay the defaults.
+- **`view.material_detail`** (plan D7): `full | first_layer | off`. The table packs rows with one
+  layer for `first_layer` and hands out slot 0 for `off` (the row stays interned); a change
+  re-packs every row and bumps the instance generation, so static regions rebuild.
+  `MatSlot::param` of slot 0 is 0. The app's graphics quality caps it at `first_layer` on
+  Medium and Low, and Auto is Medium on touch screens: phones draw the first layer, desktops all.
+- **Tools.** `level rooms=true` lists the live level's rooms (role, shape, centre, size), to
+  find a pillar room; `level depth=` shows the theme's materials.
+- **Checks (lean G3).** Materials are view-only: for 5 seeds (depth/seed 2/1, 5/2, 8/3, 9/4,
+  14/5: powder kegs, windways, ice, crumbling floors, an endless blend) the `levelmap` PNGs and a
+  REPL transcript (`level` and `entities` at load, `autoplay seconds=20`, then `level`,
+  `entities`, `game`) are byte-identical to the 3.3 build's, 10 of 10 files; only the state hash
+  in `load`'s reply moves (blocks carry their colour and material, `Mood` its palette).
+  `campaign` (seed 1, from level 1) gives identical reports before and after, at 15 and at 60
+  game minutes: levels 1-3 cleared (1 death, hero level 1 to 6), then the bot stays on level 4,
+  the Rift Gates (113 kills, 7 rooms seen, the boss's seal shut), in both builds: a stall that
+  predates this row. Tests of
+  pav_core, pav_view, pav_tools and pav_app: 392 pass, 2 ignored (`rooms=` took `tools/list`
+  to 48,042 chars, over its 48,000 cap: paid for by trimming `level`'s help, now 47,982);
+  `eval_matches_its_golden` re-blessed for flagstones and the 3 new materials; new unit test
+  `detail_trims_layers_or_draws_plain`, the blocks test checks a palette gets its own row, the
+  quality test the phone cap. Clippy (`-D warnings`, all targets) and rustfmt clean on what this
+  touches; `cargo check -p pav_app --target wasm32-unknown-unknown` passes. No shader change, so
+  no bench. The 8-theme review (one capture per theme with `material_detail=off` and one with
+  `full`, same seed, room and frame, 960×540 at the game camera, `.cache/g3/manifest.json` for
+  `scripts/review_page.py`) went to the user.
+- **Decisions.** Caps are a role, not a colour: the walls' top course and the furniture slabs
+  (pillar-coloured on rings and crosses) wear `wall_cap`, whose layers only shade, so any base
+  colour works. The palette rides in `Mood` (view data the level already carries) rather than in
+  each block or region. Ice floors keep their checker. Low quality also gets `first_layer`, not
+  `off`: D7 names only first-layer. The Obsidian Rift's one designed depth (10) is the Lightless
+  Deep, nearly black at the game camera, so its review capture is depth 17 (obsidian_rift
+  architecture turned 25°, Storm Spire lights).
+- **Left out.** Per-theme material variety (all 8 use the same set, tinted by their colours),
+  materials on scattered rocks, crates and mechanic pieces, `theme=` on the swatch, measuring
+  `first_layer` on a phone (D7's "until measured"), and the material bench (no shader change).
+- **Review:** under the user's rule (AGENTS.md, "Testing budget"), the orchestrator judged the
+  8 before/after captures (plain colours vs materials, same seed and camera) instead of a human
+  review page; floors, walls and pillars read clearly in every theme and monsters stay distinct.
+
 ## Asset plan 4.2, part 2: 28 core exemplars — 2026-10-12
 
 The exemplar half of row 4.2 (LIB-5 W0). `LIB/core` now holds 28 reviewed assets, embedded in

@@ -4,6 +4,8 @@
 //! props, the mechanics' pieces and the monster packs. Every part is data or a seed, so the
 //! same building blocks keep making new levels forever.
 
+use std::collections::BTreeMap;
+
 use glam::{Quat, Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +53,30 @@ pub struct ThemeDef {
     pub elements: [f32; 5],
     pub families: Vec<String>,
     pub props: Vec<String>,
+    /// Library materials (`MAT/…`, drawing only) for the floor, the walls, the pillars and the
+    /// caps (the walls' top course, the slabs on furniture). With a floor material the floor is
+    /// laid in `floor[0]` and the material gives the variation; without one, tiles alternate.
+    pub floor_mat: Option<String>,
+    pub wall_mat: Option<String>,
+    pub pillar_mat: Option<String>,
+    pub cap_mat: Option<String>,
+}
+
+impl ThemeDef {
+    /// Colours for the materials' theme roles (`$floor` → `#rrggbb`).
+    pub fn palette(&self) -> BTreeMap<String, String> {
+        [
+            ("$floor", &self.floor[0]),
+            ("$floor2", &self.floor[1]),
+            ("$wall", &self.wall),
+            ("$pillar", &self.pillar),
+            ("$accent", &self.accent),
+            ("$light", &self.light),
+        ]
+        .into_iter()
+        .map(|(role, hex)| (role.to_string(), hex.clone()))
+        .collect()
+    }
 }
 
 /// The twelve level mechanics. Each designed level introduces one and is named after it.
@@ -191,6 +217,10 @@ pub struct Mood {
     pub haze: f32,
     #[serde(default)]
     pub halos: f32,
+    /// The theme's colours for the roles its materials name (`$floor`, `$wall` …): the view
+    /// tints the level's blocks with them.
+    #[serde(default)]
+    pub palette: BTreeMap<String, String>,
 }
 
 /// What a depth is: everything decided before a single block is placed.
@@ -236,6 +266,7 @@ impl LevelPlan {
             haze: t.haze,
             // In the dark, the torches' glow is most of what you see.
             halos: t.halos * (1.0 + dark * 0.8),
+            palette: t.palette(),
         }
     }
     /// "Level 3" or "Depth 17".
@@ -343,7 +374,8 @@ fn shift(c: &str, deg: f32) -> String {
     to_hex(Color::hex(c).hue_shift(deg))
 }
 
-/// A new palette: `a`'s architecture turned around the colour wheel, `b`'s lights.
+/// A new palette: `a`'s architecture turned around the colour wheel, `b`'s lights. The
+/// materials stay `a`'s (their roles take the turned colours).
 pub fn blend_theme(a: &ThemeDef, b: &ThemeDef, hue: f32) -> ThemeDef {
     let mut t = a.clone();
     t.key = format!("{}+{}@{}", a.key, b.key, hue as i32);
@@ -578,6 +610,14 @@ impl<'a> Builder<'a> {
         st.statics.add(&mut st.physics, Block::new(min, max, c));
     }
 
+    /// A block wearing one of the theme's materials (drawing only), if it has that one.
+    fn block_mat(&mut self, min: Vec3, max: Vec3, c: Color, mat: &Option<String>) {
+        let mut b = Block::new(min, max, c);
+        b.material = mat.clone();
+        let st = &mut self.sim.state;
+        st.statics.add(&mut st.physics, b);
+    }
+
     /// Rooms between the start and the exit (not those two).
     fn middle_rooms(&self) -> Vec<usize> {
         (0..self.layout.rooms.len()).filter(|i| *i != self.layout.start && *i != self.layout.exit).collect()
@@ -616,32 +656,41 @@ impl<'a> Builder<'a> {
         let floor = [self.color(&t.floor[0]), self.color(&t.floor[1])];
         let ice = [Color::hex("#bcdcef"), Color::hex("#a9cde4")];
         let wall = self.color(&t.wall);
+        // Ice keeps its own tiles; stone floors wear the theme's floor material.
+        let stone = t.floor_mat.clone();
         for i in 0..self.layout.rooms.len() {
             let r = self.layout.rooms[i].rect;
-            let cols = if self.ice[i] { ice } else { floor };
-            self.floor(r, if self.crumble[i] { 2.0 } else { 4.0 }, cols, self.crumble[i], i as i32);
+            let (cols, mat) = if self.ice[i] { (ice, None) } else { (floor, stone.clone()) };
+            self.floor(r, if self.crumble[i] { 2.0 } else { 4.0 }, cols, mat, self.crumble[i], i as i32);
             self.room_walls(i, wall);
             self.furniture(i);
         }
+        let wm = t.wall_mat.clone();
         for c in 0..self.layout.corridors.len() {
             let cor = self.layout.corridors[c].clone();
             let (a, b) = cor.rooms;
-            let cols = if self.ice[a] && self.ice[b] { ice } else { floor };
-            self.floor(cor.rect, 4.0, cols, false, 1000 + c as i32);
+            let (cols, mat) = if self.ice[a] && self.ice[b] { (ice, None) } else { (floor, stone.clone()) };
+            self.floor(cor.rect, 4.0, cols, mat, false, 1000 + c as i32);
             let r = cor.rect;
             if cor.along_x {
                 if r.max.x - r.min.x > 2.0 {
-                    self.block(Vec3::new(r.min.x + 1.0, 0.0, r.min.y - 1.0), Vec3::new(r.max.x - 1.0, WALL_H, r.min.y), wall);
-                    self.block(Vec3::new(r.min.x + 1.0, 0.0, r.max.y), Vec3::new(r.max.x - 1.0, WALL_H, r.max.y + 1.0), wall);
+                    let (z0, z1) = (r.min.y - 1.0, r.max.y);
+                    for z in [z0, z1] {
+                        self.block_mat(Vec3::new(r.min.x + 1.0, 0.0, z), Vec3::new(r.max.x - 1.0, WALL_H, z + 1.0), wall, &wm);
+                    }
                 }
             } else if r.max.y - r.min.y > 2.0 {
-                self.block(Vec3::new(r.min.x - 1.0, 0.0, r.min.y + 1.0), Vec3::new(r.min.x, WALL_H, r.max.y - 1.0), wall);
-                self.block(Vec3::new(r.max.x, 0.0, r.min.y + 1.0), Vec3::new(r.max.x + 1.0, WALL_H, r.max.y - 1.0), wall);
+                let (x0, x1) = (r.min.x - 1.0, r.max.x);
+                for x in [x0, x1] {
+                    self.block_mat(Vec3::new(x, 0.0, r.min.y + 1.0), Vec3::new(x + 1.0, WALL_H, r.max.y - 1.0), wall, &wm);
+                }
             }
         }
     }
 
-    fn floor(&mut self, r: Rect, tile: f32, cols: [Color; 2], crumble: bool, salt: i32) {
+    /// Floor tiles over `r`. With a material they are all `cols[0]` (the material gives the
+    /// variation); without one they alternate and vary a little.
+    fn floor(&mut self, r: Rect, tile: f32, cols: [Color; 2], mat: Option<String>, crumble: bool, salt: i32) {
         let nx = ((r.max.x - r.min.x) / tile).ceil() as i32;
         let nz = ((r.max.y - r.min.y) / tile).ceil() as i32;
         for i in 0..nx {
@@ -650,9 +699,14 @@ impl<'a> Builder<'a> {
                 let z0 = r.min.y + j as f32 * tile;
                 let x1 = (x0 + tile).min(r.max.x);
                 let z1 = (z0 + tile).min(r.max.y);
-                let v = (hash3(self.plan.depth as u64, i, salt, j) % 1000) as f32 / 1000.0;
-                let c = cols[((i + j) % 2) as usize].scale(0.94 + 0.12 * v);
+                let c = if mat.is_some() {
+                    cols[0]
+                } else {
+                    let v = (hash3(self.plan.depth as u64, i, salt, j) % 1000) as f32 / 1000.0;
+                    cols[((i + j) % 2) as usize].scale(0.94 + 0.12 * v)
+                };
                 let mut b = Block::new(Vec3::new(x0, -0.5, z0), Vec3::new(x1, 0.0, z1), c);
+                b.material = mat.clone();
                 if crumble {
                     b.crumble = 0.55;
                     b.regrow = 16.0;
@@ -670,6 +724,7 @@ impl<'a> Builder<'a> {
         let doors = self.layout.doors(i);
         let light_every = self.plan.theme.light_every.max(6.0);
         let lights = self.plan.weight(Mechanic::LightlessDeep) < 1.0;
+        let (wm, cm) = (self.plan.theme.wall_mat.clone(), self.plan.theme.cap_mat.clone());
         for side in 0..4 {
             let (lo, hi) = if side % 2 == 0 { (r.min.y - 1.0, r.max.y + 1.0) } else { (r.min.x - 1.0, r.max.x + 1.0) };
             let mut gaps: Vec<(f32, f32)> = doors.iter().filter(|d| d.0 == side).map(|d| (d.1, d.2)).collect();
@@ -692,12 +747,12 @@ impl<'a> Builder<'a> {
                     2 => (Vec3::new(r.min.x - 1.0, 0.0, s0), Vec3::new(r.min.x, WALL_H, s1)),
                     _ => (Vec3::new(s0, 0.0, r.min.y - 1.0), Vec3::new(s1, WALL_H, r.min.y)),
                 };
-                self.block(min, max, wall);
+                self.block_mat(min, max, wall, &wm);
                 // A few darker stones in the wall's top course.
                 if s1 - s0 > 3.0 {
                     let cap = wall.scale(0.82);
                     let (cmin, cmax) = (Vec3::new(min.x, WALL_H, min.z), Vec3::new(max.x, WALL_H + 0.18, max.z));
-                    self.block(cmin, cmax, cap);
+                    self.block_mat(cmin, cmax, cap, &cm);
                 }
                 if !lights {
                     continue;
@@ -759,6 +814,8 @@ impl<'a> Builder<'a> {
         let s = r.size();
         let pillar = self.color(&self.plan.theme.pillar);
         let wall = self.color(&self.plan.theme.wall);
+        let t = &self.plan.theme;
+        let (wm, pm, cm) = (t.wall_mat.clone(), t.pillar_mat.clone(), t.cap_mat.clone());
         // Doors: keep the way in clear.
         for (side, a, b) in self.layout.doors(i) {
             let m = (a + b) * 0.5;
@@ -781,27 +838,27 @@ impl<'a> Builder<'a> {
                         let u = -len * 0.5 + 4.0 + (len - 8.0) * (k as f32 + 0.5) / n as f32;
                         let v = row * across * 0.22;
                         let p = if along_x { c + Vec2::new(u, v) } else { c + Vec2::new(v, u) };
+                        let mut b = Block::new(
+                            Vec3::new(p.x - 0.6, 0.0, p.y - 0.6),
+                            Vec3::new(p.x + 0.6, WALL_H + 0.6, p.y + 0.6),
+                            pillar,
+                        )
+                        .with_flags(block_flags::ROUNDED);
+                        b.material = pm.clone();
                         let st = &mut self.sim.state;
-                        st.statics.add(
-                            &mut st.physics,
-                            Block::new(
-                                Vec3::new(p.x - 0.6, 0.0, p.y - 0.6),
-                                Vec3::new(p.x + 0.6, WALL_H + 0.6, p.y + 0.6),
-                                pillar,
-                            )
-                            .with_flags(block_flags::ROUNDED),
-                        );
+                        st.statics.add(&mut st.physics, b);
                         self.taken[i].push((p, 1.2));
                     }
                 }
             }
             RoomShape::Ring => {
                 let h = s * 0.16;
-                self.block(Vec3::new(c.x - h.x, 0.0, c.y - h.y), Vec3::new(c.x + h.x, 1.1, c.y + h.y), wall);
-                self.block(
+                self.block_mat(Vec3::new(c.x - h.x, 0.0, c.y - h.y), Vec3::new(c.x + h.x, 1.1, c.y + h.y), wall, &wm);
+                self.block_mat(
                     Vec3::new(c.x - h.x - 0.15, 1.1, c.y - h.y - 0.15),
                     Vec3::new(c.x + h.x + 0.15, 1.3, c.y + h.y + 0.15),
                     pillar,
+                    &cm,
                 );
                 self.taken[i].push((c, h.length() + 1.0));
             }
@@ -810,14 +867,14 @@ impl<'a> Builder<'a> {
                 if s.x >= s.y {
                     for (z0, z1) in [(r.min.y + 3.0, c.y - 2.0), (c.y + 2.0, r.max.y - 3.0)] {
                         if z1 - z0 > 1.0 {
-                            self.block(Vec3::new(c.x - 0.5, 0.0, z0), Vec3::new(c.x + 0.5, 1.4, z1), wall);
+                            self.block_mat(Vec3::new(c.x - 0.5, 0.0, z0), Vec3::new(c.x + 0.5, 1.4, z1), wall, &wm);
                             self.taken[i].push((Vec2::new(c.x, (z0 + z1) * 0.5), (z1 - z0) * 0.5 + 0.5));
                         }
                     }
                 } else {
                     for (x0, x1) in [(r.min.x + 3.0, c.x - 2.0), (c.x + 2.0, r.max.x - 3.0)] {
                         if x1 - x0 > 1.0 {
-                            self.block(Vec3::new(x0, 0.0, c.y - 0.5), Vec3::new(x1, 1.4, c.y + 0.5), wall);
+                            self.block_mat(Vec3::new(x0, 0.0, c.y - 0.5), Vec3::new(x1, 1.4, c.y + 0.5), wall, &wm);
                             self.taken[i].push((Vec2::new((x0 + x1) * 0.5, c.y), (x1 - x0) * 0.5 + 0.5));
                         }
                     }
@@ -826,8 +883,10 @@ impl<'a> Builder<'a> {
             RoomShape::Cross => {
                 for (sx, sz) in [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
                     let p = c + Vec2::new(sx * (s.x * 0.5 - 4.0), sz * (s.y * 0.5 - 4.0));
-                    self.block(Vec3::new(p.x - 1.4, 0.0, p.y - 1.4), Vec3::new(p.x + 1.4, WALL_H, p.y + 1.4), wall);
-                    self.block(Vec3::new(p.x - 1.5, WALL_H, p.y - 1.5), Vec3::new(p.x + 1.5, WALL_H + 0.2, p.y + 1.5), pillar);
+                    let (lo, hi) = (Vec3::new(p.x - 1.4, 0.0, p.y - 1.4), Vec3::new(p.x + 1.4, WALL_H, p.y + 1.4));
+                    self.block_mat(lo, hi, wall, &wm);
+                    let (lo, hi) = (Vec3::new(p.x - 1.5, WALL_H, p.y - 1.5), Vec3::new(p.x + 1.5, WALL_H + 0.2, p.y + 1.5));
+                    self.block_mat(lo, hi, pillar, &cm);
                     self.taken[i].push((p, 2.2));
                 }
             }

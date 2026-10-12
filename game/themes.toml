@@ -10,6 +10,10 @@
 # elements   how likely each element is for its creatures [physical, fire, cold, lightning, poison]
 # families   designed families that live here (the rest are grown from genomes)
 # props      decorations: rocks, crystals, bones, mushrooms, columns, crates
+# floor_mat / wall_mat / pillar_mat / cap_mat   materials (drawing only; core MAT/ names, see
+#            docs/MATERIALS.md) for the floor, walls, pillars and caps (walls' top course, slabs on
+#            furniture). Their $floor $floor2 $wall $pillar roles take this theme's colours. With a
+#            floor material the floor is laid in the first floor colour and the material varies it.
 
 [ashen_halls]
 name = "Ashen Halls"
@@ -29,6 +33,10 @@ halos = 1.0
 elements = [1, 4, 0.5, 0.5, 0.5]
 families = ["ghoul", "ashdrake", "bonecrusher"]
 props = ["rocks", "bones", "crates"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [frost_caverns]
 name = "Frost Caverns"
@@ -48,6 +56,10 @@ halos = 0.6
 elements = [1, 0.3, 4, 0.8, 0.3]
 families = ["skitterer", "ghoul"]
 props = ["crystals", "rocks"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [fungal_hollows]
 name = "Fungal Hollows"
@@ -68,6 +80,10 @@ grass = "#9aa06a"
 elements = [1, 0.3, 0.3, 0.5, 4]
 families = ["bile_ooze", "spitter", "skitterer"]
 props = ["mushrooms", "rocks"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [storm_spire]
 name = "Storm Spire"
@@ -87,6 +103,10 @@ halos = 0.8
 elements = [0.8, 0.5, 0.8, 4, 0.3]
 families = ["spitter", "ghoul"]
 props = ["crystals", "columns"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [bone_crypts]
 name = "Bone Crypts"
@@ -106,6 +126,10 @@ halos = 1.0
 elements = [4, 0.5, 0.5, 0.3, 0.8]
 families = ["ghoul", "bonecrusher", "skitterer"]
 props = ["bones", "columns", "crates"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [sunken_temple]
 name = "Sunken Temple"
@@ -126,6 +150,10 @@ grass = "#3f8a72"
 elements = [1, 0.3, 2.5, 0.8, 2]
 families = ["bile_ooze", "spitter"]
 props = ["columns", "crystals"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [obsidian_rift]
 name = "Obsidian Rift"
@@ -145,6 +173,10 @@ halos = 1.2
 elements = [0.8, 2.5, 0.5, 2.5, 0.5]
 families = ["ashdrake", "skitterer"]
 props = ["crystals", "rocks"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"
 
 [overgrown_ruins]
 name = "Overgrown Ruins"
@@ -165,3 +197,7 @@ grass = "#6f9e4a"
 elements = [3, 0.5, 0.5, 0.5, 1.5]
 families = ["ghoul", "spitter", "bile_ooze", "bonecrusher"]
 props = ["columns", "rocks", "mushrooms"]
+floor_mat = "MAT/flagstones"
+wall_mat = "MAT/dungeon_wall"
+pillar_mat = "MAT/pillar_stone"
+cap_mat = "MAT/wall_cap"

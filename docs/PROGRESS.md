@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.4, 5.3, then 4.3 and 6.1):
+**Asset system plan** (resumed in slim form on 2026-10-12; next rows 5.3, 4.3, then 6.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -74,8 +74,11 @@ uber-shader, `pav_view::materials::MaterialTable`, parity 100% within 1/255, +16
 time, `scripts/check-wgsl.sh`). Props and statics wear them (3.3): `"mat":"MAT/oak_planks"` or
 a materials-table entry on any part, `Block`/`Decor` `material`, workshop materials
 `MAT/workshop/x` through `asset_edit kind=material` (`mat1-` revisions), swatches with per-layer
-legibility from `asset_preview kind=material`, `docs/MATERIALS.md`. Theme materials in levels and
-the lean G3 come next (3.4).
+legibility from `asset_preview kind=material`, `docs/MATERIALS.md`. Every dungeon theme wears
+them (3.4): `themes.toml` `floor_mat/wall_mat/pillar_mat/cap_mat` give all 8 themes flagstone
+floors, dressed-stone walls, drum pillars and coping stones in their own colours (the level's
+palette rides in `Mood` to the view), identical levels and mechanics, and `view.material_detail`
+(`full`, `first_layer` on phones, `off`); its G3 review is 8 before/after captures for the user.
 Rows 5.1 and 5.2 are done early: the importers share `pav_tools/src/import/`; `asset_import` reads
 glTF and OBJ into one `Scene`, downloads pinned packs, translates models into format-2 props
 (primitives, mirrors and arrays, plus one read-only vertex-coloured mesh part the engine now
@@ -103,6 +106,8 @@ characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntab
   captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
 - Older known issues and limits (engine rooms, browser build) are listed under "Known issues and
   limits" in `docs/HISTORY.md`.
+- The `campaign` bot stalls on level 4, the Rift Gates (seed 1: 113 kills at 15 game minutes and
+  still at 60, the boss's seal shut), in the 3.3 build and after it alike (HISTORY, row 3.4).
 - Creature authoring uses the native Node sidecar. Full SpawnForge shader materials and
   spawning generated rigs as gameplay enemies are separate work.
 
