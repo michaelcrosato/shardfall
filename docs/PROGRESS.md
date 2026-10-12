@@ -38,6 +38,10 @@ the background on something.
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
+**Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the engine and
+evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
+--single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
+
 **Asset system plan** (resumed in slim form on 2026-10-12; next row 3.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.

@@ -5,6 +5,27 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Test games: a feedback log and a single-file web build — 2026-10-12
+
+The user tests the engine with test games: a fresh agent builds a vertical slice of a 1985-2015
+classic on it, then writes a candid one-page evaluation of the engine. Results go to
+`michaelcrosato/ai-hub` as one self-contained HTML file each.
+- **`docs/FEEDBACK.md`** keeps one entry per game (result, agent, cost end to end from the
+  transcript, the evaluation's verdict, what was checked and acted on) and a tally of asks, so
+  repeated problems and unused features show up. Larger engine work waits for a pattern.
+- **First game: Capital Strike**, from Jungle Strike (1993; SNES, Genesis), by Sonnet at medium
+  effort in its own worktree: 1.65 h, 170 model calls, about 6.5M tokens weighted by price. The
+  renderer, wasm shell, audio synth and headless tools carried it; about 4,000 lines of gameplay
+  went into a game layer the engine has no facility for, and it used no props.
+- **Acted on now:** `scripts/build-web.sh --single-file` writes one page with the wasm-bindgen
+  glue inline and the wasm gzipped in base64 (unpacked with `DecompressionStream`): 9.7 MB for
+  Shardfall, from file:// or any host with no other requests. `--title`, `--description`,
+  `--theme-color` fill what ai-hub reads; `--scene` bakes a start scene that a query still
+  overrides. The page is generated from `web/index.html`, which now loads either the inline game
+  or `./shardfall.js`. Also: AGENTS.md no longer implies the helicopter and `health.rs` are a
+  ready weapon and damage layer, and the asset plan's row 4.1 gains drawing a library asset from
+  game code.
+
 ## Asset plan re-plan: Phases 3-6 slimmed, lean gates — 2026-10-12
 
 The user answered the G2 escalation: finish the asset system with only the features that are
