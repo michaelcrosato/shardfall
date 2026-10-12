@@ -158,6 +158,43 @@ impl PropPart {
         visual
     }
 
+    /// Points on the part's surface whose hull is the part (round shapes within 4%), at its local
+    /// position and scale. Cameras frame these to fit what is drawn, not its bounding box.
+    pub fn hull(&self, scale: f32) -> Vec<Vec3> {
+        let ring = |y: f32, radius: f32| {
+            (0..16).map(move |i| {
+                let angle = i as f32 * std::f32::consts::TAU / 16.0;
+                Vec3::new(angle.cos() * radius, y, angle.sin() * radius)
+            })
+        };
+        // Rings every 22.5 degrees of latitude and the poles; a capsule's halves sit `lift` apart.
+        let ball = |radius: f32, lift: f32| {
+            let mut points = vec![Vec3::Y * (radius + lift), -Vec3::Y * (radius + lift)];
+            for band in -3..=3 {
+                let latitude = band as f32 * std::f32::consts::FRAC_PI_8;
+                let (y, r) = (latitude.sin() * radius, latitude.cos() * radius);
+                if band >= 0 {
+                    points.extend(ring(y + lift, r));
+                }
+                if band <= 0 {
+                    points.extend(ring(y - lift, r));
+                }
+            }
+            points
+        };
+        let side = |bit: usize| if bit == 0 { -1.0 } else { 1.0 };
+        let local = match self.shape {
+            Shape::Box { half } | Shape::RoundedBox { half, .. } => {
+                (0..8).map(|i| half * Vec3::new(side(i & 1), side(i & 2), side(i & 4))).collect()
+            }
+            Shape::Sphere { radius } => ball(radius, 0.0),
+            Shape::Capsule { half_height, radius } => ball(radius, half_height),
+            Shape::Cylinder { half_height, radius } => ring(half_height, radius).chain(ring(-half_height, radius)).collect(),
+        };
+        let rotation = self.rotation();
+        local.into_iter().map(|p| (self.pos + rotation * p) * scale).collect()
+    }
+
     /// Bounds include the part's local position. Supply a finite positive uniform scale.
     pub fn bounds(&self, scale: f32) -> Bounds {
         let rotation = self.rotation();

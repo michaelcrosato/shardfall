@@ -153,6 +153,16 @@ def run(game_binary, pav, out, env, samples):
             wait_submission(client, redone)
             passed("Undo and redo restore exact revisions and receive distinct submitted-frame tickets")
 
+            stage, camera = client.call("asset_preview"), client.call("params", {"prefix": "camera"})
+            sheet = client.call("asset_preview", {"name": "BUILTIN/lantern", "views": True, "figure": True},
+                                image=out / "sheet-lantern.png")
+            assert (sheet["width"], sheet["height"], sheet["figure"]) == (960, 240, True), sheet
+            assert (out / "sheet-lantern.png").is_file()
+            assert client.call("asset_preview") == stage and client.call("params", {"prefix": "camera"}) == camera
+            cost = client.call("capture", {"width": 320, "height": 240, "stats": "only"})
+            assert cost["triangles"] > 0 and cost["mesh_instances"] > 0 and "path" not in cost, cost
+            passed("A contact sheet leaves the human's stage and camera as they were; capture stats=only reports render cost")
+
             # The warmed path: small accepted batches over one persistent MCP connection.
             # Image rendering and encoding do not run during this sample.
             rpc_ms, submitted_ms, apply_ms, confirmed_ms = [], [], [], []

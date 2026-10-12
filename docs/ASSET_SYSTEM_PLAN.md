@@ -1260,7 +1260,7 @@ Why this order:
 - [x] 0.2 TOOLS-2 `issue.rs` + format-1 error paths; TOOLS-3 schema trims and `action=schema` (M)
 - [x] 0.3 EVAL-1 harness, EVAL-2 Gate A on `a9ca003`, G0 checks (M + runs)
 - [x] 1.1 TOOLS-5 `check`/`dry_run`/cost line on v1 + TOOLS-8 kind routing (M)
-- [ ] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
+- [x] 1.2 TOOLS-6 contact sheet + TOOLS-7 render stats (M)
 - [ ] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
 - [ ] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.2) (L)
 - [ ] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)

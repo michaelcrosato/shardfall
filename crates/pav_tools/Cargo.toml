@@ -17,5 +17,8 @@ libm.workspace = true
 miniz_oxide.workspace = true
 log.workspace = true
 
+[dev-dependencies]
+png.workspace = true
+
 [lints]
 workspace = true

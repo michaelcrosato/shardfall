@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, bail};
 use glam::{Quat, Vec3};
 use pav_core::issue::{self, Code, Issue};
 use pav_core::prop_instance::{transform_bounds, validate_pose, validate_scale};
-use pav_core::prop_preview::{PropPreviewChange, StudioMode};
+use pav_core::prop_preview::{PropPreviewChange, StudioMode, figure_bounds};
 use pav_core::props;
 use pav_core::statics::RegionKey;
 use pav_core::{Entity, EntityId};
@@ -94,7 +94,13 @@ pub fn fit_camera(s: &mut Session) -> Result<()> {
 }
 
 pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
-    allowed_keys(a, &["action", "name", "close", "playing", "time", "speed", "turntable", "yaw", "scale", "step"])?;
+    if a.get("views").is_some_and(|v| v != false && v != "false") {
+        return sheet(s, a);
+    }
+    if let Some(key) = SHEET_ARGS.iter().find(|key| a.contains_key(**key)) {
+        bail!("{}", Issue::error(*key, Code::Missing, "needs views=").fix("add views=true for a contact sheet"));
+    }
+    allowed_keys(a, &["action", "name", "close", "playing", "time", "speed", "turntable", "yaw", "scale", "step", "views"])?;
     let action = opt_text(a, "action")?.unwrap_or("status");
     one_of("action", action, &["status", "open", "fit", "close", "play", "pause", "restart"])?;
     let name = opt_text(a, "name")?;
@@ -152,6 +158,176 @@ pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
     }
     s.prev_frame = s.sim.frame();
     Ok(Output::Json(status(s)))
+}
+
+const SHEET_ARGS: [&str; 3] = ["elevation", "tile", "figure"];
+const VIEWS: [&str; 6] = ["front", "right", "back", "left", "top", "iso"];
+
+/// One tile of a contact sheet: its label and the camera's yaw and tilt (degrees).
+struct View {
+    label: Value,
+    yaw: f32,
+    tilt: f32,
+}
+
+/// `views=true` is front, right, back and iso; a list may also name left and top, or give
+/// degrees around from the front toward the right side.
+fn views(value: &Value, tilt: f32) -> Result<Vec<View>> {
+    let items: Vec<Value> = match value {
+        Value::Bool(true) => ["front", "right", "back", "iso"].map(Value::from).to_vec(),
+        Value::String(text) if text == "true" => ["front", "right", "back", "iso"].map(Value::from).to_vec(),
+        Value::String(text) => {
+            text.trim_matches(['[', ']']).split(',').map(|t| Value::from(t.trim().trim_matches('"'))).collect()
+        }
+        Value::Array(items) => items.clone(),
+        _ => bail!("{}", Issue::error("views", Code::InvalidType, "views is true or a list of sides").expected(VIEWS.join(", "))),
+    };
+    if !(1..=8).contains(&items.len()) {
+        bail!("{}", Issue::error("views", Code::Limit, format!("{} views", items.len())).expected("1 to 8"));
+    }
+    let mut out = Vec::with_capacity(items.len());
+    for (i, item) in items.iter().enumerate() {
+        let text = item.as_str().unwrap_or("");
+        if let Some(degrees) = item.as_f64().or_else(|| text.trim_end_matches('°').parse().ok()) {
+            if !(-360.0..=360.0).contains(&degrees) {
+                bail!(
+                    "{}",
+                    Issue::error(format!("views[{i}]"), Code::OutOfRange, format!("{degrees}")).expected("-360 to 360 degrees")
+                );
+            }
+            out.push(View { label: json!(degrees), yaw: -degrees as f32, tilt });
+            continue;
+        }
+        let (yaw, tilt) = match text {
+            "front" => (0.0, tilt),
+            "right" => (-90.0, tilt),
+            "back" => (180.0, tilt),
+            "left" => (90.0, tilt),
+            "top" => (0.0, 90.0),
+            "iso" => (-45.0, tilt.max(30.0)),
+            _ => bail!(
+                "{}",
+                Issue::error(format!("views[{i}]"), Code::UnknownValue, format!("unknown view \"{text}\""))
+                    .expected("front, right, back, left, top, iso or degrees")
+                    .maybe_fix(issue::suggestion(text, VIEWS))
+            ),
+        };
+        out.push(View { label: json!(text), yaw, tilt });
+    }
+    Ok(out)
+}
+
+/// A camera that fits `points` in a square tile from one side, the larger extent at about 80%.
+fn sheet_camera(points: &[Vec3], yaw: f32, tilt: f32, fov: f32) -> pav_view::CameraRig {
+    let (lo, hi) = points.iter().fold((Vec3::MAX, Vec3::MIN), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+    let center = (lo + hi) * 0.5;
+    let params = pav_view::CameraParams { tilt, yaw, distance: 1.0, fov, ortho: false, follow_lag: 0.0, height_offset: 0.0 };
+    let mut rig = pav_view::CameraRig::new(params);
+    let (forward, up, right) = (rig.forward(), rig.up(), rig.ground_axes().1);
+    let side = |q: Vec3| q.dot(up).abs().max(q.dot(right).abs());
+    // Every point stays 0.15 m past the eye (the near plane is at 0.1 m).
+    let closest = 0.15 - points.iter().map(|p| (*p - center).dot(forward)).fold(0.0, f32::min);
+    let reach = (fov.to_radians() * 0.5).tan() * 0.8;
+    let fit = points.iter().map(|p| side(*p - center) / reach - (*p - center).dot(forward)).fold(0.0, f32::max);
+    rig.params.distance = fit.max(closest);
+    if fit < closest {
+        // Small things: the camera stays that close and the lens narrows instead.
+        let needed = points.iter().map(|p| side(*p - center) / (closest + (*p - center).dot(forward))).fold(0.0, f32::max);
+        rig.params.fov = (2.0 * (needed / 0.8).atan()).to_degrees().clamp(1.0, fov);
+    }
+    rig.snap(center);
+    rig
+}
+
+/// `views=`: one PNG of the asset from several sides, each tile framed to fit. The stage, its
+/// controls and the human's camera are as they were afterwards.
+fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
+    let allowed = ["name", "views", "elevation", "tile", "figure", "scene", "seed", "ticks"];
+    if let Some(key) = a.keys().find(|key| !allowed.contains(&key.as_str())) {
+        bail!(
+            "{}",
+            Issue::error(key.as_str(), Code::UnknownKey, "not an asset_preview argument with views")
+                .expected(allowed[..5].join(", "))
+        );
+    }
+    let (tilt, fov) = match a.get("elevation") {
+        None => (20.0, 38.0),
+        Some(value) if value == "game" => (56.0, 40.0),
+        Some(value) => {
+            let degrees = value.as_f64().or_else(|| value.as_str().and_then(|t| t.parse().ok()));
+            match degrees.filter(|d| (0.0..=90.0).contains(d)) {
+                Some(degrees) => (degrees as f32, 38.0),
+                None => bail!(
+                    "{}",
+                    Issue::error("elevation", Code::OutOfRange, format!("elevation {value}"))
+                        .expected("0 to 90 degrees, or game")
+                ),
+            }
+        }
+    };
+    let views = views(&a["views"], tilt)?;
+    let tile = crate::tools::get_u64(a, "tile", 240)?;
+    if !(64..=1024).contains(&tile) {
+        bail!("{}", Issue::error("tile", Code::OutOfRange, format!("tile {tile}")).expected("64 to 1024 pixels"));
+    }
+    let tile = tile as u32;
+    let name = match opt_text(a, "name")? {
+        Some(name) => ensure_asset(name)?,
+        None => match s.sim.state.prop_preview.as_ref() {
+            Some(preview) => ensure_asset(&preview.name)?,
+            None => bail!(
+                "{}",
+                Issue::error("name", Code::Missing, "views needs an asset").fix("add name=BUILTIN/bench or a WORKSHOP prop")
+            ),
+        },
+    };
+    let asset = props::get(&name).ok_or_else(|| anyhow!("no prop '{name}'"))?;
+    let bounds = asset.bounds(1.0);
+    let lift = -Vec3::Y * bounds.min.y;
+    let mut points: Vec<Vec3> = asset.parts.values().flat_map(|part| part.hull(1.0)).map(|p| p + lift).collect();
+    let wanted = opt_bool(a, "figure")?.unwrap_or(false);
+    let figure = wanted && (0.5..=20.0).contains(&bounds.size().max_element());
+    if figure {
+        let b = figure_bounds(bounds);
+        points.extend((0..8).map(|i| Vec3::select(glam::BVec3::new(i & 1 > 0, i & 2 > 0, i & 4 > 0), b.max, b.min)));
+    }
+    let checkpoint = StudioCheckpoint::new(s);
+    let events = std::mem::take(&mut s.events);
+    let shots = (|| -> Result<Vec<Vec<u8>>> {
+        s.sim.prop_preview_open(Some(&name)).map_err(|e| anyhow!(e))?;
+        let still = PropPreviewChange {
+            time: Some(0.0),
+            playing: Some(false),
+            turntable: Some(false),
+            yaw: Some(0.0),
+            scale: Some(1.0),
+            ..Default::default()
+        };
+        s.sim.prop_preview_change(&still).map_err(|e| anyhow!(e))?;
+        let mut shots = Vec::with_capacity(views.len());
+        for view in &views {
+            s.camera = sheet_camera(&points, view.yaw, view.tilt, fov);
+            let preview = s.sim.state.prop_preview.as_mut().unwrap();
+            preview.figure = figure;
+            preview.focus = s.camera.target;
+            shots.push(s.render(tile, tile)?);
+        }
+        Ok(shots)
+    })();
+    checkpoint.restore(s);
+    s.events = events;
+    let shots = shots?;
+    let (width, height, rgba) = pav_render::capture::tile_frames(&shots, tile, tile, views.len().min(4) as u32);
+    let png = pav_render::capture::encode_png(width, height, &rgba)?;
+    let leaf = name.rsplit('/').next().unwrap_or(&name);
+    let path = std::path::PathBuf::from(format!("out/sheet-{leaf}.png"));
+    std::fs::create_dir_all("out")?;
+    std::fs::write(&path, &png)?;
+    let mut meta = json!({"path": path, "width": width, "height": height, "views": views.iter().map(|v| v.label.clone()).collect::<Vec<_>>()});
+    if wanted {
+        meta["figure"] = if figure { json!(true) } else { json!("off: the largest side is outside 0.5-20 m") };
+    }
+    Ok(Output::Image { png, path: Some(path), meta })
 }
 
 fn allowed_keys(a: &Args, allowed: &[&str]) -> Result<()> {

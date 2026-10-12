@@ -86,6 +86,7 @@ pub static TOOLS: &[Tool] = &[
             arg("out", "string", "output path (default out/capture-<tick>.png)"),
             arg("width", "integer", "default 960"),
             arg("height", "integer", "default 540"),
+            arg("stats", "string", "true adds render cost; only returns it without an image"),
         ],
         run: t_capture,
     },
@@ -648,7 +649,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "asset_preview",
-        help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. capture images it.",
+        help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. views= returns one framed PNG of several sides.",
         args: &[
             arg("kind", "string", "prop (default); creature forwards to creature_preview"),
             arg("action", "string", "default status; pose is kind=creature only"),
@@ -661,6 +662,10 @@ pub static TOOLS: &[Tool] = &[
             arg("turntable", "boolean", "spin the object while the clock runs"),
             arg("yaw", "number", "base rotation in degrees"),
             arg("scale", "number", "uniform preview scale"),
+            arg("views", "array", "true = front,right,back,iso; or sides (left, top) and degrees"),
+            arg("elevation", "number", "views: degrees above the horizon (default 20), or game"),
+            arg("tile", "integer", "views: pixels per side (default 240)"),
+            arg("figure", "boolean", "views: add a 1.8 m figure for scale"),
         ],
         run: crate::asset_preview_tools::t_asset_preview,
     },
@@ -677,7 +682,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_edit",
-        help: "Create and revise procedural rigged creatures. create accepts a bundled template, complete blueprint, or seeded theme; patch applies an atomic named-path SpawnForge ops array; surface replaces skin settings; copy, inspect, replace, undo, redo and rebuild share the same saved source. Use if_revision from inspect or the last published job. Native builds run asynchronously and return a job immediately: poll creature_status until published or failed before judging capture. Only the latest accepted build may save and publish. Invalid/superseded jobs keep the last good stage. Playback and camera survive compatible updates. One-shot CLI waits for completion; persistent MCP/live sessions stay responsive.",
+        help: "Create and revise procedural rigged creatures: create (bundled template, blueprint or seeded theme), patch (atomic named-path SpawnForge ops), surface (skin), copy, inspect, replace, undo, redo, rebuild. Pass if_revision from inspect or the last job. Native builds are asynchronous: poll creature_status until published or failed before judging a capture; failed or superseded jobs keep the last good stage. The one-shot CLI waits.",
         args: &[
             arg("action", "string", "create | copy | inspect | patch | surface | replace | undo | redo | rebuild"),
             arg("name", "string", "lowercase leaf or CREATURE/name"),
@@ -986,6 +991,11 @@ pub fn schema(t: &Tool) -> Value {
     if KIND_ROUTES.iter().any(|(tool, _, _)| *tool == t.name) {
         schema["properties"]["kind"]["enum"] = json!(kinds(t.name));
     }
+    if t.name == "asset_preview" {
+        schema["properties"]["views"]["type"] = json!(["boolean", "array"]);
+        schema["properties"]["views"]["items"] = json!({"type":["string", "number"]});
+        schema["properties"]["elevation"]["type"] = json!(["number", "string"]);
+    }
     if t.name == "asset_spawn" {
         schema["properties"]["pos"]["items"] = json!({"type":"number"});
         schema["properties"]["pos"]["minItems"] = json!(3);
@@ -1150,21 +1160,50 @@ fn t_camera(s: &mut Session, a: &Args) -> Result<Output> {
     }
 }
 
+/// What the last frame cost to draw (main pass), from the renderer's own counters.
+pub(crate) fn render_stats(s: &mut Session) -> Result<Value> {
+    let st = s.gpu()?.renderer.stats;
+    Ok(json!({
+        "triangles": st.triangles, "batches": st.batches, "mesh_instances": st.mesh_instances,
+        "sdf": st.sdf_instances, "lights": st.lights, "materials": st.materials,
+        "custom_meshes": st.custom_meshes, "mesh_kb": st.mesh_bytes.div_ceil(1024), "draw_calls": st.draw_calls,
+    }))
+}
+
 fn t_capture(s: &mut Session, a: &Args) -> Result<Output> {
     let w = get_u64(a, "width", 960)? as u32;
     let h = get_u64(a, "height", 540)? as u32;
     if w == 0 || h == 0 || w > 8192 || h > 8192 {
         bail!("width/height must be 1..8192");
     }
+    let stats = match a.get("stats") {
+        None | Some(Value::Bool(false)) => None,
+        Some(Value::Bool(true)) => Some(false),
+        Some(value) => match value.as_str() {
+            Some("true") => Some(false),
+            Some("false") => None,
+            Some("only") => Some(true),
+            _ => bail!("stats is true or only"),
+        },
+    };
     let path = PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/capture-{}.png", s.sim.state.tick)));
     let t = Instant::now();
     let rgba = s.render(w, h)?;
+    if stats == Some(true) {
+        let mut reply = render_stats(s)?;
+        reply["render_ms"] = json!(t.elapsed().as_millis());
+        return Ok(Output::Json(reply));
+    }
     let png = pav_render::capture::encode_png(w, h, &rgba)?;
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir)?;
     }
     std::fs::write(&path, &png)?;
-    let meta = json!({ "path": path, "width": w, "height": h, "tick": s.sim.state.tick, "render_ms": t.elapsed().as_millis() });
+    let mut meta =
+        json!({ "path": path, "width": w, "height": h, "tick": s.sim.state.tick, "render_ms": t.elapsed().as_millis() });
+    if stats.is_some() {
+        meta["stats"] = render_stats(s)?;
+    }
     Ok(Output::Image { png, path: Some(path), meta })
 }
 

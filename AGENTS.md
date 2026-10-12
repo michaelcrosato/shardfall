@@ -206,7 +206,9 @@ Object Studio: `scripts/asset-studio.sh` or `shardfall --asset-studio` opens reu
 authoring on the same live bridge (`.mcp.studio.json`). `assets` lists embedded templates and
 saved definitions. `asset_edit` creates/copies/inspects/patches readable JSON with stable part
 names, atomic batches, revisions, and 32-step history. `asset_preview` opens the isolated
-stage. `asset_spawn` places one-root instances in the preserved scene. Edits refresh visuals
+stage; `views=true` returns a framed 4-view contact sheet (`figure=true` adds a 1.8 m figure)
+and leaves the stage and camera as they were. `capture stats=only` returns render cost without
+an image. `asset_spawn` places one-root instances in the preserved scene. Edits refresh visuals
 and compound collision together. Native file changes reload after 250 ms of quiet. Saved
 definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props root).
 `studio_status ticket=N` confirms frame submission for live edits without a capture. The

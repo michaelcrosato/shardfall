@@ -75,6 +75,9 @@ pub struct PropPreviewState {
     pub scale: f32,
     pub focus: Vec3,
     ticks: u64,
+    /// A 1.8 m figure beside the asset, for scale (contact sheets).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub figure: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -141,6 +144,7 @@ impl PropPreviewState {
             scale: 1.0,
             focus: bounds.center() - Vec3::Y * bounds.min.y,
             ticks: 0,
+            figure: false,
         }
     }
 
@@ -226,6 +230,9 @@ impl PropPreviewState {
                 scenery: false,
             });
         }
+        if self.figure && info.available {
+            objects.extend(figure_at(info.bounds));
+        }
         objects.sort_by_key(|o| o.id);
         RenderFrame {
             tick: self.ticks,
@@ -255,6 +262,53 @@ impl PropPreviewState {
 
 // Safely below the view's u32 object-group offset. Stages are isolated from world entities.
 pub(crate) const STAGE_ID_BASE: u32 = 1_000_000;
+
+/// Height of the scale figure on contact sheets.
+const FIGURE_HEIGHT: f32 = 1.8;
+const FIGURE_RADIUS: f32 = 0.22;
+
+/// Where the figure stands on the floor beside an asset with these bounds: past its back-right
+/// corner, so no front, side, back or 3/4 view hides the asset behind it.
+fn figure_spot(bounds: Bounds) -> Vec3 {
+    let gap = 0.35 + FIGURE_RADIUS;
+    Vec3::new(bounds.max.x + gap, 0.0, bounds.min.z - gap)
+}
+
+/// The figure's bounds at `figure_spot`.
+pub fn figure_bounds(bounds: Bounds) -> Bounds {
+    let at = figure_spot(bounds);
+    let r = Vec3::new(FIGURE_RADIUS, 0.0, FIGURE_RADIUS);
+    Bounds { min: at - r, max: at + r + Vec3::Y * FIGURE_HEIGHT }
+}
+
+/// A grey capsule body and a head, 1.8 m tall in all (stage objects 42 and 43).
+fn figure_at(bounds: Bounds) -> [RenderObject; 2] {
+    let at = figure_spot(bounds);
+    let head = 0.125;
+    let body_top = FIGURE_HEIGHT - 2.0 * head;
+    let part = |id: u32, pos: Vec3, shape: Shape, color: &str| RenderObject {
+        id: EntityId(id),
+        pos,
+        rot: Quat::IDENTITY,
+        visual: Visual::new(shape, Color::hex(color)),
+        prop: None,
+        puppet: None,
+        pulse: -1.0,
+        soft: None,
+        vehicle: None,
+        cone: None,
+        scenery: true,
+    };
+    [
+        part(
+            STAGE_ID_BASE + 42,
+            at + Vec3::Y * body_top * 0.5,
+            Shape::Capsule { half_height: body_top * 0.5 - FIGURE_RADIUS, radius: FIGURE_RADIUS },
+            "#8d949b",
+        ),
+        part(STAGE_ID_BASE + 43, at + Vec3::Y * (FIGURE_HEIGHT - head), Shape::Sphere { radius: head }, "#a7aeb5"),
+    ]
+}
 
 /// Common metre grid for both studio subjects.
 pub(crate) fn stage_objects() -> Vec<RenderObject> {

@@ -45,7 +45,8 @@ and G0 pass): compact asset replies and canonical prop files (0.1), errors that 
 `parts.<id>`/`ops[i]` with a fix and `asset_edit action=schema` (0.2), and the benchmark harness
 `scripts/asset_bench/` with the arm-A baseline (0.3: median `tok_x` 6,480). Phase 1 so far:
 `asset_edit action=check` (geometry lint and cost line), findings in every edit reply,
-`dry_run` (1.1).
+`dry_run` (1.1); one-call contact sheets `asset_preview views=true` with an optional 1.8 m
+figure, and `capture stats=only` render cost (1.2).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

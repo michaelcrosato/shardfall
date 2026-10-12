@@ -108,6 +108,8 @@ pub(crate) fn changes_studio(name: &str, args: &Args) -> bool {
     let dry_run = args.get("dry_run").is_some_and(|value| value == true || value == "true");
     match name {
         "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect" | "schema" | "check") && !dry_run,
+        // A contact sheet puts the stage and camera back as they were.
+        "asset_preview" if args.get("views").is_some_and(|views| views != false && views != "false") => false,
         "anim_preview" | "asset_preview" | "creature_preview" => {
             !matches!(action, "" | "status" | "pose")
                 || args.iter().any(|(key, value)| {
@@ -170,6 +172,11 @@ mod tests {
             assert!(!changes_studio("asset_edit", &args(json!({"action":read}))), "{read}");
         }
         assert!(!changes_studio("asset_edit", &args(json!({"action":"patch","dry_run":true}))));
+        assert!(
+            !changes_studio("asset_preview", &args(json!({"name":"BUILTIN/bench","views":true}))),
+            "a sheet restores the stage"
+        );
+        assert!(changes_studio("asset_preview", &args(json!({"name":"BUILTIN/bench","views":false}))));
     }
 
     #[test]

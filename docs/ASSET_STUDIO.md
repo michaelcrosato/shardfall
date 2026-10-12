@@ -80,10 +80,10 @@ does not identify a clear location.
 | --- | --- |
 | `assets` | Find templates and saved objects. Returns compact rows: name, size, parts, description. |
 | `asset_edit` | Create, copy, inspect, patch, replace, undo, or redo an object. |
-| `asset_preview` | Open, fit, rotate, or close the isolated object stage. |
+| `asset_preview` | Open, fit, rotate, or close the isolated object stage; `views` makes a contact sheet. |
 | `asset_spawn` | Add, list, update, or remove placed instances in the preserved scene. |
 | `studio_status` | Read the current workspace and confirm a live frame submission. |
-| `capture` | Return a PNG through MCP from the same renderer and camera. |
+| `capture` | Return a PNG through MCP from the same renderer and camera; `stats=only` returns render cost instead. |
 | `snapshot_save` | Save exact scene state, including placed object definitions. |
 
 Use `assets` to discover names, then inspect or copy one. Built-in objects are `BUILTIN/box`,
@@ -157,6 +157,13 @@ line each: `floating`, `below_floor`, `not_grounded`, `poke`, `hidden`, `z_fight
 introduced under `check`. `dry_run:true` on create, copy, patch or replace returns that reply
 without saving; `revision_next` is the revision the edit would get.
 
+`asset_preview name=X views=true` returns one PNG (960×240) of the front, right, back and a
+3/4 view, each framed to fit. `views` also takes `left`, `top` and degrees round from the front
+(`[front,30,top]`); `elevation` is the camera's degrees above the horizon (default 20; `game`
+matches the game camera); `tile` sets pixels per view; `figure:true` adds a 1.8 m figure beside
+objects 0.5-20 m in size. The stage and the human's camera are left as they were.
+`capture stats=only` reports what the view costs to draw (triangles, batches, meshes, lights).
+
 The whole batch is checked before it is saved or published. One failed operation rejects
 the entire batch. One accepted batch is one undo step. Each object keeps up to 32 undo/redo
 steps on disk. `undo` after initial creation removes the authored file; `redo` restores it.
@@ -194,7 +201,7 @@ For a short human feedback loop:
 1. Combine related part changes in one `ops` batch.
 2. Keep the studio open and keep its camera in place.
 3. Use metadata or `studio_status` for routine confirmation.
-4. Request a small capture at a visual checkpoint, or when the agent needs to inspect form.
+4. Request a contact sheet at a visual checkpoint, or when the agent needs to inspect form.
 
 Capture runs on a second GPU device and encodes an image. It costs more than an ordinary edit.
 The normal edit path does not make a capture. File edits are also supported: native file

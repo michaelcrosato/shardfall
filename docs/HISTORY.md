@@ -5,6 +5,37 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 1.2: contact sheets and render cost — 2026-10-12
+
+Row 1.2 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-6, TOOLS-7).
+- **`asset_preview [name=] views=true|[front,right,back,left,top,iso,<degrees>] [elevation=20|game]
+  [tile=240] [figure=true]`** returns one PNG. `views=true` is front, right, back and a 3/4 view
+  (`iso`, at least 30° up): a 960×240 strip, ~315 image tokens; more than four views wrap to a
+  second row (at most 8). Every tile has its own camera, fitted to points on the parts' surfaces
+  (`PropPart::hull`: box corners, 16-point rings for cylinders, latitude rings for spheres and
+  capsules), so round objects fill a tile as boxes do (about 80% of the larger side). Small
+  objects narrow the lens instead of crossing the 0.1 m near plane. `elevation=game` is the game
+  camera (56°, fov 40°). `figure=true` adds a grey 1.8 m figure (stage objects 42 and 43) past
+  the object's back-right corner when its largest side is 0.5-20 m; otherwise the reply says it
+  was left off. The PNG goes to `out/sheet-<name>.png`; the reply is `path`, `width`, `height`,
+  `views` and `figure`. A `StudioCheckpoint` puts back the stage (selection, clock, turntable,
+  mode) and the human's camera, pending world events are kept, and a sheet gets no live ticket.
+- **`capture stats=true|only`**: `RenderStats` gains batches, triangles, mesh_bytes,
+  custom_meshes, lights and materials (0 until procedural materials exist). `stats=true` adds them
+  to the image meta; `stats=only` returns them with `render_ms` and encodes no image, headless or
+  over `--live`.
+- Validation (`crates/pav_tools/tests/asset_preview.rs`): six views each of five unlit test
+  objects (wide, tall, round, flat, a 3.6 cm bead) span 55-90% of their tiles; camera, stage and
+  world hash are unchanged afterwards; a warm 4-tile sheet takes under 1 s (about 80 ms in a debug
+  build here, 0.56 s cold). The bench stage draws exactly the cost line's 2,004 triangles plus 37
+  stage boxes counted from `MeshKey::generate`. The live smoke makes a sheet over the bridge
+  (stage and camera unchanged) and reads `stats=only`: 13/13 checks pass.
+- Decisions: `tools/list` stays under 47,000 chars (46,840) with the four new arguments by
+  shortening `creature_edit`'s help (D13). The figure stands back-right, where the front, right,
+  back and 3/4 views never put it in front of the object. Sheets take no `out=` argument (one file
+  per asset) to keep the surface small. `pav_tools` gains `png` as a dev-dependency (already a
+  workspace pin) to decode sheets in tests.
+
 ## Asset plan 1.1: a geometry lint, dry runs and a cost line — 2026-10-12
 
 Row 1.1 of `docs/ASSET_SYSTEM_PLAN.md` (TOOLS-5, TOOLS-8). Format 1 is unchanged.

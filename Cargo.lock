@@ -2338,6 +2338,7 @@ dependencies = [
  "pav_core",
  "pav_render",
  "pav_view",
+ "png",
  "serde",
  "serde_json",
 ]

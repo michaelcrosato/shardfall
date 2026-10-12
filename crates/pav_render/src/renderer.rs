@@ -159,6 +159,18 @@ pub struct RenderStats {
     pub meshes_loaded: usize,
     /// Particle slots in use (alive or recently dead).
     pub particles: usize,
+    /// Instanced mesh draws plus dynamic meshes (the main pass).
+    pub batches: usize,
+    /// Triangles drawn by the main pass: instances times their mesh, plus dynamic meshes.
+    pub triangles: usize,
+    /// GPU bytes of every loaded mesh (vertices and indices).
+    pub mesh_bytes: usize,
+    /// Loaded `MeshKey::Custom` meshes.
+    pub custom_meshes: usize,
+    /// Point lights in this frame (after the nearest-lights limit).
+    pub lights: usize,
+    /// Material slots in use (procedural materials; 0 until they exist).
+    pub materials: usize,
 }
 
 pub struct Renderer {
@@ -1094,6 +1106,10 @@ impl Renderer {
                 self.dyn_indices.write(&self.device, &self.queue, bytemuck::cast_slice(&idx));
             }
         }
+        let main_batches = batches.len() + dyn_draws.len();
+        let main_triangles =
+            batches.iter().map(|b| (b.2 - b.1) as usize * self.meshes[&b.0].index_count as usize / 3).sum::<usize>()
+                + dyn_draws.iter().map(|d| d.1 as usize / 3).sum::<usize>();
         // Shadow-casting copies appended after the main list.
         for b in batches.iter_mut() {
             let start = gpu_meshes.len() as u32;
@@ -1396,6 +1412,12 @@ impl Renderer {
             draw_calls,
             meshes_loaded: self.meshes.len(),
             particles: self.particles.slots() as usize,
+            batches: main_batches,
+            triangles: main_triangles,
+            mesh_bytes: self.meshes.values().map(|m| (m.vbuf.size() + m.ibuf.size()) as usize).sum(),
+            custom_meshes: self.meshes.keys().filter(|k| matches!(k, MeshKey::Custom(_))).count(),
+            lights: n_lights,
+            materials: 0,
         };
     }
 }

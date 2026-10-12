@@ -38,7 +38,7 @@ pub struct Session {
     cue_serial: u64,
     cue_base: Option<CameraParams>,
     /// Events since the last render (they become particles and shockwaves in captures).
-    events: Vec<pav_core::frame::SimEvent>,
+    pub(crate) events: Vec<pav_core::frame::SimEvent>,
     /// View settings before the current room's `[view]` table / pad overrides.
     view_base: Option<ViewSettings>,
     view_room: Option<u16>,
