@@ -57,6 +57,8 @@ criterion (K1-K3) held in either round.
   against identical arm-A assets: 11 of 24 tasks changed outcome between the rounds, and turn
   counts do not separate wins from losses. Pooled, the format-2 arms won 25 of 48 pairs. Whether
   to stop, re-judge or change the gate is the user's call; nothing past row 2.5 has started.
+  That question is logged in `docs/ESCALATIONS.md`; until the user answers, the plan stays
+  stopped.
 - Everything that landed stays: format 2 reads, compiles, draws, patches and saves, and the
   remediation's docs and errors are what arm F2 measured. Every final asset is text in
   `scripts/asset_bench/results/assets/G2/`; the run logs and images are in `.cache/asset_bench/`.
