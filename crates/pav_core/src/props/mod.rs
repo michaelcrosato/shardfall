@@ -322,21 +322,14 @@ impl PropAsset {
         Self::from_value(read::strict_value(text).map_err(|issue| vec![issue])?)
     }
 
-    /// The typed model of a checked document. A format-2 document is read and checked whole;
-    /// it builds when format 1 holds it, and otherwise is refused until format 2 compiles.
+    /// The format-1 model of a checked document. A format-2 document is read and checked whole;
+    /// it converts when format 1 holds it. Everything else reads documents as a `Doc`.
     pub fn from_value(value: Value) -> Result<Self, Vec<Issue>> {
         if read::migrate(&value).map_err(|issue| vec![issue])? == 2 {
-            let doc = read::v2::doc(&value, &def)?;
+            let doc = read::v2::doc(&value, &get)?;
             return doc.to_v1().ok_or_else(|| {
                 let (path, what) = doc.needs_format2().unwrap_or_else(|| (String::new(), "this document".into()));
-                vec![
-                    Issue::error(
-                        path,
-                        issue::Code::Format,
-                        format!("{what} needs format 2, which this engine checks but cannot build yet"),
-                    )
-                    .fix("write format 1 (asset_edit action=schema)"),
-                ]
+                vec![Issue::error(path, issue::Code::Format, format!("{what} needs format 2, which this model cannot hold"))]
             });
         }
         Self::from_v1_value(value)
@@ -443,7 +436,10 @@ pub struct PropDef {
     /// Seed 0, which a placed copy draws unless it has a seed of its own.
     pub compiled: Arc<CompiledProp>,
     variants: Mutex<BTreeMap<u32, Arc<CompiledProp>>>,
-    /// The format-1 asset, which the engine's consumers read until they draw compiled parts.
+    /// The definitions its references compiled against: every seed variant uses the same.
+    pinned: BTreeMap<String, Arc<PropDef>>,
+    /// The format-1 asset when format 1 holds the document: format-1 patches and the
+    /// native editor's part drafts work on it.
     pub v1: Option<Arc<PropAsset>>,
 }
 
@@ -453,11 +449,12 @@ const VARIANTS: usize = 64;
 impl PropDef {
     /// Compile a document against the library.
     pub fn new(doc: Doc) -> Result<Self, Vec<Issue>> {
-        Self::with_deps(doc, &def, None)
+        Self::with_deps(doc, &get, None)
     }
 
     /// A format-1 asset, keeping its shared `Arc` as the format-1 view.
     pub fn from_v1(asset: Arc<PropAsset>) -> Result<Self, Vec<Issue>> {
+        asset.validate().map_err(|error| vec![Issue::error("", issue::Code::Format, error)])?;
         Self::with_deps(Doc::from_v1(&asset), &|_| None, Some(asset))
     }
 
@@ -476,13 +473,14 @@ impl PropDef {
             }
         }
         refs(&doc.parts, &mut names);
-        let found: Vec<Arc<PropDef>> = names.iter().filter_map(|name| deps(name)).collect();
-        let ref_depth = found.iter().map(|dep| dep.ref_depth + 1).max().unwrap_or(0);
+        let pinned: BTreeMap<String, Arc<PropDef>> = names.iter().filter_map(|name| Some((name.clone(), deps(name)?))).collect();
+        let ref_depth = pinned.values().map(|dep| dep.ref_depth + 1).max().unwrap_or(0);
         let revision = doc.revision();
-        let key = if found.is_empty() {
+        let key = if pinned.is_empty() {
             revision.clone()
         } else {
-            let closure: Vec<&str> = std::iter::once(revision.as_str()).chain(found.iter().map(|dep| dep.key.as_str())).collect();
+            let closure: Vec<&str> =
+                std::iter::once(revision.as_str()).chain(pinned.values().map(|dep| dep.key.as_str())).collect();
             format!("propk-{:016x}", fnv(closure.join("|").as_bytes()))
         };
         let v1 = v1.or_else(|| doc.to_v1().map(Arc::new));
@@ -494,8 +492,14 @@ impl PropDef {
             ref_depth,
             compiled: Arc::new(compiled),
             variants: Mutex::default(),
+            pinned,
             v1,
         })
+    }
+
+    /// A referenced definition as this one compiled against it.
+    pub fn dep(&self, name: &str) -> Option<Arc<PropDef>> {
+        self.pinned.get(&canonical(name).ok()?).cloned()
     }
 
     /// The parts for one seed. Seed 0 is `compiled`; others are compiled once and kept, up to 64.
@@ -506,8 +510,10 @@ impl PropDef {
         if let Some(variant) = self.variants.lock().unwrap().get(&seed) {
             return variant.clone();
         }
-        // The document compiled at install; a seed only changes chance, jitter and pick.
-        let variant = compile::compile(&self.doc, &def, seed).map(Arc::new).unwrap_or_else(|_| self.compiled.clone());
+        // The document compiled at install; a seed only changes chance, jitter and pick. The
+        // references are the ones seed 0 used, whatever the library holds now.
+        let variant =
+            compile::compile(&self.doc, &|name| self.dep(name), seed).map(Arc::new).unwrap_or_else(|_| self.compiled.clone());
         let mut variants = self.variants.lock().unwrap();
         if variants.len() >= VARIANTS {
             let oldest = *variants.keys().next().expect("full");
@@ -516,22 +522,53 @@ impl PropDef {
         variants.insert(seed, variant.clone());
         variant
     }
+
+    /// The parts' box for an instance at `scale` (seed 0).
+    pub fn bounds(&self, scale: f32) -> Bounds {
+        self.compiled.bounds_at(scale)
+    }
+}
+
+/// Snapshots embed each instance's definition as its document, so a restored world keeps the
+/// asset it was saved with. A format-1 definition writes exactly what format 1 always wrote.
+pub mod embedded {
+    use std::sync::Arc;
+
+    use serde::de::Error as _;
+    use serde::ser::Error as _;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_json::Value;
+
+    use super::{Doc, PropAsset, PropDef};
+    use crate::issue;
+
+    pub fn serialize<S: Serializer>(def: &Arc<PropDef>, serializer: S) -> Result<S::Ok, S::Error> {
+        match &def.v1 {
+            Some(asset) => asset.serialize(serializer),
+            None => serde_json::from_str::<Value>(&def.doc.text()).map_err(S::Error::custom)?.serialize(serializer),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Arc<PropDef>, D::Error> {
+        let value = Value::deserialize(deserializer)?;
+        let def = if value.get("format").and_then(Value::as_u64) == Some(2) {
+            let doc = Doc::from_value(&value).map_err(|issues| D::Error::custom(issue::render(&issues)))?;
+            PropDef::new(doc)
+        } else {
+            let asset: PropAsset = serde_json::from_value(value).map_err(D::Error::custom)?;
+            PropDef::from_v1(Arc::new(asset))
+        };
+        def.map(Arc::new).map_err(|issues| D::Error::custom(issue::render(&issues)))
+    }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct PropLibrary {
-    /// Every definition.
     pub defs: BTreeMap<String, Arc<PropDef>>,
-    /// The format-1 view of each definition format 1 holds, for the consumers that read it.
-    pub assets: BTreeMap<String, Arc<PropAsset>>,
 }
 
 impl PropLibrary {
     fn insert(&mut self, name: String, def: Arc<PropDef>) {
-        match &def.v1 {
-            Some(asset) => self.assets.insert(name.clone(), asset.clone()),
-            None => self.assets.remove(&name),
-        };
         self.defs.insert(name, def);
     }
 
@@ -585,28 +622,15 @@ pub fn library() -> Arc<PropLibrary> {
     shared().read().unwrap().clone()
 }
 
-/// The format-1 view of a definition, which the engine's consumers read.
-pub fn get(name: &str) -> Option<Arc<PropAsset>> {
-    let name = canonical(name).ok()?;
-    library().assets.get(&name).cloned()
-}
-
 /// A definition with its compiled parts.
-pub fn def(name: &str) -> Option<Arc<PropDef>> {
+pub fn get(name: &str) -> Option<Arc<PropDef>> {
     let name = canonical(name).ok()?;
     library().defs.get(&name).cloned()
 }
 
-/// Replace one library entry while keeping every other definition shared.
-pub fn install(name: &str, asset: Arc<PropAsset>) -> Result<(), String> {
-    asset.validate()?;
-    let def = PropDef::from_v1(asset).map_err(|issues| issue::render(&issues))?;
-    install_def(name, def).map(|_| ())
-}
-
-/// Install a compiled definition. Returns the definitions that reference it and were
-/// recompiled, so their placed copies can be refreshed.
-pub fn install_def(name: &str, def: PropDef) -> Result<Vec<String>, String> {
+/// Install a compiled definition, keeping every other definition shared. Returns the
+/// definitions that reference it and were recompiled, so their placed copies can be refreshed.
+pub fn install(name: &str, def: PropDef) -> Result<Vec<String>, String> {
     let name = canonical(name)?;
     if name.split_once('/').map(|(_, leaf)| leaf) != Some(def.doc.name.as_str()) {
         return Err(format!("{name} does not match the prop's name '{}'", def.doc.name));
@@ -636,6 +660,13 @@ fn closure(library: &PropLibrary, deps: &[String]) -> BTreeSet<String> {
     seen
 }
 
+/// The definitions whose references name `name` directly.
+pub fn dependents(name: &str) -> Vec<String> {
+    let Ok(name) = canonical(name) else { return Vec::new() };
+    library().defs.iter().filter(|(_, def)| def.deps.contains(&name)).map(|(dependent, _)| dependent.clone()).collect()
+}
+
+/// Remove a workshop definition. One that others reference stays: they would lose their parts.
 pub fn remove(name: &str) -> Result<bool, String> {
     let name = canonical(name)?;
     if name.starts_with("BUILTIN/") {
@@ -645,9 +676,12 @@ pub fn remove(name: &str) -> Result<bool, String> {
     if !current.defs.contains_key(&name) {
         return Ok(false);
     }
+    let users: Vec<&str> = current.defs.iter().filter(|(_, def)| def.deps.contains(&name)).map(|(n, _)| n.as_str()).collect();
+    if !users.is_empty() {
+        return Err(format!("{name} is referenced by {}; change or remove those first", users.join(", ")));
+    }
     let mut next = (**current).clone();
     next.defs.remove(&name);
-    next.assets.remove(&name);
     *current = Arc::new(next);
     Ok(true)
 }
@@ -660,7 +694,7 @@ mod tests {
 
     #[test]
     fn named_batches_keep_other_parts_and_reject_incomplete_transactions() {
-        let original = (*get("BUILTIN/bench").unwrap()).clone();
+        let original = (**get("BUILTIN/bench").unwrap().v1.as_ref().unwrap()).clone();
         let changed = original
             .patch(&json!([
                 {"op":"set","part":"seat","fields":{"color":"#4060a0"}},
@@ -701,7 +735,7 @@ mod tests {
             ("BUILTIN/lantern", "prop1-fc44b95ee89f262e"),
         ];
         let mut assets: Vec<(PropAsset, &str)> =
-            golden.iter().map(|(name, revision)| ((*get(name).unwrap()).clone(), *revision)).collect();
+            golden.iter().map(|(name, revision)| ((**get(name).unwrap().v1.as_ref().unwrap()).clone(), *revision)).collect();
         for (text, revision) in [
             (include_str!("../../tests/fixtures/props/dogfood_stall_v1.json"), "prop1-bd43f9ba44a259b0"),
             (include_str!("../../tests/fixtures/props/dogfood_well_v1.json"), "prop1-368eeb091c94f947"),
@@ -718,7 +752,7 @@ mod tests {
             assert!(!text.contains("e-") && !text.contains("e+") && !text.contains(".0,") && !text.contains(".0]"));
             assert_eq!(text.lines().count(), asset.parts.len() + 2 + usize::from(!asset.description.is_empty()));
         }
-        let bench = get("BUILTIN/bench").unwrap().text();
+        let bench = get("BUILTIN/bench").unwrap().doc.text();
         assert!(bench.len() <= 1_000, "a copied bench file is {} bytes", bench.len());
         assert!(bench.contains(r##""backrest":{"shape":{"type":"rounded_box","half":[1.1,0.25,0.065],"radius":0.025},"pos":[0,1.17,-0.36],"pitch":-12,"color":"#bc8150"}"##));
 
@@ -819,7 +853,7 @@ mod tests {
 
     #[test]
     fn patch_errors_name_the_operation_and_change_nothing() {
-        let bench = get("BUILTIN/bench").unwrap();
+        let bench = get("BUILTIN/bench").unwrap().v1.clone().unwrap();
         let patch = |ops: serde_json::Value| bench.patch(&ops).unwrap_err();
         assert_eq!(
             patch(
@@ -861,7 +895,7 @@ mod tests {
         // The checker's tables are the typed model's fields, and the field guide shows them all.
         let typed = |value: serde_json::Value| value.as_object().unwrap().keys().cloned().collect::<BTreeSet<_>>();
         let table = |rows: &[(&str, &str)]| rows.iter().map(|(key, _)| key.to_string()).collect::<BTreeSet<_>>();
-        let bench = get("BUILTIN/bench").unwrap();
+        let bench = get("BUILTIN/bench").unwrap().v1.clone().unwrap();
         assert_eq!(typed(serde_json::to_value(&*bench).unwrap()), table(DOCUMENT_FIELDS));
         assert_eq!(typed(serde_json::to_value(PropPart::default()).unwrap()), table(PART_FIELDS));
         let shapes = [
@@ -920,7 +954,7 @@ mod tests {
             );
             PropDef::new(Doc::read(&text).unwrap()).unwrap()
         };
-        install_def("WORKSHOP/registry_post", post(100)).unwrap();
+        install("WORKSHOP/registry_post", post(100)).unwrap();
         let pair = Doc::read(
             r#"{"format":2,"name":"registry_pair","unit":"cm","parts":{
 "a":{"ref":"WORKSHOP/registry_post","pos":[-50,0,0]},
@@ -930,14 +964,14 @@ mod tests {
         let pair = PropDef::new(pair).unwrap();
         assert_eq!((pair.deps.as_slice(), pair.ref_depth), (["WORKSHOP/registry_post".to_owned()].as_slice(), 1));
         assert!(pair.key.starts_with("propk-") && pair.revision.starts_with("prop2-"));
-        assert_eq!(install_def("WORKSHOP/registry_pair", pair).unwrap(), Vec::<String>::new());
-        let before = def("WORKSHOP/registry_pair").unwrap();
+        assert_eq!(install("WORKSHOP/registry_pair", pair).unwrap(), Vec::<String>::new());
+        let before = get("WORKSHOP/registry_pair").unwrap();
         assert_eq!(before.compiled.parts.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), ["a.post", "b.post"]);
-        assert!(get("WORKSHOP/registry_pair").is_none(), "format 2 has no format-1 view");
+        assert!(before.v1.is_none(), "format 2 has no format-1 view");
 
         // A taller post: the pair recompiles with a new key and the same revision.
-        assert_eq!(install_def("WORKSHOP/registry_post", post(200)).unwrap(), ["WORKSHOP/registry_pair"]);
-        let after = def("WORKSHOP/registry_pair").unwrap();
+        assert_eq!(install("WORKSHOP/registry_post", post(200)).unwrap(), ["WORKSHOP/registry_pair"]);
+        let after = get("WORKSHOP/registry_pair").unwrap();
         assert_eq!(after.revision, before.revision);
         assert_ne!(after.key, before.key);
         assert!((after.compiled.bounds.max.y - 2.0).abs() < 1e-6);
@@ -946,13 +980,73 @@ mod tests {
         let looped =
             Doc::read(r#"{"format":2,"name":"registry_post","unit":"cm","parts":{"pair":{"ref":"WORKSHOP/registry_pair"}}}"#)
                 .unwrap();
-        let error = install_def("WORKSHOP/registry_post", PropDef::new(looped).unwrap()).unwrap_err();
+        let error = install("WORKSHOP/registry_post", PropDef::new(looped).unwrap()).unwrap_err();
         assert_eq!(error, "WORKSHOP/registry_post would reference itself");
 
         // A seed's variant is compiled once.
         assert!(Arc::ptr_eq(&after.variant(7), &after.variant(7)) && Arc::ptr_eq(&after.variant(0), &after.compiled));
         assert!(remove("WORKSHOP/registry_pair").unwrap() && remove("WORKSHOP/registry_post").unwrap());
-        assert!(def("WORKSHOP/registry_pair").is_none());
+        assert!(get("WORKSHOP/registry_pair").is_none());
+    }
+
+    #[test]
+    fn references_vary_by_copy_and_seed_and_keep_what_they_compiled_against() {
+        let lamp = |height: u32| {
+            let text = format!(
+                r##"{{"format":2,"name":"vary_lamp","unit":"cm","materials":{{"wood":{{"color":"#806040"}}}},"parts":{{
+"post":{{"type":"box","size":[10,{height},10],"pos":[0,{},0],"mat":"wood","jitter":{{"pos":[5,0,5]}}}},
+"cap":{{"type":"sphere","radius":8,"pos":[0,{},0],"mat":"wood","color":"#ffcc00","light":{{"radius":300}}}}}}}}"##,
+                height / 2,
+                height + 8
+            );
+            PropDef::new(Doc::read(&text).unwrap()).unwrap()
+        };
+        install("WORKSHOP/vary_lamp", lamp(100)).unwrap();
+        let pair = |parts: &str| {
+            let text = format!(
+                r##"{{"format":2,"name":"vary_pair","unit":"cm","materials":{{"oak":{{"color":"#c08040"}}}},"parts":{{{parts}}}}}"##
+            );
+            Doc::read(&text)
+        };
+        let doc = pair(
+            r#""a":{"ref":"WORKSHOP/vary_lamp","pos":[-100,0,0],"remap":{"wood":"oak"}},"b":{"ref":"WORKSHOP/vary_lamp","pos":[100,0,0]}"#,
+        )
+        .unwrap();
+        let def = PropDef::new(doc).unwrap();
+        let part = |compiled: &CompiledProp, id: &str| compiled.parts.iter().find(|p| p.id == id).unwrap().clone();
+        // Each copy of a reference draws its own variation, and the seed reaches inside.
+        let (a, b) = (part(&def.compiled, "a.post"), part(&def.compiled, "b.post"));
+        assert_ne!((a.pos.x + 1.0, a.pos.z), (b.pos.x - 1.0, b.pos.z), "two references vary apart");
+        assert_ne!(part(&def.variant(7), "a.post").pos, a.pos, "the seed varies a referenced part");
+        // remap swaps the material inside the reference's cascade: an explicit colour still wins.
+        assert_eq!((a.color.as_str(), a.mat.as_deref()), ("#c08040", Some("oak")));
+        assert_eq!((b.color.as_str(), b.mat.as_deref()), ("#806040", Some("wood")));
+        assert_eq!(part(&def.compiled, "a.cap").color, "#ffcc00");
+        assert_eq!(def.compiled.lights.iter().map(|l| l.part.as_str()).collect::<Vec<_>>(), ["a.cap", "b.cap"]);
+        // A remap names the referenced asset's materials; its lights count toward this one's.
+        assert_eq!(
+            issue::render(&pair(r#""a":{"ref":"WORKSHOP/vary_lamp","remap":{"wod":"oak"}}"#).unwrap_err()),
+            r#"parts.a.remap.wod: WORKSHOP/vary_lamp has no material "wod" (expected wood) — did you mean "wood"?"#
+        );
+        assert_eq!(
+            issue::render(&pair(r#""row":{"ref":"WORKSHOP/vary_lamp","array":{"count":5,"step":[50,0,0]}}"#).unwrap_err()),
+            "parts: 5 lights after copies (expected at most 4)"
+        );
+        // A referenced asset stays while something uses it.
+        install("WORKSHOP/vary_pair", def).unwrap();
+        let held = get("WORKSHOP/vary_pair").unwrap();
+        assert_eq!(dependents("WORKSHOP/vary_lamp"), ["WORKSHOP/vary_pair"]);
+        assert_eq!(
+            remove("WORKSHOP/vary_lamp").unwrap_err(),
+            "WORKSHOP/vary_lamp is referenced by WORKSHOP/vary_pair; change or remove those first"
+        );
+        // A taller lamp recompiles the pair; a copy that still holds the old pair keeps the old
+        // lamp in every seed.
+        assert_eq!(install("WORKSHOP/vary_lamp", lamp(200)).unwrap(), ["WORKSHOP/vary_pair"]);
+        let height = |compiled: &CompiledProp| part(compiled, "a.post").bounds(1.0).size().y;
+        assert!((height(&get("WORKSHOP/vary_pair").unwrap().compiled) - 2.0).abs() < 1e-5);
+        assert!((height(&held.variant(11)) - 1.0).abs() < 1e-5, "variants use the lamp the pair compiled against");
+        assert!(remove("WORKSHOP/vary_pair").unwrap() && remove("WORKSHOP/vary_lamp").unwrap());
     }
 
     #[test]
@@ -979,7 +1073,8 @@ mod tests {
     #[test]
     fn templates_round_trip_and_bad_files_do_not_enter_the_library() {
         let before = library();
-        for (name, asset) in before.assets.iter().filter(|(name, _)| name.starts_with("BUILTIN/")) {
+        for (name, def) in before.defs.iter().filter(|(name, _)| name.starts_with("BUILTIN/")) {
+            let asset = def.v1.as_ref().expect("templates are format 1");
             assert_eq!(name, &format!("BUILTIN/{}", asset.name));
             let parsed = PropAsset::parse(&asset.text()).unwrap();
             assert_eq!(asset.revision(), parsed.revision());
@@ -989,12 +1084,12 @@ mod tests {
             let snapshot: PropAsset = ciborium::from_reader(bytes.as_slice()).unwrap();
             assert_eq!(snapshot, **asset, "part shape serde also works in snapshots");
         }
-        let mut invalid = (**before.assets.get("BUILTIN/box").unwrap()).clone();
+        let mut invalid = (**before.defs["BUILTIN/box"].v1.as_ref().unwrap()).clone();
         invalid.name = "invalid_test_prop".into();
         invalid.parts.get_mut("body").unwrap().pos.x = f32::INFINITY;
-        assert!(install("WORKSHOP/invalid_test_prop", Arc::new(invalid)).is_err());
+        assert!(PropDef::from_v1(Arc::new(invalid)).is_err());
         assert!(get("WORKSHOP/invalid_test_prop").is_none());
-        assert!(Arc::ptr_eq(&before.assets["BUILTIN/bench"], &library().assets["BUILTIN/bench"]));
+        assert!(Arc::ptr_eq(&before.defs["BUILTIN/bench"], &library().defs["BUILTIN/bench"]));
         assert!(canonical("../../bad").is_err());
         assert!(canonical("WORKSHOP/con").is_err());
         assert_eq!(canonical("Workshop/My_Bench").unwrap(), "WORKSHOP/my_bench");

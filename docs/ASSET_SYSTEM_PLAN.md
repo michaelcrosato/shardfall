@@ -189,8 +189,8 @@ Rules for the generated shapes:
 | grid | `{count:[a,b], step:[sa,sb], plane:"xz"}` | centred; runs along plane[0] then plane[1]; index = ia + a·ib |
 | radial | `{count, radius, start?, arc?, axis?}` | right-hand rotation about +axis (−axis reverses). Angle 0 = +z for axis y, +y for axes x and z. Each copy is turned with its angle; arc < 360 divides by count−1 |
 | cycle | `cycle:[…]` inside array/grid/radial | copy i takes entry i%n. A name sets the copy's `mat`; `#hex`/`$role` sets `color` and clears `mat`. It reaches only children without their own `mat`/`color` |
-| attach | `"attach":"seat"` or `{to, at?, self?}` + `offset` | position only. `top bottom front back left right` (and `_` combos) are directions in the parent frame, resolving to the face/edge/corner centre of the target's bounding box in that frame. `from`/`to` are endpoints; `[u,v,w]` ∈ [−1,1] is in the target's local box. `at` default top; `self` default = the opposite word on self's own box; `offset` in the parent frame. The target is one resolved part (`id[i]` for copies) or a group (union of children), among the attaching node's siblings (`group.part` reaches inside one; row 2.2). Cycles are errors |
-| ref | `{"ref":"LIB/core/crate", pos…, scale?, remap?:{mat:mat}}` | inlines that asset's resolved parts as `id.part`; read-only inside; depth ≤ 3; `props::install` returns dependents, which are recompiled and refreshed |
+| attach | `"attach":"seat"` or `{to, at?, self?}` + `offset` | position only. `top bottom front back left right` (and `_` combos) are directions in the parent frame, resolving to the face/edge/corner centre of the target's bounding box in that frame. `from`/`to` are endpoints; `[u,v,w]` ∈ [−1,1] is in the target's local box. `at` default top; `self` default = the opposite word on self's own box; `offset` in the parent frame. The target is one resolved part (`id[i]` for copies) or a group (union of children), among the attaching node's siblings (`group.part` reaches inside one; row 2.2). Cycles are errors. The target's authored placement counts: its chance, jitter and pick apply after (row 2.3) |
+| ref | `{"ref":"LIB/core/crate", pos…, scale?, remap?:{mat:mat}}` | inlines that asset's resolved parts as `id.part`; read-only inside; depth ≤ 3; `props::install` returns dependents, which are recompiled and refreshed (row 2.3: resolved in place with the caller's seed; `remap` acts inside the referenced cascade; a referenced asset cannot be removed) |
 
 Order and ids:
 - Replication runs first, then each copy is mirrored. `step` and the radial centre are in the parent frame; a node's own rotation does not turn its `step`.
@@ -204,7 +204,7 @@ Surface cascade (nearest level wins):
 
 ### 5.5 Sockets, roles, variation, extras, provenance, mesh parts
 - **sockets**: `"sockets":{"grip":{pos|attach, axis|yaw…}}`, at most 16. +y is the socket's working direction. Vocabulary: `grip, grip2, tip` (+y along the blade), `top` (+y up), `wall_mount` (+y into the wall), `hang`, `sit` (row 2.1: a closed set; other names get did-you-mean).
-- **roles**: a `color` may be `$floor $floor2 $wall $pillar $accent $light`, the same names as the `ThemeDef` colour fields. They resolve at render time from the instance's palette, else `props::DEFAULT_ROLES`. `PropInstance` gains `seed: u32`, `roles` and `params` (all serde default).
+- **roles**: a `color` may be `$floor $floor2 $wall $pillar $accent $light`, the same names as the `ThemeDef` colour fields. They resolve at render time from the instance's palette, else `props::DEFAULT_ROLES`. `PropInstance` gains `seed: u32`, `roles` and `params` (all serde default). (Seed and palette land with row 2.4's seeds and rooms, params with LIB-4; row 2.3 draws seed 0 with `DEFAULT_ROLES`.)
 - **variation**: `chance` (0-1), `jitter:{pos:[x,y,z], rot:[y,p,r], scale:[lo,hi], color}` and group `pick:n`.
   - The random value is u = FNV-1a64(`"{seed}:{resolved id}:{field}"`) mapped to [−1,1], so adding parts never reshuffles others and `SimState.rng` is never touched.
   - `jitter.color: j` means linear RGB × (1 + j·u).
@@ -229,7 +229,7 @@ Surface cascade (nearest level wins):
 `compile::compile(&PropAsset, &Deps, seed) -> Result<CompiledProp, Vec<Issue>>` (row 2.2: `compile(&Doc, deps, seed)`; the library holds `PropDef`s and keeps each one's format-1 view for the consumers until F5).
 - It is pure f32 and deterministic: ids in BTreeMap order, depth-first, copies in index order, metres internally.
 - It runs once per key, at install, parse or snapshot load, and caches up to 64 seed variants.
-- `PropDef {asset, revision, key, deps, meshes, compiled, variants}` replaces `Arc<PropAsset>` in the library, `PropInstance` and `PropFrame` (prop_instance.rs:17-30).
+- `PropDef {asset, revision, key, deps, meshes, compiled, variants}` replaces `Arc<PropAsset>` in the library, `PropInstance` and `PropFrame` (prop_instance.rs:17-30). (Row 2.3: done; `props::get` returns the definition, which keeps a format-1 view for format-1 patches and the native drafts. Parts carry exact boxes, format 1's bounds bit for bit; the view builder caches generated meshes.)
 - `CompiledProp {parts: Vec<ResolvedPart>, bounds, sockets, lights, fx, warnings}`.
 - `ResolvedPart {id, prim, pos, rot, scale, color: Hex|Role, tint, look, emissive, mat_index, solid, hidden, sway, aabb}`.
 
@@ -239,7 +239,7 @@ Surface cascade (nearest level wins):
 | physics `prop_instance.rs` `collider` (77-92) | compound from solid (incl. `hidden`) parts, table §5.3; > 256 entries is an error ("mark decorative parts solid:false") |
 | nav `nav.rs` (92-103) | solid resolved AABBs |
 | bounds, selection, preview | `def.bounds(scale)` (prop_instance.rs:66-73, edit.rs:281, prop_preview.rs:155-158) |
-| inspect | `parts` as authored; `inspect resolved=true` lists resolved id/type/size, with from/to for axial parts and Euler only for parts placed with `pos` |
+| inspect | `parts` as authored; `inspect resolved=true` lists resolved id/type/size, with from/to for axial parts and Euler only for parts placed with `pos` (moved to row 2.4 with F6; row 2.3 lists resolved parts in `bounds=true`) |
 
 v1 assets compile 1:1: the four templates produce today's exact `MeshInstance`/`SdfInstance` lists
 (regression test).
@@ -291,7 +291,7 @@ Keep `{op, part, fields}`:
   - `PropInstance.definition` serializes as its key and resolves through a key → `Weak<PropDef>` registry. Legacy inline v1 definitions still load.
   - `state_hash` hashes keys, not definitions.
   - Target: < 64 B per extra instance of one asset (today ~1.5 KB).
-- **History.** Undo/redo becomes `Vec<Option<Value>>` (asset_tools.rs:23-28): old typed files read as Values, and restoring runs migrate + parse.
+- **History.** Undo/redo becomes `Vec<Option<Value>>` (asset_tools.rs:23-28): old typed files read as Values, and restoring runs migrate + parse. (Landed in row 2.3: format-2 creates need it.)
 - **Rooms.** `asset=`/`scale=` stay. `ObjectDef` gains optional `seed` and `params`, written by `object_toml` when set. `room_check` reports unknown assets with did-you-mean.
 
 ### 5.9 Conformance corpus
@@ -589,7 +589,7 @@ and LIB assets.
 | code | rule |
 |---|---|
 | floating | parts within 0.5 cm count as joined; lists each group that does not reach a part touching the floor (min y ≤ 0.5 cm), with up to 3 ids and the gap |
-| below_floor / not_grounded | a part's min y < −0.5 cm / the asset's min y > 0.5 cm; skipped with `wall_mount` or `hang` sockets |
+| below_floor / not_grounded | a part's min y < −0.5 cm / the asset's min y > 0.5 cm; skipped with `wall_mount` or `hang` sockets (row 2.3: and `grip`, for held items; the socket anchors `floating` instead) |
 | poke | A crosses box-like B along B's thinnest axis with A's centre inside B's face, sticking out 0.5-3 cm on one side and ≥ 3 cm on the other |
 | hidden | every corner of A is ≥ 1 mm inside a box-like B |
 | z_fight | parallel same-facing faces ≤ 1 mm apart, overlapping ≥ 1×1 cm, differing in colour/material/look, at ≥ 3 of 9 uncovered samples; floor-facing bottoms skipped |
@@ -668,6 +668,7 @@ Upkeep only (D12):
   - a `props::V1Part` adapter (`PropPart::to_v1()`) for drafts;
   - "edit as JSON" for non-v1 parts;
   - `Deref<Target=PropAsset>` on `PropDef`.
+  - (Row 2.3: the definition's format-1 view is the adapter, so format-1 parts keep their drafts; a format-2 asset is edited as a whole document in the JSON editor. No `V1Part` type or `Deref` was needed.)
 - Every phase: `cargo build -p pav_app`, `cargo test -p pav_app`, and `cargo clippy -p pav_app --target wasm32-unknown-unknown`.
 
 ## 8. Import pipeline (`asset_import`)
@@ -1275,7 +1276,7 @@ Why this order:
 - [x] 1.3 TOOLS-9 docs/rules, EVAL-3 calibration, re-score GA, EVAL-4 G1; TOOLS-11 optional (S + runs)
 - [x] 2.1 F1 strict reader + v2 hints, F2 source model, writer, revisions, `needed_format` (v2 `create` refused until 2.3, when the consumers draw compiled parts) (L)
 - [x] 2.2 F3 compile (all §5.4 rules) + F4 generators + the §5.9 conformance test (L)
-- [ ] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
+- [x] 2.3 F5 consumers + TOOLS-10 UI adapter + lint on compiled parts (M)
 - [ ] 2.4 F6 patch ops v2 (expand keeps placement form) + F7 snapshot dedupe, seeds, room_check (M)
 - [ ] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs)
 - [ ] 3.1 MAT-1 material core + MAT-8 Physically Based presets (L)

@@ -1220,7 +1220,14 @@ impl Reader<'_> {
                 totals.lights += copies * usize::from(node.light.is_some());
                 totals.fx += copies * usize::from(node.fx.is_some());
             }
-            Kind::Ref(name) => totals.parts += copies * (self.assets)(name).map_or(1, |def| def.compiled.parts.len()),
+            Kind::Ref(name) => {
+                // Its lights and emitters come along and count toward this document's.
+                let (parts, lights, fx) = (self.assets)(name)
+                    .map_or((1, 0, 0), |def| (def.compiled.parts.len(), def.compiled.lights.len(), def.compiled.fx.len()));
+                totals.parts += copies * parts;
+                totals.lights += copies * lights;
+                totals.fx += copies * fx;
+            }
             _ => {}
         }
         if matches!(node.kind, Kind::Group(_)) {
@@ -1262,7 +1269,7 @@ impl Reader<'_> {
         };
         if (self.assets)(&canonical).is_none() {
             let library = crate::props::library();
-            let names: Vec<&str> = library.assets.keys().map(String::as_str).collect();
+            let names: Vec<&str> = library.defs.keys().map(String::as_str).collect();
             self.push(
                 Issue::error(path, Code::UnknownAsset, format!("no asset \"{name}\""))
                     .maybe_fix(issue::suggestion(&canonical, names.iter().copied())),
@@ -1277,11 +1284,25 @@ impl Reader<'_> {
             self.push(wrong_type(path, "an object {its material: a material here}", value));
             return None;
         };
+        // The keys are the referenced asset's materials (an unknown asset is reported once, on
+        // the ref).
+        let referenced = match kind {
+            Kind::Ref(name) => (self.assets)(name).map(|def| (name, def)),
+            _ => None,
+        };
         let mut remap = BTreeMap::new();
         for (key, value) in object {
             let at = join(path, key);
-            if let Kind::Ref(name) = kind {
-                self.push(Issue::error(&at, Code::UnknownMaterial, format!("{name} has no material \"{key}\"")));
+            if let Some((name, def)) = &referenced {
+                if !def.doc.materials.contains_key(key) {
+                    let keys: Vec<&str> = def.doc.materials.keys().map(String::as_str).collect();
+                    let issue = Issue::error(&at, Code::UnknownMaterial, format!("{name} has no material \"{key}\""));
+                    self.push(if keys.is_empty() {
+                        issue
+                    } else {
+                        issue.expected(keys.join(", ")).maybe_fix(issue::suggestion(key, keys.iter().copied()))
+                    });
+                }
             }
             if let Some(material) = self.material_ref(&at, value) {
                 remap.insert(key.clone(), material);

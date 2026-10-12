@@ -1,192 +1,28 @@
-//! Format 2's conformance corpus (asset plan §5.9): the five examples and three probes, inline
-//! and in canonical form. Map entries are in key order, so the examples' authored order (the
+//! Format 2's conformance corpus (asset plan §5.9): the five examples and three probes, in
+//! canonical form in `fixtures/props/format2/` (the view and tool tests draw them too). Map entries are in key order, so the examples' authored order (the
 //! bench's seat first) reads to this text too. The tests check reading, writing, revisions and
 //! the resolved goldens: positions in cm within 0.01 cm, angles within 0.05 degrees.
 
 use glam::{EulerRot, Vec3};
 use pav_core::issue::render;
 use pav_core::props::compile::compile;
-use pav_core::props::{CompiledProp, Doc, PropAsset, ResolvedPart, get};
+use pav_core::props::{CompiledProp, Doc, PropAsset, PropDef, ResolvedPart, get};
 
-const BENCH: &str = r##"{"format":2,"name":"bench","unit":"cm",
-"description":"A wooden bench: broad seat, four legs, backrest leaning 12 degrees back on the rear legs.",
-"tags":["furniture","seat","wood","town"],
-"materials":{
-"wood":{"color":"#bc8150"},
-"wood_dark":{"color":"#594635"}},
-"parts":{
-"backrest":{"type":"rounded_box","size":[220,8],"radius":2.5,"from":[0,92,-38],"to":[0,141,-48],"mat":"wood"},
-"crossbar":{"type":"box","size":[6,6],"from":[-80,31,-33],"to":[80,31,-33],"mat":"wood_dark"},
-"leg_back":{"type":"box","size":[10,8],"from":[85,0,-26],"to":[85,141,-56],"mat":"wood_dark","mirror":"x"},
-"leg_front":{"type":"box","size":[10,8],"from":[85,0,25],"to":[85,71,25],"mat":"wood_dark","mirror":"x"},
-"seat":{"type":"rounded_box","size":[220,18,76],"radius":2.5,"pos":[0,80,0],"mat":"wood"}},
-"sockets":{
-"sit":{"pos":[0,89,4]}}}
-"##;
+const BENCH: &str = include_str!("fixtures/props/format2/bench.json");
 
-const GREATSWORD: &str = r##"{"format":2,"name":"greatsword","unit":"cm",
-"description":"A two-handed steel sword: long tapered blade with a dark fuller, upswept brass crossguard, leather grip with brass rings, oval pommel. Origin: crossguard centre; the blade points +y.",
-"tags":["weapon","sword","two_handed","steel"],
-"materials":{
-"brass":{"color":"#b08a3e"},
-"leather":{"color":"#4a2f1e"},
-"steel":{"color":"#c9d0d6","look":"lit"},
-"steel_dark":{"color":"#6e767d"}},
-"parts":{
-"blade":{"type":"extrude","points":[[-3,0],[3,0],[2.4,100],[0,113],[-2.4,100]],"depth":0.8,"pos":[0,1.5,0],"mat":"steel"},
-"fuller":{"type":"box","size":[0.9,72,1],"pos":[0,40,0],"mat":"steel_dark"},
-"grip":{"type":"cylinder","radius":1.6,"from":[0,-1.5,0],"to":[0,-38,0],"mat":"leather"},
-"guard":{"type":"capsule","radius":1.5,"from":[0,0,0],"to":[15,2.5,0],"mat":"brass","mirror":"x"},
-"pommel":{"type":"ellipsoid","size":[6.5,5,4.5],"attach":{"to":"grip","at":"to"},"mat":"brass"},
-"rings":{"type":"tube","radius":1.8,"thickness":0.3,"height":1,"pos":[0,-19,0],"mat":"brass","array":{"count":3,"step":[0,11,0]}}},
-"sockets":{
-"grip":{"pos":[0,-6,0]},
-"grip2":{"pos":[0,-28,0]},
-"tip":{"pos":[0,114.5,0]}}}
-"##;
+const GREATSWORD: &str = include_str!("fixtures/props/format2/greatsword.json");
 
-const MARKET_STALL: &str = r##"{"format":2,"name":"market_stall","unit":"cm",
-"description":"A wooden market stall: red and cream striped awning with a scalloped valance, plank counter, two tilted crates of apples and oranges.",
-"tags":["stall","market","town","wood","cloth"],
-"materials":{
-"apple":{"color":"#c8302a"},
-"cloth_cream":{"color":"#f0e4c8"},
-"cloth_red":{"color":"#c63d32"},
-"crate":{"color":"#a87545"},
-"crate_band":{"color":"#7f5432"},
-"orange":{"color":"#e88a1a"},
-"planks":{"color":"#8a5a35","layers":[{"type":"planks","size":[240,24],"gap":1.5,"color":"#5a3a22"}]},
-"post":{"color":"#6b4a2e"},
-"trim":{"color":"#5a3a22"},
-"wood":{"color":"#b07a4a"}},
-"parts":{
-"awning":{"solid":false,"array":{"count":6,"step":[43.3,0,0],"cycle":["cloth_red","cloth_cream"]},"parts":{
-  "band":{"type":"box","size":[43.3,21.6,1.6],"pos":[0,204.2,96.2]},
-  "scallop":{"type":"cylinder","radius":21.6,"height":1.6,"arc":180,"facing":"-y","pos":[0,193.4,95],"axis":"z"},
-  "stripe":{"type":"box","size":[43.3,3],"from":[0,250,-75],"to":[0,215,95]}}},
-"counter_front":{"type":"box","size":[240,96,5],"pos":[0,48,71.5],"mat":"planks"},
-"counter_side":{"type":"box","size":[5,96,60],"pos":[118,48,42],"mat":"planks","mirror":"x"},
-"counter_top":{"type":"rounded_box","size":[250,8,64],"radius":1.5,"pos":[0,100,42],"mat":"wood"},
-"crate":{"pos":[0,119.8,42],"pitch":15,"array":{"count":2,"step":[120,0,0],"cycle":["apple","orange"]},"parts":{
-  "body":{"type":"box","size":[60,22,40],"mat":"crate"},
-  "fruit":{"type":"sphere","radius":8.5,"pos":[0,12,0],"solid":false,"grid":{"count":[3,2],"step":[18,18]},"jitter":{"color":0.08}},
-  "hoops":{"type":"box","size":[62,4,42],"pos":[0,1,0],"mat":"crate_band","array":{"count":2,"step":[0,16,0]}},
-  "riser":{"type":"box","size":[56,10,10],"pos":[0,-14.8,-13.6],"mat":"trim"}}},
-"post_back":{"type":"box","size":[10,10],"from":[128,0,-60],"to":[128,247,-60],"mat":"post","mirror":"x"},
-"post_front":{"type":"box","size":[10,10],"from":[128,0,74],"to":[128,220,74],"mat":"post","mirror":"x"}},
-"sockets":{
-"top":{"pos":[0,104,42]}}}
-"##;
+const MARKET_STALL: &str = include_str!("fixtures/props/format2/market_stall.json");
 
-const WALL_TORCH: &str = r##"{"format":2,"name":"wall_torch","unit":"cm","solid":false,
-"description":"An iron wall bracket holding a wooden torch tilted 15 degrees out from the wall, with a flame in the theme's light colour. Origin: wall surface; +z points away from the wall.",
-"tags":["light","torch","wall","dungeon","iron"],
-"materials":{
-"flame":{"color":"$light","look":"unlit","emissive":3},
-"iron":{"color":"#3a3532"},
-"wood":{"color":"#6b4a2e"}},
-"parts":{
-"arm":{"type":"box","size":[3,3],"from":[0,-7,2],"to":[0,-3,13],"mat":"iron"},
-"plate":{"type":"box","size":[12,20,2],"pos":[0,0,1],"mat":"iron"},
-"torch":{"pos":[0,-2,15],"pitch":15,"parts":{
-  "collar":{"type":"torus","radius":3.3,"minor_radius":0.8,"mat":"iron"},
-  "cup":{"type":"cone","radius":3,"radius_end":5,"from":[0,14,0],"to":[0,21,0],"mat":"iron"},
-  "flame":{"type":"capsule","radius":4.5,"radius_end":0.8,"from":[0,17.5,0],"to":[0,34.8,0],"mat":"flame","light":{"color":"$light","radius":600,"intensity":1.6,"flicker":0.5},"fx":{"preset":"fire","size":0.5}},
-  "handle":{"type":"cone","radius":2,"radius_end":2.8,"from":[0,-18,0],"to":[0,14,0],"mat":"wood"}}}},
-"sockets":{
-"wall_mount":{"axis":"-z"}}}
-"##;
+const WALL_TORCH: &str = include_str!("fixtures/props/format2/wall_torch.json");
 
-const WELL: &str = r##"{"format":2,"name":"well","unit":"cm",
-"description":"A round stone well with a shingled wooden gable roof, a rope crank and a hanging bucket.",
-"tags":["well","town","stone","wood"],
-"materials":{
-"bucket":{"color":"#8b5a2b"},
-"iron":{"color":"#4a4a4a"},
-"mortar":{"color":"#5f6266"},
-"pad":{"color":"#6f7276"},
-"rim":{"color":"#a7a9ab"},
-"roof":{"color":"#8a4b2f"},
-"rope":{"color":"#c9a66b"},
-"shingle":{"color":"#6f3a22"},
-"stone":{"color":"$wall"},
-"void":{"color":"#1f272d","look":"flat"},
-"wood":{"color":"#6b4a2e"},
-"wood_dark":{"color":"#5a3a22"}},
-"parts":{
-"bucket":{"pos":[0,102,0],"solid":false,"parts":{
-  "bail":{"type":"torus","radius":13,"minor_radius":0.8,"arc":180,"pos":[0,9,0],"axis":"z","mat":"iron"},
-  "band":{"type":"tube","radius":13.6,"thickness":1.2,"height":2.4,"pos":[0,6,0],"mat":"iron"},
-  "body":{"type":"cone","radius":11.5,"radius_end":13.5,"height":18,"mat":"bucket"},
-  "rope":{"type":"cylinder","radius":1.2,"from":[0,22,0],"to":[0,33,0],"mat":"rope"}}},
-"crank":{"pos":[0,145,0],"mat":"wood_dark","parts":{
-  "arm":{"type":"box","size":[5,26,5],"pos":[84,-12,0]},
-  "axle":{"type":"cylinder","radius":3.5,"height":164,"axis":"x"},
-  "drum":{"type":"cylinder","radius":10,"height":60,"axis":"x","mat":"rope"},
-  "handle":{"type":"cylinder","radius":2.5,"height":18,"pos":[93,-24,0],"axis":"x"}}},
-"pad":{"type":"cylinder","radius":95,"height":6,"pos":[0,3,0],"mat":"pad"},
-"post":{"type":"box","size":[12,12],"from":[70,90,0],"to":[70,230,0],"mat":"wood","mirror":"x"},
-"ridge":{"type":"cylinder","radius":5,"height":190,"pos":[0,237,0],"axis":"x","mat":"wood_dark"},
-"rim":{"type":"tube","radius":78,"thickness":20,"height":10,"attach":"wall","mat":"rim"},
-"roof":{"pos":[0,207.3,41],"pitch":35,"mirror":"z","parts":{
-  "shingles":{"type":"box","size":[184,2.4,12],"pos":[0,3.7,0],"mat":"shingle","solid":false,"array":{"count":3,"step":[0,0,30]}},
-  "slab":{"type":"box","size":[180,5,100],"mat":"roof"}}},
-"stones":{"pos":[0,40,0],"array":{"count":2,"step":[0,52,0]},"parts":{
-  "ring":{"type":"box","size":[40,23,8],"mat":"stone","radial":{"count":10,"radius":69},"jitter":{"color":0.12}}}},
-"stones_mid":{"type":"box","size":[40,23,8],"pos":[0,40,0],"mat":"stone","radial":{"count":10,"radius":69,"start":18},"jitter":{"color":0.12}},
-"wall":{"type":"tube","radius":70,"thickness":10,"height":80,"pos":[0,40,0],"mat":"mortar"},
-"water":{"type":"cylinder","radius":60,"height":1,"pos":[0,30,0],"mat":"void","solid":false}}}
-"##;
+const WELL: &str = include_str!("fixtures/props/format2/well.json");
 
-const PROBE_ATTACH: &str = r##"{"format":2,"name":"probe_attach","unit":"cm",
-"description":"Knob on a grip drawn top-down; cube on a horizontal from/to beam (default at=top); capsule by height vs from/to; radial order around y and z.",
-"materials":{
-"blue":{"color":"#3050d0"},
-"green":{"color":"#30c040"},
-"grey":{"color":"#8a8f99"},
-"red":{"color":"#d04030"}},
-"parts":{
-"beam":{"type":"box","size":[6,6],"from":[-40,120,0],"to":[40,120,0],"mat":"grey"},
-"cap_fromto":{"type":"capsule","radius":5,"from":[60,0,0],"to":[60,30,0],"mat":"green"},
-"cap_height":{"type":"capsule","radius":5,"height":30,"pos":[40,15,0],"mat":"blue"},
-"cube":{"type":"box","size":[10,10,10],"attach":"beam","mat":"blue"},
-"grip":{"type":"cylinder","radius":3,"from":[0,100,0],"to":[0,40,0],"mat":"grey"},
-"knob":{"type":"sphere","radius":6,"attach":"grip","mat":"red"},
-"ruler":{"type":"box","size":[2,30,2],"pos":[50,15,0],"mat":"grey"},
-"spokes_y":{"type":"box","size":[6,6,6],"pos":[-60,10,0],"radial":{"count":4,"radius":20,"cycle":["red","blue","grey","grey"]}},
-"spokes_z":{"type":"box","size":[6,6,6],"pos":[-60,70,0],"radial":{"count":4,"radius":20,"axis":"z","cycle":["red","blue","grey","grey"]}}}}
-"##;
+const PROBE_ATTACH: &str = include_str!("fixtures/props/format2/probe_attach.json");
 
-const PROBE_FRAMES: &str = r##"{"format":2,"name":"probe_frames","unit":"cm",
-"description":"Three 40x4 boards: exactly vertical, leaning 1 degree toward +x, leaning 1 degree toward +z.",
-"materials":{
-"a":{"color":"#c08040"},
-"b":{"color":"#40a0c0"},
-"c":{"color":"#a040c0"}},
-"parts":{
-"board_lean_x":{"type":"box","size":[40,4],"from":[0,0,0],"to":[1.75,100,0],"mat":"b"},
-"board_lean_z":{"type":"box","size":[40,4],"from":[70,0,0],"to":[70,100,1.75],"mat":"c"},
-"board_vertical":{"type":"box","size":[40,4],"from":[-70,0,0],"to":[-70,100,0],"mat":"a"}}}
-"##;
+const PROBE_FRAMES: &str = include_str!("fixtures/props/format2/probe_frames.json");
 
-const PROBE_MIRROR: &str = r##"{"format":2,"name":"probe_mirror","unit":"cm",
-"description":"Mirrored group with off-axis children (hand, outward flag), mirrored rolled bar, nested surface defaults.",
-"materials":{
-"blue":{"color":"#3050d0"},
-"metal":{"color":"#8a8f99"},
-"red":{"color":"#d04030"},
-"wood":{"color":"#8a5a35"}},
-"parts":{
-"arm":{"pos":[10,80,0],"mirror":"x","parts":{
-  "beam":{"type":"box","size":[40,4,4],"pos":[20,0,0],"mat":"metal"},
-  "flag":{"type":"extrude","points":[[0,0],[20,6],[0,12]],"depth":1,"pos":[40,4,0],"mat":"blue"},
-  "hand":{"type":"sphere","radius":5,"pos":[40,0,0],"mat":"red"}}},
-"outer":{"pos":[0,0,30],"mat":"wood","parts":{
-  "inner":{"color":"#30c040","parts":{
-    "cube":{"type":"box","size":[12,12,12],"pos":[0,6,0]}}}}},
-"post":{"type":"box","size":[6,100,6],"pos":[0,50,0],"mat":"metal"},
-"tilted":{"type":"box","size":[30,4,4],"pos":[25,30,0],"roll":20,"mat":"blue","mirror":"x"}}}
-"##;
+const PROBE_MIRROR: &str = include_str!("fixtures/props/format2/probe_mirror.json");
 
 /// As written in the asset plan, before canonical order and layout.
 const BENCH_AUTHORED: &str = r##"{"format":2,"name":"bench","unit":"cm",
@@ -297,7 +133,7 @@ fn format1_files_keep_their_revisions_through_the_source_model() {
         ("BUILTIN/lantern", "prop1-fc44b95ee89f262e"),
     ];
     let mut assets: Vec<(PropAsset, &str)> =
-        golden.iter().map(|(name, revision)| ((*get(name).unwrap()).clone(), *revision)).collect();
+        golden.iter().map(|(name, revision)| ((**get(name).unwrap().v1.as_ref().unwrap()).clone(), *revision)).collect();
     for (text, revision) in [
         (include_str!("fixtures/props/dogfood_stall_v1.json"), "prop1-bd43f9ba44a259b0"),
         (include_str!("fixtures/props/dogfood_well_v1.json"), "prop1-368eeb091c94f947"),
@@ -328,17 +164,13 @@ fn format2_that_format1_holds_is_written_as_format1() {
 }
 
 #[test]
-fn format2_content_is_checked_but_not_built_yet() {
-    assert_eq!(
-        PropAsset::parse(BENCH).unwrap_err(),
-        r#"unit: unit "cm" needs format 2, which this engine checks but cannot build yet — write format 1 (asset_edit action=schema)"#
-    );
+fn format2_builds_as_a_definition_and_the_format1_model_refuses_it() {
+    let bench = PropDef::new(read("bench", BENCH)).unwrap();
+    assert_eq!((bench.compiled.parts.len(), bench.v1.is_none()), (7, true));
+    assert_eq!(PropAsset::parse(BENCH).unwrap_err(), r#"unit: unit "cm" needs format 2, which this model cannot hold"#);
     let pair = r##"{"format":2,"name":"pair","unit":"m","parts":{
 "leg":{"type":"box","half":[0.05,0.4,0.05],"pos":[0.5,0.4,0],"color":"#594635","mirror":"x"}}}"##;
-    assert_eq!(
-        PropAsset::parse(pair).unwrap_err(),
-        "parts.leg.mirror: mirror needs format 2, which this engine checks but cannot build yet — write format 1 (asset_edit action=schema)"
-    );
+    assert_eq!(PropAsset::parse(pair).unwrap_err(), "parts.leg.mirror: mirror needs format 2, which this model cannot hold");
     // A broken format-2 document reports its problems, not the refusal.
     let broken = BENCH.replace("\"unit\":\"cm\",", "");
     assert_eq!(
@@ -454,7 +286,7 @@ fn the_corpus_resolves_to_its_goldens() {
     at(&attach, "knob", [0.0, 106.0, 0.0]);
     at(&attach, "spokes_z[0]", [-60.0, 90.0, 0.0]);
     at(&attach, "spokes_z[1]", [-80.0, 70.0, 0.0]);
-    let size = |id: &str| part(&attach, id).aabb.size();
+    let size = |id: &str| part(&attach, id).bounds(1.0).size();
     assert!((size("cap_height") - size("cap_fromto")).abs().max_element() < 1e-5, "a capsule's height and its ends agree");
 }
 
@@ -493,4 +325,36 @@ fn extras_sockets_and_warnings_resolve() {
         .flat_map(|w| w.ids)
         .collect();
     assert_eq!(frames, ["board_lean_x"], "only the board leaning sideways turns");
+}
+
+#[test]
+fn fixtures_lint_on_their_resolved_parts() {
+    use pav_core::props::lint::{Options, lint};
+    let lines = |name: &str| {
+        let (_, text, _) = FIXTURES.iter().find(|(n, _, _)| *n == name).unwrap();
+        let def = PropDef::new(read(name, text)).unwrap();
+        lint(&def.compiled, &Options::default()).into_iter().map(|f| f.line).collect::<Vec<_>>()
+    };
+    // The bench's rear legs lean 12 degrees, so their back edge dips under the floor.
+    assert_eq!(lines("bench"), ["below_floor: leg_back, leg_back~x reach y=-0.8 cm"]);
+    // Held from its grip socket and hung from a wall mount: no floor rules.
+    assert!(lines("greatsword").is_empty() && lines("wall_torch").is_empty());
+    // The stall's crates keep the faults format 1's stall has; the well's water crosses its
+    // middle course of stones.
+    assert_eq!(
+        lines("market_stall"),
+        [
+            "poke: crate[0].body pokes 2 cm out of crate[0].hoops[0]",
+            "poke: crate[1].body pokes 2 cm out of crate[1].hoops[0]",
+            "z_fight: crate[0].body and crate[0].hoops[1] share a face (y=138 cm)",
+            "z_fight: crate[1].body and crate[1].hoops[1] share a face (y=138 cm)",
+        ]
+    );
+    assert_eq!(lines("well").len(), 4);
+    assert!(lines("well").iter().all(|line| line.starts_with("poke: water pokes 2.6 cm out of stones_mid[")));
+    // A compile warning reaches the check.
+    assert_eq!(
+        lines("probe_frames"),
+        ["frame_turn: board_lean_x leans sideways, so its width turns front-to-back; use spin:90 or a vertical axis"]
+    );
 }

@@ -48,7 +48,7 @@ fn paused_props_render_parts_through_the_cpu_adapter_and_ticket_skips_old_transf
     preview(&mut s, json!({"name":"BUILTIN/bench","playing":false})).unwrap();
     let frame = s.sim.frame();
     let subject = frame.objects.iter().find(|o| o.prop.is_some()).unwrap();
-    let expected = subject.prop.as_ref().unwrap().definition.parts.len();
+    let expected = subject.prop.as_ref().unwrap().definition.compiled.parts.len();
     let mut builder = pav_view::ViewBuilder::new();
     let scene = builder.build(&frame, &frame, 1.0, &s.camera, 16.0 / 9.0, &s.view_for(&frame), frame.focus);
     let parts = scene.meshes.iter().filter(|p| p.group == subject.id.0 + 2).count()
@@ -114,8 +114,8 @@ fn magenta(name: &str, parts: Value) {
         part["color"] = json!("#ff00ff");
         part["look"] = json!("unlit");
     }
-    let asset = pav_core::props::PropAsset::parse(&doc.to_string()).unwrap();
-    pav_core::props::install(&format!("WORKSHOP/{name}"), std::sync::Arc::new(asset)).unwrap();
+    let def = pav_core::props::PropDef::new(pav_core::props::Doc::read(&doc.to_string()).unwrap()).unwrap();
+    pav_core::props::install(&format!("WORKSHOP/{name}"), def).unwrap();
 }
 
 /// The share of a square tile that the subject's larger side spans.

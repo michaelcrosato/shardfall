@@ -2,7 +2,7 @@
 //! submits a command; editable drafts keep the revision they were read from.
 
 use egui::{Color32, RichText};
-use pav_core::props::{self, PropAsset, PropPart};
+use pav_core::props::{self, PropDef, PropPart};
 use pav_core::{Look, RenderFrame, Shape};
 use serde_json::{Value, json};
 
@@ -169,16 +169,16 @@ impl AssetUi {
                         preview_controls(ui, preview, &mut commands);
                     }
                     let library = props::library();
-                    if let Some(asset) = library.assets.get(&self.source) {
-                        self.sync_drafts(asset, false);
+                    if let Some(def) = library.defs.get(&self.source) {
+                        self.sync_drafts(def, false);
                         ui.separator();
                         ui.label(RichText::new(format!("Object: {}", self.source)).strong());
-                        if !asset.description.is_empty() {
-                            ui.label(&asset.description);
+                        if !def.doc.description.is_empty() {
+                            ui.label(&def.doc.description);
                         }
                         let editable = self.source.starts_with("WORKSHOP/") && !cfg!(target_arch = "wasm32");
                         if editable {
-                            let revision = asset.revision();
+                            let revision = def.revision.clone();
                             ui.horizontal(|ui| {
                                 for (label, action) in [("Undo", "undo"), ("Redo", "redo")] {
                                     if ui.button(label).clicked() {
@@ -195,9 +195,9 @@ impl AssetUi {
                         } else if !cfg!(target_arch = "wasm32") {
                             ui.small("Copy this template to edit its parts.");
                         }
-                        self.part_controls(ui, asset, editable, &mut commands);
+                        self.part_controls(ui, def, editable, &mut commands);
                         if editable {
-                            self.json_controls(ui, asset, &mut commands);
+                            self.json_controls(ui, def, &mut commands);
                         }
                         if !cfg!(target_arch = "wasm32") {
                             self.placement_controls(ui, frame, &mut commands);
@@ -240,10 +240,10 @@ impl AssetUi {
         let search = self.search.to_lowercase();
         let library = props::library();
         egui::ComboBox::from_id_salt("object_source").selected_text(&self.source).width(300.0).show_ui(ui, |ui| {
-            for (name, asset) in &library.assets {
+            for (name, def) in &library.defs {
                 if search.is_empty()
                     || name.to_lowercase().contains(&search)
-                    || asset.description.to_lowercase().contains(&search)
+                    || def.doc.description.to_lowercase().contains(&search)
                 {
                     ui.selectable_value(&mut self.source, name.clone(), name);
                 }
@@ -279,19 +279,21 @@ impl AssetUi {
         }
     }
 
-    fn sync_drafts(&mut self, asset: &PropAsset, force: bool) {
-        let revision = asset.revision();
+    /// Part drafts edit a format-1 asset's parts. A format-2 asset is edited as a whole
+    /// document in the JSON editor until patch ops cover format 2.
+    fn sync_drafts(&mut self, def: &PropDef, force: bool) {
+        let revision = def.revision.clone();
         let dirty_selection =
             self.part.as_ref().is_some_and(|draft| draft.asset == self.source && draft.name == self.selected_part && draft.dirty);
-        if !asset.parts.contains_key(&self.selected_part) && !dirty_selection {
-            self.selected_part = asset.parts.keys().next().cloned().unwrap_or_default();
+        if !def.doc.parts.contains_key(&self.selected_part) && !dirty_selection {
+            self.selected_part = def.doc.parts.keys().next().cloned().unwrap_or_default();
         }
         let read_part = force
             || self.part.as_ref().is_none_or(|draft| {
                 draft.asset != self.source || draft.name != self.selected_part || (!draft.dirty && draft.revision != revision)
             });
         if read_part {
-            self.part = asset.parts.get(&self.selected_part).map(|part| PartDraft {
+            self.part = def.v1.as_ref().and_then(|asset| asset.parts.get(&self.selected_part)).map(|part| PartDraft {
                 asset: self.source.clone(),
                 name: self.selected_part.clone(),
                 revision: revision.clone(),
@@ -299,14 +301,17 @@ impl AssetUi {
                 dirty: false,
             });
         }
+        if def.v1.is_none() {
+            self.json_mode = JsonMode::Definition;
+        }
         let read_json = force
             || self.json.as_ref().is_none_or(|draft| draft.asset != self.source || (!draft.dirty && draft.revision != revision));
         if read_json {
             let value = match self.json_mode {
-                JsonMode::Definition => serde_json::to_value(asset).unwrap(),
+                JsonMode::Definition => serde_json::from_str(&def.doc.text()).unwrap(),
                 JsonMode::Operations => json!([{
                     "op":"set", "part":self.selected_part,
-                    "fields":{"color":asset.parts.get(&self.selected_part).map(|part| part.color.as_str()).unwrap_or("#e8704a")}
+                    "fields":{"color":def.v1.as_ref().and_then(|asset| asset.parts.get(&self.selected_part)).map(|part| part.color.as_str()).unwrap_or("#e8704a")}
                 }]),
             };
             self.json = Some(JsonDraft {
@@ -318,20 +323,24 @@ impl AssetUi {
         }
     }
 
-    fn part_controls(&mut self, ui: &mut egui::Ui, asset: &PropAsset, editable: bool, commands: &mut Vec<Command>) {
+    fn part_controls(&mut self, ui: &mut egui::Ui, def: &PropDef, editable: bool, commands: &mut Vec<Command>) {
         ui.separator();
         ui.label(RichText::new("Named parts").strong());
         egui::ComboBox::from_id_salt("object_part").selected_text(&self.selected_part).width(280.0).show_ui(ui, |ui| {
-            for name in asset.parts.keys() {
+            for name in def.doc.parts.keys() {
                 ui.selectable_value(&mut self.selected_part, name.clone(), name);
             }
         });
-        self.sync_drafts(asset, false);
+        self.sync_drafts(def, false);
+        if def.v1.is_none() {
+            ui.small("Format-2 parts are edited as JSON: open the JSON editor below.");
+            return;
+        }
         let Some(draft) = &mut self.part else { return };
         let bounds = draft.part.bounds(1.0);
         let size = bounds.size();
         ui.small(format!("Extent: {:.2} × {:.2} × {:.2} m", size.x, size.y, size.z));
-        let stale = draft.revision != asset.revision();
+        let stale = draft.revision != def.revision;
         ui.add_enabled_ui(editable, |ui| {
             draft.dirty |= vector(ui, "Local centre", &mut draft.part.pos);
             draft.dirty |= angles(ui, &mut draft.part.yaw, &mut draft.part.pitch, &mut draft.part.roll);
@@ -380,16 +389,18 @@ impl AssetUi {
         ui.small("Positions use metres; rotations use degrees. Changes apply together when you press Apply part.");
     }
 
-    fn json_controls(&mut self, ui: &mut egui::Ui, asset: &PropAsset, commands: &mut Vec<Command>) {
+    fn json_controls(&mut self, ui: &mut egui::Ui, def: &PropDef, commands: &mut Vec<Command>) {
         ui.collapsing("Atomic JSON editor", |ui| {
             let before = self.json_mode;
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.json_mode, JsonMode::Operations, "Operations");
-                ui.selectable_value(&mut self.json_mode, JsonMode::Definition, "Full definition");
-            });
+            if def.v1.is_some() {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.json_mode, JsonMode::Operations, "Operations");
+                    ui.selectable_value(&mut self.json_mode, JsonMode::Definition, "Full definition");
+                });
+            }
             if self.json_mode != before {
                 self.json = None;
-                self.sync_drafts(asset, false);
+                self.sync_drafts(def, false);
             }
             ui.small(match self.json_mode {
                 JsonMode::Operations => {
@@ -399,7 +410,7 @@ impl AssetUi {
             });
             if ui.button("Load latest JSON").clicked() {
                 self.json = None;
-                self.sync_drafts(asset, false);
+                self.sync_drafts(def, false);
             }
             let Some(draft) = &mut self.json else { return };
             draft.dirty |= ui
@@ -410,7 +421,7 @@ impl AssetUi {
                         .desired_width(f32::INFINITY),
                 )
                 .changed();
-            let stale = draft.revision != asset.revision();
+            let stale = draft.revision != def.revision;
             if stale {
                 ui.colored_label(
                     Color32::from_rgb(255, 190, 110),
@@ -661,25 +672,41 @@ mod tests {
     #[test]
     fn a_remote_revision_does_not_overwrite_an_unsaved_part_draft() {
         let library = props::library();
-        let original = library.assets.get("BUILTIN/bench").unwrap();
+        let original = library.defs.get("BUILTIN/bench").unwrap();
         let mut panel = AssetUi::new(true);
         panel.sync_drafts(original, false);
         let draft = panel.part.as_mut().unwrap();
         draft.part.color = "#123456".into();
         draft.dirty = true;
         let revision = draft.revision.clone();
-        let mut remote = original.as_ref().clone();
+        let mut remote = (**original.v1.as_ref().unwrap()).clone();
         remote.parts.get_mut(&panel.selected_part).unwrap().color = "#654321".into();
+        let def = |asset: &pav_core::props::PropAsset| PropDef::from_v1(std::sync::Arc::new(asset.clone())).unwrap();
         assert_ne!(remote.revision(), revision);
-        panel.sync_drafts(&remote, false);
+        panel.sync_drafts(&def(&remote), false);
         let kept = panel.part.as_ref().unwrap();
         assert_eq!(kept.part.color, "#123456");
         assert_eq!(kept.revision, revision, "Apply must keep the original concurrency guard");
         assert_eq!(panel.json.as_ref().unwrap().revision, remote.revision(), "an untouched view follows live edits");
         remote.parts.remove(&panel.selected_part);
-        panel.sync_drafts(&remote, false);
+        panel.sync_drafts(&def(&remote), false);
         assert_eq!(panel.part.as_ref().unwrap().part.color, "#123456", "a removed part keeps its unsaved draft");
         assert_eq!(panel.part.as_ref().unwrap().revision, revision);
+    }
+
+    #[test]
+    fn format2_assets_are_edited_as_whole_documents() {
+        let text = include_str!("../../pav_core/tests/fixtures/props/format2/bench.json");
+        let def = PropDef::new(props::Doc::read(text).unwrap()).unwrap();
+        let mut panel = AssetUi::new(true);
+        panel.source = "WORKSHOP/bench".into();
+        panel.json_mode = JsonMode::Operations;
+        panel.sync_drafts(&def, false);
+        assert!(panel.part.is_none(), "format-2 parts have no drafts");
+        assert!(panel.json_mode == JsonMode::Definition, "patch ops cover format 1 only");
+        let draft = panel.json.as_ref().unwrap();
+        assert_eq!(draft.revision, def.revision);
+        assert_eq!(serde_json::from_str::<Value>(&draft.text).unwrap(), serde_json::from_str::<Value>(text).unwrap());
     }
 
     #[test]
@@ -692,7 +719,7 @@ mod tests {
         panel.follow_preview(Some("BUILTIN/lantern"));
         assert_eq!(panel.source, "BUILTIN/lantern");
         let library = props::library();
-        panel.sync_drafts(library.assets.get("BUILTIN/lantern").unwrap(), false);
+        panel.sync_drafts(library.defs.get("BUILTIN/lantern").unwrap(), false);
         panel.part.as_mut().unwrap().dirty = true;
         panel.follow_preview(Some("BUILTIN/bench"));
         assert_eq!(panel.source, "BUILTIN/lantern", "external preview switches must keep unsaved drafts");

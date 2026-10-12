@@ -10,9 +10,9 @@ use std::sync::{Arc, Once};
 
 use anyhow::{Context, Result, anyhow, bail};
 use pav_core::issue::{self, Code, Issue};
+use pav_core::props::geom::{Generated, Primitive};
 use pav_core::props::lint::{self, Finding};
-use pav_core::props::{self, PropAsset};
-use pav_core::shape::Shape;
+use pav_core::props::{self, CompiledProp, Doc, PropDef};
 use pav_render::MeshKey;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -24,18 +24,32 @@ const HISTORY_LIMIT: usize = 32;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 static INITIALIZED: Once = Once::new();
 
+/// Undo and redo steps hold documents as JSON: format 1 or 2, and older files' typed format-1
+/// assets read the same way.
 #[derive(Default, Serialize, Deserialize)]
 struct History {
     head: String,
-    undo: Vec<Option<PropAsset>>,
-    redo: Vec<Option<PropAsset>>,
+    undo: Vec<Option<Value>>,
+    redo: Vec<Option<Value>>,
 }
 
 struct Edited {
     report: Value,
-    asset: Option<Arc<PropAsset>>,
+    def: Option<Arc<PropDef>>,
+    /// Assets that reference the edited one and were recompiled with it.
+    dependents: Vec<String>,
     mutation: bool,
     preview: bool,
+}
+
+/// A document or the problems that keep it from building, one per line.
+fn compiled(doc: Doc) -> Result<PropDef> {
+    PropDef::new(doc).map_err(|issues| anyhow!(issue::render(&issues)))
+}
+
+/// A definition's document as its canonical file writes it.
+fn document(def: &PropDef) -> Result<Value> {
+    serde_json::from_str(&def.doc.text()).context("canonical asset text")
 }
 
 /// Asset files use this root in the app, CLI, live bridge and file watcher.
@@ -86,35 +100,39 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     result
 }
 
-fn file_definition(path: &Path) -> Result<(String, Arc<PropAsset>)> {
+fn file_definition(path: &Path) -> Result<(String, PropDef)> {
     let leaf = path.file_stem().and_then(|s| s.to_str()).ok_or_else(|| anyhow!("invalid asset file name"))?;
     props::validate_name(leaf).map_err(|e| anyhow!("{}: {e}", path.display()))?;
     let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let asset = PropAsset::parse(&text).map_err(|e| anyhow!("{}: {e}", path.display()))?;
-    if asset.name != leaf {
-        bail!("{} must contain name '{leaf}', but it contains '{}'", path.display(), asset.name);
+    let doc = Doc::read(&text).map_err(|issues| anyhow!("{}: {}", path.display(), issue::render(&issues)))?;
+    if doc.name != leaf {
+        bail!("{} must contain name '{leaf}', but it contains '{}'", path.display(), doc.name);
     }
-    Ok((format!("WORKSHOP/{leaf}"), Arc::new(asset)))
+    let def = compiled(doc).map_err(|e| anyhow!("{}: {e}", path.display()))?;
+    Ok((format!("WORKSHOP/{leaf}"), def))
 }
 
-fn publish_if_changed(name: &str, asset: Arc<PropAsset>) -> Result<Option<(String, Arc<PropAsset>)>> {
-    if props::get(name).is_some_and(|current| current.revision() == asset.revision()) {
-        return Ok(None);
+/// Install a definition unless the library has it already. Returns it and the definitions
+/// that reference it, recompiled with it: every one whose placed copies need a refresh.
+fn publish_if_changed(name: &str, def: PropDef) -> Result<Vec<(String, Arc<PropDef>)>> {
+    if props::get(name).is_some_and(|current| current.key == def.key) {
+        return Ok(Vec::new());
     }
-    props::install(name, asset.clone()).map_err(|e| anyhow!(e))?;
-    Ok(Some((name.into(), asset)))
+    let dependents = props::install(name, def).map_err(|e| anyhow!(e))?;
+    Ok(std::iter::once(name.to_owned()).chain(dependents).filter_map(|name| Some((name.clone(), props::get(&name)?))).collect())
 }
 
 /// Read one workshop JSON file. Invalid content keeps the last good library definition.
-/// Ignored paths and definitions already in the library return None. The lock also prevents
-/// a watcher from publishing an older read after an accepted tool edit.
-pub fn reload_file(path: &Path) -> Result<Option<(String, Arc<PropAsset>)>> {
-    let Some(folder) = path.parent() else { return Ok(None) };
+/// Ignored paths and definitions already in the library return nothing; otherwise the asset
+/// comes first, then the assets that reference it. The lock also prevents a watcher from
+/// publishing an older read after an accepted tool edit.
+pub fn reload_file(path: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
+    let Some(folder) = path.parent() else { return Ok(Vec::new()) };
     if folder.file_name().is_none_or(|name| name != "workshop")
         || path.extension().is_none_or(|ext| ext != "json")
         || path.file_name().is_some_and(|name| name.to_string_lossy().starts_with('.'))
     {
-        return Ok(None);
+        return Ok(Vec::new());
     }
     let root = folder.parent().ok_or_else(|| anyhow!("{} has no asset root", path.display()))?;
     let _lock = lock_editor(root)?;
@@ -123,11 +141,11 @@ pub fn reload_file(path: &Path) -> Result<Option<(String, Arc<PropAsset>)>> {
         props::validate_name(leaf).map_err(|e| anyhow!(e))?;
         if props::get(&format!("WORKSHOP/{leaf}")).is_none() {
             // A tool undo already removed this definition. Its watcher event is redundant.
-            return Ok(None);
+            return Ok(Vec::new());
         }
     }
-    let (name, asset) = file_definition(path)?;
-    publish_if_changed(&name, asset)
+    let (name, def) = file_definition(path)?;
+    publish_if_changed(&name, def)
 }
 
 /// Initialize disk assets once per process, before the first scene is constructed. Later
@@ -140,11 +158,11 @@ pub fn initialize_authored() -> Result<()> {
 
 /// Load saved definitions after a restart. Each file is independent: valid files load, and
 /// invalid files retain their prior definitions. The error lists files that need a fix.
-pub fn reload_authored() -> Result<Vec<(String, Arc<PropAsset>)>> {
+pub fn reload_authored() -> Result<Vec<(String, Arc<PropDef>)>> {
     reload_authored_at(&root())
 }
 
-fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropAsset>)>> {
+fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropDef>)>> {
     let folder = root.join("workshop");
     if !folder.exists() {
         return Ok(Vec::new());
@@ -162,12 +180,23 @@ fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropAsset>)>> {
     }
     paths.sort();
     let mut changed = Vec::new();
+    // A file whose references load later in the folder waits for them: passes repeat while
+    // they make progress.
     let mut errors = Vec::new();
-    for path in paths {
-        match file_definition(&path).and_then(|(name, asset)| publish_if_changed(&name, asset)) {
-            Ok(Some(asset)) => changed.push(asset),
-            Ok(None) => {}
-            Err(error) => errors.push(format!("{error:#}")),
+    loop {
+        errors.clear();
+        let tried = paths.len();
+        for path in std::mem::take(&mut paths) {
+            match file_definition(&path).and_then(|(name, def)| publish_if_changed(&name, def)) {
+                Ok(published) => changed.extend(published),
+                Err(error) => {
+                    errors.push(format!("{error:#}"));
+                    paths.push(path);
+                }
+            }
+        }
+        if paths.is_empty() || paths.len() == tried {
+            break;
         }
     }
     if !errors.is_empty() {
@@ -176,7 +205,7 @@ fn reload_authored_at(root: &Path) -> Result<Vec<(String, Arc<PropAsset>)>> {
     Ok(changed)
 }
 
-fn read_asset(root: &Path, name: &str) -> Result<Option<Arc<PropAsset>>> {
+fn read_asset(root: &Path, name: &str) -> Result<Option<Arc<PropDef>>> {
     if name.starts_with("BUILTIN/") {
         return Ok(props::get(name));
     }
@@ -184,11 +213,11 @@ fn read_asset(root: &Path, name: &str) -> Result<Option<Arc<PropAsset>>> {
     if !path.exists() {
         return Ok(None);
     }
-    file_definition(&path).map(|(_, asset)| Some(asset))
+    file_definition(&path).map(|(_, def)| Some(Arc::new(def)))
 }
 
-fn revision(asset: Option<&PropAsset>) -> String {
-    asset.map(PropAsset::revision).unwrap_or_else(|| "absent".into())
+fn revision(def: Option<&PropDef>) -> String {
+    def.map(|def| def.revision.clone()).unwrap_or_else(|| "absent".into())
 }
 
 fn read_history(path: &Path, current: &str) -> Result<History> {
@@ -203,8 +232,8 @@ fn read_history(path: &Path, current: &str) -> Result<History> {
     Ok(history)
 }
 
-fn push_history(stack: &mut Vec<Option<PropAsset>>, asset: Option<PropAsset>) {
-    stack.push(asset);
+fn push_history(stack: &mut Vec<Option<Value>>, document: Option<Value>) {
+    stack.push(document);
     if stack.len() > HISTORY_LIMIT {
         stack.remove(0);
     }
@@ -212,8 +241,8 @@ fn push_history(stack: &mut Vec<Option<PropAsset>>, asset: Option<PropAsset>) {
 
 /// The edit reply contract: identity, size and the undo/redo steps available (left out when
 /// none). Callers add what the action changed.
-fn report(name: &str, asset: Option<&PropAsset>, history: &History, saved: bool) -> Value {
-    let revision = revision(asset);
+fn report(name: &str, def: Option<&PropDef>, history: &History, saved: bool) -> Value {
+    let revision = revision(def);
     let current = history.head == revision;
     let mut result = json!({"name": name, "revision": revision, "saved": saved});
     for (key, steps) in [("undo", &history.undo), ("redo", &history.redo)] {
@@ -221,8 +250,8 @@ fn report(name: &str, asset: Option<&PropAsset>, history: &History, saved: bool)
             result[key] = json!(steps.len());
         }
     }
-    if let Some(asset) = asset {
-        result["size_cm"] = json!(asset.bounds(1.0).size_cm());
+    if let Some(def) = def {
+        result["size_cm"] = json!(def.bounds(1.0).size_cm());
     }
     result
 }
@@ -236,31 +265,29 @@ fn bounds_mm(bounds: props::Bounds) -> Value {
 /// The definition as its canonical file writes it: defaults left out. The legend and bounds
 /// are opt-in.
 fn inspect(root: &Path, name: &str, preview: bool, legend: bool, bounds: bool) -> Result<Edited> {
-    let asset = read_asset(root, name)?;
+    let def = read_asset(root, name)?;
     let history_file = history_path(root, name);
-    if asset.is_none() && (!name.starts_with("WORKSHOP/") || !history_file.is_file()) {
+    if def.is_none() && (!name.starts_with("WORKSHOP/") || !history_file.is_file()) {
         bail!("no asset '{name}'; assets find=WORDS searches the library");
     }
-    let history = if name.starts_with("WORKSHOP/") {
-        read_history(&history_file, &revision(asset.as_deref()))?
-    } else {
-        History::default()
-    };
-    let mut result = report(name, asset.as_deref(), &history, false);
+    let history =
+        if name.starts_with("WORKSHOP/") { read_history(&history_file, &revision(def.as_deref()))? } else { History::default() };
+    let mut result = report(name, def.as_deref(), &history, false);
     result.as_object_mut().expect("report is an object").remove("saved");
-    result["asset"] = match &asset {
-        Some(asset) => serde_json::from_str(&asset.text()).context("canonical asset text")?,
+    result["asset"] = match &def {
+        Some(def) => document(def)?,
         None => Value::Null,
     };
-    if let (Some(asset), true) = (&asset, bounds) {
-        result["bounds"] = bounds_mm(asset.bounds(1.0));
+    if let (Some(def), true) = (&def, bounds) {
+        // Resolved parts: a format-1 part is its own name; copies and mirrors carry suffixes.
+        result["bounds"] = bounds_mm(def.bounds(1.0));
         result["part_bounds"] =
-            Value::Object(asset.parts.iter().map(|(name, part)| (name.clone(), bounds_mm(part.bounds(1.0)))).collect());
+            Value::Object(def.compiled.parts.iter().map(|part| (part.id.clone(), bounds_mm(part.bounds(1.0)))).collect());
     }
     if legend {
         result["legend"] = json!(props::LEGEND);
     }
-    Ok(Edited { report: result, asset, mutation: false, preview })
+    Ok(Edited { report: result, def, dependents: Vec::new(), mutation: false, preview })
 }
 
 /// A JSON argument: an object, or text read strictly (a repeated key is an error).
@@ -341,18 +368,18 @@ fn check_args(a: &Args) -> Result<(&str, bool)> {
     Ok((action, preview))
 }
 
-fn definition(value: Value, name: &str, creating: bool) -> Result<PropAsset> {
+fn definition(value: Value, name: &str, creating: bool) -> Result<Doc> {
     let mut object = value.as_object().ok_or_else(|| anyhow!("asset must be a JSON object"))?.clone();
     let leaf = name.split_once('/').expect("canonical name").1;
     if creating {
         object.entry("format").or_insert(json!(1));
         object.insert("name".into(), json!(leaf));
     }
-    let asset = PropAsset::from_value(Value::Object(object)).map_err(|issues| anyhow!(issue::render(&issues)))?;
-    if asset.name != leaf {
+    let doc = Doc::from_value(&Value::Object(object)).map_err(|issues| anyhow!(issue::render(&issues)))?;
+    if doc.name != leaf {
         bail!("asset.name must stay '{leaf}'; use action=copy to make a new asset");
     }
-    Ok(asset)
+    Ok(doc)
 }
 
 /// What drawing an asset costs on the CPU side: triangles of its meshes, distinct meshes, SDF
@@ -366,32 +393,45 @@ struct Cost {
 }
 
 impl Cost {
-    fn of(asset: &PropAsset) -> Self {
+    fn of(compiled: &CompiledProp) -> Self {
         let mut meshes: BTreeMap<MeshKey, usize> = BTreeMap::new();
-        let mut cost = Cost { triangles: 0, meshes: 0, sdf: 0, lights: 0, generated_kb: 0 };
+        let mut cost = Cost { triangles: 0, meshes: 0, sdf: 0, lights: compiled.lights.len(), generated_kb: 0 };
         let mut generated_bytes = 0;
-        for part in asset.parts.values() {
-            let key = match part.shape {
-                Shape::Box { .. } => Some(MeshKey::Cube),
-                Shape::RoundedBox { half, radius } => Some(MeshKey::rounded_box(half, radius)),
-                Shape::Cylinder { .. } => Some(MeshKey::Cylinder),
-                Shape::Sphere { .. } | Shape::Capsule { .. } => None,
+        let vertex = std::mem::size_of::<pav_render::mesh::Vertex>();
+        for part in compiled.parts.iter().filter(|part| !part.hidden) {
+            let generated = Generated::of(&part.prim, part.mirrored);
+            let key = match (&generated, &part.prim) {
+                (Some(generated), _) => Some(MeshKey::Custom(generated.key)),
+                (None, Primitive::Box { .. }) => Some(MeshKey::Cube),
+                (None, Primitive::RoundedBox { half, radius }) => {
+                    Some(MeshKey::rounded_box(*half * part.scale, radius * part.scale))
+                }
+                (None, Primitive::Ellipsoid { .. }) => Some(MeshKey::Sphere),
+                (None, Primitive::Cylinder { radius_end, .. }) if *radius_end == 0.0 => Some(MeshKey::Cone),
+                (None, Primitive::Cylinder { .. }) => Some(MeshKey::Cylinder),
+                _ => None,
             };
             match key {
                 Some(key) => {
-                    let triangles = *meshes.entry(key).or_insert_with(|| {
-                        let mesh = key.generate().expect("prop meshes generate");
-                        if matches!(key, MeshKey::RoundedBox { .. }) {
-                            generated_bytes +=
-                                mesh.vertices.len() * std::mem::size_of::<pav_render::mesh::Vertex>() + mesh.indices.len() * 4;
+                    let triangles = *meshes.entry(key).or_insert_with(|| match (&generated, key.generate()) {
+                        (Some(generated), _) => {
+                            let mesh = generated.build();
+                            generated_bytes += mesh.positions.len() * vertex + mesh.indices.len() * 4;
+                            mesh.triangles()
                         }
-                        mesh.indices.len() / 3
+                        (None, Some(mesh)) => {
+                            if matches!(key, MeshKey::RoundedBox { .. }) {
+                                generated_bytes += mesh.vertices.len() * vertex + mesh.indices.len() * 4;
+                            }
+                            mesh.indices.len() / 3
+                        }
+                        (None, None) => 0,
                     });
                     cost.triangles += triangles;
                 }
                 None => cost.sdf += 1,
             }
-            cost.lights += usize::from(part.emissive > 0.5);
+            cost.lights += usize::from(part.glow_light && part.emissive > 0.5);
         }
         cost.meshes = meshes.len();
         cost.generated_kb = generated_bytes.div_ceil(1024);
@@ -406,29 +446,33 @@ impl Cost {
     }
 }
 
-/// The lint plus the budget findings that need the renderer's meshes.
-fn findings(asset: &PropAsset, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
-    let mut found = lint::lint(asset, &lint::Options { target_cm: target });
-    let cost = Cost::of(asset);
+/// The lint (with the compile warnings) plus the budget findings that need the renderer's
+/// meshes.
+fn findings(compiled: &CompiledProp, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
+    let mut found = lint::lint(compiled, &lint::Options { target_cm: target });
+    let cost = Cost::of(compiled);
     let mut over = |code: &'static str, fact: String| found.push(Finding { code, ids: vec![], line: format!("{code}: {fact}") });
     if cost.triangles > 20_000 {
         over("heavy", format!("{} triangles (budget 20000)", cost.triangles));
     }
     if cost.meshes > 8 {
-        over("meshes", format!("{} distinct meshes (budget 8); reuse sizes of rounded boxes", cost.meshes));
+        over(
+            "meshes",
+            format!("{} distinct meshes (budget 8); reuse the sizes of rounded boxes and generated shapes", cost.meshes),
+        );
     }
     if cost.lights > 4 {
-        over("lights", format!("{} parts above emissive 0.5 each light the scene (budget 4)", cost.lights));
+        over("lights", format!("{} lights from light fields and parts above emissive 0.5 (budget 4)", cost.lights));
     }
     (found, cost)
 }
 
 /// Findings of `after` that `before` did not have: what an edit introduced.
-fn new_findings(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<String> {
+fn new_findings(before: Option<&PropDef>, after: Option<&PropDef>) -> Vec<String> {
     let Some(after) = after else { return Vec::new() };
     let old: BTreeSet<String> =
-        before.map(|before| findings(before, None).0.iter().map(Finding::key).collect()).unwrap_or_default();
-    let new: Vec<Finding> = findings(after, None).0.into_iter().filter(|f| !old.contains(&f.key())).collect();
+        before.map(|before| findings(&before.compiled, None).0.iter().map(Finding::key).collect()).unwrap_or_default();
+    let new: Vec<Finding> = findings(&after.compiled, None).0.into_iter().filter(|f| !old.contains(&f.key())).collect();
     lint::lines(&new)
 }
 
@@ -449,15 +493,16 @@ fn target_arg(a: &Args) -> Result<Option<[Option<f32>; 3]>> {
     Ok(Some(out))
 }
 
-fn changed_parts(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<String> {
+/// The authored parts (top-level nodes) an edit added, removed or changed.
+fn changed_parts(before: Option<&Doc>, after: Option<&Doc>) -> Vec<String> {
     let names = before
         .into_iter()
-        .flat_map(|asset| asset.parts.keys())
-        .chain(after.into_iter().flat_map(|asset| asset.parts.keys()))
+        .flat_map(|doc| doc.parts.keys())
+        .chain(after.into_iter().flat_map(|doc| doc.parts.keys()))
         .collect::<BTreeSet<_>>();
     names
         .into_iter()
-        .filter(|name| before.and_then(|asset| asset.parts.get(*name)) != after.and_then(|asset| asset.parts.get(*name)))
+        .filter(|name| before.and_then(|doc| doc.parts.get(*name)) != after.and_then(|doc| doc.parts.get(*name)))
         .cloned()
         .collect()
 }
@@ -465,20 +510,19 @@ fn changed_parts(before: Option<&PropAsset>, after: Option<&PropAsset>) -> Vec<S
 /// Disk editing stays independent of a GPU or active preview.
 fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     let (action, preview) = check_args(a)?;
+    let read_only = |report| Ok(Edited { report, def: None, dependents: Vec::new(), mutation: false, preview: false });
     if action == "schema" {
-        let report = props::schema(get_str(a, "topic")).map_err(|e| anyhow!(e))?;
-        return Ok(Edited { report, asset: None, mutation: false, preview: false });
+        return read_only(props::schema(get_str(a, "topic")).map_err(|e| anyhow!(e))?);
     }
     let name = props::canonical(get_str(a, "name").ok_or_else(|| anyhow!("name= names the asset"))?).map_err(|e| anyhow!(e))?;
     if action == "inspect" {
         return inspect(root, &name, preview, get_bool(a, "legend", false)?, get_bool(a, "bounds", false)?);
     }
     if action == "check" {
-        let asset =
-            read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'; assets find=WORDS searches the library"))?;
-        let (found, cost) = findings(&asset, target_arg(a)?);
+        let def = read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'; assets find=WORDS searches the library"))?;
+        let (found, cost) = findings(&def.compiled, target_arg(a)?);
         let mut result =
-            json!({"name": name, "revision": asset.revision(), "size_cm": asset.bounds(1.0).size_cm(), "cost": cost.line()});
+            json!({"name": name, "revision": def.revision, "size_cm": def.bounds(1.0).size_cm(), "cost": cost.line()});
         if !found.is_empty() {
             result["check"] = if get_bool(a, "all", false)? {
                 json!(found.iter().map(|f| &f.line).collect::<Vec<_>>())
@@ -486,11 +530,12 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
                 json!(lint::lines(&found))
             };
         }
-        return Ok(Edited { report: result, asset: None, mutation: false, preview: false });
+        return read_only(result);
     }
     if !name.starts_with("WORKSHOP/") {
         bail!("built-in templates are read-only; use action=copy from={name} name=your_name first");
     }
+    let leaf = name.split_once('/').expect("canonical name").1;
     let _lock = lock_editor(root)?;
     let before = read_asset(root, &name)?;
     let current_revision = revision(before.as_deref());
@@ -514,10 +559,15 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         }
         history = History { head: current_revision.clone(), ..Default::default() };
     }
-    let before_owned = before.as_deref().cloned();
+    let before_document = before.as_deref().map(document).transpose()?;
+    // A restored step runs through migrate and the checks like any other document.
+    let restore = |step: Option<Value>| -> Result<Option<Doc>> {
+        step.map(|value| Doc::from_value(&value).map_err(|issues| anyhow!("saved history: {}", issue::render(&issues))))
+            .transpose()
+    };
     let next = match action {
         "create" | "copy" => {
-            let mut asset = if action == "create" && a.contains_key("asset") {
+            let mut doc = if action == "create" && a.contains_key("asset") {
                 definition(json_arg(a, "asset")?, &name, true)?
             } else {
                 let source = if action == "copy" {
@@ -533,73 +583,87 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
                     template
                 };
                 let source = read_asset(root, &source)?.ok_or_else(|| anyhow!("no source asset '{source}'"))?;
-                (*source).clone()
+                source.doc.clone()
             };
-            asset.name = name.split_once('/').expect("canonical name").1.into();
+            doc.name = leaf.into();
             if let Some(description) = get_str(a, "description") {
-                asset.description = description.into();
+                doc.description = description.into();
             }
-            Some(asset)
+            Some(doc)
         }
         "undo" => {
             let next = history.undo.pop().ok_or_else(|| anyhow!("no edit to undo for {name}"))?;
-            push_history(&mut history.redo, before_owned.clone());
-            next
+            push_history(&mut history.redo, before_document.clone());
+            restore(next)?
         }
         "redo" => {
             let next = history.redo.pop().ok_or_else(|| anyhow!("no edit to redo for {name}"))?;
-            push_history(&mut history.undo, before_owned.clone());
-            next
+            push_history(&mut history.undo, before_document.clone());
+            restore(next)?
         }
         action => {
             let current = before.as_ref().ok_or_else(|| anyhow!("no asset {name}; use action=create or action=copy first"))?;
             Some(match action {
-                "patch" => current.patch(&json_arg(a, "ops")?).map_err(|e| anyhow!(e))?,
+                "patch" => {
+                    let Some(asset) = &current.v1 else {
+                        bail!(
+                            "{}",
+                            Issue::error("ops", Code::Format, "patch ops edit format-1 assets; this one is format 2")
+                                .fix("send the whole document with action=replace")
+                        );
+                    };
+                    Doc::from_v1(&asset.patch(&json_arg(a, "ops")?).map_err(|e| anyhow!(e))?)
+                }
                 "replace" => definition(json_arg(a, "asset")?, &name, false)?,
                 _ => unreachable!("action was checked"),
             })
         }
     };
-    if let Some(asset) = &next {
-        asset.validate().map_err(|e| anyhow!(e))?;
-        if name.split_once('/').map(|(_, leaf)| leaf) != Some(asset.name.as_str()) {
-            bail!("saved history has a different asset name; cannot restore it as {name}");
+    if next.as_ref().is_some_and(|doc| doc.name != leaf) {
+        bail!("saved history has a different asset name; cannot restore it as {name}");
+    }
+    let next = next.map(compiled).transpose()?;
+    if next.is_none() && before.is_some() {
+        // An undo that would remove an asset others reference changes nothing.
+        let users = props::dependents(&name);
+        if !users.is_empty() {
+            bail!("{name} is referenced by {}; change or remove those first", users.join(", "));
         }
     }
     let next_revision = revision(next.as_ref());
-    let changed_parts = changed_parts(before.as_deref(), next.as_ref());
+    let changed_parts = changed_parts(before.as_ref().map(|def| &def.doc), next.as_ref().map(|def| &def.doc));
     let check = new_findings(before.as_deref(), next.as_ref());
     if get_bool(a, "dry_run", false)? {
         // Everything an accepted edit would report; nothing is written or published.
         let mut result = report(&name, before.as_deref(), &history, false);
         result["revision_next"] = json!(next_revision);
-        if let Some(asset) = &next {
-            result["size_cm"] = json!(asset.bounds(1.0).size_cm());
+        if let Some(def) = &next {
+            result["size_cm"] = json!(def.bounds(1.0).size_cm());
         }
         if matches!(action, "create" | "copy") {
-            result["parts"] = json!(next.as_ref().map(|asset| asset.parts.len()).unwrap_or(0));
+            result["parts"] = json!(next.as_ref().map(|def| def.compiled.parts.len()).unwrap_or(0));
         } else {
             result["changed_parts"] = json!(changed_parts);
         }
         if !check.is_empty() {
             result["check"] = json!(check);
         }
-        return Ok(Edited { report: result, asset: None, mutation: false, preview: false });
+        return read_only(result);
     }
     if next_revision == current_revision {
         let mut result = report(&name, before.as_deref(), &history, false);
         result["changed_parts"] = json!(changed_parts);
-        return Ok(Edited { report: result, asset: before, mutation: true, preview });
+        return Ok(Edited { report: result, def: before, dependents: Vec::new(), mutation: true, preview });
     }
     if !matches!(action, "undo" | "redo") {
-        push_history(&mut history.undo, before_owned);
+        push_history(&mut history.undo, before_document);
         history.redo.clear();
     }
     history.head = next_revision;
     atomic_write(&history_file, &serde_json::to_vec(&history)?)?;
     let path = asset_path(root, &name);
     let save = match &next {
-        Some(asset) => atomic_write(&path, asset.text().as_bytes()),
+        Some(def) => atomic_write(&path, def.doc.text().as_bytes()),
         None => std::fs::remove_file(&path).with_context(|| format!("remove {}", path.display())),
     };
     if let Err(error) = save {
@@ -612,16 +676,18 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
             Err(history_error) => Err(error.context(format!("the asset is unchanged; history restore failed: {history_error}"))),
         };
     }
-    let asset = next.map(Arc::new);
-    match &asset {
-        Some(asset) => props::install(&name, asset.clone()).map_err(|e| anyhow!(e))?,
+    let parts = next.as_ref().map(|def| def.compiled.parts.len()).unwrap_or(0);
+    let dependents = match next {
+        Some(def) => props::install(&name, def).map_err(|e| anyhow!(e))?,
         None => {
             props::remove(&name).map_err(|e| anyhow!(e))?;
+            Vec::new()
         }
-    }
-    let mut result = report(&name, asset.as_deref(), &history, true);
+    };
+    let def = props::get(&name);
+    let mut result = report(&name, def.as_deref(), &history, true);
     if matches!(action, "create" | "copy") {
-        result["parts"] = json!(asset.as_ref().map(|asset| asset.parts.len()).unwrap_or(0));
+        result["parts"] = json!(parts);
         result["file"] = json!(path);
     } else {
         result["changed_parts"] = json!(changed_parts);
@@ -632,7 +698,7 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     if !check.is_empty() {
         result["check"] = json!(check);
     }
-    Ok(Edited { report: result, asset, mutation: true, preview })
+    Ok(Edited { report: result, def, dependents, mutation: true, preview })
 }
 
 /// A listing row's description: the start, cut at a word.
@@ -684,10 +750,10 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
     let find = get_str(a, "find").unwrap_or("").to_ascii_lowercase();
     let library = props::library();
     let matched = library
-        .assets
+        .defs
         .iter()
-        .filter(|(name, asset)| {
-            name.to_ascii_lowercase().contains(&find) || asset.description.to_ascii_lowercase().contains(&find)
+        .filter(|(name, def)| {
+            name.to_ascii_lowercase().contains(&find) || def.doc.description.to_ascii_lowercase().contains(&find)
         })
         .collect::<Vec<_>>();
     let skip = (page - 1).saturating_mul(limit);
@@ -695,12 +761,12 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
         .iter()
         .skip(skip)
         .take(limit)
-        .map(|(name, asset)| json!([name, asset.bounds(1.0).size_cm(), asset.parts.len(), summary(&asset.description)]))
+        .map(|(name, def)| json!([name, def.bounds(1.0).size_cm(), def.compiled.parts.len(), summary(&def.doc.description)]))
         .collect::<Vec<_>>();
     let mut result = json!({
         "cols": "name size_cm parts desc",
         "rows": rows,
-        "total": library.assets.len(),
+        "total": library.defs.len(),
         "matched": matched.len(),
     });
     if skip.saturating_add(limit) < matched.len() {
@@ -712,19 +778,27 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
 /// Create, inspect and alter an asset. Options are parsed before disk mutation; a later
 /// preview failure is reported separately from an accepted, saved definition.
 pub fn t_asset_edit(s: &mut Session, a: &Args) -> Result<Output> {
-    let Edited { mut report, asset, mutation, preview } = edit_at(&root(), a)?;
+    let Edited { mut report, def, dependents, mutation, preview } = edit_at(&root(), a)?;
     if mutation {
         let name = report["name"].as_str().expect("report has canonical name").to_owned();
         let saved = report["saved"] == true;
-        let refreshed =
-            if saved { asset.as_ref().map(|asset| s.sim.refresh_prop_instances(&name, asset.clone())).unwrap_or(0) } else { 0 };
+        let mut refreshed = 0;
+        if saved {
+            refreshed += def.as_ref().map(|def| s.sim.refresh_prop_instances(&name, def.clone())).unwrap_or(0);
+            // Assets that reference this one were recompiled with it; so are their copies.
+            for dependent in &dependents {
+                if let Some(def) = props::get(dependent) {
+                    refreshed += s.sim.refresh_prop_instances(dependent, def);
+                }
+            }
+        }
         if refreshed > 0 {
             report["refreshed_instances"] = json!(refreshed);
         }
         let mut args = Args::new();
-        if asset.is_some() && preview {
+        if def.is_some() && preview {
             args.insert("name".into(), json!(name));
-        } else if asset.is_none() && saved {
+        } else if def.is_none() && saved {
             // Undo of creation leaves placed snapshot copies intact and closes only this
             // missing asset's active stage. A different preview remains selected.
             if let Ok(Output::Json(status)) = crate::asset_preview_tools::t_asset_preview(s, &Args::new()) {
@@ -799,14 +873,14 @@ mod tests {
         assert!(props::get(&canonical).is_none());
         let loaded = reload_authored_at(&root).unwrap();
         assert_eq!(loaded.len(), 1);
-        assert_eq!(props::get(&canonical).unwrap().revision(), changed["revision"]);
-        assert!(reload_file(&path).unwrap().is_none(), "a watcher does not publish the tool edit twice");
+        assert_eq!(props::get(&canonical).unwrap().revision, changed["revision"]);
+        assert!(reload_file(&path).unwrap().is_empty(), "a watcher does not publish the tool edit twice");
         let undone = edit(&root, json!({"action":"undo","name":name,"if_revision":changed["revision"]}));
         assert_eq!(undone["revision"], first["revision"]);
         let removed = edit(&root, json!({"action":"undo","name":name,"if_revision":undone["revision"]}));
         assert_eq!(removed["revision"], "absent");
         assert!(!path.exists() && props::get(&canonical).is_none());
-        assert!(reload_file(&path).unwrap().is_none(), "a tool removal does not become a watcher error");
+        assert!(reload_file(&path).unwrap().is_empty(), "a tool removal does not become a watcher error");
         let absent = edit(&root, json!({"action":"inspect","name":name}));
         assert!(absent["asset"].is_null());
         assert_eq!(absent["redo"], 2);
@@ -828,11 +902,11 @@ mod tests {
         let path = asset_path(&root, &canonical);
         std::fs::write(&path, "{ unfinished").unwrap();
         assert!(reload_file(&path).is_err());
-        assert_eq!(props::get(&canonical).unwrap().revision(), created["revision"]);
-        let mut external = (*props::get(&canonical).unwrap()).clone();
+        assert_eq!(props::get(&canonical).unwrap().revision, created["revision"]);
+        let mut external = (**props::get(&canonical).unwrap().v1.as_ref().unwrap()).clone();
         external.parts.get_mut("post").unwrap().color = "#112233".into();
         std::fs::write(&path, external.text()).unwrap();
-        assert!(reload_file(&path).unwrap().is_some());
+        assert_eq!(reload_file(&path).unwrap().len(), 1);
         let undo = edit_at(&root, &args(json!({"action":"undo","name":name,"if_revision":external.revision()})));
         assert!(undo.err().unwrap().to_string().contains("outside this editor"));
         let next = edit(
@@ -846,9 +920,9 @@ mod tests {
         let undo = edit(&root, json!({"action":"undo","name":name}));
         assert_eq!(undo["revision"], external.revision());
         assert!(Arc::ptr_eq(&builtin, &props::get("BUILTIN/lantern").unwrap()));
-        assert!(reload_file(&root.join(".editor/unrelated.json")).unwrap().is_none());
-        assert!(reload_file(&root.join("workshop/unfinished.tmp")).unwrap().is_none());
-        assert!(reload_file(&root.join("workshop/.hidden.json")).unwrap().is_none());
+        assert!(reload_file(&root.join(".editor/unrelated.json")).unwrap().is_empty());
+        assert!(reload_file(&root.join("workshop/unfinished.tmp")).unwrap().is_empty());
+        assert!(reload_file(&root.join("workshop/.hidden.json")).unwrap().is_empty());
         props::remove(&canonical).unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -894,7 +968,7 @@ mod tests {
         assert_eq!(dry["check"], json!(["floating: lamp (49 cm from the rest)"]));
         assert_eq!(std::fs::read(&path).unwrap(), file);
         assert_eq!(std::fs::read(history_path(&root, &canonical)).unwrap(), history);
-        assert_eq!(props::get(&canonical).unwrap().revision(), copied["revision"]);
+        assert_eq!(props::get(&canonical).unwrap().revision, copied["revision"]);
         let real = edit(&root, json!({"action":"patch","name":name,"ops":lamp}));
         assert_eq!(real["revision"], dry["revision_next"], "a dry run predicts the revision");
         assert_eq!(real["check"], dry["check"]);

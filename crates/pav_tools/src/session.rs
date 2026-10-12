@@ -176,6 +176,14 @@ impl Session {
         }
     }
 
+    /// Drops live particles: a previewed prop's emitters must not drift into the next one.
+    pub fn clear_particles(&mut self) {
+        if let Some(gpu) = &mut self.gpu {
+            gpu.builder.clear_particles();
+            gpu.renderer.clear_particles();
+        }
+    }
+
     /// Starts an isolated view with no bursts or particles left from the previous scene.
     pub fn clear_view_effects(&mut self) {
         self.events.clear();

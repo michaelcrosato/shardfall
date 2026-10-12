@@ -6,8 +6,10 @@
 
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
-use glam::{Quat, Vec3};
+use glam::{Mat3, Quat, Vec3};
 use serde::Serialize;
+
+use crate::shape::Shape;
 
 /// Segments round a cylinder, cone, tube or torus unless the part says otherwise.
 pub const SEGMENTS: u32 = 32;
@@ -172,6 +174,134 @@ impl Primitive {
             }
         }
     }
+
+    /// The shape's box once placed (at `pos`, turned by `rot`, uniformly scaled, local x
+    /// reflected when `mirrored`), as centre and half size. Exact for every shape but an arc,
+    /// which takes its sector's box. Format 1's shapes use its own formulas, bit for bit, so
+    /// their bounds stay what they were.
+    pub fn placed_box(&self, pos: Vec3, rot: Quat, scale: f32, mirrored: bool) -> (Vec3, Vec3) {
+        let up = rot * Vec3::Y;
+        let axis = up.normalize().abs();
+        let radial = Vec3::new(
+            (1.0 - axis.x * axis.x).max(0.0).sqrt(),
+            (1.0 - axis.y * axis.y).max(0.0).sqrt(),
+            (1.0 - axis.z * axis.z).max(0.0).sqrt(),
+        );
+        let centred = |lo: Vec3, hi: Vec3| ((lo + hi) * 0.5, (hi - lo) * 0.5);
+        // Circles round the axis, as (height, radius): lathes and frustums.
+        let discs = |discs: &[(f32, f32)]| {
+            let (lo, hi) = discs.iter().fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), &(y, r)| {
+                let (centre, extent) = (pos + up * (y * scale), radial * (r * scale));
+                (lo.min(centre - extent), hi.max(centre + extent))
+            });
+            centred(lo, hi)
+        };
+        let flip = if mirrored { Vec3::new(-1.0, 1.0, 1.0) } else { Vec3::ONE };
+        let points = |points: &[Vec3]| {
+            let (lo, hi) = points.iter().fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(lo, hi), p| {
+                let p = pos + rot * (*p * flip * scale);
+                (lo.min(p), hi.max(p))
+            });
+            centred(lo, hi)
+        };
+        match self {
+            Primitive::Box { half } | Primitive::RoundedBox { half, .. } => {
+                (pos, ((rot * Vec3::X).abs() * half.x + axis * half.y + (rot * Vec3::Z).abs() * half.z) * scale)
+            }
+            Primitive::Sphere { radius } => (pos, Vec3::splat(*radius) * scale),
+            Primitive::Ellipsoid { half } => {
+                let m = Mat3::from_quat(rot);
+                let reach = |row: usize| (m.row(row) * *half).length();
+                (pos, Vec3::new(reach(0), reach(1), reach(2)) * scale)
+            }
+            Primitive::Capsule { a, b, radius, radius_end } if *a == -*b && radius == radius_end => {
+                (pos, (axis * *b + Vec3::splat(*radius)) * scale)
+            }
+            Primitive::Capsule { a, b, radius, radius_end } => {
+                let (low, high) = (pos + up * (a * scale), pos + up * (b * scale));
+                let (r_low, r_high) = (Vec3::splat(radius * scale), Vec3::splat(radius_end * scale));
+                centred((low - r_low).min(high - r_high), (low + r_low).max(high + r_high))
+            }
+            Primitive::Cylinder { half_height, radius, radius_end, arc, .. } if *arc >= 360.0 => {
+                if radius == radius_end {
+                    (pos, (axis * *half_height + radial * *radius) * scale)
+                } else {
+                    discs(&[(-half_height, *radius), (*half_height, *radius_end)])
+                }
+            }
+            Primitive::Tube { half_height, radius, arc, .. } if *arc >= 360.0 => {
+                (pos, (axis * *half_height + radial * *radius) * scale)
+            }
+            Primitive::Torus { radius, minor_radius, arc } if *arc >= 360.0 => {
+                (pos, (radial * *radius + Vec3::splat(*minor_radius)) * scale)
+            }
+            Primitive::Lathe { profile, .. } => discs(&profile.iter().map(|p| (p[1], p[0])).collect::<Vec<_>>()),
+            Primitive::Wedge { .. } | Primitive::Extrude { .. } => points(&self.hull()),
+            // An arc: the box of its visible sector.
+            _ => {
+                let (centre, half) = self.local_box();
+                points(&(0..8).map(|i| centre + half * Vec3::new(sign(i & 1), sign(i & 2), sign(i & 4))).collect::<Vec<_>>())
+            }
+        }
+    }
+
+    /// The shapes the physics compound takes for this part: a tube is walled with boxes and a
+    /// torus ringed with capsules (12 round a full circle); every other shape is one.
+    pub fn collider_shapes(&self) -> usize {
+        match self {
+            Primitive::Tube { .. } => COLLIDER_RING,
+            Primitive::Torus { arc, .. } => torus_links(*arc),
+            _ => 1,
+        }
+    }
+
+    /// The shared `Shape` of the primitives format 1 has, scaled the way format 1 scales them,
+    /// so drawing and collision stay bit for bit what format 1 gave.
+    pub fn shape(&self, scale: f32) -> Option<Shape> {
+        Some(match *self {
+            Primitive::Box { half } => Shape::Box { half: half * scale },
+            Primitive::RoundedBox { half, radius } => Shape::RoundedBox { half: half * scale, radius: radius * scale },
+            Primitive::Sphere { radius } => Shape::Sphere { radius: radius * scale },
+            Primitive::Capsule { a, b, radius, radius_end } if a == -b && radius == radius_end => {
+                Shape::Capsule { half_height: b * scale, radius: radius * scale }
+            }
+            Primitive::Cylinder { half_height, radius, radius_end, arc, .. } if arc >= 360.0 && radius == radius_end => {
+                Shape::Cylinder { half_height: half_height * scale, radius: radius * scale }
+            }
+            _ => return None,
+        })
+    }
+}
+
+/// Boxes round a tube and capsules round a full torus, for collision.
+pub const COLLIDER_RING: usize = 12;
+
+fn torus_links(arc: f32) -> usize {
+    ((COLLIDER_RING as f32 * arc.min(360.0) / 360.0).round() as usize).max(1)
+}
+
+/// The first angle and the step of `count` equal spans over an arc centred on +z.
+fn ring_steps(arc: f32, count: usize) -> (f32, f32) {
+    let sweep = arc.min(360.0).to_radians();
+    (if arc >= 360.0 { 0.0 } else { -sweep * 0.5 }, sweep / count as f32)
+}
+
+/// A tube's walls for collision, in its own frame: each box's centre, turn and half size
+/// (x along the wall, z through it). Neighbouring boxes meet at the outer surface.
+pub fn tube_walls(half_height: f32, radius: f32, thickness: f32, arc: f32) -> impl Iterator<Item = (Vec3, Quat, Vec3)> {
+    let (start, step) = ring_steps(arc, COLLIDER_RING);
+    let half = Vec3::new(radius * (step * 0.5).tan(), half_height, thickness * 0.5);
+    (0..COLLIDER_RING).map(move |i| {
+        let phi = start + step * (i as f32 + 0.5);
+        (direction(phi) * (radius - thickness * 0.5), Quat::from_rotation_y(phi), half)
+    })
+}
+
+/// A torus's ring for collision, in its own frame: the ends of each capsule.
+pub fn torus_ring(radius: f32, arc: f32) -> impl Iterator<Item = (Vec3, Vec3)> {
+    let links = torus_links(arc);
+    let (start, step) = ring_steps(arc, links);
+    (0..links).map(move |i| (direction(start + step * i as f32) * radius, direction(start + step * (i + 1) as f32) * radius))
 }
 
 fn sign(bit: usize) -> f32 {

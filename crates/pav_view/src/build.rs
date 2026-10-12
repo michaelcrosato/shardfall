@@ -1,11 +1,15 @@
 //! Scene building: interpolates between two simulation frames and emits render instances.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec3};
 use pav_core::frame::{PuppetFrame, SimEvent};
+use pav_core::fxdef::{EmitterDef, LightDef};
 use pav_core::params::{ChoiceParam, ParamVisitor, Tunable, nested};
+use pav_core::prop_instance::PropFrame;
+use pav_core::props::geom::{Generated, GeomMesh, Primitive};
+use pav_core::props::{DEFAULT_ROLES, ResolvedPart};
 use pav_core::puppet::PuppetDef;
 use pav_core::shape::Sway;
 use pav_core::statics::Ladder;
@@ -611,8 +615,11 @@ pub struct ViewBuilder {
     pub now: f64,
     /// Particles from events, born in the next built scene.
     pending_particles: Vec<rs::ParticleBurst>,
-    /// Fractional particles owed per emitting object.
-    emit_carry: HashMap<u32, f32>,
+    /// Fractional particles owed per emitter: (object, emitter), where an object's own emitter
+    /// is `u32::MAX` and a prop part's is its index.
+    emit_carry: HashMap<(u32, u32), f32>,
+    /// Meshes generated for prop parts.
+    generated: GeneratedMeshes,
     /// Shockwaves: centre, radius, start (simulation seconds).
     shocks: Vec<(Vec3, f32, f32)>,
     /// Simulation time of the last built scene.
@@ -671,6 +678,13 @@ pub fn interpolate(prev: &RenderFrame, curr: &RenderFrame, alpha: f32) -> Vec<Re
 impl ViewBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Forget particles owed and pending, so the next scene's emitters start in full swing
+    /// (pair with `Renderer::clear_particles` when the subject changes).
+    pub fn clear_particles(&mut self) {
+        self.emit_carry.clear();
+        self.pending_particles.clear();
     }
 
     /// Turns simulation events into visual effects (explosions, dust).
@@ -859,6 +873,62 @@ impl ViewBuilder {
         self.water.values().find(|w| (w.level() - p.y).abs() < 3.0 && w.contains(p))
     }
 
+    /// A placed prop: its compiled parts, their lights, and their particles.
+    fn emit_prop(&mut self, scene: &mut Scene, o: &RenderObject, prop: &PropFrame, settings: &ViewSettings, time: f32, dt: f32) {
+        let compiled = &prop.definition.compiled;
+        let scale = prop.scale;
+        let at = |pos: Vec3| o.pos + o.rot * (pos * scale);
+        for part in compiled.parts.iter().filter(|part| !part.hidden) {
+            emit_prim(scene, &mut self.generated, part, o, scale, settings.style);
+        }
+        for (i, light) in compiled.lights.iter().enumerate() {
+            let def = LightDef {
+                color: role_hex(&light.color).to_owned(),
+                radius: light.radius * scale,
+                intensity: light.intensity,
+                flicker: light.flicker,
+                pulse: light.pulse,
+                shadows: light.shadows,
+                offset: Vec3::ZERO,
+            };
+            scene.point_lights.push(crate::fx::light(&def, at(light.pos), time, o.id.0 as f32 * 1.7 + i as f32));
+        }
+        if settings.particles {
+            for (i, fx) in compiled.fx.iter().enumerate() {
+                let def = EmitterDef {
+                    preset: fx.preset.clone(),
+                    rate: fx.rate,
+                    color: role_hex(&fx.color).to_owned(),
+                    size: fx.size * scale,
+                    speed: fx.speed,
+                    life: fx.life,
+                    area: fx.area * scale,
+                    offset: Vec3::ZERO,
+                    ground: None,
+                };
+                self.emit_particles(scene, &def, at(fx.pos), (o.id.0, i as u32), dt);
+            }
+        }
+    }
+
+    /// One emitter's particles this frame; a new emitter starts in full swing.
+    fn emit_particles(&mut self, scene: &mut Scene, e: &EmitterDef, pos: Vec3, key: (u32, u32), dt: f32) {
+        let rate = crate::fx::emitter_rate(e);
+        if !self.emit_carry.contains_key(&key) {
+            let mut b = crate::fx::emitter_burst(e, pos, 0);
+            b.count = (rate * b.life.1).min(800.0) as u32;
+            b.prewarm = b.life.1;
+            scene.particles.push(b);
+        }
+        let carry = self.emit_carry.entry(key).or_insert(0.0);
+        *carry += rate * dt;
+        let n = carry.floor();
+        *carry -= n;
+        if n >= 1.0 {
+            scene.particles.push(crate::fx::emitter_burst(e, pos, n as u32));
+        }
+    }
+
     /// Builds the render scene. `alpha` in [0,1] blends `prev` -> `curr`.
     pub fn build(
         &mut self,
@@ -887,6 +957,7 @@ impl ViewBuilder {
         let since = self.last_time.map(|t| (time - t).max(0.0)).unwrap_or(0.0);
         let dt = since.min(0.1);
         self.last_time = Some(time);
+        self.generated.begin_frame();
         scene.post.bloom = settings.bloom;
         scene.post.bloom_threshold = settings.bloom_threshold;
         scene.post.distortion = settings.distortion;
@@ -1149,21 +1220,7 @@ impl ViewBuilder {
                 scene.distortions.push(crate::fx::distortion(d, o.pos, time));
             }
             if let (Some(e), true) = (&v.particles, settings.particles) {
-                let rate = crate::fx::emitter_rate(e);
-                if !self.emit_carry.contains_key(&o.id.0) {
-                    // A new emitter starts in full swing.
-                    let mut b = crate::fx::emitter_burst(e, o.pos, 0);
-                    b.count = (rate * b.life.1).min(800.0) as u32;
-                    b.prewarm = b.life.1;
-                    scene.particles.push(b);
-                }
-                let carry = self.emit_carry.entry(o.id.0).or_insert(0.0);
-                *carry += rate * dt;
-                let n = carry.floor();
-                *carry -= n;
-                if n >= 1.0 {
-                    scene.particles.push(crate::fx::emitter_burst(e, o.pos, n as u32));
-                }
+                self.emit_particles(&mut scene, e, o.pos, (o.id.0, u32::MAX), dt);
                 live.push(o.id.0);
             }
             if let Some(s) = &o.soft {
@@ -1193,7 +1250,13 @@ impl ViewBuilder {
                     }
                 }
                 None => {
-                    emit_object(&mut scene, &o, settings.style, now);
+                    match &o.prop {
+                        Some(prop) => {
+                            self.emit_prop(&mut scene, &o, prop, settings, time, dt);
+                            live.push(o.id.0);
+                        }
+                        None => emit_object(&mut scene, &o, settings.style, now),
+                    }
                     if let Some(v) = &o.vehicle {
                         crate::vehicles::emit_vehicle(
                             &mut scene,
@@ -1212,7 +1275,7 @@ impl ViewBuilder {
                 eprintln!("creature preview: {error}");
             }
         }
-        self.emit_carry.retain(|id, _| live.contains(id));
+        self.emit_carry.retain(|(id, _), _| live.contains(id));
         if let Some(g) = &curr.game {
             self.arpg.emit(&mut scene, curr, g, alpha, time, dt, settings.particles, cam_fwd);
         }
@@ -1501,27 +1564,8 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
     }
 }
 
-/// Adds one object's instances to the scene.
+/// Adds one object's instances to the scene (props are drawn by `ViewBuilder::emit_prop`).
 pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: f32) {
-    if let Some(prop) = &o.prop {
-        for part in prop.definition.parts.values() {
-            let visual = part.visual(prop.scale);
-            emit_shape(
-                &mut scene.meshes,
-                &mut scene.sdfs,
-                &mut scene.point_lights,
-                &visual.shape,
-                o.pos + o.rot * (part.pos * prop.scale),
-                o.rot * part.rotation(),
-                v3(visual.color),
-                visual.emissive,
-                style_of(visual.look, ov),
-                o.id.0 + 2,
-                0,
-            );
-        }
-        return;
-    }
     let v = &o.visual;
     let style = style_of(v.look, ov);
     let mut color = v3(v.color);
@@ -1579,6 +1623,146 @@ fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) ->
     }
 }
 
+/// Meshes generated for prop parts, kept by key and sent to the renderer once per frame.
+#[derive(Default)]
+struct GeneratedMeshes {
+    built: HashMap<u64, Arc<MeshData>>,
+    /// Keys this frame's scene already carries.
+    sent: HashSet<u64>,
+}
+
+impl GeneratedMeshes {
+    /// Meshes kept across frames before unused ones are dropped (the renderer keeps its own
+    /// copies for 300 frames).
+    const KEEP: usize = 256;
+
+    fn begin_frame(&mut self) {
+        if self.built.len() > Self::KEEP {
+            let sent = &self.sent;
+            self.built.retain(|key, _| sent.contains(key));
+        }
+        self.sent.clear();
+    }
+
+    fn key(&mut self, scene: &mut Scene, generated: &Generated) -> MeshKey {
+        let key = MeshKey::Custom(generated.key);
+        if self.sent.insert(generated.key) {
+            let data = self.built.entry(generated.key).or_insert_with(|| Arc::new(mesh_data(&generated.build())));
+            scene.custom_meshes.push((key, data.clone()));
+        }
+        key
+    }
+}
+
+fn mesh_data(mesh: &GeomMesh) -> MeshData {
+    MeshData {
+        vertices: mesh
+            .positions
+            .iter()
+            .zip(&mesh.normals)
+            .map(|(p, n)| Vertex { pos: p.to_array(), normal: n.to_array(), uv: [0.0, 0.0], color: [1.0; 4] })
+            .collect(),
+        indices: mesh.indices.clone(),
+    }
+}
+
+/// A colour as written, with a theme role (`$light`) through the default palette.
+fn role_hex(color: &str) -> &str {
+    match color.strip_prefix('$') {
+        Some(_) => DEFAULT_ROLES.iter().find(|(role, _)| *role == color).map_or("#808080", |(_, hex)| *hex),
+        None => color,
+    }
+}
+
+/// A part's linear colour: its role resolved, then its tint.
+fn part_color(color: &str, tint: f32) -> Vec3 {
+    v3(Color::hex(role_hex(color))) * tint
+}
+
+/// One compiled part of a prop. Format 1's shapes go through `emit_shape`, so a format-1 asset
+/// draws exactly what it always drew; ellipsoids, cones and round cones use the renderer's own
+/// meshes and distance fields; everything else a generated mesh.
+fn emit_prim(
+    scene: &mut Scene,
+    generated: &mut GeneratedMeshes,
+    part: &ResolvedPart,
+    o: &RenderObject,
+    scale: f32,
+    ov: StyleOverride,
+) {
+    let s = part.scale * scale;
+    let pos = o.pos + o.rot * (part.pos * scale);
+    let rot = o.rot * part.rot;
+    let color = part_color(&part.color, part.tint);
+    let (emissive, style, group) = (part.emissive, style_of(part.look, ov), o.id.0 + 2);
+    if part.sway == Sway::Grass {
+        let (centre, half) = part.prim.local_box();
+        scene.meshes.push(MeshInstance {
+            mesh: MeshKey::Tuft,
+            transform: Mat4::from_scale_rotation_translation(half * 2.0 * s, rot, pos + rot * (centre * s)),
+            color,
+            emissive: 0.0,
+            style,
+            flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
+            group: 0,
+        });
+        return;
+    }
+    let flags = if part.sway == Sway::Leaves { rs::flags::SWAY } else { 0 };
+    let generated_mesh = Generated::of(&part.prim, part.mirrored);
+    if let Some(shape) = part.prim.shape(s).filter(|_| generated_mesh.is_none()) {
+        // A part with a light of its own does not also light the scene with its glow.
+        let mut unlit = Vec::new();
+        let lights = if part.glow_light { &mut scene.point_lights } else { &mut unlit };
+        emit_shape(&mut scene.meshes, &mut scene.sdfs, lights, &shape, pos, rot, color, emissive, style, group, flags);
+        return;
+    }
+    let mesh = |mesh, size: Vec3| MeshInstance {
+        mesh,
+        transform: Mat4::from_scale_rotation_translation(size, rot, pos),
+        color,
+        emissive,
+        style,
+        flags,
+        group,
+    };
+    if let Some(g) = generated_mesh {
+        let key = generated.key(scene, &g);
+        scene.meshes.push(mesh(key, g.scale * s));
+    } else {
+        match part.prim {
+            Primitive::Ellipsoid { half } => scene.meshes.push(mesh(MeshKey::Sphere, half * 2.0 * s)),
+            Primitive::Cylinder { half_height, radius, .. } => {
+                scene.meshes.push(mesh(MeshKey::Cone, Vec3::new(radius * 2.0, half_height * 2.0, radius * 2.0) * s))
+            }
+            Primitive::Capsule { a, b, radius, radius_end } => {
+                let axis = rot * Vec3::Y;
+                scene.sdfs.push(SdfInstance {
+                    a: pos + axis * (a * s),
+                    b: pos + axis * (b * s),
+                    ra: radius * s,
+                    rb: radius_end * s,
+                    color,
+                    emissive,
+                    style,
+                    flags,
+                    group,
+                });
+            }
+            // Every other shape is format 1's or generated.
+            _ => return,
+        }
+    }
+    if part.glow_light && emissive > 0.5 {
+        scene.point_lights.push(rs::PointLight {
+            position: pos,
+            color: color * emissive,
+            radius: 4.0 + emissive * 2.0,
+            shadows: false,
+        });
+    }
+}
+
 /// Instances for one shape (meshes for boxes/cylinders, SDF impostors for spheres/capsules).
 #[allow(clippy::too_many_arguments)]
 pub fn emit_shape(
@@ -1633,5 +1817,149 @@ fn terrain_mesh(t: &pav_core::terrain::TerrainPatch) -> MeshData {
             .map(|((p, n), c)| Vertex { pos: *p, normal: *n, uv: [0.0, 0.0], color: [c[0], c[1], c[2], 1.0] })
             .collect(),
         indices: t.indices.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use pav_core::EntityId;
+    use pav_core::props::{self, Doc, PropAsset, PropDef};
+    use pav_core::shape::Visual;
+
+    fn object(definition: Arc<PropDef>, scale: f32, pos: Vec3, rot: Quat) -> RenderObject {
+        RenderObject {
+            id: EntityId(41),
+            pos,
+            rot,
+            visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
+            prop: Some(PropFrame { definition, scale }),
+            puppet: None,
+            pulse: -1.0,
+            soft: None,
+            vehicle: None,
+            cone: None,
+            scenery: false,
+        }
+    }
+
+    fn draw(builder: &mut ViewBuilder, o: &RenderObject) -> Scene {
+        let mut scene = Scene::default();
+        builder.generated.begin_frame();
+        builder.emit_prop(&mut scene, o, o.prop.as_ref().unwrap(), &ViewSettings::default(), 0.0, 0.0);
+        scene
+    }
+
+    #[test]
+    fn format1_props_draw_exactly_what_format1_drew() {
+        let mut assets: Vec<PropAsset> = ["box", "crate", "bench", "lantern"]
+            .map(|name| (**props::get(&format!("BUILTIN/{name}")).unwrap().v1.as_ref().unwrap()).clone())
+            .into();
+        for text in [
+            include_str!("../../pav_core/tests/fixtures/props/dogfood_stall_v1.json"),
+            include_str!("../../pav_core/tests/fixtures/props/dogfood_well_v1.json"),
+        ] {
+            assets.push(PropAsset::parse(text).unwrap());
+        }
+        let poses = [
+            (1.0, Vec3::ZERO, Quat::IDENTITY),
+            (0.37, Vec3::new(1.5, 0.25, -2.0), Quat::from_rotation_y(0.7)),
+            (2.5, Vec3::new(-3.0, 1.0, 4.0), Quat::from_euler(glam::EulerRot::YXZ, 1.1, 0.2, -0.3)),
+        ];
+        for asset in assets {
+            let def = Arc::new(PropDef::from_v1(Arc::new(asset.clone())).unwrap());
+            for (scale, pos, rot) in poses {
+                let o = object(def.clone(), scale, pos, rot);
+                // What format 1 drew before props compiled.
+                let mut format1 = Scene::default();
+                for part in asset.parts.values() {
+                    let visual = part.visual(scale);
+                    emit_shape(
+                        &mut format1.meshes,
+                        &mut format1.sdfs,
+                        &mut format1.point_lights,
+                        &visual.shape,
+                        o.pos + o.rot * (part.pos * scale),
+                        o.rot * part.rotation(),
+                        v3(visual.color),
+                        visual.emissive,
+                        style_of(visual.look, StyleOverride::PerObject),
+                        o.id.0 + 2,
+                        0,
+                    );
+                }
+                let compiled = draw(&mut ViewBuilder::default(), &o);
+                let name = &asset.name;
+                assert_eq!(format!("{:?}", compiled.meshes), format!("{:?}", format1.meshes), "{name} at {scale}");
+                assert_eq!(format!("{:?}", compiled.sdfs), format!("{:?}", format1.sdfs), "{name} at {scale}");
+                assert_eq!(format!("{:?}", compiled.point_lights), format!("{:?}", format1.point_lights), "{name} at {scale}");
+                assert!(compiled.custom_meshes.is_empty() && compiled.particles.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn format2_fixtures_draw_every_part_once_with_shared_generated_meshes() {
+        let fixtures = [
+            include_str!("../../pav_core/tests/fixtures/props/format2/bench.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/greatsword.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/market_stall.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/wall_torch.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/well.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/probe_attach.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/probe_frames.json"),
+            include_str!("../../pav_core/tests/fixtures/props/format2/probe_mirror.json"),
+        ];
+        let mut builder = ViewBuilder::default();
+        let mut generated_total = 0;
+        for text in fixtures {
+            let def = Arc::new(PropDef::new(Doc::read(text).unwrap()).unwrap());
+            let name = def.doc.name.clone();
+            let compiled = def.compiled.clone();
+            let o = object(def, 1.3, Vec3::new(2.0, 0.0, 1.0), Quat::from_rotation_y(0.4));
+            let scene = draw(&mut builder, &o);
+            let group = o.id.0 + 2;
+            let drawn = compiled.parts.iter().filter(|p| !p.hidden).count();
+            let instances =
+                scene.meshes.iter().filter(|m| m.group == group).count() + scene.sdfs.iter().filter(|s| s.group == group).count();
+            assert_eq!(instances, drawn, "{name}: every drawn part once");
+            let keys: BTreeSet<u64> = compiled
+                .parts
+                .iter()
+                .filter(|p| !p.hidden)
+                .filter_map(|p| Generated::of(&p.prim, p.mirrored))
+                .map(|g| g.key)
+                .collect();
+            let sent: Vec<MeshKey> = scene.custom_meshes.iter().map(|(key, _)| *key).collect();
+            assert_eq!(sent.len(), keys.len(), "{name}: each generated mesh is sent once");
+            for (key, data) in &scene.custom_meshes {
+                let MeshKey::Custom(key) = key else { panic!("{name}: only generated meshes") };
+                assert!(keys.contains(key) && !data.indices.is_empty() && data.indices.len() % 3 == 0, "{name}");
+            }
+            for mesh in scene.meshes.iter().filter(|m| m.group == group) {
+                if let MeshKey::Custom(key) = mesh.mesh {
+                    assert!(keys.contains(&key), "{name}: a drawn mesh was sent");
+                }
+            }
+            let glow = compiled.parts.iter().filter(|p| !p.hidden && p.glow_light && p.emissive > 0.5).count();
+            assert_eq!(scene.point_lights.len(), compiled.lights.len() + glow, "{name}: part lights and glow");
+            if name == "wall_torch" {
+                // The flame's light is `$light`: the palette's warm colour, not a fallback white.
+                let warm = v3(Color::hex(role_hex("$light")));
+                // Part lights come after the parts' glow.
+                let light = scene.point_lights.last().unwrap().color.normalize();
+                assert!(light.distance(warm.normalize()) < 1e-4 && warm.x > warm.z, "{light}");
+            }
+            assert_eq!(scene.particles.len(), compiled.fx.len(), "{name}: each emitter starts in full swing");
+            // The next frame reuses the meshes already built.
+            let again = draw(&mut builder, &o);
+            for ((_, first), (_, second)) in scene.custom_meshes.iter().zip(&again.custom_meshes) {
+                assert!(Arc::ptr_eq(first, second), "{name}: generated once");
+            }
+            generated_total += keys.len();
+        }
+        assert!(generated_total > 0, "the fixtures use generated shapes");
     }
 }

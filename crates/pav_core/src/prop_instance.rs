@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::entity::{BodyKind, EntityId, Spawn};
 use crate::physics::entity_tag;
-use crate::props::{self, Bounds, PropAsset};
+use crate::props::geom::{self, Primitive};
+use crate::props::{self, Bounds, PropDef, ResolvedPart};
 use crate::shape::{Shape, Visual};
 use crate::statics::RegionKey;
 use crate::{Color, Sim};
@@ -17,7 +18,8 @@ use crate::{Color, Sim};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PropInstance {
     pub asset: String,
-    pub definition: Arc<PropAsset>,
+    #[serde(with = "props::embedded")]
+    pub definition: Arc<PropDef>,
     pub scale: f32,
     /// When true, only the definition's solid parts contribute to one fixed collider.
     pub collide: bool,
@@ -25,7 +27,7 @@ pub struct PropInstance {
 
 #[derive(Clone, Debug)]
 pub struct PropFrame {
-    pub definition: Arc<PropAsset>,
+    pub definition: Arc<PropDef>,
     pub scale: f32,
 }
 
@@ -47,11 +49,10 @@ pub fn validate_pose(pos: Vec3, rot: Quat) -> Result<(), String> {
 }
 
 impl PropInstance {
-    pub fn new(asset: &str, definition: Arc<PropAsset>, scale: f32, collide: bool) -> Result<Self, String> {
+    pub fn new(asset: &str, definition: Arc<PropDef>, scale: f32, collide: bool) -> Result<Self, String> {
         let asset = props::canonical(asset)?;
-        definition.validate()?;
         validate_scale(scale)?;
-        if asset.split_once('/').map(|(_, leaf)| leaf) != Some(definition.name.as_str()) {
+        if asset.split_once('/').map(|(_, leaf)| leaf) != Some(definition.doc.name.as_str()) {
             return Err("asset reference does not match its embedded definition".into());
         }
         Ok(Self { asset, definition, scale, collide })
@@ -78,17 +79,52 @@ impl PropInstance {
         if !self.collide {
             return None;
         }
-        let parts: Vec<_> = self
-            .definition
-            .parts
-            .values()
-            .filter(|part| part.solid)
-            .map(|part| {
-                let shape = part.visual(self.scale).shape.collider().build().shared_shape().clone();
-                (Pose::from_parts(part.pos * self.scale, part.rotation()), shape)
-            })
-            .collect();
-        (!parts.is_empty()).then(|| ColliderBuilder::compound(parts))
+        let mut shapes = Vec::new();
+        for part in self.definition.compiled.parts.iter().filter(|part| part.solid) {
+            part_colliders(part, self.scale, &mut shapes);
+        }
+        (!shapes.is_empty()).then(|| ColliderBuilder::compound(shapes))
+    }
+}
+
+/// One solid part's shapes in the compound (hidden parts collide too): format 1's shapes as
+/// format 1 built them; a capsule or cone as itself; walls round a tube and a ring of capsules
+/// round a torus; a convex hull for the rest.
+fn part_colliders(part: &ResolvedPart, scale: f32, out: &mut Vec<(Pose, SharedShape)>) {
+    let s = part.scale * scale;
+    let pose = Pose::from_parts(part.pos * scale, part.rot);
+    if let Some(shape) = part.prim.shape(s) {
+        out.push((pose, shape.collider().build().shared_shape().clone()));
+        return;
+    }
+    match &part.prim {
+        Primitive::Capsule { a, b, radius, radius_end } if radius == radius_end => {
+            out.push((pose, SharedShape::capsule(Vec3::Y * (a * s), Vec3::Y * (b * s), radius * s)));
+        }
+        Primitive::Cylinder { half_height, radius, radius_end: 0.0, arc, .. } if *arc >= 360.0 => {
+            out.push((pose, SharedShape::cone(half_height * s, radius * s)));
+        }
+        Primitive::Tube { half_height, radius, thickness, arc } => {
+            for (centre, turn, half) in geom::tube_walls(*half_height, *radius, *thickness, *arc) {
+                let wall = Pose::from_parts(part.pos * scale + part.rot * (centre * s), part.rot * turn);
+                out.push((wall, SharedShape::cuboid(half.x * s, half.y * s, half.z * s)));
+            }
+        }
+        Primitive::Torus { radius, minor_radius, arc } => {
+            for (a, b) in geom::torus_ring(*radius, *arc) {
+                out.push((pose, SharedShape::capsule(a * s, b * s, minor_radius * s)));
+            }
+        }
+        prim => {
+            let flip = if part.mirrored { Vec3::new(-1.0, 1.0, 1.0) } else { Vec3::ONE };
+            let points: Vec<Vec3> = prim.hull().iter().map(|p| *p * flip * s).collect();
+            let shape = SharedShape::convex_hull(&points).unwrap_or_else(|| {
+                // Flat or degenerate points: the box round them.
+                let half = prim.local_box().1 * s;
+                SharedShape::cuboid(half.x.max(0.001), half.y.max(0.001), half.z.max(0.001))
+            });
+            out.push((pose, shape));
+        }
     }
 }
 
@@ -112,7 +148,7 @@ impl Sim {
         validate_pose(pos, rot)?;
         let definition = props::get(asset).ok_or_else(|| format!("no prop '{asset}' (assets lists available props)"))?;
         let instance = PropInstance::new(asset, definition, scale, collide)?;
-        let mut spawn = Spawn::new(&instance.definition.name, pos).rot(rot).prop(instance);
+        let mut spawn = Spawn::new(&instance.definition.doc.name, pos).rot(rot).prop(instance);
         spawn.region = region;
         Ok(self.spawn(spawn))
     }
@@ -136,9 +172,9 @@ impl Sim {
 
     /// Installs the accepted revision in every active and sleeping instance of this asset.
     /// Old snapshots retain their own definitions. Transforms and entity identities stay put.
-    pub fn refresh_prop_instances(&mut self, name: &str, definition: Arc<PropAsset>) -> usize {
+    pub fn refresh_prop_instances(&mut self, name: &str, definition: Arc<PropDef>) -> usize {
         let Ok(name) = props::canonical(name) else { return 0 };
-        if definition.validate().is_err() || name.split_once('/').map(|(_, leaf)| leaf) != Some(definition.name.as_str()) {
+        if name.split_once('/').map(|(_, leaf)| leaf) != Some(definition.doc.name.as_str()) {
             return 0;
         }
         let ids: Vec<_> =

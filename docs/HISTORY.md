@@ -5,6 +5,79 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 2.3: compiled parts drive every consumer — 2026-10-12
+
+Row 2.3 of `docs/ASSET_SYSTEM_PLAN.md` (F5, TOOLS-10 and lint on compiled parts). Everything
+that draws, collides with, measures or checks a prop now reads its compiled parts, so format-2
+assets can be created, drawn and placed.
+- **Definitions everywhere.** `props::get` returns the `PropDef`; `install(name, def)` returns
+  the assets that reference it, recompiled; the library keeps definitions only. `PropInstance`
+  and `PropFrame` hold the definition. Snapshots still embed each instance's document: a
+  format-1 definition writes exactly the bytes it always wrote (state hashes of existing worlds
+  are unchanged), a format-2 one its canonical document, compiled again on load.
+- **Exactly format 1.** A part's box is now exact per shape (`centre`/`extent`, format 1's own
+  formulas for its shapes) and `bounds(scale)` matches format 1's bounds bit for bit at any
+  scale. Frames skip identity turns instead of multiplying by them, so a format-1 part keeps its
+  rotation's signed zeros. Tests compare the old and new paths: the renderer's mesh, SDF and
+  light lists (`pav_view` build.rs) and the physics compounds (`prop_instances.rs`) are
+  identical for the templates and both dogfood files at three scales and poses.
+- **Drawing** (`pav_view/src/build.rs`): `ViewBuilder::emit_prop` draws each part through
+  `emit_prim`. Format 1's shapes go through `emit_shape`; ellipsoids use the sphere mesh, plain
+  cones the cone mesh, round cones the distance field; the rest are generated meshes, built
+  once per key, kept by the view builder (up to 256) and sent once per frame. Part lights go
+  through `fx::light` (radius times the instance scale); part emitters through the same carry as
+  objects', keyed by (entity, emitter). Only parts without a light of their own add the emissive
+  glow light. `sway: leaves` sets the sway flag and `grass` draws a tuft. Theme roles take
+  `DEFAULT_ROLES` (part, light and emitter colours alike); jitter tints multiply. Hidden parts
+  are not drawn. A new previewed prop (or a contact sheet) clears the particles left by the
+  last one.
+- **Collision** (`prop_instance.rs`): a compound of the solid parts, hidden ones included.
+  Format 1's shapes are built as before; capsules with equal radii are capsules, plain cones
+  cones, tubes 12 boxes round the wall, tori a ring of up to 12 capsules, and everything else a
+  convex hull. More than 256 shapes is a compile error ("mark decorative parts solid:false").
+  The fixtures give 7, 42, 16, 0, 64, 15, 3 and 10 shapes. Nav marks solid resolved boxes.
+- **Lint** (`props/lint.rs`) runs on the drawn parts of the compiled asset. Generated shapes,
+  ellipsoids and round cones count by their box and never hide or cover another part. The
+  compile warnings join the findings (its box-contact `floating` gives way to the exact one, and
+  `unit_suspect` now names the unit). `hang` and `grip` sockets anchor the asset at that point
+  and `wall_mount` at its wall, instead of the floor. The examples: the bench's leaning rear
+  legs dip 0.8 cm under the floor, the stall keeps format 1's four crate faults, the well's
+  water pokes through its middle stones, the sword and torch are clean.
+- **Tools.** `asset_edit` creates, copies, replaces, undoes and redoes documents of either
+  format, saved in the lowest format that holds them; `patch` stays format 1 until row 2.4 (a
+  format-2 asset answers "send the whole document with action=replace"). Undo steps are JSON
+  documents (older typed files read the same way). `check` and the cost line work on compiled
+  parts (generated meshes, ellipsoids, cones and part lights count), `inspect bounds=true` lists
+  resolved parts, `assets` lists every definition, saved files whose references load later in
+  the folder wait for them, and placed copies of dependents refresh too. An end-to-end test
+  creates a format-2 stool, checks it, renders it (the generated ring is one uploaded mesh and
+  the triangles match the cost line), places it (16 shapes), replaces, undoes and redoes it.
+- **Native Object Studio** (TOOLS-10, upkeep only): it lists every definition; format-1 parts
+  keep their drafts (the definition's format-1 view is the adapter, so no `V1Part` type was
+  needed), and format-2 assets are edited as whole documents in the JSON editor.
+- The conformance fixtures moved to `pav_core/tests/fixtures/props/format2/`, where the view and
+  tool tests read them too. The asset studio smoke test passes 13/13.
+- **Review follow-ups from row 2.2** (the Codex review of its PR, each finding verified first):
+  - A reference resolves its document in place, with the caller's seed and its parts' full
+    ids, so each copy varies on its own and seeds reach inside. Its `remap` swaps materials
+    inside the referenced surface cascade, so explicit colours still win.
+  - `remap` keys are checked against the referenced asset's materials, with did-you-mean.
+  - A reference's lights and emitters count toward the limits of 4.
+  - A definition keeps the definitions its references compiled against; every seed variant
+    uses them.
+  - Removing an asset that others reference is refused, and `asset_edit` refuses such an undo
+    before it touches disk.
+  - Not changed: `attach` resolves against the target's authored placement, before its
+    chance, jitter and pick. Moving attachments with a jittered target would mean resolving
+    anchors per seed and per copy; no asset needs that yet.
+- Decisions:
+  - Undo history as JSON documents moved here from F6: format-2 creates need it.
+  - `grip` sockets anchor the floor rules like `hang` (the plan named `hang` and
+    `wall_mount`): a held item is not meant to stand on the floor.
+  - `inspect resolved=true` moves to row 2.4 with the other `asset_edit` changes (F6).
+  - `PropInstance` gains its seed and palette with row 2.4's seeds and rooms (F7), and params
+    with parametric families (LIB-4); until then copies draw seed 0 with the default palette.
+
 ## Asset plan 2.2: format 2 compiles — 2026-10-12
 
 Row 2.2 of `docs/ASSET_SYSTEM_PLAN.md` (F3, F4 and the §5.9 conformance test). A prop document

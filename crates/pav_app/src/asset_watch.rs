@@ -4,15 +4,15 @@
 use std::sync::Arc;
 
 use pav_core::Sim;
-use pav_core::props::{self, PropAsset};
+use pav_core::props::{self, PropDef};
 
-pub type AssetUpdate = Result<(String, Arc<PropAsset>), String>;
+pub type AssetUpdate = Result<(String, Arc<PropDef>), String>;
 
 /// Apply an accepted file on the simulation thread only if it is still current. A bridge
 /// edit can publish and refresh a newer revision before this queued callback is reached.
-pub fn apply_update(sim: &mut Sim, name: &str, definition: Arc<PropAsset>) -> bool {
+pub fn apply_update(sim: &mut Sim, name: &str, definition: Arc<PropDef>) -> bool {
     let Some(current) = props::get(name) else { return false };
-    if !Arc::ptr_eq(&current, &definition) && current.revision() != definition.revision() {
+    if !Arc::ptr_eq(&current, &definition) && current.key != definition.key {
         return false;
     }
     sim.refresh_prop_instances(name, definition);
@@ -149,32 +149,31 @@ impl AssetWatcher {
             .collect();
         for path in ready {
             self.pending.remove(&path);
-            if let Some(update) = self.reload(&path) {
-                updates.push(update);
-            }
+            updates.extend(self.reload(&path));
         }
         updates
     }
 
-    fn reload(&mut self, path: &Path) -> Option<AssetUpdate> {
+    /// The asset a changed file holds, then the assets that reference it (recompiled with it).
+    fn reload(&mut self, path: &Path) -> Vec<AssetUpdate> {
         match pav_tools::asset_tools::reload_file(path) {
-            Ok(Some(asset)) => {
+            Ok(published) if !published.is_empty() => {
                 self.failed.remove(path);
-                Some(Ok(asset))
+                published.into_iter().map(Ok).collect()
             }
-            Ok(None) => {
+            Ok(_) => {
                 // Restoring the exact last-good bytes is a recovery even though the
                 // library is already correct. Report it once so the panel clears its error.
                 if self.failed.remove(path) && path.is_file() {
-                    let leaf = path.file_stem()?.to_str()?;
+                    let Some(leaf) = path.file_stem().and_then(|leaf| leaf.to_str()) else { return Vec::new() };
                     let name = format!("WORKSHOP/{leaf}");
-                    return pav_core::props::get(&name).map(|asset| Ok((name, asset)));
+                    return pav_core::props::get(&name).map(|def| Ok((name, def))).into_iter().collect();
                 }
-                None
+                Vec::new()
             }
             Err(error) => {
                 self.failed.insert(path.to_owned());
-                Some(Err(format!("{}: {error}; the last valid object stays active", path.display())))
+                vec![Err(format!("{}: {error}; the last valid object stays active", path.display()))]
             }
         }
     }
@@ -202,22 +201,22 @@ mod tests {
         let name = "WORKSHOP/test_watcher_recovery";
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let mut asset = (*pav_core::props::get("BUILTIN/box").unwrap()).clone();
-        asset.name = "test_watcher_recovery".into();
-        let text = asset.text();
+        let mut doc = pav_core::props::get("BUILTIN/box").unwrap().doc.clone();
+        doc.name = "test_watcher_recovery".into();
+        let text = doc.text();
         std::fs::write(&path, &text).unwrap();
         let mut watcher = AssetWatcher::new();
-        let (_, installed) = watcher.reload(&path).unwrap().unwrap();
-        assert!(watcher.reload(&path).is_none(), "an ordinary duplicate save stays quiet");
+        let (_, installed) = watcher.reload(&path).remove(0).unwrap();
+        assert!(watcher.reload(&path).is_empty(), "an ordinary duplicate save stays quiet");
 
         std::fs::write(&path, "{unfinished").unwrap();
-        assert!(watcher.reload(&path).unwrap().is_err());
+        assert!(watcher.reload(&path).remove(0).is_err());
         assert!(Arc::ptr_eq(&installed, &pav_core::props::get(name).unwrap()));
         std::fs::write(&path, text).unwrap();
-        let (recovered_name, recovered) = watcher.reload(&path).unwrap().unwrap();
+        let (recovered_name, recovered) = watcher.reload(&path).remove(0).unwrap();
         assert_eq!(recovered_name, name);
         assert!(Arc::ptr_eq(&installed, &recovered), "recovery must retain the installed definition");
-        assert!(watcher.reload(&path).is_none(), "one recovery clears the error; further saves stay quiet");
+        assert!(watcher.reload(&path).is_empty(), "one recovery clears the error; further saves stay quiet");
 
         pav_core::props::remove(name).unwrap();
         std::fs::remove_dir_all(root).unwrap();
@@ -226,18 +225,17 @@ mod tests {
     #[test]
     fn a_stale_queued_file_cannot_replace_a_newer_live_instance() {
         let name = "WORKSHOP/test_watcher_stale";
-        let mut first = (*props::get("BUILTIN/bench").unwrap()).clone();
-        first.name = "test_watcher_stale".into();
-        let first = Arc::new(first);
-        props::install(name, first.clone()).unwrap();
+        let mut asset = (**props::get("BUILTIN/bench").unwrap().v1.as_ref().unwrap()).clone();
+        asset.name = "test_watcher_stale".into();
+        props::install(name, PropDef::from_v1(Arc::new(asset.clone())).unwrap()).unwrap();
+        let first = props::get(name).unwrap();
         let mut sim = Sim::empty(3);
         let id = sim.spawn_prop(name, glam::Vec3::ZERO, glam::Quat::IDENTITY, 1.0, true, None).unwrap();
         let body = sim.state.entities.get(id).unwrap().body;
 
-        let mut latest = (*first).clone();
-        latest.parts.remove("crossbar");
-        let latest = Arc::new(latest);
-        props::install(name, latest.clone()).unwrap();
+        asset.parts.remove("crossbar");
+        props::install(name, PropDef::from_v1(Arc::new(asset)).unwrap()).unwrap();
+        let latest = props::get(name).unwrap();
         assert!(apply_update(&mut sim, name, latest.clone()));
         assert!(!apply_update(&mut sim, name, first), "an older queued file must be skipped");
         let entity = sim.state.entities.get(id).unwrap();
@@ -245,7 +243,7 @@ mod tests {
         assert_eq!(entity.body, body);
         let collider = sim.state.physics.bodies.get(body.unwrap()).unwrap().colliders()[0];
         let shape = sim.state.physics.colliders.get(collider).unwrap().shape();
-        assert_eq!(shape.as_compound().unwrap().shapes().len(), latest.parts.len());
+        assert_eq!(shape.as_compound().unwrap().shapes().len(), latest.compiled.parts.len());
         assert!(apply_update(&mut sim, name, latest.clone()), "the current revision still applies");
 
         props::remove(name).unwrap();

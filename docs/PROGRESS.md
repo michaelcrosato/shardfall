@@ -51,9 +51,10 @@ and G0 pass): compact asset replies and canonical prop files (0.1), errors that 
 (1.3). Phase 2 has begun: format 2 is read, checked (errors with fixes for common guesses) and
 written canonically with `prop2-` revisions (2.1), and compiles to resolved parts with
 generated meshes, seeded variants and compiled definitions in the library; every §5.9 golden
-holds and format-1 parts compile bit-exactly (2.2). Format-2 creates stay refused until the
-consumers draw compiled parts. Next: row 2.3, the consumers, the UI adapter and lint on
-compiled parts.
+holds and format-1 parts compile bit-exactly (2.2). Drawing, collision, nav, bounds, previews,
+`check` and the native studio read compiled parts, so format-2 assets are created, drawn and
+placed; format-1 assets draw and collide exactly as before (2.3). Next: row 2.4, patch ops on
+format 2, snapshot dedupe, seeds and `room_check`.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

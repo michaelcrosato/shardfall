@@ -1,15 +1,17 @@
 //! `asset_edit action=check`: geometry findings on a prop's resolved parts, one line each
-//! (`code: ids fact`). Parts are oriented boxes (round shapes by their bounding box, contained
-//! exactly); an axis-aligned sweep finds candidate pairs and a 15-axis separating-axis test
-//! measures their gap. Thresholds are the ones tuned on the templates and the dogfood assets
+//! (`code: ids fact`), with the compile warnings. Drawn parts are oriented boxes (round shapes
+//! by their bounding box, contained exactly; generated shapes by their local box); an
+//! axis-aligned sweep finds candidate pairs and a 15-axis separating-axis test measures their
+//! gap. Thresholds are the ones tuned on the templates and the dogfood assets
 //! (docs/ASSET_SYSTEM_PLAN.md §7.3).
 
 use std::collections::BTreeMap;
 
 use glam::Vec3;
 
-use super::{PropAsset, PropPart};
-use crate::shape::{Look, Shape};
+use super::geom::Primitive;
+use super::{CompiledProp, ResolvedPart};
+use crate::shape::Look;
 
 /// Parts closer than this count as touching (floating, floor contact).
 const JOIN: f32 = 0.005;
@@ -45,11 +47,14 @@ enum Kind {
     Sphere,
     Capsule,
     Cylinder,
+    /// Generated shapes, ellipsoids and round cones: their local box, never covering another
+    /// part's face.
+    Other,
 }
 
 struct Solid<'a> {
     name: &'a str,
-    part: &'a PropPart,
+    part: &'a ResolvedPart,
     kind: Kind,
     center: Vec3,
     axes: [Vec3; 3],
@@ -59,18 +64,29 @@ struct Solid<'a> {
 }
 
 impl<'a> Solid<'a> {
-    fn new(name: &'a str, part: &'a PropPart) -> Self {
-        let (kind, half) = match part.shape {
-            Shape::Box { half } | Shape::RoundedBox { half, .. } => (Kind::Boxy, half),
-            Shape::Sphere { radius } => (Kind::Sphere, Vec3::splat(radius)),
-            Shape::Capsule { half_height, radius } => (Kind::Capsule, Vec3::new(radius, half_height + radius, radius)),
-            Shape::Cylinder { half_height, radius } => (Kind::Cylinder, Vec3::new(radius, half_height, radius)),
+    fn new(part: &'a ResolvedPart) -> Self {
+        let s = part.scale;
+        let (kind, offset, half) = match part.prim {
+            Primitive::Box { half } | Primitive::RoundedBox { half, .. } => (Kind::Boxy, Vec3::ZERO, half * s),
+            Primitive::Sphere { radius } => (Kind::Sphere, Vec3::ZERO, Vec3::splat(radius * s)),
+            Primitive::Capsule { a, b, radius, radius_end } if a == -b && radius == radius_end => {
+                (Kind::Capsule, Vec3::ZERO, Vec3::new(radius, b + radius, radius) * s)
+            }
+            Primitive::Cylinder { half_height, radius, radius_end, arc, .. } if arc >= 360.0 && radius == radius_end => {
+                (Kind::Cylinder, Vec3::ZERO, Vec3::new(radius, half_height, radius) * s)
+            }
+            ref prim => {
+                let (centre, half) = prim.local_box();
+                let flip = if part.mirrored { Vec3::new(-1.0, 1.0, 1.0) } else { Vec3::ONE };
+                (Kind::Other, centre * flip * s, half * s)
+            }
         };
-        let rotation = part.rotation();
+        let rotation = part.rot;
         let axes = [rotation * Vec3::X, rotation * Vec3::Y, rotation * Vec3::Z];
         let extent = Vec3::new(radius_on(&axes, half, Vec3::X), radius_on(&axes, half, Vec3::Y), radius_on(&axes, half, Vec3::Z));
         let extent = if kind == Kind::Sphere { half } else { extent };
-        Self { name, part, kind, center: part.pos, axes, half, min: part.pos - extent, max: part.pos + extent }
+        let center = if offset == Vec3::ZERO { part.pos } else { part.pos + rotation * offset };
+        Self { name: &part.id, part, kind, center, axes, half, min: center - extent, max: center + extent }
     }
 
     fn interval(&self, n: Vec3) -> (f32, f32) {
@@ -102,6 +118,7 @@ impl<'a> Solid<'a> {
             }
             Kind::Cylinder => l.x.hypot(l.z) <= self.half.x && l.y.abs() <= self.half.y,
             Kind::Boxy => l.abs().cmple(self.half).all(),
+            Kind::Other => false,
         }
     }
 
@@ -159,9 +176,10 @@ fn find(parent: &mut [usize], mut x: usize) -> usize {
     x
 }
 
-/// Every finding for an asset, in a stable order.
-pub fn lint(asset: &PropAsset, options: &Options) -> Vec<Finding> {
-    let solids: Vec<Solid> = asset.parts.iter().map(|(name, part)| Solid::new(name, part)).collect();
+/// Every finding for a compiled asset's drawn parts, and its compile warnings, in a stable
+/// order.
+pub fn lint(compiled: &CompiledProp, options: &Options) -> Vec<Finding> {
+    let solids: Vec<Solid> = compiled.parts.iter().filter(|part| !part.hidden).map(Solid::new).collect();
     let n = solids.len();
     let mut out = Vec::new();
     let mut push = |code: &'static str, ids: Vec<&str>, fact: String| {
@@ -191,11 +209,22 @@ pub fn lint(asset: &PropAsset, options: &Options) -> Vec<Finding> {
     }
     let gap_of = |i: usize, j: usize| gaps.get(&(i.min(j), i.max(j))).copied();
 
-    // Floor contact. An asset whose top is at its origin hangs from it (format 1 has no
-    // sockets to say so), so the floor rules do not apply to it.
+    // Floor contact. A `hang` or `wall_mount` socket anchors the asset there instead, and a
+    // held one (`grip`) hangs from the hand. Without sockets, an asset whose top is at its
+    // origin hangs from it, so the floor rules do not apply to it either.
+    let hook = compiled.sockets.get("hang").or_else(|| compiled.sockets.get("grip"));
+    let mounted: Option<Vec<bool>> = if let Some(hook) = hook {
+        Some(solids.iter().map(|s| (s.min - JOIN).cmple(hook.pos).all() && hook.pos.cmple(s.max + JOIN).all()).collect())
+    } else {
+        compiled.sockets.get("wall_mount").map(|mount| {
+            let into = mount.rot * Vec3::Y;
+            let reach = |s: &Solid| ((s.min + s.max) * 0.5 - mount.pos).dot(into) + ((s.max - s.min) * 0.5).dot(into.abs());
+            solids.iter().map(|s| reach(s) >= -JOIN).collect()
+        })
+    };
     let hangs = hi.y.abs() <= 0.02 && lo.y < -JOIN;
     let below: Vec<&str> = solids.iter().filter(|s| s.min.y < -JOIN).map(|s| s.name).collect();
-    if hangs {
+    if hangs || mounted.is_some() {
     } else if !below.is_empty() {
         let fact = format!("{} reach{} y={} cm", names(&below, 4), if below.len() == 1 { "es" } else { "" }, cm(lo.y));
         push("below_floor", below.clone(), fact);
@@ -212,7 +241,9 @@ pub fn lint(asset: &PropAsset, options: &Options) -> Vec<Finding> {
             parent[ri] = rj;
         }
     }
-    let anchored: Vec<bool> = if hangs || (lo.y > JOIN && hi.y.abs() <= 0.02) {
+    let anchored: Vec<bool> = if let Some(mounted) = mounted {
+        mounted
+    } else if hangs || (lo.y > JOIN && hi.y.abs() <= 0.02) {
         solids.iter().map(|s| s.max.y >= -JOIN).collect()
     } else if lo.y <= JOIN {
         solids.iter().map(|s| s.min.y <= JOIN).collect()
@@ -390,7 +421,7 @@ pub fn lint(asset: &PropAsset, options: &Options) -> Vec<Finding> {
         // mirror image of the other's (in either direction, since the shapes are symmetric).
         let flip = |v: Vec3| Vec3::new(-v.x, v.y, v.z);
         let axes: &[usize] = match s.kind {
-            Kind::Boxy => &[0, 1, 2],
+            Kind::Boxy | Kind::Other => &[0, 1, 2],
             Kind::Capsule | Kind::Cylinder => &[1],
             Kind::Sphere => &[],
         };
@@ -428,13 +459,16 @@ pub fn lint(asset: &PropAsset, options: &Options) -> Vec<Finding> {
     if !tiny.is_empty() {
         push("tiny", tiny.clone(), format!("{} under 2 cm (about a pixel in game)", names(&tiny, 4)));
     }
-    if size.max_element() < 0.05 || size.max_element() > 30.0 {
-        push("unit_suspect", vec![], format!("{}x{}x{} cm; positions and sizes are metres", cm(size.x), cm(size.y), cm(size.z)));
-    }
+    // The compile warnings, but its box-contact `floating`: the gaps above are exact.
+    out.extend(compiled.warnings.iter().filter(|w| w.code != "floating").cloned());
     let plain: Vec<&str> =
         solids.iter().filter(|s| s.part.color == "#e8704a" && s.part.look == Look::Cel).map(|s| s.name).collect();
     if !plain.is_empty() {
-        push("default_color", plain.clone(), format!("{} use the default orange #e8704a", names(&plain, 4)));
+        out.push(Finding {
+            code: "default_color",
+            ids: plain.iter().map(|s| s.to_string()).collect(),
+            line: format!("default_color: {} use the default orange #e8704a", names(&plain, 4)),
+        });
     }
     out
 }
@@ -451,15 +485,20 @@ pub fn lines(findings: &[Finding]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::props::get;
+    use crate::props::{Doc, PropAsset, compile, get};
+
+    fn compiled(asset: &PropAsset) -> CompiledProp {
+        compile::compile(&Doc::from_v1(asset), &|_| None, 0).unwrap()
+    }
 
     fn codes(asset: &PropAsset, options: &Options) -> Vec<String> {
-        lint(asset, options).into_iter().map(|f| f.line).collect()
+        lint(&compiled(asset), options).into_iter().map(|f| f.line).collect()
     }
 
     fn reference() -> Vec<PropAsset> {
-        let mut assets: Vec<PropAsset> =
-            ["BUILTIN/box", "BUILTIN/crate", "BUILTIN/bench", "BUILTIN/lantern"].map(|n| (*get(n).unwrap()).clone()).into();
+        let mut assets: Vec<PropAsset> = ["BUILTIN/box", "BUILTIN/crate", "BUILTIN/bench", "BUILTIN/lantern"]
+            .map(|n| (**get(n).unwrap().v1.as_ref().unwrap()).clone())
+            .into();
         for text in [
             include_str!("../../tests/fixtures/props/dogfood_stall_v1.json"),
             include_str!("../../tests/fixtures/props/dogfood_well_v1.json"),
@@ -491,7 +530,7 @@ mod tests {
 
     #[test]
     fn seven_planted_defects_give_exactly_their_codes() {
-        let bench = get("BUILTIN/bench").unwrap();
+        let bench = get("BUILTIN/bench").unwrap().v1.clone().unwrap();
         let planted = bench
             .patch(&serde_json::json!([
                 {"op":"add","part":"lamp","value":{"shape":{"type":"sphere","radius":0.08},"pos":[0,2,0],"color":"#ffd58c"}},
@@ -503,7 +542,7 @@ mod tests {
             ]))
             .unwrap();
         let options = Options { target_cm: Some([Some(180.0), Some(90.0), Some(60.0)]) };
-        let found = lint(&planted, &options);
+        let found = lint(&compiled(&planted), &options);
         let mut seen: Vec<&str> = found.iter().map(|f| f.code).collect();
         seen.sort();
         assert_eq!(seen, ["below_floor", "floating", "hidden", "mirror", "poke", "size", "z_fight"], "{found:#?}");
@@ -539,6 +578,7 @@ mod tests {
             );
         }
         let asset = PropAsset::parse(&format!(r#"{{"format":1,"name":"wall","parts":{{{parts}}}}}"#)).unwrap();
+        let asset = compiled(&asset);
         let started = std::time::Instant::now();
         let found = lint(&asset, &Options::default());
         let elapsed = started.elapsed().as_secs_f64() * 1000.0;

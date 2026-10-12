@@ -147,6 +147,9 @@ pub fn t_asset_preview(s: &mut Session, a: &Args) -> Result<Output> {
         s.sim.prop_preview_open(Some(&requested)).map_err(|e| anyhow!(e))?;
         s.sim.prop_preview_change(&change).map_err(|e| anyhow!(e))?;
         switch_camera(s, before_mode)?;
+        if before_name.as_deref() != Some(&requested) {
+            s.clear_particles();
+        }
         if before_name.as_deref() != Some(&requested) || action == "fit" {
             fit_camera(s)?;
         }
@@ -284,7 +287,8 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
     let asset = props::get(&name).ok_or_else(|| anyhow!("no prop '{name}'"))?;
     let bounds = asset.bounds(1.0);
     let lift = -Vec3::Y * bounds.min.y;
-    let mut points: Vec<Vec3> = asset.parts.values().flat_map(|part| part.hull(1.0)).map(|p| p + lift).collect();
+    let drawn = asset.compiled.parts.iter().filter(|part| !part.hidden);
+    let mut points: Vec<Vec3> = drawn.flat_map(|part| part.hull(1.0)).map(|p| p + lift).collect();
     let wanted = opt_bool(a, "figure")?.unwrap_or(false);
     let figure = wanted && (0.5..=20.0).contains(&bounds.size().max_element());
     if figure {
@@ -293,6 +297,8 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
     }
     let checkpoint = StudioCheckpoint::new(s);
     let events = std::mem::take(&mut s.events);
+    // The sheet's subject starts with its own particles, and leaves none on the stage.
+    s.clear_particles();
     let shots = (|| -> Result<Vec<Vec<u8>>> {
         s.sim.prop_preview_open(Some(&name)).map_err(|e| anyhow!(e))?;
         let still = PropPreviewChange {
@@ -316,6 +322,7 @@ fn sheet(s: &mut Session, a: &Args) -> Result<Output> {
     })();
     checkpoint.restore(s);
     s.events = events;
+    s.clear_particles();
     let shots = shots?;
     let (width, height, rgba) = pav_render::capture::tile_frames(&shots, tile, tile, views.len().min(4) as u32);
     let png = pav_render::capture::encode_png(width, height, &rgba)?;
@@ -415,7 +422,7 @@ fn instance(s: &Session, entity: &Entity, active: bool) -> Value {
     };
     json!({
         "id": entity.id.0, "name": entity.name, "asset": prop.asset,
-        "revision": prop.definition.revision(), "pos": entity.pos,
+        "revision": prop.definition.revision, "pos": entity.pos,
         "yaw": yaw.to_degrees(), "pitch": pitch.to_degrees(), "roll": roll.to_degrees(),
         "scale": prop.scale, "collide": prop.collide, "room": room, "active": active,
         "bounds": prop.bounds_at(entity.pos, entity.rot),

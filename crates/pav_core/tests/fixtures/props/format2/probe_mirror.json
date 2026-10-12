@@ -1,0 +1,17 @@
+{"format":2,"name":"probe_mirror","unit":"cm",
+"description":"Mirrored group with off-axis children (hand, outward flag), mirrored rolled bar, nested surface defaults.",
+"materials":{
+"blue":{"color":"#3050d0"},
+"metal":{"color":"#8a8f99"},
+"red":{"color":"#d04030"},
+"wood":{"color":"#8a5a35"}},
+"parts":{
+"arm":{"pos":[10,80,0],"mirror":"x","parts":{
+  "beam":{"type":"box","size":[40,4,4],"pos":[20,0,0],"mat":"metal"},
+  "flag":{"type":"extrude","points":[[0,0],[20,6],[0,12]],"depth":1,"pos":[40,4,0],"mat":"blue"},
+  "hand":{"type":"sphere","radius":5,"pos":[40,0,0],"mat":"red"}}},
+"outer":{"pos":[0,0,30],"mat":"wood","parts":{
+  "inner":{"color":"#30c040","parts":{
+    "cube":{"type":"box","size":[12,12,12],"pos":[0,6,0]}}}}},
+"post":{"type":"box","size":[6,100,6],"pos":[0,50,0],"mat":"metal"},
+"tilted":{"type":"box","size":[30,4,4],"pos":[25,30,0],"roll":20,"mat":"blue","mirror":"x"}}}

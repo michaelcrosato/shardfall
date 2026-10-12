@@ -13,6 +13,7 @@ use serde::Serialize;
 use super::doc::{Anchor, Attach, Axis, Dir, Doc, Kind, Material, MaterialEntry, Node, Prim, PrimType, Replicate, Surface};
 use super::geom::{self, Generated, Primitive};
 use super::lint::Finding;
+use super::read::v2::{MAX_FX, MAX_LIGHTS};
 use super::{Bounds, PropDef, fnv};
 use crate::issue::{Code, Issue};
 use crate::shape::{Look, Sway};
@@ -21,6 +22,8 @@ use crate::shape::{Look, Sway};
 pub const MAX_PARTS: usize = 1_024;
 /// Distinct generated meshes per asset.
 pub const MAX_MESHES: usize = 64;
+/// Shapes in one prop's physics compound.
+pub const MAX_COLLIDERS: usize = 256;
 /// References inside references.
 pub const MAX_REF_DEPTH: u8 = 3;
 /// Spheres and capsules (signed distance fields) before `sdf_heavy`.
@@ -77,7 +80,40 @@ pub struct ResolvedPart {
     pub mirrored: bool,
     /// The emissive glow may light the surroundings (the part has no light of its own).
     pub glow_light: bool,
-    pub aabb: Bounds,
+    /// The centre and half size of the part's box (its position for centred shapes): exact
+    /// for every shape but arcs, and format 1's own bounds for its shapes.
+    pub centre: Vec3,
+    pub extent: Vec3,
+}
+
+impl ResolvedPart {
+    /// The part's box for an instance at `scale`.
+    pub fn bounds(&self, scale: f32) -> Bounds {
+        let (centre, extent) = (self.centre * scale, self.extent * scale);
+        Bounds { min: centre - extent, max: centre + extent }
+    }
+
+    /// Points whose hull is the drawn shape, in the asset's frame for an instance at `scale`:
+    /// cameras frame these to fit what is drawn, not its bounding box.
+    pub fn hull(&self, scale: f32) -> Vec<Vec3> {
+        let flip = if self.mirrored { Vec3::new(-1.0, 1.0, 1.0) } else { Vec3::ONE };
+        self.prim.hull().into_iter().map(|p| (self.pos + self.rot * (p * flip * self.scale)) * scale).collect()
+    }
+}
+
+impl CompiledProp {
+    /// The parts' box for an instance at `scale`; format 1's bounds bit for bit.
+    pub fn bounds_at(&self, scale: f32) -> Bounds {
+        if scale == 1.0 {
+            return self.bounds;
+        }
+        self.parts.iter().map(|part| part.bounds(scale)).reduce(Bounds::union).unwrap_or(self.bounds)
+    }
+
+    /// Shapes in the physics compound of the solid parts (hidden ones included).
+    pub fn collider_shapes(&self) -> usize {
+        self.parts.iter().filter(|part| part.solid).map(|part| part.prim.collider_shapes()).sum()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -133,6 +169,7 @@ pub fn compile(doc: &Doc, deps: Deps, seed: u32) -> Result<CompiledProp, Vec<Iss
         siblings: HashMap::new(),
         out: CompiledProp::default(),
         issues: Vec::new(),
+        remap: None,
     };
     let mut levels = vec![Level::of(&doc.surface)];
     compiler.nodes(&doc.parts, None, &Frame::IDENTITY, &mut levels, 1.0, "", "parts");
@@ -162,9 +199,13 @@ impl Frame {
         self.t + self.vector(p) * self.s
     }
 
-    /// A frame inside this one: (Q1 D1)(Q2 D2) = Q1 (D1 Q2 D1) D1 D2.
+    /// A frame inside this one: (Q1 D1)(Q2 D2) = Q1 (D1 Q2 D1) D1 D2. An identity turn is
+    /// skipped, not multiplied, so a format-1 part keeps its rotation bit for bit (signed
+    /// zeros included).
     fn then(&self, local: &Frame) -> Frame {
-        Frame { t: self.point(local.t), q: self.q * reflected(self.d, local.q), d: self.d * local.d, s: self.s * local.s }
+        let q = reflected(self.d, local.q);
+        let q = if self.q == Quat::IDENTITY { q } else { self.q * q };
+        Frame { t: self.point(local.t), q, d: self.d * local.d, s: self.s * local.s }
     }
 
     /// An odd number of mirrors: the shape is drawn with local x reflected.
@@ -175,7 +216,8 @@ impl Frame {
     /// The proper rotation a part is drawn with: a mirrored frame reflects local x instead.
     fn rotation(&self) -> Quat {
         let d = if self.mirrored() { self.d * Vec3::new(-1.0, 1.0, 1.0) } else { self.d };
-        self.q * half_turns(d)
+        let turn = half_turns(d);
+        if turn == Quat::IDENTITY { self.q } else { self.q * turn }
     }
 }
 
@@ -264,6 +306,9 @@ struct Compiler<'a> {
     siblings: HashMap<usize, Rc<Vec<Child<'a>>>>,
     out: CompiledProp,
     issues: Vec<Issue>,
+    /// Inside a reference: the referencing node's `remap` and the referencing document's
+    /// materials, which replace this document's materials of those keys.
+    remap: Option<(&'a BTreeMap<String, String>, &'a BTreeMap<String, MaterialEntry>)>,
 }
 
 /// Format 1's angles: YXZ, degrees.
@@ -306,15 +351,6 @@ fn corners(frame: &Frame, centre: Vec3, half: Vec3) -> [Vec3; 8] {
         let sign = |bit: usize| if i & bit == 0 { -1.0 } else { 1.0 };
         frame.point(centre + half * Vec3::new(sign(1), sign(2), sign(4)))
     })
-}
-
-/// The axis-aligned box around a box in a frame: its centre placed, its half extents through
-/// the absolute rotation (mirrors only flip signs, so they drop out).
-fn placed_box(frame: &Frame, centre: Vec3, half: Vec3) -> (Vec3, Vec3) {
-    let m = Mat3::from_quat(frame.q);
-    let extent = Mat3::from_cols(m.x_axis.abs(), m.y_axis.abs(), m.z_axis.abs()) * (half * frame.s);
-    let centre = frame.point(centre);
-    (centre - extent, centre + extent)
 }
 
 fn aabb(points: impl IntoIterator<Item = Vec3>) -> Option<(Vec3, Vec3)> {
@@ -730,9 +766,11 @@ impl<'a> Compiler<'a> {
         Some(ranked.into_iter().take(n).map(|(_, name)| name).collect())
     }
 
-    /// The material behind a key, when it is written inline.
+    /// The material behind a key, when it is written inline (a referencing document's, when
+    /// its `remap` swaps the key).
     fn material(&self, key: &str) -> Option<&Material> {
-        match self.doc.materials.get(key) {
+        let swapped = self.remap.and_then(|(remap, materials)| materials.get(remap.get(key)?));
+        match swapped.or_else(|| self.doc.materials.get(key)) {
             Some(MaterialEntry::Inline(material)) => Some(material),
             _ => None,
         }
@@ -762,18 +800,21 @@ impl<'a> Compiler<'a> {
         };
         let look = self.cascade(levels, |l| l.look, |m| m.look).unwrap_or_default();
         let emissive = self.cascade(levels, |l| l.emissive, |m| m.emissive).unwrap_or(0.0);
-        let mat = levels.iter().rev().find_map(|l| l.mat).map(String::from);
+        let mat = levels
+            .iter()
+            .rev()
+            .find_map(|l| l.mat)
+            .map(|key| self.remap.and_then(|(remap, _)| remap.get(key)).map_or(key, String::as_str).to_owned());
         let solid = levels.iter().rev().find_map(|l| l.solid).unwrap_or(true);
         let (mirrored, rot) = (world.mirrored(), world.rotation());
-        let (centre, half) = prim.local_box();
-        let (min, max) = placed_box(world, centre, half);
         let pos = world.t;
+        let (centre, extent) = prim.placed_box(pos, rot, world.s, mirrored);
         if let Some(light) = &node.light {
             self.out.lights.push(PartLight {
                 part: id.to_owned(),
                 pos,
                 color: light.color.clone().unwrap_or_else(|| "#ffd9a0".into()),
-                radius: light.radius.map_or(6.0, |r| self.length(r)),
+                radius: light.radius.map_or(6.0, |r| self.length(r)) * world.s,
                 intensity: light.intensity.unwrap_or(1.5),
                 flicker: light.flicker.unwrap_or(0.0),
                 pulse: light.pulse.unwrap_or(0.0),
@@ -790,7 +831,7 @@ impl<'a> Compiler<'a> {
                 size: fx.size.unwrap_or(1.0),
                 speed: fx.speed.unwrap_or(1.0),
                 life: fx.life.unwrap_or(1.0),
-                area: fx.area.map_or(Vec3::ZERO, |a| self.vector(a)),
+                area: fx.area.map_or(Vec3::ZERO, |a| self.vector(a)) * world.s,
             });
         }
         self.out.parts.push(ResolvedPart {
@@ -809,12 +850,15 @@ impl<'a> Compiler<'a> {
             sway: node.sway.unwrap_or_default(),
             mirrored,
             glow_light: node.light.is_none(),
-            aabb: Bounds { min, max },
+            centre,
+            extent,
         });
     }
 
-    /// A reference inlines its asset's resolved parts as `id.part`; `remap` swaps its materials
-    /// for this document's.
+    /// A reference resolves the referenced document in place, as `id.part`: with this seed and
+    /// its parts' full ids, so each copy varies on its own, and with `remap` swapping materials
+    /// inside its surface cascade, so its explicit colours still win. Its own references resolve
+    /// to the definitions it compiled against.
     fn reference(&mut self, path: &dyn Fn() -> String, id: &str, node: &Node, name: &str, world: &Frame, tint: f32) {
         let Some(def) = (self.deps)(name) else {
             self.issue(&path(), Code::UnknownAsset, format!("no asset \"{name}\""));
@@ -824,46 +868,23 @@ impl<'a> Compiler<'a> {
             self.issue(&path(), Code::Limit, format!("{name} nests references {} deep", def.ref_depth + 1));
             return;
         }
-        for part in &def.compiled.parts {
-            let d = if part.mirrored { Vec3::new(-1.0, 1.0, 1.0) } else { Vec3::ONE };
-            let frame = world.then(&Frame { t: part.pos, q: part.rot, d, s: part.scale });
-            let (centre, half) = part.prim.local_box();
-            let (min, max) = placed_box(&frame, centre, half);
-            let mut resolved = ResolvedPart {
-                id: format!("{id}.{}", part.id),
-                pos: frame.t,
-                rot: frame.rotation(),
-                scale: frame.s,
-                tint: part.tint * tint,
-                mirrored: frame.mirrored(),
-                aabb: Bounds { min, max },
-                ..part.clone()
-            };
-            let swap = part.mat.as_ref().and_then(|key| node.remap.as_ref()?.get(key)).cloned();
-            if let Some(material) = swap.as_deref().and_then(|key| self.material(key)) {
-                resolved.color = material.color.clone().unwrap_or(resolved.color);
-                resolved.look = material.look.unwrap_or(resolved.look);
-                resolved.emissive = material.emissive.unwrap_or(resolved.emissive);
-                resolved.mat = swap;
-            }
-            self.out.parts.push(resolved);
-        }
-        for light in &def.compiled.lights {
-            self.out.lights.push(PartLight {
-                part: format!("{id}.{}", light.part),
-                pos: world.point(light.pos),
-                radius: light.radius * world.s,
-                ..light.clone()
-            });
-        }
-        for fx in &def.compiled.fx {
-            self.out.fx.push(PartFx {
-                part: format!("{id}.{}", fx.part),
-                pos: world.point(fx.pos),
-                area: fx.area * world.s,
-                ..fx.clone()
-            });
-        }
+        let deps = |name: &str| def.dep(name);
+        let mut inner = Compiler {
+            doc: &def.doc,
+            deps: &deps,
+            seed: self.seed,
+            unit: 1.0 / def.doc.unit.per_metre(),
+            siblings: HashMap::new(),
+            out: CompiledProp::default(),
+            issues: Vec::new(),
+            remap: node.remap.as_ref().map(|remap| (remap, &self.doc.materials)),
+        };
+        let mut levels = vec![Level::of(&def.doc.surface)];
+        inner.nodes(&def.doc.parts, None, world, &mut levels, tint, &format!("{id}."), &path());
+        self.out.parts.append(&mut inner.out.parts);
+        self.out.lights.append(&mut inner.out.lights);
+        self.out.fx.append(&mut inner.out.fx);
+        self.issues.append(&mut inner.issues);
     }
 
     fn sockets(&mut self) {
@@ -914,8 +935,25 @@ impl<'a> Compiler<'a> {
                     .fix("reuse sizes and angles: equal tapers, arcs and profiles share one mesh"),
             );
         }
+        // The checker counts these too; references' own are known only once they resolve.
+        for (what, count, max) in [("lights", self.out.lights.len(), MAX_LIGHTS), ("fx", self.out.fx.len(), MAX_FX)] {
+            if count > max {
+                self.issues.push(
+                    Issue::error("parts", Code::Limit, format!("{count} {what} after copies")).expected(format!("at most {max}")),
+                );
+            }
+        }
+        let colliders = self.out.collider_shapes();
+        if colliders > MAX_COLLIDERS {
+            self.issues.push(
+                Issue::error("parts", Code::Limit, format!("{colliders} collision shapes from solid parts"))
+                    .expected(format!("at most {MAX_COLLIDERS}"))
+                    .fix("mark decorative parts solid:false"),
+            );
+        }
+        let parts = &self.out.parts;
         self.out.bounds =
-            parts.iter().map(|p| p.aabb).reduce(Bounds::union).unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO });
+            parts.iter().map(|p| p.bounds(1.0)).reduce(Bounds::union).unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO });
         self.warnings();
     }
 
@@ -942,12 +980,13 @@ impl<'a> Compiler<'a> {
             i
         }
         // Sweep along x: only boxes that overlap in x are compared.
+        let boxes: Vec<Bounds> = parts.iter().map(|p| p.bounds(1.0)).collect();
         let mut order: Vec<usize> = (0..parts.len()).collect();
-        order.sort_by(|&i, &j| parts[i].aabb.min.x.total_cmp(&parts[j].aabb.min.x).then(i.cmp(&j)));
+        order.sort_by(|&i, &j| boxes[i].min.x.total_cmp(&boxes[j].min.x).then(i.cmp(&j)));
         for (k, &i) in order.iter().enumerate() {
-            let a = parts[i].aabb;
+            let a = boxes[i];
             for &j in &order[k + 1..] {
-                let b = parts[j].aabb;
+                let b = boxes[j];
                 if b.min.x > a.max.x + JOIN {
                     break;
                 }
@@ -1074,8 +1113,10 @@ mod tests {
 
     #[test]
     fn format1_assets_compile_to_exactly_their_own_parts() {
-        let mut assets: Vec<Arc<PropAsset>> =
-            ["box", "crate", "bench", "lantern"].iter().map(|n| get(&format!("BUILTIN/{n}")).unwrap()).collect();
+        let mut assets: Vec<Arc<PropAsset>> = ["box", "crate", "bench", "lantern"]
+            .iter()
+            .map(|n| get(&format!("BUILTIN/{n}")).unwrap().v1.clone().unwrap())
+            .collect();
         for text in [
             include_str!("../../tests/fixtures/props/dogfood_stall_v1.json"),
             include_str!("../../tests/fixtures/props/dogfood_well_v1.json"),
@@ -1087,8 +1128,9 @@ mod tests {
             assert_eq!(compiled.parts.len(), asset.parts.len());
             for (part, (name, v1)) in compiled.parts.iter().zip(&asset.parts) {
                 assert_eq!(&part.id, name);
-                assert_eq!(part.pos, v1.pos, "{name}: positions are exact");
-                assert_eq!(part.rot, v1.rotation(), "{name}: rotations are exact");
+                let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+                assert_eq!(bits(&part.pos.to_array()), bits(&v1.pos.to_array()), "{name}: positions are exact");
+                assert_eq!(bits(&part.rot.to_array()), bits(&v1.rotation().to_array()), "{name}: rotations are exact");
                 let expected = match v1.shape {
                     Shape::Box { half } => Primitive::Box { half },
                     Shape::RoundedBox { half, radius } => Primitive::RoundedBox { half, radius },
@@ -1106,11 +1148,9 @@ mod tests {
                     (v1.color.as_str(), v1.look, v1.emissive, v1.solid)
                 );
                 assert!(!part.mirrored && !part.hidden && part.scale == 1.0 && part.tint == 1.0 && part.glow_light);
-                let v1_bounds = v1.bounds(1.0);
-                assert!(
-                    part.aabb.min.cmple(v1_bounds.min + 1e-6).all() && part.aabb.max.cmpge(v1_bounds.max - 1e-6).all(),
-                    "{name}"
-                );
+                for scale in [1.0, 0.37, 2.5] {
+                    assert_eq!(part.bounds(scale), v1.bounds(scale), "{name}: format 1's bounds, bit for bit");
+                }
                 assert!(Generated::of(&part.prim, false).is_none(), "{name}: format 1 needs no generated mesh");
             }
         }
@@ -1156,7 +1196,7 @@ mod tests {
 
     #[test]
     fn references_inline_their_parts_through_scale_and_mirrors() {
-        let lantern = crate::props::def("BUILTIN/lantern").unwrap();
+        let lantern = crate::props::get("BUILTIN/lantern").unwrap();
         let deps = |name: &str| (name == "BUILTIN/lantern").then(|| lantern.clone());
         let pair = doc(r#"{"format":2,"name":"pair","unit":"m","parts":{
 "lamp":{"ref":"BUILTIN/lantern","pos":[1,0,0],"scale":0.5,"mirror":"x"}}}"#);
@@ -1199,6 +1239,15 @@ mod tests {
         let text = format!(r##"{{"format":2,"name":"cones","unit":"cm","color":"#808080","parts":{{{}}}}}"##, cones.join(","));
         let issues = compile(&doc(&text), &none, 0).unwrap_err();
         assert!(crate::issue::render(&issues).starts_with("parts: 65 different generated shapes (expected at most 64)"));
+        // A tube is 12 collision boxes: 22 solid tubes are 264 shapes, past the compound's 256.
+        let mut tubes = doc(r##"{"format":2,"name":"pipes","unit":"cm","color":"#808080","parts":{
+"pipe":{"type":"tube","radius":5,"thickness":1,"height":20,"array":{"count":22,"step":[12,0,0]}}}}"##);
+        assert_eq!(
+            crate::issue::render(&compile(&tubes, &none, 0).unwrap_err()),
+            "parts: 264 collision shapes from solid parts (expected at most 256) — mark decorative parts solid:false"
+        );
+        tubes.parts.get_mut("pipe").unwrap().surface.solid = Some(false);
+        assert_eq!(compile(&tubes, &none, 0).unwrap().collider_shapes(), 0);
     }
 
     #[test]
@@ -1209,12 +1258,13 @@ mod tests {
             r#""type":"cone","radius":2,"radius_end":1,"height":4"#,
             r#""type":"tube","radius":2,"thickness":0.5,"height":4,"arc":180"#,
         ];
-        // Rows of stacked parts that touch, as a big real asset would.
+        // Rows of stacked parts that touch, as a big real asset would; decorative, since a
+        // prop collides with at most 256 shapes.
         let groups: Vec<String> = (0..4)
             .map(|g| {
                 let children: Vec<String> = (0..4).map(|c| format!(r#""p{c}":{{{},"pos":[0,{},0]}}"#, kinds[c], c * 4)).collect();
                 format!(
-                    r#""g{g}":{{"pos":[0,0,{}],"mat":"m","array":{{"count":64,"step":[4,0,0]}},"parts":{{{}}}}}"#,
+                    r#""g{g}":{{"pos":[0,0,{}],"mat":"m","solid":false,"array":{{"count":64,"step":[4,0,0]}},"parts":{{{}}}}}"#,
                     g * 4,
                     children.join(",")
                 )

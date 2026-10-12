@@ -1,0 +1,17 @@
+{"format":2,"name":"probe_attach","unit":"cm",
+"description":"Knob on a grip drawn top-down; cube on a horizontal from/to beam (default at=top); capsule by height vs from/to; radial order around y and z.",
+"materials":{
+"blue":{"color":"#3050d0"},
+"green":{"color":"#30c040"},
+"grey":{"color":"#8a8f99"},
+"red":{"color":"#d04030"}},
+"parts":{
+"beam":{"type":"box","size":[6,6],"from":[-40,120,0],"to":[40,120,0],"mat":"grey"},
+"cap_fromto":{"type":"capsule","radius":5,"from":[60,0,0],"to":[60,30,0],"mat":"green"},
+"cap_height":{"type":"capsule","radius":5,"height":30,"pos":[40,15,0],"mat":"blue"},
+"cube":{"type":"box","size":[10,10,10],"attach":"beam","mat":"blue"},
+"grip":{"type":"cylinder","radius":3,"from":[0,100,0],"to":[0,40,0],"mat":"grey"},
+"knob":{"type":"sphere","radius":6,"attach":"grip","mat":"red"},
+"ruler":{"type":"box","size":[2,30,2],"pos":[50,15,0],"mat":"grey"},
+"spokes_y":{"type":"box","size":[6,6,6],"pos":[-60,10,0],"radial":{"count":4,"radius":20,"cycle":["red","blue","grey","grey"]}},
+"spokes_z":{"type":"box","size":[6,6,6],"pos":[-60,70,0],"radial":{"count":4,"radius":20,"axis":"z","cycle":["red","blue","grey","grey"]}}}}

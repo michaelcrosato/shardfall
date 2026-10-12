@@ -153,12 +153,12 @@ impl PropPreviewState {
         self.info_with(definition.as_deref())
     }
 
-    fn info_with(&self, definition: Option<&props::PropAsset>) -> PropPreviewInfo {
+    fn info_with(&self, definition: Option<&props::PropDef>) -> PropPreviewInfo {
         PropPreviewInfo {
             name: self.name.clone(),
-            revision: definition.map(|d| d.revision()).unwrap_or_default(),
+            revision: definition.map(|d| d.revision.clone()).unwrap_or_default(),
             available: definition.is_some(),
-            parts: definition.map(|d| d.parts.len()).unwrap_or(0),
+            parts: definition.map(|d| d.compiled.parts.len()).unwrap_or(0),
             bounds: definition.map(|d| d.bounds(self.scale)).unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO }),
             time: self.time,
             playing: self.playing,
