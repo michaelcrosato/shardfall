@@ -225,7 +225,7 @@ fn views(value: &Value, tilt: f32) -> Result<Vec<View>> {
 }
 
 /// A camera that fits `points` in a square tile from one side, the larger extent at about 80%.
-fn sheet_camera(points: &[Vec3], yaw: f32, tilt: f32, fov: f32) -> pav_view::CameraRig {
+pub(crate) fn sheet_camera(points: &[Vec3], yaw: f32, tilt: f32, fov: f32) -> pav_view::CameraRig {
     let (lo, hi) = points.iter().fold((Vec3::MAX, Vec3::MIN), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
     let center = (lo + hi) * 0.5;
     let params = pav_view::CameraParams { tilt, yaw, distance: 1.0, fov, ortho: false, follow_lag: 0.0, height_offset: 0.0 };

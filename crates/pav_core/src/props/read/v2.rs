@@ -13,8 +13,8 @@ use super::{amount, color_fix, is_color, look_hint, number, wrong_type};
 use crate::issue::{self, Code, Issue, join};
 use crate::params::ChoiceParam;
 use crate::props::doc::{
-    Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Layer, Light, MapMode, Material, MaterialEntry,
-    Node, PRESETS, Pattern, Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
+    Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Light, Material, MaterialEntry, Node, PRESETS,
+    Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
 };
 use crate::props::{MAX_PARTS, PropDef, validate_name, validate_part_name};
 use crate::shape::{Look, Sway};
@@ -152,39 +152,6 @@ pub const MATERIAL_FIELDS: &[(&str, &str)] = &[
     ("scale", "0.1-10: multiplies every layer size"),
     ("turn", "true: patterns turn 90 degrees"),
     ("layers", "up to 3 pattern layers, bottom first: [{type,...}]"),
-];
-
-/// Layer parameters in canonical order.
-const LAYER_KEYS: &[&str] = &[
-    "type",
-    "size",
-    "radius",
-    "offset",
-    "jitter",
-    "feature",
-    "gap",
-    "bevel",
-    "vary",
-    "cells",
-    "cavity",
-    "shape",
-    "detail",
-    "depth",
-    "distort",
-    "rings",
-    "from",
-    "to",
-    "axis",
-    "angle",
-    "cover",
-    "soft",
-    "color",
-    "shade",
-    "strength",
-    "glow",
-    "facing",
-    "masked_by",
-    "seed",
 ];
 
 /// The fields a node kind takes besides the shape fields, in canonical order.
@@ -686,16 +653,21 @@ impl Reader<'_> {
         self.choice(path, value, "look", names, parse, |text| look_hint(text).map(String::from))
     }
 
-    /// A material key here. Library materials (`MAT/…`) are not available yet.
+    /// A material key here, or a library material (`MAT/…`). A library name the library lacks
+    /// reads (a snapshot keeps naming a material that is gone); `check` reports it.
     fn material_ref(&mut self, path: &str, value: &Value) -> Option<String> {
         let name = self.text(path, value)?;
         if self.materials.contains(&name) {
             return Some(name);
         }
-        let issue = if name.starts_with("MAT/") {
-            Issue::error(path, Code::UnknownMaterial, format!("no library material \"{name}\""))
-                .fix("library materials are not available yet: write one under materials")
-        } else if self.materials.is_empty() {
+        if let Some(issue) = library_name_problem(path, &name) {
+            self.push(issue);
+            return None;
+        }
+        if name.starts_with(crate::material::PREFIX) {
+            return Some(name);
+        }
+        let issue = if self.materials.is_empty() {
             Issue::error(path, Code::UnknownMaterial, format!("no material \"{name}\""))
                 .fix(format!("add \"materials\":{{\"{name}\":{{\"color\":\"#rrggbb\"}}}} or use color"))
         } else {
@@ -922,135 +894,32 @@ impl Reader<'_> {
         Some(Fit { parts_hash: object.get("parts_hash").and_then(|v| self.text("fit.parts_hash", v)), ..fit })
     }
 
+    /// A materials entry: a library material's name, or a material written here, read as
+    /// material files are (`material::read_inline`) in this asset's unit.
     fn material(&mut self, path: &str, value: &Value) -> Option<MaterialEntry> {
         if let Value::String(name) = value {
-            let fix = if name.starts_with("MAT/") {
-                "library materials are not available yet: write the material inline, {\"color\":\"#rrggbb\"}"
-            } else {
-                "write the material inline, {\"color\":\"#rrggbb\"}"
-            };
-            self.push(Issue::error(path, Code::UnknownMaterial, format!("no library material \"{name}\"")).fix(fix));
-            return None;
-        }
-        let object = self.object(path, value, &keys(MATERIAL_FIELDS), "material")?;
-        let at = |key: &str| join(path, key);
-        let base = object.get("base").and_then(|value| {
-            let name = self.text(&at("base"), value)?;
-            self.push(
-                Issue::error(at("base"), Code::UnknownMaterial, format!("no library material \"{name}\""))
-                    .fix("library materials are not available yet: give color and the other fields here"),
-            );
-            None::<String>
-        });
-        let material = Material {
-            base,
-            color: object.get("color").and_then(|v| self.color(&at("color"), v)),
-            look: object.get("look").and_then(|v| self.look(&at("look"), v, false)),
-            emissive: object.get("emissive").and_then(|v| self.ranged(&at("emissive"), v, 0.0, 32.0)),
-            roughness: object.get("roughness").and_then(|v| self.ranged(&at("roughness"), v, 0.0, 1.0)),
-            metallic: object.get("metallic").and_then(|v| self.ranged(&at("metallic"), v, 0.0, 1.0)),
-            map: object.get("map").and_then(|v| self.choice(&at("map"), v, "map", MapMode::NAMES, MapMode::parse, |_| None)),
-            scale: object.get("scale").and_then(|v| self.ranged(&at("scale"), v, 0.1, 10.0)),
-            turn: object.get("turn").and_then(|v| self.boolean(&at("turn"), v)),
-            layers: object.get("layers").and_then(|v| {
-                self.list(&at("layers"), v, 0..=MAX_LAYERS, "layers", |reader, path, value| reader.layer(path, value))
-            }),
-        };
-        if !object.contains_key("color") && !object.contains_key("base") {
-            self.push(Issue::error(at("color"), Code::Missing, "missing").fix("a material needs color"));
-        }
-        Some(MaterialEntry::Inline(material))
-    }
-
-    /// A pattern layer: the type's own parameters, the shared ones, and for cellular and 2D
-    /// patterns theirs.
-    fn layer(&mut self, path: &str, value: &Value) -> Option<Layer> {
-        let Some(object) = value.as_object() else {
-            self.push(wrong_type(path, "an object {type,...}", value));
-            return None;
-        };
-        let at = |key: &str| join(path, key);
-        let kind = match object.get("type") {
-            None => {
-                self.push(Issue::error(at("type"), Code::Missing, "missing").expected(Pattern::NAMES.join(", ")));
+            if let Some(issue) = library_name_problem(path, name) {
+                self.push(issue);
                 return None;
             }
-            Some(value) => self.choice(&at("type"), value, "pattern", Pattern::NAMES, Pattern::parse, |_| None)?,
-        };
-        use Pattern::*;
-        let own: &[&str] = match kind {
-            Noise => &["size", "detail", "distort", "cover", "soft"],
-            Voronoi => &["size", "jitter", "feature", "cover", "gap"],
-            Wave => &["size", "axis", "rings", "distort", "cover", "soft"],
-            Brick => &["size", "offset", "gap"],
-            Checker => &["size"],
-            Gradient => &["axis", "from", "to"],
-            Magic => &["size", "depth", "distort", "cover", "soft"],
-            Planks | Tiles => &["size", "gap"],
-            Cobbles => &["size", "jitter", "gap"],
-            Stripes => &["size", "cover", "axis", "soft"],
-            Dots => &["size", "radius", "offset", "jitter"],
-            Shingles => &["size", "shape", "gap"],
-            Wood => &["size", "axis", "distort", "cover", "soft"],
-        };
-        let cellular = matches!(kind, Voronoi | Brick | Planks | Tiles | Cobbles | Dots | Shingles);
-        let flat = cellular || kind == Checker;
-        let allowed: Vec<&'static str> = LAYER_KEYS
-            .iter()
-            .copied()
-            .filter(|key| {
-                *key == "type"
-                    || own.contains(key)
-                    || ["color", "shade", "strength", "glow", "facing", "masked_by", "seed"].contains(key)
-                    || (cellular && ["vary", "cells", "cavity", "bevel"].contains(key))
-                    || (flat && ["axis", "angle"].contains(key))
-            })
-            .collect();
-        self.unknown_keys(path, object, &allowed, "layer");
-        let mut params = Vec::new();
-        for key in allowed.iter().copied().filter(|key| *key != "type") {
-            let Some(value) = object.get(key) else { continue };
-            let path = at(key);
-            let ok = match key {
-                "size" => match value {
-                    Value::Array(_) if matches!(kind, Brick | Planks | Tiles | Shingles) => {
-                        self.list(&path, value, 2..=2, "sizes [w,h]", Self::length).is_some()
-                    }
-                    _ => self.length(&path, value).is_some(),
-                },
-                "radius" | "gap" | "bevel" => self.extent(&path, value).is_some(),
-                "from" | "to" => self.coordinate(&path, value).is_some(),
-                "detail" | "depth" => self.integer(&path, value, 1, 4).is_some(),
-                "seed" => self.integer(&path, value, 0, u32::MAX).is_some(),
-                "distort" => self.ranged(&path, value, 0.0, 10.0).is_some(),
-                "angle" => self.ranged(&path, value, -360.0, 360.0).is_some(),
-                "shade" => self.ranged(&path, value, 0.0, 2.0).is_some(),
-                "glow" => self.ranged(&path, value, 0.0, 8.0).is_some(),
-                "rings" => self.boolean(&path, value).is_some(),
-                "color" => self.color(&path, value).is_some(),
-                "cells" => self.list(&path, value, 2..=4, "colours", Self::color).is_some(),
-                "feature" => self.word(&path, value, "feature", &["spots", "edges", "cells"]).is_some(),
-                "shape" => self.word(&path, value, "shape", &["round", "square", "point"]).is_some(),
-                "facing" => self.word(&path, value, "facing", &["up", "down", "side"]).is_some(),
-                "masked_by" => self.word(&path, value, "mask", &["prev", "not_prev"]).is_some(),
-                "axis" => match value {
-                    Value::Array(_) => {
-                        self.list(&path, value, 3..=3, "numbers [x,y,z]", |r, p, v| r.ranged(p, v, -1.0, 1.0)).is_some()
-                    }
-                    _ => self.choice(&path, value, "axis", Axis::NAMES, Axis::parse, |_| None).is_some(),
-                },
-                _ => self.ranged(&path, value, 0.0, 1.0).is_some(),
-            };
-            if ok {
-                params.push((key, value.clone()));
+            if !name.starts_with(crate::material::PREFIX) {
+                self.push(
+                    Issue::error(path, Code::UnknownMaterial, format!("\"{name}\" is not a library material"))
+                        .fix(format!("name one as \"MAT/{name}\", or write it here: {{\"color\":\"#rrggbb\"}}")),
+                );
+                return None;
+            }
+            return Some(MaterialEntry::Library(name.clone()));
+        }
+        match crate::material::read_inline(value, path, self.unit) {
+            Ok(fields) => {
+                Some(MaterialEntry::Inline(Material { fields, written: value.as_object().cloned().unwrap_or_default() }))
+            }
+            Err(issues) => {
+                self.issues.extend(issues);
+                None
             }
         }
-        if object.contains_key("color") && object.contains_key("shade") {
-            self.push(
-                Issue::error(at("shade"), Code::Conflict, "a layer paints color or darkens by shade, not both").fix("keep one"),
-            );
-        }
-        Some(Layer { kind, params })
     }
 
     fn nodes(&mut self, path: &str, parts: &Map<String, Value>, inherit: Inherit, totals: &mut Totals) -> BTreeMap<String, Node> {
@@ -2293,6 +2162,18 @@ fn count_nodes(parts: &Map<String, Value>) -> usize {
 }
 
 /// Why a front-view outline cannot be extruded, if it cannot.
+/// A `MAT/…` name that is not written as a library name, or a guess at one (`mat/oak`).
+fn library_name_problem(path: &str, name: &str) -> Option<Issue> {
+    let library = name.get(..4).is_some_and(|head| head.eq_ignore_ascii_case(crate::material::PREFIX));
+    if !library || crate::material::is_library_name(name) {
+        return None;
+    }
+    let fixed = format!("{}{}", crate::material::PREFIX, name[4..].to_ascii_lowercase().replace([' ', '-'], "_"));
+    let issue = Issue::error(path, Code::UnknownMaterial, format!("\"{name}\" is not a library material name"))
+        .expected("MAT/ and lowercase words: MAT/oak_planks, MAT/pb/gold");
+    Some(if crate::material::is_library_name(&fixed) { issue.fix(format!("did you mean \"{fixed}\"?")) } else { issue })
+}
+
 fn polygon_problem(points: &[[f32; 2]]) -> Option<String> {
     let n = points.len();
     let cross = |o: [f32; 2], a: [f32; 2], b: [f32; 2]| (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -2585,10 +2466,12 @@ mod tests {
                 r#""a":{"type":"sphere","radius":5,"mat":"wod"}"#,
                 &[r#"parts.a.mat: no material "wod" (expected iron, wood) — did you mean "wood"?"#],
             ),
+            // A library material by name reads (one the library lacks is check's unknown_material).
+            (r#""a":{"type":"sphere","radius":5,"mat":"MAT/oak_planks"}"#, &[]),
             (
-                r#""a":{"type":"sphere","radius":5,"mat":"MAT/oak_planks"}"#,
+                r#""a":{"type":"sphere","radius":5,"mat":"MAT/Oak Planks"}"#,
                 &[
-                    r#"parts.a.mat: no library material "MAT/oak_planks" — library materials are not available yet: write one under materials"#,
+                    r#"parts.a.mat: "MAT/Oak Planks" is not a library material name (expected MAT/ and lowercase words: MAT/oak_planks, MAT/pb/gold) — did you mean "MAT/oak_planks"?"#,
                 ],
             ),
             (
@@ -2684,9 +2567,9 @@ mod tests {
             ),
             [
                 "materials.m.texture: unknown key — use layers:[{type,...}]",
-                r#"materials.m.layers[0].type: unknown pattern "plank" (expected noise, voronoi, wave, brick, checker, gradient, magic, planks, tiles, cobbles, stripes, dots, shingles, wood) — did you mean "planks"?"#,
+                r#"materials.m.layers[0].type: unknown pattern "plank" (expected noise, voronoi, wave, brick, checker, gradient, magic, planks, tiles, cobbles, stripes, dots, shingles, wood) — use planks"#,
                 r#"materials.n.look: unknown look "cutout" (expected flat, cel, lit, unlit)"#,
-                "materials.n.color: missing — a material needs color",
+                "materials.n.color: missing — a material needs color, or a base to inherit it from",
             ]
         );
         check(&[

@@ -330,7 +330,8 @@ pub fn lint(compiled: &CompiledProp, options: &Options) -> Vec<Finding> {
     };
     for (&(i, j), &g) in &gaps {
         let (a, b) = (&solids[i], &solids[j]);
-        if g > JOIN || (a.part.color == b.part.color && a.part.look == b.part.look) {
+        let surface = |p: &ResolvedPart| (p.color.clone(), p.mat.as_ref().map(|m| m.name.clone()), p.look);
+        if g > JOIN || surface(a.part) == surface(b.part) {
             continue;
         }
         let mut hit = None;
@@ -461,8 +462,11 @@ pub fn lint(compiled: &CompiledProp, options: &Options) -> Vec<Finding> {
     }
     // The compile warnings, but its box-contact `floating`: the gaps above are exact.
     out.extend(compiled.warnings.iter().filter(|w| w.code != "floating").cloned());
-    let plain: Vec<&str> =
-        solids.iter().filter(|s| s.part.color == "#e8704a" && s.part.look == Look::Cel).map(|s| s.name).collect();
+    let plain: Vec<&str> = solids
+        .iter()
+        .filter(|s| s.part.color.as_deref() == Some("#e8704a") && s.part.look == Look::Cel)
+        .map(|s| s.name)
+        .collect();
     if !plain.is_empty() {
         out.push(Finding {
             code: "default_color",

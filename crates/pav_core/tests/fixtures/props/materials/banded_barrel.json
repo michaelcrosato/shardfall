@@ -1,0 +1,14 @@
+{"format":2,"name":"banded_barrel","unit":"cm",
+"description":"An oak barrel: upright staves, two wrought-iron hoops and a plank lid with an iron bung.",
+"tags":["container","wood","town"],
+"category":"container",
+"materials":{
+"iron":"MAT/wrought_iron",
+"lid":"MAT/oak_planks",
+"staves":"MAT/barrel_staves"},
+"parts":{
+"body":{"type":"lathe","profile":[[34,0],[40,25],[42,45],[40,65],[34,90]],"mat":"staves"},
+"bung":{"type":"cylinder","radius":5,"height":3,"pos":[14,91,6],"mat":"iron"},
+"hoop_high":{"type":"tube","radius":40,"thickness":2.5,"height":7,"pos":[0,70,0],"mat":"iron"},
+"hoop_low":{"type":"tube","radius":40,"thickness":2.5,"height":7,"pos":[0,20,0],"mat":"iron"},
+"lid":{"type":"cylinder","radius":34,"height":2,"pos":[0,89.5,0],"mat":"lid"}}}

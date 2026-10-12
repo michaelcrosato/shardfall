@@ -406,7 +406,12 @@ impl App {
             }
             Err(e) => Ok((None, format!("no sound ({e}); continuing silently"))),
         })?;
-        // Rooms can name saved objects. Load the library before constructing the scene.
+        // Rooms can name saved objects. Load the library before constructing the scene, and
+        // the workshop materials before the objects that wear them.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = pav_tools::material_tools::initialize_authored() {
+            self.asset_ui.report(Err(format!("Could not load saved materials: {error:#}")));
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if let Err(error) = pav_tools::asset_tools::initialize_authored() {
             self.asset_ui.report(Err(format!("Could not load saved objects: {error:#}")));

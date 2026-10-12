@@ -71,6 +71,11 @@ impl Tunable for ParamsRoot<'_> {
 
 impl Session {
     pub fn new(scene: &str, seed: u64) -> Result<Self> {
+        // Materials first: props compile against them.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = crate::material_tools::initialize_authored() {
+            log::warn!("saved materials: {error:#}");
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if let Err(error) = crate::asset_tools::initialize_authored() {
             log::warn!("saved objects: {error:#}");
@@ -325,6 +330,17 @@ impl Session {
             gpu.builder.add_events(&events);
         }
         let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
+        pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
+    }
+
+    /// Renders `frame`, a stage the simulation does not hold (a material swatch), from the
+    /// session's camera as it is.
+    pub fn render_frame(&mut self, frame: &RenderFrame, width: u32, height: u32) -> Result<Vec<u8>> {
+        let camera = self.camera.clone();
+        let view = self.view_for(frame);
+        let gpu = self.gpu()?;
+        gpu.prepare_frame(frame);
+        let scene = gpu.builder.build(frame, frame, 1.0, &camera, width as f32 / height as f32, &view, frame.focus);
         pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
     }
 

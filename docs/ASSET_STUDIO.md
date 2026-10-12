@@ -38,8 +38,10 @@ centre. Part names: lowercase letters, digits, _ and -.
   depth. arc (degrees) keeps part of a round shape, its middle toward facing (x, y, z, -x, -y,
   -z).
 - **Colour.** Each part needs color (#rrggbb or a role: $floor $floor2 $wall $pillar $accent
-  $light) or mat, a key in materials ({color, look, emissive}). look: cel (default), flat, lit,
-  unlit, cutout. emissive 0-32 glows; above 0.5 it lights the room.
+  $light) or mat: a key in materials ({color, look, emissive}, or a patterned library material
+  such as "MAT/oak_planks"), or a library name itself. Patterns, the library and your own
+  materials: docs/MATERIALS.md. look: cel (default), flat, lit, unlit, cutout. emissive 0-32
+  glows; above 0.5 it lights the room.
 - **Groups.** parts:{…} in a node makes a group: its children sit in its frame and inherit mat,
   color, look, emissive and solid.
 - **Copies.** mirror:"x" (or ["x","z"]) adds the reflection; array:{count, step:[x,y,z]} a row;
@@ -95,7 +97,8 @@ pack rewrites assets/props/CREDITS.md.
 
 `asset_edit action=publish name=x if_revision=R review="ok: …"` puts a workshop asset into LIB/core
 after you look at its sheet (views=true elevation=game) at revision R. It needs no check findings, a description (≤ 120
-chars), a category, 2-6 tags, references to BUILTIN or LIB/core only, and at most 400 tokens
+chars), a category, 2-6 tags, references to BUILTIN or LIB/core only, core or inline materials
+(not MAT/workshop/), and at most 400 tokens
 (food, tool, signage), 600 (container, lighting, rock, vegetation), 800 (most) or 2,000 (town,
 dungeon). It writes lib/core/x.json, its index row and a review.tsv line at this revision (an
 edited core asset needs a new review); rebuild to embed it.

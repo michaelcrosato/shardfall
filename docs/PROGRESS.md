@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.3, 4.2 part 2, 5.3):
+**Asset system plan** (resumed in slim form on 2026-10-12; next rows 3.4, 4.2 part 2, 5.3):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -71,7 +71,11 @@ are needed and showed a benefit, with lean gates (plan §10.3; deferred items li
 Procedural materials exist as data with a CPU reference evaluator (`pav_core::material`, 12 core
 materials; 3.1), and the renderer draws them exactly as it evaluates (3.2: a storage-buffer
 uber-shader, `pav_view::materials::MaterialTable`, parity 100% within 1/255, +16%/+48% frame
-time, `scripts/check-wgsl.sh`); props and statics wear them next (3.3).
+time, `scripts/check-wgsl.sh`). Props and statics wear them (3.3): `"mat":"MAT/oak_planks"` or
+a materials-table entry on any part, `Block`/`Decor` `material`, workshop materials
+`MAT/workshop/x` through `asset_edit kind=material` (`mat1-` revisions), swatches with per-layer
+legibility from `asset_preview kind=material`, `docs/MATERIALS.md`. Theme materials in levels and
+the lean G3 come next (3.4).
 Rows 5.1 and 5.2 are done early: the importers share `pav_tools/src/import/`; `asset_import` reads
 glTF and OBJ into one `Scene`, downloads pinned packs, translates models into format-2 props
 (primitives, mirrors and arrays, plus one read-only vertex-coloured mesh part the engine now
@@ -81,11 +85,12 @@ import: row 5.3 (catalogs, licence gate, the pilot).
 Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, other packs on
 disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
 `similar=` and ~35-token rows read from each folder's `index.tsv`, and
-`pav_view::assets::emit_asset`, which draws a library asset from a game's own state each frame.
+`pav_view::assets::emit_asset`, which draws a library asset from a game's own state each frame
+(wearing its materials).
 Row 4.2's tooling is in (part 1): `PACK.json` licences with `assets/props/CREDITS.md`,
 `asset_edit action=publish` into `LIB/core` behind a library gate and a review ledger, and
 `scripts/review_page.py` (review pages whose verdicts the agent reads back). The ~30 core
-exemplars follow once 3.3 lands.
+exemplars come next (part 2).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

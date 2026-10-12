@@ -454,6 +454,7 @@ impl Layout {
                                 solid: false,
                                 collider: None,
                                 sway: Sway::Grass,
+                                material: None,
                             };
                             let key = region.unwrap_or(RegionKey::chunk_of(pos));
                             sim.state.statics.add_decor(&mut sim.state.physics, key, d);

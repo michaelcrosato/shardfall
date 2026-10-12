@@ -35,6 +35,8 @@ pub use read::{DOCUMENT_FIELDS, LOOKS, OPS, PART_FIELDS, SHAPES, check, migrate,
 pub(crate) use read::{amount, color_fix, is_color, look_hint, number, wrong_type};
 pub use store::{Tier, canonical, disk_root, editable, leaf};
 pub use table::PropDefTable;
+/// The material writer shares the canonical layout of inline materials.
+pub(crate) use write::{MaterialText, material_entries};
 
 pub const MAX_PARTS: usize = 256;
 const MAX_SIZE: f32 = 1_000.0;
@@ -1152,9 +1154,11 @@ mod tests {
         assert_ne!((a.pos.x + 1.0, a.pos.z), (b.pos.x - 1.0, b.pos.z), "two references vary apart");
         assert_ne!(part(&def.variant(7), "a.post").pos, a.pos, "the seed varies a referenced part");
         // remap swaps the material inside the reference's cascade: an explicit colour still wins.
-        assert_eq!((a.color.as_str(), a.mat.as_deref()), ("#c08040", Some("oak")));
-        assert_eq!((b.color.as_str(), b.mat.as_deref()), ("#806040", Some("wood")));
-        assert_eq!(part(&def.compiled, "a.cap").color, "#ffcc00");
+        // Inline materials belong to their asset: the swapped-in one to this, the other to the lamp.
+        let mat = |p: &ResolvedPart| p.mat.as_ref().map(|m| m.name.clone());
+        assert_eq!((a.color.as_deref(), a.surface_color(), mat(&a).as_deref()), (None, "#c08040", Some("#oak")));
+        assert_eq!((b.surface_color(), mat(&b).as_deref()), ("#806040", Some("WORKSHOP/vary_lamp#wood")));
+        assert_eq!(part(&def.compiled, "a.cap").color.as_deref(), Some("#ffcc00"));
         assert_eq!(def.compiled.lights.iter().map(|l| l.part.as_str()).collect::<Vec<_>>(), ["a.cap", "b.cap"]);
         // A remap names the referenced asset's materials; its lights count toward this one's.
         assert_eq!(

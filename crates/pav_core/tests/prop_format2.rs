@@ -187,13 +187,14 @@ const SINK: &str = r##"{"format":2,"name":"sink","unit":"cm","color":"#8a8f99","
 "source":{"library":"own","url":"https://example.invalid/sink","license":"CC0-1.0","author":"shardfall","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","title":"Sink"},
 "fit":{"mean_mm":1.5,"worst_mm":4,"iou":0.93,"de":2.1,"mesh_pct":0,"parts_hash":"abc123"},
 "materials":{
-"stone":{"color":"$wall","look":"flat","emissive":0.5,"roughness":0.8,"metallic":0,"map":"world","scale":2,"turn":true,"layers":[{"type":"cobbles","size":30,"jitter":0.5,"gap":3,"bevel":2,"vary":0.2,"cells":["#808080","#707070"],"cavity":0.3,"axis":"x","angle":15,"color":"#606060","strength":0.8,"glow":0,"facing":"up","masked_by":"prev","seed":4294967295},{"type":"noise","size":80,"detail":2,"distort":0.5,"cover":0.4,"soft":0.3,"shade":0.7}]},
+"iron":"MAT/wrought_iron",
+"stone":{"color":"$wall","look":"flat","emissive":0.5,"roughness":0.8,"metallic":0,"map":"world","scale":2,"turn":true,"layers":[{"type":"cobbles","size":30,"jitter":0.5,"gap":3,"bevel":2,"vary":0.2,"cells":["#808080","#707070"],"cavity":0.3,"axis":"x","color":"#606060","strength":0.8,"glow":0,"facing":"up","seed":4294967295},{"type":"noise","size":80,"detail":2,"distort":0.5,"cover":0.4,"soft":0.3,"shade":0.7,"masked_by":"not_prev"}]},
 "wood":{"color":"#8a5a35"}},
 "parts":{
 "arch":{"type":"torus","radius":40,"minor_radius":5,"arc":180,"facing":"y","axis":"z","mat":"stone"},
 "bead":{"type":"sphere","radius":3,"attach":{"to":"post","at":"top_front","self":[0,-1,0]},"offset":[0,1,0],"color":"#ffcc00","emissive":2,"light":{"color":"$light","radius":300,"intensity":2,"flicker":0.3,"pulse":0.5,"shadows":true},"fx":{"preset":"embers","rate":4,"color":"#ff8800","size":0.5,"speed":1.2,"life":0.8,"area":[2,2,2]},"chance":0.5},
 "bowl":{"type":"lathe","profile":[[0,0],[10,2],[12,8]],"segments":16,"pos":[50,0,0],"mat":"wood","sway":"leaves"},
-"cap":{"type":"cone","radius":6,"radius_end":2,"height":5,"segments":8,"pos":[0,120,0],"mat":"wood"},
+"cap":{"type":"cone","radius":6,"radius_end":2,"height":5,"segments":8,"pos":[0,120,0],"mat":"MAT/oak_planks"},
 "crate":{"ref":"BUILTIN/crate","pos":[80,0,0],"yaw":45,"array":{"count":2,"span":[0,0,60]},"scale":0.5,"remap":{}},
 "egg":{"type":"ellipsoid","size":[6,8,6],"pos":[-50,4,0],"mat":"wood","jitter":{"pos":[1,0,1],"rot":[10,0,0],"scale":[0.9,1.1],"color":0.1}},
 "flag":{"type":"extrude","points":[[0,0],[20,6],[0,12]],"depth":1,"pos":[0,100,0],"axis":"x","yaw":10,"pitch":5,"roll":2,"mat":"wood"},
@@ -279,7 +280,7 @@ fn the_corpus_resolves_to_its_goldens() {
 
     let mirror = compiled("probe_mirror", PROBE_MIRROR);
     at(&mirror, "arm~x.hand", [-50.0, 80.0, 0.0]);
-    assert_eq!(part(&mirror, "outer.inner.cube").color, "#30c040", "the nearest level wins");
+    assert_eq!(part(&mirror, "outer.inner.cube").surface_color(), "#30c040", "the nearest level wins");
 
     let attach = compiled("probe_attach", PROBE_ATTACH);
     at(&attach, "cube", [0.0, 128.0, 0.0]);

@@ -255,6 +255,7 @@ impl TerrainGen<'_> {
                         solid: true,
                         collider: None,
                         sway: Sway::None,
+                        material: None,
                     });
                     let leaves = ["#4f9a4a", "#5fae54", "#3f8a46", "#6dbb5c"];
                     let lc = Color::hex(leaves[(hash3(self.seed, x, z, 13) % 4) as usize]);
@@ -273,6 +274,7 @@ impl TerrainGen<'_> {
                             solid: false,
                             collider: None,
                             sway: Sway::Leaves,
+                            material: None,
                         });
                     }
                 } else if r > 1.0 - self.p.rock_density {
@@ -288,6 +290,7 @@ impl TerrainGen<'_> {
                         solid: true,
                         collider: None,
                         sway: Sway::None,
+                        material: None,
                     });
                 }
                 // Grass tufts on the green ground (not on sand by the water).
@@ -307,6 +310,7 @@ impl TerrainGen<'_> {
                             solid: false,
                             collider: None,
                             sway: Sway::Grass,
+                            material: None,
                         });
                     }
                 }

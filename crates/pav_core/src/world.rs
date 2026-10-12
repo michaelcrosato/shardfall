@@ -244,6 +244,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         solid: true,
         collider: None,
         sway: Sway::None,
+        material: None,
     });
     decor.push(Decor {
         shape: Shape::Cylinder { half_height: 0.05, radius: 2.0 },
@@ -255,6 +256,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         solid: false,
         collider: None,
         sway: Sway::None,
+        material: None,
     });
     decor.push(Decor {
         shape: Shape::Sphere { radius: 0.45 },
@@ -266,6 +268,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         solid: false,
         collider: None,
         sway: Sway::None,
+        material: None,
     });
     decor.push(Decor {
         shape: Shape::Cylinder { half_height: 0.5, radius: 0.18 },
@@ -277,6 +280,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
         solid: true,
         collider: None,
         sway: Sway::None,
+        material: None,
     });
     // Plaza perimeter: low walls with openings for the corridors.
     for f in DIRS {
@@ -344,6 +348,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
                     solid: true,
                     collider: None,
                     sway: Sway::None,
+                    material: None,
                 });
                 decor.push(Decor {
                     shape: Shape::Sphere { radius: 0.16 },
@@ -355,6 +360,7 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
                     solid: false,
                     collider: None,
                     sway: Sway::None,
+                    material: None,
                 });
             }
             x += 10.0;

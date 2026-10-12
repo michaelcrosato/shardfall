@@ -107,7 +107,7 @@ fn targets_reach_materials_sockets_and_the_document() {
     )
     .unwrap();
     let pav_core::props::doc::MaterialEntry::Inline(wood) = &changed.materials["wood"] else { panic!() };
-    assert_eq!((wood.color.as_deref(), wood.roughness), (Some("#c08a58"), Some(0.7)));
+    assert_eq!((wood.fields.color.as_deref(), wood.fields.roughness), (Some("#c08a58"), Some(0.7)));
     assert_eq!(node(&changed, "crossbar").surface.mat.as_deref(), Some("iron"));
     assert_eq!(changed.sockets["sit"].pos, Some(Vec3::new(0.0, 90.0, 4.0)));
     assert!(changed.sockets.contains_key("top"));

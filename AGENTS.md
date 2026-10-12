@@ -123,7 +123,8 @@ crates/
               Procedural meshes + analytic SDF spheres/capsules/rounded cones, SDF-font text in
               the world (text.rs). Procedural materials: rows of a storage buffer read by one
               kernel library (shaders/materials.wgsl, matched pixel for pixel by
-              `pav_core::material::eval`); `pav_view::materials` interns them into slots. `render_scale` draws below the target's resolution and
+              `pav_core::material::eval`); `pav_view::materials` interns them into slots for
+              prop parts, static blocks (world-mapped) and decor. `render_scale` draws below the target's resolution and
               upscale.rs stretches it over (phones). Offscreen capture -> PNG.
   pav_view    sim frame -> render Scene: camera rig (tilt/yaw/distance/fov/ortho, all live),
               look.rs + looks.toml (the Look & Filters layer: filter sections, presets, whole looks),
@@ -249,8 +250,12 @@ definitions are `assets/props/workshop/*.json` (`PAV_ASSETS` overrides the props
 Animations / Objects / Game tabs retain each workspace's controls and camera. See
 `docs/ASSET_STUDIO.md` (tools and format) and `docs/ASSET_STUDIO_LIVE.md` (the live studio).
 Keep procedural parts as text; use `if_revision` and batch related part changes in one `ops`
-array. Game code draws units and scenery from its own state with library assets, one call per
-thing per frame: `pav_view::assets::emit_asset(scene, "BUILTIN/crate",
+array. Materials (planks, brick, cobbles … as per-pixel recipes, `docs/MATERIALS.md`): parts say
+`"mat":"MAT/oak_planks"` or a key in the asset's `materials`; `kind=material` on `assets`,
+`asset_edit` (workshop materials `MAT/workshop/x` in `assets/materials/workshop/`, `PAV_MATERIALS`
+overrides the root; revisions `mat1-`) and `asset_preview` (a swatch with each layer's legibility
+at the game camera). Game code draws units and scenery from its own state with library assets,
+one call per thing per frame: `pav_view::assets::emit_asset(scene, "BUILTIN/crate",
 Placement::at(pos).yaw(deg).id(id), seed, &palette)` (no physics needed; `docs/ASSET_STUDIO.md`,
 "Library assets in game code"). Game data and rooms may name only embedded assets.
 
@@ -459,7 +464,10 @@ errors, normalisation, the `asset_import` tool), `tests/import_fit.rs` (a table 
 and mirrored legs, a vase is a lathe, a blade an extrusion, a noisy blob a mesh part within budget;
 the engine reads every translation back; byte-identical twice; translate, check, compare and
 survey through the tool) and `tests/import_khronos.rs` (opt-in,
-`-- --ignored`: 12 Khronos sample models at a pinned commit).
+`-- --ignored`: 12 Khronos sample models at a pinned commit). `pav_core/tests/prop_materials.rs`
+(props wear library and inline materials, format 1's colours and revisions hold, unknown names,
+one edit that adds and uses a material, snapshots) and `pav_tools/tests/material_preview.rs`
+(a swatch renders headless with its layer lines).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`

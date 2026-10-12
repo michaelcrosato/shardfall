@@ -2,13 +2,14 @@
 //! `MAT/<name>` and `MAT/pb/<name>`) is embedded at build time (`MATERIALS`, from build.rs) and
 //! read-only.
 //!
-//! Seam for the later tiers (asset plan §6.1): workshop (`assets/materials/workshop/`, editable,
-//! revisions `mat1-<fnv>`), fitted (`assets/materials/fit/<lib>/`, on disk) and local
-//! (git-ignored) materials are more `(name, text)` sources under their own name prefixes,
-//! read with `Library::from_sources` like the core ones; a base may then name any loaded tier.
+//! The workshop tier (`assets/materials/workshop/x.json`, `MAT/workshop/x`, editable through
+//! `asset_edit kind=material`) is more `(name, text)` sources: `current()` is the core tier
+//! plus the workshop, rebuilt by `set_workshop`, and what props, statics and the view resolve
+//! names against. Fitted and local tiers (asset plan §6.1) will be more sources the same way;
+//! a base may name any loaded tier.
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 use super::PREFIX;
 use super::resolve::{Material, resolve};
@@ -16,6 +17,11 @@ use super::schema::{MatDoc, read_file};
 use crate::issue::{Code, Issue, Severity};
 
 include!(concat!(env!("OUT_DIR"), "/materials.rs"));
+
+/// The library `current()` returns.
+static CURRENT: RwLock<Option<Arc<Library>>> = RwLock::new(None);
+/// Workshop file texts by name (`workshop/x`).
+static WORKSHOP: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
 
 /// Loaded materials: the documents, their resolved forms, and every problem found.
 #[derive(Debug, Default)]
@@ -70,6 +76,40 @@ impl Library {
             }
         }
         lib
+    }
+
+    /// Core and workshop materials: what props, statics and the view resolve names against.
+    pub fn current() -> Arc<Library> {
+        if let Some(lib) = CURRENT.read().unwrap_or_else(|e| e.into_inner()).as_ref() {
+            return lib.clone();
+        }
+        let mut current = CURRENT.write().unwrap_or_else(|e| e.into_inner());
+        current.get_or_insert_with(|| Arc::new(Library::from_sources(MATERIALS))).clone()
+    }
+
+    /// Replaces one workshop material (`workshop/x` and its file text; `None` removes it) and
+    /// rebuilds `current()`, which it returns.
+    pub fn set_workshop(name: &str, text: Option<String>) -> Arc<Library> {
+        let mut workshop = WORKSHOP.lock().unwrap_or_else(|e| e.into_inner());
+        match text {
+            Some(text) => workshop.insert(name.to_owned(), text),
+            None => workshop.remove(name),
+        };
+        let sources: Vec<(&str, &str)> =
+            MATERIALS.iter().copied().chain(workshop.iter().map(|(n, t)| (n.as_str(), t.as_str()))).collect();
+        let lib = Arc::new(Library::from_sources(&sources));
+        *CURRENT.write().unwrap_or_else(|e| e.into_inner()) = Some(lib.clone());
+        lib
+    }
+
+    /// A workshop material's file text (`workshop/x`), as `set_workshop` last left it.
+    pub fn workshop_text(name: &str) -> Option<String> {
+        WORKSHOP.lock().unwrap_or_else(|e| e.into_inner()).get(name).cloned()
+    }
+
+    /// The document of a material that reads (`MAT/oak_planks`).
+    pub fn doc(&self, name: &str) -> Option<&MatDoc> {
+        self.docs.get(name)
     }
 
     /// A material by its full name, `MAT/oak_planks`.

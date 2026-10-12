@@ -42,6 +42,8 @@ fn is_zero(seed: &u32) -> bool {
 
 #[derive(Clone, Debug)]
 pub struct PropFrame {
+    /// The library name it was placed as (`WORKSHOP/bench`): the owner of its inline materials.
+    pub asset: String,
     pub definition: Arc<PropDef>,
     /// The parts of the instance's variant.
     pub parts: Arc<CompiledProp>,
@@ -110,7 +112,13 @@ impl PropInstance {
     }
 
     pub fn frame(&self) -> PropFrame {
-        PropFrame { definition: self.definition.clone(), parts: self.parts(), scale: self.scale, roles: self.roles.clone() }
+        PropFrame {
+            asset: self.asset.clone(),
+            definition: self.definition.clone(),
+            parts: self.parts(),
+            scale: self.scale,
+            roles: self.roles.clone(),
+        }
     }
 
     /// A conservative root-centred proxy for existing selection and spatial helpers. The

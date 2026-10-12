@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use glam::Vec3;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use super::{PropAsset, PropPart, read};
 use crate::issue::Issue;
@@ -476,26 +476,14 @@ pub enum MaterialEntry {
     Inline(Material),
 }
 
+/// A material written inline, read by `material::read_inline` in the asset's unit.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Material {
-    pub base: Option<String>,
-    pub color: Option<String>,
-    pub look: Option<Look>,
-    pub emissive: Option<f32>,
-    pub roughness: Option<f32>,
-    pub metallic: Option<f32>,
-    pub map: Option<MapMode>,
-    pub scale: Option<f32>,
-    pub turn: Option<bool>,
-    pub layers: Option<Vec<Layer>>,
-}
-
-/// A pattern layer. Its parameters stay checked JSON values, in their written order, until
-/// materials are evaluated.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Layer {
-    pub kind: Pattern,
-    pub params: Vec<(&'static str, Value)>,
+    /// The fields as read: lengths in metres, the base chain not yet applied.
+    pub fields: crate::material::Fields,
+    /// The checked JSON as written (lengths in the asset's unit), which the writer lays out in
+    /// canonical order.
+    pub written: Map<String, Value>,
 }
 
 /// A named point where other things attach.

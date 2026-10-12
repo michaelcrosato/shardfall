@@ -228,7 +228,17 @@ impl PropPreviewState {
     }
 
     pub(crate) fn frame(&self, config: Arc<SimConfig>, dt: f32, ticket: u64) -> RenderFrame {
-        let definition = props::get(&self.name);
+        self.frame_of(props::get(&self.name), Default::default(), config, dt, ticket)
+    }
+
+    fn frame_of(
+        &self,
+        definition: Option<Arc<props::PropDef>>,
+        roles: std::collections::BTreeMap<String, String>,
+        config: Arc<SimConfig>,
+        dt: f32,
+        ticket: u64,
+    ) -> RenderFrame {
         let info = self.info_with(definition.as_deref());
         let mut objects = stage_objects();
         let subject = EntityId(STAGE_ID_BASE);
@@ -239,10 +249,11 @@ impl PropPreviewState {
                 rot: self.rotation(),
                 visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
                 prop: Some(PropFrame {
+                    asset: self.name.clone(),
                     parts: definition.variant(self.seed),
                     definition,
                     scale: self.scale,
-                    roles: Default::default(),
+                    roles,
                 }),
                 puppet: None,
                 pulse: -1.0,
@@ -280,6 +291,19 @@ impl PropPreviewState {
             creature: None,
         }
     }
+}
+
+/// The prop stage showing `definition`, an asset the library does not hold (a material swatch),
+/// as `name`, at rest on the floor in the theme colours `roles`.
+pub fn stage_frame(
+    config: Arc<SimConfig>,
+    name: &str,
+    definition: Arc<props::PropDef>,
+    roles: std::collections::BTreeMap<String, String>,
+) -> RenderFrame {
+    let mut state = PropPreviewState::new(name.to_owned(), definition.compiled.bounds);
+    state.playing = false;
+    state.frame_of(Some(definition), roles, config, 0.0, 0)
 }
 
 // Safely below the view's u32 object-group offset. Stages are isolated from world entities.

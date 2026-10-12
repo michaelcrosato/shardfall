@@ -10,9 +10,9 @@
 //! }
 //! ```
 
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use glam::{Quat, Vec3};
 use pav_core::fxdef::LightDef;
@@ -22,7 +22,10 @@ use pav_core::{Color, EntityId, RenderObject, Shape, props};
 use pav_render::Scene;
 use pav_render::scene::MeshKey;
 
-use crate::build::{GeneratedMeshes, StyleOverride, emit_prim, role_hex};
+use pav_core::material::Library;
+
+use crate::build::{GeneratedMeshes, StyleOverride, Surfaces, emit_prim, part_color, role_hex};
+use crate::materials::{self, MaterialTable};
 
 /// Colours for the theme roles an asset's parts name (`"$wall"` → `"#5a6b7c"`). Roles left out
 /// take `props::DEFAULT_ROLES`; an empty palette draws the asset as authored.
@@ -64,24 +67,30 @@ impl Placement {
     }
 }
 
-thread_local! {
-    /// The whole-scene style of the frame the view is building: drawn assets take it, as placed
-    /// copies do.
-    static STYLE: Cell<StyleOverride> = const { Cell::new(StyleOverride::PerObject) };
+/// The frame the view is building: its whole-scene style and its material table. Drawn assets
+/// take both, as placed copies do.
+#[derive(Clone)]
+struct Frame {
+    style: StyleOverride,
+    materials: Arc<Mutex<MaterialTable>>,
 }
 
-/// Sets the style `emit_asset` draws with until it drops (the view, while it builds a frame).
-pub(crate) struct StyleScope(StyleOverride);
+thread_local! {
+    static FRAME: RefCell<Option<Frame>> = const { RefCell::new(None) };
+}
 
-impl StyleScope {
-    pub(crate) fn new(style: StyleOverride) -> Self {
-        Self(STYLE.replace(style))
+/// Sets the frame `emit_asset` draws into until it drops (the view, while it builds a frame).
+pub(crate) struct FrameScope(Option<Frame>);
+
+impl FrameScope {
+    pub(crate) fn new(style: StyleOverride, materials: Arc<Mutex<MaterialTable>>) -> Self {
+        Self(FRAME.replace(Some(Frame { style, materials })))
     }
 }
 
-impl Drop for StyleScope {
+impl Drop for FrameScope {
     fn drop(&mut self) {
-        STYLE.set(self.0);
+        FRAME.set(self.0.take());
     }
 }
 
@@ -99,6 +108,7 @@ const KEEP: usize = 1024;
 /// or palette.
 pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palette: &Palette) -> Result<(), String> {
     let def = props::resolve_ref(name)?;
+    let asset = props::canonical(name)?;
     validate_scale(at.scale)?;
     if !at.pos.is_finite() || !at.rot.is_finite() || at.rot.length_squared() < 1e-6 {
         return Err(format!("{name}: placement needs a finite pos and rotation"));
@@ -134,9 +144,18 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
             _ => None,
         })
         .collect();
-    let style = STYLE.get();
-    for part in parts.parts.iter().filter(|part| !part.hidden) {
-        emit_prim(scene, meshes, part, &o, at.scale, style, palette);
+    // Outside a frame (or while the view holds its table) parts draw in their colours alone.
+    let frame = FRAME.with_borrow(Clone::clone);
+    let style = frame.as_ref().map_or(StyleOverride::PerObject, |frame| frame.style);
+    let mut table = frame.as_ref().and_then(|frame| frame.materials.try_lock().ok());
+    let library = Library::current();
+    for (index, part) in parts.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
+        let (color, material) = match table.as_deref_mut() {
+            Some(table) => Surfaces { table, library: &library, asset: &asset, roles: palette }
+                .part(part, materials::seed(at.id, index as u32)),
+            None => (part_color(part.surface_color(), part.tint, palette), 0),
+        };
+        emit_prim(scene, meshes, part, &o, at.scale, style, color, material);
     }
     for (i, light) in parts.lights.iter().enumerate() {
         let def = LightDef {
@@ -172,13 +191,19 @@ mod tests {
     }
 
     /// What the view draws for a placed copy with entity id `id`.
-    fn placed(def: Arc<PropDef>, at: Placement, palette: &Palette) -> Scene {
+    fn placed(name: &str, def: Arc<PropDef>, at: Placement, palette: &Palette) -> Scene {
         let o = RenderObject {
             id: EntityId(at.id),
             pos: at.pos,
             rot: at.rot,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
-            prop: Some(PropFrame { parts: def.compiled.clone(), definition: def, scale: at.scale, roles: palette.clone() }),
+            prop: Some(PropFrame {
+                asset: name.to_owned(),
+                parts: def.compiled.clone(),
+                definition: def,
+                scale: at.scale,
+                roles: palette.clone(),
+            }),
             puppet: None,
             pulse: -1.0,
             soft: None,
@@ -213,7 +238,7 @@ mod tests {
             let mut scene = Scene::default();
             emit_asset(&mut scene, name, at, 0, &palette).unwrap();
             assert!(!scene.meshes.is_empty() || !scene.sdfs.is_empty(), "{name}");
-            assert_eq!(summary(&scene), summary(&placed(def, at, &palette)), "{name}");
+            assert_eq!(summary(&scene), summary(&placed(name, def, at, &palette)), "{name}");
         }
         let mut scene = Scene::default();
         emit_asset(&mut scene, "WORKSHOP/view_emit_torch", Placement::at(Vec3::ZERO), 0, &Palette::new()).unwrap();
@@ -223,17 +248,40 @@ mod tests {
         }
     }
 
+    fn table() -> Arc<Mutex<MaterialTable>> {
+        Arc::new(Mutex::new(MaterialTable::default()))
+    }
+
     #[test]
     fn a_whole_scene_style_reaches_drawn_assets() {
         let styles = |style| {
-            let _scope = StyleScope::new(style);
+            let _scope = FrameScope::new(style, table());
             let mut scene = Scene::default();
             emit_asset(&mut scene, "BUILTIN/lantern", Placement::at(Vec3::ZERO), 0, &Palette::new()).unwrap();
             scene.meshes.iter().map(|m| m.style).chain(scene.sdfs.iter().map(|s| s.style)).collect::<Vec<_>>()
         };
         let cel = styles(StyleOverride::Cel);
         assert!(!cel.is_empty() && cel.iter().all(|s| *s == pav_render::scene::Style::Cel), "{cel:?}");
-        assert_eq!(STYLE.get(), StyleOverride::PerObject, "the scope ends with the frame");
+        assert!(FRAME.with_borrow(Option::is_none), "the scope ends with the frame");
+    }
+
+    #[test]
+    fn drawn_assets_wear_their_materials_from_the_frames_table() {
+        install(include_str!("../../pav_core/tests/fixtures/props/materials/banded_barrel.json"), "view_emit_barrel");
+        let materials = table();
+        let draw = |frame: bool| {
+            let _scope = frame.then(|| FrameScope::new(StyleOverride::PerObject, materials.clone()));
+            let mut scene = Scene::default();
+            let at = Placement::at(Vec3::ZERO).id(7);
+            emit_asset(&mut scene, "WORKSHOP/view_emit_barrel", at, 0, &Palette::new()).unwrap();
+            scene.meshes.iter().map(|m| (m.color, m.material)).collect::<Vec<_>>()
+        };
+        let (worn, plain) = (draw(true), draw(false));
+        assert!(worn.iter().any(|(_, material)| *material != 0), "patterned parts get a material slot: {worn:?}");
+        assert!(plain.iter().all(|(_, material)| *material == 0), "outside a frame parts draw in their colours");
+        let colors = |list: &[(Vec3, u32)]| list.iter().map(|(color, _)| *color).collect::<Vec<_>>();
+        assert_eq!(colors(&worn), colors(&plain), "the same colours either way");
+        props::remove("WORKSHOP/view_emit_barrel").unwrap();
     }
 
     #[test]

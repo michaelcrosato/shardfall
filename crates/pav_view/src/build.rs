@@ -1,7 +1,7 @@
 //! Scene building: interpolates between two simulation frames and emits render instances.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use glam::{Mat4, Quat, Vec3};
 use pav_core::frame::{PuppetFrame, SimEvent};
@@ -22,7 +22,9 @@ use pav_render::text::{Anchor, Text3d};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::CameraRig;
-use crate::materials::MaterialTable;
+use crate::materials::{self, MaterialTable};
+use pav_core::material::Library;
+use pav_core::props::doc::MapMode;
 
 choice_enum! {
     pub enum StyleOverride { PerObject => "per object", Flat => "flat", Cel => "cel", Lit => "lit" }
@@ -633,8 +635,9 @@ pub struct ViewBuilder {
     /// blasts: centre, radius, depth).
     water: HashMap<[i32; 6], crate::water::WaterSurface>,
     water_dents: Vec<(Vec3, f32, f32)>,
-    /// Procedural materials in this view: stable rows, attached to every built scene.
-    materials: MaterialTable,
+    /// Procedural materials in this view: stable rows, attached to every built scene. Shared
+    /// while a frame is built, so assets drawn from game code (`assets::emit_asset`) use it too.
+    materials: Arc<Mutex<MaterialTable>>,
 }
 
 /// Shortest-arc interpolation of object poses between two frames (both sorted by id).
@@ -695,8 +698,8 @@ impl ViewBuilder {
     /// The material table: intern a material here (`MaterialTable::resolve`) and give its
     /// `MatSlot::param(seed)` to the instances that wear it; every built scene carries the
     /// table.
-    pub fn materials(&mut self) -> &mut MaterialTable {
-        &mut self.materials
+    pub fn materials(&mut self) -> MutexGuard<'_, MaterialTable> {
+        lock(&self.materials)
     }
 
     /// Turns simulation events into visual effects (explosions, dust).
@@ -901,8 +904,14 @@ impl ViewBuilder {
         let compiled = &prop.parts;
         let scale = prop.scale;
         let at = |pos: Vec3| o.pos + o.rot * (pos * scale);
-        for part in compiled.parts.iter().filter(|part| !part.hidden) {
-            emit_prim(scene, &mut self.generated, part, o, scale, settings.style, &prop.roles);
+        let library = Library::current();
+        {
+            let mut table = lock(&self.materials);
+            let mut surfaces = Surfaces { table: &mut table, library: &library, asset: &prop.asset, roles: &prop.roles };
+            for (index, part) in compiled.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
+                let (color, material) = surfaces.part(part, materials::seed(o.id.0, index as u32));
+                emit_prim(scene, &mut self.generated, part, o, scale, settings.style, color, material);
+            }
         }
         for (i, light) in compiled.lights.iter().enumerate() {
             let def = LightDef {
@@ -968,7 +977,7 @@ impl ViewBuilder {
         // Interpolated simulation time: animations and particles move smoothly between ticks.
         let time = (prev.time + (curr.time - prev.time) * alpha as f64) as f32;
         let mut scene = Scene { camera: rig.data(aspect), time, ..Default::default() };
-        let _style = crate::assets::StyleScope::new(settings.style);
+        let _frame = crate::assets::FrameScope::new(settings.style, self.materials.clone());
         // Screen shake (the game's big hits).
         if let Some(g) = &curr.game {
             let off = crate::arpg::shake_offset(g, time);
@@ -982,6 +991,9 @@ impl ViewBuilder {
         let dt = since.min(0.1);
         self.last_time = Some(time);
         self.generated.begin_frame();
+        // A workshop edit or reload replaced the library: re-pack the rows it changed.
+        let library = Library::current();
+        lock(&self.materials).sync(&library);
         scene.post.bloom = settings.bloom;
         scene.post.bloom_threshold = settings.bloom_threshold;
         scene.post.distortion = settings.distortion;
@@ -1105,17 +1117,21 @@ impl ViewBuilder {
 
         // Static geometry (cached per region version).
         self.static_cache.retain(|k, _| curr.statics.chunks.contains_key(k));
-        let materials = self.materials.instance_generation();
+        let materials = lock(&self.materials).instance_generation();
         for (key, chunk) in &curr.statics.chunks {
             let fresh = self
                 .static_cache
                 .get(key)
                 .is_some_and(|c| c.version == chunk.version && c.style == settings.style && c.materials == materials);
             if !fresh {
+                let mut table = lock(&self.materials);
                 let mut sdfs = Vec::new();
                 let mut lights = Vec::new();
                 let mut list = Vec::with_capacity(chunk.blocks.len());
                 for b in chunk.blocks.iter().filter(|b| b.alive) {
+                    // Blocks are world-mapped with seed 0, so neighbours (4 m floor tiles) join.
+                    let material =
+                        b.material.as_deref().map_or(0, |name| static_material(&mut table, &library, name, MapMode::World, 0));
                     let size = b.max - b.min;
                     let (mesh, scale, ext) = if b.has(block_flags::ROUNDED) {
                         (MeshKey::rounded_box(size * 0.5, (size.min_element() * 0.2).min(0.15)), Vec3::ONE, size * 0.5)
@@ -1130,8 +1146,7 @@ impl ViewBuilder {
                         style: style_of(b.look, settings.style),
                         flags: 0,
                         group: 1,
-                        // Blocks are world-mapped (seed 0): the hook for statics' materials.
-                        material: 0,
+                        material,
                         ext,
                     });
                 }
@@ -1140,6 +1155,16 @@ impl ViewBuilder {
                 }
                 for d in &chunk.decor {
                     let style = style_of(d.look, settings.style);
+                    let material = d.material.as_deref().map_or(0, |name| {
+                        let map = if matches!(d.shape, Shape::Cylinder { .. } | Shape::Capsule { .. }) {
+                            MapMode::Axis
+                        } else {
+                            MapMode::Object
+                        };
+                        // Decor has no entity: its position seeds it.
+                        let at = d.pos.to_array().map(f32::to_bits);
+                        static_material(&mut table, &library, name, map, materials::seed(at[0] ^ at[2].rotate_left(16), at[1]))
+                    });
                     match d.sway {
                         Sway::Grass => list.push(grass_tuft(&d.shape, d.pos, d.rot, v3(d.color), style)),
                         sway => {
@@ -1156,7 +1181,7 @@ impl ViewBuilder {
                                 style,
                                 1,
                                 flags,
-                                0,
+                                material,
                             );
                         }
                     }
@@ -1343,7 +1368,7 @@ impl ViewBuilder {
                 PixelTarget::Environment => flags & rs::flags::OBJECT == 0,
             });
         }
-        self.materials.attach(&mut scene);
+        lock(&self.materials).attach(&mut scene);
         scene
     }
 }
@@ -1732,13 +1757,81 @@ pub(crate) fn role_hex<'a>(color: &'a str, roles: &'a BTreeMap<String, String>) 
 }
 
 /// A part's linear colour: its role resolved, then its tint.
-fn part_color(color: &str, tint: f32, roles: &BTreeMap<String, String>) -> Vec3 {
+pub(crate) fn part_color(color: &str, tint: f32, roles: &BTreeMap<String, String>) -> Vec3 {
     v3(Color::hex(role_hex(color, roles))) * tint
+}
+
+/// The view's material table, also after a panic elsewhere left it poisoned.
+pub(crate) fn lock(table: &Mutex<MaterialTable>) -> MutexGuard<'_, MaterialTable> {
+    table.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// The map to ask the table for: none when the material names its own (the row then follows
+/// the library), else the surface's automatic one (world for blocks, axis for round parts).
+fn auto_map(material: &pav_core::material::Material, auto: MapMode) -> Option<MapMode> {
+    material.map.map_or(Some(auto), |_| None)
+}
+
+/// A static block's or decor's library material: its instance word (seed `seed`; world maps
+/// take 0), or 0 for a plain or missing one. The material's own map wins over `auto`.
+fn static_material(table: &mut MaterialTable, library: &Library, name: &str, auto: MapMode, seed: u32) -> u32 {
+    match library.get(name) {
+        Some(material) if !material.is_plain() => table.intern(name, material, auto_map(material, auto), &[]).param(seed),
+        _ => 0,
+    }
+}
+
+/// How one placed prop's parts find their materials: the view's table, the library, the
+/// asset that owns its inline materials, and its palette.
+pub(crate) struct Surfaces<'a> {
+    pub table: &'a mut MaterialTable,
+    pub library: &'a Library,
+    pub asset: &'a str,
+    pub roles: &'a BTreeMap<String, String>,
+}
+
+impl Surfaces<'_> {
+    /// A part's linear colour (its own, else its material's) and its material word. Round
+    /// parts lay patterns along their axis unless the material names a map.
+    pub fn part(&mut self, part: &ResolvedPart, seed: u32) -> (Vec3, u32) {
+        let Some(mat) = &part.mat else {
+            return (part_color(part.surface_color(), part.tint, self.roles), 0);
+        };
+        let material = if mat.is_inline() { mat.material.as_ref() } else { self.library.get(&mat.name) };
+        let Some(material) = material else {
+            // Not in the library (any more): its own colour, else magenta, plainly drawn.
+            let color = part.color.as_deref().unwrap_or(pav_core::props::compile::MISSING_COLOR);
+            return (part_color(color, part.tint, self.roles), 0);
+        };
+        // The base colour travels in the instance (one row serves every tint and palette).
+        let color = part_color(part.color.as_deref().unwrap_or(&material.color), part.tint, self.roles);
+        if material.is_plain() {
+            return (color, 0);
+        }
+        let auto = match part.prim {
+            Primitive::Cylinder { .. } | Primitive::Capsule { .. } | Primitive::Tube { .. } | Primitive::Lathe { .. } => {
+                MapMode::Axis
+            }
+            _ => MapMode::Object,
+        };
+        let qualified;
+        let name = match mat.name.strip_prefix('#') {
+            Some(key) => {
+                qualified = format!("{}#{key}", self.asset);
+                &qualified
+            }
+            None => &mat.name,
+        };
+        let roles: Vec<(&str, &str)> = self.roles.iter().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
+        let slot = self.table.intern(name, material, auto_map(material, auto), &roles);
+        (color, slot.param(seed))
+    }
 }
 
 /// One compiled part of a prop. Format 1's shapes go through `emit_shape`, so a format-1 asset
 /// draws exactly what it always drew; ellipsoids, cones and round cones use the renderer's own
 /// meshes and distance fields; everything else a generated mesh.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_prim(
     scene: &mut Scene,
     generated: &mut GeneratedMeshes,
@@ -1746,12 +1839,12 @@ pub(crate) fn emit_prim(
     o: &RenderObject,
     scale: f32,
     ov: StyleOverride,
-    roles: &BTreeMap<String, String>,
+    color: Vec3,
+    material: u32,
 ) {
     let s = part.scale * scale;
     let pos = o.pos + o.rot * (part.pos * scale);
     let rot = o.rot * part.rot;
-    let color = part_color(&part.color, part.tint, roles);
     let (emissive, style, group) = (part.emissive, style_of(part.look, ov), o.id.0 + 2);
     if part.sway == Sway::Grass {
         let (centre, half) = part.prim.local_box();
@@ -1780,7 +1873,7 @@ pub(crate) fn emit_prim(
         // A part with a light of its own does not also light the scene with its glow.
         let mut unlit = Vec::new();
         let lights = if part.glow_light { &mut scene.point_lights } else { &mut unlit };
-        emit_shape(&mut scene.meshes, &mut scene.sdfs, lights, &shape, pos, rot, color, emissive, style, group, flags, 0);
+        emit_shape(&mut scene.meshes, &mut scene.sdfs, lights, &shape, pos, rot, color, emissive, style, group, flags, material);
         return;
     }
     let mesh = |mesh, size: Vec3| MeshInstance {
@@ -1791,12 +1884,14 @@ pub(crate) fn emit_prim(
         style,
         flags,
         group,
-        material: 0,
+        material,
         ext: Vec3::ZERO,
     };
     if let Some(g) = generated_mesh {
         let key = generated.key(scene, &g);
-        scene.meshes.push(mesh(key, g.scale * s));
+        // Generated meshes are unit-sized or absolute: their columns do not give their size.
+        let ext = if material != 0 { part.prim.local_box().1 * s } else { Vec3::ZERO };
+        scene.meshes.push(MeshInstance { ext, ..mesh(key, g.scale * s) });
     } else {
         match part.prim {
             Primitive::Ellipsoid { half } => scene.meshes.push(mesh(MeshKey::Sphere, half * 2.0 * s)),
@@ -1815,7 +1910,7 @@ pub(crate) fn emit_prim(
                     style,
                     flags,
                     group,
-                    material: 0,
+                    material,
                 });
             }
             // Every other shape is format 1's or generated.
@@ -1921,7 +2016,13 @@ mod tests {
             pos,
             rot,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
-            prop: Some(PropFrame { parts: definition.compiled.clone(), definition, scale, roles: Default::default() }),
+            prop: Some(PropFrame {
+                asset: "WORKSHOP/test".into(),
+                parts: definition.compiled.clone(),
+                definition,
+                scale,
+                roles: Default::default(),
+            }),
             puppet: None,
             pulse: -1.0,
             soft: None,
@@ -1985,6 +2086,72 @@ mod tests {
                 assert!(compiled.custom_meshes.is_empty() && compiled.particles.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn materials_reach_the_instances() {
+        let barrel = include_str!("../../pav_core/tests/fixtures/props/materials/banded_barrel.json");
+        let mut text = barrel.replace(r#""lid":"MAT/oak_planks""#, r##""lid":{"base":"MAT/oak_planks","color":"#7a5030"}"##);
+        text = text.replace(r#""pos":[14,91,6],"mat":"iron"}"#, r##""pos":[14,91,6],"mat":"iron","color":"#202020"}"##);
+        let def = Arc::new(PropDef::new(Doc::read(&text).unwrap()).unwrap());
+        let mut builder = ViewBuilder::default();
+        let o = object(def.clone(), 1.0, Vec3::ZERO, Quat::IDENTITY);
+        let mut scene = draw(&mut builder, &o);
+        lock(&builder.materials).attach(&mut scene);
+        let rows = scene.materials.clone();
+        let words: Vec<u32> = scene.meshes.iter().map(|m| m.material).collect();
+        assert_eq!(words.len(), 5, "body, bung, two hoops, lid");
+        let library = Library::current();
+        for (index, (part, mesh)) in def.compiled.parts.iter().zip(&scene.meshes).enumerate() {
+            let slot = mesh.material & 0xfff;
+            assert_ne!(slot, 0, "{} wears a patterned material", part.id);
+            assert_eq!(mesh.material >> 12, materials::seed(o.id.0, index as u32), "{}: seeded by (entity, part)", part.id);
+            // Round parts lay patterns along their axis (the lid is a cylinder too).
+            assert_eq!(rows[slot as usize].head[1], 2, "{}: axis map", part.id);
+            // The instance colour: the part's own, else its material's.
+            let expected = match part.id.as_str() {
+                "bung" => "#202020",
+                "lid" => "#7a5030",
+                "body" => library.get("MAT/barrel_staves").unwrap().color.as_str(),
+                _ => "#3b3735",
+            };
+            assert_eq!(mesh.color, v3(Color::hex(expected)), "{}", part.id);
+            // Generated meshes carry their size; format 1's cylinders derive it.
+            let generated = matches!(part.prim, Primitive::Lathe { .. } | Primitive::Tube { .. });
+            assert_eq!(mesh.ext != Vec3::ZERO, generated, "{}", part.id);
+        }
+        let body = &scene.meshes[0];
+        assert!((body.ext - Vec3::new(0.42, 0.45, 0.42)).length() < 1e-4, "the lathe's half size: {}", body.ext);
+        // The lid's inline material is this asset's own row; the hoops share the iron row.
+        assert_eq!(scene.meshes[2].material & 0xfff, scene.meshes[3].material & 0xfff);
+        assert_ne!(scene.meshes[4].material & 0xfff, words[0] & 0xfff);
+        // The same frame again: same rows, same words, nothing to upload.
+        let version = scene.materials_version;
+        let mut again = draw(&mut builder, &o);
+        lock(&builder.materials).attach(&mut again);
+        assert_eq!(again.meshes.iter().map(|m| m.material).collect::<Vec<_>>(), words);
+        assert_eq!(again.materials_version, version);
+        // Colour-only materials draw as plain colours: no row.
+        let plain = include_str!("../../pav_core/tests/fixtures/props/format2/well.json");
+        let well = object(Arc::new(PropDef::new(Doc::read(plain).unwrap()).unwrap()), 1.0, Vec3::ZERO, Quat::IDENTITY);
+        let scene = draw(&mut ViewBuilder::default(), &well);
+        assert!(scene.meshes.iter().all(|m| m.material == 0) && scene.sdfs.iter().all(|s| s.material == 0));
+    }
+
+    #[test]
+    fn blocks_lay_materials_in_world_space() {
+        let mut table = MaterialTable::default();
+        let library = Library::current();
+        let word = static_material(&mut table, &library, "MAT/flagstones", MapMode::World, 0);
+        assert_ne!(word & 0xfff, 0);
+        assert_eq!(word >> 12, 0, "world maps take seed 0, so neighbouring blocks join");
+        let decor = static_material(&mut table, &library, "MAT/oak_planks", MapMode::Axis, 77);
+        assert_eq!(decor >> 12, 77);
+        assert_eq!(static_material(&mut table, &library, "MAT/nothing", MapMode::World, 0), 0, "a missing one draws plain");
+        let mut scene = Scene::default();
+        table.attach(&mut scene);
+        assert_eq!(scene.materials[(word & 0xfff) as usize].head[1], 1, "world");
+        assert_eq!(scene.materials[(decor & 0xfff) as usize].head[1], 2, "axis");
     }
 
     #[test]

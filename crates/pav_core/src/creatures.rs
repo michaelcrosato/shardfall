@@ -170,7 +170,7 @@ fn finite(values: &[f32], min: f32, max: f32, path: &str) -> Result<(), String> 
 fn quaternions(values: &[f32], count: usize, path: &str) -> Result<(), String> {
     array_len(values.len(), count * 4, path)?;
     finite(values, -1.01, 1.01, path)?;
-    for (index, value) in values.chunks_exact(4).enumerate() {
+    for (index, value) in values.as_chunks::<4>().0.iter().enumerate() {
         let norm: f32 = value.iter().map(|v| v * v).sum();
         if (norm - 1.0).abs() > 0.01 {
             return Err(format!("{path} quaternion {index} must have unit length"));
@@ -262,12 +262,12 @@ impl CreatureData {
             if mesh.skin_indices.iter().any(|i| *i as usize >= count) {
                 return Err(format!("meshes.{name}.skin_indices refers to a missing bone"));
             }
-            for (i, weights) in mesh.skin_weights.chunks_exact(4).enumerate() {
+            for (i, weights) in mesh.skin_weights.as_chunks::<4>().0.iter().enumerate() {
                 if (weights.iter().sum::<f32>() - 1.0).abs() > 0.002 {
                     return Err(format!("meshes.{name}.skin_weights at vertex {i} must sum to 1"));
                 }
             }
-            for (i, normal) in mesh.normals.chunks_exact(3).enumerate() {
+            for (i, normal) in mesh.normals.as_chunks::<3>().0.iter().enumerate() {
                 let length: f32 = normal.iter().map(|v| v * v).sum();
                 if !(0.5..=1.5).contains(&length) {
                     return Err(format!("meshes.{name}.normals at vertex {i} must be a nonzero unit direction"));

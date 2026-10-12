@@ -53,9 +53,12 @@ fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
     );
     assert_eq!(
         error(&mut s, "assets", json!({"kind":"props"})),
-        r#"kind: unknown kind "props" (expected prop, creature) — did you mean "prop"?"#
+        r#"kind: unknown kind "props" (expected prop, creature, material) — did you mean "prop"?"#
     );
-    assert_eq!(error(&mut s, "asset_preview", json!({"kind":"mesh"})), r#"kind: unknown kind "mesh" (expected prop, creature)"#);
+    assert_eq!(
+        error(&mut s, "asset_preview", json!({"kind":"mesh"})),
+        r#"kind: unknown kind "mesh" (expected prop, creature, material)"#
+    );
     assert_eq!(
         error(&mut s, "asset_preview", json!({"action":"opn"})),
         r#"action: unknown action "opn" (expected status, open, fit, close, play, pause, restart) — did you mean "open"?"#
@@ -90,7 +93,8 @@ fn the_field_guide_and_tool_list_stay_compact() {
     let chars = list.to_string().len();
     // G0's 47,000 plus `asset_import` (plan §8.2 budgets its schema at ≤ 2 KB; it is ~0.96 KB).
     // Row 4.1's retrieval args (~0.4 KB) were paid for by trimming three creature/job help strings,
-    // and row 4.2's `review` arg by trimming the clip library's `load=` help.
+    // row 4.2's `review` arg by trimming the clip library's `load=` help, and kind=material (row
+    // 3.3) by trimming help text.
     assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();

@@ -107,7 +107,7 @@ pub(crate) fn changes_studio(name: &str, args: &Args) -> bool {
     let action = args.get("action").and_then(Value::as_str).unwrap_or("");
     let dry_run = args.get("dry_run").is_some_and(|value| value == true || value == "true");
     match name {
-        "anim_edit" | "asset_edit" => !matches!(action, "" | "inspect" | "schema" | "check") && !dry_run,
+        "anim_edit" | "asset_edit" | "material_edit" => !matches!(action, "" | "inspect" | "schema" | "check") && !dry_run,
         // A contact sheet puts the stage and camera back as they were.
         "asset_preview" if args.get("views").is_some_and(|views| views != false && views != "false") => false,
         "anim_preview" | "asset_preview" | "creature_preview" => {

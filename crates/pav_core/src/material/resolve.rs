@@ -42,6 +42,12 @@ pub struct Material {
 }
 
 impl Material {
+    /// No layers and the legacy shading: it draws exactly as a plain colour does, so it needs
+    /// no row (its colour, look and glow travel in the instance).
+    pub fn is_plain(&self) -> bool {
+        self.layers.is_empty() && self.roughness.is_none() && self.metallic == 0.0
+    }
+
     /// Cost units (§6.3): the sum over the layers.
     pub fn cost(&self) -> f32 {
         self.layers.iter().map(cost).sum()
@@ -109,6 +115,32 @@ impl Material {
 /// Resolves `fields`, the material `name` (`MAT/…`, or empty for an inline one), against the
 /// library documents `docs` (keyed `MAT/…`). Errors carry the path `base`.
 pub fn resolve(name: &str, fields: &Fields, docs: &BTreeMap<String, MatDoc>) -> Result<Material, Vec<Issue>> {
+    let (out, layers_from) = merge(name, fields, docs)?;
+    let Some(color) = out.color else {
+        return Err(vec![Issue::error("color", Code::Missing, "missing").fix("a material needs color, or a base that has one")]);
+    };
+    Ok(Material {
+        name: name.into(),
+        color,
+        look: out.look.unwrap_or_default(),
+        emissive: out.emissive.unwrap_or(0.0),
+        roughness: out.roughness,
+        metallic: out.metallic.unwrap_or(0.0),
+        map: out.map,
+        scale: out.scale.unwrap_or(1.0),
+        turn: out.turn.unwrap_or(false),
+        layers: out.layers.unwrap_or_default(),
+        layers_from,
+    })
+}
+
+/// The fields the `base` chain gives, before defaults: a prop's surface cascade takes a
+/// material's look or emissive only where the chain writes one.
+pub fn merged(name: &str, fields: &Fields, docs: &BTreeMap<String, MatDoc>) -> Result<Fields, Vec<Issue>> {
+    merge(name, fields, docs).map(|(fields, _)| fields)
+}
+
+fn merge(name: &str, fields: &Fields, docs: &BTreeMap<String, MatDoc>) -> Result<(Fields, String), Vec<Issue>> {
     let mut chain: Vec<(&str, &Fields)> = vec![(name, fields)];
     let mut current = fields;
     while let Some(base) = current.base.as_deref() {
@@ -151,22 +183,8 @@ pub fn resolve(name: &str, fields: &Fields, docs: &BTreeMap<String, MatDoc>) -> 
             layers_from = n;
         }
     }
-    let Some(color) = out.color else {
-        return Err(vec![Issue::error("color", Code::Missing, "missing").fix("a material needs color, or a base that has one")]);
-    };
-    Ok(Material {
-        name: name.into(),
-        color,
-        look: out.look.unwrap_or_default(),
-        emissive: out.emissive.unwrap_or(0.0),
-        roughness: out.roughness,
-        metallic: out.metallic.unwrap_or(0.0),
-        map: out.map,
-        scale: out.scale.unwrap_or(1.0),
-        turn: out.turn.unwrap_or(false),
-        layers: out.layers.unwrap_or_default(),
-        layers_from: layers_from.into(),
-    })
+    out.base = None;
+    Ok((out, layers_from.into()))
 }
 
 /// A layer's cost units (§6.3).
@@ -190,7 +208,7 @@ fn cm(metres: f32) -> String {
 
 /// The parameter that sets a layer's feature size, and that size in metres (§6.2: sizes are
 /// feature sizes; a dot's or a voronoi spot's is its diameter). Gradients have none.
-fn feature(layer: &LayerDoc) -> Option<(&'static str, f32)> {
+pub fn feature(layer: &LayerDoc) -> Option<(&'static str, f32)> {
     match layer.pattern {
         Pattern::Gradient => None,
         Pattern::Dots => Some(("radius", 2.0 * layer.num("radius", super::eval::default_radius()))),
@@ -206,7 +224,7 @@ fn feature(layer: &LayerDoc) -> Option<(&'static str, f32)> {
 }
 
 /// A layer's painted gap in metres, where it draws one.
-fn gap(layer: &LayerDoc) -> Option<f32> {
+pub fn gap(layer: &LayerDoc) -> Option<f32> {
     let draws = match layer.pattern {
         Pattern::Voronoi => layer.word("feature") == Some("edges"),
         pattern => super::eval::default_gap(pattern).is_some(),

@@ -5,6 +5,78 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 3.3: props and statics wear materials, material tools — 2026-10-12
+
+Row 3.3 of `docs/ASSET_SYSTEM_PLAN.md` (MAT-4, MAT-5): props name procedural materials, statics
+can, and agents make and judge their own through the shared asset tools.
+- **Props.** A format-2 `materials` entry is a library name (`"MAT/oak_planks"`) or a material
+  written inline, read by `material::read_inline` in the asset's unit (one checker for files and
+  props: inline layers lose `angle`, which no kernel draws, as files already did; the "every
+  field" sink fixture changed accordingly). `mat` on a part, group or document, cycle entries and
+  `remap` values may name `MAT/…` directly. The canonical writer keeps inline materials as
+  written, in the schema's order. Compile resolves each key once (`Mats`): a resolved part's
+  `color` is now its own only (`Option`), and `mat` is a `PartMat` (`MAT/…`, `#key` for the
+  asset's inline materials, `ASSET#key` inside a reference, with the material as compiled). The
+  cascade's look and emissive come from what a material's base chain writes. A name the library
+  lacks still compiles (snapshots keep loading), draws magenta and is `check`'s
+  `unknown_material` with a did-you-mean; a malformed `MAT/` name is a reader error.
+- **Format 1 unchanged.** Its default colour was already written into the source model as the
+  part's own (`Doc::from_v1`): the plan's "JSON migration". Tested: an implicit and an explicit
+  `#e8704a` read to one `prop1-` revision, the templates keep their goldens, their parts carry
+  colours and no material, and captures of `test`, `town` and `level/3` (640×360, 120 ticks)
+  are byte-identical to the 3.2 build's.
+- **View.** `ViewBuilder` syncs its `MaterialTable` with `Library::current()` each build, so a
+  workshop edit or reload re-packs the rows it changed in every view (the app's and every
+  session's). Parts intern library materials by name and inline ones as `ASSET#key`
+  (`PropFrame` gains `asset`); round parts (cylinder, cone, capsule, tube, lathe) default to the
+  axis map, others to object, and a material's own map wins (asked as `None`, so the row follows
+  the library, per the 3.2 review fix cherry-picked here as 6a6f23b). Seeds are
+  `seed(entity, part index)`; the instance colour is the part's own, else the material's, through
+  the instance's palette; generated meshes carry `ext` from `prim.local_box()`. A plain material
+  (no layers, legacy shading) uses no row. `Block`/`Decor` gain `material` (left out of
+  snapshots when unset): blocks are world-mapped with seed 0, decor seeded by its position. The
+  table no longer bumps `instance_generation` when it adds a row (only a re-pack that changes
+  instance values does), so a static region is not rebuilt for a new material, and a re-intern
+  with an equal material re-packs nothing.
+- **Tools.** `kind=material` routes on `assets` (rows `name layers cost desc`), `asset_edit`
+  (create, copy, inspect, patch, replace, undo, redo, schema; workshop materials
+  `MAT/workshop/x` in `assets/materials/workshop/`, `PAV_MATERIALS` overrides; the props'
+  lock, `if_revision`, 32-step history and atomic save; ops `{op:set,fields}`,
+  `{op:set,layer:i,fields}`, `{op:add,layer}`, `{op:remove,layer:i}`, errors re-addressed to
+  `ops[i]`; each edit resolves in the library it would join, so cycles and broken bases are
+  refused; canonical files and `mat1-<fnv>` revisions from `material::write`) and
+  `asset_preview` (a swatch: per material a sphere, cube, cylinder and a 2×2 m world-mapped
+  slab, `compare=` up to 6 rows, `view=close|game`, 960×540; per layer the feature size, pixels
+  at 1080p and 540p, the share of a floor and wall it visibly changes over the layers below, and
+  a verdict). Sessions and the app load workshop materials before props. tools/list: 47,966
+  chars, under the 48,000 cap, by trimming help text (mocap, clip_import, the asset tools'
+  kind and action lines) instead of raising it.
+- **Docs.** `docs/MATERIALS.md` (names, use on props, fields, the 14 patterns with defaults and
+  costs, legibility, the tool loop, examples), linked from `ASSET_STUDIO.md`; AGENTS.md and the
+  MCP instructions name `kind=material`.
+- **Checks.** `pav_core/tests/prop_materials.rs` (library and inline materials, explicit
+  colours and revisions, unknown names, one patch that adds a material and uses it, snapshot
+  round trip, statics serde); view tests (words, maps, seeds, colours and `ext` on the barrel;
+  blocks world-mapped with seed 0; colour-only materials draw plain); `material_tools` unit
+  tests (create, a five-op patch, op errors, conflicts, dry run, undo/redo, copy, cycles) and
+  `pav_tools/tests/material_preview.rs` (a headless swatch and its lines). Demo: the fixture
+  `banded_barrel` (barrel_staves, wrought_iron, oak_planks) lints clean. `cargo test
+  --workspace` and clippy pass; three `chunks_exact` loops in `creatures.rs` became `as_chunks`
+  for the toolchain's clippy.
+- **Not done** (noted in the plan): `theme=` on the swatch, a native watcher for hand-edited
+  material files, and recompiling props when a workshop material's look or emissive changes
+  (colour and patterns update at once). Two placed revisions of one asset share its inline rows;
+  the last packed wins until the stale copies refresh.
+- **Landed after rows 4.1, 4.2 (part 1) and 5.2.** Assets drawn from game code
+  (`pav_view::assets::emit_asset`) wear their materials too: the view shares its material table
+  (now behind a mutex) with game code for the frame, beside the whole-scene style
+  (`assets::FrameScope`); outside a frame their parts draw in their colours alone. Mesh parts
+  (5.2) keep an explicit white base colour under 3.3's optional part colour, and `recolor` takes a
+  material key's colour from the library. The library gate (row 4.2) refuses `MAT/workshop/…`
+  materials in a published asset: core ships without the workshop. Only the nearest material feeds
+  a part's look and emissive (an exemplar author found a document-wide glowing material lighting a
+  part that wore its own stone); explicit fields on outer levels still cascade.
+
 ## Asset plan 5.2: translation into props and the CPU fidelity metrics — 2026-10-12
 
 Row 5.2 (I3 + I4's CPU half) of `docs/ASSET_SYSTEM_PLAN.md`, ahead of Phases 3-4 like 5.1.

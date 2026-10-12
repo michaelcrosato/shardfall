@@ -20,17 +20,17 @@ use serde_json::{Value, json};
 use crate::session::Session;
 use crate::tools::{Args, Output, get_bool, get_str};
 
-const HISTORY_LIMIT: usize = 32;
+pub(crate) const HISTORY_LIMIT: usize = 32;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 static INITIALIZED: Once = Once::new();
 
 /// Undo and redo steps hold documents as JSON: format 1 or 2, and older files' typed format-1
 /// assets read the same way.
 #[derive(Default, Serialize, Deserialize)]
-struct History {
-    head: String,
-    undo: Vec<Option<Value>>,
-    redo: Vec<Option<Value>>,
+pub(crate) struct History {
+    pub(crate) head: String,
+    pub(crate) undo: Vec<Option<Value>>,
+    pub(crate) redo: Vec<Option<Value>>,
 }
 
 struct Edited {
@@ -67,7 +67,7 @@ fn history_path(root: &Path, name: &str) -> PathBuf {
     folder.join(format!("{}.json", props::leaf(name)))
 }
 
-fn lock_editor(root: &Path) -> Result<File> {
+pub(crate) fn lock_editor(root: &Path) -> Result<File> {
     let dir = root.join(".editor");
     std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
     let path = dir.join("lock");
@@ -82,7 +82,7 @@ fn lock_editor(root: &Path) -> Result<File> {
     Ok(file)
 }
 
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
+pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     let parent = path.parent().ok_or_else(|| anyhow!("{} has no parent", path.display()))?;
     std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     let name = path.file_name().ok_or_else(|| anyhow!("{} has no file name", path.display()))?.to_string_lossy();
@@ -227,7 +227,7 @@ fn revision(def: Option<&PropDef>) -> String {
     def.map(|def| def.revision.clone()).unwrap_or_else(|| "absent".into())
 }
 
-fn read_history(path: &Path, current: &str) -> Result<History> {
+pub(crate) fn read_history(path: &Path, current: &str) -> Result<History> {
     if !path.exists() {
         return Ok(History { head: current.into(), ..Default::default() });
     }
@@ -239,7 +239,7 @@ fn read_history(path: &Path, current: &str) -> Result<History> {
     Ok(history)
 }
 
-fn push_history(stack: &mut Vec<Option<Value>>, document: Option<Value>) {
+pub(crate) fn push_history(stack: &mut Vec<Option<Value>>, document: Option<Value>) {
     stack.push(document);
     if stack.len() > HISTORY_LIMIT {
         stack.remove(0);
@@ -364,7 +364,7 @@ fn format1_batch(ops: &Value) -> bool {
 }
 
 /// A JSON argument: an object, or text read strictly (a repeated key is an error).
-fn json_arg(a: &Args, key: &str) -> Result<Value> {
+pub(crate) fn json_arg(a: &Args, key: &str) -> Result<Value> {
     match a.get(key).ok_or_else(|| anyhow!("{key}= is required"))? {
         Value::String(text) => props::strict_value(text).map_err(|mut issue| {
             if key == "ops" {
@@ -830,6 +830,20 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         result["check"] = json!(check);
     }
     Ok(Edited { report: result, def, dependents, mutation: true, preview })
+}
+
+/// A listing row's description: the start, cut at a word.
+pub(crate) fn summary(text: &str) -> String {
+    const MAX: usize = 80;
+    if text.len() <= MAX {
+        return text.into();
+    }
+    let mut end = MAX;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let cut = text[..end].rfind(' ').filter(|at| *at > MAX / 2).unwrap_or(end);
+    format!("{}…", text[..cut].trim_end_matches([',', ';', ':', ' ']))
 }
 
 /// Create, inspect and alter an asset. Options are parsed before disk mutation; a later

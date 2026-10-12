@@ -505,7 +505,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clip_import",
-        help: "Translate an animation library into a clip set (anim/<set>.json: readable key poses within tol mm of the capture, with credits). from= .glb (Rigify, Unreal or Mixamo rigs; sources= ids), .fbx (every stack a clip), .bvh (at=FROM-TO, loop=true: best cycle, way=), set files (.js, .json) or a folder. catalog= (anim/catalogs/*.json) tags and credits clips; with \"$pick\" and no from= it cuts moments out of CMU, 100STYLE, Bandai Namco or LaFAN1 (the last two into anim/local). list=true shows a file's rig and clips.",
+        help: "Translate an animation library into a clip set (anim/<set>.json: key poses with credits). from= .glb (Rigify, Unreal or Mixamo rigs; sources= ids), .fbx (every stack a clip), .bvh (at=FROM-TO, loop=true: best cycle, way=), set files (.js, .json) or a folder. catalog= (anim/catalogs/*.json) tags and credits clips; with \"$pick\" and no from= it cuts moments out of CMU, 100STYLE, Bandai Namco or LaFAN1 (the last two into anim/local). list=true shows a file's rig and clips.",
         args: &[
             arg("from", "string", "files (comma separated) or a folder of sets"),
             arg("catalog", "string", "catalog JSON (tags, descriptions, sources, skips, picks)"),
@@ -515,7 +515,7 @@ pub static TOOLS: &[Tool] = &[
             arg(
                 "rm",
                 "string",
-                "each .glb's root-motion twin, comma separated (loops take their speed from it; clips that travel are added as <clip>_RM)",
+                "each .glb's root-motion twin, comma separated (loops take its speed; travelling clips add <clip>_RM)",
             ),
             arg("title", "string", "set title"),
             arg("credit", "string", "credit line (default: the catalog's sources and licenses)"),
@@ -558,22 +558,18 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "mocap",
-        help: "Open motion-capture databases, translated on demand. No args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits one moment into a set (at=FROM-TO, loop=true, name=, set=, tags=, desc=). survey=ledger measures the CMU takes into anim/cmu/takes.tsv; survey=library translates them into anim/cmu.",
+        help: "Open motion-capture databases, translated on demand. No args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits one moment into a set. survey=ledger measures the CMU takes into anim/cmu/takes.tsv; survey=library translates them into anim/cmu.",
         args: &[
             arg("find", "string", "words to search takes for"),
             arg("lib", "string", "cmu, 100style or all (find)"),
             arg("get", "string", "takes to download, comma separated (cmu: every CMU take)"),
-            arg("survey", "string", "ledger or library: the whole CMU database measured, or translated a set a subject"),
+            arg("survey", "string", "ledger (measure the CMU takes) or library (translate them)"),
             arg("subjects", "string", "CMU subjects to survey, comma separated (default all)"),
             arg("cut", "string", "a take to cut a moment from (13_17, Zombie_FW)"),
             arg("at", "string", "FROM-TO seconds (default: where the take moves)"),
             arg("loop", "boolean", "cut at the best cycle and play in place"),
             arg("min_cycle", "number", "a loop's shortest cycle in seconds (a limp: 0.9)"),
-            arg(
-                "way",
-                "string",
-                "a loop's stretch goes forward, back, left or right of where the hips face (a sidestep take: one loop each way)",
-            ),
+            arg("way", "string", "the loop's way from the hips: forward, back, left or right (a sidestep take gives each)"),
             arg("name", "string", "the clip's name"),
             arg("set", "string", "the set it goes in (default MOCAP)"),
             arg("tags", "string", "tags, space separated"),
@@ -610,7 +606,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "anim_preview",
-        help: "View an animation in an isolated studio with the game's renderer. The game stays unchanged and resumes when the preview closes. Select clip=SET/Clip or move=NAME. Control play, pause, time, source-frame steps, speed, repeat, mirror, upper body, and travel. Same-name edits update without resetting the clock or camera. No args returns preview state; action=pose returns the sampled pose. capture and filmstrip show the studio through MCP images.",
+        help: "View an animation in an isolated studio with the game's renderer; the game resumes when it closes. Select clip=SET/Clip or move=NAME. Control play, pause, time, source-frame steps, speed, repeat, mirror, upper body, and travel. Same-name edits update without resetting the clock or camera. No args returns preview state; action=pose returns the sampled pose. capture and filmstrip show the studio through MCP images.",
         args: &[
             arg("clip", "string", "SET/Clip to view"),
             arg("move", "string", "procedural move to view"),
@@ -635,9 +631,9 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "assets",
-        help: "Find reusable assets: object rows (kind=prop, default; find= ranks words, similar= likeness) or compiled creatures (kind=creature).",
+        help: "Find reusable assets: objects (find= ranks words, similar= likeness), or kind=creature|material.",
         args: &[
-            arg("kind", "string", "prop (default) | creature"),
+            arg("kind", "string", "default prop"),
             arg("find", "string", "words; all must match"),
             arg("category", "string", "e.g. furniture, container, lighting"),
             arg("tags", "string", "required tags; @sit: a socket"),
@@ -653,8 +649,8 @@ pub static TOOLS: &[Tool] = &[
         name: "asset_edit",
         help: "Create, copy, inspect or edit objects made of named primitive parts. patch: one atomic ops batch, one undo step; pass if_revision. action=schema is the field guide.",
         args: &[
-            arg("kind", "string", "prop (default) or creature"),
-            arg("action", "string", "default inspect; surface and rebuild are kind=creature only"),
+            arg("kind", "string", "default prop"),
+            arg("action", "string", "default inspect; surface, rebuild: kind=creature only"),
             arg("name", "string", "lowercase name or WORKSHOP/name; inspect also reads BUILTIN/name"),
             arg("from", "string", "copy source, e.g. BUILTIN/bench, LIB/core/x"),
             arg("template", "string", "box, crate, bench or lantern (default box)"),
@@ -679,8 +675,8 @@ pub static TOOLS: &[Tool] = &[
         name: "asset_preview",
         help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. views= returns one framed PNG of several sides.",
         args: &[
-            arg("kind", "string", "prop (default) or creature"),
-            arg("action", "string", "default status; pose is kind=creature only"),
+            arg("kind", "string", "default prop"),
+            arg("action", "string", "default status; pose: kind=creature only"),
             arg("name", "string", "BUILTIN/name or WORKSHOP/name"),
             arg("close", "boolean", "return to the preserved world"),
             arg("playing", "boolean", "run or pause the turntable clock"),
@@ -691,10 +687,12 @@ pub static TOOLS: &[Tool] = &[
             arg("yaw", "number", "base rotation in degrees"),
             arg("scale", "number", "uniform preview scale"),
             arg("seed", "integer", "variant: chance, jitter, pick"),
-            arg("views", "array", "true = front,right,back,iso; or sides (left, top) and degrees"),
+            arg("views", "array", "true (front,right,back,iso), or sides and degrees"),
             arg("elevation", "number", "views: degrees above the horizon (20), or game"),
             arg("tile", "integer", "views: pixels per side (default 240)"),
             arg("figure", "boolean", "views: add a 1.8 m figure for scale"),
+            arg("compare", "string", "kind=material: a,b more rows"),
+            arg("view", "string", "kind=material: close or game"),
         ],
         run: crate::asset_preview_tools::t_asset_preview,
     },
@@ -882,6 +880,9 @@ pub const KIND_ROUTES: &[(&str, &str, &str)] = &[
     ("assets", "creature", "creatures"),
     ("asset_edit", "creature", "creature_edit"),
     ("asset_preview", "creature", "creature_preview"),
+    ("assets", "material", "materials"),
+    ("asset_edit", "material", "material_edit"),
+    ("asset_preview", "material", "material_preview"),
 ];
 
 /// The kinds a shared asset tool serves.
@@ -922,7 +923,14 @@ pub fn call(session: &mut Session, name: &str, args: &Args) -> Result<Output> {
     });
     let args = routed.as_ref().unwrap_or(args);
     let name = target;
-    let run = if name == "creatures" { crate::creature_tools::t_creatures } else { find(name).unwrap_or(original).run };
+    // Kinds served by functions without a tool entry of their own.
+    let run = match name {
+        "creatures" => crate::creature_tools::t_creatures,
+        "materials" => crate::material_tools::t_materials,
+        "material_edit" => crate::material_tools::t_material_edit,
+        "material_preview" => crate::material_tools::t_material_preview,
+        _ => find(name).unwrap_or(original).run,
+    };
     // Headless sessions also adopt completions. A live app polls on its frame loop; this
     // hook covers an agent's immediate status/capture after completion without a frame gap.
     crate::creature_tools::poll(session);
@@ -1000,7 +1008,8 @@ pub fn schema(t: &Tool) -> Value {
              "properties":{"op":{"const":"add"},"part":{"type":"string"},"value":{"type":"object"}}},
             {"type":"object","required":["op","part"],"additionalProperties":false,
              "properties":{"op":{"const":"remove"},"part":{"type":"string"}}},
-            {"type":"object","required":["op","path"],"description":"kind=creature only: a creature_edit op"}
+            {"type":"object","required":["op","path"],"description":"kind=creature only: a creature_edit op"},
+            {"type":"object","required":["op"],"description":"kind=material"}
         ]});
     }
     if matches!(t.name, "asset_edit" | "creature_edit") {

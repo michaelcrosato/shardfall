@@ -10,12 +10,13 @@ use std::sync::Arc;
 use glam::{EulerRot, Mat3, Quat, Vec3};
 use serde::Serialize;
 
-use super::doc::{Anchor, Attach, Axis, Dir, Doc, Kind, Material, MaterialEntry, Node, Prim, PrimType, Replicate, Surface};
+use super::doc::{Anchor, Attach, Axis, Dir, Doc, Kind, MaterialEntry, Node, Prim, PrimType, Replicate, Surface};
 use super::geom::{self, Generated, MeshShape, Primitive};
 use super::lint::Finding;
 use super::read::v2::{MAX_FX, MAX_LIGHTS};
 use super::{Bounds, PropDef, fnv};
-use crate::issue::{Code, Issue};
+use crate::issue::{self, Code, Issue};
+use crate::material::{Library, Material, resolve};
 use crate::shape::{Look, Sway};
 
 /// Parts after copies, mirrors and references.
@@ -64,14 +65,16 @@ pub struct ResolvedPart {
     pub rot: Quat,
     /// Uniform scale on the primitive (references and jitter).
     pub scale: f32,
-    /// `#rrggbb` or a theme role such as `$wall`.
-    pub color: String,
+    /// The part's own colour (`#rrggbb` or a theme role such as `$wall`), when the nearest
+    /// level of its surface cascade writes one. `None` when its colour is its material's: the
+    /// view draws that from the material table, so a material edit recolours it.
+    pub color: Option<String>,
     /// Linear RGB multiplier from `jitter.color`.
     pub tint: f32,
     pub look: Look,
     pub emissive: f32,
-    /// The nearest material key, for patterned surfaces.
-    pub mat: Option<String>,
+    /// The nearest material in the cascade, whose patterns the part wears.
+    pub mat: Option<PartMat>,
     pub solid: bool,
     /// Collision only: not drawn.
     pub hidden: bool,
@@ -88,7 +91,40 @@ pub struct ResolvedPart {
     pub extent: Vec3,
 }
 
+/// A part's material.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct PartMat {
+    /// A library material (`MAT/oak_planks`), or one written inline: `#key` for the compiled
+    /// asset's own (the view qualifies it with the placed asset's name), `ASSET#key` for a
+    /// referenced asset's.
+    pub name: String,
+    /// The material with its base chain applied, as compiled; `None` when the library has no
+    /// such material (`check` reports it as unknown_material).
+    #[serde(skip)]
+    pub material: Option<Arc<Material>>,
+}
+
+impl PartMat {
+    /// Written inline in an asset (keyed by its owner), not a library material.
+    pub fn is_inline(&self) -> bool {
+        self.name.contains('#')
+    }
+}
+
+/// Magenta: a part whose material is missing shows it.
+pub const MISSING_COLOR: &str = "#ff00ff";
+
 impl ResolvedPart {
+    /// The colour it is drawn in when no material table is at hand: its own, else its
+    /// material's as compiled (magenta when that material is missing).
+    pub fn surface_color(&self) -> &str {
+        match (&self.color, &self.mat) {
+            (Some(color), _) => color,
+            (None, Some(PartMat { material: Some(material), .. })) => &material.color,
+            _ => MISSING_COLOR,
+        }
+    }
+
     /// The part's box for an instance at `scale`.
     pub fn bounds(&self, scale: f32) -> Bounds {
         let (centre, extent) = (self.centre * scale, self.extent * scale);
@@ -161,8 +197,10 @@ pub fn noise(seed: u32, id: &str, field: &str) -> f32 {
     ((hash >> 11) as f64 / (1u64 << 53) as f64 * 2.0 - 1.0) as f32
 }
 
-/// Resolve a document's parts for one seed.
+/// Resolve a document's parts for one seed. Materials resolve against
+/// `material::Library::current()`.
 pub fn compile(doc: &Doc, deps: Deps, seed: u32) -> Result<CompiledProp, Vec<Issue>> {
+    let library = Library::current();
     let mut compiler = Compiler {
         doc,
         deps,
@@ -171,13 +209,93 @@ pub fn compile(doc: &Doc, deps: Deps, seed: u32) -> Result<CompiledProp, Vec<Iss
         siblings: HashMap::new(),
         out: CompiledProp::default(),
         issues: Vec::new(),
-        remap: None,
+        mats: Mats::of(doc, "", &library),
+        library: library.clone(),
+        missing: BTreeMap::new(),
     };
     let mut levels = vec![Level::of(&doc.surface)];
     compiler.nodes(&doc.parts, None, &Frame::IDENTITY, &mut levels, 1.0, "", "parts");
     compiler.sockets();
     compiler.finish();
     if compiler.issues.is_empty() { Ok(compiler.out) } else { Err(compiler.issues) }
+}
+
+/// What a material key gives a part: the material and, for the surface cascade, the look and
+/// emissive its chain writes (`None` lets an enclosing level decide).
+#[derive(Debug)]
+struct MatInfo {
+    part: PartMat,
+    look: Option<Look>,
+    emissive: Option<f32>,
+    /// Why it does not resolve (an unknown name, or its base chain's errors): what, and the
+    /// rest of the line (a fix, or the errors).
+    problem: Option<(String, String)>,
+}
+
+impl MatInfo {
+    /// A library material by name.
+    fn library(name: &str, library: &Library) -> Self {
+        let material = library.get(name).cloned();
+        let merged = library.doc(name).and_then(|doc| crate::material::resolve::merged(name, &doc.fields, library.docs()).ok());
+        let problem = material.is_none().then(|| {
+            let fix = issue::suggestion(name, library.names()).map(|fix| format!(" — {fix}")).unwrap_or_default();
+            let why = if library.issues().contains_key(name) { "does not load" } else { "is not in the library" };
+            (format!("{name} {why}"), fix)
+        });
+        Self {
+            look: merged.as_ref().and_then(|m| m.look),
+            emissive: merged.as_ref().and_then(|m| m.emissive),
+            part: PartMat { name: name.to_owned(), material },
+            problem,
+        }
+    }
+}
+
+/// The materials a document's keys name: its own table, and, inside a reference, the
+/// referencing node's `remap` laid over it.
+#[derive(Debug, Default)]
+struct Mats {
+    keys: BTreeMap<String, Rc<MatInfo>>,
+}
+
+impl Mats {
+    /// `doc`'s materials table; `owner` qualifies its inline materials ("" for the compiled
+    /// asset itself, a referenced asset's name inside it).
+    fn of(doc: &Doc, owner: &str, library: &Library) -> Self {
+        let keys = doc
+            .materials
+            .iter()
+            .map(|(key, entry)| {
+                let info = match entry {
+                    MaterialEntry::Library(name) => MatInfo::library(name, library),
+                    MaterialEntry::Inline(written) => {
+                        let resolved = resolve("", &written.fields, library.docs());
+                        let merged = crate::material::resolve::merged("", &written.fields, library.docs()).ok();
+                        let problem = resolved.as_ref().err().map(|issues| {
+                            let text: Vec<String> = issues.iter().map(|i| i.to_string()).collect();
+                            (format!("materials.{key} does not resolve"), format!(": {}", text.join("; ")))
+                        });
+                        MatInfo {
+                            look: merged.as_ref().and_then(|m| m.look),
+                            emissive: merged.as_ref().and_then(|m| m.emissive),
+                            part: PartMat { name: format!("{owner}#{key}"), material: resolved.ok().map(Arc::new) },
+                            problem,
+                        }
+                    }
+                };
+                (key.clone(), Rc::new(info))
+            })
+            .collect();
+        Self { keys }
+    }
+
+    /// What `key` names: a key here, else a library material.
+    fn get(&self, key: &str, library: &Library) -> Rc<MatInfo> {
+        match self.keys.get(key) {
+            Some(info) => info.clone(),
+            None => Rc::new(MatInfo::library(key, library)),
+        }
+    }
 }
 
 /// A frame: a point is placed at `t + s · q · (d ∘ p)`, a rotation after the mirror signs `d`.
@@ -308,9 +426,12 @@ struct Compiler<'a> {
     siblings: HashMap<usize, Rc<Vec<Child<'a>>>>,
     out: CompiledProp,
     issues: Vec<Issue>,
-    /// Inside a reference: the referencing node's `remap` and the referencing document's
-    /// materials, which replace this document's materials of those keys.
-    remap: Option<(&'a BTreeMap<String, String>, &'a BTreeMap<String, MaterialEntry>)>,
+    /// What this document's material keys name; inside a reference, with the referencing
+    /// node's `remap` laid over them (the referencing document's materials).
+    mats: Mats,
+    library: Arc<Library>,
+    /// Materials that do not resolve, with the parts that wear them (unknown_material).
+    missing: BTreeMap<(String, String), Vec<String>>,
 }
 
 /// Format 1's angles: YXZ, degrees.
@@ -782,30 +903,36 @@ impl<'a> Compiler<'a> {
         for (index, with) in node.recolor.iter().flatten() {
             let slot = index.parse::<usize>().ok().filter(|&i| i < shape.colours.len());
             let slot = slot.ok_or_else(|| format!("recolor {index}: the palette has {} colours", shape.colours.len()))?;
-            let hex =
-                if with.starts_with('#') { Some(with.as_str()) } else { self.material(with).and_then(|m| m.color.as_deref()) };
+            let hex = if with.starts_with('#') {
+                Some(with.clone())
+            } else {
+                self.material(with).part.material.as_ref().map(|material| material.color.clone())
+            };
             match hex.filter(|hex| !hex.starts_with('$')) {
-                Some(hex) => shape.colours[slot] = super::mesh::linear(hex),
+                Some(hex) => shape.colours[slot] = super::mesh::linear(&hex),
                 None => return Err(format!("recolor {index}: \"{with}\" is not a material with a #rrggbb colour")),
             }
         }
         Ok(Primitive::Mesh { name: name.to_string(), mesh: shape })
     }
 
-    /// The material behind a key, when it is written inline (a referencing document's, when
-    /// its `remap` swaps the key).
-    fn material(&self, key: &str) -> Option<&Material> {
-        let swapped = self.remap.and_then(|(remap, materials)| materials.get(remap.get(key)?));
-        match swapped.or_else(|| self.doc.materials.get(key)) {
-            Some(MaterialEntry::Inline(material)) => Some(material),
-            _ => None,
-        }
+    /// What a material key names (a referencing document's material, when its `remap` swaps
+    /// the key).
+    fn material(&self, key: &str) -> Rc<MatInfo> {
+        self.mats.get(key, &self.library)
     }
 
-    /// A field from the surface cascade: at each level, nearest first, an explicit value wins,
-    /// then that level's material.
-    fn cascade<T>(&self, levels: &[Level], own: impl Fn(&Level) -> Option<T>, mat: impl Fn(&Material) -> Option<T>) -> Option<T> {
-        levels.iter().rev().find_map(|level| own(level).or_else(|| level.mat.and_then(|key| self.material(key)).and_then(&mat)))
+    /// A field from the surface cascade: at each level, nearest first, an explicit value wins;
+    /// the nearest material (that one only) gives what it writes, so an outer material's glow
+    /// or look never reaches a part that wears a material of its own.
+    fn cascade<T>(&self, levels: &[Level], own: impl Fn(&Level) -> Option<T>, mat: impl Fn(&MatInfo) -> Option<T>) -> Option<T> {
+        let mut nearest = true;
+        levels.iter().rev().find_map(|level| {
+            own(level).or_else(|| {
+                let key = level.mat?;
+                std::mem::replace(&mut nearest, false).then(|| mat(&self.material(key))).flatten()
+            })
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -819,10 +946,12 @@ impl<'a> Compiler<'a> {
         levels: &[Level],
         tint: f32,
     ) {
-        // A mesh carries its own colours.
+        // A mesh carries its own colours. Otherwise the nearest level that writes a colour or a
+        // material decides the colour: its own, or (None) its material's, which the view draws
+        // from the material table.
         let color = match prim {
-            Primitive::Mesh { .. } => Some("#ffffff".to_string()),
-            _ => self.cascade(levels, |l| l.color.map(String::from), |m| m.color.clone()),
+            Primitive::Mesh { .. } => Some(Some("#ffffff".to_string())),
+            _ => levels.iter().rev().find_map(|l| l.color.map(|c| Some(c.to_owned())).or(l.mat.map(|_| None))),
         };
         let Some(color) = color else {
             self.issue(&path(), Code::Missing, "no colour: nothing gives this part color or mat");
@@ -830,11 +959,13 @@ impl<'a> Compiler<'a> {
         };
         let look = self.cascade(levels, |l| l.look, |m| m.look).unwrap_or_default();
         let emissive = self.cascade(levels, |l| l.emissive, |m| m.emissive).unwrap_or(0.0);
-        let mat = levels
-            .iter()
-            .rev()
-            .find_map(|l| l.mat)
-            .map(|key| self.remap.and_then(|(remap, _)| remap.get(key)).map_or(key, String::as_str).to_owned());
+        let mat = levels.iter().rev().find_map(|l| l.mat).map(|key| {
+            let info = self.material(key);
+            if let Some(problem) = &info.problem {
+                self.missing.entry(problem.clone()).or_default().push(id.to_owned());
+            }
+            info.part.clone()
+        });
         let solid = levels.iter().rev().find_map(|l| l.solid).unwrap_or(true);
         let (mirrored, rot) = (world.mirrored(), world.rotation());
         let pos = world.t;
@@ -900,6 +1031,12 @@ impl<'a> Compiler<'a> {
             return;
         }
         let deps = |name: &str| def.dep(name);
+        // Its inline materials belong to it; a remap swaps in this document's materials.
+        let owner = super::canonical(name).unwrap_or_else(|_| name.to_owned());
+        let mut mats = Mats::of(&def.doc, &owner, &self.library);
+        for (key, value) in node.remap.iter().flatten() {
+            mats.keys.insert(key.clone(), self.material(value));
+        }
         let mut inner = Compiler {
             doc: &def.doc,
             deps: &deps,
@@ -908,7 +1045,9 @@ impl<'a> Compiler<'a> {
             siblings: HashMap::new(),
             out: CompiledProp::default(),
             issues: Vec::new(),
-            remap: node.remap.as_ref().map(|remap| (remap, &self.doc.materials)),
+            mats,
+            library: self.library.clone(),
+            missing: BTreeMap::new(),
         };
         let mut levels = vec![Level::of(&def.doc.surface)];
         inner.nodes(&def.doc.parts, None, world, &mut levels, tint, &format!("{id}."), &path());
@@ -916,6 +1055,9 @@ impl<'a> Compiler<'a> {
         self.out.lights.append(&mut inner.out.lights);
         self.out.fx.append(&mut inner.out.fx);
         self.issues.append(&mut inner.issues);
+        for (problem, ids) in inner.missing {
+            self.missing.entry(problem).or_default().extend(ids);
+        }
     }
 
     fn sockets(&mut self) {
@@ -1087,6 +1229,18 @@ impl<'a> Compiler<'a> {
             }
         }
         self.frame_turns(&mut warnings);
+        // Materials that do not resolve draw magenta until they do.
+        for ((what, rest), ids) in &self.missing {
+            let mut shown: Vec<&str> = ids.iter().map(String::as_str).take(3).collect();
+            if ids.len() > 3 {
+                shown.push("…");
+            }
+            warnings.push(Finding {
+                code: "unknown_material",
+                ids: ids.clone(),
+                line: format!("unknown_material: {what} ({}){rest}", shown.join(", ")),
+            });
+        }
         self.out.warnings = warnings;
     }
 
@@ -1177,9 +1331,11 @@ mod tests {
                 };
                 assert_eq!(part.prim, expected, "{name}");
                 assert_eq!(
-                    (part.color.as_str(), part.look, part.emissive, part.solid),
-                    (v1.color.as_str(), v1.look, v1.emissive, v1.solid)
+                    (part.color.as_deref(), part.look, part.emissive, part.solid),
+                    (Some(v1.color.as_str()), v1.look, v1.emissive, v1.solid),
+                    "{name}: format 1's colour is explicit"
                 );
+                assert!(part.mat.is_none());
                 assert!(!part.mirrored && !part.hidden && part.scale == 1.0 && part.tint == 1.0 && part.glow_light);
                 for scale in [1.0, 0.37, 2.5] {
                     assert_eq!(part.bounds(scale), v1.bounds(scale), "{name}: format 1's bounds, bit for bit");

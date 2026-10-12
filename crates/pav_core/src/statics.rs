@@ -95,6 +95,10 @@ pub struct Block {
     pub regrow: f32,
     #[serde(default)]
     pub strength: f32,
+    /// A library material (`MAT/flagstones`) laid in world space, so neighbouring blocks join
+    /// seamlessly; the block's colour stays its base colour. None draws the plain colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<String>,
 }
 
 fn yes() -> bool {
@@ -114,7 +118,13 @@ impl Block {
             crumble: 0.0,
             regrow: 0.0,
             strength: 0.0,
+            material: None,
         }
+    }
+    /// Wears a library material (`MAT/…`).
+    pub fn with_material(mut self, material: impl Into<String>) -> Self {
+        self.material = Some(material.into());
+        self
     }
     pub fn with_flags(mut self, flags: u32) -> Self {
         self.flags |= flags;
@@ -215,6 +225,10 @@ pub struct Decor {
     /// Moves in the wind (drawing only).
     #[serde(default)]
     pub sway: Sway,
+    /// A library material (`MAT/…`): object-mapped, or along the axis of a cylinder or
+    /// capsule. None draws the plain colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<String>,
 }
 
 fn quat_id() -> Quat {

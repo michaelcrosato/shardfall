@@ -81,6 +81,8 @@ pub struct MaterialTable {
     version: u64,
     generation: u64,
     full_warned: bool,
+    /// The library the rows were last refreshed against (`sync`).
+    synced: Option<Arc<Library>>,
 }
 
 impl Default for MaterialTable {
@@ -92,6 +94,7 @@ impl Default for MaterialTable {
             version: NEXT_VERSION.fetch_add(1, Ordering::Relaxed),
             generation: 0,
             full_warned: false,
+            synced: None,
         }
     }
 }
@@ -128,8 +131,13 @@ impl MaterialTable {
         let key = Key { name: name.to_owned(), map, palette: palette_hash(material, roles) };
         if let Some(&i) = self.index.get(&key) {
             if !Arc::ptr_eq(&self.entries[i].material, material) {
+                // Each compile of a prop resolves its inline materials anew: only a change of
+                // content re-packs.
+                let changed = *self.entries[i].material != **material;
                 self.entries[i].material = material.clone();
-                self.repack(i);
+                if changed {
+                    self.repack(i);
+                }
             }
             let entry = &self.entries[i];
             if same_roles(&entry.roles, roles) {
@@ -153,13 +161,14 @@ impl MaterialTable {
         if slot == SOFT_SLOTS + 1 {
             eprintln!("materials: more than {SOFT_SLOTS} rows in the table");
         }
-        let roles = roles.iter().map(|(role, hex)| (role.to_string(), hex.to_string())).collect();
-        let placeholder = MatSlot { slot: slot as u32, map, base: Vec3::ONE, emissive: 0.0, look: Look::Cel };
-        self.entries.push(Entry { key: key.clone(), material: material.clone(), roles, slot: placeholder });
-        Arc::make_mut(&mut self.rows).push(GpuMaterial::default());
+        let roles: Vec<(String, String)> = roles.iter().map(|(role, hex)| (role.to_string(), hex.to_string())).collect();
+        // A new row changes no instance already built: the generation holds.
+        let (row, mat_slot) = pack(material, map, &roles, slot as u32);
+        self.entries.push(Entry { key: key.clone(), material: material.clone(), roles, slot: mat_slot });
+        Arc::make_mut(&mut self.rows).push(row);
         self.index.insert(key, slot - 1);
-        self.repack(slot - 1);
-        self.entries[slot - 1].slot
+        self.version = NEXT_VERSION.fetch_add(1, Ordering::Relaxed);
+        mat_slot
     }
 
     /// Re-resolves every row against `lib` in place (after the library changed). A material
@@ -168,24 +177,36 @@ impl MaterialTable {
         for i in 0..self.entries.len() {
             if let Some(material) = lib.get(&self.entries[i].key.name) {
                 if !Arc::ptr_eq(&self.entries[i].material, material) {
+                    let changed = *self.entries[i].material != **material;
                     self.entries[i].material = material.clone();
-                    self.repack(i);
+                    if changed {
+                        self.repack(i);
+                    }
                 }
             }
         }
     }
 
+    /// Refreshes the rows when `lib` is not the library they were last refreshed against.
+    /// Views call it with `Library::current()` each build, so a workshop edit or reload
+    /// reaches every view.
+    pub fn sync(&mut self, lib: &Arc<Library>) {
+        if self.synced.as_ref().is_some_and(|synced| Arc::ptr_eq(synced, lib)) {
+            return;
+        }
+        self.refresh(lib);
+        self.synced = Some(lib.clone());
+    }
+
+    /// Re-packs a row whose material changed; instances carry its new colour, glow and look.
     fn repack(&mut self, i: usize) {
         let entry = &self.entries[i];
-        let roles: Vec<(&str, &str)> = entry.roles.iter().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
         let map = effective_map(entry.key.map, &entry.material);
-        let packed = entry.material.pack(map, &roles);
-        let slot = MatSlot { slot: entry.slot.slot, map, base: packed.base, emissive: packed.emissive, look: packed.look };
+        let (row, slot) = pack(&entry.material, map, &entry.roles, entry.slot.slot);
         if slot != entry.slot {
             self.entries[i].slot = slot;
             self.generation += 1;
         }
-        let row = GpuMaterial::from_words(&packed.gpu.words());
         let rows = Arc::make_mut(&mut self.rows);
         if rows[i + 1] != row {
             rows[i + 1] = row;
@@ -198,6 +219,14 @@ impl MaterialTable {
         scene.materials = self.rows.clone();
         scene.materials_version = self.version;
     }
+}
+
+/// A material's row and what its instances carry.
+fn pack(material: &Material, map: MapMode, roles: &[(String, String)], slot: u32) -> (GpuMaterial, MatSlot) {
+    let roles: Vec<(&str, &str)> = roles.iter().map(|(role, hex)| (role.as_str(), hex.as_str())).collect();
+    let packed = material.pack(map, &roles);
+    let slot = MatSlot { slot, map, base: packed.base, emissive: packed.emissive, look: packed.look };
+    (GpuMaterial::from_words(&packed.gpu.words()), slot)
 }
 
 /// The map a row is laid with: the caller's, else the material's own, else object.

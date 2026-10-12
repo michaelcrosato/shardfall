@@ -272,7 +272,7 @@ pub fn hex_linear(hex: &str) -> [f64; 3] {
 pub fn prop_tris(compiled: &CompiledProp) -> Vec<Tri> {
     let mut out = Vec::new();
     for part in compiled.parts.iter().filter(|p| !p.hidden) {
-        let colour = hex_linear(&part.color).map(|c| c * part.tint as f64);
+        let colour = hex_linear(part.surface_color()).map(|c| c * part.tint as f64);
         let (pos, rot, scale) = (v3(part.pos), part.rot.as_dquat(), part.scale as f64);
         let place = |p: DVec3| pos + rot * (p * scale);
         if let Some(g) = Generated::of(&part.prim, part.mirrored) {

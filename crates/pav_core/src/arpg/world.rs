@@ -935,6 +935,7 @@ impl<'a> Builder<'a> {
                     solid: false,
                     collider: None,
                     sway: crate::shape::Sway::Grass,
+                    material: None,
                 };
                 st.statics.add_decor(&mut st.physics, RegionKey::chunk_of(pos), d);
             }

@@ -134,7 +134,7 @@ asset_import: library zip/GLB/OBJ ─▶ Scene ─▶ segment ─▶ fit primiti
      references; up to 20 issues with part paths and did-you-mean.
   4. Typed parse into the flat model; v1 nested `shape` is mapped.
   5. `compile`.
-- Row 2.1 landed steps 1-4 (`props/doc.rs`, `props/read/v2.rs`). Until their phases land, `MAT/…` materials and `params`/`presets` are refused as not yet available (mesh parts landed with row 5.2), and inline material layers are checked by pattern and parameter name only.
+- Row 2.1 landed steps 1-4 (`props/doc.rs`, `props/read/v2.rs`). Until their phases land, `params`/`presets` are refused as not yet available (mesh parts landed with row 5.2; row 3.3: `MAT/…` materials read, and inline materials are checked as material files are).
 - Revisions:
   - v1 keeps `prop1-` + the existing FNV-1a over a `V1Mirror` of today's serde layout (props.rs:274-280), so untouched assets, `if_revision` values and history heads stay valid;
   - v2 uses `prop2-` + FNV over the canonical compact text;
@@ -502,6 +502,16 @@ per layer: m = AA mask × facing × prev-mask
   swatch prop (rows of sphere, cube, cylinder and a 2×2 m world slab). It replies per layer with
   the feature size, pixels at the game camera, coverage and a verdict.
 - `docs/MATERIALS.md`: schema, vocabulary, legibility, examples.
+- (Row 3.3: done. Props name `MAT/…` in their `materials` table or straight in `mat`; inline
+  materials are read by `material::read_inline`, so their checks are the files' (`angle` is
+  refused there too). A resolved part's `color` is its own only; its material's colour, look
+  and emissive come through `PartMat`, and the view draws library materials from
+  `Library::current()` (workshop edits re-pack rows on the next build) and inline ones keyed
+  `ASSET#key`. Unknown names compile, draw magenta and are `check`'s `unknown_material`. Round
+  parts (cylinder, cone, capsule, tube, lathe) default to the axis map. `Block`/`Decor` carry
+  `material`; blocks are world-mapped with seed 0 and the default roles until 3.4 gives statics a
+  palette. Not done: `theme=` on the swatch, a native watcher for hand-edited material files,
+  and recompiling props when a workshop material's look or emissive changes.)
 
 ### 6.7 Translating texture libraries
 All of it runs through `asset_import kind=material catalog=assets/catalogs/materials/<lib>.json`.
@@ -1331,7 +1341,7 @@ Why this order:
 - [x] 2.5 F8 fixtures, template fix, docs, legend + EVAL-5 G2 (M + runs): **G2 NO-GO**, stopped
 - [x] 3.1 MAT-1 material core and CPU eval, seeded from `docs/asset_plan/examples/materials/` (M)
 - [x] 3.2 MAT-2 renderer + MAT-3 view integration, parity, frame-time bench, WGSL check (L)
-- [ ] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
+- [x] 3.3 MAT-4 props/statics integration + MAT-5 material tools, swatch, MATERIALS.md (M)
 - [ ] 3.4 MAT-6 theme materials in levels; lean G3 (M)
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)

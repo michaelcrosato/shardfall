@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use glam::Vec3;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use super::doc::{Anchor, Attach, Doc, Kind, MaterialEntry, Node, Prim, Replicate, Socket, Surface};
 use super::{Look, PropAsset, PropPart, Shape};
@@ -231,35 +231,68 @@ fn map(m: &BTreeMap<String, String>) -> String {
 }
 
 fn material(entry: &MaterialEntry) -> String {
-    let m = match entry {
-        MaterialEntry::Library(name) => return quoted(name),
-        MaterialEntry::Inline(m) => m,
+    match entry {
+        MaterialEntry::Library(name) => quoted(name),
+        MaterialEntry::Inline(m) => {
+            let entries = material_entries(&m.written, &[]);
+            format!("{{{}}}", entries.iter().map(|(key, text)| format!("{}:{text}", quoted(key))).collect::<Vec<_>>().join(","))
+        }
+    }
+}
+
+/// A material's checked JSON in canonical order: the `first` keys (a file's header), then the
+/// material fields, each layer with `type` first and its parameters in the schema's order;
+/// numbers as format 2 writes them. Keys outside those lists keep their own order after them.
+/// Layers come back one text per layer, for writers that put each on its own line.
+pub(crate) fn material_entries(written: &Map<String, Value>, first: &[&str]) -> Vec<(String, MaterialText)> {
+    use crate::material::schema::{FIELDS, LAYER_KEYS};
+    let order: Vec<&str> = first.iter().copied().chain(FIELDS.iter().map(|(key, _)| *key)).collect();
+    let ordered = |map: &Map<String, Value>, order: &[&str]| -> Vec<(String, Value)> {
+        let mut out: Vec<(String, Value)> =
+            order.iter().filter_map(|key| map.get(*key).map(|v| (key.to_string(), v.clone()))).collect();
+        out.extend(map.iter().filter(|(key, _)| !order.contains(&key.as_str())).map(|(k, v)| (k.clone(), v.clone())));
+        out
     };
-    let mut f = Fields::default();
-    f.opt("base", m.base.as_ref(), |b| quoted(b));
-    f.opt("color", m.color.as_ref(), |c| quoted(c));
-    f.opt("look", m.look, |l| quoted(look_name(l)));
-    f.opt("emissive", m.emissive, num);
-    f.opt("roughness", m.roughness, num);
-    f.opt("metallic", m.metallic, num);
-    f.opt("map", m.map, |map| quoted(map.name()));
-    f.opt("scale", m.scale, num);
-    f.opt("turn", m.turn, |t| t.to_string());
-    f.opt("layers", m.layers.as_ref(), |layers| {
-        let layers: Vec<String> = layers
-            .iter()
-            .map(|layer| {
-                let mut l = Fields::default();
-                l.add("type", quoted(layer.kind.name()));
-                for (key, v) in &layer.params {
-                    l.add(key, value(v));
-                }
-                l.object()
-            })
-            .collect();
-        format!("[{}]", layers.join(","))
-    });
-    f.object()
+    ordered(written, &order)
+        .into_iter()
+        .map(|(key, v)| {
+            let text = match (&*key, &v) {
+                ("layers", Value::Array(layers)) => MaterialText::Layers(
+                    layers
+                        .iter()
+                        .map(|layer| match layer {
+                            Value::Object(layer) => format!(
+                                "{{{}}}",
+                                ordered(layer, LAYER_KEYS)
+                                    .iter()
+                                    .map(|(k, v)| format!("{}:{}", quoted(k), value(v)))
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            ),
+                            other => value(other),
+                        })
+                        .collect(),
+                ),
+                _ => MaterialText::One(value(&v)),
+            };
+            (key, text)
+        })
+        .collect()
+}
+
+/// One material entry's text: a value, or the layers one by one.
+pub(crate) enum MaterialText {
+    One(String),
+    Layers(Vec<String>),
+}
+
+impl std::fmt::Display for MaterialText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MaterialText::One(text) => f.write_str(text),
+            MaterialText::Layers(layers) => write!(f, "[{}]", layers.join(",")),
+        }
+    }
 }
 
 fn socket(s: &Socket) -> String {
