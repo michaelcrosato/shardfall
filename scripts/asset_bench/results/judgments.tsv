@@ -89,6 +89,24 @@ edit	ed8801e10363	G1/T/E5-r1	before-top	3		1			Glow now blue; legs visibly ~30% 
 edit	584b128c2452	G1/T/E6-r1	before-top	1		1			All three re-themed icy blue; icicles hang under bookshelf shelves; forms kept.	opus	medium	2026-10-12 04:36
 edit	584b128c2452	G1/T/E6-r1	before-top	2		1			All three assets recoloured icy blue; icicles under bookshelf shelves; forms kept	opus	medium	2026-10-12 04:37
 edit	584b128c2452	G1/T/E6-r1	before-top	3		1			All three re-coloured icy blue; icicles hang under bookshelf shelves; shapes kept.	opus	medium	2026-10-12 04:39
+edit	3c80ed5ec30f	G2/F/E1-r1	before-top	1		1			Table longer with visible middle trestle; height relative to person unchanged.	opus	medium	2026-10-12 12:23
+edit	3c80ed5ec30f	G2/F/E1-r1	before-top	2		1			Table visibly longer, middle trestle added, height and style unchanged.	opus	medium	2026-10-12 12:23
+edit	3c80ed5ec30f	G2/F/E1-r1	before-top	3		1			Table visibly lengthened with a middle trestle added; height and style unchanged.	opus	medium	2026-10-12 12:23
+edit	687afedc5dc7	G2/F/E2-r1	before-top	1		1			Dark wood, brass trim and hubs, larger wheels; cart still grounded, cargo kept.	opus	medium	2026-10-12 12:24
+edit	687afedc5dc7	G2/F/E2-r1	before-top	2		1			Dark wood, brass trim and hubs, larger wheels touching ground; cargo and layout unchanged.	opus	medium	2026-10-12 12:24
+edit	687afedc5dc7	G2/F/E2-r1	before-top	3		1			Dark wood, brass trim and hubs, bigger wheels; still grounded, cargo unchanged.	opus	medium	2026-10-12 12:24
+edit	1d22a37e5edb	G2/F/E3-r1	before-top	1		1			Wall wider with five evenly spaced merlons, two arrow slits; style kept.	opus	medium	2026-10-12 12:24
+edit	1d22a37e5edb	G2/F/E3-r1	before-top	2		1			Wall wider, five evenly spaced merlons, two arrow slits; style and materials kept.	opus	medium	2026-10-12 12:24
+edit	1d22a37e5edb	G2/F/E3-r1	before-top	3		1			Wall wider with five evenly spaced merlons and two arrow slits; style preserved.	opus	medium	2026-10-12 12:24
+edit	c930683feec1	G2/F/E4-r1	before-top	1		1			Double blade became single bit with back spike; haft and grip unchanged.	opus	medium	2026-10-12 12:24
+edit	c930683feec1	G2/F/E4-r1	before-top	2		1			Double-bit replaced by single blade plus back spike; haft and pommel unchanged.	opus	medium	2026-10-12 12:24
+edit	c930683feec1	G2/F/E4-r1	before-top	3		1			Double-bit replaced by single blade plus back spike; haft and proportions unchanged	opus	medium	2026-10-12 12:24
+edit	bfbb9ab263d7	G2/F/E5-r1	before-top	1		1			Blue frost flame added; legs visibly about 30% taller; brazier otherwise kept	opus	medium	2026-10-12 12:25
+edit	bfbb9ab263d7	G2/F/E5-r1	before-top	2		1			Light now icy blue; tripod legs clearly longer; brazier otherwise intact.	opus	medium	2026-10-12 12:25
+edit	bfbb9ab263d7	G2/F/E5-r1	before-top	3		1			Flame and glow now blue; bowl sits higher on visibly longer legs; brazier unchanged.	opus	medium	2026-10-12 12:25
+edit	4cd969491523	G2/F/E6-r1	before-top	1		1			All three assets icy-blue; small icicles hang under bookshelf shelves; forms kept.	opus	medium	2026-10-12 12:25
+edit	4cd969491523	G2/F/E6-r1	before-top	2		1			All three assets re-tinted icy blue; small icicles hang beneath bookshelf shelves; forms kept.	opus	medium	2026-10-12 12:25
+edit	4cd969491523	G2/F/E6-r1	before-top	3		1			All three assets recoloured icy blue; small icicles hang under bookshelf shelves; forms kept.	opus	medium	2026-10-12 12:25
 edit	75b7d390a7f7	GA/A/E1-r1	before-top	1		1			Table visibly longer with a middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:36
 edit	75b7d390a7f7	GA/A/E1-r1	before-top	2		1			Table visibly longer with middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:37
 edit	75b7d390a7f7	GA/A/E1-r1	before-top	3		1			Table visibly longer with middle trestle added; height and style unchanged.	opus	medium	2026-10-12 04:39
@@ -107,3 +125,75 @@ edit	3f25eb2e8cde	GA/A/E5-r1	before-top	3		1			Light now blue, legs visibly abou
 edit	b7e6a706513a	GA/A/E6-r1	before-top	1		1			All three are now pale icy blue; small icicles hang under the bookshelf shelves.	opus	medium	2026-10-12 04:36
 edit	b7e6a706513a	GA/A/E6-r1	before-top	2		1			All three re-coloured icy; icicles hang under bookshelf shelves; shapes otherwise unchanged.	opus	medium	2026-10-12 04:37
 edit	b7e6a706513a	GA/A/E6-r1	before-top	3		1			All three re-coloured icy blue; icicles hang under bookshelf shelves; forms kept	opus	medium	2026-10-12 04:39
+pair	4918fd7faf6f	G2/F/P01-r1	arm-top	1	1		4,4,4,4,4	4,4,3,3,3	Same trestle frame; asset 1s visible plank seams better match the plank-top brief.	opus	medium	2026-10-12 12:11
+pair	4918fd7faf6f	G2/F/P01-r1	arm-top	2	1		4,4,4,4,4	4,4,3,3,3	Same trestle form; asset 1s plank seams add detail, asset 2s top is flat.	opus	medium	2026-10-12 12:11
+pair	4918fd7faf6f	G2/F/P01-r1	arm-top	3	1		4,4,4,4,4	4,4,3,3,3	Same geometry; asset 1 has visible plank seams and better wood contrast.	opus	medium	2026-10-12 12:11
+pair	09af0bf9ffb7	G2/F/P02-r1	arm-bottom	1	2		4,4,3,4,4	4,4,4,4,4	Asset 2s seat reads as woven; asset 1s seat looks like chunky planks.	opus	medium	2026-10-12 12:11
+pair	09af0bf9ffb7	G2/F/P02-r1	arm-bottom	2	2		4,4,4,3,4	4,4,4,4,4	Near-identical chairs; asset 2s woven seat reads more clearly than asset 1s planks.	opus	medium	2026-10-12 12:11
+pair	09af0bf9ffb7	G2/F/P02-r1	arm-bottom	3	2		4,4,3,4,4	4,4,4,4,4	Asset 2s woven seat reads clearer; asset 1s seat looks like planks	opus	medium	2026-10-12 12:11
+pair	1aabca7afa2d	G2/F/P03-r1	arm-bottom	1	1		4,4,4,4,4	4,4,3,4,4	Asset 1 has clearer corner caps, base trim and hasp; 2 sparser	opus	medium	2026-10-12 12:12
+pair	1aabca7afa2d	G2/F/P03-r1	arm-bottom	2	1		4,4,4,4,4	4,4,3,4,4	Near-identical chests; asset 1 has clearer hasp lock plate and corner caps.	opus	medium	2026-10-12 12:12
+pair	1aabca7afa2d	G2/F/P03-r1	arm-bottom	3	1		4,4,4,4,4	4,4,3,4,4	Near-identical chests; asset 1 has clearer corner caps and a bolder lock plate.	opus	medium	2026-10-12 12:12
+pair	8861e6383482	G2/F/P04-r1	arm-bottom	1	2		3,3,2,3,3	3,3,3,3,3	Asset 2s flared tied necks read more like sacks; both look jar-like.	opus	medium	2026-10-12 12:12
+pair	8861e6383482	G2/F/P04-r1	arm-bottom	2	2		3,3,2,3,3	3,3,3,3,3	Asset 2 has clearer tied necks and slumped sack; both look bottle-like	opus	medium	2026-10-12 12:12
+pair	8861e6383482	G2/F/P04-r1	arm-bottom	3	2		3,3,2,3,3	3,3,3,3,3	Asset 2s flared tied necks read more like sacks; asset 1s look like bottles	opus	medium	2026-10-12 12:12
+pair	4111dd542f6d	G2/F/P05-r1	arm-top	1	1		4,4,3,3,4	4,4,3,3,3	Asset 1 slit cuts through; asset 2 slit is front-only dark decal.	opus	medium	2026-10-12 12:13
+pair	4111dd542f6d	G2/F/P05-r1	arm-top	2	1		4,4,3,3,3	4,4,2,3,3	Asset 1 slit cuts through; asset 2 slit is front-only decal with stray sill	opus	medium	2026-10-12 12:13
+pair	4111dd542f6d	G2/F/P05-r1	arm-top	3	1		4,4,3,3,4	4,4,2,3,3	Asset 1 slit pierces wall; asset 2 slit is front-only decal with poking sill	opus	medium	2026-10-12 12:13
+pair	5a27b9e935d2	G2/F/P06-r1	arm-bottom	1	2		4,4,3,3,4	4,4,4,3,4	Impost blocks give asset 2 more structure; both arches otherwise similar.	opus	medium	2026-10-12 12:13
+pair	5a27b9e935d2	G2/F/P06-r1	arm-bottom	2	2		4,4,3,3,4	4,4,4,4,4	Asset 2 adds impost blocks and better voussoir tone variation; asset 1 plainer	opus	medium	2026-10-12 12:13
+pair	5a27b9e935d2	G2/F/P06-r1	arm-bottom	3	2		4,4,3,3,4	4,4,4,3,4	Asset 2 adds impost blocks at the springline, giving more secondary form.	opus	medium	2026-10-12 12:13
+pair	b0093456a8a3	G2/F/P07-r1	arm-top	1	2		2,2,2,2,2	3,3,3,4,3	Asset 1s flame blob hides the bowl; asset 2 reads well, legs straight	opus	medium	2026-10-12 12:13
+pair	b0093456a8a3	G2/F/P07-r1	arm-top	2	2		2,3,2,2,2	4,4,3,4,4	Asset 1s huge fire bloom hides the bowl; asset 2 reads clearly, though its legs are straight.	opus	medium	2026-10-12 12:13
+pair	b0093456a8a3	G2/F/P07-r1	arm-top	3	2		2,2,2,2,2	3,3,3,4,3	Asset 1 is an oversized fire blob hiding the bowl; asset 2 reads clearly.	opus	medium	2026-10-12 12:13
+pair	daab330ce4e6	G2/F/P08-r1	arm-bottom	1	2		3,3,3,2,2	4,4,3,4,4	Asset 1 has blown-out glow that hides its form; asset 2 is clean and readable.	opus	medium	2026-10-12 12:14
+pair	daab330ce4e6	G2/F/P08-r1	arm-bottom	2	1		4,4,4,2,3	3,3,3,3,3	1 chunkier with central hub; glow overblown. 2 clean but thin, sparse.	opus	medium	2026-10-12 12:14
+pair	daab330ce4e6	G2/F/P08-r1	arm-bottom	3	2		3,3,3,2,2	4,4,3,4,4	Asset 1 bloom overwhelms scene; asset 2 clean ring, chains, readable candles.	opus	medium	2026-10-12 12:14
+pair	68853031d196	G2/F/P09-r1	arm-bottom	1	2		3,3,2,3,2	4,4,3,3,4	Asset 2 has twisted trunk, forked branches, spreading roots; asset 1 is stacked pipes	opus	medium	2026-10-12 12:14
+pair	68853031d196	G2/F/P09-r1	arm-bottom	2	2		3,3,2,3,3	4,4,4,3,4	Asset 2 twisted trunk, forked branches; asset 1 stacked disjoint cylinders	opus	medium	2026-10-12 12:14
+pair	68853031d196	G2/F/P09-r1	arm-bottom	3	2		3,3,2,3,3	4,4,3,3,3	Asset 2 reads as a twisted forked dead tree; asset 1 is stacked drums.	opus	medium	2026-10-12 12:14
+pair	c89ae2a1f643	G2/F/P10-r1	arm-bottom	1	1		4,4,4,4,4	4,3,3,4,4	Asset 1 has a cleaner round crown; asset 2s flowers poke out and clutter it	opus	medium	2026-10-12 12:14
+pair	c89ae2a1f643	G2/F/P10-r1	arm-bottom	2	1		4,4,3,4,4	4,4,3,4,3	Asset 1 reads cleaner; asset 2s rim-edge flowers poke and clutter slightly.	opus	medium	2026-10-12 12:14
+pair	c89ae2a1f643	G2/F/P10-r1	arm-bottom	3	1		4,4,4,4,4	4,4,3,4,4	Both solid; asset 1 cleaner flowers, fuller bush; asset 2 slightly cluttered edges.	opus	medium	2026-10-12 12:14
+pair	e60a82926691	G2/F/P11-r1	arm-top	1	1		3,3,2,3,2	2,3,2,2,2	Both smooth spheres; asset 1s top moss caps read as boulders better	opus	medium	2026-10-12 12:15
+pair	e60a82926691	G2/F/P11-r1	arm-top	2	1		3,3,2,3,2	2,3,2,2,2	Both smooth spheres; asset 1s moss caps read as moss, asset 2s side spots dont.	opus	medium	2026-10-12 12:15
+pair	e60a82926691	G2/F/P11-r1	arm-top	3	1		3,3,3,3,3	2,3,2,2,2	Asset 1 moss caps read from above; asset 2 side spots look like eyeballs	opus	medium	2026-10-12 12:15
+pair	41194051a3e7	G2/F/P12-r1	arm-top	1	2		3,3,3,3,3	4,4,3,3,4	Asset 2 has chunky prism crystals; asset 1s thin cones read as spikes	opus	medium	2026-10-12 12:15
+pair	41194051a3e7	G2/F/P12-r1	arm-top	2	2		3,3,3,4,3	4,4,3,3,4	Chunky prisms read as a crystal cluster; asset 1 is thin cones, though asset 2s glow is blown out	opus	medium	2026-10-12 12:15
+pair	41194051a3e7	G2/F/P12-r1	arm-top	3	2		3,3,3,3,3	4,3,3,4,4	Asset 2 prism crystals read as crystal cluster; asset 1 thin cones read as spikes	opus	medium	2026-10-12 12:15
+pair	93c26277e115	G2/F/P13-r1	arm-bottom	1	2		2,3,3,3,2	4,3,3,3,3	Asset 2s flared blades read as an axe; asset 1s rectangles look like flags.	opus	medium	2026-10-12 12:15
+pair	93c26277e115	G2/F/P13-r1	arm-bottom	2	2		3,3,3,3,3	4,3,3,3,3	Asset 2s flared blades read as an axe; asset 1s rectangular blades look flag-like.	opus	medium	2026-10-12 12:15
+pair	93c26277e115	G2/F/P13-r1	arm-bottom	3	2		2,3,3,3,3	4,3,3,3,4	Asset 2 has flared double-bit blades; asset 1 uses flat rectangular plates	opus	medium	2026-10-12 12:15
+pair	052f33de209a	G2/F/P14-r1	arm-bottom	1	2		4,4,3,3,3	4,4,4,4,4	Asset 1 back shows radial artifacts; asset 2 cleaner boss and back	opus	medium	2026-10-12 12:17
+pair	052f33de209a	G2/F/P14-r1	arm-bottom	2	2		4,4,3,3,3	4,4,4,4,4	Both read well; asset 1s back has cluttered radial artifacts, asset 2 cleaner.	opus	medium	2026-10-12 12:17
+pair	052f33de209a	G2/F/P14-r1	arm-bottom	3	2		4,4,3,4,3	4,4,4,4,4	Asset 1 back shows messy radial artifacts; asset 2 cleaner back with handle	opus	medium	2026-10-12 12:17
+pair	f6109231b2e5	G2/F/P15-r1	arm-top	1	1		4,3,3,3,4	3,3,3,3,3	Asset 1 has chunkier, more readable horns; asset 2s thin horns barely read.	opus	medium	2026-10-12 12:17
+pair	f6109231b2e5	G2/F/P15-r1	arm-top	2	1		4,4,3,4,4	3,3,3,3,3	Asset 1 chunkier, horns read clearly; asset 2 narrower, odd top spike	opus	medium	2026-10-12 12:17
+pair	f6109231b2e5	G2/F/P15-r1	arm-top	3	2		3,3,3,3,3	4,4,3,3,4	Asset 2 reads as a proper tall great helm; asset 1 is squat	opus	medium	2026-10-12 12:17
+pair	2d8683d619ec	G2/F/P16-r1	arm-bottom	1	2		1,2,2,3,2	2,2,2,3,2	Both stepped cakes, not curved pauldrons; asset 2 at least has spikes.	opus	medium	2026-10-12 12:17
+pair	2d8683d619ec	G2/F/P16-r1	arm-bottom	2	2		2,2,2,3,2	2,3,3,3,2	Both stepped cakes, not curved pauldrons; asset 2 has real spikes.	opus	medium	2026-10-12 12:17
+pair	2d8683d619ec	G2/F/P16-r1	arm-bottom	3	2		1,2,2,2,2	2,2,2,3,2	Both stepped cakes, not curved pauldrons; asset 2 at least has spikes.	opus	medium	2026-10-12 12:17
+pair	36f1263b0e78	G2/F/P17-r1	arm-top	1	1		4,4,3,3,4	3,3,3,3,3	Asset 1 has a tapered horn that reads as an anvil; asset 2s horn is boxy.	opus	medium	2026-10-12 12:18
+pair	36f1263b0e78	G2/F/P17-r1	arm-top	2	1		4,3,3,3,4	3,3,2,3,3	Asset 1 has a tapered horn and reads as an anvil; asset 2s horn is a boxy block.	opus	medium	2026-10-12 12:18
+pair	36f1263b0e78	G2/F/P17-r1	arm-top	3	1		4,4,3,3,4	3,3,3,3,3	Asset 1 has a tapered horn and a clear hammer; asset 2s boxy horn reads poorly	opus	medium	2026-10-12 12:18
+pair	d4d333851d88	G2/F/P18-r1	arm-bottom	1	1		4,4,4,4,4	4,4,3,3,3	Asset 1 has brighter cheese and a more detailed board; asset 2s flat orange reads dull	opus	medium	2026-10-12 12:18
+pair	d4d333851d88	G2/F/P18-r1	arm-bottom	2	1		4,4,3,4,4	4,4,3,3,3	Asset 1 has brighter cheese, stronger contrast with the board, and a clearer knife	opus	medium	2026-10-12 12:18
+pair	d4d333851d88	G2/F/P18-r1	arm-bottom	3	1		4,4,3,4,4	4,4,3,3,3	Asset 1 cheese yellow contrasts dark board; asset 2 orange blends into tan board	opus	medium	2026-10-12 12:18
+pair	e6398580f690	G2/F/P19-r1	arm-top	1	2		3,3,3,3,3	4,4,3,4,4	Asset 2 has chunkier, readable wheels and balanced load; asset 1 wheels thin	opus	medium	2026-10-12 12:18
+pair	e6398580f690	G2/F/P19-r1	arm-top	2	2		3,3,3,3,3	4,3,3,4,4	Asset 2 has chunkier wheels and frame that read better; asset 1s wheels are too thin	opus	medium	2026-10-12 12:18
+pair	e6398580f690	G2/F/P19-r1	arm-top	3	1		3,3,3,3,3	3,3,2,3,3	Asset 1 has clear shafts and nicer spoked wheels; asset 2s shafts unclear.	opus	medium	2026-10-12 12:18
+pair	aca736ceaafc	G2/F/P20-r1	arm-bottom	1	1		4,4,4,4,4	4,3,3,3,3	Asset 1 has feet, pins, varied papers, colour contrast; 2 plainer, drab	opus	medium	2026-10-12 12:19
+pair	aca736ceaafc	G2/F/P20-r1	arm-bottom	2	1		4,4,4,4,4	3,3,3,3,3	Asset 1 chunkier, footed posts, bold roof, richer papers; asset 2 thin, plain	opus	medium	2026-10-12 12:19
+pair	aca736ceaafc	G2/F/P20-r1	arm-bottom	3	1		4,4,4,4,4	3,3,3,3,3	Asset 1 has pinned papers, post feet, bold colours; asset 2 thinner, plainer	opus	medium	2026-10-12 12:19
+pair	e345f46a4f49	G2/F/P21-r1	arm-bottom	1	1		4,3,4,4,4	3,3,2,3,3	Asset 1s full skeleton reads clearly; asset 2s bones are tiny, barely visible	opus	medium	2026-10-12 12:19
+pair	e345f46a4f49	G2/F/P21-r1	arm-bottom	2	1		4,4,4,3,4	4,3,2,3,3	Asset 1 has a readable skeleton and a solid cage; asset 2 has only a few bones.	opus	medium	2026-10-12 12:19
+pair	e345f46a4f49	G2/F/P21-r1	arm-bottom	3	1		4,3,4,4,4	4,3,3,3,3	Asset 1s full skeleton reads clearly; asset 2s bones are sparse, base is plain	opus	medium	2026-10-12 12:19
+pair	2d99b3914e9b	G2/F/P22-r1	arm-bottom	1	2		3,4,2,3,3	4,4,4,4,4	Asset 2 has carved effigy lid, panels, plinth; asset 1 plain, crack reads as block	opus	medium	2026-10-12 12:19
+pair	2d99b3914e9b	G2/F/P22-r1	arm-bottom	2	2		3,4,2,3,3	4,4,4,4,4	Asset 2 has carved effigy lid, plaque, crack; asset 1 plain box	opus	medium	2026-10-12 12:19
+pair	2d99b3914e9b	G2/F/P22-r1	arm-bottom	3	2		3,4,2,3,3	4,4,4,4,4	Asset 2 has carved effigy lid, plaque, crack; asset 1 plain slab box	opus	medium	2026-10-12 12:19
+pair	66699f7405ca	G2/F/P23-r1	arm-top	1	1		4,3,3,4,4	3,3,2,3,3	Asset 1 reads as a hanging tavern sign; asset 2 looks like a flat framed panel	opus	medium	2026-10-12 12:23
+pair	66699f7405ca	G2/F/P23-r1	arm-top	2	1		4,4,3,4,4	3,3,2,3,3	Asset 1 reads as a classic hanging sign; asset 2's bracket is a blocky fused bar	opus	medium	2026-10-12 12:23
+pair	66699f7405ca	G2/F/P23-r1	arm-top	3	1		4,4,3,4,4	3,3,2,3,3	Asset 1 hangs clearly from its bracket; asset 2's mounting is blocky and unclear	opus	medium	2026-10-12 12:23
+pair	d1c44f62f2ad	G2/F/P24-r1	arm-bottom	1	1		4,4,4,4,4	4,3,3,3,3	Set 1 has vivid glowing glassware and a readable cauldron; set 2's smoke is noisy	opus	medium	2026-10-12 12:23
+pair	d1c44f62f2ad	G2/F/P24-r1	arm-bottom	2	1		4,4,4,4,4	4,3,3,3,3	Set 1 more cohesive glowing palette; set 2 sparse table, oversized smoke	opus	medium	2026-10-12 12:23
+pair	d1c44f62f2ad	G2/F/P24-r1	arm-bottom	3	1		4,4,4,4,4	3,3,3,3,3	Set 1 more cohesive; set 2 table sparse, cauldron smoke overwhelms, no visible brew	opus	medium	2026-10-12 12:23

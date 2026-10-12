@@ -1,0 +1,20 @@
+{"format":2,"name":"alchemist_cauldron_frost","unit":"cm",
+"description":"Frost-themed Iron cauldron on three legs with bubbling potion.",
+"materials":{
+"blue":{"color":"#7fb4f0"},
+"brass":{"color":"#cfe8f5"},
+"cream":{"color":"#f2f8fc"},
+"glass":{"color":"#c9f0ff"},
+"green":{"color":"#5fc8c0"},
+"ice":{"color":"#dff6ff"},
+"iron":{"color":"#4a6a8a"},
+"potion":{"color":"#6fe8ff","emissive":1.5},
+"red":{"color":"#8fa8e0"},
+"wood":{"color":"#a8c4dc"},
+"wood_dark":{"color":"#5f7f9f"}},
+"parts":{
+"body":{"type":"sphere","radius":36,"pos":[0,52,0],"mat":"iron"},
+"handle":{"type":"torus","radius":7,"minor_radius":2,"pos":[36,62,0],"pitch":0,"roll":90,"mat":"brass","mirror":"x"},
+"leg":{"type":"cylinder","radius":5,"height":30,"pos":[0,15,0],"mat":"iron","radial":{"count":3,"radius":28}},
+"liquid":{"type":"cylinder","radius":30,"height":3,"pos":[0,68,0],"mat":"potion","fx":{"preset":"steam"}},
+"rim":{"type":"torus","radius":30,"minor_radius":4,"pos":[0,70,0],"mat":"iron"}}}

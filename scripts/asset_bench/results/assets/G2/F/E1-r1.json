@@ -1,0 +1,13 @@
+{"format":2,"name":"trestle_table_260","unit":"cm",
+"description":"Long tavern table: plank top on three X-braced trestles joined by a stretcher.",
+"materials":{
+"wood":{"color":"#bc8150"},
+"wood_dark":{"color":"#594635"}},
+"parts":{
+"brace_a":{"type":"box","size":[5,4],"from":[0,8,-30],"to":[0,66,30],"mat":"wood","array":{"count":3,"step":[115,0,0]}},
+"brace_b":{"type":"box","size":[5,4],"from":[0,8,30],"to":[0,66,-30],"mat":"wood","array":{"count":3,"step":[115,0,0]}},
+"cap":{"type":"box","size":[10,4,72],"pos":[0,70,0],"mat":"wood_dark","array":{"count":3,"step":[115,0,0]}},
+"foot":{"type":"box","size":[8,6,76],"pos":[0,3,0],"mat":"wood_dark","array":{"count":3,"step":[115,0,0]}},
+"post":{"type":"box","size":[8,8],"from":[0,6,30],"to":[0,68,30],"mat":"wood_dark","mirror":"z","array":{"count":3,"step":[115,0,0]}},
+"stretcher":{"type":"box","size":[6,6],"from":[-115,40,0],"to":[115,40,0],"mat":"wood_dark"},
+"top":{"type":"box","size":[260,6,19.6],"pos":[0,75,0],"mat":"wood","array":{"count":4,"step":[0,0,20]}}}}

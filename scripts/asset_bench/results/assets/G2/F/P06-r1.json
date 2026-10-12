@@ -1,0 +1,11 @@
+{"format":2,"name":"arch_doorway","unit":"cm",
+"description":"Stone arch doorway kit piece: two piers, imposts, radial voussoirs and a keystone around a 200x300 opening.",
+"materials":{
+"key":{"color":"#c9c3b0"},
+"stone":{"color":"#a8a49a"},
+"stone_dark":{"color":"#85817a"}},
+"parts":{
+"impost":{"type":"box","size":[70,16,64],"pos":[125,208,0],"mat":"stone_dark","mirror":"x"},
+"keystone":{"type":"box","size":[44,80,64],"pos":[0,340,0],"mat":"key"},
+"pier":{"type":"box","size":[60,200,60],"pos":[130,100,0],"mat":"stone","mirror":"x"},
+"voussoir":{"type":"box","size":[58,60,58],"pos":[0,200,0],"mat":"stone","radial":{"count":8,"radius":130,"start":-84,"arc":168,"axis":"z","cycle":["stone","stone_dark"]}}}}

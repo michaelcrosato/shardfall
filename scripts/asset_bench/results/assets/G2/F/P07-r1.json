@@ -1,0 +1,23 @@
+{"format":2,"name":"tripod_brazier","unit":"cm",
+"description":"Tripod brazier: iron bowl on three curved legs with glowing coals.",
+"materials":{
+"coal":{"color":"#ff5a1a","emissive":3},
+"flame":{"color":"#ffb030","emissive":6},
+"iron":{"color":"#3d3d44"}},
+"parts":{
+"bowl":{"type":"lathe","profile":[[0,66],[12,67],[24,76],[30,94],[27,94],[21,78],[0,72]],"mat":"iron"},
+"coals":{"type":"ellipsoid","size":[50,14,50],"pos":[0,91,0],"mat":"coal"},
+"flame":{"type":"cone","radius":10,"radius_end":1,"height":14,"pos":[0,103,0],"mat":"flame","solid":false,"light":{"color":"#ff8a30","radius":600,"intensity":2},"fx":{"preset":"fire"}},
+"foot0":{"type":"sphere","radius":3.4,"pos":[0,3.4,33],"mat":"iron"},
+"foot1":{"type":"sphere","radius":3.4,"pos":[-28.6,3.4,-16.5],"mat":"iron"},
+"foot2":{"type":"sphere","radius":3.4,"pos":[28.6,3.4,-16.5],"mat":"iron"},
+"knee0":{"type":"sphere","radius":3,"pos":[0,38,28],"mat":"iron"},
+"knee1":{"type":"sphere","radius":3,"pos":[-24.2,38,-14],"mat":"iron"},
+"knee2":{"type":"sphere","radius":3,"pos":[24.2,38,-14],"mat":"iron"},
+"leg0_0":{"type":"cylinder","radius":2.8,"from":[0,74,21],"to":[0,38,28],"mat":"iron"},
+"leg0_1":{"type":"cylinder","radius":2.8,"from":[0,38,28],"to":[0,2,33],"mat":"iron"},
+"leg1_0":{"type":"cylinder","radius":2.8,"from":[-18.2,74,-10.5],"to":[-24.2,38,-14],"mat":"iron"},
+"leg1_1":{"type":"cylinder","radius":2.8,"from":[-24.2,38,-14],"to":[-28.6,2,-16.5],"mat":"iron"},
+"leg2_0":{"type":"cylinder","radius":2.8,"from":[18.2,74,-10.5],"to":[24.2,38,-14],"mat":"iron"},
+"leg2_1":{"type":"cylinder","radius":2.8,"from":[24.2,38,-14],"to":[28.6,2,-16.5],"mat":"iron"},
+"rim":{"type":"torus","radius":29,"minor_radius":2,"pos":[0,94,0],"mat":"iron"}}}

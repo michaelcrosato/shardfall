@@ -1,0 +1,23 @@
+{"format":2,"name":"tavern_sign","unit":"cm",
+"description":"Tavern sign hanging by chains from iron wall bracket, tankard emblem.",
+"materials":{
+"foam":{"color":"#f4efe2"},
+"iron":{"color":"#33363d"},
+"mug":{"color":"#d9a441"},
+"trim":{"color":"#5a3a20"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"arm":{"type":"box","size":[4,4],"from":[30,77,1.5],"to":[30,77,10],"mat":"iron","mirror":"x"},
+"board":{"type":"box","size":[86,68,4],"pos":[0,34,8],"mat":"wood"},
+"chain":{"type":"cylinder","radius":1,"height":7,"pos":[30,71.5,8],"mat":"iron","mirror":"x"},
+"foam":{"type":"rounded_box","size":[26,8,1],"radius":0.4,"pos":[-4,49,11],"mat":"foam"},
+"frame_b":{"type":"box","size":[86,4,1],"pos":[0,2,10.5],"mat":"trim"},
+"frame_s":{"type":"box","size":[4,60,1],"pos":[41,34,10.5],"mat":"trim","mirror":"x"},
+"frame_t":{"type":"box","size":[86,4,1],"pos":[0,66,10.5],"mat":"trim"},
+"handle_b":{"type":"box","size":[10,3,1],"pos":[14,25,11],"mat":"mug"},
+"handle_s":{"type":"box","size":[3,19,1],"pos":[18.5,33,11],"mat":"mug"},
+"handle_t":{"type":"box","size":[10,3,1],"pos":[14,41,11],"mat":"mug"},
+"mug":{"type":"rounded_box","size":[24,26,1],"radius":0.4,"pos":[-4,33,11],"mat":"mug"},
+"rail":{"type":"box","size":[90,6,3],"pos":[0,77,1.5],"mat":"iron"}},
+"sockets":{
+"wall_mount":{"pos":[0,40,0]}}}

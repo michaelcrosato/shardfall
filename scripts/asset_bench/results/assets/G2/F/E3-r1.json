@@ -1,0 +1,11 @@
+{"format":2,"name":"castle_wall_600","unit":"cm",
+"description":"Castle wall 600 cm wide: stone courses, two arrow slits, five crenellations at 110 cm spacing, flush ends.",
+"materials":{
+"a":{"color":"#9a968c"},
+"b":{"color":"#827e75"}},
+"parts":{
+"low":{"type":"box","size":[600,60,80],"pos":[0,60,0],"mat":"a","array":{"count":2,"step":[0,60,0],"cycle":["a","b"]}},
+"merlon":{"type":"box","size":[70,60,80],"pos":[0,330,0],"mat":"b","array":{"count":5,"step":[110,0,0]}},
+"mid_mid":{"type":"box","size":[207,60,80],"pos":[0,180,0],"mat":"a","array":{"count":2,"step":[0,60,0],"cycle":["a","b"]}},
+"mid_side":{"type":"box","size":[183.5,60,80],"pos":[-208.25,180,0],"mat":"a","mirror":"x","array":{"count":2,"step":[0,60,0],"cycle":["a","b"]}},
+"top":{"type":"box","size":[600,60,80],"pos":[0,270,0],"mat":"a"}}}

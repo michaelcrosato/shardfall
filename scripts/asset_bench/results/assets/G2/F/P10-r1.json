@@ -1,0 +1,17 @@
+{"format":2,"name":"potted_shrub","unit":"cm",
+"description":"A round flowering shrub in a terracotta pot.",
+"materials":{
+"bloom":{"color":"#f06fa0"},
+"bloom2":{"color":"#ffd84a"},
+"clay":{"color":"#c4673a"},
+"clay_dark":{"color":"#a14f2b"},
+"leaf":{"color":"#3f8f45"},
+"soil":{"color":"#4a3426"}},
+"parts":{
+"bloom_front":{"type":"sphere","radius":4.5,"pos":[0,42,0],"mat":"bloom2","radial":{"count":7,"radius":26.5}},
+"blooms":{"type":"sphere","radius":4.5,"pos":[0,58,0],"mat":"bloom","radial":{"count":8,"radius":27}},
+"blooms_top":{"type":"sphere","radius":4.5,"pos":[0,76,0],"mat":"bloom2","radial":{"count":5,"radius":11}},
+"foliage":{"type":"ellipsoid","size":[60,52,60],"pos":[0,54,0],"mat":"leaf"},
+"pot":{"type":"cone","radius":17,"radius_end":23,"height":28,"pos":[0,14,0],"mat":"clay"},
+"rim":{"type":"cylinder","radius":25,"height":6,"pos":[0,27,0],"mat":"clay_dark"},
+"soil":{"type":"cylinder","radius":22,"height":2,"pos":[0,28.8,0],"mat":"soil"}}}

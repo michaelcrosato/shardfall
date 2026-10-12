@@ -1,0 +1,22 @@
+{"format":2,"name":"hand_cart","unit":"cm",
+"description":"A hand cart: two spoked wheels, pull shafts, canvas-covered load.",
+"materials":{
+"canvas":{"color":"#d9cfae"},
+"dark":{"color":"#594635"},
+"rope":{"color":"#8a6a3a"},
+"wood":{"color":"#bc8150"}},
+"parts":{
+"axle":{"type":"cylinder","radius":3.5,"height":200,"pos":[0,50,-20],"axis":"x","mat":"dark"},
+"bed":{"type":"box","size":[204,8,110],"pos":[0,63,-15],"mat":"wood"},
+"foot":{"type":"box","size":[8,5,10],"pos":[45,2.5,58],"mat":"dark","mirror":"x"},
+"hub":{"type":"cylinder","radius":8,"height":12,"pos":[105,50,-20],"axis":"x","mat":"wood","mirror":"x"},
+"load":{"type":"rounded_box","size":[180,82,100],"radius":14,"pos":[0,109,-15],"mat":"canvas"},
+"rope":{"type":"box","size":[184,3,5],"pos":[0,148,-15],"mat":"rope"},
+"rope2":{"type":"box","size":[4,3,104],"pos":[0,149,-15],"mat":"rope"},
+"shaft":{"type":"box","size":[6,6],"from":[45,66,-62],"to":[45,66,30],"mat":"wood","mirror":"x"},
+"shaft_front":{"type":"box","size":[6,6],"from":[45,66,28],"to":[45,8,58],"mat":"wood","mirror":"x"},
+"spoke_d1":{"type":"box","size":[5,5],"from":[105,17,-53],"to":[105,83,13],"mat":"wood","mirror":"x"},
+"spoke_d2":{"type":"box","size":[5,5],"from":[105,17,13],"to":[105,83,-53],"mat":"wood","mirror":"x"},
+"spoke_h":{"type":"box","size":[5,5],"from":[105,50,-67],"to":[105,50,27],"mat":"wood","mirror":"x"},
+"spoke_v":{"type":"box","size":[5,5],"from":[105,3,-20],"to":[105,97,-20],"mat":"wood","mirror":"x"},
+"wheel":{"type":"tube","radius":50,"thickness":6,"height":8,"pos":[105,50,-20],"axis":"x","mat":"dark","mirror":"x"}}}

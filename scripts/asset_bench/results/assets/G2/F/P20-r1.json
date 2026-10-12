@@ -1,0 +1,18 @@
+{"format":2,"name":"notice_board","unit":"cm",
+"description":"Village notice board: two posts, small gable roof, board with pinned papers.",
+"materials":{
+"paper":{"color":"#f0e8d0"},
+"paper2":{"color":"#e8d27a"},
+"pin":{"color":"#c03030"},
+"wood":{"color":"#bc8150"},
+"wood_dark":{"color":"#594635"}},
+"parts":{
+"board":{"type":"box","size":[130,84,4],"pos":[0,135,0],"mat":"wood"},
+"paper_a":{"type":"box","size":[30,40,0.6],"pos":[-38,135,2.3],"mat":"paper"},
+"paper_b":{"type":"box","size":[26,32,0.6],"pos":[2,140,2.3],"mat":"paper2"},
+"paper_c":{"type":"box","size":[28,36,0.6],"pos":[40,132,2.3],"mat":"paper"},
+"pin_a":{"type":"sphere","radius":1.5,"pos":[-38,152,2.8],"mat":"pin"},
+"pin_b":{"type":"sphere","radius":1.5,"pos":[2,154,2.8],"mat":"pin"},
+"pin_c":{"type":"sphere","radius":1.5,"pos":[40,148,2.8],"mat":"pin"},
+"post":{"type":"box","size":[10,10],"from":[70,0,0],"to":[70,200,0],"mat":"wood_dark","mirror":"x"},
+"roof":{"type":"wedge","size":[160,20,40],"peak":0,"pos":[0,210,0],"mat":"wood_dark"}}}

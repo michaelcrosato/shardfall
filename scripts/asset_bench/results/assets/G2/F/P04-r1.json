@@ -1,0 +1,18 @@
+{"format":2,"name":"grain_sacks","unit":"cm",
+"description":"Three tied burlap grain sacks standing together, one slumped.",
+"materials":{
+"burlap":{"color":"#c9a46a"},
+"burlap_dark":{"color":"#a67f48"},
+"rope":{"color":"#5e4630"}},
+"parts":{
+"a_body":{"type":"rounded_box","size":[38,56,32],"radius":12,"pos":[-30,28,-12],"mat":"burlap"},
+"a_neck":{"type":"cone","radius":9,"radius_end":5,"height":12,"pos":[-30,61,-12],"mat":"burlap_dark"},
+"a_tie":{"type":"torus","radius":6,"minor_radius":1.6,"pos":[-30,63,-12],"mat":"rope"},
+"a_tuft":{"type":"cone","radius":4,"radius_end":9,"height":10,"pos":[-30,72,-12],"mat":"burlap_dark"},
+"b_body":{"type":"rounded_box","size":[40,50,34],"radius":12,"pos":[30,25,-14],"mat":"burlap"},
+"b_neck":{"type":"cone","radius":9,"radius_end":5,"height":12,"pos":[30,55,-14],"mat":"burlap_dark"},
+"b_tie":{"type":"torus","radius":6,"minor_radius":1.6,"pos":[30,57,-14],"mat":"rope"},
+"b_tuft":{"type":"cone","radius":4,"radius_end":9,"height":10,"pos":[30,66,-14],"mat":"burlap_dark"},
+"c_body":{"type":"rounded_box","size":[56,34,40],"radius":13,"pos":[8,17,16],"mat":"burlap"},
+"c_neck":{"type":"cone","radius":9,"radius_end":5,"height":12,"pos":[26,30,16],"roll":-55,"mat":"burlap_dark"},
+"c_tie":{"type":"torus","radius":6,"minor_radius":1.6,"pos":[31,31,16],"roll":-55,"mat":"rope"}}}

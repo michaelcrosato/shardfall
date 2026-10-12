@@ -1,0 +1,17 @@
+{"format":2,"name":"crystal_outcrop","unit":"cm",
+"description":"Five glowing crystal shards growing from a rock base.",
+"materials":{
+"crys":{"color":"#5fe0ff","emissive":0.45},
+"crys2":{"color":"#b078ff","emissive":0.45},
+"crys_core":{"color":"#8ff0ff","emissive":1.5},
+"rock":{"color":"#6b6470"},
+"rock2":{"color":"#555060"}},
+"parts":{
+"c1":{"type":"cone","radius":16,"radius_end":3,"height":125,"pos":[0,87.5,0],"mat":"crys_core"},
+"c2":{"type":"cone","radius":13,"radius_end":3,"height":95,"pos":[-36,72,8],"roll":12,"mat":"crys2"},
+"c3":{"type":"cone","radius":13,"radius_end":3,"height":90,"pos":[38,70,-8],"roll":-14,"mat":"crys2"},
+"c4":{"type":"cone","radius":11,"radius_end":2.5,"height":70,"pos":[10,58,30],"pitch":-16,"mat":"crys"},
+"c5":{"type":"cone","radius":11,"radius_end":2.5,"height":75,"pos":[-12,60,-30],"pitch":16,"mat":"crys"},
+"glow":{"type":"sphere","radius":4,"pos":[0,60,0],"mat":"crys_core","light":{"color":"#7fe8ff","radius":400,"intensity":2}},
+"rock":{"type":"rounded_box","size":[118,30,98],"radius":12,"pos":[0,15,0],"mat":"rock"},
+"rock_b":{"type":"rounded_box","size":[50,22,40],"radius":8,"pos":[-30,38,-25],"yaw":20,"mat":"rock2"}}}

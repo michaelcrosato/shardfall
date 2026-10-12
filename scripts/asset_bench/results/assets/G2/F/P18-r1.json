@@ -1,0 +1,13 @@
+{"format":2,"name":"cheese_board","unit":"cm",
+"description":"A round cheese wheel with a wedge cut out, on a wooden board with a knife.",
+"materials":{
+"cheese":{"color":"#f2c94c"},
+"rind":{"color":"#d9953a"},
+"steel":{"color":"#c8ccd2"},
+"wood":{"color":"#bc8150"},
+"wood_dark":{"color":"#7a5232"}},
+"parts":{
+"blade":{"type":"box","size":[0.6,2.5,20],"pos":[19,4.25,8],"mat":"steel"},
+"board":{"type":"rounded_box","size":[50,3,50],"radius":1,"pos":[0,1.5,0],"mat":"wood"},
+"handle":{"type":"rounded_box","size":[2.8,2.8,6],"radius":0.8,"pos":[19,4.4,21],"mat":"wood_dark"},
+"wheel":{"type":"cylinder","radius":18,"height":19,"arc":300,"facing":"-z","pos":[-6,12.5,-6],"mat":"rind"}}}

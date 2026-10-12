@@ -1,0 +1,19 @@
+{"format":2,"name":"single_axe","unit":"cm",
+"description":"Single-bit axe with a back spike, wrapped haft and pommel cap.",
+"materials":{
+"iron":{"color":"#5a5f66"},
+"steel":{"color":"#b8c0c8"},
+"wood":{"color":"#8a5a33"},
+"wrap":{"color":"#4b3a2a"}},
+"parts":{
+"blade":{"type":"extrude","points":[[3,84],[10,81],[18,76],[18,108],[10,103],[3,100]],"depth":3,"mat":"steel"},
+"cap":{"type":"cone","radius":2.5,"radius_end":0.5,"from":[0,100,0],"to":[0,110,0],"mat":"iron"},
+"collar":{"type":"box","size":[8,16,5],"pos":[0,92,0],"mat":"iron"},
+"haft":{"type":"cylinder","radius":2,"from":[0,3,0],"to":[0,104,0],"mat":"wood"},
+"pommel":{"type":"cylinder","radius":3,"from":[0,0,0],"to":[0,5,0],"mat":"iron"},
+"spike":{"type":"cone","radius":2.5,"radius_end":0.4,"from":[-3,92,0],"to":[-18,92,0],"mat":"steel"},
+"wrap":{"type":"cylinder","radius":2.5,"height":2,"pos":[0,20,0],"mat":"wrap","array":{"count":10,"step":[0,3,0]}}},
+"sockets":{
+"grip":{"pos":[0,35,0]},
+"grip2":{"pos":[0,20,0]},
+"tip":{"pos":[0,110,0]}}}

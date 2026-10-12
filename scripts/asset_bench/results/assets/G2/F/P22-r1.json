@@ -1,0 +1,22 @@
+{"format":2,"name":"sarcophagus","unit":"cm",
+"description":"A stone sarcophagus with a carved lid and a cracked corner.",
+"materials":{
+"gold":{"color":"#c9a24a"},
+"stone":{"color":"#9a9488"},
+"stone_dark":{"color":"#4a463f"},
+"stone_light":{"color":"#b3ad9f"}},
+"parts":{
+"band":{"type":"box","size":[220,6,94],"pos":[0,60,0],"mat":"stone_light"},
+"body":{"type":"rounded_box","size":[216,54,90],"radius":3,"pos":[0,43,0],"mat":"stone"},
+"chip":{"type":"wedge","size":[18,16,18],"pos":[104,8,41],"mat":"stone_dark"},
+"crack1":{"type":"box","size":[4,40,3],"pos":[100,40,45],"roll":-20,"mat":"stone_dark"},
+"crack2":{"type":"box","size":[3,16,3],"pos":[96,63,45],"roll":25,"mat":"stone_dark"},
+"effigy":{"type":"rounded_box","size":[170,14,50],"radius":5,"pos":[0,93,0],"mat":"stone"},
+"head":{"type":"sphere","radius":14,"pos":[-80,100,0],"mat":"stone_light"},
+"inlay":{"type":"box","size":[100,1,6],"pos":[10,110,0],"mat":"gold"},
+"lid":{"type":"rounded_box","size":[226,16,96],"radius":3,"pos":[0,78,0],"mat":"stone_light"},
+"panel":{"type":"box","size":[150,26,2],"pos":[-10,38,45.5],"mat":"stone_dark"},
+"panel_gem":{"type":"box","size":[20,10,2],"pos":[-10,38,47],"mat":"gold"},
+"plinth":{"type":"box","size":[230,16,100],"pos":[0,8,0],"mat":"stone_dark"},
+"ridge":{"type":"rounded_box","size":[120,10,22],"radius":4,"pos":[0,105,0],"mat":"stone_light"},
+"rubble":{"type":"box","size":[12,8,10],"pos":[75,4,42],"yaw":0,"mat":"stone"}}}

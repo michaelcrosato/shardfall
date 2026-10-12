@@ -1,0 +1,13 @@
+{"format":2,"name":"horned_helm","unit":"cm",
+"description":"Horned helm with eye slit, breathing holes, two horns.",
+"materials":{
+"dark":{"color":"#15171c"},
+"horn":{"color":"#e8dcb8"},
+"steel":{"color":"#8d96a3"}},
+"parts":{
+"base":{"type":"rounded_box","size":[34,20,35],"radius":5,"pos":[0,10,0],"mat":"steel"},
+"dome":{"type":"ellipsoid","size":[34,32,35],"pos":[0,21,0],"mat":"steel"},
+"holes":{"type":"cylinder","radius":1.2,"height":2,"pos":[0,10,17],"axis":"z","mat":"dark","grid":{"count":[4,2],"step":[5,5],"plane":"xy"}},
+"horn_low":{"type":"cone","radius":5,"radius_end":3.5,"from":[14,28,0],"to":[22,35,0],"mat":"horn","mirror":"x"},
+"horn_up":{"type":"cone","radius":3.5,"radius_end":0.5,"from":[22,35,0],"to":[23,45,0],"mat":"horn","mirror":"x"},
+"slit":{"type":"box","size":[24,3,2],"pos":[0,21,17],"mat":"dark"}}}

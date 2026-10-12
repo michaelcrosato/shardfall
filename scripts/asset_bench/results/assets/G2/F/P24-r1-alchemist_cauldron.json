@@ -1,0 +1,19 @@
+{"format":2,"name":"alchemist_cauldron","unit":"cm",
+"description":"Iron cauldron on three legs with bubbling potion.",
+"materials":{
+"blue":{"color":"#3d5a99"},
+"brass":{"color":"#c9923a"},
+"cream":{"color":"#d9c9a0"},
+"glass":{"color":"#8fd6c8"},
+"green":{"color":"#4c7a4a"},
+"iron":{"color":"#3b3f4a"},
+"potion":{"color":"#7be05a","emissive":1.5},
+"red":{"color":"#a63a3a"},
+"wood":{"color":"#8a5a34"},
+"wood_dark":{"color":"#4e3322"}},
+"parts":{
+"body":{"type":"sphere","radius":36,"pos":[0,52,0],"mat":"iron"},
+"handle":{"type":"torus","radius":7,"minor_radius":2,"pos":[36,62,0],"pitch":0,"roll":90,"mat":"brass","mirror":"x"},
+"leg":{"type":"cylinder","radius":5,"height":30,"pos":[0,15,0],"mat":"iron","radial":{"count":3,"radius":28}},
+"liquid":{"type":"cylinder","radius":30,"height":3,"pos":[0,68,0],"mat":"potion","fx":{"preset":"steam"}},
+"rim":{"type":"torus","radius":30,"minor_radius":4,"pos":[0,70,0],"mat":"iron"}}}

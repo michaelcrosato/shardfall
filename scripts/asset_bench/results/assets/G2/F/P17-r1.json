@@ -1,0 +1,19 @@
+{"format":2,"name":"anvil_stump","unit":"cm",
+"description":"A chunky anvil on a tree stump with a hammer resting on the anvil face.",
+"materials":{
+"bark":{"color":"#6b4a2e"},
+"handle":{"color":"#a0693a"},
+"iron":{"color":"#4a4f5a"},
+"iron_l":{"color":"#6d7482"},
+"wood":{"color":"#b98a58"}},
+"parts":{
+"base":{"type":"box","size":[30,6,22],"pos":[0,42,0],"mat":"iron"},
+"face":{"type":"box","size":[54,14,22],"pos":[-3,65,0],"mat":"iron_l"},
+"hammer_handle":{"type":"cylinder","radius":1.8,"height":30,"pos":[-1,76.5,0],"axis":"x","mat":"handle"},
+"hammer_head":{"type":"cylinder","radius":4.5,"height":12,"pos":[-18,76.5,0],"axis":"z","mat":"iron"},
+"horn":{"type":"cone","radius":7,"radius_end":2,"from":[24,65,0],"to":[36,65,0],"mat":"iron_l"},
+"stump":{"type":"cylinder","radius":22.5,"height":38,"pos":[0,19,0],"mat":"bark"},
+"stump_top":{"type":"cylinder","radius":20,"height":1,"pos":[0,38.5,0],"mat":"wood"},
+"waist":{"type":"box","size":[18,14,14],"pos":[0,52,0],"mat":"iron"}},
+"sockets":{
+"top":{"pos":[0,72,0]}}}

@@ -1,0 +1,21 @@
+{"format":2,"name":"gibbet_cage","unit":"cm",
+"description":"Iron gibbet cage hanging by a chain from a wooden gallows post and arm, bones inside.",
+"materials":{
+"bone":{"color":"#e6dcc0"},
+"iron":{"color":"#3a3d44"},
+"wood":{"color":"#7a5636"}},
+"parts":{
+"arm":{"type":"box","size":[100,10,12],"pos":[0,250,0],"mat":"wood"},
+"band_a":{"type":"tube","radius":21,"thickness":3,"height":3,"pos":[25,135,0],"mat":"iron"},
+"band_b":{"type":"tube","radius":21,"thickness":3,"height":3,"pos":[25,160,0],"mat":"iron"},
+"band_c":{"type":"tube","radius":21,"thickness":3,"height":3,"pos":[25,188,0],"mat":"iron"},
+"bars":{"type":"cylinder","radius":1.6,"height":104,"pos":[25,158,0],"mat":"iron","radial":{"count":10,"radius":20}},
+"base":{"type":"box","size":[120,8,90],"pos":[0,4,0],"mat":"wood"},
+"brace":{"type":"box","size":[7,6],"from":[-45,205,0],"to":[-5,247,0],"mat":"wood"},
+"chain":{"type":"cylinder","radius":1.8,"height":36,"pos":[25,232,0],"mat":"iron"},
+"femur":{"type":"capsule","radius":2.5,"height":30,"pos":[25,109.5,10],"axis":"x","yaw":20,"mat":"bone","mirror":"z"},
+"floor_plate":{"type":"cylinder","radius":23,"height":6,"pos":[25,103,0],"mat":"iron"},
+"post":{"type":"box","size":[14,252,14],"pos":[-45,134,0],"mat":"wood"},
+"ribs":{"type":"torus","radius":9,"minor_radius":1.8,"pos":[25,112,-2],"pitch":90,"mat":"bone"},
+"skull":{"type":"sphere","radius":8,"pos":[25,114,0],"mat":"bone"},
+"top_ring":{"type":"cylinder","radius":23,"height":6,"pos":[25,213,0],"mat":"iron"}}}

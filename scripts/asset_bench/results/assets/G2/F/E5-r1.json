@@ -1,0 +1,23 @@
+{"format":2,"name":"frost_brazier","unit":"cm",
+"description":"Frost brazier: iron bowl on three tall curved legs with glowing blue coals.",
+"materials":{
+"coal":{"color":"#2f8cff","emissive":3},
+"flame":{"color":"#a8e4ff","emissive":6},
+"iron":{"color":"#3d3d44"}},
+"parts":{
+"bowl":{"type":"lathe","profile":[[0,88.2],[12,89.2],[24,98.2],[30,116.2],[27,116.2],[21,100.2],[0,94.2]],"mat":"iron"},
+"coals":{"type":"ellipsoid","size":[50,14,50],"pos":[0,113.2,0],"mat":"coal"},
+"flame":{"type":"cone","radius":10,"radius_end":1,"height":14,"pos":[0,125.2,0],"mat":"flame","solid":false,"light":{"color":"#6cc0ff","radius":600,"intensity":2},"fx":{"preset":"magic"}},
+"foot0":{"type":"sphere","radius":3.4,"pos":[0,3.4,33],"mat":"iron"},
+"foot1":{"type":"sphere","radius":3.4,"pos":[-28.6,3.4,-16.5],"mat":"iron"},
+"foot2":{"type":"sphere","radius":3.4,"pos":[28.6,3.4,-16.5],"mat":"iron"},
+"knee0":{"type":"sphere","radius":3,"pos":[0,49.4,28],"mat":"iron"},
+"knee1":{"type":"sphere","radius":3,"pos":[-24.2,49.4,-14],"mat":"iron"},
+"knee2":{"type":"sphere","radius":3,"pos":[24.2,49.4,-14],"mat":"iron"},
+"leg0_0":{"type":"cylinder","radius":2.8,"from":[0,96.2,21],"to":[0,49.4,28],"mat":"iron"},
+"leg0_1":{"type":"cylinder","radius":2.8,"from":[0,49.4,28],"to":[0,2,33],"mat":"iron"},
+"leg1_0":{"type":"cylinder","radius":2.8,"from":[-18.2,96.2,-10.5],"to":[-24.2,49.4,-14],"mat":"iron"},
+"leg1_1":{"type":"cylinder","radius":2.8,"from":[-24.2,49.4,-14],"to":[-28.6,2,-16.5],"mat":"iron"},
+"leg2_0":{"type":"cylinder","radius":2.8,"from":[18.2,96.2,-10.5],"to":[24.2,49.4,-14],"mat":"iron"},
+"leg2_1":{"type":"cylinder","radius":2.8,"from":[24.2,49.4,-14],"to":[28.6,2,-16.5],"mat":"iron"},
+"rim":{"type":"torus","radius":29,"minor_radius":2,"pos":[0,116.2,0],"mat":"iron"}}}

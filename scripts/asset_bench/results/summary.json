@@ -26,6 +26,79 @@
    "tasks": 14
   }
  },
+ "G2/F": {
+  "accepted": 30,
+  "check": [
+   "ok"
+  ],
+  "done": 30,
+  "done_rate": 1.0,
+  "first_ok": 20,
+  "gate": {
+   "acceptance_points": 16.7,
+   "checks": {
+    "acceptance": {
+     "pass": true,
+     "value": "30/30 vs 25"
+    },
+    "authoring_tok_cum": {
+     "pass": false,
+     "value": 1.217
+    },
+    "authoring_tok_x": {
+     "pass": false,
+     "value": 0.857
+    },
+    "edits_tok_x": {
+     "pass": true,
+     "value": 0.534
+    },
+    "median_failed": {
+     "pass": true,
+     "value": 1.0
+    },
+    "rubric_delta": {
+     "pass": true,
+     "value": 0.1
+    },
+    "wins_ties": {
+     "pass": true,
+     "value": "15+0/2 of 24"
+    }
+   },
+   "killed": false,
+   "kills": {
+    "K1": false,
+    "K2": false,
+    "K3": false
+   },
+   "pairs": {
+    "judged": 24,
+    "losses": 9,
+    "ties": 0,
+    "wins": 15
+   },
+   "passed": false
+  },
+  "median_abs_ln_tok_x_ratio": null,
+  "median_failed": 1.0,
+  "median_tok_cum": 14572.5,
+  "median_tok_x": 4731.5,
+  "models": [
+   "sonnet"
+  ],
+  "runs": 30,
+  "s8_pairs": 0,
+  "vs": {
+   "accepted": 30,
+   "baseline_accepted": 25,
+   "baseline_lint_other_per_accepted": 1.08,
+   "lint_other_per_accepted": 1.033,
+   "median_tok_cum_ratio": 0.933,
+   "median_tok_x_ratio": 0.744,
+   "tasks": 30
+  }
+ },
  "GA/A": {
   "accepted": 31,
   "check": [

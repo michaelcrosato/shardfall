@@ -1,0 +1,12 @@
+{"format":2,"name":"spiked_pauldron","unit":"cm",
+"description":"Layered steel pauldron with three spikes.",
+"materials":{
+"spike":{"color":"#d5dbe2"},
+"steel":{"color":"#9aa4b0"},
+"steel_dark":{"color":"#6b7480"}},
+"parts":{
+"l1":{"type":"rounded_box","size":[32,6,34],"radius":2,"pos":[0,3,0],"mat":"steel_dark"},
+"l2":{"type":"rounded_box","size":[28,6,30],"radius":2,"pos":[0,8,0],"mat":"steel"},
+"l3":{"type":"rounded_box","size":[23,6,25],"radius":2,"pos":[0,13,0],"mat":"steel_dark"},
+"spike_c":{"type":"cone","radius":3,"radius_end":0,"height":11,"pos":[0,20.5,0],"mat":"spike"},
+"spike_l":{"type":"cone","radius":3,"radius_end":0,"height":9,"pos":[-8,19.5,0],"mat":"spike","mirror":"x"}}}

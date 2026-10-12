@@ -1,0 +1,13 @@
+{"format":2,"name":"boulder_cluster","unit":"cm",
+"description":"Three mossy boulders in a cluster, largest about 120 cm across.",
+"materials":{
+"moss":{"color":"#5f9a3c"},
+"rock":{"color":"#8a8a84"},
+"rock2":{"color":"#77777a"}},
+"parts":{
+"big":{"type":"ellipsoid","size":[130,120,120],"pos":[-45,60,-30],"mat":"rock"},
+"big_moss":{"type":"ellipsoid","size":[96,34,88],"pos":[-45,103,-30],"mat":"moss"},
+"mid":{"type":"ellipsoid","size":[100,76,90],"pos":[60,38,25],"mat":"rock2"},
+"mid_moss":{"type":"ellipsoid","size":[70,26,64],"pos":[60,65,25],"mat":"moss"},
+"small":{"type":"ellipsoid","size":[70,50,70],"pos":[-10,25,45],"mat":"rock"},
+"small_moss":{"type":"ellipsoid","size":[48,18,46],"pos":[-10,42,45],"mat":"moss"}}}

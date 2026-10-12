@@ -1,0 +1,10 @@
+{"format":2,"name":"castle_wall","unit":"cm",
+"description":"Castle wall segment: stone courses, arrow slit, four crenellations, flush ends.",
+"materials":{
+"a":{"color":"#9a968c"},
+"b":{"color":"#827e75"}},
+"parts":{
+"low":{"type":"box","size":[400,60,80],"pos":[0,60,0],"mat":"a","array":{"count":2,"step":[0,60,0],"cycle":["a","b"]}},
+"merlon":{"type":"box","size":[70,60,80],"pos":[0,330,0],"mat":"b","array":{"count":4,"step":[110,0,0]}},
+"mid":{"type":"box","size":[193,60,80],"pos":[-103.5,180,0],"mat":"a","mirror":"x","array":{"count":2,"step":[0,60,0],"cycle":["a","b"]}},
+"top":{"type":"box","size":[400,60,80],"pos":[0,270,0],"mat":"a"}}}

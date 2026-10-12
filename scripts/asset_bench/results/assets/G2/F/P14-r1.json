@@ -1,0 +1,15 @@
+{"format":2,"name":"round_shield","unit":"cm",
+"description":"Round plank shield with iron rim and central boss.",
+"materials":{
+"iron":{"color":"#6b7078"},
+"wood":{"color":"#a8743f"},
+"wood_dark":{"color":"#5e4026"}},
+"parts":{
+"boss":{"type":"cylinder","radius":9,"height":6,"pos":[0,35,3],"pitch":90,"mat":"iron"},
+"handle":{"type":"box","size":[22,4,3],"pos":[0,35,-4.5],"mat":"wood_dark"},
+"plank":{"type":"cylinder","radius":33,"height":4,"pos":[0,35,0],"pitch":90,"mat":"wood"},
+"rim":{"type":"tube","radius":35,"thickness":4,"height":6,"pos":[0,35,0],"pitch":90,"mat":"iron"},
+"seam":{"type":"box","size":[1,60,1],"pos":[11,35,2],"mat":"wood_dark","mirror":"x"},
+"strap":{"type":"box","size":[3,10,4],"pos":[11,35,-2],"mat":"iron","mirror":"x"}},
+"sockets":{
+"grip":{"pos":[0,35,-4.5]}}}
