@@ -1166,7 +1166,7 @@ impl ViewBuilder {
                         static_material(&mut table, &library, name, map, materials::seed(at[0] ^ at[2].rotate_left(16), at[1]))
                     });
                     match d.sway {
-                        Sway::Grass => list.push(grass_tuft(&d.shape, d.pos, d.rot, v3(d.color), style)),
+                        Sway::Grass => list.push(grass_tuft(&d.shape, d.pos, d.rot, v3(d.color), style, material)),
                         sway => {
                             let flags = if sway == Sway::Leaves { rs::flags::SWAY } else { 0 };
                             emit_shape(
@@ -1658,7 +1658,7 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
     let v = &v;
     let mut lights = Vec::new();
     match v.sway {
-        Sway::Grass => scene.meshes.push(grass_tuft(&v.shape, o.pos, o.rot, color, style)),
+        Sway::Grass => scene.meshes.push(grass_tuft(&v.shape, o.pos, o.rot, color, style, material)),
         sway => {
             let flags = if sway == Sway::Leaves { rs::flags::SWAY } else { 0 };
             emit_shape(
@@ -1682,7 +1682,7 @@ pub fn emit_object(scene: &mut Scene, o: &RenderObject, ov: StyleOverride, now: 
 
 /// A grass tuft filling a shape's box (it bends in the wind and away from the player; no
 /// outline group, so a meadow does not turn into a mesh of outlines).
-fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) -> MeshInstance {
+fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style, material: u32) -> MeshInstance {
     MeshInstance {
         mesh: MeshKey::Tuft,
         transform: Mat4::from_scale_rotation_translation(shape.half_extents() * 2.0, rot, pos),
@@ -1691,7 +1691,7 @@ fn grass_tuft(shape: &Shape, pos: Vec3, rot: Quat, color: Vec3, style: Style) ->
         style,
         flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
         group: 0,
-        material: 0,
+        material,
         ext: Vec3::ZERO,
     }
 }
@@ -1856,7 +1856,7 @@ pub(crate) fn emit_prim(
             style,
             flags: rs::flags::GRASS | rs::flags::TWO_SIDED | rs::flags::NO_SHADOW,
             group: 0,
-            material: 0,
+            material,
             ext: Vec3::ZERO,
         });
         return;

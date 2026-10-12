@@ -150,12 +150,14 @@ pub fn gate(def: &PropDef, pack: &Pack) -> Vec<String> {
         }
     }
     // Workshop materials stay on the machine that made them; a library asset ships without them.
-    let workshop: BTreeSet<&str> = def
-        .compiled
-        .parts
-        .iter()
-        .filter_map(|part| part.mat.as_ref().map(|mat| mat.name.as_str()))
-        .filter(|name| name.starts_with("MAT/workshop/"))
+    // Any mention counts: `mat`, the materials table, an inline material's `base`, `recolor`.
+    let text = doc.text();
+    let workshop: BTreeSet<&str> = text
+        .match_indices("MAT/workshop/")
+        .map(|(at, _)| {
+            let rest = &text[at..];
+            &rest[..rest.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '/')).unwrap_or(rest.len())]
+        })
         .collect();
     for name in workshop {
         found.push(format!("materials: {name} is a workshop material; use a core MAT/ name or write it inline"));
@@ -274,5 +276,14 @@ mod tests {
         };
         let found = gate(&def, &core);
         assert_eq!(found, ["materials: MAT/workshop/mine is a workshop material; use a core MAT/ name or write it inline"]);
+        // Through an inline material's base, too.
+        let based = text
+            .replace(r#""mat":"MAT/workshop/mine""#, r#""mat":"m""#)
+            .replace(r#""tags":["wood","post"],"#, r#""tags":["wood","post"],"materials":{"m":{"base":"MAT/workshop/other"}},"#);
+        let def = PropDef::new(Doc::read(&based).unwrap()).unwrap();
+        assert_eq!(
+            gate(&def, &core),
+            ["materials: MAT/workshop/other is a workshop material; use a core MAT/ name or write it inline"]
+        );
     }
 }

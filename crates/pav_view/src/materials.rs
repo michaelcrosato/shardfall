@@ -196,6 +196,9 @@ impl MaterialTable {
         }
         self.refresh(lib);
         self.synced = Some(lib.clone());
+        // A material with no row yet (plain until now) may have gained patterns: whatever cached
+        // its slot (static regions) looks it up again.
+        self.generation += 1;
     }
 
     /// Re-packs a row whose material changed; instances carry its new colour, glow and look.
