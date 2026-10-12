@@ -137,6 +137,9 @@ pub(crate) fn listing_row(row: &Row) -> Value {
         if over == 0 {
             return value;
         }
+        if over >= room {
+            break;
+        }
         room -= over;
     }
     value[6] = json!("");
@@ -391,6 +394,18 @@ mod tests {
         assert_eq!(names(&rank(rows.clone(), &local)), ["LIB/searchlocal/stake"]);
         assert_eq!(listing_row(&rows[1])[5], "wood fence @top");
         assert!(reindex(&root, "core").is_err(), "no lib/core under this root");
+        // An explicit root's files are read afresh, not from the shared library.
+        let stake = || props::resolve_in(&root, "LIB/searchpack/stake").unwrap().unwrap().doc.description.clone();
+        assert_eq!(stake(), "A sharpened stake.");
+        let file = root.join("lib/searchpack/stake.json");
+        std::fs::write(&file, std::fs::read_to_string(&file).unwrap().replace("sharpened", "charred")).unwrap();
+        assert_eq!(stake(), "A charred stake.");
+        assert!(props::get("LIB/searchpack/stake").is_none(), "the shared library caches disk_root() only");
+        // A local pack named like a lib pack is reported, not listed under the lib pack's names.
+        std::fs::create_dir_all(root.join("local/searchpack")).unwrap();
+        let (rows, errors) = index::disk(&root);
+        assert!(errors.iter().any(|e| e.contains("hidden by lib/searchpack")), "{errors:?}");
+        assert_eq!(names(&rows), ["LIB/searchlocal/stake", "LIB/searchpack/stake"]);
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -407,7 +422,9 @@ mod tests {
         );
         let quoted =
             row("BUILTIN/sign", "signage", "60x120x8", 3, 120, "", r#"A sign that reads "\"\"\"\"\"\"\"\"\"\"\"\"\"\"" in red."#);
-        for row in library().iter().chain([&long, &quoted]) {
+        // Control characters escape to six bytes each, far more than the room they took.
+        let control = row("BUILTIN/rune", "signage", "60x120x8", 3, 120, "", &"\u{1}".repeat(60));
+        for row in library().iter().chain([&long, &quoted, &control]) {
             let value = listing_row(row);
             assert!(value.to_string().len() <= ROW_BYTES, "{value}");
         }

@@ -66,7 +66,7 @@ pub fn canonical(name: &str) -> Result<String, String> {
 }
 
 /// A pack name: a lowercase letter, then up to 31 lowercase letters, digits or _. `workshop` is
-/// taken by `WORKSHOP_LOCAL`'s folder.
+/// taken by `WORKSHOP_LOCAL`'s folder and `templates` by `assets reindex=templates`.
 pub fn validate_pack(pack: &str) -> Result<(), String> {
     let mut bytes = pack.bytes();
     let ok = pack.len() <= 32
@@ -77,6 +77,9 @@ pub fn validate_pack(pack: &str) -> Result<(), String> {
     }
     if pack == "workshop" {
         return Err("pack \"workshop\" is reserved (local/workshop holds WORKSHOP_LOCAL)".into());
+    }
+    if pack == "templates" {
+        return Err("pack \"templates\" is reserved (assets reindex=templates indexes BUILTIN)".into());
     }
     Ok(())
 }
@@ -167,7 +170,9 @@ mod tests {
         assert_eq!(canonical("workshop_local/Stool").unwrap(), "WORKSHOP_LOCAL/stool");
         assert_eq!(canonical("crate").unwrap(), "WORKSHOP/crate");
         assert_eq!(canonical("LIB/barrel").unwrap_err(), "LIB names a pack too: LIB/pack/name, e.g. LIB/core/barrel");
-        for bad in ["LIB/Core-2/x", "LIB/workshop/x", "LIB/1pack/x", "MINE/x", "a/b/c", "LIB/core/con", "../../bad"] {
+        for bad in
+            ["LIB/Core-2/x", "LIB/workshop/x", "LIB/templates/x", "LIB/1pack/x", "MINE/x", "a/b/c", "LIB/core/con", "../../bad"]
+        {
             assert!(canonical(bad).is_err(), "{bad}");
         }
         assert_eq!((leaf("LIB/core/barrel"), pack("LIB/core/barrel"), pack("BUILTIN/crate")), ("barrel", Some("core"), None));

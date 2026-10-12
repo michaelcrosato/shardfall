@@ -968,6 +968,7 @@ impl ViewBuilder {
         // Interpolated simulation time: animations and particles move smoothly between ticks.
         let time = (prev.time + (curr.time - prev.time) * alpha as f64) as f32;
         let mut scene = Scene { camera: rig.data(aspect), time, ..Default::default() };
+        let _style = crate::assets::StyleScope::new(settings.style);
         // Screen shake (the game's big hits).
         if let Some(g) = &curr.game {
             let off = crate::arpg::shake_offset(g, time);

@@ -228,16 +228,23 @@ pub fn disk_packs(root: &Path) -> Vec<(String, std::path::PathBuf, Tier)> {
 }
 
 /// The rows of the packs on disk under `root` (native builds), and the indexes that would not
-/// read.
+/// read. A `local/` pack that shares a `lib/` pack's name is reported and left out: its names
+/// would load the `lib/` files.
 pub fn disk(root: &Path) -> (Vec<Row>, Vec<String>) {
     let (mut rows, mut errors) = (Vec::new(), Vec::new());
     if cfg!(target_arch = "wasm32") {
         return (rows, errors);
     }
-    for (_, folder, tier) in disk_packs(root) {
+    let packs = disk_packs(root);
+    let shared: Vec<&str> = packs.iter().filter(|(_, _, tier)| *tier == Tier::Disk).map(|(pack, _, _)| pack.as_str()).collect();
+    for (pack, folder, tier) in &packs {
+        if *tier == Tier::Local && shared.contains(&pack.as_str()) {
+            errors.push(format!("{} is hidden by lib/{pack}: rename one of the packs", folder.display()));
+            continue;
+        }
         let path = folder.join("index.tsv");
         match std::fs::read_to_string(&path) {
-            Ok(text) => match parse(&text, tier) {
+            Ok(text) => match parse(&text, *tier) {
                 Ok(found) => rows.extend(found),
                 Err(error) => errors.push(format!("{}: {error}", path.display())),
             },

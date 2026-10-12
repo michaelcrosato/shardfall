@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import zipfile
 
 REPO = Path(__file__).resolve().parents[1]
@@ -119,6 +120,9 @@ def main():
     # committed packs ship only when named. Local packs never ship.
     pack_bytes = 0
     for pack in filter(None, (name.strip() for name in args.packs.split(","))):
+        # The pack grammar (pav_core::props::store::validate_pack): no paths, so never local/.
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", pack):
+            parser.error(f"--packs: {pack!r} is not a pack name (a lowercase letter, then letters, digits or _)")
         folder = REPO / "assets/props/lib" / pack
         if pack == "core":
             parser.error("--packs: core is embedded in the executables")

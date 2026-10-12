@@ -10,6 +10,7 @@
 //! }
 //! ```
 
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
@@ -63,6 +64,27 @@ impl Placement {
     }
 }
 
+thread_local! {
+    /// The whole-scene style of the frame the view is building: drawn assets take it, as placed
+    /// copies do.
+    static STYLE: Cell<StyleOverride> = const { Cell::new(StyleOverride::PerObject) };
+}
+
+/// Sets the style `emit_asset` draws with until it drops (the view, while it builds a frame).
+pub(crate) struct StyleScope(StyleOverride);
+
+impl StyleScope {
+    pub(crate) fn new(style: StyleOverride) -> Self {
+        Self(STYLE.replace(style))
+    }
+}
+
+impl Drop for StyleScope {
+    fn drop(&mut self) {
+        STYLE.set(self.0);
+    }
+}
+
 /// Generated meshes kept across calls and frames (they depend only on the shape).
 static MESHES: Mutex<Option<GeneratedMeshes>> = Mutex::new(None);
 /// Meshes kept before the cache starts over.
@@ -73,7 +95,7 @@ const KEEP: usize = 1024;
 /// `seed` picks the variant (`chance`, `jitter`, `pick`; 0 as authored; each asset keeps 64
 /// seeds compiled, so use a few, e.g. `id % 8`). `palette` colours its `$roles`. Particles
 /// (`fx`) need a placed prop. Call it while the view builds the frame's scene, so filters aimed
-/// at objects reach it. Errors: an unknown name (with the nearest one), a bad scale, position
+/// at objects and a whole-scene style reach it. Errors: an unknown name (with the nearest one), a bad scale, position
 /// or palette.
 pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palette: &Palette) -> Result<(), String> {
     let def = props::resolve_ref(name)?;
@@ -112,8 +134,9 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
             _ => None,
         })
         .collect();
+    let style = STYLE.get();
     for part in parts.parts.iter().filter(|part| !part.hidden) {
-        emit_prim(scene, meshes, part, &o, at.scale, StyleOverride::PerObject, palette);
+        emit_prim(scene, meshes, part, &o, at.scale, style, palette);
     }
     for (i, light) in parts.lights.iter().enumerate() {
         let def = LightDef {
@@ -198,6 +221,19 @@ mod tests {
         for name in ["WORKSHOP/view_emit_torch", "WORKSHOP/view_emit_stall"] {
             props::remove(name).unwrap();
         }
+    }
+
+    #[test]
+    fn a_whole_scene_style_reaches_drawn_assets() {
+        let styles = |style| {
+            let _scope = StyleScope::new(style);
+            let mut scene = Scene::default();
+            emit_asset(&mut scene, "BUILTIN/lantern", Placement::at(Vec3::ZERO), 0, &Palette::new()).unwrap();
+            scene.meshes.iter().map(|m| m.style).chain(scene.sdfs.iter().map(|s| s.style)).collect::<Vec<_>>()
+        };
+        let cel = styles(StyleOverride::Cel);
+        assert!(!cel.is_empty() && cel.iter().all(|s| *s == pav_render::scene::Style::Cel), "{cel:?}");
+        assert_eq!(STYLE.get(), StyleOverride::PerObject, "the scope ends with the frame");
     }
 
     #[test]

@@ -668,7 +668,9 @@ pub fn resolve_ref(name: &str) -> Result<Arc<PropDef>, String> {
     lookup(name, None)?.ok_or_else(|| unknown_asset(name))
 }
 
-/// `get` from `root` instead of `disk_root()` (tests, tools).
+/// `get` from `root` instead of `disk_root()` (tests, tools). A pack asset on disk is read
+/// and compiled afresh each call, and the shared library (which caches `disk_root()`'s) is
+/// left as it was.
 pub fn resolve_in(root: &std::path::Path, name: &str) -> Result<Option<Arc<PropDef>>, String> {
     lookup(name, Some(root))
 }
@@ -680,18 +682,20 @@ thread_local! {
 
 fn lookup(name: &str, root: Option<&std::path::Path>) -> Result<Option<Arc<PropDef>>, String> {
     let name = canonical(name)?;
-    if let Some(def) = library().defs.get(&name) {
+    // An explicit root's pack assets are its own: the shared library caches `disk_root()`'s.
+    let own = root.is_some() && store::pack(&name).is_some() && !store::embedded(&name);
+    if let Some(def) = library().defs.get(&name).filter(|_| !own) {
         return Ok(Some(def.clone()));
     }
     if store::pack(&name).is_none() || LOADING.with(|loading| loading.borrow().contains(&name)) {
         return Ok(None);
     }
-    let root = root.map(std::path::Path::to_path_buf).unwrap_or_else(disk_root);
-    let Some(text) = store::library_text(&root, &name) else { return Ok(None) };
+    let dir = root.map(std::path::Path::to_path_buf).unwrap_or_else(disk_root);
+    let Some(text) = store::library_text(&dir, &name) else { return Ok(None) };
     LOADING.with(|loading| loading.borrow_mut().insert(name.clone()));
     let compiled = (|| {
         let error = |issues: Vec<Issue>| format!("{name}: {}", issue::render(&issues));
-        let deps = |dep: &str| lookup(dep, Some(&root)).ok().flatten();
+        let deps = |dep: &str| lookup(dep, root).ok().flatten();
         let doc = Doc::from_value_in(&strict_value(&text?).map_err(|e| error(vec![e]))?, &deps).map_err(error)?;
         if doc.name != leaf(&name) {
             return Err(format!("{name}: its file names \"{}\"; a library asset's name is its file's", doc.name));
@@ -699,6 +703,9 @@ fn lookup(name: &str, root: Option<&std::path::Path>) -> Result<Option<Arc<PropD
         PropDef::with_deps(doc, &deps, None).map_err(error)
     })();
     LOADING.with(|loading| loading.borrow_mut().remove(&name));
+    if own {
+        return Ok(Some(Arc::new(compiled?)));
+    }
     install(&name, compiled?)?;
     Ok(library().defs.get(&name).cloned())
 }
