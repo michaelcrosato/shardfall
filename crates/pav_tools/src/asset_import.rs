@@ -616,10 +616,21 @@ pub struct Dest {
 pub fn out_dir(pack: &str, license: Option<&str>, keep_local: Option<&str>, out: Option<&str>) -> Result<Dest> {
     if let Some(o) = out {
         // The library's folders are the licence gate's to fill.
-        let inside = |dir: PathBuf| match (std::path::absolute(o), std::path::absolute(dir)) {
-            (Ok(o), Ok(d)) => o.starts_with(d),
-            _ => false,
+        // Lexically normal, so `local/../lib` is seen for what it is.
+        let normal = |p: &Path| {
+            let mut out = PathBuf::new();
+            for c in std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf()).components() {
+                match c {
+                    std::path::Component::ParentDir => {
+                        out.pop();
+                    }
+                    std::path::Component::CurDir => {}
+                    c => out.push(c),
+                }
+            }
+            out
         };
+        let inside = |dir: PathBuf| normal(Path::new(o)).starts_with(normal(&dir));
         let root = crate::asset_tools::root();
         if inside(root.join("lib")) || inside(root.join("templates")) {
             bail!("out={o} is inside the library: leave out= off and the pack's licence decides its folder");
@@ -1015,14 +1026,26 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
     let keep_local = src.pack_info.as_ref().and_then(|p| p.local.as_deref());
     let dest = out_dir(&src.pack, src.license.as_deref(), keep_local, get_str(a, "out"))?;
     // A lib/ pack credits the catalog's pinned source, so it is translated only from that.
-    if let (Some("lib"), Some(lp)) = (dest.tier, &src.lib_pack) {
+    if let (Some("lib"), Some(lp), Some(info), Some(license)) = (dest.tier, &src.lib_pack, &src.pack_info, &src.license) {
         let (lib, pack) = lib_pack(lp)?;
-        let missing = libraries::unpinned(lib, pack)?;
-        if !missing.is_empty() {
-            bail!("{lp}: a lib/ pack pins its bytes and licence text: add {} to its source", missing.join(", "));
+        libraries::verified_for_lib(lib, pack)?;
+        // A part of a pack keeps the pack's details: changing them takes the whole pack.
+        let had = std::fs::read_to_string(dest.dir.join("PACK.json")).ok();
+        if src.partial && had.is_some_and(|h| h != pack_json(&src.pack, license, info)) {
+            bail!("{}: the pack's licence, credit or source changed: translate the whole pack ({lp})", src.label);
         }
-        if !libraries::is_current(lib, pack)? {
-            bail!("{lp}: the cached pack is not the one the catalog pins: asset_import get={lp} first");
+        // A renamed pack: its old folder still holds the source's assets.
+        let lib_dir = crate::asset_tools::root().join("lib");
+        let mut folders: Vec<PathBuf> = std::fs::read_dir(&lib_dir).into_iter().flatten().flatten().map(|e| e.path()).collect();
+        folders.sort();
+        for old in folders.iter().filter(|f| f.file_name().is_some_and(|n| *n != *src.pack)) {
+            if asset_library::read_pack(old).is_ok_and(|p| p.source == info.source) {
+                bail!(
+                    "{}: {} holds this source under its old name: delete it, or give the catalog its name back",
+                    lp,
+                    old.display()
+                );
+            }
         }
     }
     // A pack that moved tiers moves whole: a part of it would sit behind the old copy.

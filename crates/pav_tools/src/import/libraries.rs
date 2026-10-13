@@ -238,19 +238,28 @@ fn fetched_under(dir: &Path, pin: &Map<String, Value>) -> bool {
     &fetched == pin
 }
 
-/// Whether the cached pack is the one the catalog pins now (fetched by `get` under the same
-/// pin, its licence text checked for the same licence), so what is translated from it may be
-/// credited to that source.
-pub fn is_current(lib: &str, pack: &str) -> Result<bool> {
+/// The gate for translating a pinned pack into `lib/`, where it is committed and credited to
+/// its source: the source pins its bytes and licence text with real values, and the cache is
+/// what `get` fetched under that pin, its archive hash verified and its licence text checked
+/// for the catalog's licence.
+pub fn verified_for_lib(lib: &str, pack: &str) -> Result<()> {
     let (src, dir) = (source(lib, pack)?, pack_dir(lib, pack));
-    Ok(fetched_under(&dir, &pin_of(&src)) && licence_checked(&dir, &src))
-}
-
-/// What a pack bound for `lib/` leaves unpinned: its bytes (`sha256`), its licence text
-/// (`licence_file`, `licence_sha256`) and its `license`.
-pub fn unpinned(lib: &str, pack: &str) -> Result<Vec<&'static str>> {
-    let src = source(lib, pack)?;
-    Ok(["sha256", "licence_file", "licence_sha256", "license"].into_iter().filter(|k| !src.contains_key(*k)).collect())
+    let keys = ["sha256", "licence_file", "licence_sha256", "license"];
+    let missing: Vec<&str> =
+        keys.into_iter().filter(|k| src.get(*k).and_then(Value::as_str).is_none_or(|v| v.trim().is_empty())).collect();
+    if !missing.is_empty() {
+        bail!("{lib}/{pack}: a lib/ pack pins its bytes and licence text: add {} to its source", missing.join(", "));
+    }
+    if !fetched_under(&dir, &pin_of(&src)) || !licence_checked(&dir, &src) {
+        bail!("{lib}/{pack}: the cached pack is not the one the catalog pins: asset_import get={lib}/{pack} first");
+    }
+    let record = std::fs::read(dir.join("SOURCE.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
+    if record.as_ref().map(|r| &r["sha256"]) != src.get("sha256") {
+        bail!(
+            "{lib}/{pack}: get could not check the archive's SHA-256 (a pack over 64 MB is read by ranges), and a lib/ pack needs it checked"
+        );
+    }
+    Ok(())
 }
 
 /// Whether `get` checked the licence text for the catalog's `license` (and `licence_sha256`).

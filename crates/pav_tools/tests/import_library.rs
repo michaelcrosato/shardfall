@@ -51,7 +51,7 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     }
     // What `get` records: the pin the pack was fetched under and the licence its text says.
     let fetched = dir.join("cache/testlib/pack1/SOURCE.json");
-    let record = r#"{"licence": "CC0-1.0", "licence_sha256": "7e7e", "pin": {"url": "https://example.invalid/pack1.zip",
+    let record = r#"{"sha256": "5a5a", "licence": "CC0-1.0", "licence_sha256": "7e7e", "pin": {"url": "https://example.invalid/pack1.zip",
       "sha256": "5a5a", "licence_file": "LICENSE.txt", "models": "models/*.glb"}}"#;
     std::fs::write(&fetched, record).unwrap();
     // SAFETY: the only test in this binary; nothing else reads the variables.
@@ -84,9 +84,27 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     let found = run(&mut s, "assets", json!({"find": "crate wood"})).unwrap();
     assert!(found["rows"].as_array().unwrap().iter().any(|r| r[0] == "LIB/test_pack/a"), "{found}");
     // out= never writes into the library: the licence gate does.
-    let into_lib = props.join("lib/elsewhere");
-    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1", "out": into_lib.to_str().unwrap()})).unwrap_err();
-    assert!(e.to_string().contains("is inside the library"), "{e}");
+    for into_lib in [props.join("lib/elsewhere"), props.join("local/../lib/elsewhere")] {
+        let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1", "out": into_lib.to_str().unwrap()})).unwrap_err();
+        assert!(e.to_string().contains("is inside the library"), "{e}");
+    }
+    // A pack read by ranges (no archive hash checked) is not committed.
+    let unhashed = record.replacen(r#""sha256": "5a5a", "#, "", 1);
+    std::fs::write(&fetched, &unhashed).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("get could not check the archive's SHA-256"), "{e}");
+    std::fs::write(&fetched, record).unwrap();
+    // A part of the pack may not change its details, and a renamed pack leaves no old folder.
+    let pack_file = lib.join("PACK.json");
+    let details = std::fs::read_to_string(&pack_file).unwrap();
+    std::fs::write(&pack_file, details.replace("Tester", "Someone")).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": models.join("b.glb").to_str().unwrap()})).unwrap_err().to_string();
+    assert!(e.contains("the pack's licence, credit or source changed"), "{e}");
+    std::fs::write(&pack_file, details).unwrap();
+    catalog(&dir, r#""license": "CC0-1.0", "pack": "test_pack2""#, lines);
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("holds this source under its old name"), "{e}");
+    catalog(&dir, r#""license": "CC0-1.0""#, lines);
     // A model that cannot be read this time keeps its last translation.
     let a_glb = models.join("a.glb");
     std::fs::write(&a_glb, b"not a model").unwrap();
@@ -138,7 +156,7 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     assert!(e.contains("the pack import holds loose files"), "{e}");
     // A lib/ pack pins its bytes and licence text.
     let loose_pin = r#"{"$library": "testlib", "$sources": {"pack1": {"url": "https://example.invalid/pack1.zip",
-      "models": "models/*.glb", "pack": "test_pack", "license": "CC0-1.0"}}}"#;
+      "sha256": null, "models": "models/*.glb", "pack": "test_pack", "license": "CC0-1.0"}}}"#;
     std::fs::write(dir.join("catalogs/testlib.json"), loose_pin).unwrap();
     let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
     assert!(e.contains("add sha256, licence_file, licence_sha256 to its source"), "{e}");

@@ -48,6 +48,10 @@ asset_import survey=kenney/castle_kit             # fit without writing: the led
   never points into `lib/` or `templates/`.
 - A model that cannot be read on a rebuild keeps its last files; a pack that changes tiers or
   licence is rebuilt only without such errors, and moves only whole.
+- `lib/` also needs the archive's SHA-256 checked by `get`. A pack over 64 MB is read by ranges
+  and stays local. A part of a pack cannot change the pack's licence, credit or source. A
+  renamed pack is refused while its old `lib/` folder still holds the source.
+- Loose files of the same name replace each other in `local/import/`; `out=` keeps them apart.
 
 ## Where translations go (the licence gate)
 

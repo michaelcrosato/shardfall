@@ -102,6 +102,16 @@ Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now lib
     - A rebuild that moves a pack to the other tier, or changes its licence, stops on any model
       error instead of keeping stale files.
     - A whole pack of one model takes the folder path, so its stale files are pruned.
+  - Fourth round, as one gate (`libraries::verified_for_lib` plus two pack checks) run before
+    anything is written into `lib/`:
+    - Pins must be non-empty strings.
+    - The archive's SHA-256 must have been checked by `get`; ranged reads of packs over 64 MB
+      stay local.
+    - A part of a pack may not change the pack's details.
+    - A renamed pack is refused while its old folder holds the source.
+    - `out=` is normalised before the library check, so `local/../lib` is caught.
+  - Not done: loose files of one name replacing each other in `local/import/`. That is a
+    re-import on this machine, and `out=` keeps them apart.
   - Not done: a translation displaced ten object widths from its source in every view could skip
     all six views. Only a hand edit makes one, and `check=`'s Chamfer numbers show it.
   - Not done: requiring descriptions on imported assets. Their names, categories and tags drive
