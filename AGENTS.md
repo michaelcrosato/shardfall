@@ -74,6 +74,12 @@ measuring exactly how much.
 - Assets made through the documented loop (a brief, `check` to zero findings, a 4-view sheet at
   the game camera, at most two fix rounds, `publish` with a review) need no human review: the user
   accepted 28 of 28 (2026-10-12). Show the user only edge cases, or complex ones you are unsure of.
+- Per PR (from 2026-10-13):
+  - Run the full checks (tests of the touched crates, clippy, fmt, the wasm check when the app
+    builds the change) once, on the head you mark ready.
+  - After a rebase or a small fix, run only the tests of what changed. A docs-only PR needs none.
+  - Take the one Codex review that marking a PR ready starts. Fix its real findings, answer the
+    rest on their threads, and merge, without asking for another round.
 
 ## Architecture map
 ```
