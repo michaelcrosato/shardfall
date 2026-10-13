@@ -84,6 +84,13 @@ impl NavGrid {
                     mark(&mut solid, lo - Vec2::splat(radius), hi + Vec2::splat(radius), true);
                 }
             }
+            // Baked props: the box they collide with.
+            for b in chunk.props.iter().filter_map(|p| p.solid_bounds()) {
+                if b.max.y >= 0.3 && b.min.y < 1.6 {
+                    let (lo, hi) = (Vec2::new(b.min.x, b.min.z), Vec2::new(b.max.x, b.max.z));
+                    mark(&mut solid, lo - Vec2::splat(radius), hi + Vec2::splat(radius), true);
+                }
+            }
         }
         for e in sim.state.entities.iter() {
             if e.body_kind != BodyKind::Fixed || e.character.is_some() || skip(e.id) {

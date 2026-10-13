@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next rows 4.3, then 6.1):
+**Asset system plan** (resumed in slim form on 2026-10-12; next row 6.1):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -102,6 +102,12 @@ Row 4.2's tooling is in (part 1): `PACK.json` licences with `assets/props/CREDIT
 reviewed exemplars into `LIB/core` (the six hard-coded Shardfall kinds as assets, dungeon dressing,
 town and furniture), all accepted by the user, who then ruled that such assets need no routine
 review (AGENTS.md, "Testing budget").
+Row 4.3 is done (lean G4): Shardfall's rooms are dressed with 3-6 LIB/core props each from the
+sets in `game/props.toml`, in the theme's colours, in place of the six hard-coded kinds. They are
+baked into the level's statics (`statics::StaticProp`: no entity, one collider box, ~72 B a prop
+in a snapshot, drawn by the view's region cache), and dressing runs last from its own random
+stream, so it never moves a mechanic or a monster (tested at 15 depths). level/6 has 270
+entities instead of 406. Re-dressing a theme is a short `props.toml` edit (`docs/GAME.md`).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

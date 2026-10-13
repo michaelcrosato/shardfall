@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::Color;
 use crate::physics::{PhysicsState, TAG_BLOCK};
+use crate::props::{Bounds, CompiledProp};
 use crate::shape::{Look, Shape, Sway};
 use crate::terrain::TerrainPatch;
 use crate::zones::{Label, Zone};
@@ -235,6 +236,85 @@ fn quat_id() -> Quat {
     Quat::IDENTITY
 }
 
+/// A library asset baked into a region (level dressing): the view's region cache draws its
+/// compiled parts as it draws a placed copy's, and it collides and blocks paths through the box
+/// round its solid parts, with no entity. It names an embedded asset (BUILTIN or LIB/core),
+/// which only a rebuild changes, so a snapshot carries the name, not the definition: one array
+/// of about 75 bytes (its collider is rapier's, in the physics state).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(into = "PropRecord", from = "PropRecord")]
+pub struct StaticProp {
+    pub asset: String,
+    /// Its origin (the floor under it, as authored).
+    pub pos: Vec3,
+    pub rot: Quat,
+    pub scale: f32,
+    /// The variant drawn (chance, jitter, pick); 0 as authored.
+    pub seed: u32,
+    /// Collides and blocks paths; false: drawn only.
+    pub solid: bool,
+    pub collider: Option<ColliderHandle>,
+}
+
+/// A baked prop as snapshots write it: the fields in order, without their names.
+#[derive(Serialize, Deserialize)]
+struct PropRecord(String, Vec3, Quat, f32, u32, bool, Option<ColliderHandle>);
+
+impl From<StaticProp> for PropRecord {
+    fn from(p: StaticProp) -> Self {
+        Self(p.asset, p.pos, p.rot, p.scale, p.seed, p.solid, p.collider)
+    }
+}
+
+impl From<PropRecord> for StaticProp {
+    fn from(PropRecord(asset, pos, rot, scale, seed, solid, collider): PropRecord) -> Self {
+        Self { asset, pos, rot, scale, seed, solid, collider }
+    }
+}
+
+impl StaticProp {
+    pub fn new(asset: &str, pos: Vec3, rot: Quat, scale: f32, seed: u32, solid: bool) -> Self {
+        Self { asset: asset.to_owned(), pos, rot, scale, seed, solid, collider: None }
+    }
+
+    /// Its variant's compiled parts (None when this build lacks the asset).
+    pub fn parts(&self) -> Option<Arc<CompiledProp>> {
+        crate::props::resolve_ref(&self.asset).ok().map(|def| def.variant(self.seed))
+    }
+
+    /// The world box round what it draws.
+    pub fn bounds(&self, parts: &CompiledProp) -> Bounds {
+        crate::prop_instance::transform_bounds(parts.bounds_at(self.scale), self.pos, self.rot)
+    }
+
+    /// The box round its solid parts in its own frame (None: nothing to collide with).
+    fn solid_box(&self, parts: &CompiledProp) -> Option<Bounds> {
+        if !self.solid {
+            return None;
+        }
+        parts.parts.iter().filter(|part| part.solid).map(|part| part.bounds(self.scale)).reduce(Bounds::union)
+    }
+
+    /// The world box it collides with and paths go round (None: walked through).
+    pub fn solid_bounds(&self) -> Option<Bounds> {
+        let parts = self.parts()?;
+        let local = self.solid_box(&parts)?;
+        Some(crate::prop_instance::transform_bounds(local, self.pos, self.rot))
+    }
+
+    /// One box, not the parts' compound: a level holds dozens of these, and every collider
+    /// travels in snapshots (a compound of a 20-part crate stack costs kilobytes).
+    fn collider(&self, parts: &CompiledProp) -> Option<ColliderBuilder> {
+        let b = self.solid_box(parts)?;
+        let (c, h) = (b.center(), (b.size() * 0.5).max(Vec3::splat(0.01)));
+        Some(
+            ColliderBuilder::cuboid(h.x as Real, h.y as Real, h.z as Real)
+                .position(Pose::from_parts(self.pos + self.rot * c, self.rot))
+                .friction(0.8),
+        )
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StaticChunk {
     pub blocks: Vec<Block>,
@@ -252,6 +332,13 @@ pub struct StaticChunk {
     /// Text in the world.
     #[serde(default)]
     pub labels: Vec<Label>,
+    /// Library assets baked in (level dressing).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub props: Vec<StaticProp>,
+    /// Colours for the theme roles its props name (`$wall` → `#rrggbb`); others take
+    /// `props::DEFAULT_ROLES`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub palette: BTreeMap<String, String>,
     /// Bounding box of everything in the region (for spatial queries).
     pub min: Vec3,
     pub max: Vec3,
@@ -271,6 +358,7 @@ impl StaticChunk {
             && self.terrain.is_none()
             && self.zones.is_empty()
             && self.labels.is_empty()
+            && self.props.is_empty()
         {
             self.min = min;
             self.max = max;
@@ -428,6 +516,42 @@ impl StaticWorld {
         chunk.version += 1;
     }
 
+    /// Bakes a library asset into an active region (its collider made now). Errors: an asset
+    /// this build lacks, or a bad scale or pose.
+    pub fn add_prop_to(&mut self, physics: &mut PhysicsState, key: RegionKey, mut prop: StaticProp) -> Result<(), String> {
+        let def = crate::props::resolve_ref(&prop.asset)?;
+        prop.asset = crate::props::canonical(&prop.asset)?;
+        crate::prop_instance::validate_scale(prop.scale)?;
+        crate::prop_instance::validate_pose(prop.pos, prop.rot)?;
+        let parts = def.variant(prop.seed);
+        prop.collider = prop.collider(&parts).map(|c| physics.insert_static(c));
+        let b = prop.bounds(&parts);
+        let chunk = self.chunk_mut(key);
+        chunk.grow(b.min, b.max);
+        chunk.props.push(prop);
+        chunk.version += 1;
+        Ok(())
+    }
+
+    /// Bakes a library asset into the terrain chunk under its origin; returns that region.
+    pub fn add_prop(&mut self, physics: &mut PhysicsState, prop: StaticProp) -> Result<RegionKey, String> {
+        let key = RegionKey::chunk_of(prop.pos);
+        self.add_prop_to(physics, key, prop)?;
+        Ok(key)
+    }
+
+    /// The colours a region's props wear for their theme roles.
+    pub fn set_palette(&mut self, key: RegionKey, palette: BTreeMap<String, String>) {
+        let chunk = self.chunk_mut(key);
+        chunk.palette = palette;
+        chunk.version += 1;
+    }
+
+    /// Baked props in the active regions.
+    pub fn prop_count(&self) -> usize {
+        self.chunks.values().map(|c| c.props.len()).sum()
+    }
+
     pub fn set_terrain(&mut self, physics: &mut PhysicsState, key: RegionKey, patch: Arc<TerrainPatch>) {
         let col = physics.insert_static(patch.collider());
         let chunk = self.chunk_mut(key);
@@ -496,6 +620,11 @@ impl StaticWorld {
                 physics.remove_collider(h);
             }
         }
+        for p in &mut chunk.props {
+            if let Some(h) = p.collider.take() {
+                physics.remove_collider(h);
+            }
+        }
         if let Some(h) = chunk.terrain_collider.take() {
             physics.remove_collider(h);
         }
@@ -525,6 +654,9 @@ impl StaticWorld {
             if d.solid {
                 d.collider = Some(physics.insert_static(decor_collider(d)));
             }
+        }
+        for p in &mut chunk.props {
+            p.collider = p.parts().and_then(|parts| p.collider(&parts)).map(|c| physics.insert_static(c));
         }
         if let Some(t) = &chunk.terrain {
             chunk.terrain_collider = Some(physics.insert_static(t.collider()));

@@ -120,3 +120,7 @@ It draws what a placed copy draws (parts, glow, lights; not `fx` particles). The
 variant (0 as authored; keep to a few seeds per asset); the palette colours `$roles`
 ({"$wall":"#5a6b7c"}); `id` keeps each unit's outline its own. Unknown names fail with the
 nearest one. Units need no physics: the game owns their positions.
+
+Scenery that never moves can instead be baked into the level's static regions
+(`statics::StaticProp`: no entity, one collider box, ~75 B in a snapshot); Shardfall dresses
+its rooms this way from `game/props.toml` (docs/GAME.md, "Dressing").

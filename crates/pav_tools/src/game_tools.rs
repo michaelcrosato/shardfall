@@ -1306,6 +1306,12 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
             _ => {}
         }
     }
+    // The dressing (props baked into the level): the floor they cover, solid ones lighter.
+    for p in sim.state.statics.chunks.values().flat_map(|c| &c.props) {
+        let Some(parts) = p.parts() else { continue };
+        let b = p.bounds(&parts);
+        c.rect(at(b.min.x, b.min.z), at(b.max.x, b.max.z), if p.solid { [150, 140, 125] } else { [95, 90, 82] }, 0.9);
+    }
     for f in &lv.features {
         let (x, y) = at(f.pos.x, f.pos.z);
         let r = (k * 0.8).max(3.0);
@@ -1398,9 +1404,10 @@ pub fn t_levelmap(s: &mut Session, a: &Args) -> Result<Output> {
         "corridors": lv.layout.corridors.len(),
         "features": counts,
         "monsters": g.monsters_alive(),
+        "props": sim.state.statics.prop_count(),
         "boss": if lv.boss_name.is_empty() { None } else { Some(&lv.boss_name) },
         "route_to_exit_m": route_len,
-        "legend": "red cells = not walkable (nav=true), green line = the planned way from the hero to the exit; blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests",
+        "legend": "red cells = not walkable (nav=true), green line = the planned way from the hero to the exit; blue room = start, gold room = exit; red/blue/yellow dots = normal/magic/rare monsters; big red = boss; orange discs = lava; blue discs = time bubbles; pale = ice/wind; dark = crumbling; violet = rift gates (linked); coloured = shrines; brown = kegs; green = totems; purple = cursed chests; grey boxes = dressing props (light: solid)",
     });
     Ok(Output::Image { png, path: Some(path), meta })
 }

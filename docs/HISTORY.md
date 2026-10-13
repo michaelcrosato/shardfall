@@ -5,6 +5,78 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 4.3: levels dressed with library props — 2026-10-13
+
+Row 4.3 of `docs/ASSET_SYSTEM_PLAN.md` (SF-1 static bake, SF-2 data dressing; lean G4). Shardfall's
+rooms now get 3-6 LIB/core props each, from data and in the theme's colours, instead of the six
+hard-coded kinds (rocks, crates, columns, crystals, bones and mushrooms as raw blocks and spheres).
+- **Baked props** (`statics.rs`): `StaticProp {asset, pos, rot, scale, seed, solid, collider}` in
+  `StaticChunk.props`, with the colours for the theme roles in `StaticChunk.palette`. A baked prop
+  has no entity. Its collider is one box round its solid parts, made on `add_prop` and on waking
+  and removed on sleep, and `NavGrid::build` marks the same box. The view's region cache draws
+  the parts as a placed copy's (`emit_prim`, `Surfaces`) into a scratch scene it keeps, sends
+  their generated meshes with every scene and makes their part lights each frame (they flicker).
+  Each prop has its own outline group and material seeds, hashed from its region and index.
+  `state_hash` adds the prop count. A snapshot writes each prop as one array (~72 B) naming its
+  asset. Props name embedded assets only, which change only with a rebuild, so the snapshot
+  carries no definitions for them and `PropDefTable` does not walk statics.
+- **Dressing** (`arpg/world/dress.rs`, `game/props.toml`): the six old names are sets, so
+  themes.toml is unchanged. Each set has a `place` (wall, corner, floor or wall_mount) and items
+  `{asset, w, place, scale, solid}`; `data.rs` checks that every item names an embedded asset that
+  compiles and that every theme's sets exist. `decorate` became `ambience()` (particles and grass,
+  in place) and `dress(seed)`, which runs at the very end of `build_level_with(sim, depth, game,
+  dress)`, after the exit seal, from `Rng::new(seed ^ 0xd2e5_5a11)`. It keeps clear of `taken`,
+  every actor (the boss, kegs, totems), the wall lights and the wind's strips, gives a standing
+  prop its footprint plus 0.5 m, and adds nothing to `taken`. Each room gets 3-6 placed props
+  (up to three picks each). Hung props (`wall_mount`) skip doorways, lights and the south wall,
+  which the game camera looks over. An asset with `fx` would stay a placed prop (no set uses
+  one). `levelmap` draws the props (grey boxes) and counts them.
+- **The sets:** rocks (rock_cluster, rubble_pile, stalagmite; corners), crates (crate_stack,
+  barrel, sack, urn), columns (column, column_broken, banner on the wall), crystals and mushrooms
+  (walked through, as before), bones (bone_pile, walked through; chains on the wall). Rocks,
+  crates and columns are solid, as the old blocks and columns were.
+- **Checks (lean G4):**
+  - `tests/levels.rs`: `dressing_never_moves_mechanics_or_monsters` (depths 1-12, 13, 17 and 25,
+    dressed and bare: identical features, actors with their ids and places, spots, seal and
+    `state.rng`); `dressing_is_reproducible`; `dressing_snapshot_cost`; `dressing_keeps_paths`
+    (the way out, and every room the bare level reaches); `baked_props_collide_sleep_and_restore`.
+  - `levelmap nav=true` at depths 1, 4, 7, 10 and 17 (seed 7): the routes to the exit are the
+    same length as before (145, 215, 246, 280 and 267 m, within 0.2 m).
+  - `campaign scene=town seed=1 from=1 to=12` (60 game minutes): with a level-30 hero, levels
+    1-10 took 17.5 game minutes before and 17.0 after (−3%). Before, it also finished level 11
+    (2.9 min) and stalled at level 12's boss; after, it stalled in level 11, a re-rolled vault
+    that the bot cannot clear with the dressing switched off either (seed 2 of a fresh level 11:
+    stuck dressed and bare, 3.9 min before the change). At the hero's own level the bot finished
+    3 levels before (4.7 min, then stuck at level 4's boss) and 11 after (levels 1-3: 3.4 min).
+    The one-time re-roll moves single levels a lot either way.
+  - level/6 (seed 1): 406 entities → 270, 591 blocks → 522. Its render at 960×540 on lavapipe:
+    median 203 ms before, 194 ms after (noise).
+  - The raw dist wasm grows by 88 KB (26,490,394 → 26,578,824 B).
+  - `cargo test` for pav_core, pav_view and pav_tools (`reply_budget` fails on this base, as on
+    main before 3.4's fix), clippy, fmt and `cargo check -p pav_app --target
+    wasm32-unknown-unknown` pass.
+  - The Level 1 review page: Level 1 and Depth 14 (ruins blended), 5 before/after pairs at the
+    game camera, seed 7 (`.cache/g4/manifest.json`).
+- **The snapshot gate, not met as written.** The bake itself (records and palettes) is 3.8-9.1 KB
+  a level, inside the plan's 16 KB, but each solid prop's collider adds ~580 B (rapier writes
+  every field of a collider), so the dressing costs 13-37 KB of snapshot at the 15 tested depths.
+  A compound per region would cost more (~700 B plus ~280 B a box; a 20-part crate stack's own
+  compound ~6 KB). Making props walk-through would meet it, at the cost of rocks, crates and
+  columns that were solid before. The old hard-coded dressing cost 75-80 KB a level, so a level's
+  snapshot still shrinks (level/1 669 → 608 KB, level/6 1,311 → 1,249 KB at seed 3). The test
+  checks what holds: records ≤ 80 B a prop, the bake ≤ 16 KB, ≤ 600 B per collider, nothing else.
+- **Decisions:** one box per prop rather than the compound of its parts (above; the paths match
+  it). No theme kits (SF-3 deferred) and no `params` on items (LIB-4 deferred). A one-time re-roll
+  of mechanics and monsters at the switch (D14): the old dressing drew from the level's stream.
+- **Review and landing.**
+  - Under the user's rule (AGENTS.md, "Testing budget"), the orchestrator judged the 5
+    before/after pairs. The banners hang on the walls, the glowing mushrooms, broken columns,
+    rocks and bones read in theme colours, and no prop blocks a door or a path.
+  - The snapshot gate is accepted as built. Its purpose, a small snapshot, holds: a level's
+    snapshot shrinks.
+  - Landed on top of 3.4: `dress` takes the theme's colours from `ThemeDef::palette` (3.4's), and
+    the region cache keys on both the level palette and the materials generation.
+
 ## Asset plan 5.3: catalogs, the licence gate, the import pilot (lean G5: two packs GO) — 2026-10-12
 
 Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now library packs that

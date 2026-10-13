@@ -79,7 +79,9 @@ measuring exactly how much.
 ```
 crates/
   pav_core    simulation, no window/GPU/audio deps: Sim, entities, physics (rapier3d),
-              static regions (statics.rs: terrain chunks, rooms, hub; active or dormant),
+              static regions (statics.rs: terrain chunks, rooms, hub; active or dormant;
+              blocks, decor and baked library props: drawn by the view's region cache, one
+              collider box each, no entity),
               world.rs (pavilion layout, streaming, room tracking), room.rs (room files),
               terrain.rs (procedural wilderness), tile levels (level.rs), characters
               (character.rs: movement models instant/momentum/grid/committed, jump,
@@ -324,7 +326,7 @@ import: `asset_import` (`pav help` for args).
   and reports its anatomy; `theme_swatch depths=13-20` shows palettes; `levelmap nav=true`
   shows what the AI thinks is walkable and its planned way out. Game data lives in `game/*.toml`
   (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`; levels from
-  `themes.toml` and `levels.toml`).
+  `themes.toml` and `levels.toml`, dressed with LIB/core props from the sets in `props.toml`).
 - Looks: `look` lists the Look & Filters sections, presets and whole looks; `look name=HD-2D`,
   `look section=pixel preset=Chunky on=objects` set the session's look layer (applied in every
   capture); `look bench=all` renders this moment under every look in one numbered PNG. Filters
@@ -482,7 +484,9 @@ rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, 
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`
 (archetypes, broods, bombers, affixes, bosses through their phases, the Menagerie),
 `tests/levels.rs` (every designed level has its mechanics, each mechanic works, endless
-depths, the sealed exit, waypoints, rewind in a level), `tests/town.rs` (townsfolk, gambling,
+depths, the sealed exit, waypoints, rewind in a level; dressing never moves a mechanic or a
+monster, is reproducible, keeps its snapshot budget and the paths; baked props collide, sleep
+and restore), `tests/town.rs` (townsfolk, gambling,
 brewing, saves), `tests/feel.rs` (gibs, kill streaks, boss entrances), `tests/heroes.rs`
 (playable characters: the hall, switching with a shared stash, strikes per combo swing,
 captured dodges).

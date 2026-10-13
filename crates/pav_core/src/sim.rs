@@ -1085,9 +1085,9 @@ impl Sim {
     }
 
     /// Hash of the gameplay state, for repeatability checks: the tick, the random numbers, every
-    /// entity, rigid and soft bodies (pose and velocity), the level's blocks, projectiles,
-    /// courses, signals, crumbling tiles and the game (hero, items, gold, monsters). Two runs
-    /// that hash the same played out the same.
+    /// entity, rigid and soft bodies (pose and velocity), the level's blocks and baked props,
+    /// projectiles, courses, signals, crumbling tiles and the game (hero, items, gold, monsters).
+    /// Two runs that hash the same played out the same.
     pub fn state_hash(&self) -> u64 {
         let s = &self.state;
         let mut h = Fnv::default();
@@ -1107,6 +1107,7 @@ impl Sim {
             }
         }
         h.u64(s.statics.block_count() as u64);
+        h.u64(s.statics.prop_count() as u64);
         h.data(&s.projectiles);
         h.data(&s.courses);
         h.data(&s.signals);

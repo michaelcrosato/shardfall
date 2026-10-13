@@ -25,6 +25,9 @@ use crate::sim::Sim;
 use crate::statics::{Block, Facing, RegionKey, block_flags};
 use crate::zones::{Zone, ZoneKind};
 
+/// Level dressing: library props from `game/props.toml` sets.
+pub mod dress;
+
 /// A level's look and its inhabitants.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -498,6 +501,12 @@ const WALL_H: f32 = 1.9;
 
 /// Builds depth `depth` around a game in progress (travel) or a fresh one.
 pub fn build_level(sim: &mut Sim, depth: u32, game: Option<Game>) {
+    build_level_with(sim, depth, game, true);
+}
+
+/// `build_level`, dressed with library props or bare (`dress = false`: everything else is
+/// the same, which `tests/levels.rs` checks).
+pub fn build_level_with(sim: &mut Sim, depth: u32, game: Option<Game>, dress: bool) {
     let d = data();
     super::scene::game_movement(sim);
     let plan = plan(&d, depth);
@@ -506,7 +515,7 @@ pub fn build_level(sim: &mut Sim, depth: u32, game: Option<Game>) {
     let mut b = Builder::new(sim, &plan, layout, seed);
     b.choose_floors();
     b.geometry();
-    b.decorate();
+    b.ambience();
     let start = b.layout.rooms[b.layout.start].rect.center();
     let spawn = Vec3::new(start.x, 0.1, start.y + 2.0);
     let portal_at = Vec3::new(start.x, 0.0, start.y - 3.0);
@@ -570,6 +579,10 @@ pub fn build_level(sim: &mut Sim, depth: u32, game: Option<Game>) {
     g.say(format!("{} · {}", plan.label(), plan.name), 4.0);
     g.level = Some(Box::new(st));
     b.sim.state.game = Some(Box::new(g));
+    // Last, so it never moves anything (game/props.toml).
+    if dress {
+        b.dress(seed);
+    }
 }
 
 struct Builder<'a> {
@@ -603,11 +616,6 @@ impl<'a> Builder<'a> {
 
     fn color(&self, hex: &str) -> Color {
         Color::hex(hex)
-    }
-
-    fn block(&mut self, min: Vec3, max: Vec3, c: Color) {
-        let st = &mut self.sim.state;
-        st.statics.add(&mut st.physics, Block::new(min, max, c));
     }
 
     /// A block wearing one of the theme's materials (drawing only), if it has that one.
@@ -909,41 +917,11 @@ impl<'a> Builder<'a> {
         None
     }
 
-    /// A point close to a wall (props).
-    fn wall_spot(&mut self, room: usize) -> Option<Vec2> {
-        let r = self.layout.rooms[room].rect;
-        for _ in 0..30 {
-            let side = self.rng.below(4);
-            let inset = self.rng.range(0.9, 1.8);
-            let u = self.rng.f32();
-            let p = match side {
-                0 => Vec2::new(r.max.x - inset, r.min.y + 1.0 + u * (r.size().y - 2.0)),
-                1 => Vec2::new(r.min.x + 1.0 + u * (r.size().x - 2.0), r.max.y - inset),
-                2 => Vec2::new(r.min.x + inset, r.min.y + 1.0 + u * (r.size().y - 2.0)),
-                _ => Vec2::new(r.min.x + 1.0 + u * (r.size().x - 2.0), r.min.y + inset),
-            };
-            if self.taken[room].iter().all(|(q, qr)| (p - *q).length() > qr + 1.0) {
-                self.taken[room].push((p, 1.0));
-                return Some(p);
-            }
-        }
-        None
-    }
-
-    /// Props along the walls and drifting particles in every room.
-    fn decorate(&mut self) {
+    /// Drifting particles and grass in every room (the props come last: `dress`).
+    fn ambience(&mut self) {
         let t = self.plan.theme.clone();
         for i in 0..self.layout.rooms.len() {
             let r = self.layout.rooms[i].rect;
-            let n = 3 + self.rng.below(4);
-            for _ in 0..n {
-                if t.props.is_empty() {
-                    break;
-                }
-                let Some(p) = self.wall_spot(i) else { continue };
-                let kind = t.props[self.rng.below(t.props.len() as u32) as usize].clone();
-                self.prop(&kind, p);
-            }
             let s = r.size();
             if !t.particles.is_empty() {
                 let mut v = Visual::new(Shape::Sphere { radius: 0.01 }, Color::hex("#000000"));
@@ -998,108 +976,6 @@ impl<'a> Builder<'a> {
                 };
                 st.statics.add_decor(&mut st.physics, RegionKey::chunk_of(pos), d);
             }
-        }
-    }
-
-    fn prop(&mut self, kind: &str, p: Vec2) {
-        let t = self.plan.theme.clone();
-        let at = Vec3::new(p.x, 0.0, p.y);
-        let rot = |a: f32| Quat::from_rotation_y(a);
-        match kind {
-            "rocks" => {
-                let base = Color::hex(&t.wall);
-                for k in 0..3 {
-                    let o = Vec3::new(self.rng.range(-0.7, 0.7), 0.0, self.rng.range(-0.7, 0.7));
-                    let h = self.rng.range(0.3, 0.9) * if k == 0 { 1.3 } else { 1.0 };
-                    let w = self.rng.range(0.35, 0.6);
-                    let c = base.scale(self.rng.range(0.75, 1.1));
-                    let st = &mut self.sim.state;
-                    st.statics.add(
-                        &mut st.physics,
-                        Block::new(at + o - Vec3::new(w, 0.0, w), at + o + Vec3::new(w, h, w), c)
-                            .with_flags(block_flags::ROUNDED),
-                    );
-                }
-            }
-            "crates" => {
-                let wood = Color::hex("#6a4a2c");
-                let s = self.rng.range(0.4, 0.55);
-                self.block(at - Vec3::new(s, 0.0, s), at + Vec3::new(s, s * 2.0, s), wood);
-                if self.chance(0.5) {
-                    let o = Vec3::new(self.rng.range(-0.15, 0.15), s * 2.0, self.rng.range(-0.15, 0.15));
-                    let s2 = s * 0.8;
-                    self.block(at + o - Vec3::new(s2, 0.0, s2), at + o + Vec3::new(s2, s2 * 2.0, s2), wood.scale(1.1));
-                }
-            }
-            "columns" => {
-                let h = self.rng.range(1.0, 2.8);
-                let mut v = Visual::new(Shape::Cylinder { half_height: h * 0.5, radius: 0.42 }, Color::hex(&t.pillar));
-                v.look = Look::Lit;
-                self.sim.spawn(Spawn::new("column", at + Vec3::Y * h * 0.5).visual(v).body(BodyKind::Fixed));
-                if h < 2.0 {
-                    // Its broken top lies beside it.
-                    let mut v = Visual::new(Shape::Cylinder { half_height: 0.5, radius: 0.4 }, Color::hex(&t.pillar).scale(0.9));
-                    v.look = Look::Lit;
-                    let mut s = Spawn::new("column piece", at + Vec3::new(0.9, 0.4, 0.3)).visual(v);
-                    s.rot = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2) * rot(self.rng.range(0.0, 3.0));
-                    self.sim.spawn(s);
-                }
-            }
-            "crystals" => {
-                let n = 2 + self.rng.below(3);
-                for k in 0..n {
-                    let h = self.rng.range(0.4, 1.2);
-                    let mut v = Visual::new(Shape::Box { half: Vec3::new(0.12, h * 0.5, 0.12) }, Color::hex(&t.accent));
-                    v.look = Look::Unlit;
-                    v.emissive = 1.1;
-                    if k == 0 && self.chance(0.4) {
-                        v.light = Some(Box::new(LightDef {
-                            color: t.accent.clone(),
-                            radius: 4.5,
-                            intensity: 1.0,
-                            pulse: 0.3,
-                            ..Default::default()
-                        }));
-                    }
-                    let o = Vec3::new(self.rng.range(-0.5, 0.5), h * 0.45, self.rng.range(-0.5, 0.5));
-                    let mut s = Spawn::new("crystal", at + o).visual(v);
-                    s.rot = rot(self.rng.range(0.0, 3.0)) * Quat::from_rotation_z(self.rng.range(-0.45, 0.45));
-                    self.sim.spawn(s);
-                }
-            }
-            "bones" => {
-                let bone = Color::hex("#d9d0bb");
-                for _ in 0..3 {
-                    let mut v = Visual::new(Shape::Capsule { half_height: 0.25, radius: 0.05 }, bone);
-                    v.look = Look::Lit;
-                    let o = Vec3::new(self.rng.range(-0.5, 0.5), 0.05, self.rng.range(-0.5, 0.5));
-                    let mut s = Spawn::new("bone", at + o).visual(v);
-                    s.rot = rot(self.rng.range(0.0, 3.1)) * Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
-                    self.sim.spawn(s);
-                }
-                let mut v = Visual::new(Shape::Sphere { radius: 0.16 }, bone);
-                v.look = Look::Lit;
-                self.sim.spawn(Spawn::new("skull", at + Vec3::new(0.2, 0.15, -0.1)).visual(v));
-            }
-            "mushrooms" => {
-                let n = 2 + self.rng.below(3);
-                for _ in 0..n {
-                    let h = self.rng.range(0.3, 1.1);
-                    let o = Vec3::new(self.rng.range(-0.6, 0.6), 0.0, self.rng.range(-0.6, 0.6));
-                    let mut stem =
-                        Visual::new(Shape::Cylinder { half_height: h * 0.5, radius: 0.07 + h * 0.05 }, Color::hex("#d8cfb8"));
-                    stem.look = Look::Lit;
-                    self.sim.spawn(Spawn::new("stem", at + o + Vec3::Y * h * 0.5).visual(stem));
-                    let mut cap = Visual::new(
-                        Shape::Cylinder { half_height: 0.06 + h * 0.04, radius: 0.2 + h * 0.25 },
-                        Color::hex(&t.accent),
-                    );
-                    cap.look = Look::Unlit;
-                    cap.emissive = 0.7;
-                    self.sim.spawn(Spawn::new("cap", at + o + Vec3::Y * h).visual(cap));
-                }
-            }
-            _ => {}
         }
     }
 

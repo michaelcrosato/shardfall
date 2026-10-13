@@ -38,8 +38,8 @@ small generators, and every system has an agent tool to build and inspect it.
   - `genome` (monster generator, parts, palettes, names), `brain` (archetypes), `boss`
   - `levelgen` (layout grammar, themes, endless levels), `mechanics` (the twelve), `town`
 - `game/` (repo root) holds the data: skills, item bases and affixes, uniques, tree clusters,
-  monster families, palettes, themes and the designed levels. It is embedded in the
-  executable.
+  monster families, palettes, themes, the designed levels and the level dressing sets. It is
+  embedded in the executable.
 - `pav_view::arpg` draws the game: weapons in hand, skill effects, telegraphs, ground loot
   with rarity beams, damage numbers and monster auras.
 - `pav_app::arpg_ui` is the game UI: life and mana orbs, skill bar, XP, inventory, tooltips,
@@ -133,6 +133,17 @@ are shared too: a character changes how a skill looks, not what it does.
 - **The descent**: each level is rooms and corridors generated from a seed, painted by a theme,
   with one signature mechanic and earlier ones mixed in. Find the way down; on boss levels it
   is sealed until the boss falls (and the first time pays a passive point).
+- **Dressing**: each room gets 3-6 library props (embedded `LIB/core` assets, in the theme's
+  `$wall`, `$pillar`, `$accent` and `$light` colours) from the sets its theme names in `props`.
+  The sets are `game/props.toml`. Dressing runs last, from its own random stream, so editing it
+  never moves a mechanic or a monster. To re-dress a theme, add a set and name it in the
+  theme's `props` (themes.toml), e.g. `props = ["ruins", "rocks"]`:
+  ```toml
+  [ruins]                                    # game/props.toml
+  place = "wall"                             # wall, corner, floor or wall_mount
+  items = [{ asset = "LIB/core/column_broken", w = 2 }, { asset = "LIB/core/urn" }]
+  ```
+  `assets find=` searches what there is; `levelmap depth=N` shows where props stand (grey boxes).
 
 | # | Level | Mechanic | Also | Boss |
 |---|---|---|---|---|

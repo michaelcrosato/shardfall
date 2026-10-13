@@ -350,6 +350,143 @@ fn the_way_down_opens_when_the_boss_falls_and_waypoints_remember() {
     assert_eq!(game(&sim).place, Place::Level(3));
 }
 
+// ------------------------------------------------- dressing (asset plan SF-1, SF-2)
+
+/// Depths the dressing checks cover: every designed level and three endless ones.
+const DRESSED: [u32; 15] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17, 25];
+
+/// A level from a fresh simulation, dressed or bare.
+fn built(depth: u32, seed: u64, dress: bool) -> Sim {
+    let mut sim = Sim::empty(seed);
+    world::build_level_with(&mut sim, depth, None, dress);
+    sim
+}
+
+/// What dressing must never change: the features, every actor (monsters, kegs, totems, the
+/// boss: id, name, rarity, where), the spots (the exit, the portal), the seal and the random
+/// stream.
+fn mechanics_of(sim: &Sim) -> String {
+    let g = game(sim);
+    let lv = level(sim);
+    let actors: Vec<String> = g
+        .actors
+        .iter()
+        .map(|(id, a)| format!("{} {} {:?} {:?}", id.0, a.name, a.rarity, sim.state.entities.get(*id).map(|e| e.pos)))
+        .collect();
+    format!("{:?}\n{actors:?}\n{:?}\n{:?} {:?}\n{:?}", lv.features, g.spots, lv.seal, lv.boss, sim.state.rng)
+}
+
+#[test]
+fn dressing_never_moves_mechanics_or_monsters() {
+    for depth in DRESSED {
+        let seed = 40 + depth as u64;
+        let (dressed, bare) = (built(depth, seed, true), built(depth, seed, false));
+        assert_eq!(mechanics_of(&dressed), mechanics_of(&bare), "depth {depth}: dressing moved something");
+        let props = dressed.state.statics.prop_count();
+        let rooms = level(&dressed).layout.rooms.len();
+        assert!(props >= rooms * 2, "depth {depth}: {props} props in {rooms} rooms");
+        assert_eq!(bare.state.statics.prop_count(), 0);
+    }
+}
+
+#[test]
+fn dressing_is_reproducible() {
+    for depth in [1, 17] {
+        let (a, b) = (built(depth, 5, true), built(depth, 5, true));
+        let props = |sim: &Sim| {
+            let all: Vec<_> = sim.state.statics.chunks.values().flat_map(|c| c.props.clone()).collect();
+            serde_json::to_string(&all).unwrap()
+        };
+        assert_eq!(props(&a), props(&b), "depth {depth}");
+        assert_eq!(a.state_hash(), b.state_hash(), "depth {depth}");
+    }
+}
+
+/// The plan's budget is 16 KB of snapshot per level for the dressing, about 80 B a prop. The
+/// bake itself (the props' records and the palettes) keeps it; a solid prop's collider adds
+/// rapier's own ~530 B on top (the old hard-coded dressing cost 75-80 KB per level in all).
+#[test]
+fn dressing_snapshot_cost() {
+    fn bytes(value: &impl serde::Serialize) -> usize {
+        let mut out = Vec::new();
+        ciborium::into_writer(value, &mut out).unwrap();
+        out.len()
+    }
+    for depth in [1, 6, 7, 17, 25] {
+        let (dressed, bare) = (built(depth, 3, true), built(depth, 3, false));
+        let props: Vec<_> = dressed.state.statics.chunks.values().flat_map(|c| c.props.clone()).collect();
+        let solid = props.iter().filter(|p| p.collider.is_some()).count();
+        let bake = bytes(&dressed.state.statics) - bytes(&bare.state.statics);
+        let colliders = bytes(&dressed.state.physics) - bytes(&bare.state.physics);
+        let total = bytes(&dressed.snapshot()) - bytes(&bare.snapshot());
+        let n = props.len();
+        assert!(bytes(&props) <= n * 80, "depth {depth}: {} B of records for {n} props", bytes(&props));
+        assert!(bake <= 16 * 1024, "depth {depth}: the bake is {bake} B");
+        assert!(colliders <= solid * 600, "depth {depth}: {colliders} B of colliders for {solid} solid props");
+        assert_eq!(total, bake + colliders, "depth {depth}: nothing else grows");
+    }
+}
+
+#[test]
+fn dressing_keeps_paths() {
+    for depth in DRESSED {
+        let seed = 60 + depth as u64;
+        let (dressed, bare) = (built(depth, seed, true), built(depth, seed, false));
+        let grid = |sim: &Sim| {
+            let mut lv = level(sim).clone();
+            lv.nav_grid(sim, &game(sim).actors)
+        };
+        let (gd, gb) = (grid(&dressed), grid(&bare));
+        let start = dressed.state.spawn;
+        let exit = game(&dressed).spots.iter().find(|s| s.kind == SpotKind::Exit).unwrap().pos;
+        assert!(gd.path(start, exit).is_some(), "depth {depth}: the way out is blocked");
+        // Every room the bare level reaches, the dressed one still does.
+        for (i, room) in level(&dressed).layout.rooms.iter().enumerate() {
+            let Some(cell) = gb.nearest_open(Vec3::new(room.rect.center().x, 0.0, room.rect.center().y)) else { continue };
+            let goal = gb.center(cell);
+            if gb.path(start, goal).is_some() {
+                assert!(gd.path(start, goal).is_some(), "depth {depth}: room {i} is cut off");
+            }
+        }
+    }
+}
+
+#[test]
+fn baked_props_collide_sleep_and_restore() {
+    let mut sim = Sim::new("empty", 1).unwrap();
+    // In a region of its own, away from the floor.
+    let at = Vec3::new(100.0, 0.0, 100.0);
+    let prop = pav_core::statics::StaticProp::new("LIB/core/crate_stack", at, glam::Quat::IDENTITY, 1.0, 0, true);
+    let st = &mut sim.state;
+    let key = st.statics.add_prop(&mut st.physics, prop).unwrap();
+    let colliders = sim.state.physics.colliders.len();
+    let ray = |sim: &mut Sim| {
+        sim.step(&InputFrame::default());
+        let from = Vec3::new(96.0, 0.5, 100.0);
+        pav_core::projectile::static_hit(&sim.state.physics, from, Vec3::X, 10.0, None).is_some()
+    };
+    assert!(ray(&mut sim), "the crate stack is solid");
+    let st = &mut sim.state;
+    assert!(st.statics.deactivate(&mut st.physics, key));
+    assert_eq!(sim.state.physics.colliders.len(), colliders - 1, "asleep: no collider");
+    assert!(!ray(&mut sim));
+    let st = &mut sim.state;
+    assert!(st.statics.activate(&mut st.physics, key));
+    assert!(ray(&mut sim), "awake again");
+    // A snapshot carries it by name and restores it whole.
+    let hash = sim.state_hash();
+    let mut bytes = Vec::new();
+    ciborium::into_writer(&sim.snapshot(), &mut bytes).unwrap();
+    sim.restore(ciborium::from_reader(&bytes[..]).unwrap());
+    assert_eq!(sim.state.statics.prop_count(), 1);
+    assert_eq!(sim.state_hash(), hash);
+    assert!(ray(&mut sim));
+    // An asset this build lacks is refused.
+    let bad = pav_core::statics::StaticProp::new("LIB/core/no_such", at, glam::Quat::IDENTITY, 1.0, 0, true);
+    let st = &mut sim.state;
+    assert!(st.statics.add_prop(&mut st.physics, bad).is_err());
+}
+
 #[test]
 fn rewind_is_exact_in_a_level() {
     let mut sim = level_sim(6, 18);

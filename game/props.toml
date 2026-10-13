@@ -1,0 +1,51 @@
+# Level dressing sets. A theme's `props` (themes.toml) names sets; each room of a level gets 3-6
+# props, each from a set the theme names, in the theme's colours ($wall, $pillar, $accent and
+# $light roles). Dressing runs after everything else is placed and from its own random stream, so
+# editing a set never moves a mechanic or a monster. Re-dress a theme by editing its sets here, or
+# add a set and name it in the theme's `props`.
+#
+# place    where the set's props go: wall (back to a wall, facing in), corner, floor (anywhere,
+#          any turn) or wall_mount (hung on a wall's inner face: assets with a wall_mount socket)
+# items    { asset = an embedded asset (LIB/core/x or BUILTIN/x; `assets find=` searches them),
+#            w = weight (default 1), place = its own place mode, scale = [lo, hi] (default 1),
+#            solid = false to walk through it (default: its solid parts collide and block paths) }
+
+[rocks]
+place = "corner"
+items = [
+  { asset = "LIB/core/rock_cluster", w = 3, scale = [0.8, 1.15] },
+  { asset = "LIB/core/rubble_pile", w = 2, place = "wall" },
+  { asset = "LIB/core/stalagmite", w = 1, scale = [0.8, 1.2] },
+]
+
+[crates]
+place = "wall"
+items = [
+  { asset = "LIB/core/crate_stack", w = 3, scale = [0.85, 1.0] },
+  { asset = "LIB/core/barrel", w = 2, scale = [0.9, 1.1] },
+  { asset = "LIB/core/sack", w = 1 },
+  { asset = "LIB/core/urn", w = 1, place = "corner" },
+]
+
+[columns]
+place = "wall"
+items = [
+  { asset = "LIB/core/column", w = 2, scale = [0.8, 1.0] },
+  { asset = "LIB/core/column_broken", w = 2 },
+  { asset = "LIB/core/banner", w = 1, place = "wall_mount" },
+]
+
+[crystals]
+place = "wall"
+items = [{ asset = "LIB/core/crystal_cluster", scale = [0.9, 1.3], solid = false }]
+
+[bones]
+place = "floor"
+items = [
+  { asset = "LIB/core/bone_pile", w = 3, solid = false },
+  { asset = "LIB/core/chains", w = 1, place = "wall_mount" },
+]
+
+[mushrooms]
+place = "wall"
+items = [{ asset = "LIB/core/mushroom_cluster", scale = [1.0, 1.4], solid = false }]

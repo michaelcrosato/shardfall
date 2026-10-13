@@ -619,6 +619,11 @@ struct RegionCache {
     sdfs: Vec<SdfInstance>,
     lights: Vec<rs::PointLight>,
     terrain: Option<(MeshKey, Arc<MeshData>)>,
+    /// Generated meshes its baked props draw (every scene carries them).
+    custom: Vec<(u64, Arc<MeshData>)>,
+    /// Its baked props' own lights, made each frame since they flicker and pulse: the light,
+    /// where it is, its phase.
+    prop_lights: Vec<(LightDef, Vec3, f32)>,
 }
 
 /// Keeps per-region instance caches and short-lived visual effects between frames.
@@ -1210,6 +1215,56 @@ impl ViewBuilder {
                 for z in &chunk.zones {
                     emit_zone(&mut list, z, settings.style);
                 }
+                // Baked props draw as placed copies do, into a scratch scene the cache keeps.
+                let mut baked = Scene::default();
+                let mut prop_lights = Vec::new();
+                let mut generated = GeneratedMeshes { built: std::mem::take(&mut self.generated.built), sent: HashSet::new() };
+                for (index, p) in chunk.props.iter().enumerate() {
+                    let Some(parts) = p.parts() else { continue };
+                    let id = baked_id(*key, index);
+                    let o = RenderObject {
+                        id: pav_core::EntityId(id),
+                        pos: p.pos,
+                        rot: p.rot,
+                        visual: pav_core::shape::Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
+                        prop: None,
+                        puppet: None,
+                        pulse: -1.0,
+                        soft: None,
+                        vehicle: None,
+                        cone: None,
+                        scenery: false,
+                    };
+                    let mut surfaces = Surfaces { table: &mut table, library: &library, asset: &p.asset, roles: &chunk.palette };
+                    for (i, part) in parts.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
+                        let (color, material) = surfaces.part(part, materials::seed(id, i as u32));
+                        emit_prim(&mut baked, &mut generated, part, &o, p.scale, settings.style, color, material);
+                    }
+                    for (i, light) in parts.lights.iter().enumerate() {
+                        let def = LightDef {
+                            color: role_hex(&light.color, &chunk.palette).to_owned(),
+                            radius: light.radius * p.scale,
+                            intensity: light.intensity,
+                            flicker: light.flicker,
+                            pulse: light.pulse,
+                            shadows: light.shadows,
+                            offset: Vec3::ZERO,
+                        };
+                        prop_lights.push((def, p.pos + p.rot * (light.pos * p.scale), id as f32 * 1.7 + i as f32));
+                    }
+                }
+                self.generated.built = generated.built;
+                list.append(&mut baked.meshes);
+                sdfs.append(&mut baked.sdfs);
+                lights.append(&mut baked.point_lights);
+                let custom = baked
+                    .custom_meshes
+                    .into_iter()
+                    .filter_map(|(mesh, data)| match mesh {
+                        MeshKey::Custom(key) => Some((key, data)),
+                        _ => None,
+                    })
+                    .collect();
                 let terrain = chunk.terrain.as_ref().map(|t| {
                     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
                     for x in [t.cx as i64 as u64, t.cz as i64 as u64, chunk.version] {
@@ -1228,6 +1283,8 @@ impl ViewBuilder {
                         sdfs,
                         lights,
                         terrain,
+                        custom,
+                        prop_lights,
                     },
                 );
             }
@@ -1258,6 +1315,14 @@ impl ViewBuilder {
             scene.meshes.extend_from_slice(&c.meshes);
             scene.sdfs.extend_from_slice(&c.sdfs);
             scene.point_lights.extend_from_slice(&c.lights);
+            for (mesh, data) in &c.custom {
+                if self.generated.sent.insert(*mesh) {
+                    scene.custom_meshes.push((MeshKey::Custom(*mesh), data.clone()));
+                }
+            }
+            for (def, pos, phase) in &c.prop_lights {
+                scene.point_lights.push(crate::fx::light(def, *pos, time, *phase));
+            }
             if let Some((mk, data)) = &c.terrain {
                 scene.custom_meshes.push((*mk, data.clone()));
                 scene.meshes.push(MeshInstance {
@@ -1789,6 +1854,22 @@ pub(crate) fn role_hex<'a>(color: &'a str, roles: &'a BTreeMap<String, String>) 
 /// A part's linear colour: its role resolved, then its tint.
 pub(crate) fn part_color(color: &str, tint: f32, roles: &BTreeMap<String, String>) -> Vec3 {
     v3(Color::hex(role_hex(color, roles))) * tint
+}
+
+/// A baked prop's stand-in entity id (its outline group and material seeds): its region and
+/// index, hashed clear of real entity ids, so outlines part it from the floor and its
+/// neighbours and its seeds stay put while the region is rebuilt.
+fn baked_id(key: ChunkKey, index: usize) -> u32 {
+    let (kind, a, b) = match key {
+        ChunkKey::Chunk(x, z) => (0, x as i64 as u64, z as i64 as u64),
+        ChunkKey::Room(id) => (1, id as u64, 0),
+        ChunkKey::Hub => (2, 0, 0),
+    };
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for x in [kind, a, b, index as u64] {
+        h = (h ^ x).wrapping_mul(0x0100_0000_01b3);
+    }
+    0x4000_0000 | ((h ^ (h >> 32)) as u32 & 0x3fff_ffff)
 }
 
 /// The view's material table, also after a panic elsewhere left it poisoned.

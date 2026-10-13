@@ -1086,6 +1086,27 @@ Also: `levelmap nav=true` for depths 1-12, and `campaign from=1 to=12` within ±
 pre-change run. level/6 should drop from 406 entities to ~240, and render time with kit and dressing
 should rise by at most 15%.
 
+*As built (4.3, items 3 and 4; no kits):*
+- **SF-1:** `statics::StaticProp {asset, pos, rot, scale, seed, solid, collider}` in
+  `StaticChunk.props`, with the region's role colours in `StaticChunk.palette`. A snapshot
+  writes each prop as one array (~72 B) and the name alone: props name embedded assets, which
+  only a rebuild changes, so `PropDefTable` does not walk statics. Its collider is one box round
+  its solid parts, not their compound: rapier writes ~580 B per collider and ~280 B per compound
+  child (a 20-part crate stack would cost ~6 KB). Nav marks the same box. The view's region cache
+  draws the parts through `emit_prim` and `Surfaces` into a scratch scene it keeps, sends their
+  generated meshes with every scene, and makes their part lights each frame. An asset with `fx`
+  stays a placed prop. `state_hash` adds the prop count.
+- **SF-2:** `game/props.toml` holds the six old names as sets; items take `asset`, `w`, `place`,
+  `scale` and `solid` (no `params`: LIB-4 is deferred). `decorate` became `ambience()` and
+  `dress(seed)`, which runs at the very end of `build_level_with(.., dress)` (after the exit
+  seal, so no entity id moves) and keeps clear of `taken`, the actors, the wall lights and the
+  wind. Each room gets 3-6 placed props (up to three picks each); `wall_mount` skips the south
+  wall, which the game camera looks over. `levelmap` draws the props and counts them.
+- **The snapshot gate:** the bake (records and palettes) is 3.8-9.1 KB a level, inside 16 KB;
+  each solid prop's collider adds ~580 B, so the dressing in all costs 13-37 KB at the 15 tested
+  depths. The old hard-coded dressing cost ~75-80 KB a level (level/1 and level/6), so a level's
+  snapshot shrinks (level/1 669 → 608 KB, level/6 1,311 → 1,249 KB at seed 3).
+
 ### 9.7 First visible win (end of Phase 4)
 In the desktop and browser game, Level 1 (overgrown ruins) changes:
 - mossy flagstone floors instead of the 4 m two-tone checker;
@@ -1347,7 +1368,7 @@ Why this order:
 - [x] 4.1 LIB-1 names, tiers, budgets, packaging + LIB-2 index and retrieval + one call that draws a
   library asset at a transform from game code, so games can use props for units (test-game feedback) (M)
 - [x] 4.2 LIB-3 provenance, licences, credits + LIB-5 publish/review + W0 core exemplars (~30) (L): 28 exemplars (no theme-kit pieces: SF-3 deferred), all accepted by the user
-- [ ] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M)
+- [x] 4.3 SF-1 static prop bake + SF-2 data-driven dressing; lean G4 (M): props baked into statics with one collider box each, six sets in `game/props.toml`; the dressing costs 13-37 KB of snapshot with its colliders (the bake alone ≤ 9.1 KB; see §9.6)
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)
 - [x] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M): 267 models from 6 packs, 99% `fit`, median IoU 0.983, median 521 chars, 0 panics, identical rebuilds, but 31% of fits editable; GO for the two packs that pass every criterion (Kenney Mini Dungeon, Quaternius Medieval Village: `lib/`, 288 KB), the other four (Castle, Nature, Food, KayKit Dungeon: 20-35% editable) kept local with the reason in their catalogs; the colour-split fix round was dropped (HISTORY). As built: catalog model lines `"<pack>/<id>": ["<category> <tags>", "<desc>"]`, `listed`, `local`; Quaternius via OpenGameArt's Medieval Village Pack; `find=`/`catalog=` args and per-asset placement left out

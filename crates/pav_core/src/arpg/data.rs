@@ -403,6 +403,8 @@ pub struct Data {
     pub levels: Vec<super::world::LevelDef>,
     /// Playable characters (game/heroes.toml), in Hall of Heroes order.
     pub characters: Vec<CharacterDef>,
+    /// Level dressing sets (game/props.toml), which themes name in `props`.
+    pub props: BTreeMap<String, super::world::dress::PropSet>,
 }
 
 impl Data {
@@ -478,6 +480,7 @@ pub fn load() -> Result<Data, String> {
         themes: BTreeMap::new(),
         levels: Vec::new(),
         characters: Vec::new(),
+        props: BTreeMap::new(),
     };
     for (k, mut f) in table::<FamilyDef>("monsters")? {
         f.key = k.clone();
@@ -620,6 +623,14 @@ pub fn load() -> Result<Data, String> {
         }
     }
     d.levels = file.level;
+    d.props = table("props")?;
+    super::world::dress::check_sets(&d.props)?;
+    for (k, t) in &d.themes {
+        if let Some(p) = t.props.iter().find(|p| !d.props.contains_key(*p)) {
+            let known: Vec<&str> = d.props.keys().map(String::as_str).collect();
+            return Err(format!("theme '{k}': unknown prop set '{p}' (game/props.toml has {})", known.join(", ")));
+        }
+    }
     for (k, mut c) in table::<CharacterDef>("heroes")? {
         c.key = k.clone();
         let owner = format!("hero '{k}'");
