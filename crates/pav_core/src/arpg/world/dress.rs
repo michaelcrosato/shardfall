@@ -104,6 +104,8 @@ const VARIANTS: u32 = 16;
 const TRIES: usize = 12;
 /// Walking room left round a standing prop, beyond its footprint.
 const CLEAR: f32 = 0.5;
+/// How far a wall light reaches out from its wall.
+const SCONCE: f32 = 0.5;
 
 impl Builder<'_> {
     /// Dresses every room (see the module notes). `seed` is the level's.
@@ -123,6 +125,8 @@ impl Builder<'_> {
             let mut near = self.taken[room].clone();
             near.extend(actors.iter().filter(|(p, _)| rect.contains(*p)));
             let mut hung: Vec<Vec2> = lights.iter().filter(|p| rect.shrink(-1.0).contains(**p)).copied().collect();
+            // The wall lights too: a column must not stand through a sconce.
+            near.extend(hung.iter().map(|p| (*p, SCONCE)));
             // 3-6 props, from up to three picks each (a crowded room takes fewer).
             let want = 3 + rng.below(4) as usize;
             let mut placed = 0;
