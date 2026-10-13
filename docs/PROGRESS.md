@@ -42,7 +42,7 @@ the background on something.
 evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file (`scripts/build-web.sh
 --single-file`). First: Capital Strike (Jungle Strike). Larger engine work waits for patterns.
 
-**Asset system plan** (resumed in slim form on 2026-10-12; next row 6.1):
+**Asset system plan** (resumed in slim form on 2026-10-12; Phases 3-6 done on 2026-10-13):
 `docs/ASSET_SYSTEM_PLAN.md` (format 2, procedural materials, library import, curated library,
 benchmark gates). It was executed with the prompt in its §15, row by row through its §11 checklist.
 Phase 0 is done (gates GA and G0 pass): compact asset replies and canonical prop files (0.1),
@@ -90,7 +90,7 @@ gate sends CC0/CC-BY packs to `assets/props/lib/<pack>/` (`PACK.json`, credits, 
 rest to the local tier. The pilot (267 models, 6 packs; lean G5) is 99% `fit` at median IoU 0.983
 and 521 chars, but only 31% of fits are editable (mostly primitives): Kenney Mini Dungeon and
 Quaternius Medieval Village pass and are committed (`assets find=`), Castle, Nature, Food and
-KayKit Dungeon stay local, mostly mesh parts. Scale-out (6.1) applies to passing packs only.
+KayKit Dungeon stay local, mostly mesh parts.
 Row 4.1 is done: library names and tiers (`LIB/<pack>/x`, `LIB/core` embedded, other packs on
 disk, `assets/props/local` kept off git) with budget tests, `assets find=` with ranking, filters,
 `similar=` and ~35-token rows read from each folder's `index.tsv`, and
@@ -108,6 +108,9 @@ baked into the level's statics (`statics::StaticProp`: no entity, one collider b
 in a snapshot, drawn by the view's region cache), and dressing runs last from its own random
 stream, so it never moves a mechanic or a monster (tested at 15 depths). level/6 has 270
 entities instead of 406. Re-dressing a theme is a short `props.toml` edit (`docs/GAME.md`).
+Row 6.1 closes the plan: the two GO packs were imported whole in 5.3, so the scale-out adds no
+code. More packs wait for a game that needs them: any pinned pack rebuilds locally with
+`asset_import`, and joins `lib/` by passing G5. What the plan deferred is listed in its §11.
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

@@ -5,6 +5,29 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset plan 6.1: the scale-out closes with the pilot — 2026-10-13
+
+Row 6.1 of `docs/ASSET_SYSTEM_PLAN.md` (I8), in slim form. Its exit, "the GO packs on disk,
+searchable from `assets find=`", already holds after 5.3, so the row adds no code.
+- **Where the GO packs stand.** 5.3's lean G5 passed two packs, and both were imported whole:
+  - Kenney Mini Dungeon: 28 of 30 models; the 2 rigged characters are skipped.
+  - Quaternius Medieval Village: 33 of 34 props.
+
+  They sit under `assets/props/lib/` (288 KB of the 40 MB budget) with `PACK.json`, an index and
+  their credits in `assets/props/CREDITS.md`. They are kept out of the web upload
+  (`.vercelignore`) and shipped in the studio zip by `scripts/package-studio.py --packs`.
+  `assets tier=disk` lists their 61 assets, and `assets find=barrel tier=disk` returns both
+  packs' barrels.
+- **Not scaled further.** The other four pilot packs miss only G5's editability bar, so they stay
+  local. No test game and no Shardfall row has asked for more models (`docs/FEEDBACK.md`).
+  Any pinned pack rebuilds on this machine with `asset_import get=` and `from=`
+  (`docs/ASSET_IMPORT.md`). A pack joins `lib/` when it passes the G5 checks.
+- **Seen while checking:** `assets find=` needs every word to match, with no stemming.
+  - "wooden table" finds nothing: no tag says "wooden", and `LIB/core/table` says "wood".
+  - "table" finds them: 7 on this machine, local packs included.
+  - Imported assets carry only their name, category and two tags. If a game's searches come up
+    short, the fix is descriptions in the catalog lines, or stemming in `find=`.
+
 ## Asset plan 4.3: levels dressed with library props — 2026-10-13
 
 Row 4.3 of `docs/ASSET_SYSTEM_PLAN.md` (SF-1 static bake, SF-2 data dressing; lean G4). Shardfall's

@@ -1,8 +1,9 @@
 # Agent-first asset system: plan
 
-Status: **resumed in slim form on 2026-10-12.** Gate G2 was a NO-GO (gate log in §10.2); the
+Status: **done in slim form on 2026-10-13.** Gate G2 was a NO-GO (gate log in §10.2); the
 user then closed it under the prototype testing budget and kept only the Phase 3-6 features that
-are needed and showed a benefit, with lean gates (§10.3). Started 2026-10-12
+are needed and showed a benefit, with lean gates (§10.3). Every §11 row is ticked; what was
+deferred is listed under it. Started 2026-10-12
 (§11 checklist; `docs/HISTORY.md` has each row). The executing session starts at §15 (prompt)
 and resumes from the first unticked row of the progress checklist in §11. Line numbers cite commit `a9ca003` and drift as work lands; search by symbol.
 Reference examples and prototypes from the planning work are in `docs/asset_plan/` (§14). A five-lens
@@ -1372,7 +1373,7 @@ Why this order:
 - [x] 5.1 I1 import refactor + I2 readers, normalisation, directory/get/list/survey (M)
 - [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)
 - [x] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M): 267 models from 6 packs, 99% `fit`, median IoU 0.983, median 521 chars, 0 panics, identical rebuilds, but 31% of fits editable; GO for the two packs that pass every criterion (Kenney Mini Dungeon, Quaternius Medieval Village: `lib/`, 288 KB), the other four (Castle, Nature, Food, KayKit Dungeon: 20-35% editable) kept local with the reason in their catalogs; the colour-split fix round was dropped (HISTORY). As built: catalog model lines `"<pack>/<id>": ["<category> <tags>", "<desc>"]`, `listed`, `local`; Quaternius via OpenGameArt's Medieval Village Pack; `find=`/`catalog=` args and per-asset placement left out
-- [ ] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L)
+- [x] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L): closed with the pilot. Both GO packs were imported whole in 5.3 (Kenney Mini Dungeon, Quaternius Medieval Village: 61 assets in `lib/`, found by `assets find=`). No further pack has shown a need; any pinned pack rebuilds locally with `asset_import`
 
 **Deferred on 2026-10-12** (no shown need yet; feedback from the test games decides whether any
 returns): LIB-4 parametric families, LIB-6 exemplar waves to ~520, SF-3 theme kits, SF-4 item and
