@@ -95,6 +95,15 @@ Row 5.3 (I5 + I6) of `docs/ASSET_SYSTEM_PLAN.md`. Imported CC0 packs are now lib
     and none of ShareAlike, NonCommercial or NoDerivatives. Two catalog sources may not write one
     pack. A model that errors on a whole-pack rebuild keeps its last files. A pack that changed
     tiers moves only whole.
+  - Third round:
+    - A `lib/` source must pin its archive and licence-text hashes.
+    - `out=` may not point into `lib/` or `templates/`.
+    - The pack name `import` is reserved for loose files.
+    - A rebuild that moves a pack to the other tier, or changes its licence, stops on any model
+      error instead of keeping stale files.
+    - A whole pack of one model takes the folder path, so its stale files are pruned.
+  - Not done: a translation displaced ten object widths from its source in every view could skip
+    all six views. Only a hand edit makes one, and `check=`'s Chamfer numbers show it.
   - Not done: requiring descriptions on imported assets. Their names, categories and tags drive
     `assets find=`, and 61 hand-written lines are not worth it until search misses something.
   - Both committed packs rebuild byte-identically under these rules.

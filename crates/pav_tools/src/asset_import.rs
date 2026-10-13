@@ -526,6 +526,9 @@ fn pack_source(a: &Args, lib: &str, pack: &str, only: Option<PathBuf>) -> Result
         }
     }
     let out_pack = text("pack").map(str::to_string).unwrap_or_else(|| format!("{lib}_{pack}"));
+    if out_pack == "import" {
+        bail!("{lib}/{pack}: the pack import holds loose files: give the source another \"pack\"");
+    }
     if let Some(other) = libraries::pack_name_owner(lib, pack, &out_pack) {
         bail!("{lib}/{pack} and {other} both translate into the pack {out_pack}: give one of them another \"pack\"");
     }
@@ -612,6 +615,15 @@ pub struct Dest {
 /// refused.
 pub fn out_dir(pack: &str, license: Option<&str>, keep_local: Option<&str>, out: Option<&str>) -> Result<Dest> {
     if let Some(o) = out {
+        // The library's folders are the licence gate's to fill.
+        let inside = |dir: PathBuf| match (std::path::absolute(o), std::path::absolute(dir)) {
+            (Ok(o), Ok(d)) => o.starts_with(d),
+            _ => false,
+        };
+        let root = crate::asset_tools::root();
+        if inside(root.join("lib")) || inside(root.join("templates")) {
+            bail!("out={o} is inside the library: leave out= off and the pack's licence decides its folder");
+        }
         return Ok(Dest { dir: PathBuf::from(o), tier: None, why: None });
     }
     pav_core::props::store::validate_pack(pack).map_err(|e| anyhow!("{e}"))?;
@@ -1005,6 +1017,10 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
     // A lib/ pack credits the catalog's pinned source, so it is translated only from that.
     if let (Some("lib"), Some(lp)) = (dest.tier, &src.lib_pack) {
         let (lib, pack) = lib_pack(lp)?;
+        let missing = libraries::unpinned(lib, pack)?;
+        if !missing.is_empty() {
+            bail!("{lp}: a lib/ pack pins its bytes and licence text: add {} to its source", missing.join(", "));
+        }
         if !libraries::is_current(lib, pack)? {
             bail!("{lp}: the cached pack is not the one the catalog pins: asset_import get={lp} first");
         }
@@ -1024,13 +1040,31 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
     let started = std::time::Instant::now();
     let done = process_all(&src, Some(mode));
     let seconds = started.elapsed().as_secs_f64();
+    // A model that errors keeps its last files (below), but only where they stay true: a pack
+    // that moves tiers or changes licence is rebuilt only without errors.
+    let errored: Vec<String> = src.names.iter().zip(&done).filter(|(_, d)| d.error.is_some()).map(|(n, _)| n.clone()).collect();
+    if let (Some(tier), false, false) = (dest.tier, errored.is_empty(), src.partial) {
+        let root = crate::asset_tools::root();
+        let moves = root.join(if tier == "lib" { "local" } else { "lib" }).join(&src.pack).is_dir();
+        let old = asset_library::read_pack(&dest.dir).ok().map(|p| p.license);
+        let relicensed = old.is_some_and(|l| Some(l.as_str()) != src.license.as_deref());
+        if moves || relicensed {
+            bail!(
+                "{}: {} did not translate, and the pack {}: fix them first (the rows say why)",
+                src.label,
+                errored.join(", "),
+                if moves { "changes folder" } else { "changes licence" }
+            );
+        }
+    }
     // Every asset in a lib/ pack carries the pack's licence (plan §9.5).
     if let (Some("lib"), Some(license)) = (dest.tier, src.license.as_deref()) {
         for t in done.iter().filter_map(|d| d.translation.as_ref()) {
             asset_library::source_allowed(t.doc.source.as_ref(), license).map_err(|e| anyhow!("{}: {e}", t.doc.name))?;
         }
     }
-    if src.files.len() == 1 {
+    // One model file; a whole pack of one model takes the folder path, which also prunes.
+    if src.files.len() == 1 && (src.partial || src.lib_pack.is_none()) {
         let d = &done[0];
         if let Some(why) = &d.skip {
             bail!("{}: skipped: {why}", src.ids[0]);
@@ -1085,8 +1119,7 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
     if dest.tier.is_some() {
         // A model that could not be read or translated this time keeps its last files; only a
         // model the pack no longer has, or one that now fails, loses them.
-        let errored = src.names.iter().zip(&done).filter(|(_, d)| d.error.is_some()).map(|(n, _)| n.clone());
-        let keep: Vec<String> = written.iter().cloned().chain(errored).collect();
+        let keep: Vec<String> = written.iter().chain(&errored).cloned().collect();
         reply["index"] = finish_tier(&src, &dest, &keep)?;
         reply["to"] = json!(dest.tier);
         if let Some(why) = &dest.why {

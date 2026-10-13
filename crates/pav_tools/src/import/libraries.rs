@@ -246,6 +246,13 @@ pub fn is_current(lib: &str, pack: &str) -> Result<bool> {
     Ok(fetched_under(&dir, &pin_of(&src)) && licence_checked(&dir, &src))
 }
 
+/// What a pack bound for `lib/` leaves unpinned: its bytes (`sha256`), its licence text
+/// (`licence_file`, `licence_sha256`) and its `license`.
+pub fn unpinned(lib: &str, pack: &str) -> Result<Vec<&'static str>> {
+    let src = source(lib, pack)?;
+    Ok(["sha256", "licence_file", "licence_sha256", "license"].into_iter().filter(|k| !src.contains_key(*k)).collect())
+}
+
 /// Whether `get` checked the licence text for the catalog's `license` (and `licence_sha256`).
 fn licence_checked(dir: &Path, src: &Map<String, Value>) -> bool {
     let Some(record) = std::fs::read(dir.join("SOURCE.json")).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()) else {

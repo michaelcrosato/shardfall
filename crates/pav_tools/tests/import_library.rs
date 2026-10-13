@@ -31,7 +31,8 @@ fn run(s: &mut Session, tool: &str, args: Value) -> anyhow::Result<Value> {
 fn catalog(dir: &Path, source: &str, lines: &str) {
     let text = format!(
         r#"{{"$library": "testlib",
-  "$sources": {{"pack1": {{"label": "Test Pack", "credit": "Tester", "url": "https://example.invalid/pack1.zip", "models": "models/*.glb", "pack": "test_pack", {source}}}}},
+  "$sources": {{"pack1": {{"label": "Test Pack", "credit": "Tester", "url": "https://example.invalid/pack1.zip", "sha256": "5a5a",
+    "licence_file": "LICENSE.txt", "licence_sha256": "7e7e", "models": "models/*.glb", "pack": "test_pack", {source}}}}},
   "$skip": {{"pack1/c": "not a prop"}},
   // one line per model
   {lines}}}"#
@@ -50,11 +51,9 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     }
     // What `get` records: the pin the pack was fetched under and the licence its text says.
     let fetched = dir.join("cache/testlib/pack1/SOURCE.json");
-    std::fs::write(
-        &fetched,
-        r#"{"licence": "CC0-1.0", "pin": {"url": "https://example.invalid/pack1.zip", "models": "models/*.glb"}}"#,
-    )
-    .unwrap();
+    let record = r#"{"licence": "CC0-1.0", "licence_sha256": "7e7e", "pin": {"url": "https://example.invalid/pack1.zip",
+      "sha256": "5a5a", "licence_file": "LICENSE.txt", "models": "models/*.glb"}}"#;
+    std::fs::write(&fetched, record).unwrap();
     // SAFETY: the only test in this binary; nothing else reads the variables.
     unsafe {
         std::env::set_var("PAV_ASSET_CACHE", dir.join("cache"));
@@ -84,6 +83,10 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     assert!(std::fs::read_to_string(props.join("CREDITS.md")).unwrap().contains("## LIB/test_pack: Test Pack"));
     let found = run(&mut s, "assets", json!({"find": "crate wood"})).unwrap();
     assert!(found["rows"].as_array().unwrap().iter().any(|r| r[0] == "LIB/test_pack/a"), "{found}");
+    // out= never writes into the library: the licence gate does.
+    let into_lib = props.join("lib/elsewhere");
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1", "out": into_lib.to_str().unwrap()})).unwrap_err();
+    assert!(e.to_string().contains("is inside the library"), "{e}");
     // A model that cannot be read this time keeps its last translation.
     let a_glb = models.join("a.glb");
     std::fs::write(&a_glb, b"not a model").unwrap();
@@ -96,6 +99,10 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     let noted = std::fs::read_to_string(&index).unwrap().replace("\t\tA plain block.", "\tseen\tA plain block.");
     std::fs::write(&index, noted).unwrap();
     catalog(&dir, r#""license": "CC0-1.0", "local": "pilot: too few editable""#, lines);
+    std::fs::write(&a_glb, b"not a model").unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("a did not translate, and the pack changes folder"), "{e}");
+    std::fs::write(&a_glb, cube(0.4)).unwrap();
     let r = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap();
     assert_eq!((r["to"].as_str(), r["why"].as_str()), (Some("local"), Some("pilot: too few editable")), "{r}");
     assert!(!lib.exists() && props.join("local/test_pack/b.json").exists());
@@ -126,6 +133,15 @@ fn packs_go_where_their_licence_says_with_their_catalog_lines() {
     std::fs::write(dir.join("catalogs/testlib.json"), two).unwrap();
     let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
     assert!(e.contains("testlib/pack1 and testlib/pack2 both translate into the pack test_pack"), "{e}");
+    std::fs::write(dir.join("catalogs/testlib.json"), two.replace(r#""pack": "test_pack""#, r#""pack": "import""#)).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("the pack import holds loose files"), "{e}");
+    // A lib/ pack pins its bytes and licence text.
+    let loose_pin = r#"{"$library": "testlib", "$sources": {"pack1": {"url": "https://example.invalid/pack1.zip",
+      "models": "models/*.glb", "pack": "test_pack", "license": "CC0-1.0"}}}"#;
+    std::fs::write(dir.join("catalogs/testlib.json"), loose_pin).unwrap();
+    let e = run(&mut s, "asset_import", json!({"from": "testlib/pack1"})).unwrap_err().to_string();
+    assert!(e.contains("add sha256, licence_file, licence_sha256 to its source"), "{e}");
 
     // Loose files share local/import, and one import keeps the others.
     let loose = dir.join("loose");
