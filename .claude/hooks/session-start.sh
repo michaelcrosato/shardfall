@@ -1,6 +1,8 @@
 #!/bin/bash
 # Cloud-session setup: native build deps, software Vulkan (lavapipe) for captures, and a
-# prebuilt `pav` so the shardfall MCP server (.mcp.json) starts without a cold compile.
+# prebuilt `pav` for the shardfall MCP server (.mcp.json). The server connects while this
+# hook still runs: its `cargo run` waits on the build lock, so `MCP_TIMEOUT` in
+# settings.json (default 30 s) must outlast a cold build (~4.5 min on 4 cores).
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then

@@ -1,4 +1,7 @@
 {
+  "env": {
+    "MCP_TIMEOUT": "600000"
+  },
   "hooks": {
     "SessionStart": [
       {

@@ -5,6 +5,19 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Cloud sessions: the MCP server waits for the cold build — 2026-10-14
+
+A fresh cloud session came up without the `shardfall` MCP server ("connection timed out after
+30000ms"). Claude Code connects `.mcp.json` servers in the background while the SessionStart hook
+still runs. The server's `cargo run` waited on the hook's cold `pav` build (~4.5 min on 4 cores),
+which outlasts the default 30 s connect timeout. `.claude/settings.json` now sets `MCP_TIMEOUT`
+to 600000 ms, the same 10 minutes the hook is allowed. The connect stays non-blocking, and a
+session whose build is already warm is unaffected. The `pav` CLI offers the same tools whenever
+the server is down.
+Checked in the same session: lavapipe captures, the pinned toolchains (wasm32 and Windows
+targets), wasm-bindgen matching Cargo.lock, Windows linking under Wine, `scripts/check-wgsl.sh`,
+the creature compiler build, and pinned downloads (`asset_import get=`).
+
 ## Asset plan 6.1: the scale-out closes with the pilot — 2026-10-13
 
 Row 6.1 of `docs/ASSET_SYSTEM_PLAN.md` (I8), in slim form. Its exit, "the GO packs on disk,
