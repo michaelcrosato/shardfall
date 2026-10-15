@@ -1,0 +1,12 @@
+{"format":2,"name":"corridor_wall","unit":"cm",
+"description":"A 4 m long, 3 m high dungeon corridor wall of dressed stone blocks on a plinth, capped with coping stones.",
+"tags":["wall","dungeon","corridor"],
+"category":"dungeon",
+"materials":{
+"block":"MAT/dungeon_wall",
+"cap":"MAT/wall_cap",
+"plinth":{"base":"MAT/pillar_stone","color":"#4e4b46"}},
+"parts":{
+"body":{"type":"box","size":[30,266,400],"pos":[0,157,0],"mat":"block","color":"#7a7068"},
+"cap":{"type":"box","size":[38,10,400],"pos":[0,295,0],"mat":"cap"},
+"plinth":{"type":"box","size":[38,24,400],"pos":[0,12,0],"mat":"plinth"}}}

@@ -1,0 +1,18 @@
+{"format":2,"name":"campfire","unit":"cm",
+"description":"A campfire: ring of stones, crossed logs and a glowing flame that lights the camp.",
+"tags":["fire","camp","light"],
+"category":"lighting",
+"materials":{
+"ash":{"color":"#3a3330"},
+"flame":{"color":"#ff9a2a","look":"unlit","emissive":1.2},
+"flame_core":{"color":"#ffe27a","look":"unlit","emissive":1.5},
+"stone":{"color":"#8a8580"},
+"wood":{"color":"#6b4a2e"}},
+"parts":{
+"ash_bed":{"type":"cylinder","radius":38,"height":3,"pos":[0,1.5,0],"mat":"ash"},
+"flame":{"type":"cone","radius":22,"radius_end":0,"height":55,"pos":[0,40,0],"mat":"flame","solid":false,"light":{"color":"#ffaa55","radius":500,"intensity":1.5},"fx":{"preset":"fire"}},
+"flame_core":{"type":"cone","radius":12,"radius_end":0,"height":35,"pos":[0,32,0],"mat":"flame_core","solid":false},
+"log_a":{"type":"cylinder","radius":6,"height":70,"pos":[0,9,0],"axis":"x","yaw":30,"mat":"wood"},
+"log_b":{"type":"cylinder","radius":6,"height":70,"pos":[0,9,0],"axis":"x","yaw":-30,"mat":"wood"},
+"log_c":{"type":"cylinder","radius":6,"height":70,"pos":[0,9,0],"axis":"x","yaw":90,"mat":"wood"},
+"stones":{"type":"ellipsoid","size":[26,18,22],"pos":[0,10,0],"mat":"stone","radial":{"count":9,"radius":42}}}}

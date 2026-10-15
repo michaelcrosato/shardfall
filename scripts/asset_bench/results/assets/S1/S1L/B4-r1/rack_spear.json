@@ -1,0 +1,9 @@
+{"format":2,"name":"rack_spear","unit":"cm",
+"description":"A spear with iron head.",
+"materials":{
+"iron":{"color":"#aab4bd"},
+"wood":{"color":"#a9784a"}},
+"parts":{
+"collar":{"type":"cylinder","radius":3,"height":4,"pos":[0,171,0],"mat":"iron"},
+"head":{"type":"cone","radius":4.5,"radius_end":0.3,"height":30,"pos":[0,185,0],"mat":"iron"},
+"shaft":{"type":"cylinder","radius":2,"height":170,"pos":[0,85,0],"mat":"wood"}}}

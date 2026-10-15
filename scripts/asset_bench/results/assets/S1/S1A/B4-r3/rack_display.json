@@ -1,0 +1,7 @@
+{"format":2,"name":"rack_display","unit":"cm",
+"description":"Preview of rack with weapons.",
+"parts":{
+"axe":{"ref":"WORKSHOP/rack_axe","pos":[-34,0,2]},
+"rack":{"ref":"WORKSHOP/weapon_rack","pos":[0,0,0]},
+"spear":{"ref":"WORKSHOP/rack_spear","pos":[34,0,2]},
+"sword":{"ref":"WORKSHOP/rack_sword","pos":[0,0,2]}}}

@@ -1,0 +1,13 @@
+{"format":2,"name":"log_seat","unit":"cm",
+"description":"A log seat: a split log lying on two short chocks, flat top to sit on.",
+"tags":["seat","log","camp"],
+"category":"furniture",
+"materials":{
+"bark":{"color":"#5e4128"},
+"wood":{"color":"#c08a55"}},
+"parts":{
+"chock":{"type":"box","size":[16,12,30],"pos":[45,6,0],"mat":"bark","mirror":"x"},
+"log":{"type":"cylinder","radius":18,"height":140,"pos":[0,30,0],"axis":"x","mat":"bark"},
+"top":{"type":"box","size":[136,2,26],"pos":[0,47.5,0],"mat":"wood"}},
+"sockets":{
+"sit":{"pos":[0,47,0]}}}

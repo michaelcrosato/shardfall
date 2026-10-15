@@ -1,0 +1,15 @@
+{"format":2,"name":"tavern_barrel","unit":"cm",
+"description":"An oak ale barrel with bulging staves and three iron hoops.",
+"tags":["barrel","wood","tavern"],
+"category":"container",
+"materials":{
+"iron":{"color":"#3c3a3a"},
+"lid":{"color":"#7a4c2a"},
+"wood":{"color":"#9a6236"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0],[27,0],[30,15],[32,45],[30,75],[27,90],[0,90]],"mat":"wood"},
+"hoop_high":{"type":"tube","radius":29.6,"thickness":2,"height":5,"pos":[0,80,0],"mat":"iron"},
+"hoop_low":{"type":"tube","radius":29.6,"thickness":2,"height":5,"pos":[0,10,0],"mat":"iron"},
+"hoop_mid":{"type":"tube","radius":32.6,"thickness":2,"height":5,"pos":[0,45,0],"mat":"iron"},
+"lid":{"type":"cylinder","radius":25,"height":1,"pos":[0,89.8,0],"mat":"lid"},
+"tap":{"type":"cylinder","radius":2,"from":[0,22,28],"to":[0,22,36],"mat":"iron"}}}

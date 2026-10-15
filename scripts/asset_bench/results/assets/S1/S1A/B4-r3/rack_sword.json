@@ -1,0 +1,14 @@
+{"format":2,"name":"rack_sword","unit":"cm",
+"description":"A steel longsword standing point down.",
+"tags":["weapon","sword"],
+"category":"tool",
+"materials":{
+"brass":{"color":"#c99a3a"},
+"leather":{"color":"#5b3a24"},
+"steel":{"color":"#c9ced6"}},
+"parts":{
+"blade":{"type":"box","size":[6,1.5],"from":[0,10,0],"to":[0,80,0],"mat":"steel"},
+"grip":{"type":"cylinder","radius":1.6,"height":17,"pos":[0,91.5,0],"mat":"leather"},
+"guard":{"type":"box","size":[22,3,4],"pos":[0,81.5,0],"mat":"brass"},
+"pommel":{"type":"sphere","radius":2.8,"pos":[0,102,0],"mat":"brass"},
+"tip":{"type":"cone","radius":0.5,"radius_end":3,"height":10,"pos":[0,5,0],"mat":"steel"}}}

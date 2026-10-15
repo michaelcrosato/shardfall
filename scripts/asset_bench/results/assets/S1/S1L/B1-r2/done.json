@@ -1,0 +1,7 @@
+{"items": [
+  {"role": "table", "id": "LIB/core/table", "how": "placed", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+  {"role": "chair", "id": "LIB/core/chair", "how": "placed", "pos": [-0.97, 0, 0], "yaw": 90, "scale": 1},
+  {"role": "chair", "id": "LIB/core/chair", "how": "placed", "pos": [0.97, 0, 0], "yaw": -90, "scale": 1},
+  {"role": "barrel", "id": "LIB/core/barrel", "how": "placed", "pos": [0.6, 0, -0.8], "yaw": 0, "scale": 1},
+  {"role": "candles", "id": "LIB/core/candle_cluster", "how": "placed", "pos": [-0.2, 0.78, 0.05], "yaw": 0, "scale": 1}
+], "notes": "Store props as-is; chairs face table ends, barrel against wall at z=-1.1, candles on 78cm tabletop."}

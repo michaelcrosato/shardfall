@@ -6,6 +6,19 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-15 — S1's model-2 rerun: spend past the approval, or stay inside it
+- **Question:** the user approved 6M tokens for S1's 12 runs plus one same-size rerun. Round 1
+  read 1.0M. The rerun as specified (a general-purpose agent with model 2 and the author file's
+  prompt body) read 1.53M on B1 alone, since that agent re-reads a ~55k-token fixed prompt on
+  every call. The remaining 10 runs projected to 6-9M more. Asked in chat at 02:35 UTC: spend past
+  the approval (option A), or run the pinned `asset-bench-author` with only its model switched to
+  model 2 (option B, its ~5k-token fixed prompt, about 1.5-2M, inside the approval).
+- **Decided by:** the agent, after 15 minutes without an answer (none by 02:51 UTC), under the
+  goal's rule: with no answer, don't spend, work inside the approval.
+- **Call:** option B for all 12 runs (run 3), B1 included, so every brief has one harness. The two
+  general-purpose B1 runs (run 2) stay in the results as a harness note.
+- **PR:** S1's PR.
+
 ## 2026-10-15 — The agent asset store's nine rulings (docs/AGENT_ASSET_STORE.md §14)
 - **Question:** the nine open questions of the store design, each with a default. They were
   posted together in chat at 01:13 UTC, before any of S0's rows were written, with a check-in

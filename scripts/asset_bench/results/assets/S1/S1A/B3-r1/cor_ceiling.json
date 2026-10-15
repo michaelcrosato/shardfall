@@ -1,0 +1,8 @@
+{"format":2,"name":"cor_ceiling","unit":"cm",
+"description":"Wooden plank ceiling with cross beams, 4 m long.",
+"materials":{
+"d":{"base":"MAT/oak_planks","color":"#4a3220"},
+"w":"MAT/oak_planks"},
+"parts":{
+"beam":{"type":"box","size":[340,16,20],"pos":[0,8,0],"mat":"d","array":{"count":3,"step":[0,0,170]}},
+"deck":{"type":"box","size":[340,8,400],"pos":[0,20,0],"mat":"w"}}}

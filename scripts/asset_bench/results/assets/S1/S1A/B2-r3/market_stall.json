@@ -1,0 +1,22 @@
+{"format":2,"name":"market_stall","unit":"cm",
+"description":"A wooden market stall: plank counter with fruit, four posts and a sloping striped cloth awning.",
+"tags":["market","stall","awning","shop"],
+"category":"furniture",
+"materials":{
+"apple":{"color":"#c8402a"},
+"cloth":"MAT/awning_stripes",
+"pear":{"color":"#b8c040"},
+"post":{"color":"#6a4a30"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"apples":{"type":"sphere","radius":9,"pos":[-70,108,30],"mat":"apple","grid":{"count":[4,3],"step":[18,18]}},
+"awning":{"type":"box","size":[280,4],"from":[0,253,-62],"to":[0,229,92],"mat":"cloth"},
+"back_shelf":{"type":"box","size":[248,6,30],"pos":[0,120,-35],"mat":"post"},
+"counter_front":{"type":"box","size":[236,90,6],"pos":[0,45,66],"mat":"wood"},
+"counter_side":{"type":"box","size":[6,90,84],"pos":[115,45,25],"mat":"wood","mirror":"x"},
+"counter_top":{"type":"rounded_box","size":[250,10,90],"radius":3,"pos":[0,95,25],"mat":"wood"},
+"crate":{"type":"box","size":[50,30,30],"pos":[0,138,-35],"mat":"wood"},
+"pears":{"type":"sphere","radius":9,"pos":[50,108,30],"mat":"pear","grid":{"count":[4,3],"step":[18,18]}},
+"post_back":{"type":"box","size":[10,10],"from":[124,0,-50],"to":[124,250,-50],"mat":"post","mirror":"x"},
+"post_front":{"type":"box","size":[10,10],"from":[124,0,72],"to":[124,231,72],"mat":"post","mirror":"x"},
+"valance":{"type":"box","size":[280,22,2],"pos":[0,218,92],"mat":"cloth"}}}

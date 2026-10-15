@@ -1,0 +1,6 @@
+{"format":2,"name":"cor_floor","unit":"cm",
+"description":"Flagstone corridor floor, 3x4 m.",
+"materials":{
+"s":"MAT/flagstones"},
+"parts":{
+"slab":{"type":"box","size":[320,10,400],"pos":[0,5,0],"mat":"s"}}}

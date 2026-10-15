@@ -1,0 +1,19 @@
+{"format":2,"name":"weapon_rack","unit":"cm",
+"description":"A sturdy wooden armoury rack: two posts, a slotted top rail and a floor tray holding upright weapons.",
+"tags":["rack","armoury","weapon"],
+"category":"furniture",
+"materials":{
+"iron":{"color":"#6e7378"},
+"wood":{"color":"#9a6a3f"},
+"wood_dark":{"color":"#5a3e28"}},
+"parts":{
+"band":{"type":"box","size":[12,4,24],"pos":[100,125,0],"mat":"iron","mirror":"x"},
+"divider_hi":{"type":"box","size":[4,8,16],"pos":[-30,125,0],"mat":"wood_dark","array":{"count":2,"step":[60,0,0]}},
+"divider_lo":{"type":"box","size":[4,10,16],"pos":[-30,12,0],"mat":"wood_dark","array":{"count":2,"step":[60,0,0]}},
+"foot":{"type":"box","size":[14,8,56],"pos":[100,4,0],"mat":"wood_dark","mirror":"x"},
+"post":{"type":"box","size":[10,170,10],"pos":[100,85,0],"mat":"wood_dark","mirror":"x"},
+"rail_hi_back":{"type":"box","size":[190,8,4],"pos":[0,125,-10],"mat":"wood"},
+"rail_hi_front":{"type":"box","size":[190,8,4],"pos":[0,125,10],"mat":"wood"},
+"rail_lo_back":{"type":"box","size":[190,10,4],"pos":[0,12,-10],"mat":"wood"},
+"rail_lo_front":{"type":"box","size":[190,10,4],"pos":[0,12,10],"mat":"wood"},
+"top_cap":{"type":"rounded_box","size":[222,8,14],"radius":2,"pos":[0,174,0],"mat":"wood_dark"}}}

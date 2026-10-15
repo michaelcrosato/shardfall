@@ -1,0 +1,11 @@
+{"format":2,"name":"rack_frame","unit":"cm",
+"description":"Wooden armoury weapon rack frame with rails.",
+"materials":{
+"wood":{"color":"#8a5a34"},
+"wood_dark":{"color":"#4f3a28"}},
+"parts":{
+"foot":{"type":"box","size":[10,8],"from":[75,4,-20],"to":[75,4,30],"mat":"wood_dark","mirror":"x"},
+"post":{"type":"box","size":[10,10],"from":[75,0,0],"to":[75,150,0],"mat":"wood_dark","mirror":"x"},
+"rail_low":{"type":"box","size":[8,6],"from":[-75,30,0],"to":[75,30,0],"mat":"wood"},
+"rail_mid":{"type":"box","size":[8,6],"from":[-75,80,0],"to":[75,80,0],"mat":"wood"},
+"rail_top":{"type":"box","size":[8,6],"from":[-75,135,0],"to":[75,135,0],"mat":"wood"}}}

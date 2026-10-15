@@ -1,0 +1,16 @@
+{"format":2,"name":"tavern_chair","unit":"cm",
+"description":"A wooden tavern chair with a slatted back, its back to -z.",
+"tags":["chair","wood","tavern","seat"],
+"category":"furniture",
+"materials":{
+"wood":{"color":"#a8703f"},
+"wood_dark":{"color":"#5e412a"}},
+"parts":{
+"leg_back":{"type":"box","size":[6,6],"from":[19,0,-17],"to":[19,95,-19],"mat":"wood_dark","mirror":"x"},
+"leg_front":{"type":"box","size":[6,6],"from":[19,0,20],"to":[19,42,20],"mat":"wood_dark","mirror":"x"},
+"rail_top":{"type":"rounded_box","size":[41,10,5],"radius":2,"pos":[0,88,-19],"mat":"wood"},
+"rung":{"type":"box","size":[4,4],"from":[19,16,-17],"to":[19,16,20],"mat":"wood_dark","mirror":"x"},
+"seat":{"type":"rounded_box","size":[46,6,44],"radius":2,"pos":[0,45,1.5],"mat":"wood"},
+"slat":{"type":"box","size":[6,38,3],"pos":[0,64,-19],"mat":"wood","array":{"count":3,"step":[11,0,0]}}},
+"sockets":{
+"sit":{"pos":[0,48,4]}}}

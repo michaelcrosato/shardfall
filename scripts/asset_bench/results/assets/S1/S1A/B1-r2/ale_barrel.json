@@ -1,0 +1,17 @@
+{"format":2,"name":"ale_barrel","unit":"cm",
+"description":"An oak ale barrel with a bulging belly, four iron hoops, an inset lid and a tap.",
+"tags":["wood","barrel","tavern","ale","container"],
+"category":"container",
+"materials":{
+"iron":{"color":"#3e3b3a"},
+"wood":{"color":"#a5703f"},
+"wood_dark":{"color":"#7a5030"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0],[25,0],[29,15],[31,45],[29,75],[25,90],[22,90],[22,87],[0,87]],"mat":"wood"},
+"hoop_low":{"type":"tube","radius":29.3,"thickness":1.6,"height":4,"pos":[0,12,0],"mat":"iron"},
+"hoop_mid_high":{"type":"tube","radius":31,"thickness":1.6,"height":3.5,"pos":[0,55,0],"mat":"iron"},
+"hoop_mid_low":{"type":"tube","radius":31,"thickness":1.6,"height":3.5,"pos":[0,35,0],"mat":"iron"},
+"hoop_top":{"type":"tube","radius":29.3,"thickness":1.6,"height":4,"pos":[0,78,0],"mat":"iron"},
+"lid":{"type":"cylinder","radius":22,"height":1,"pos":[0,87.5,0],"mat":"wood_dark"},
+"tap":{"type":"cylinder","radius":2,"height":7,"pos":[0,20,31.5],"axis":"z","mat":"wood_dark"},
+"tap_valve":{"type":"box","size":[1.5,4,1.5],"pos":[0,23,33],"mat":"iron"}}}

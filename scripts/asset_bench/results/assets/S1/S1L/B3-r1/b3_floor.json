@@ -1,0 +1,4 @@
+{"format":2,"name":"b3_floor","unit":"cm",
+"description":"Flagstone corridor floor slab, 4 m long.",
+"parts":{
+"slab":{"type":"box","size":[300,10,400],"pos":[0,5,0],"mat":"MAT/flagstones"}}}

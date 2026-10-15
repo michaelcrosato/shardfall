@@ -1,0 +1,13 @@
+{"format":2,"name":"log_seat","unit":"cm",
+"description":"A split log lying on two chocks, a rough seat by the fire.",
+"tags":["log","seat","camp","wood"],
+"category":"furniture",
+"materials":{
+"bark":{"color":"#5a3f28"},
+"wood":{"color":"#c99a62"}},
+"parts":{
+"chock":{"type":"box","size":[14,14,34],"pos":[55,7,0],"mat":"bark","mirror":"x"},
+"end":{"type":"cylinder","radius":18,"height":2,"pos":[80.5,32,0],"axis":"x","mat":"wood","mirror":"x"},
+"log":{"type":"cylinder","radius":20,"height":160,"pos":[0,32,0],"axis":"x","mat":"bark"}},
+"sockets":{
+"sit":{"pos":[0,52,0]}}}

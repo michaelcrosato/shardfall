@@ -1,0 +1,13 @@
+{"format":2,"name":"rack_spear","unit":"cm",
+"description":"A tall spear stood butt-down, leaf head up.",
+"tags":["spear","weapon"],
+"category":"weapon",
+"materials":{
+"iron":{"color":"#5c6166"},
+"steel":{"color":"#c9d0d6"},
+"wood":{"color":"#b0824f"}},
+"parts":{
+"butt":{"type":"cylinder","radius":2.2,"height":6,"pos":[0,3,0],"mat":"iron"},
+"collar":{"type":"cylinder","radius":2.4,"height":6,"pos":[0,177,0],"mat":"iron"},
+"head":{"type":"extrude","points":[[0,0],[5,10],[0,30],[-5,10]],"depth":1.6,"pos":[0,180,0],"mat":"steel"},
+"shaft":{"type":"cylinder","radius":1.8,"height":170,"pos":[0,91,0],"mat":"wood"}}}

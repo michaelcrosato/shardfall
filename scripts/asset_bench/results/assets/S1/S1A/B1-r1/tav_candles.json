@@ -1,0 +1,16 @@
+{"format":2,"name":"tav_candles","unit":"cm",
+"description":"Three candles of differing heights on a small dish.",
+"tags":["candle","light","tavern"],
+"category":"lighting",
+"materials":{
+"dish":{"color":"#3d3d44"},
+"flame":{"color":"#ffb040","emissive":8},
+"wax":{"color":"#f0e6c8"}},
+"parts":{
+"c1":{"type":"cylinder","radius":2.2,"height":16,"pos":[0,9.5,0],"mat":"wax"},
+"c2":{"type":"cylinder","radius":2.2,"height":11,"pos":[-5,7,3],"mat":"wax"},
+"c3":{"type":"cylinder","radius":2.2,"height":13,"pos":[4,8,3.5],"mat":"wax"},
+"dish":{"type":"cylinder","radius":9,"height":1.5,"pos":[0,0.75,0],"mat":"dish"},
+"f1":{"type":"sphere","radius":1.5,"pos":[0,18,0],"mat":"flame","light":{"color":"#ffb040","radius":300,"intensity":1}},
+"f2":{"type":"sphere","radius":1.3,"pos":[-5,13.5,3],"mat":"flame"},
+"f3":{"type":"sphere","radius":1.3,"pos":[4,15.5,3.5],"mat":"flame"}}}

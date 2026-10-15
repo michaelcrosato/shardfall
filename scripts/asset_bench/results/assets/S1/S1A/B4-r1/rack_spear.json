@@ -1,0 +1,8 @@
+{"format":2,"name":"rack_spear","unit":"cm",
+"description":"A spear standing butt down.",
+"materials":{
+"steel":{"color":"#b8c4cc"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"head":{"type":"cone","radius":5,"radius_end":0.5,"height":28,"pos":[0,199,0],"mat":"steel"},
+"shaft":{"type":"cylinder","radius":2,"height":185,"pos":[0,92.5,0],"mat":"wood"}}}

@@ -1,0 +1,6 @@
+{"items": [
+ {"role": "fire", "id": "WORKSHOP/campfire", "how": "made", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+ {"role": "seat", "id": "WORKSHOP/log_seat", "how": "made", "pos": [0, 0, 1.4], "yaw": 0, "scale": 1},
+ {"role": "seat", "id": "WORKSHOP/log_seat", "how": "made", "pos": [0, 0, -1.4], "yaw": 0, "scale": 1},
+ {"role": "seat", "id": "WORKSHOP/log_seat", "how": "made", "pos": [1.4, 0, 0], "yaw": 90, "scale": 1}
+], "notes": "Stone-ring campfire with light and fire fx; three split-log seats 1.4 m from fire."}

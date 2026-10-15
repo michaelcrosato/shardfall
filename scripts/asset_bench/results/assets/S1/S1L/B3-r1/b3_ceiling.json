@@ -1,0 +1,5 @@
+{"format":2,"name":"b3_ceiling","unit":"cm",
+"description":"Wooden plank ceiling with cross beams, origin at beam underside.",
+"parts":{
+"beams":{"type":"box","size":[300,14,22],"pos":[0,7,0],"mat":"MAT/oak_planks","color":"#5a3d25","array":{"count":4,"step":[0,0,100]}},
+"planks":{"type":"box","size":[340,10,400],"pos":[0,19,0],"mat":"MAT/oak_planks"}}}

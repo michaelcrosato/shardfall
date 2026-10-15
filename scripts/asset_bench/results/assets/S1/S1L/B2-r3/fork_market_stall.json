@@ -1,0 +1,29 @@
+{"format":2,"name":"fork_market_stall","unit":"cm",
+"description":"A market stall: plank counter with crates of apples, oranges and cabbages under a striped awning.",
+"tags":["market","stall","awning","produce","town","shop"],
+"category":"town",
+"materials":{
+"apple":{"color":"#c98a3e"},
+"boards":{"base":"MAT/oak_planks","turn":true},
+"cabbage":{"color":"#8a5a2e"},
+"cloth":"MAT/awning_stripes",
+"crate":{"base":"MAT/oak_planks","color":"#a7784a"},
+"cream":{"color":"#eee2c6"},
+"orange":{"color":"#e0b060"},
+"post":{"base":"MAT/oak_planks","color":"#6b4e33","turn":true},
+"red":{"color":"#2f5d8c"},
+"top":"MAT/oak_planks"},
+"parts":{
+"awning":{"type":"box","size":[272,3],"from":[0,253,-68],"to":[0,212,94],"mat":"MAT/workshop/blue_canvas"},
+"beam_side":{"type":"box","size":[6,8],"from":[125,214,72],"to":[125,248,-60],"mat":"post","mirror":"x"},
+"counter":{"type":"box","size":[230,85,55],"pos":[0,42.5,42.5],"mat":"boards"},
+"counter_top":{"type":"rounded_box","size":[244,5,66],"radius":1,"pos":[0,87.5,43],"mat":"top"},
+"crates":{"pos":[0,90,43],"array":{"count":3,"step":[64,0,0],"cycle":["apple","orange","cabbage"]},"parts":{
+  "box":{"type":"box","size":[42,18,32],"pos":[0,9,0],"mat":"crate"},
+  "produce":{"type":"sphere","radius":5.2,"pos":[0,18,0],"grid":{"count":[4,3],"step":[9.5,9]},"jitter":{"pos":[1,1.5,1]}}}},
+"flap":{"type":"extrude","points":[[-10.5,0],[10.5,0],[0,-14]],"depth":1.5,"pos":[0,212,94],"array":{"count":13,"step":[21,0,0],"cycle":["red","cream"]}},
+"floor_crates":{"pos":[-92,0,104],"yaw":10,"mat":"cabbage","parts":{
+  "box":{"type":"box","size":[42,24,32],"pos":[0,12,0],"mat":"crate"},
+  "produce":{"type":"sphere","radius":6,"pos":[0,24,0],"grid":{"count":[3,2],"step":[12,12]},"jitter":{"pos":[1,1.5,1]}}}},
+"post_back":{"type":"box","size":[10,10],"from":[125,0,-60],"to":[125,250,-60],"mat":"post","mirror":"x"},
+"post_front":{"type":"box","size":[10,10],"from":[125,0,72],"to":[125,216,72],"mat":"post","mirror":"x"}}}

@@ -1,0 +1,7 @@
+{"items": [
+ {"role": "table", "id": "WORKSHOP/tavern_table", "how": "made", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+ {"role": "chair", "id": "WORKSHOP/tavern_chair", "how": "made", "pos": [-0.78, 0, 0], "yaw": 90, "scale": 1},
+ {"role": "chair", "id": "WORKSHOP/tavern_chair", "how": "made", "pos": [0.78, 0, 0], "yaw": -90, "scale": 1},
+ {"role": "barrel", "id": "WORKSHOP/tavern_barrel", "how": "made", "pos": [0, 0, -0.82], "yaw": 0, "scale": 1},
+ {"role": "candles", "id": "WORKSHOP/tavern_candles", "how": "made", "pos": [0.1, 0.75, -0.05], "yaw": 0, "scale": 1}
+], "notes": "Wall at z=-1.15; chairs face the table from both ends; candle dish rests on tabletop."}

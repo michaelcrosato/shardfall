@@ -1,0 +1,12 @@
+{"format":2,"name":"rack_spear","unit":"cm",
+"description":"A long ash spear with an iron leaf head, standing upright.",
+"tags":["weapon","spear"],
+"category":"tool",
+"materials":{
+"ash":{"color":"#b48a5a"},
+"iron":{"color":"#8d939b"}},
+"parts":{
+"butt":{"type":"cylinder","radius":2.4,"height":5,"pos":[0,2.5,0],"mat":"iron"},
+"collar":{"type":"cylinder","radius":2.8,"height":5,"pos":[0,172.5,0],"mat":"iron"},
+"head":{"type":"cone","radius":4.5,"radius_end":0.3,"height":24,"pos":[0,187,0],"mat":"iron"},
+"shaft":{"type":"cylinder","radius":2,"height":165,"pos":[0,87.5,0],"mat":"ash"}}}

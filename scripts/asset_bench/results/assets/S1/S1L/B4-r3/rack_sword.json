@@ -1,0 +1,13 @@
+{"format":2,"name":"rack_sword","unit":"cm",
+"description":"A longsword stood point-down, hilt up.",
+"tags":["sword","weapon"],
+"category":"weapon",
+"materials":{
+"brass":{"color":"#c9a24a"},
+"leather":{"color":"#4a2e1c"},
+"steel":{"color":"#c9d0d6"}},
+"parts":{
+"blade":{"type":"extrude","points":[[0,0],[3,12],[3,80],[-3,80],[-3,12]],"depth":1.6,"pos":[0,0,0],"mat":"steel"},
+"grip":{"type":"cylinder","radius":1.8,"height":18,"pos":[0,93,0],"mat":"leather"},
+"guard":{"type":"box","size":[26,4,5],"pos":[0,82,0],"mat":"brass"},
+"pommel":{"type":"sphere","radius":3.2,"pos":[0,104,0],"mat":"brass"}}}

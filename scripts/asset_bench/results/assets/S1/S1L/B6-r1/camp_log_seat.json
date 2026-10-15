@@ -1,0 +1,11 @@
+{"format":2,"name":"camp_log_seat","unit":"cm",
+"description":"A log seat lying on the ground.",
+"category":"furniture",
+"materials":{
+"bark":{"color":"#7a5236"},
+"cut":{"color":"#c99a63"}},
+"parts":{
+"c1":{"type":"cylinder","radius":13,"height":1,"pos":[50,17,0],"axis":"x","mat":"cut","mirror":"x"},
+"log":{"type":"cylinder","radius":17,"height":100,"pos":[0,17,0],"axis":"x","mat":"bark"}},
+"sockets":{
+"sit":{"pos":[0,36,0]}}}

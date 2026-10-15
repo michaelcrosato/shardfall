@@ -1,0 +1,6 @@
+{"items": [
+ {"role": "floor", "id": "WORKSHOP/corridor_floor", "how": "made", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+ {"role": "wall", "id": "WORKSHOP/corridor_wall", "how": "made", "pos": [-1.72, 0, 0], "yaw": 90, "scale": 1},
+ {"role": "wall", "id": "WORKSHOP/corridor_wall", "how": "made", "pos": [1.72, 0, 0], "yaw": -90, "scale": 1},
+ {"role": "ceiling", "id": "WORKSHOP/corridor_ceiling", "how": "made", "pos": [0, 3.0, 0], "yaw": 0, "scale": 1}
+], "notes": "Cobble flagstone floor, brick walls, oak plank ceiling on timber beams resting on wall tops."}

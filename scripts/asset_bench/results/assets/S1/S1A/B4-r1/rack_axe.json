@@ -1,0 +1,9 @@
+{"format":2,"name":"rack_axe","unit":"cm",
+"description":"A battle axe standing haft down.",
+"materials":{
+"steel":{"color":"#b8c4cc"},
+"wood":{"color":"#8a5a33"}},
+"parts":{
+"blade":{"type":"wedge","size":[4,26,22],"pos":[0,106,10],"yaw":0,"mat":"steel"},
+"cap":{"type":"box","size":[6,8],"from":[0,116,0],"to":[0,122,0],"mat":"steel"},
+"haft":{"type":"cylinder","radius":2.2,"height":120,"pos":[0,60,0],"mat":"wood"}}}

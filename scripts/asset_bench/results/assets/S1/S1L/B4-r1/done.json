@@ -1,0 +1,5 @@
+{"items":[{"role":"rack","id":"WORKSHOP/rack_frame","how":"made","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"weapon","id":"WORKSHOP/rack_spear","how":"made","pos":[-0.45,0,0.05],"yaw":0,"scale":1},
+{"role":"weapon","id":"WORKSHOP/rack_sword","how":"made","pos":[0,0,0.05],"yaw":0,"scale":1},
+{"role":"weapon","id":"WORKSHOP/rack_axe","how":"made","pos":[0.45,0,0.05],"yaw":0,"scale":1}],
+"notes":"Wooden rack with three rails; spear, sword, axe stand upright against front of rails."}

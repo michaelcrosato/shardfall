@@ -1,0 +1,18 @@
+{"format":2,"name":"tavern_chair","unit":"cm",
+"description":"A plain tavern chair: plank seat, square legs, a railed spindle back.",
+"tags":["wood","chair","seat","tavern"],
+"category":"furniture",
+"materials":{
+"wood":{"color":"#b07a45"},
+"wood_dark":{"color":"#6b4428"}},
+"parts":{
+"leg_front":{"type":"box","size":[5,43.5,5],"pos":[18,21.75,17],"mat":"wood_dark","mirror":"x"},
+"post_back":{"type":"box","size":[5,95,5],"pos":[18,47.5,-19.5],"mat":"wood_dark","mirror":"x"},
+"rail_mid":{"type":"box","size":[31,6,3],"pos":[0,68,-19.5],"mat":"wood"},
+"rail_top":{"type":"box","size":[31,10,3],"pos":[0,87,-19.5],"mat":"wood"},
+"seat":{"type":"rounded_box","size":[44,5,42],"radius":1.5,"pos":[0,46,0],"mat":"wood"},
+"spindle":{"type":"box","size":[4,11,2],"pos":[0,76.5,-19.5],"mat":"wood_dark","array":{"count":3,"step":[9,0,0]}},
+"stretcher_front":{"type":"box","size":[31,3,3],"pos":[0,18,17],"mat":"wood_dark"},
+"stretcher_side":{"type":"box","size":[3,3,33],"pos":[18,13,-1.25],"mat":"wood_dark","mirror":"x"}},
+"sockets":{
+"sit":{"pos":[0,49,2]}}}

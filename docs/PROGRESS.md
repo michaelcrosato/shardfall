@@ -119,7 +119,11 @@ editable imports described and `checked` (an index `tier` column); `assets find=
 and synonyms (`store/synonyms.tsv`), says `none` with nearest rows and a route, logs misses
 (`store/misses.tsv`), and `kind=clip` searches clips; `assets shelf=prop|clip`; admitted licences
 (`store/licences.tsv`) and `store/CREDITS.md`; the clip reader refuses other formats. Its eval:
-find@5 9/10, absent 5/5. Next is S1, which measures whether a library helps at all.
+find@5 9/10, absent 5/5. **S1's answer is no, final** (2026-10-15): with the store, a fresh agent
+was cheaper on only 2 of 6 room-scale briefs, the two whose assets the store held (about half the
+tokens), and 10-30% dearer on the rest, both before and after a discovery fix and on a second
+model. So the store stays S0's find and shelf and S2 onward is not built until the user rules
+otherwise (`scripts/asset_bench/store_briefs.toml`, `bench.py store-*` and `tokens`).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

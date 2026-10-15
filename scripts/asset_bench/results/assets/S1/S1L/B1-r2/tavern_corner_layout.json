@@ -1,0 +1,9 @@
+{"format":2,"name":"tavern_corner_layout","unit":"cm",
+"description":"Layout check: tavern table, two chairs, barrel behind, candles on the table.",
+"parts":{
+"barrel":{"ref":"LIB/core/barrel","pos":[60,0,-80]},
+"candles":{"ref":"LIB/core/candle_cluster","pos":[-20,78,5]},
+"chair_l":{"ref":"LIB/core/chair","pos":[-97,0,0],"yaw":90},
+"chair_r":{"ref":"LIB/core/chair","pos":[97,0,0],"yaw":-90},
+"table":{"ref":"LIB/core/table","pos":[0,0,0]},
+"wall":{"type":"box","size":[300,150,10],"pos":[0,75,-115],"color":"$wall"}}}

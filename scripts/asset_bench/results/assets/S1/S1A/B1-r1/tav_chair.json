@@ -1,0 +1,14 @@
+{"format":2,"name":"tav_chair","unit":"cm",
+"description":"A simple wooden tavern chair with a tall back, facing +z.",
+"tags":["wood","tavern","chair"],
+"category":"furniture",
+"materials":{
+"dark":{"color":"#594635"},
+"wood":{"color":"#bc8150"}},
+"parts":{
+"leg":{"type":"box","size":[5,5],"from":[17,0,16],"to":[17,43,16],"mat":"dark","mirror":["x","z"]},
+"post":{"type":"box","size":[5,5],"from":[17,45,-17],"to":[17,95,-17],"mat":"dark","mirror":"x"},
+"rail":{"type":"box","size":[30,4],"from":[0,72,-17],"to":[0,88,-17],"mat":"wood"},
+"seat":{"type":"rounded_box","size":[42,5,40],"radius":1.5,"pos":[0,45,0],"mat":"wood"}},
+"sockets":{
+"sit":{"pos":[0,48,2]}}}

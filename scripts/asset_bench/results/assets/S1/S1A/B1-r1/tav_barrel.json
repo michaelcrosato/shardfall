@@ -1,0 +1,10 @@
+{"format":2,"name":"tav_barrel","unit":"cm",
+"description":"A wooden barrel bound with iron hoops.",
+"tags":["wood","tavern","barrel"],
+"category":"container",
+"materials":{
+"iron":{"color":"#3d3d44"},
+"wood":{"color":"#8f5e35"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0],[26,0],[30,22],[32,45],[30,68],[26,90],[0,90]],"mat":"wood"},
+"hoop":{"type":"torus","radius":30.5,"minor_radius":1.8,"pos":[0,45,0],"mat":"iron","array":{"count":2,"step":[0,50,0]}}}}

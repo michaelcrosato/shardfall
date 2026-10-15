@@ -1,13 +1,37 @@
 gate	arm	task	run	done	accepted	items	findings	calls	failed	refused	wall_s	ids	model	effort	harness	problems
 S1	S1A	B1	1	1	1	5	0	12	0	0	23.2	WORKSHOP/tav_table WORKSHOP/tav_chair WORKSHOP/tav_chair WORKSHOP/tav_barrel WORKSHOP/tav_candles	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B1	2	1	1	5	0	20	0	0	117.4	WORKSHOP/tavern_table WORKSHOP/tavern_chair WORKSHOP/tavern_chair WORKSHOP/ale_barrel WORKSHOP/table_candles	model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	
+S1	S1A	B1	3	1	1	5	0	19	1	0	56.2	WORKSHOP/tavern_table WORKSHOP/tavern_chair WORKSHOP/tavern_chair WORKSHOP/tavern_barrel WORKSHOP/tavern_candles	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1A	B2	1	1	1	1	0	9	1	0	18.8	WORKSHOP/market_stall	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B2	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role stall: 0 of 1; no done.json
+S1	S1A	B2	3	1	1	1	0	7	0	0	21.7	WORKSHOP/market_stall	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1A	B3	1	1	1	4	0	10	0	0	6.0	WORKSHOP/cor_floor WORKSHOP/cor_wall WORKSHOP/cor_wall WORKSHOP/cor_ceiling	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B3	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	0 patterned materials, wanted 3; role floor: 0 of 1; role wall: 0 of 2; role ceiling: 0 of 1; no done.json
+S1	S1A	B3	3	1	1	4	0	8	1	0	11.0	WORKSHOP/corridor_floor WORKSHOP/corridor_wall WORKSHOP/corridor_wall WORKSHOP/corridor_ceiling	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1A	B4	1	1	1	4	0	8	0	0	11.3	WORKSHOP/armoury_rack WORKSHOP/rack_sword WORKSHOP/rack_spear WORKSHOP/rack_axe	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B4	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role rack: 0 of 1; role weapon: 0 of 3; no done.json
+S1	S1A	B4	3	1	1	4	0	14	0	0	50.2	WORKSHOP/weapon_rack WORKSHOP/rack_axe WORKSHOP/rack_sword WORKSHOP/rack_spear	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1A	B5	1	1	1	2	0	10	0	0	9.4	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B5	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role walk: 0 of 1; role taunt: 0 of 1; no done.json
+S1	S1A	B5	3	1	1	2	0	11	0	0	17.6	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1A	B6	1	1	1	3	0	5	0	0	4.1	WORKSHOP/camp_fire WORKSHOP/camp_log WORKSHOP/camp_log	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B6	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role fire: 0 of 1; role seat: 0 of 2; no done.json
+S1	S1A	B6	3	1	1	4	0	12	0	0	22.4	WORKSHOP/campfire WORKSHOP/log_seat WORKSHOP/log_seat WORKSHOP/log_seat	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B1	1	1	1	5	0	4	0	0	0.1	LIB/core/table LIB/core/chair LIB/core/chair LIB/core/barrel LIB/core/candle_cluster	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B1	2	1	1	5	0	13	2	0	57.0	LIB/core/table LIB/core/chair LIB/core/chair LIB/core/barrel LIB/core/candle_cluster	model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	
+S1	S1L	B1	3	1	1	5	0	5	0	0	6.5	LIB/core/table LIB/core/chair LIB/core/chair LIB/core/barrel LIB/core/candle_cluster	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B2	1	1	1	1	0	9	1	0	12.4	WORKSHOP/my_stall	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B2	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role stall: 0 of 1; no done.json
+S1	S1L	B2	3	1	1	1	0	9	1	0	22.7	WORKSHOP/fork_market_stall	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B3	1	1	1	4	0	9	1	0	8.2	WORKSHOP/b3_floor WORKSHOP/b3_wall WORKSHOP/b3_wall WORKSHOP/b3_ceiling	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B3	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	0 patterned materials, wanted 3; role floor: 0 of 1; role wall: 0 of 2; role ceiling: 0 of 1; no done.json
+S1	S1L	B3	3	1	1	4	0	11	0	0	25.7	WORKSHOP/corridor_floor WORKSHOP/corridor_wall WORKSHOP/corridor_wall WORKSHOP/corridor_beams	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B4	1	1	1	4	0	7	0	0	5.8	WORKSHOP/rack_frame WORKSHOP/rack_spear WORKSHOP/rack_sword WORKSHOP/rack_axe	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B4	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role rack: 0 of 1; role weapon: 0 of 3; no done.json
+S1	S1L	B4	3	1	1	4	0	14	0	0	39.9	WORKSHOP/weapon_rack WORKSHOP/rack_sword WORKSHOP/rack_spear WORKSHOP/rack_axe	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B5	1	1	1	2	0	4	0	0	0.2	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B5	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role walk: 0 of 1; role taunt: 0 of 1; no done.json
+S1	S1L	B5	3	1	1	2	0	5	0	0	4.7	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	
 S1	S1L	B6	1	1	0	4	1	5	0	0	10.2	WORKSHOP/camp_fire WORKSHOP/camp_log_seat WORKSHOP/camp_log_seat WORKSHOP/camp_log_seat	model 1	medium	Claude Code subagent asset-bench-author, cloud session	WORKSHOP/camp_fire: floating: flame, log1, log2 (1.4 cm from the rest)
+S1	S1L	B6	2	0	0	0	0	0	0	0	0		model 2	default (not set)	Claude Code general-purpose subagent with the author file's prompt body, cloud session	role fire: 0 of 1; role seat: 0 of 2; no done.json
+S1	S1L	B6	3	1	1	3	0	14	0	0	30.9	WORKSHOP/campfire WORKSHOP/log_seat WORKSHOP/log_seat	model 2	medium	Claude Code subagent asset-bench-author with its model switched to model 2, cloud session	

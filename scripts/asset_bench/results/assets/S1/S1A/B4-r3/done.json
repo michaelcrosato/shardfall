@@ -1,0 +1,6 @@
+{"items": [
+ {"role": "rack", "id": "WORKSHOP/weapon_rack", "how": "made", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+ {"role": "weapon", "id": "WORKSHOP/rack_axe", "how": "made", "pos": [-0.34, 0, 0.02], "yaw": 0, "scale": 1},
+ {"role": "weapon", "id": "WORKSHOP/rack_sword", "how": "made", "pos": [0, 0, 0.02], "yaw": 0, "scale": 1},
+ {"role": "weapon", "id": "WORKSHOP/rack_spear", "how": "made", "pos": [0.34, 0, 0.02], "yaw": 0, "scale": 1}
+], "notes": "Wooden rack; axe, sword, spear stand upright between back bars and front rail."}

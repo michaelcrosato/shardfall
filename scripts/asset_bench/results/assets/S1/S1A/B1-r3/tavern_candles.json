@@ -1,0 +1,16 @@
+{"format":2,"name":"tavern_candles","unit":"cm",
+"description":"Three wax candles of uneven height on a brass dish, flames glowing.",
+"tags":["candle","light","tavern"],
+"category":"lighting",
+"materials":{
+"brass":{"color":"#b58a3a"},
+"flame":{"color":"#ffc55a","emissive":3},
+"wax":{"color":"#efe2c0"}},
+"parts":{
+"candle_a":{"type":"cylinder","radius":2.5,"from":[-3,2,-2],"to":[-3,22,-2],"mat":"wax"},
+"candle_b":{"type":"cylinder","radius":2.2,"from":[4,2,-1],"to":[4,16,-1],"mat":"wax"},
+"candle_c":{"type":"cylinder","radius":2,"from":[0,2,4],"to":[0,12,4],"mat":"wax"},
+"dish":{"type":"cylinder","radius":10,"height":2,"pos":[0,1,0],"mat":"brass"},
+"flame_a":{"type":"ellipsoid","size":[2.4,5,2.4],"pos":[-3,24.2,-2],"mat":"flame","solid":false,"light":{"color":"#ffb050","radius":4,"intensity":1.5}},
+"flame_b":{"type":"ellipsoid","size":[2.2,4.5,2.2],"pos":[4,18,-1],"mat":"flame","solid":false},
+"flame_c":{"type":"ellipsoid","size":[2,4,2],"pos":[0,13.8,4],"mat":"flame","solid":false}}}

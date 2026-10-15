@@ -1,0 +1,12 @@
+{"format":2,"name":"armoury_rack","unit":"cm",
+"description":"A wooden weapon rack with base, two posts and rails.",
+"materials":{
+"dark":{"color":"#594635"},
+"wood":{"color":"#bc8150"}},
+"parts":{
+"base":{"type":"box","size":[180,10,44],"pos":[0,5,0],"mat":"dark"},
+"cap":{"type":"box","size":[8,8],"from":[-95,142,-12],"to":[95,142,-12],"mat":"dark"},
+"post":{"type":"box","size":[10,10],"from":[85,10,-12],"to":[85,140,-12],"mat":"wood","mirror":"x"},
+"rail_mid":{"type":"box","size":[6,6],"from":[-85,70,-12],"to":[85,70,-12],"mat":"wood"},
+"rail_top":{"type":"box","size":[6,6],"from":[-85,125,-12],"to":[85,125,-12],"mat":"wood"},
+"stop":{"type":"box","size":[4,4],"from":[-85,12,8],"to":[85,12,8],"mat":"dark"}}}

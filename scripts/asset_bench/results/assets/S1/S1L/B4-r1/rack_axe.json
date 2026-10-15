@@ -1,0 +1,9 @@
+{"format":2,"name":"rack_axe","unit":"cm",
+"description":"A long-hafted battle axe.",
+"materials":{
+"iron":{"color":"#9aa5ae"},
+"wood":{"color":"#8a5a34"}},
+"parts":{
+"back":{"type":"box","size":[5,10,8],"pos":[0,120,-5],"mat":"iron"},
+"blade":{"type":"wedge","size":[4,26,22],"pos":[0,115,13],"mat":"iron"},
+"haft":{"type":"cylinder","radius":2,"height":130,"pos":[0,65,0],"mat":"wood"}}}

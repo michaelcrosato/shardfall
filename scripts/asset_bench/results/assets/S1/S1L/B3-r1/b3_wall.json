@@ -1,0 +1,5 @@
+{"format":2,"name":"b3_wall","unit":"cm",
+"description":"Brick corridor wall segment, 4 m long.",
+"parts":{
+"base":{"type":"box","size":[26,20,396],"pos":[0,10,0],"mat":"MAT/dungeon_wall"},
+"wall":{"type":"box","size":[20,266,400],"pos":[0,133,0],"mat":"MAT/brick_wall"}}}

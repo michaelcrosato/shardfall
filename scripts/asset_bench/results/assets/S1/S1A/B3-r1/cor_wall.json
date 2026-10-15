@@ -1,0 +1,8 @@
+{"format":2,"name":"cor_wall","unit":"cm",
+"description":"Brick corridor wall, 4 m long.",
+"materials":{
+"b":"MAT/brick_wall",
+"c":"MAT/wall_cap"},
+"parts":{
+"cap":{"type":"box","size":[26,10,400],"pos":[0,295,0],"mat":"c"},
+"wall":{"type":"box","size":[20,290,400],"pos":[0,145,0],"mat":"b"}}}

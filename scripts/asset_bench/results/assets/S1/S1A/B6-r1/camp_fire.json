@@ -1,0 +1,12 @@
+{"format":2,"name":"camp_fire","unit":"cm",
+"description":"A stone-ringed campfire with glowing flames.",
+"materials":{
+"flame":{"color":"#ff8a20","emissive":4},
+"stone":{"color":"#8a8a90"},
+"wood":{"color":"#6b4a2b"}},
+"parts":{
+"ash":{"type":"cylinder","radius":34,"height":4,"pos":[0,2,0],"color":"#2b2622"},
+"flame":{"type":"cone","radius":20,"radius_end":2,"height":50,"pos":[0,40,0],"mat":"flame","light":{"color":"#ff9a40","radius":600,"intensity":2},"fx":{"preset":"fire"}},
+"log1":{"type":"cylinder","radius":6,"height":60,"pos":[0,12,0],"axis":"x","yaw":30,"mat":"wood"},
+"log2":{"type":"cylinder","radius":6,"height":60,"pos":[0,18,0],"axis":"x","yaw":-40,"mat":"wood"},
+"ring":{"type":"sphere","radius":11,"pos":[0,11,0],"mat":"stone","radial":{"count":9,"radius":40}}}}

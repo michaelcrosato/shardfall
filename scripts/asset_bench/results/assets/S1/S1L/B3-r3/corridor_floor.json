@@ -1,0 +1,10 @@
+{"format":2,"name":"corridor_floor","unit":"cm",
+"description":"A 3 x 4 m dungeon corridor floor of big flagstones with a darker stone kerb along each edge.",
+"tags":["floor","dungeon","corridor"],
+"category":"dungeon",
+"materials":{
+"flag":{"base":"MAT/flagstones","color":"#6e6a62"},
+"kerb":{"base":"MAT/pillar_stone","color":"#55524c"}},
+"parts":{
+"kerb":{"type":"box","size":[15,12,400],"pos":[142.5,6,0],"mat":"kerb","mirror":"x"},
+"slab":{"type":"box","size":[270,10,400],"pos":[0,5,0],"mat":"flag"}}}

@@ -1,0 +1,11 @@
+{"format":2,"name":"rack_sword","unit":"cm",
+"description":"A sword standing tip down.",
+"materials":{
+"gold":{"color":"#d9a441"},
+"leather":{"color":"#4a2f20"},
+"steel":{"color":"#b8c4cc"}},
+"parts":{
+"blade":{"type":"box","size":[9,2.5],"from":[0,0,0],"to":[0,88.5,0],"mat":"steel"},
+"grip":{"type":"box","size":[4,4],"from":[0,88,0],"to":[0,104,0],"mat":"leather"},
+"guard":{"type":"box","size":[28,4],"from":[0,86,0],"to":[0,89,0],"mat":"gold"},
+"pommel":{"type":"sphere","radius":3.5,"pos":[0,104,0],"mat":"gold"}}}

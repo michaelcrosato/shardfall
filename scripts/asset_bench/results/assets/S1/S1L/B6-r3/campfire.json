@@ -1,0 +1,19 @@
+{"format":2,"name":"campfire","unit":"cm",
+"description":"A stone-ringed campfire with crossed logs and a glowing flame.",
+"tags":["campfire","fire","light","camp"],
+"category":"lighting",
+"materials":{
+"ash":{"color":"#3a3330"},
+"flame":{"color":"#ff8a1e","look":"unlit","emissive":1.2},
+"flame_core":{"color":"#ffe066","look":"unlit","emissive":1.6},
+"stone":{"color":"#7d7a72"},
+"wood":{"color":"#6b4a2e"}},
+"parts":{
+"ash_bed":{"type":"cylinder","radius":36,"height":3,"pos":[0,1.5,0],"mat":"ash"},
+"flame":{"type":"cone","radius":22,"radius_end":0,"height":55,"pos":[0,30,0],"mat":"flame","solid":false,"light":{"color":"#ffa040","radius":800,"intensity":2},"fx":{"preset":"fire"}},
+"flame_core":{"type":"cone","radius":12,"radius_end":0,"height":35,"pos":[0,24,0],"mat":"flame_core","solid":false},
+"log1":{"type":"cylinder","radius":6,"from":[-34,5,0],"to":[-4,30,0],"mat":"wood"},
+"log2":{"type":"cylinder","radius":6,"from":[34,5,0],"to":[4,30,0],"mat":"wood"},
+"log3":{"type":"cylinder","radius":6,"from":[0,5,-34],"to":[0,30,-4],"mat":"wood"},
+"log4":{"type":"cylinder","radius":6,"from":[0,5,34],"to":[0,30,4],"mat":"wood"},
+"stones":{"type":"rounded_box","size":[22,16,18],"radius":5,"pos":[0,8,0],"mat":"stone","radial":{"count":10,"radius":46}}}}

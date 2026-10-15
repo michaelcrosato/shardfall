@@ -1,0 +1,11 @@
+{"format":2,"name":"corridor_beams","unit":"cm",
+"description":"Overhead oak beams for a 3 m corridor: two wall plates carry five iron-strapped cross beams.",
+"tags":["ceiling","beams","dungeon","corridor"],
+"category":"dungeon",
+"materials":{
+"iron":"MAT/wrought_iron",
+"oak":{"base":"MAT/oak_planks","color":"#7a5434"}},
+"parts":{
+"beam":{"type":"box","size":[356,24,22],"pos":[0,32,0],"mat":"oak","array":{"count":5,"step":[0,0,89]}},
+"plate":{"type":"box","size":[26,20,400],"pos":[165,10,0],"mat":"oak","mirror":"x"},
+"strap":{"type":"box","size":[8,27,25],"pos":[110,32,0],"mat":"iron","mirror":"x","array":{"count":5,"step":[0,0,89]}}}}

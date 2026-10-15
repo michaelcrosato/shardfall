@@ -1,0 +1,11 @@
+{"format":2,"name":"camp_log","unit":"cm",
+"description":"A log seat lying on the ground.",
+"materials":{
+"bark":{"color":"#7a5230"},
+"cut":{"color":"#c9a26b"}},
+"parts":{
+"endl":{"type":"cylinder","radius":16,"height":2,"pos":[55,20,0],"axis":"x","mat":"cut"},
+"endr":{"type":"cylinder","radius":16,"height":2,"pos":[-55,20,0],"axis":"x","mat":"cut"},
+"trunk":{"type":"cylinder","radius":20,"height":110,"pos":[0,20,0],"axis":"x","mat":"bark"}},
+"sockets":{
+"sit":{"pos":[0,40,0]}}}

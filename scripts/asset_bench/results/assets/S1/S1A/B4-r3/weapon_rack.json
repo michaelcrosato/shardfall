@@ -1,0 +1,17 @@
+{"format":2,"name":"weapon_rack","unit":"cm",
+"description":"A wooden armoury rack: two posts on feet, back bars and a front rail holding upright weapons.",
+"tags":["armoury","rack","weapon"],
+"category":"furniture",
+"materials":{
+"iron":{"color":"#5d6066"},
+"wood":{"color":"#9a6a3e"},
+"wood_dark":{"color":"#5a3f2a"}},
+"parts":{
+"arm":{"type":"box","size":[6,6],"from":[56,95,-4],"to":[56,95,15],"mat":"wood_dark","mirror":"x"},
+"band":{"type":"box","size":[110,3,1],"pos":[0,148,-3.5],"mat":"iron"},
+"cap":{"type":"box","size":[11,5,11],"pos":[56,162.5,-8],"mat":"wood_dark","mirror":"x"},
+"foot":{"type":"box","size":[12,8,44],"pos":[56,4,0],"mat":"wood_dark","mirror":"x"},
+"low_bar":{"type":"box","size":[8,8],"from":[-52,30,-8],"to":[52,30,-8],"mat":"wood"},
+"post":{"type":"box","size":[8,8],"from":[56,8,-8],"to":[56,160,-8],"mat":"wood","mirror":"x"},
+"rail":{"type":"box","size":[6,6],"from":[-59,95,12],"to":[59,95,12],"mat":"wood_dark"},
+"top_bar":{"type":"box","size":[8,10],"from":[-52,148,-8],"to":[52,148,-8],"mat":"wood"}}}

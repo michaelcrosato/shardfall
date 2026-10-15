@@ -1,0 +1,11 @@
+{"format":2,"name":"rack_sword","unit":"cm",
+"description":"A straight sword standing point up.",
+"materials":{
+"gold":{"color":"#d9b441"},
+"grip":{"color":"#5a3a2a"},
+"iron":{"color":"#c8d0d8"}},
+"parts":{
+"blade":{"type":"box","size":[7,2.5],"from":[0,27,0],"to":[0,110,0],"mat":"iron"},
+"grip":{"type":"cylinder","radius":2,"height":16,"pos":[0,16,0],"mat":"grip"},
+"guard":{"type":"box","size":[26,3,4],"pos":[0,25.5,0],"mat":"gold"},
+"pommel":{"type":"sphere","radius":4,"pos":[0,4,0],"mat":"gold"}}}

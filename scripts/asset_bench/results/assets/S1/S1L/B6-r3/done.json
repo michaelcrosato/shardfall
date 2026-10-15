@@ -1,0 +1,5 @@
+{"items": [
+ {"role": "fire", "id": "WORKSHOP/campfire", "how": "made", "pos": [0, 0, 0], "yaw": 0, "scale": 1},
+ {"role": "seat", "id": "WORKSHOP/log_seat", "how": "made", "pos": [0, 0, 1.4], "yaw": 0, "scale": 1},
+ {"role": "seat", "id": "WORKSHOP/log_seat", "how": "made", "pos": [0, 0, -1.4], "yaw": 0, "scale": 1}
+], "notes": "Stone-ringed campfire with light and fire fx; two log seats facing it 1.4 m away."}

@@ -94,3 +94,14 @@ The judge prompt is frozen once calibration passes.
   hanging and wall tasks); and an edit run also needs at least 2 of 3 judges to answer `done`.
 - `lint_block` / `lint_other`: `check` findings that block acceptance / all the others, per run;
   `tris`: triangles from the `cost` line.
+
+## The asset store's S1
+
+`store_briefs.toml` holds six room-scale briefs (`tasks.toml` stays frozen). `bench.py
+store-prepare --arm S1A|S1L` gives each run its own props (the committed packs), clip folders and
+miss log; arm S1A sets `PAV_FIND=builtin` in `run.json`'s `env` (the templates only, no shelf).
+`done.json` lists every item placed, forked or made with its role and position; `bench.py
+store-score` resolves and checks them, `bench.py tokens` reads each run's model calls, tokens read
+and weighted cost from the session's subagent transcripts (`--main`: the session's own), and
+`bench.py store-report --run N` applies S1's rule (`docs/HISTORY.md`, 2026-10-15).
+

@@ -1,0 +1,11 @@
+{"format":2,"name":"corridor_wall","unit":"cm",
+"description":"A 4 m brick dungeon wall section with a stone plinth and coping.",
+"tags":["wall","corridor","brick"],
+"category":"dungeon",
+"materials":{
+"brick":{"base":"MAT/brick_wall","color":"#8a4e3a"},
+"stone":{"color":"#5c5854"}},
+"parts":{
+"cap":{"type":"box","size":[400,10,44],"pos":[0,295,0],"mat":"stone"},
+"plinth":{"type":"box","size":[400,30,44],"pos":[0,15,0],"mat":"stone"},
+"wall":{"type":"box","size":[400,260,40],"pos":[0,160,0],"mat":"brick"}}}

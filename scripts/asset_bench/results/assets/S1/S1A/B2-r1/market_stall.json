@@ -1,0 +1,14 @@
+{"format":2,"name":"market_stall","unit":"cm",
+"description":"A market stall with a counter, four posts and a striped cloth awning.",
+"materials":{
+"cloth":{"base":"MAT/awning_stripes"},
+"wood":"MAT/oak_planks",
+"wood_dark":{"color":"#594635"}},
+"parts":{
+"awning":{"type":"box","size":[260,5,170],"pos":[0,243,0],"pitch":6,"mat":"cloth"},
+"awning_edge":{"type":"box","size":[260,14,4],"pos":[0,232,86],"mat":"cloth"},
+"counter_body":{"type":"box","size":[240,86,60],"pos":[0,43,45],"mat":"wood_dark"},
+"counter_top":{"type":"box","size":[236,8,70],"pos":[0,90,45],"mat":"wood"},
+"post":{"type":"box","size":[10,8],"from":[120,0,75],"to":[120,235,75],"mat":"wood_dark","mirror":"x"},
+"post_back":{"type":"box","size":[10,8],"from":[120,0,-75],"to":[120,248,-75],"mat":"wood_dark","mirror":"x"},
+"shelf":{"type":"box","size":[240,6,40],"pos":[0,110,-60],"mat":"wood"}}}

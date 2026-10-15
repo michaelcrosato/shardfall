@@ -1,0 +1,1 @@
+{"items":[{"role":"fire","id":"WORKSHOP/camp_fire","how":"made","pos":[0,0,0],"yaw":0,"scale":1},{"role":"seat","id":"WORKSHOP/camp_log","how":"made","pos":[0,0,-1.3],"yaw":0,"scale":1},{"role":"seat","id":"WORKSHOP/camp_log","how":"made","pos":[1.3,0,0],"yaw":90,"scale":1}],"notes":"Stone-ringed fire with light; two log seats 1.3 m away."}

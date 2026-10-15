@@ -1,0 +1,15 @@
+{"format":2,"name":"tavern_table","unit":"cm",
+"description":"A sturdy plank tavern table on four square legs with aprons and a low stretcher.",
+"tags":["wood","table","tavern","furniture"],
+"category":"furniture",
+"materials":{
+"wood":{"color":"#b07a45"},
+"wood_dark":{"color":"#6b4428"},
+"wood_light":{"color":"#c28a52"}},
+"parts":{
+"apron_long":{"type":"box","size":[101,8,4],"pos":[0,65,30],"mat":"wood_dark","mirror":"z"},
+"apron_side":{"type":"box","size":[4,8,51],"pos":[55,65,0],"mat":"wood_dark","mirror":"x"},
+"leg":{"type":"box","size":[9,69,9],"pos":[55,34.5,30],"mat":"wood_dark","mirror":["x","z"]},
+"stretcher_mid":{"type":"box","size":[106,5,4],"pos":[0,15,0],"mat":"wood_dark"},
+"stretcher_side":{"type":"box","size":[4,5,51],"pos":[55,15,0],"mat":"wood_dark","mirror":"x"},
+"top":{"type":"rounded_box","size":[130,6,19.6],"radius":1.5,"pos":[0,72,0],"mat":"wood","array":{"count":4,"step":[0,0,20],"cycle":["wood","wood_light"]}}}}

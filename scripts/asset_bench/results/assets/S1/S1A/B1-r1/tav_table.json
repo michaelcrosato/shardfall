@@ -1,0 +1,11 @@
+{"format":2,"name":"tav_table","unit":"cm",
+"description":"A sturdy round-edged wooden tavern table.",
+"tags":["wood","tavern","table"],
+"category":"furniture",
+"materials":{
+"dark":{"color":"#5a3f28"},
+"wood":{"color":"#a8703f"}},
+"parts":{
+"brace":{"type":"box","size":[4,4],"from":[48,20,-28],"to":[48,20,28],"mat":"dark","mirror":"x"},
+"leg":{"type":"box","size":[8,8],"from":[48,0,28],"to":[48,69,28],"mat":"dark","mirror":["x","z"]},
+"top":{"type":"rounded_box","size":[110,6,70],"radius":2,"pos":[0,72,0],"mat":"wood"}}}

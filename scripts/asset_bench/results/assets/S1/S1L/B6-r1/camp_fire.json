@@ -1,0 +1,12 @@
+{"format":2,"name":"camp_fire","unit":"cm",
+"description":"A campfire: stone ring, crossed logs and a glowing flame.",
+"category":"lighting",
+"materials":{
+"flame":{"color":"#ff9a2a","look":"unlit","emissive":3},
+"stone":{"color":"#7a7a80"},
+"wood":{"color":"#5a3b25"}},
+"parts":{
+"flame":{"type":"cone","radius":16,"radius_end":2,"height":45,"pos":[0,28,0],"mat":"flame","light":{"color":"#ff9040","radius":600,"intensity":2},"fx":{"preset":"fire"}},
+"log1":{"type":"cylinder","radius":7,"height":70,"pos":[0,10,0],"axis":"x","yaw":30,"mat":"wood"},
+"log2":{"type":"cylinder","radius":7,"height":70,"pos":[0,10,0],"axis":"x","yaw":-60,"mat":"wood"},
+"stones":{"type":"rounded_box","size":[22,16,16],"radius":4,"pos":[0,8,0],"mat":"stone","radial":{"count":8,"radius":45}}}}

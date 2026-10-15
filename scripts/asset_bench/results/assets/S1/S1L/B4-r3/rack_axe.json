@@ -1,0 +1,14 @@
+{"format":2,"name":"rack_axe","unit":"cm",
+"description":"A bearded battle axe stood haft-down, head up.",
+"tags":["axe","weapon"],
+"category":"weapon",
+"materials":{
+"iron":{"color":"#5c6166"},
+"steel":{"color":"#c9d0d6"},
+"wood":{"color":"#8a5a32"}},
+"parts":{
+"cap":{"type":"sphere","radius":2.4,"pos":[0,100,0],"mat":"iron"},
+"haft":{"type":"cylinder","radius":2,"height":100,"pos":[0,50,0],"mat":"wood"},
+"head":{"type":"extrude","points":[[2,-6],[20,-14],[22,0],[20,14],[2,6]],"depth":2.4,"pos":[0,88,0],"mat":"steel"},
+"socket":{"type":"box","size":[6,14,5],"pos":[0,88,0],"mat":"iron"},
+"spike":{"type":"extrude","points":[[-2,-3],[-10,0],[-2,3]],"depth":2,"pos":[0,88,0],"mat":"iron"}}}

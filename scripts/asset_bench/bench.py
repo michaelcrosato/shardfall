@@ -1404,6 +1404,18 @@ def cmd_store_score(args):
             "effort": runner.get("effort", config.get("effort", "")),
             "harness": runner.get("harness", config.get("harness", "")), "problems": "; ".join(facts["problems"])})
     write_tsv(STORE_RUNS, columns, rows, args.gate)
+    # Each run's done.json and workshop assets, as text, for re-scoring later (run folders stay in
+    # .cache/, git-ignored).
+    for run in run_dirs(args.gate):
+        config = load(run / "run.json")
+        if config.get("kind") != "store" or not (run / "done.json").exists():
+            continue
+        dest = RESULTS / "assets" / config["gate"] / config["arm"] / f"{config['task']}-r{config['run']}"
+        shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True)
+        shutil.copy2(run / "done.json", dest / "done.json")
+        for path in sorted((run / "props/workshop").glob("*.json")):
+            shutil.copy2(path, dest / path.name)
     for r in rows:
         print(f"{r['arm']} {r['task']}-r{r['run']}: accepted {r['accepted']}, findings {r['findings']}, "
               f"{r['calls']} engine commands; {r['problems'] or 'no problems'}")
