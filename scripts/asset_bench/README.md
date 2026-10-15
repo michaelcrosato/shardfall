@@ -16,9 +16,10 @@ runs the same frozen tasks (`tasks.toml`) on a new arm and compares it with arm 
 - `bench.py`: setup, build, prepare, score, collect, report, calib, votes, pairs, judgment,
   selftest (`bench.py -h`).
 - `.claude/agents/asset-bench-author.md` and `asset-bench-judge.md`: the pinned runners (author:
-  Sonnet at medium effort; judge: Opus at medium effort). A session that started before these
-  files existed cannot launch them by name; use a general-purpose agent with the same model,
-  effort and the file's prompt body, and record that.
+  Sonnet at medium effort; judge: Opus at medium effort; since 2026-10-15 both start without
+  `CLAUDE.md` and its imports, `omitClaudeMd`). A session that started before these files
+  existed cannot launch them by name; use a general-purpose agent with the same model, effort
+  and the file's prompt body, and record that (it also loads `CLAUDE.md` and its imports).
 - `results/`: committed. `runs.tsv` (one row per run), `judgments.tsv` (one row per judge
   answer), `summary.json` (per gate and arm, and the calibration) and `assets/<gate>/<arm>/` (every
   final asset as text, for re-scoring and re-judging later), and `agent_tokens.tsv` (what each

@@ -57,10 +57,10 @@ printf 'load scene=world\ngoto room=drift\ncapture width=640 height=360 out=out/
 cargo test --locked -p pav_core
 ```
 
-Inspect the generated images with the agent's image viewer. `AGENTS.md` describes
-the rest of the tools, including driving the player, authoring creatures, replaying
-input, checking rooms, and reloading game data. `.mcp.json` exposes the same CLI as
-the `shardfall` MCP server for clients that support this configuration.
+Inspect the generated images with the agent's image viewer. `AGENTS.md` and
+`docs/REFERENCE.md` describe the rest of the tools, including driving the player, authoring
+creatures, replaying input, checking rooms, and reloading game data. `.mcp.json` exposes the
+same CLI as the `shardfall` MCP server for clients that support this configuration.
 
 ## Run the game window
 

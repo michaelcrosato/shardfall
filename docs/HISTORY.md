@@ -5,6 +5,42 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Agent instruction files brought up to current practice — 2026-10-15
+
+The user asked for AGENTS.md and the other files agents read to be checked against current best
+practice and right-sized. Sources: Anthropic's Claude Code docs (memory, best practices,
+subagents), OpenAI's Codex docs (AGENTS.md, GitHub review), agents.md, and the ETH Zurich study
+"Evaluating AGENTS.md" (2026): context files raised agents' cost by over 20% without generally
+raising success; overviews didn't help; what helps is what agents can't infer (commands, gotchas,
+rules).
+- **AGENTS.md** was 530 lines, 42.8 KB: 2.6 times Anthropic's 200-line target, and past Codex's
+  default 32 KiB, so Codex (which reviews every PR) never read past line 400: the tests,
+  conventions and PR procedure. It is 259 lines, 19 KB. The rules, commands, gotchas and
+  conventions stay; the module-by-module code map, the tool families, the browser and phone
+  notes, the controls and the test inventory moved word for word to the new `docs/REFERENCE.md`
+  (a script checked that every old line is in one of the two files or was changed on purpose).
+- **Fixed on the way:** 437 embedded clips, not 423; `wasm32` code isn't only in `pav_app` (other
+  crates gate disk access and the GPU backend); the tools list now names all 77 (`npcs` and the
+  object and creature tools were missing); the asset rule, stated twice, is one; after a LIB/core
+  publish, `reindex=store` as well as `reindex=hall`; the fmt and clippy commands are listed; a
+  determinism rule (seeded `rng`, no `HashMap` order in game state) joins the key rules.
+- **New:** the Testing budget is rewritten from the user's heuristic (test only to change a
+  decision, size the test to the gap, make the call near 50/50, settle close calls only with tool
+  tests; costs in US$ as Claude Code bills them). `## Code Review Rules`, the heading Codex reads,
+  names the P0/P1 breaks that matter here. Working rule 6 is now cost over speed.
+- **CLAUDE.md** told Claude in words to read three files; per Anthropic's docs Claude then sees
+  them only if it decides to open them. It now imports them (`@docs/DOCTRINE.md`, `@AGENTS.md`,
+  `@docs/PROGRESS.md`): about 30 KB at launch, half what the reading list cost.
+- **Subagents** load CLAUDE.md and its imports, so both asset-bench agents now set
+  `omitClaudeMd: true`: they stay blind to the repository's docs and their runs don't grow by the
+  imports. Before, they carried the 3-line CLAUDE.md and the cloud environment's
+  `~/.claude/CLAUDE.md`, about 0.3k tokens of a ~55k fixed prompt, so S1's numbers stay
+  comparable. A blind agent for later stages (S3's brief writer) needs the same flag.
+- **PROGRESS.md** was 149 lines against its own one-page rule; the asset-system narrative, all of
+  it in this file's entries, is now one bullet: 76 lines.
+- Left as they are: `docs/DOCTRINE.md` (the user's), Pavilion Lite (frozen), the `.mcp*.json`
+  files, `.claude/settings.json` and the SessionStart hook.
+
 ## Asset store S2: a fourth foundation per archetype — 2026-10-15
 
 The goal asked for about 4 foundations per archetype; S2 left six of the seven at 3. Each now has

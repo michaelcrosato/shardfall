@@ -151,7 +151,7 @@ selectively, token efficiency.
   - benchmark ticks per second;
   - validate and hot-load room files.
 - **Rooms vs mechanics:** rooms built from existing parts are data files that hot-reload with no rebuild. New mechanics are Rust code, written from templates.
-- **Rulebook:** `AGENTS.md`, plus a `CLAUDE.md` pointer. It covers the principles, an architecture map, how to add a room or mechanic, and how to test and capture.
+- **Rulebook:** `AGENTS.md` (Claude Code loads it, the doctrine and `PROGRESS.md` through `CLAUDE.md`). It covers how the principles apply, a short architecture map, how to add a tool or a room, and how to test and capture; `docs/REFERENCE.md` holds the full code map, every tool family, the controls and the test suites.
 
 ## 13. Showcase roster
 - **Movement & Feel Lab:**

@@ -4,6 +4,7 @@ description: Asset benchmark blind judge (scripts/asset_bench). Compares two ren
 tools: Read
 model: opus
 effort: medium
+omitClaudeMd: true
 ---
 Read the image named in your task. Top row = asset 1, bottom row = asset 2; each row shows front,
 right, back and 3/4 views; the grey capsule is a 1.8 m person. Both were made for the brief in

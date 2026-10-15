@@ -77,7 +77,7 @@ defaults in §14, not settled here.
 | Imported props | 61: Kenney Mini Dungeon 28, Quaternius Medieval Village 33 (288 KB) | `assets/props/lib/<pack>/` | native only; 59 `fit`, 2 `draft` (Cart, Well); 30 have `check` findings; 29 over 30% mesh; no descriptions |
 | Import catalogs | 267 model lines, every description empty | `assets/catalogs/*.json`, ledgers `*/*.tsv` | pilot: 99% `fit`, median IoU 0.983, 31% editable |
 | Materials | 15 recipes; 13 own with no licence field, `pb/gold`, `pb/iron` CC0 | `assets/materials/` | procedural, no images, no UVs |
-| Clips, embedded | 437: CMU 60, Mesh2Motion 177 (CC0), Quaternius 102 (CC0), STYLE100 98 (CC BY 4.0); 2.5 MB; 31 procedural moves | `anim/*.json`, `anim/moves.toml` | AGENTS.md says 423 (stale) |
+| Clips, embedded | 437: CMU 60, Mesh2Motion 177 (CC0), Quaternius 102 (CC0), STYLE100 98 (CC BY 4.0); 2.5 MB; 31 procedural moves | `anim/*.json`, `anim/moves.toml` | AGENTS.md said 423 (fixed since) |
 | Clips, on disk | 100STYLE 780 (2.8 MB); CMU 4,770 (68 MB) plus 2,548 surveyed takes | `anim/100style/`, `anim/cmu/` | `clips load=` |
 | Creatures | 8 SpawnForge templates over 81 modules | `tools/creature-compiler/` | upstream private, UNLICENSED |
 | Feel | 4 vehicles: cars `grippy`, `drifty`, 2 helicopters; 4 movement models | `rooms/drift.toml:378,384`, `rooms/helicopter.toml:471,477`, `crates/pav_core/src/character.rs:24` | movement models are Rust enum variants; `feel.rs` measures the player only |
@@ -253,7 +253,7 @@ SA, GPL (copyleft would bind every game), unknown and UNLICENSED; each gets one 
 Shardfall's gate (`crates/pav_tools/src/import/licence.rs`) is default-deny for `lib/`, and its
 `LOCAL_ONLY` list routes NC, ND, SA, QAL, Mixamo and Fab to git-ignored `local/<pack>`,
 `mocap::local_only()` (`mocap/mod.rs:264`) sends Bandai Namco and LaFAN1 to `anim/local`, and
-AGENTS.md (l.33-34, l.191-193) tells agents to do so. Those lanes stay outside the store, which
+AGENTS.md ("Assets (4)") tells agents to do so. Those lanes stay outside the store, which
 never indexes them (§14 Q2). And admitted is not embedded: plan D5 keeps CC-BY out of the embedded
 build, yet STYLE100's 98 CC BY clips are embedded: §14 Q3.
 
@@ -480,7 +480,7 @@ because CC-BY attribution travels with every fork. Shipped games are unaffected.
    Default: yes, CC0. Needed before S0's rows.
 2. **Local licence lanes.** Does "excluded entirely" also close the lanes that translate
    non-redistributable libraries into git-ignored tiers (`LOCAL_ONLY`, `local_only()`, `clips
-   load=local`, AGENTS.md l.33-34 and l.191-193, D5's last sentence)? Default: no. They stay as
+   load=local`, AGENTS.md "Assets (4)", D5's last sentence)? Default: no. They stay as
    they are, outside the store: the store never indexes, finds, shelves or exports them, and a test
    checks that no row has a non-admitted licence. Closing them is a separate call for the user.
 3. **D5 and CC-BY in the embedded build.** Default: keep D5: standard holds CC0 and own work, and
