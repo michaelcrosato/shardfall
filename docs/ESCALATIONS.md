@@ -29,9 +29,9 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   general-purpose B1 runs (run 2) stay in the results as a harness note.
 - **Later:** after the S0-S2 report the question was put again: rerun the model-2 round on the
   general-purpose agent as specified (about 7.7M more read, 1.86M left in the approval), or let S1
-  stand. The words "S1 stands" arrived appended to an automated stop-hook message, not as a
-  message the user typed, so they are not taken as the user's waiver. The question stays open
-  until the user answers; until then S1's result stands as recorded and nothing more is spent.
+  stand. The user answered "S1 stands" (twice, and confirmed it in chat: the answers reached the
+  agent attached to stop-hook messages, so the agent first doubted them). The rerun is waived, S1's
+  result stands as recorded, and nothing more was spent.
 - **PR:** S1's PR; the two follow-up PRs that add and correct this line.
 
 ## 2026-10-15 — The agent asset store's nine rulings (docs/AGENT_ASSET_STORE.md §14)
