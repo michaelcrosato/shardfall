@@ -122,8 +122,12 @@ and synonyms (`store/synonyms.tsv`), says `none` with nearest rows and a route, 
 find@5 9/10, absent 5/5. **S1's answer is no, final** (2026-10-15): with the store, a fresh agent
 was cheaper on only 2 of 6 room-scale briefs, the two whose assets the store held (about half the
 tokens), and 10-30% dearer on the rest, both before and after a discovery fix and on a second
-model. So the store stays S0's find and shelf and S2 onward is not built until the user rules
-otherwise (`scripts/asset_bench/store_briefs.toml`, `bench.py store-*` and `tokens`).
+model. The user then asked for **S2** anyway, and it is done: `size_band` and `socket_missing`
+checks, a missing texture fails an import, five planted defects caught; fork lineage; index
+columns, `store/STORE.tsv` and `store/README.md`; format-2 `params`/`presets`/`NAME:preset`
+(LIB-4); 22 foundations for seven archetypes (`store/foundations.tsv`, LIB/core now 42 assets,
+the Kenney cask fork at standard); the `library_hall` (generated), `limits` and `catalogue`
+rooms. Next would be S3 (critical mass), then S3b (characters).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

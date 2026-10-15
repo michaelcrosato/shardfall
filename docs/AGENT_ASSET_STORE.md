@@ -1,9 +1,8 @@
 # The agent asset store
 
 A library of game assets that agents search, use as they are, fork and change, or learn from. It
-plays the part Epic's Fab store plays for people, but its customer is an agent. Status: S0 is
-built; S1 measured no (2026-10-15, `docs/HISTORY.md`), so the store stays S0's find and shelf and
-the later stages wait for the user. Facts come from a read-only survey of Shardfall and its sibling
+plays the part Epic's Fab store plays for people, but its customer is an agent. Status: S0 and
+S2 are built; S1 measured no, and the user asked for S2 anyway (2026-10-15, `docs/HISTORY.md`). Facts come from a read-only survey of Shardfall and its sibling
 repositories on 2026-10-14, re-checked where noted; *unverified* marks what was not checked.
 Agents using the store read `store/README.md` and the shelf (built in S0-S2), not this file.
 
@@ -153,8 +152,9 @@ gate and the fit thresholds and is at most 30% mesh (mesh parts can be placed, s
 recoloured, never edited, so they teach nothing). Likeness is a floor, not a target: the fit
 thresholds only ask that it reads as the same kind of thing at the game camera, and a simpler
 editable translation beats a faithful mesh. It becomes `checked` with zero findings, a description,
-tags and its token cap. The 61 committed imports predate the rule. The 15 that are editable and
-lint-clean (13 Kenney; Quaternius bell and bench_1) get descriptions and become `checked` in S0. The
+tags and its token cap. The 61 committed imports predate the rule. The 15 that were editable and
+lint-clean (13 Kenney; Quaternius bell and bench_1) were to get descriptions and become `checked`
+in S0; after Kenney's rescale 14 were, and S2's checks left 12 `checked`. The
 other 46 stay on disk as they are: findable, mesh share and findings in the row, never on the shelf.
 (`check` runs of 2026-10-14; S0's Kenney rescale may change them.) S3b characters: per-bone segments
 are fitted like props; a skinned body, if built, is exempt from the mesh cap and stays at `disk`.

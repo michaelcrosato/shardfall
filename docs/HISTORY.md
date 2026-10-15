@@ -5,6 +5,107 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S2: proof of concept end to end — 2026-10-15
+
+Stage S2 of `docs/AGENT_ASSET_STORE.md` (§13), built though S1's "no" stands: the user asked for it
+(`docs/ESCALATIONS.md`). Five pieces were built in parallel worktrees by subagents and merged.
+- **Checks (§7):** `size_band` (bands per archetype in `store/size_bands.tsv`: the last word of
+  the name in the table, else the first tag; generous enough that the core props and templates
+  stay clean) and `socket_missing` (weapons need `grip`, seats `sit`; format 2 only) join
+  `check`'s findings. A model whose material names a texture that is missing, out of range,
+  not a PNG or undecodable no longer translates (it drew white). This also refuses JPEG-textured
+  models until JPEG decoding is built (plan I9). Three imports lost `checked`: Kenney's barrel
+  (115 cm wide), its spear (no grip) and Quaternius `bench_1` (no sit).
+- **Five planted defects, 5/5 caught** (`crates/pav_tools/tests/planted_defects.rs`):
+  - a 32 cm table and a 48 cm chair (copies of the core ones, scaled): `size_band`;
+  - the core barrel sunk 76 cm: `below_floor`;
+  - a sword with no grip: `socket_missing`;
+  - a glTF with a missing image: the import fails and names the texture.
+
+  A table sunk 76 cm is not caught, because its top ends 2 cm up and `check` reads it as hanging.
+- **Lineage (§9):** `asset_edit action=copy` writes a `lineage` object beside `source`: method
+  `edited`, the inherited origin (`import` for an asset with a source, else `agent`), parents
+  `id@rev`, the licence (SPDX) and the pack's credit. Patches, replace and publish keep it, and
+  the library gate requires it complete. Copying a core asset to the workshop under its own name
+  continues its lineage rather than naming itself as parent.
+- **Store columns and files:** `index.tsv` gains `kind licence method` beside `tier`. Indexing
+  refuses a row whose licence isn't admitted. `pav assets reindex=store` also writes
+  `store/STORE.tsv`: 107 props, 437 clips and 15 materials, about 50 tokens a row, with per kind
+  the imported share by origin and a `foundation` column. `store/README.md` (about 1,480 tokens,
+  tested at 1,500 or under) is what an agent reads to use the store.
+- **Parametric families (LIB-4, done in the plan):** format 2 reads `params` (ranges and choices
+  setting part paths by factor) and `presets`. The file's literals are the defaults.
+  `props::apply_params` runs before compile, and variants are cached by params hash and seed.
+  `asset_spawn` and `asset_preview` take `params=`, rooms take `params = {…}`, and `NAME:preset`
+  works anywhere an asset is named (spawn, preview, rooms, statics, dressing, `emit_asset`).
+  Instances and snapshots carry params. The fence family gives 13/11/17 parts for default, low
+  and long. Scale, unit and move ops carry the knobs along. Not built: `asset_edit action=param`
+  (the tool list has no room; a document `set` does it), params on `ref` nodes and dressing
+  items, and an index `params` column.
+- **Foundations (§4):** 22 across the seven archetypes S1's briefs and Kenney Mini Dungeon use
+  (`store/foundations.tsv`, each with 2-3 tested transforms and a ≤ 40-token `why`):
+
+  | archetype | foundations |
+  |---|---|
+  | table | table, round_table, hall_table |
+  | seat | chair, bench, park_bench |
+  | barrel | barrel, cask, tap_barrel |
+  | light | brazier, candle_cluster, wall_torch, campfire |
+  | crate | crate_stack, chest, slat_crate |
+  | weapon | sword, spear, axe |
+  | stall | market_stall, gable_stall, canopy_stall |
+
+  - Near-duplicates became presets of one foundation: the Kenney table is `table:wide`, the
+    Kenney chair `chair:stool`.
+  - Mesh-heavy or flawed imports were forked, rebuilt in primitives and published:
+    - Kenney's barrel → cask; its sword and spear (grips added); its chest;
+    - Quaternius' bench_1 → park_bench; its bonfire_lit → campfire; its marketstand_1 →
+      gable_stall.
+  - New where nothing existed: round_table, hall_table, tap_barrel, slat_crate, axe,
+    canopy_stall.
+  - LIB/core grew from 28 to 42 assets: the 13 above plus `mage_staff`, which the Hall needed.
+    Eight core assets gained knobs through the publish loop, with their default geometry
+    unchanged.
+  - `assets shelf=prop` now leads with the foundations by archetype and their knobs (about 1,240
+    tokens).
+- **An import fork reached standard:** `LIB/core/cask`, forked from Kenney's barrel (which
+  `size_band` flags), rebuilt at 64×73×64 cm with height and girth knobs. Its lineage names
+  `LIB/kenney_mini_dungeon/barrel@prop2-d7e9bd374cd92f52`, CC0-1.0, credit Kenney. It stands in
+  the Hall.
+- **Rooms (§10), in the Workshop wing:**
+  - **`library_hall`:** every standard object on a plinth beside a 1.8 m figure, signed with its
+    row, generated from the embedded index (`pav assets reindex=hall`; a test fails while it's
+    stale). Kestrel sits on the core chair through its `sit` socket, Ysolde holds
+    `LIB/core/mage_staff` by its `grip`, and both dance one clip.
+  - **`limits`:** seven numbered exhibits, each signed with the check that catches it or "not
+    caught". `check` is run on each to agree with its sign, and the import sign is recounted
+    from the indexes (28 of 61 imports over 30% mesh).
+  - **`catalogue`:** NEXT and BACK pads page through every store prop row, 20 at a time, from
+    the embedded index and the committed packs on disk. The web build shows a sign instead.
+  - Engine additions:
+    - a `catalogue` behaviour (pages are simulation state; rewind and snapshots restore them);
+    - an NPC `seat = "<object>"`;
+    - a look `weapon.asset` held by its grip socket;
+    - a room-object `patch = [ops]` for one-off variants of embedded assets.
+  - The seven existing library rooms got short signs naming their entries.
+  - `crates/pav_tools/tests/store_rooms.rs` covers all of this, including room_check and every
+    id on every sign (132).
+- **Kenney Mini Dungeon through every step** (a test in `store_rooms.rs`): ledger (30 lines; its
+  two rigged characters skipped), licence gate (CC0, admitted), index (28 rows: 10 checked, 18
+  disk), STORE.tsv, `assets find="dungeon chest"`, the Catalogue's pages, and its barrel's fork
+  at standard in the Hall.
+- **Review page:** https://claude.ai/artifact/DRYw88ptQCayvHoemCoUAa (private; 17 cards: the
+  three rooms, foundations and transforms, the cask fork, the five defects). Its verdicts are
+  stored and read back with `ArtifactData`; nothing waits on them.
+- **Exit (§13 S2):** planted defects 5/5; the rooms pass `room_check` and the ids test; a prop
+  forked from an import reached standard through the publish loop; the review page is up.
+- **Noted for the user:** `hall_table` resembles benchmark task P01 (a trestle table; it was
+  renamed from `trestle_table`, which the holdout test refused) and `chest` resembles P03. Both
+  are kept, as the brazier already resembles a benchmark task.
+- **Hazard found:** worktrees sharing one cargo target dir mix up embedded build-script output.
+  Once, `LIB/core` and `BUILTIN` stopped resolving until `cargo clean -p pav_core`. Build each
+  worktree in its own target.
+
 ## Asset store S1: does a library pay? — 2026-10-15
 
 Stage S1 of `docs/AGENT_ASSET_STORE.md` (§13). **Result: no, final after the fix and a second
