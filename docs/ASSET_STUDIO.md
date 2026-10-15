@@ -146,6 +146,12 @@ variant (0 as authored; keep to a few seeds per asset); the palette colours `$ro
 ({"$wall":"#5a6b7c"}); `id` keeps each unit's outline its own. Unknown names fail with the
 nearest one. Units need no physics: the game owns their positions.
 
+Characters use sockets through their looks and room data: a biped's
+`weapon = { kind = "staff", asset = "LIB/core/mage_staff" }` holds the object by its grip socket
+(+y along the weapon; the kind still sets reach and swings), and a room performer with
+`seat = "<object>"` sits on that object's sit socket (rooms/library_hall.toml). A room object's
+`patch = [ops]` places a one-off variant of an embedded asset (rooms/limits.toml).
+
 Scenery that never moves can instead be baked into the level's static regions
 (`statics::StaticProp`: no entity, one collider box, ~75 B in a snapshot); Shardfall dresses
 its rooms this way from `game/props.toml` (docs/GAME.md, "Dressing").

@@ -58,6 +58,9 @@ pub enum Behavior {
     Emitter(EmitterDef),
     /// Drops props: on a timer and/or when a pad sends its signal (physics stress tests).
     Spawner(SpawnerDef),
+    /// Lays out a page of the store's object rows when a pad sends its signal (the Catalogue
+    /// room; `crate::catalogue`).
+    Catalogue(crate::catalogue::CatalogueDef),
 }
 
 /// Spawns props around itself.

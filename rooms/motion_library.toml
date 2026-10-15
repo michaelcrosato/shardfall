@@ -208,6 +208,36 @@ pos = [24.50, 0.03, 19.30]
 size = 0.42
 color = "#f1f4fa"
 
+[[label]]
+text = """
+ENTRIES · clips
+MESH2MOTION/Dance Charleston · QUATERNIUS/Dance_Loop · MESH2MOTION/Dance Reach Hip
+MESH2MOTION/Dance Body Roll · CMU/Breakdance_Helicopter · MESH2MOTION/Fighting Idle
+QUATERNIUS/Punch_Jab · QUATERNIUS/Punch_Cross · CMU/Punch_Combo · CMU/Roundhouse_Kick
+CMU/Jump_Kick · CMU/Block_Combo · QUATERNIUS/Sword_Idle · QUATERNIUS/Sword_Regular_Combo
+QUATERNIUS/Sword_Attack · QUATERNIUS/Sword_Block · QUATERNIUS/Sword_Regular_B
+QUATERNIUS/Idle_Talking_Loop · QUATERNIUS/Farm_Watering · MESH2MOTION/Chop_Tree
+QUATERNIUS/Farm_PlantSeed · MESH2MOTION/Salute · MESH2MOTION/Greeting · CMU/Stretch_Yawn
+MESH2MOTION/Meditate
+(DANCE, FIGHT, SWORD, EVERYDAY: clips name= shows one)"""
+pos = [8.5, 0.03, 23.2]
+size = 0.13
+color = "#f1f4fa"
+
+[[label]]
+text = """
+ENTRIES · clips
+CMU/Cartwheel · MESH2MOTION/Backflip · CMU/Backflip · MESH2MOTION/Climb Wall
+MESH2MOTION/Ledge Hang · QUATERNIUS/NinjaJump_Start · QUATERNIUS/NinjaJump_Land
+QUATERNIUS/Death01 · QUATERNIUS/LayToIdle · MESH2MOTION/Death_B
+MESH2MOTION/Zombie_Rise · QUATERNIUS/Hit_Knockback · MESH2MOTION/Death_D
+QUATERNIUS/Zombie_Walk_Fwd_Loop · MESH2MOTION/Zombie Yell · QUATERNIUS/Zombie_Scratch
+MESH2MOTION/Zombie_Idle_Crouch
+(ACROBATICS, FALLS, MONSTERS)"""
+pos = [25.5, 0.03, 23.2]
+size = 0.13
+color = "#f1f4fa"
+
 [[npc]]
 name = "dance"
 pos = [5.00, 0.25, 5.50]

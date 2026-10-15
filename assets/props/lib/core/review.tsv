@@ -15,6 +15,7 @@ LIB/core/column_broken	prop2-b5dfb0abe506b788	ok (user review 2026-10-12); autho
 LIB/core/crate_stack	prop2-5b09d8b5843fc8c5	ok (user review 2026-10-12); author: ok: ~1 m plank crate, dark edge bands/posts, braces, top crate by chance 0.5, grounded, no pokes, reads as kit crate
 LIB/core/crystal_cluster	prop2-0ca56b8da5346b1f	ok (user review 2026-10-12); author: ok: 2-4 unlit $accent hex prisms 0.4-1.2 m leaning out of $wall base, one pulsing $accent light r4.5 m, grounded
 LIB/core/fence	prop2-f4008ceff0796e5a	ok (user review 2026-10-12); author: ok: 3 capped posts at x -100/0/100 so ends coincide when tiled, 2 rails span full 200 cm, on floor, ~waist-high vs figure
+LIB/core/mage_staff	prop2-d599d0a98f12ccbf	ok: 1.85 m ash shaft, leather grip wrap, iron ferrule and claw collar, glowing crystal reads at the figure sheet; grip socket at the wrap, +y up the shaft
 LIB/core/market_stall	prop2-098953977d350dfd	ok (user review 2026-10-12); author: ok: counter + 3 produce crates read under striped awning on 4 posts, scallop flaps, floor crate, front +z, on floor
 LIB/core/mushroom_cluster	prop2-c2e07e82ccadd9b4	ok (user review 2026-10-12); author: ok: 2-4 mushrooms 0.3-1.0 m, #d8cfb8 stems, glowing spotted $accent caps e0.7, grounded, reads at game distance
 LIB/core/rock_cluster	prop2-ada0a9db366fb909	ok (user review 2026-10-12); author: ok: 3 grounded boulders 0.3-1.1 m over 1.6 m, $wall stone, seed jitter on pos/yaw/scale/tint, reads at game distance

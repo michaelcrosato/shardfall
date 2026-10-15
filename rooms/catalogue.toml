@@ -1,0 +1,143 @@
+# Catalogue (Workshop wing): every object row of the asset store, twenty at a time. The room names
+# no assets (rooms may name only embedded ones): the NEXT and BACK pads signal the `catalogue`
+# behaviour, which reads the store's rows (the embedded indexes, then the committed packs on disk,
+# never local/) and lays out a page of props, each beside a 1.8 m figure and signed with its row.
+# Native builds only: the browser has no files, so there the pad puts up a sign instead.
+#   BACK   the page, growing from the back wall toward the door
+#   FRONT  BACK (west) and NEXT (east) pads by the door
+name = "Catalogue"
+about = "Every object row of the asset store, twenty at a time, each beside a 1.8 m figure and signed with its row (tier, licence, mesh share, findings): step on NEXT to page forward and BACK to page back. Desktop builds only; the browser shows a sign."
+try = [
+  "Step on NEXT: twenty props appear, each with a 1.8 m figure and a sign with its row",
+  "Keep stepping on NEXT to page through the library packs; BACK pages back (both wrap round)",
+  "Read a sign's mesh share: a mesh part can be placed and recoloured but never edited",
+  "In the REPL: signal name=next pages without walking, assets find=chair searches the same rows",
+]
+wing = "misc"
+order = 3
+primary_device = "keyboard_mouse"
+entrance = { at = [13, 27], facing = "south" }
+
+[camera]
+tilt = 50.0
+distance = 24.0
+fov = 40.0
+
+# Station guide (H in the game).
+[learn]
+what = "The whole object library of the asset store, a page at a time: the embedded standard tier (templates and LIB/core) and the committed packs on disk (Kenney Mini Dungeon, Quaternius Medieval Village). Each prop stands beside the 1.8 m figure, and its sign gives its name, pack, size in centimetres, tier, licence, mesh share and how many findings the object checks report. The NEXT and BACK pads page through them."
+how = [
+  "Rooms may name only embedded assets, because the browser build has nothing else; this room names none. Its catalogue object waits for a pad's signal.",
+  "On a signal it reads the store's rows at that moment: the embedded index first, then every committed pack's index.tsv under assets/props/lib (never local/, whose licences forbid sharing), and lays out the next twenty in lines of five, each cell as wide as its prop and figure.",
+  "Each prop is an ordinary placed copy whose definition travels with the simulation state, so rewind, snapshots and replays show the same page even after the files change; the signs are labels added to the room and taken away with the page.",
+  "The sign's findings are what asset_edit action=check lints: parts below the floor, floating or hidden parts, a size outside the band, a missing socket or material. Mesh share is the part of an import's surface its translator could not fit with primitives.",
+  "The browser has no files, so in the web build the pad puts up a sign that the catalogue needs the desktop build, and the Library Hall shows the embedded tier.",
+]
+uses = [
+  "Asset browsers: Unreal's Content Browser and Unity's Project window page through thumbnails of every asset with its metadata.",
+  "Reference rooms: studios keep gallery levels of every prop at real size beside a human figure (Bethesda's and Valve's test maps) to judge scale and consistency.",
+]
+ask = [
+  "show me every model we have",
+  "page through the asset library in the game",
+  "which imported props are mostly mesh",
+  "an in-game gallery of props with their stats",
+]
+cost = "A page loads twenty objects from their files (a few milliseconds each, once; imports with mesh parts take longer) and places about sixty entities and twenty-one labels; the view draws each prop as its parts. Nothing runs until a pad is stepped on."
+terms = ["asset store", "lint", "determinism", "gltf"]
+
+[[learn.code]]
+title = "The rows a page shows: embedded first, then the committed packs, never local"
+file = "crates/pav_core/src/catalogue.rs"
+lang = "rust"
+src = '''
+pub fn rows() -> Vec<Row> {
+    let mut rows = index::embedded().to_vec();
+    let (disk, _) = index::disk(&props::disk_root());
+    rows.extend(disk.into_iter().filter(|row| row.tier == Tier::Disk && !crate::store::local_path(&row.name)));
+    rows
+}
+'''
+
+[[learn.code]]
+title = "Each row a placed copy, kept out of a saved room"
+file = "crates/pav_core/src/catalogue.rs"
+lang = "rust"
+src = '''
+if let Ok(def) = def {
+    let centre = def.compiled.bounds.center();
+    let pos = at(spot.prop - Vec3::new(centre.x, 0.0, centre.z));
+    let copy = PropInstance::new(&row.name, def.clone(), 1.0, false);
+    if let Ok(id) = copy.and_then(|copy| self.place_prop(copy, pos, rot, region)) {
+        // `~` keeps it out of a saved room (edit mode).
+        self.state.entities.get_mut(id).unwrap().name = format!("~{}", row.name);
+        cat.spawned.push(id);
+    }
+}
+'''
+
+[layout]
+origin = [-13.0, 0.0, -14.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+##########################
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#......bbb......nnn......#
+#......bbb......nnn......#
+#......bbb......nnn......#
+#........................#
+#############.############
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }, { y0 = 0, y1 = 3.0, color = "#2c3042" }]
+
+[layout.legend.'n']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "NEXT", color = "#3f9e5a", signal = "next", note = "The next twenty rows of the store, each beside a 1.8 m figure and signed with its row (desktop builds; the browser shows a sign)." }
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "BACK", color = "#556a8a", signal = "back", note = "The twenty rows before (from the start: the last page)." }
+
+# ---- labels, characters and objects (keep at the end of the file) ----
+
+[[label]]
+text = "CATALOGUE · EVERY OBJECT ROW OF THE STORE, TWENTY AT A TIME"
+pos = [13.0, 0.03, 21.8]
+size = 0.42
+color = "#f1f4fa"
+
+[[object]]
+name = "catalogue"
+shape = { type = "sphere", radius = 0.05 }
+pos = [13.0, 0.0, 3.0]
+color = "#3d4256"
+body = "none"
+behavior = { type = "catalogue", signal = "next", back = "back", per_page = 20, columns = 5 }

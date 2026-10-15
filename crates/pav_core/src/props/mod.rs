@@ -27,7 +27,7 @@ use crate::shape::{Look, Shape, Visual};
 
 pub use compile::{CompiledProp, DEFAULT_ROLES, ResolvedPart};
 pub use doc::Doc;
-pub use family::{Params, apply_params, canonical_placed, resolve_parts, resolve_placed, split_preset};
+pub use family::{Params, apply_params, canonical_placed, patched, resolve_parts, resolve_placed, split_preset};
 pub use patch::MAX_OPS;
 pub use patch::v2::{OPS as OPS2, Patched, patch as patch_document};
 /// Format 2's field tables, legend and field guide.

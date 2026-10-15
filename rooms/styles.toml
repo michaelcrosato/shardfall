@@ -413,6 +413,16 @@ color = "#cfd3dc"
 
 # ---- objects (keep at the end of the file) ----
 
+[[label]]
+text = """
+ENTRIES · styles
+flat · cel · lit · unlit
+ENTRIES · look sections
+outlines · shading"""
+pos = [24.5, 0.03, 27.1]
+size = 0.16
+color = "#f1f4fa"
+
 [[object]]
 name = "flat_crate"
 shape = { type = "box", half = [0.6, 0.6, 0.6] }

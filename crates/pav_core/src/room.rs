@@ -59,6 +59,10 @@ pub struct ObjectDef {
     /// (`LIB/core/fence:low`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub params: crate::props::Params,
+    /// `asset_edit` patch ops applied to this copy only (`patch = [{ op = "scale", by = 0.5 }]`):
+    /// a one-off variant such as a defect on show. Publish a variant that rooms reuse instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patch: Vec<serde_json::Value>,
     pub pos: Vec3,
     /// Rotation about the vertical axis (degrees).
     #[serde(default)]
@@ -115,6 +119,15 @@ impl ObjectDef {
     /// Rotation in the room's own frame.
     pub fn local_rot(&self) -> glam::Quat {
         glam::Quat::from_euler(glam::EulerRot::YXZ, self.yaw.to_radians(), self.pitch.to_radians(), self.roll.to_radians())
+    }
+
+    /// A prop's library name, its definition with `patch` applied, and its knob values. Errors:
+    /// not a prop, an asset this build lacks, bad knob values or a patch that does not apply.
+    pub fn placed(&self) -> Result<(String, std::sync::Arc<crate::props::PropDef>, crate::props::Params), String> {
+        let asset = self.asset.as_deref().ok_or_else(|| format!("object '{}' places no asset", self.name))?;
+        let (name, definition, params) = crate::props::resolve_placed(asset, &self.params)?;
+        let definition = crate::props::patched(&definition, &self.patch).map_err(|e| format!("object '{}': {e}", self.name))?;
+        Ok((name, definition, params))
     }
 }
 
@@ -383,6 +396,11 @@ pub struct NpcDef {
     /// Speed of the performance (1 = as captured).
     #[serde(default)]
     pub tempo: f32,
+    /// Sits on the room object of this name through its prop's `sit` socket: placed in front of
+    /// the socket, facing the way the seat faces, so its first clip's pelvis lands on the seat
+    /// (`pos` and `yaw` are ignored). Give it a sitting clip, and the seat `body = "none"`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub seat: String,
 }
 
 fn half_speed() -> f32 {
@@ -469,6 +487,13 @@ impl RoomDef {
                 }
             }
             n.perform()?;
+            if !p.weapon.asset.is_empty() {
+                let parts = crate::props::resolve_parts(&p.weapon.asset, 0).map_err(|e| format!("npc '{}': {e}", n.name))?;
+                if !parts.sockets.contains_key("grip") {
+                    return Err(format!("npc '{}': {} has no grip socket to hold it by", n.name, p.weapon.asset));
+                }
+            }
+            self.seat_spot(n)?;
         }
         let (w, h) = self.layout.extent();
         if w == 0 || h == 0 {
@@ -504,6 +529,33 @@ impl RoomDef {
             }
         }
         Ok(())
+    }
+
+    /// Where a seated performer's feet go (layout space) and which way it faces (degrees), from
+    /// the `sit` socket of the object it sits on; None when it has no `seat`.
+    pub fn seat_spot(&self, n: &NpcDef) -> Result<Option<(Vec3, f32)>, String> {
+        if n.seat.is_empty() {
+            return Ok(None);
+        }
+        let fail = |what: String| format!("npc '{}': seat '{}' {what}", n.name, n.seat);
+        let o = self.objects.iter().find(|o| o.name == n.seat).ok_or_else(|| fail("is not an object of this room".into()))?;
+        let (_, def, params) = o.placed().map_err(&fail)?;
+        let parts = def.variant_with(&params, o.seed);
+        let socket = parts.sockets.get("sit").ok_or_else(|| fail(format!("({}) has no sit socket", def.doc.name)))?;
+        let rot = o.local_rot();
+        let at = o.pos + rot * (socket.pos * o.scale);
+        let front = rot * socket.rot * Vec3::Z;
+        let front = Vec3::new(front.x, 0.0, front.z).normalize_or(Vec3::Z);
+        // The first clip's pelvis sits this far ahead of the feet (sitting clips: behind them).
+        let ahead = n
+            .clips
+            .first()
+            .and_then(|name| crate::clips::find(name))
+            .and_then(|id| crate::clips::with(id, |clip| clip.key_at(0.0).hips[0]))
+            .unwrap_or(0.0);
+        let hip = crate::clips::hip_height(&n.puppet()?);
+        let feet = at - front * (ahead / 100.0 * hip);
+        Ok(Some((Vec3::new(feet.x, o.pos.y, feet.z), front.x.atan2(front.z).to_degrees())))
     }
 
     /// Player start for a standalone room: the "player" marker, else just inside the entrance.

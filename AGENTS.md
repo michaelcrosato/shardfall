@@ -248,6 +248,7 @@ Use the returned `revision` as `if_revision` on later edits. Copy source clips b
 keep local source copies and their history in `anim/local`.
 
 Asset store (`docs/AGENT_ASSET_STORE.md`): before making a prop or clip, `assets shelf=prop` (or `shelf=clip`) lists the best entries and `assets find=words` (`kind=clip` for motion) searches; a miss gives `none` and a route.
+In the Workshop wing, `library_hall` shows every standard object (generated: after publishing to core, rebuild and run `pav assets reindex=hall`), `limits` what the checks catch and miss, `catalogue` pages through every store row (desktop builds).
 
 Object Studio: `scripts/asset-studio.sh` or `shardfall --asset-studio` opens reusable prop
 authoring on the same live bridge (`.mcp.studio.json`). `assets find=words` searches templates
@@ -483,7 +484,10 @@ the engine reads every translation back; byte-identical twice; translate, check,
 survey through the tool), `tests/import_library.rs` (packs go to lib/ or local/ by licence
 with their `PACK.json`, credits, index and catalog tags; unknown licences refused),
 `tests/planted_defects.rs` (the store's five planted defects, each caught: size_band,
-below_floor, socket_missing, a missing texture failing the import) and
+below_floor, socket_missing, a missing texture failing the import), `tests/store_rooms.rs` (the
+Library Hall is current, the store rooms pass room_check, every id a sign names resolves, each
+Limits sign is true, the Catalogue pages through every row with rewind and snapshots, Kenney
+Mini Dungeon through every step) and
 `tests/import_khronos.rs` (opt-in,
 `-- --ignored`: 12 Khronos sample models at a pinned commit). `pav_core/tests/prop_materials.rs`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,

@@ -8,6 +8,7 @@ pub mod animation_edit;
 pub mod animation_preview;
 pub mod arpg;
 pub mod behaviors;
+pub mod catalogue;
 pub mod character;
 pub mod clips;
 pub mod color;

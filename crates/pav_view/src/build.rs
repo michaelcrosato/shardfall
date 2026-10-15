@@ -1711,7 +1711,11 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
     // Characters are never sliced by the cutaway.
     let flags = rs::flags::NO_CUT;
     let (tint, wash) = p.tint.map(|(c, k)| (Vec3::from(c), k)).unwrap_or((Vec3::ONE, 0.0));
-    for part in pav_core::puppet::pose(def, &p.state, p.rig.as_ref(), feet, cam_fwd) {
+    let (parts, span) = pav_core::puppet::pose_ex(def, &p.state, p.rig.as_ref(), feet, cam_fwd);
+    if let (false, Some((hand, tip))) = (def.weapon.asset.is_empty(), span) {
+        held_asset(scene, &def.weapon.asset, hand, tip, o.id.0);
+    }
+    for part in parts {
         scene.sdfs.push(SdfInstance {
             a: part.a,
             b: part.b,
@@ -1725,6 +1729,17 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
             material: 0,
         });
     }
+}
+
+/// A library prop held in the hand (a look's `weapon.asset`): its `grip` socket at `hand`, the
+/// socket's +y toward `tip`, at the prop's own size.
+fn held_asset(scene: &mut Scene, name: &str, hand: Vec3, tip: Vec3, id: u32) {
+    let Ok(parts) = pav_core::props::resolve_parts(name, 0) else { return };
+    let (grip, turn) = parts.sockets.get("grip").map_or((Vec3::ZERO, Quat::IDENTITY), |s| (s.pos, s.rot));
+    let rot = Quat::from_rotation_arc((turn * Vec3::Y).normalize_or(Vec3::Y), (tip - hand).normalize_or(Vec3::Y));
+    let at = crate::assets::Placement::at(hand - rot * grip).rot(rot).id(id);
+    // Names were checked when the look was read; a prop this build lacks is not drawn.
+    let _ = crate::assets::emit_asset(scene, name, at, 0, &Default::default());
 }
 
 /// Adds one object's instances to the scene (props are drawn by `ViewBuilder::emit_prop`).

@@ -278,6 +278,15 @@ pos = [14.50, 0.03, 20.00]
 size = 0.45
 color = "#f1f4fb"
 
+[[label]]
+text = """
+ENTRIES · look sections
+scanlines · screen · palette · grading
+grain"""
+pos = [5.5, 0.03, 24.0]
+size = 0.16
+color = "#f1f4fa"
+
 [[object]]
 name = "house"
 shape = { type = "box", half = [1.0, 0.7, 0.8] }

@@ -582,3 +582,21 @@ key = "gltf"
 name = "glTF"
 text = "The open 3D asset format (JSON plus binary buffers) most free model packs ship in. The engine keeps no binary models: its tools translate what they use into readable text (`clip_import` reads glTF animation), and downloads stay in the git-ignored .cache/ folder."
 see = ["vertex color", "retargeting"]
+
+[[term]]
+key = "asset store"
+name = "Asset store"
+text = "The engine's library of ready-made things for agents: objects, motion clips and materials, each a readable text file with a generated row saying its size, licence, tier and token cost (`store/STORE.tsv`). `assets find=` searches it and `assets shelf=` lists the best entries; only the standard tier is in every build."
+see = ["socket", "lint", "gltf"]
+
+[[term]]
+key = "socket"
+name = "Socket"
+text = "A named point and direction on an object where something attaches: `sit` on a seat top, `grip` on a handle with +y along the blade or shaft, `wall_mount` on a back. Characters sit and hold things through them, so any chair or staff that has one works."
+see = ["asset store", "retargeting"]
+
+[[term]]
+key = "lint"
+name = "Lint"
+text = "An automatic check that flags likely mistakes without judging taste. `asset_edit action=check` lints objects: parts below the floor, floating or hidden parts, z-fighting faces, a size outside the thing's real-world band, a missing socket, a material the library lacks. What it does not measure, it cannot catch."
+see = ["z-fighting", "asset store"]

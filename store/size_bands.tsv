@@ -29,6 +29,7 @@ dagger	dagger knife	weapon tool	length	10	60	-	grip
 spear	spear pike lance halberd polearm	weapon	length	100	450	-	grip
 axe	axe hatchet	weapon tool	length	20	200	-	grip
 mace	mace club hammer flail	weapon tool	length	20	200	-	grip
+staff	staff stave quarterstaff	weapon tool	length	100	250	-	grip
 shield	shield buckler	armour weapon	length	25	200	-	-
 banner	banner flag	signage	height	40	1000	-	-
 stall	stall	architecture	height	150	450	-	-

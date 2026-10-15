@@ -73,3 +73,6 @@ CC-BY credit travels with every copy and fork (it is in the lineage).
 `pav assets reindex=store` writes `store/CREDITS.md` and `store/STORE.tsv`; `pav assets
 reindex=<pack>` (or `=templates`, `=core`) rewrites a pack's `index.tsv`. Tests fail when any
 is stale. Never edit them by hand; edit the assets, the `PACK.json` or the clip sets.
+
+In the game's Workshop wing: `library_hall` (the standard tier; `reindex=hall` rewrites it), `limits`
+(what checks miss), `catalogue` (every row; desktop builds).

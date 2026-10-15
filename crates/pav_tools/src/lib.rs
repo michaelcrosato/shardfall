@@ -15,6 +15,7 @@ pub mod creature_preview_tools;
 pub mod creature_tools;
 pub mod creature_worker;
 pub mod game_tools;
+pub mod hall;
 pub mod import;
 pub mod live_feedback;
 pub mod material_tools;

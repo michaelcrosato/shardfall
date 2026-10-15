@@ -396,6 +396,19 @@ pos = [24.00, 0.03, 24.40]
 size = 0.36
 color = "#f1f4fa"
 
+[[label]]
+text = """
+ENTRIES · looks
+Pixel heroes · HD-2D · Pixel world, crisp heroes
+Game Boy world · Game Boy · 16-bit · Cartoon · Comic noir
+Flat paper · Arcade CRT · Hologram heroes · Posterized world
+ENTRIES · look presets
+pixel/Bold · outlines/Ink · palette/Game Boy · grading/Noir
+(look name= sets a look, look section= preset= a preset)"""
+pos = [35.0, 0.03, 24.3]
+size = 0.16
+color = "#f1f4fa"
+
 [[npc]]
 name = "walker_red"
 kind = "biped"

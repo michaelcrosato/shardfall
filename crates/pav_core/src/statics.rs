@@ -477,6 +477,17 @@ impl StaticWorld {
         chunk.version += 1;
     }
 
+    /// Takes these labels out of an active region (signs put up while playing).
+    pub fn remove_labels_from(&mut self, key: RegionKey, labels: &[Label]) {
+        if labels.is_empty() {
+            return;
+        }
+        let Some(chunk) = self.chunks.get_mut(&key) else { return };
+        let chunk = Arc::make_mut(chunk);
+        chunk.labels.retain(|label| !labels.contains(label));
+        chunk.version += 1;
+    }
+
     pub fn add_label_to(&mut self, key: RegionKey, label: Label) {
         let chunk = self.chunk_mut(key);
         let h = Vec3::splat(label.size);

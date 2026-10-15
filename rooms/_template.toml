@@ -160,6 +160,10 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #                count = 20, interval = 0, max = 200, area = [1.5, 0.5, 1.5], signal = "drop",
 #                clear = "clear", density = 1, friction = 0.5, restitution = 0.1, tumble = true }
 #     (pending = 1 drops one batch on the first tick, so the room starts with its props)
+# The store's catalogue (rooms/catalogue.toml; body = "none"): a pad's signal lays out the next
+# page of the store's object rows (embedded, then the committed packs on disk; desktop builds,
+# the browser shows a sign), each beside a 1.8 m figure with its row; `back` pages back:
+#   behavior = { type = "catalogue", signal = "next", back = "back", per_page = 20, columns = 5 }
 # More object fields: pitch = 20, roll = 0 (tilt in degrees, e.g. ramps), density = 1 (kg/m³:
 # 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
 # restitution = 0.0 (bounciness 0..1; rapier averages it with the surface underneath),
@@ -167,8 +171,10 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # Reusable props made in the Object Studio replace shape and colour:
 #   asset = "BUILTIN/bench", scale = 1, body = "fixed" (or "none": no collision),
 #   seed = 3 (a variant: chance, jitter and pick; 0 as authored),
-#   roles = { "$wall" = "#5a6b7c" } (colours for the theme roles its parts name).
-#   `room_check` names any asset the library does not have.
+#   roles = { "$wall" = "#5a6b7c" } (colours for the theme roles its parts name),
+#   patch = [{ op = "scale", by = 0.5 }] (asset_edit patch ops on this copy only: a one-off
+#   variant, such as a defect on show in rooms/limits.toml; publish variants rooms reuse).
+#   `room_check` names any asset the library does not have, or a patch that does not apply.
 # Visual-only effects on any object (never affect the simulation; body = "none" for invisible
 # emitters with a tiny sphere shape):
 #   light = { color = "#ffb060", radius = 7, intensity = 2.5, flicker = 0.8, pulse = 0,
@@ -253,7 +259,11 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 # look = any puppet setting over the kind's preset: colours (skin, shirt, pants, shoes, eyes,
 # accent), proportions (scale, leg_length, torso_radius, head_radius, body_length, legs,
 # tail_length, antenna_length), animation (stride, step_height, step_time, squash, lean, wobble,
-# anim_fps = 12 for "on twos") and look = "cel" | "flat" | "lit" | "cutout".
+# anim_fps = 12 for "on twos") and look = "cel" | "flat" | "lit" | "cutout". A biped can hold a
+# library object by its grip socket: look = { weapon = { kind = "staff", asset = "LIB/core/mage_staff" } }.
+# Performers: clips = ["SET/Clip", ...] (the clips tool lists them), moves = [...], hold = 5 (s).
+# seat = "chair" sits it on the room object named chair through that prop's sit socket (its
+# pos and yaw are ignored; give it a sitting clip first, and the seat body = "none").
 # [[npc]]
 # name = "spidey"
 # kind = "spider"
