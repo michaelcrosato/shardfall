@@ -1,0 +1,12 @@
+{"format":2,"name":"cell_cot","unit":"cm",
+"description":"A narrow wooden prison cot with a thin straw mattress.",
+"tags":["cot","bed","prison","wood"],
+"category":"furniture",
+"materials":{
+"straw":{"color":"#a89860"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"frame":{"type":"box","size":[70,6,190],"pos":[0,36,0],"mat":"wood"},
+"leg":{"type":"box","size":[6,33,6],"pos":[32,16.5,92],"mat":"wood","mirror":["x","z"]},
+"mattress":{"type":"rounded_box","size":[64,8,182],"radius":3,"pos":[0,43,0],"mat":"straw"},
+"rail":{"type":"box","size":[4,10,186],"pos":[-33,43,0],"mat":"wood","mirror":"x"}}}

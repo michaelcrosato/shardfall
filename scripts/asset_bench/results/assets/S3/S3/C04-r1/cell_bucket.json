@@ -1,0 +1,11 @@
+{"format":2,"name":"cell_bucket","unit":"cm",
+"description":"A small wooden bucket with iron hoops and a rope handle.",
+"tags":["bucket","wood","barrel"],
+"category":"container",
+"materials":{
+"iron":"MAT/wrought_iron",
+"wood":"MAT/barrel_staves"},
+"parts":{
+"body":{"type":"cone","radius":13,"radius_end":10,"height":30,"pos":[0,15,0],"mat":"wood"},
+"hoop1":{"type":"tube","radius":12.2,"thickness":1,"height":3,"pos":[0,8,0],"mat":"iron"},
+"hoop2":{"type":"tube","radius":10.8,"thickness":1,"height":3,"pos":[0,23,0],"mat":"iron"}}}

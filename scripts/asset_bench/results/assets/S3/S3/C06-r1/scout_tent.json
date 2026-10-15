@@ -1,0 +1,11 @@
+{"format":2,"name":"scout_tent","unit":"cm",
+"description":"A canvas A-frame scout tent with a dark entrance flap, poles and guy pegs.",
+"materials":{
+"canvas":{"color":"#d8c79a"},
+"dark":{"color":"#2c2a26"},
+"wood":{"color":"#6b4a2b"}},
+"parts":{
+"body":{"type":"wedge","size":[220,200,240],"peak":0,"pos":[0,100,0],"yaw":90,"mat":"canvas"},
+"door":{"type":"extrude","points":[[-40,0],[40,0],[0,150]],"depth":4,"pos":[0,0,121],"mat":"dark"},
+"pole":{"type":"cylinder","radius":2.5,"height":200,"pos":[0,100,124],"mat":"wood"},
+"ridge":{"type":"cylinder","radius":2.5,"height":240,"pos":[0,198,0],"axis":"z","mat":"wood"}}}

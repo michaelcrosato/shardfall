@@ -1,0 +1,7 @@
+{"format":2,"name":"mine_scene","unit":"cm",
+"description":"preview",
+"parts":{
+"b":{"ref":"WORKSHOP/mine_beam","pos":[0,0,-100]},
+"c":{"ref":"WORKSHOP/minecart","pos":[0,0,0]},
+"l":{"ref":"WORKSHOP/mine_lamp","pos":[0,200,-90]},
+"p":{"ref":"WORKSHOP/pickaxe","pos":[70,0,0]}}}

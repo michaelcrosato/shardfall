@@ -1,0 +1,32 @@
+{"format":2,"name":"tent","unit":"cm",
+"description":"A canvas A-frame tent: door flap on +z, poles through the ridge, guy ropes, pegs. Knobs: size, flap, shape.",
+"tags":["tent","camp","canvas","shelter","bell_tent","pup_tent"],
+"category":"town",
+"materials":{
+"canvas":{"color":"$accent"},
+"dark":{"color":"#241a12","look":"flat"},
+"rope":{"color":"#b8a27a"},
+"wood":{"color":"#6b4a2e"}},
+"parts":{
+"bell":{"chance":0,"parts":{
+  "band":{"type":"torus","radius":157,"minor_radius":2.5,"pos":[0,60,0],"mat":"rope"},
+  "cone":{"type":"cone","radius":200,"radius_end":6,"height":270,"segments":16,"pos":[0,135,0],"mat":"canvas"},
+  "peg":{"type":"box","size":[4,10,4],"pos":[0,5,0],"mat":"wood","radial":{"count":8,"radius":215}},
+  "pole":{"type":"cylinder","radius":4,"from":[0,0,0],"to":[0,300,0],"mat":"wood"}}},
+"door":{"pos":[0,0,120],"pitch":0,"parts":{
+  "flap":{"pos":[35,0,1.5],"yaw":115,"parts":{
+    "panel":{"type":"extrude","points":[[-70,0],[0,0],[-35,140]],"depth":1.2,"mat":"canvas"}}},
+  "hole":{"type":"extrude","points":[[0,0],[35,0],[0,140]],"depth":1,"pos":[0,0,0.4],"mat":"dark","mirror":"x"}}},
+"ridge":{"parts":{
+  "body":{"type":"extrude","points":[[0,0],[110,0],[0,200]],"depth":240,"mat":"canvas","mirror":"x"},
+  "fly":{"type":"box","size":[252,4],"from":[111.5,2,0],"to":[0,203,0],"mat":"canvas","mirror":"x"},
+  "guy":{"type":"cylinder","radius":1,"from":[0,208,118],"to":[0,0,178],"mat":"rope","mirror":"z"},
+  "peg":{"type":"box","size":[4,10,4],"pos":[0,5,178],"mat":"wood","mirror":"z"},
+  "pole":{"type":"cylinder","radius":3,"from":[0,0,118],"to":[0,212,118],"mat":"wood","mirror":"z"}}}},
+"params":{
+"flap":{"choices":["open","closed"],"set":{"door.flap.yaw":[115,0]}},
+"shape":{"choices":["ridge","bell"],"set":{"bell.chance":[0,1],"door.pitch":[0,-35.7],"door.pos.2":[120,200],"ridge.chance":[1,0]}},
+"size":{"range":[100,260],"set":{"door.flap.panel.points.2.1":0.7,"door.hole.points.2.1":0.7,"ridge.body.points.1.0":0.55,"ridge.body.points.2.1":1,"ridge.fly.from.0":0.5575,"ridge.fly.to.1":1.015,"ridge.guy.from.1":1.04,"ridge.pole.to.1":1.06}}},
+"presets":{
+"bell":{"shape":"bell"},
+"small":{"flap":"closed","size":110}}}

@@ -1,0 +1,14 @@
+{"format":2,"name":"mine_beam","unit":"cm",
+"description":"Timber mine support: two posts, a header beam and angled braces.",
+"tags":["beam","timber","mine"],
+"category":"architecture",
+"materials":{
+"dark":{"color":"#5a3e26"},
+"wood":{"color":"#8a5e38","layers":[{"type":"wood","size":10,"shade":0.75}]}},
+"parts":{
+"brace":{"type":"box","size":[12,12],"from":[-100,170,0],"to":[-70,232,0],"mat":"dark","mirror":"x"},
+"cap":{"type":"box","size":[26,14,30],"pos":[0,244,0],"mat":"wood"},
+"header":{"type":"box","size":[34,26],"from":[-135,235,0],"to":[135,235,0],"mat":"dark"},
+"post":{"type":"box","size":[22,22],"from":[-110,0,0],"to":[-110,235,0],"mat":"wood","mirror":"x"}},
+"sockets":{
+"hang":{"pos":[0,222,0]}}}

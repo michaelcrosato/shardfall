@@ -1,0 +1,138 @@
+[[brief]]
+id = "D01"
+order = 1
+title = "Lighthouse keeper's lamp room"
+text = """Build the top room of a small lighthouse. Put a big lantern about 120 cm tall at the center, a narrow cot about 200 cm long against the wall, and a barrel about 90 cm tall. Floor is worn planks."""
+roles = [
+  {role = "lighthouse lantern", kind = "prop", count = 1, h = [102, 138], light = true},
+  {role = "cot", kind = "prop", count = 1, l = [170, 230]},
+  {role = "barrel", kind = "prop", count = 1, h = [77, 104]},
+  {role = "floor", kind = "material", count = 1},
+]
+needs = ["prop: a large lantern about 120 cm tall that gives light", "prop: a narrow cot about 200 cm long", "prop: a barrel about 90 cm tall", "material: worn planks for the floor"]
+
+[[brief]]
+id = "D02"
+order = 2
+title = "Graveyard at night"
+text = """A small fenced graveyard with three headstones about 100 cm tall, a stretch of iron fence about 200 cm long, and a hanging lantern post about 220 cm tall. A zombie shambles between the graves."""
+roles = [
+  {role = "headstone", kind = "prop", count = 3, h = [85, 115]},
+  {role = "iron fence", kind = "prop", count = 1, l = [170, 230]},
+  {role = "lantern post", kind = "prop", count = 1, h = [187, 253], light = true},
+  {role = "zombie shamble", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: three headstones about 100 cm tall", "prop: an iron fence section about 200 cm long", "prop: a lantern post about 220 cm tall that gives light", "clip: a zombie's looping shambling walk"]
+
+[[brief]]
+id = "D03"
+order = 3
+title = "Village bakery back room"
+text = """A baker's room with a brick bread oven about 180 cm tall, a floury work table about 90 cm long, and a few loaves of bread about 30 cm long. The walls are brick, and a baker kneads dough at the table."""
+roles = [
+  {role = "bread oven", kind = "prop", count = 1, h = [153, 207], light = true},
+  {role = "work table", kind = "prop", count = 1, l = [77, 104]},
+  {role = "bread loaf", kind = "prop", count = 3, l = [25, 35]},
+  {role = "wall", kind = "material", count = 1},
+  {role = "baker kneading", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a bread oven about 180 cm tall with a fire glow", "prop: a work table about 90 cm long", "prop: bread loaves about 30 cm long", "material: brick for the walls", "clip: a looping kneading motion"]
+
+[[brief]]
+id = "D04"
+order = 4
+title = "Throne room dais"
+text = """A raised stone dais with a throne about 160 cm tall, two tall banners about 250 cm high on either side, and a long red rug leading to it. The floor is polished stone slabs, and the king makes a commanding gesture from the throne."""
+roles = [
+  {role = "throne", kind = "prop", count = 1, h = [136, 184]},
+  {role = "banner", kind = "prop", count = 2, h = [212, 288]},
+  {role = "rug", kind = "prop", count = 1, l = [300, 700]},
+  {role = "floor", kind = "material", count = 1},
+  {role = "king command gesture", kind = "clip", count = 1},
+]
+needs = ["prop: a throne about 160 cm tall", "prop: tall banners about 250 cm high", "prop: a long runner rug", "material: stone slabs for the floor", "clip: a king's commanding hand gesture"]
+
+[[brief]]
+id = "D05"
+order = 5
+title = "Beached rowboat landing"
+text = """A sailor hauls a rowboat about 300 cm long up onto a sandy beach. Nearby sit two crates about 60 cm wide, a coil of rope, and a palm tree about 400 cm tall. The sailor waves at a ship offshore."""
+roles = [
+  {role = "rowboat", kind = "prop", count = 1, l = [255, 345]},
+  {role = "crate", kind = "prop", count = 2, h = [51, 69]},
+  {role = "palm tree", kind = "prop", count = 1, h = [340, 460]},
+  {role = "rope coil", kind = "prop", count = 1},
+  {role = "sailor wave", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a rowboat about 300 cm long", "prop: wooden crates about 60 cm tall", "prop: a palm tree about 400 cm tall", "prop: a coil of rope", "clip: a sailor waving, looping"]
+
+[[brief]]
+id = "D06"
+order = 6
+title = "Farm field with scarecrow"
+text = """A small crop patch with a scarecrow about 190 cm tall, a haystack about 150 cm tall, a low wooden fence about 250 cm long and a wheelbarrow. A farmer hoes the soil. The ground is tilled earth."""
+roles = [
+  {role = "scarecrow", kind = "prop", count = 1, h = [162, 218]},
+  {role = "haystack", kind = "prop", count = 1, h = [127, 173]},
+  {role = "wooden fence", kind = "prop", count = 1, l = [212, 288]},
+  {role = "wheelbarrow", kind = "prop", count = 1},
+  {role = "tilled soil", kind = "material", count = 1},
+  {role = "farmer hoeing", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a scarecrow about 190 cm tall", "prop: a haystack about 150 cm tall", "prop: a low wooden fence about 250 cm long", "prop: a wheelbarrow", "material: tilled soil for the ground", "clip: a farmer's looping hoeing motion"]
+
+[[brief]]
+id = "D07"
+order = 7
+title = "Dragon hoard cave"
+text = """A cave with a sleeping dragon curled up beside a gold pile about 120 cm high. Scattered around are a few goblets about 15 cm tall, a knight's skeleton, and stalagmites about 150 cm tall. A wall torch lights the scene."""
+roles = [
+  {role = "gold pile", kind = "prop", count = 1, h = [102, 138]},
+  {role = "goblet", kind = "prop", count = 3, h = [12, 18]},
+  {role = "stalagmite", kind = "prop", count = 2, h = [127, 173]},
+  {role = "wall torch", kind = "prop", count = 1, light = true},
+  {role = "dragon sleeping idle", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a gold coin pile about 120 cm high", "prop: goblets about 15 cm tall", "prop: stalagmites about 150 cm tall", "prop: a wall torch that gives light", "clip: a dragon's looping sleeping idle"]
+
+[[brief]]
+id = "D08"
+order = 8
+title = "Swamp hut on stilts"
+text = """A hut on stilts about 300 cm tall over murky water, reached by a short plank walkway about 250 cm long. Put reeds, a hanging lantern, and a glowing mushroom cluster about 60 cm tall nearby. The walkway is mossy rotten planks."""
+roles = [
+  {role = "stilt hut", kind = "prop", count = 1, h = [255, 345]},
+  {role = "walkway", kind = "prop", count = 1, l = [212, 288]},
+  {role = "glowing mushrooms", kind = "prop", count = 1, h = [51, 69], light = true},
+  {role = "hanging lantern", kind = "prop", count = 1, light = true},
+  {role = "walkway surface", kind = "material", count = 1},
+]
+needs = ["prop: a hut on stilts about 300 cm tall", "prop: a plank walkway about 250 cm long", "prop: a glowing mushroom cluster about 60 cm tall", "prop: a hanging lantern", "material: mossy rotten planks"]
+
+[[brief]]
+id = "D09"
+order = 9
+title = "Arena training yard"
+text = """A sandy training yard with two straw practice dummies about 170 cm tall, a bench about 150 cm long, and a barrel of wooden swords. A fighter performs a sword swing at a dummy, and the ground is packed sand."""
+roles = [
+  {role = "practice dummy", kind = "prop", count = 2, h = [145, 196]},
+  {role = "bench", kind = "prop", count = 1, l = [127, 173]},
+  {role = "sword barrel", kind = "prop", count = 1},
+  {role = "sand ground", kind = "material", count = 1},
+  {role = "sword swing", kind = "clip", count = 1},
+]
+needs = ["prop: straw practice dummies about 170 cm tall", "prop: a bench about 150 cm long", "prop: a barrel holding wooden swords", "material: packed sand for the ground", "clip: a one-handed sword swing"]
+
+[[brief]]
+id = "D10"
+order = 10
+title = "Snowy watchtower lookout"
+text = """A timber watchtower platform about 300 cm up, with a signal brazier-style beacon about 100 cm tall and a ladder about 300 cm long. A guard scans the horizon from the platform. Snow-dusted planks cover the platform floor."""
+roles = [
+  {role = "watchtower", kind = "prop", count = 1, h = [255, 345]},
+  {role = "beacon", kind = "prop", count = 1, h = [85, 115], light = true},
+  {role = "ladder", kind = "prop", count = 1, l = [255, 345]},
+  {role = "platform floor", kind = "material", count = 1},
+  {role = "guard look-around", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a timber watchtower about 300 cm tall", "prop: a signal beacon about 100 cm tall that gives light", "prop: a ladder about 300 cm long", "material: snow-dusted planks", "clip: a guard's looping look-around idle"]

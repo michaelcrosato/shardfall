@@ -1,0 +1,7 @@
+{"items":[
+{"role":"tent","kind":"prop","id":"WORKSHOP/scout_tent","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"bedroll","kind":"prop","id":"WORKSHOP/bedroll","how":"made","from":"","pos":[-0.9,0,2.5],"yaw":0,"scale":1},
+{"role":"supply crate","kind":"prop","id":"BUILTIN/crate","how":"placed","from":"BUILTIN/crate","pos":[0.8,0,1.9],"yaw":0,"scale":0.48},
+{"role":"lantern","kind":"prop","id":"BUILTIN/lantern","how":"placed","from":"BUILTIN/lantern","pos":[0.8,0.576,1.9],"yaw":0,"scale":0.146},
+{"role":"sentry patrol walk","kind":"clip","id":"QUATERNIUS/Walk_Loop","how":"placed","from":"QUATERNIUS/Walk_Loop"}
+],"notes":"Tent and bedroll made; crate and lantern are scaled builtins; sentry uses existing walk loop."}

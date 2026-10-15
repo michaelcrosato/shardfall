@@ -1,0 +1,34 @@
+{"format":2,"name":"cot","unit":"cm",
+"description":"A 190 cm bed: a low wooden cot with pad, blanket and pillow. Knob style: cot, bedroll or framed bed.",
+"tags":["bed","cot","bedroll","sleep","camp"],
+"category":"furniture",
+"materials":{
+"canvas":{"color":"#7d7458"},
+"linen":{"color":"#ece4d0"},
+"tick":{"color":"#cdbf9c"},
+"wood":{"base":"MAT/oak_planks","color":"#8a5a3a"}},
+"parts":{
+"bed_frame":{"mat":"wood","chance":0,"parts":{
+  "board":{"type":"box","size":[186,3,88],"pos":[0,26.5,0]},
+  "foot_post":{"type":"box","size":[8,62,8],"pos":[97,31,44],"mirror":"z"},
+  "footboard":{"type":"box","size":[5,30,82],"pos":[97,43,0]},
+  "head_post":{"type":"box","size":[8,100,8],"pos":[-97,50,44],"mirror":"z"},
+  "headboard":{"type":"box","size":[5,64,82],"pos":[-97,63,0]},
+  "mattress":{"type":"rounded_box","size":[186,18,84],"radius":4,"pos":[0,37,0],"mat":"tick"},
+  "side_rail":{"type":"box","size":[186,14,4],"pos":[0,26,44],"mirror":"z"}}},
+"bedding":{"pos":[0,37,0],"parts":{
+  "blanket":{"type":"rounded_box","size":[126,3,72],"radius":1.2,"pos":[28,7,0],"color":"$accent"},
+  "fold":{"type":"rounded_box","size":[12,4,73.5],"radius":1.5,"pos":[-33,7.5,0],"mat":"linen"},
+  "pad":{"type":"rounded_box","size":[184,6,68],"radius":2,"pos":[0,3,0],"mat":"tick"},
+  "pillow":{"type":"rounded_box","size":[28,11,48],"radius":4.5,"pos":[-74,11.5,0],"mat":"linen","chance":1},
+  "roll":{"type":"cylinder","radius":7.5,"height":62,"pos":[-80,13.5,0],"axis":"z","mat":"tick","chance":0}}},
+"cot_frame":{"mat":"wood","chance":1,"parts":{
+  "end_bar":{"type":"box","size":[5,7,77],"pos":[92.5,34,0],"mirror":"x"},
+  "leg":{"type":"box","size":[5,30.5,5],"pos":[88,15.25,34],"mirror":["x","z"]},
+  "rail":{"type":"box","size":[190,7,5],"pos":[0,34,36],"mirror":"z"}}}},
+"params":{
+"style":{"choices":["cot","bedroll","bed"],"set":{"bed_frame.chance":[0,0,1],"bedding.pad.mat":["tick","canvas","linen"],"bedding.pillow.chance":[1,0,1],"bedding.pos.1":[37,0,46],"bedding.roll.chance":[0,1,0],"cot_frame.chance":[1,0,0]}}},
+"presets":{
+"bed":{"style":"bed"},
+"bedroll":{"style":"bedroll"},
+"cot":{"style":"cot"}}}

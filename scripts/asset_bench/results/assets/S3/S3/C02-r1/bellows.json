@@ -1,0 +1,17 @@
+{"format":2,"name":"bellows","unit":"cm",
+"description":"A forge bellows 90 cm long with leather body, wooden boards, nozzle and handle, on a stand.",
+"tags":["bellows","forge","smithy"],
+"category":"tool",
+"materials":{
+"iron":"MAT/wrought_iron",
+"leather":{"color":"#6b4a30"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"arm":{"type":"box","size":[4,4],"from":[0,41,-30],"to":[0,50,-45],"mat":"wood"},
+"grip":{"type":"cylinder","radius":2.5,"height":16,"pos":[0,50,-45],"axis":"x","mat":"wood"},
+"low":{"type":"rounded_box","size":[40,5,60],"radius":1.5,"pos":[0,24.5,-5],"mat":"wood"},
+"nozzle":{"type":"cone","radius":6,"radius_end":2,"from":[0,25,22],"to":[0,24,43],"mat":"iron"},
+"skin":{"type":"box","size":[36,13,54],"pos":[0,32.5,-5],"mat":"leather"},
+"stand_a":{"type":"box","size":[40,22,6],"pos":[0,11,-10],"mat":"wood"},
+"stand_b":{"type":"box","size":[40,22,6],"pos":[0,11,16],"mat":"wood"},
+"up":{"type":"rounded_box","size":[40,5,60],"radius":1.5,"pos":[0,40,-5],"pitch":-6,"mat":"wood"}}}

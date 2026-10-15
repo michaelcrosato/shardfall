@@ -1,0 +1,5 @@
+{"format":1, "name":"checker_tiles", "unit":"cm", "description":"Black and cream checkered floor tiles: kitchens, halls, chapels.", "tags":["tile", "floor", "checker", "kitchen"], "source":{"library": "own", "license": "CC0-1.0", "author": "Shardfall contributors"}, "color":"#d9d2c3",
+ "layers":[
+  {"type":"checker","size":40,"color":"#3b3a3e","strength":0.9},
+  {"type":"tiles","size":40,"gap":1.5,"cavity":0.25,"shade":0.7}
+ ]}

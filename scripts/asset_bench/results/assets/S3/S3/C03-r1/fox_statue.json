@@ -1,0 +1,15 @@
+{"format":2,"name":"fox_statue","unit":"cm",
+"description":"A seated stone fox statue on a plinth, ears up and tail curled.",
+"tags":["statue","fox","stone","shrine"],
+"category":"dungeon",
+"materials":{
+"stone":{"base":"MAT/mossy_stone","map":"world"}},
+"parts":{
+"body":{"type":"ellipsoid","size":[28,40,34],"pos":[0,34,-4],"pitch":-20,"mat":"stone"},
+"ear":{"type":"cone","radius":5,"radius_end":0.5,"height":16,"pos":[8,72,2],"mat":"stone","mirror":"x"},
+"haunch":{"type":"ellipsoid","size":[36,24,34],"pos":[0,26,-6],"mat":"stone"},
+"head":{"type":"ellipsoid","size":[24,22,26],"pos":[0,60,6],"mat":"stone"},
+"leg":{"type":"box","size":[8,28,8],"pos":[8,28,14],"mat":"stone","mirror":"x"},
+"plinth":{"type":"box","size":[44,14,56],"pos":[0,7,0],"mat":"stone"},
+"snout":{"type":"cone","radius":6,"radius_end":2,"height":14,"pos":[0,57,22],"pitch":90,"mat":"stone"},
+"tail":{"type":"capsule","radius":5,"height":34,"pos":[0,22,-28],"pitch":70,"mat":"stone"}}}

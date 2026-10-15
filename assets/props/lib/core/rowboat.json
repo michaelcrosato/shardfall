@@ -1,0 +1,26 @@
+{"format":2,"name":"rowboat","unit":"cm",
+"description":"A wooden rowboat on the ground: round hull, pointed bow, stern deck, two thwarts, two oars. Knobs: length, hull, pose.",
+"tags":["boat","rowboat","canoe","dinghy","skiff","vehicle"],
+"category":"town",
+"materials":{
+"dark":{"color":"#4f3622"},
+"floor":{"base":"MAT/oak_planks","color":"#9a7048"},
+"hull":{"base":"MAT/oak_planks","color":"#7a5232"},
+"oarwood":{"color":"#c9a26b"}},
+"parts":{
+"boat":{"pos":[0,62,0],"roll":0,"parts":{
+  "bow":{"type":"cylinder","radius":62,"radius_end":0,"height":80,"arc":180,"facing":"-y","pos":[0,0,110],"axis":"z","mat":"hull"},
+  "floor":{"type":"box","size":[50,2,100],"pos":[0,-51,-10],"mat":"floor"},
+  "mid":{"type":"tube","radius":62,"thickness":5,"height":160,"arc":180,"facing":"-y","pos":[0,0,-10],"axis":"z","mat":"hull"},
+  "oar":{"pos":[63,2.5,-15],"yaw":-70,"pitch":-19.5,"mat":"oarwood","mirror":"x","parts":{
+    "blade":{"type":"box","size":[15,2.5,52],"pos":[0,0,-160]},
+    "shaft":{"type":"cylinder","radius":2.5,"segments":6,"from":[0,0,40],"to":[0,0,-135]}}},
+  "stern":{"type":"cylinder","radius":46,"radius_end":62,"height":60,"arc":180,"facing":"-y","pos":[0,0,-120],"axis":"z","mat":"hull"},
+  "thwart":{"type":"box","size":[118,4,24],"pos":[0,-3.5,-10],"mat":"dark","array":{"count":2,"step":[0,0,70]}}}}},
+"params":{
+"hull":{"choices":["rowboat","canoe"],"set":{"boat.bow.radius":[62,40],"boat.floor.pos.1":[-51,-29],"boat.floor.size.0":[50,40],"boat.mid.radius":[62,40],"boat.pos.1":[62,40],"boat.stern.radius":[46,0.5],"boat.stern.radius_end":[62,40],"boat.thwart.size.0":[118,74]}},
+"length":{"range":[200,420],"set":{"boat.bow.height":0.2667,"boat.bow.pos.2":0.3667,"boat.mid.height":0.5333,"boat.mid.pos.2":-0.0333,"boat.stern.height":0.2,"boat.stern.pos.2":-0.4,"boat.thwart.array.step.2":0.2333,"boat.thwart.pos.2":-0.0333}},
+"pose":{"choices":["rowing","beached","bare"],"set":{"boat.oar.chance":[1,1,0],"boat.oar.pitch":[-19.5,0,0],"boat.oar.pos.0":[63,35,35],"boat.oar.pos.1":[2.5,1,1],"boat.oar.pos.2":[-15,35,35],"boat.oar.yaw":[-70,0,0],"boat.roll":[0,10,0]}}},
+"presets":{
+"beached":{"pose":"beached"},
+"canoe":{"hull":"canoe","length":420,"pose":"bare"}}}

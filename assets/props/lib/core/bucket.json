@@ -1,0 +1,23 @@
+{"format":2,"name":"bucket","unit":"cm",
+"description":"A coopered wooden bucket in two iron hoops with an iron bail handle, water inside. Knobs: height, style, fill.",
+"tags":["bucket","pail","water","well","farm"],
+"category":"container",
+"materials":{
+"iron":{"base":"MAT/wrought_iron","color":"#4a4542","roughness":0.55,"metallic":0.6},
+"tin":{"color":"#9aa3a8","roughness":0.4,"metallic":0.75},
+"water":{"color":"#4d7f99","roughness":0.1},
+"wood":{"base":"MAT/barrel_staves","color":"#9a6a40","map":"axis"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0.5],[12.5,0],[15,30],[13.6,30.5],[11.3,3],[0,3]],"segments":16,"mat":"wood"},
+"ear":{"type":"box","size":[3,6,4],"pos":[15.6,27,0],"mat":"iron","mirror":"x"},
+"handle":{"type":"torus","radius":16.4,"minor_radius":0.7,"arc":180,"pos":[0,27,0],"axis":"z","pitch":-50,"mat":"iron"},
+"hoop_high":{"type":"torus","radius":14.7,"minor_radius":0.9,"pos":[0,24,0],"mat":"iron"},
+"hoop_low":{"type":"torus","radius":13.1,"minor_radius":0.9,"pos":[0,5,0],"mat":"iron"},
+"water":{"type":"cylinder","radius":13.1,"height":0.6,"pos":[0,25,0],"mat":"water","chance":1}},
+"params":{
+"fill":{"choices":["water","empty"],"set":{"water.chance":[1,0]}},
+"height":{"range":[20,45],"set":{"body.profile.2.1":1,"body.profile.3.1":1.01667,"ear.pos.1":0.9,"handle.pos.1":0.9,"hoop_high.pos.1":0.8,"water.pos.1":0.83333}},
+"style":{"choices":["wood","iron"],"set":{"body.mat":["wood","tin"],"body.profile.1.0":[12.5,10.5],"body.profile.3.0":[13.6,14.4],"body.profile.4.0":[11.3,9.9],"hoop_high.radius":[14.7,14.3],"hoop_low.radius":[13.1,11.4],"water.radius":[13.1,13.4]}}},
+"presets":{
+"pail":{"style":"iron"},
+"tall":{"height":42}}}

@@ -1,0 +1,8 @@
+{"items":[
+{"role":"barred gate","kind":"prop","id":"WORKSHOP/cell_gate","how":"made","pos":[0,0,1.5],"yaw":0,"scale":1},
+{"role":"cot","kind":"prop","id":"WORKSHOP/cell_cot","how":"made","pos":[-0.8,0,0],"yaw":0,"scale":1},
+{"role":"bucket","kind":"prop","id":"WORKSHOP/cell_bucket","how":"made","pos":[0.8,0,-1.2],"yaw":0,"scale":1},
+{"role":"wall torch","kind":"prop","id":"LIB/core/wall_torch","how":"placed","pos":[0,1.7,-1.9],"yaw":0,"scale":0.66},
+{"role":"cell walls","kind":"material","id":"MAT/workshop/damp_brick","how":"forked","from":"MAT/dungeon_wall"},
+{"role":"prisoner idle","kind":"clip","id":"WORKSHOP/PrisonerSlump","how":"forked","from":"QUATERNIUS/Sitting_Idle_Loop"}
+],"notes":"Gate, cot, bucket made; torch placed scaled to 40cm; slumped sitting clip forked; damp brick material."}

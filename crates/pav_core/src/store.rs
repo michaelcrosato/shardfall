@@ -313,8 +313,16 @@ mod tests {
             let tokens = crate::props::index::tokens(row.why.len());
             assert!(!row.why.is_empty() && tokens <= 40, "{}: why is {tokens} tokens", row.id);
         }
-        assert_eq!(per.keys().copied().collect::<Vec<_>>(), ["barrel", "crate", "light", "seat", "stall", "table", "weapon"]);
-        assert!(per.values().all(|n| (3..=5).contains(n)), "3-5 foundations per archetype: {per:?}");
+        assert_eq!(
+            per.keys().copied().collect::<Vec<_>>(),
+            [
+                "barrel", "bed", "container", "crate", "fire", "gate", "light", "seat", "shelter", "stall", "table", "tool",
+                "vegetation", "vehicle", "weapon"
+            ]
+        );
+        // S2's seven archetypes hold 3-5 each; S3's new ones start from the misses that founded them.
+        assert!(per.values().all(|n| (1..=5).contains(n)), "at most 5 foundations per archetype: {per:?}");
+        assert!(["barrel", "crate", "light", "seat", "stall", "table", "weapon"].iter().all(|a| per[a] >= 3), "{per:?}");
         assert_eq!(foundation("LIB/core/cask").map(|row| row.archetype), Some("barrel"));
         assert!(foundation("LIB/core/urn").is_none());
     }

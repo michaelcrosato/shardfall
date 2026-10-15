@@ -1,0 +1,8 @@
+{"items":[
+{"role":"dock","kind":"prop","id":"WORKSHOP/dock","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"dock boards","kind":"material","id":"MAT/oak_planks","how":"placed","from":"MAT/oak_planks"},
+{"role":"rowboat","kind":"prop","id":"WORKSHOP/rowboat","how":"made","from":"","pos":[-150,0,0],"yaw":0,"scale":1.06},
+{"role":"lamp post","kind":"prop","id":"WORKSHOP/lamp_post","how":"made","from":"","pos":[0.5,0.6,1.7],"yaw":0,"scale":1},
+{"role":"fish crate","kind":"prop","id":"LIB/core/slat_crate","how":"placed","from":"LIB/core/slat_crate","pos":[0,0.6,-0.8],"yaw":0,"scale":1.07},
+{"role":"fisherman idle","kind":"clip","id":"QUATERNIUS/Idle_Loop","how":"placed","from":"QUATERNIUS/Idle_Loop"}
+],"notes":"Dock, rowboat, lamp made from scratch; slat crate scaled to 60 cm; stock idle clip."}

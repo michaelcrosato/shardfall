@@ -1,0 +1,14 @@
+{"format":2,"name":"stone_lantern","unit":"cm",
+"description":"A stone garden lantern with a glowing firebox and a capped roof.",
+"tags":["lantern","stone","shrine","light"],
+"category":"lighting",
+"materials":{
+"glow":{"color":"#ffcc66","emissive":3},
+"stone":{"base":"MAT/mossy_stone","map":"world"}},
+"parts":{
+"base":{"type":"box","size":[44,12,44],"pos":[0,6,0],"mat":"stone"},
+"deck":{"type":"box","size":[40,6,40],"pos":[0,69,0],"mat":"stone"},
+"finial":{"type":"sphere","radius":6,"pos":[0,115,0],"mat":"stone"},
+"fire":{"type":"box","size":[24,22,24],"pos":[0,83,0],"mat":"glow","light":{"color":"#ffcc66","radius":300,"intensity":2}},
+"post":{"type":"cylinder","radius":8,"height":54,"pos":[0,39,0],"mat":"stone"},
+"roof":{"type":"cone","radius":34,"radius_end":6,"height":18,"pos":[0,103,0],"mat":"stone"}}}

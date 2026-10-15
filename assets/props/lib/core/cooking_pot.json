@@ -1,0 +1,22 @@
+{"format":2,"name":"cooking_pot","unit":"cm",
+"description":"Iron pot of stew on three short legs with a bail handle; knobs: size, fill, hang (a kettle).",
+"tags":["pot","cauldron","kettle","cooking","stew"],
+"category":"container",
+"materials":{
+"iron":"MAT/wrought_iron"},
+"parts":{
+"kit":{"pos":[0,0,0],"mat":"iron","parts":{
+  "bail":{"type":"torus","radius":16,"minor_radius":1,"arc":180,"attach":{"to":"wall","at":[0,0.7,0],"self":[0,-1,0]},"axis":"z","pitch":-70},
+  "belly":{"type":"sphere","radius":15,"pos":[0,22,0]},
+  "chunks":{"type":"sphere","radius":2,"attach":"stew","offset":[0,-1,0],"color":"#d9822b","radial":{"count":5,"radius":6}},
+  "legs":{"type":"cylinder","radius":2,"from":[0,16,0],"to":[0,0,0],"radial":{"count":3,"radius":8}},
+  "lid":{"type":"ellipsoid","size":[32,8,32],"attach":{"to":"wall","at":[0,1,0],"self":[0,0,0]},"chance":0},
+  "stew":{"type":"cylinder","radius":14,"height":1.5,"attach":{"to":"wall","at":[0,0.8,0],"self":[0,0,0]},"color":"$accent"},
+  "wall":{"type":"tube","radius":15,"thickness":1.8,"height":18,"attach":{"to":"belly","at":[0,0,0],"self":[0,-1,0]}}}}},
+"params":{
+"fill":{"choices":["stew","empty"],"set":{"kit.chunks.chance":[1,0],"kit.stew.color":["$accent","#1e1a18"]}},
+"hang":{"choices":["stand","hang"],"set":{"kit.bail.pitch":[-70,0],"kit.legs.chance":[1,0],"kit.lid.chance":[0,1],"kit.pos.1":[0,-46.3]}},
+"size":{"range":[25,70],"set":{"kit.bail.radius":0.4,"kit.belly.pos.1":0.55,"kit.belly.radius":0.375,"kit.legs.radial.radius":0.2,"kit.stew.radius":0.35,"kit.wall.height":0.45,"kit.wall.radius":0.375}}},
+"presets":{
+"kettle":{"fill":"empty","hang":"hang"},
+"large":{"size":70}}}

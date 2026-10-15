@@ -1,0 +1,11 @@
+{"format":2,"name":"sq_bucket","unit":"cm",
+"description":"A small wooden bucket with an iron hoop and handle.",
+"tags":["bucket","wood","village"],
+"category":"tool",
+"materials":{
+"iron":"MAT/wrought_iron",
+"wood":{"base":"MAT/barrel_staves","map":"axis"}},
+"parts":{
+"handle":{"type":"torus","radius":10,"minor_radius":0.9,"arc":180,"facing":"y","pos":[0,20,0],"axis":"z","mat":"iron"},
+"hoop":{"type":"tube","radius":13.5,"thickness":1.2,"height":3,"pos":[0,15,0],"mat":"iron"},
+"pail":{"type":"cylinder","radius":12,"radius_end":14,"height":20,"pos":[0,10,0],"mat":"wood"}}}

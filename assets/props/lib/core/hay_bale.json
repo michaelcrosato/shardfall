@@ -1,0 +1,24 @@
+{"format":2,"name":"hay_bale","unit":"cm","mat":"hay",
+"description":"A square hay bale tied with twine; size and form (round, stacked) knobs.",
+"tags":["hay","bale","straw","farm"],
+"category":"vegetation",
+"materials":{
+"hay":{"color":"#d8b45c","layers":[{"type":"stripes","size":12,"axis":"x","cover":0.3,"soft":0.4,"shade":0.8}]}},
+"parts":{
+"bale":{"parts":{
+  "body":{"type":"rounded_box","size":[100,50,55],"radius":4,"pos":[0,25,0]},
+  "twine":{"type":"box","size":[2.4,50.8,56.2],"pos":[25,25.4,0],"color":"#b5532c","mirror":"x"},
+  "upper":{"attach":{"to":"body","at":"top"},"yaw":5,"chance":0,"parts":{
+    "body":{"type":"rounded_box","size":[100,50,55],"radius":4,"pos":[0,25,0]},
+    "twine":{"type":"box","size":[2.4,50.8,56.2],"pos":[25,25.4,0],"color":"#b5532c","mirror":"x"}}}}},
+"round":{"chance":0,"parts":{
+  "ring":{"type":"torus","radius":34,"minor_radius":3,"pos":[58,60.6,0],"axis":"x","color":"#a8853c","mirror":"x"},
+  "roll":{"type":"cylinder","radius":60,"height":116,"pos":[0,60.6,0],"axis":"x"},
+  "wrap":{"type":"tube","radius":60.6,"thickness":1.2,"height":3,"pos":[0,60.6,0],"axis":"x","color":"#b5532c","array":{"count":3,"step":[36,0,0]}}}}},
+"params":{
+"form":{"choices":["square","round","stacked"],"set":{"bale.chance":[1,0,1],"bale.upper.chance":[0,0,1],"round.chance":[0,1,0]}},
+"size":{"range":[50,140],"set":{"bale.body.pos.1":0.25,"bale.body.size.0":1,"bale.body.size.1":0.5,"bale.body.size.2":0.55,"bale.twine.pos.0":0.25,"bale.twine.pos.1":0.254,"bale.twine.size.1":0.508,"bale.twine.size.2":0.562}}},
+"presets":{
+"round":{"form":"round"},
+"small":{"size":60},
+"stack":{"form":"stacked"}}}

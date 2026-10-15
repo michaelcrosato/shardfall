@@ -8,6 +8,7 @@ LIB/core/basket	prop2-bf468b46b5575dd8	ok: wicker basket with bail handle and ap
 LIB/core/bench	prop2-60276f69c7b81789	ok: length knob added, default unchanged; :short (90 cm) and :long keep the trestles under the seat ends; sit kept
 LIB/core/bone_pile	prop2-63d02e3cae425622	ok (user review 2026-10-12); author: ok: 3 knobbed long bones + skull with dark sockets, #d9d0bb, ~1.1 m across, all on floor, seed jitter, reads at game distance
 LIB/core/brazier	prop2-d01d7bb139c3c46a	ok (user review 2026-10-12); author: ok: glowing coal bowl with one $light point light, 3 splayed legs + brace on floor, front leg +z, ~1 m vs figure, no pokes
+LIB/core/bucket	prop2-dab0d4e3742072f9	ok: tapered stave bucket, two dark iron hoops, bail leaning back, water near the rim.
 LIB/core/cage	prop2-3542e912a712c93c	ok (user review 2026-10-12); author: ok: 1.06x2.16x1.06 m iron cage, arrayed bars all 4 sides, posts, band, pyramid roof + ring, padlock front +z, grounded
 LIB/core/campfire	prop2-d9eb242251bab264	ok: fork of Quaternius bonfire_lit (43% mesh, 5 cm below floor) rebuilt: stone ring, leaning logs, coals, flame light and fire fx; :embers, :pit
 LIB/core/candle_cluster	prop2-32e2f06e715faf06	ok: candles and tall knobs added, default unchanged; :altar has 7 candles round a 32 cm one, :pair two
@@ -18,11 +19,19 @@ LIB/core/chair	prop2-1fc140108f24e122	ok: back knob added (slat/none/high), defa
 LIB/core/chest	prop2-91951309b7bd8090	ok: fork of Kenney chest (43% mesh) rebuilt in primitives at 88x66x55 (was a 110 cm cube), domed lid on a back hinge; :open, :coffer
 LIB/core/column	prop2-5499be4385b8f2e2	ok (user review 2026-10-12); author: ok: 2.8 m $pillar column r42 shaft, plinth+torus base, neck, flared capital, grounded, clean silhouette vs 1.8 m figure
 LIB/core/column_broken	prop2-b5dfb0abe506b788	ok (user review 2026-10-12); author: ok: snapped $pillar column, pick tall/short stump 1.2-1.7 m, fallen drum on floor beside, chips by chance, grounded
+LIB/core/cooking_pot	prop2-9dca32ee33b03b24	ok: iron pot, golden stew with chunks, bail lying back over the rim, three stubby legs.
+LIB/core/cot	prop2-9983d70522a6dc9d	ok: low plank cot with a pad, an $accent blanket, a sheet fold and a pillow; bed and bedroll read well.
 LIB/core/crate_stack	prop2-1867337acaaabaaf	ok: stack knob (seed/no/yes) added, default unchanged; :single is one crate
 LIB/core/crystal_cluster	prop2-0ca56b8da5346b1f	ok (user review 2026-10-12); author: ok: 2-4 unlit $accent hex prisms 0.4-1.2 m leaning out of $wall base, one pulsing $accent light r4.5 m, grounded
 LIB/core/fence	prop2-f4008ceff0796e5a	ok (user review 2026-10-12); author: ok: 3 capped posts at x -100/0/100 so ends coincide when tiled, 2 rails span full 200 cm, on floor, ~waist-high vs figure
 LIB/core/gable_stall	prop2-40f51c4f7c647df4	ok: fork of Quaternius marketstand_1 (40% mesh, side-facing) rebuilt facing +z: posts, striped gable wedge, counter, jars, shelf; :shed, :narrow
+LIB/core/gate	prop2-284a84051cb64ac6	ok: plank gate in lintel frame beside figure; barred, torii and field presets clean
+LIB/core/hafted_tool	prop2-819db6b56f556144	ok: pick crescent, spade and sledge heads read at game camera beside figure
 LIB/core/hall_table	prop2-28317df9a0c4ec47	ok: new 2 m hall table, A-frame extrude trestles and stretcher, $accent runner; :short, :long, :bare read as tables
+LIB/core/hand_lantern	prop2-2cdbc074b312e418	ok: glowing glass visible between the bars from the game camera; brass caged mine lamp reads well.
+LIB/core/hay_bale	prop2-bfa3ed061baa7795	ok: twine-bound square bale at knee height by figure; round, small, stack presets clean
+LIB/core/hearth	prop2-40babad8da72174b	ok: stone fireplace, oak mantel, glowing fire in a soot-backed opening, chimney breast, closed back.
+LIB/core/lamp_post	prop2-79e22cefcf571c5d	ok: iron post and glowing square head at figure height; stone lantern and bracket arm both read clearly.
 LIB/core/log_seat	prop2-ec1ec5ea6143c637	ok: split log with sawn face and chocks; short and long draw, sit socket on the face
 LIB/core/mage_staff	prop2-a312ab72c347493d	ok: knobs added, default geometry unchanged; walking drops the crystal, ember recolours it
 LIB/core/market_stall	prop2-6666caa724848e72	ok: goods and awning knobs added, default unchanged; :apples, :closed (empty crates), :plain (red awning) read at game distance
@@ -30,6 +39,7 @@ LIB/core/mushroom_cluster	prop2-c2e07e82ccadd9b4	ok (user review 2026-10-12); au
 LIB/core/park_bench	prop2-05c0eceac72213d3	ok: fork of Quaternius bench_1 turned to face +z, slats as rounded boxes for a length knob, sit socket added; :short, :long
 LIB/core/rock_cluster	prop2-ada0a9db366fb909	ok (user review 2026-10-12); author: ok: 3 grounded boulders 0.3-1.1 m over 1.6 m, $wall stone, seed jitter on pos/yaw/scale/tint, reads at game distance
 LIB/core/round_table	prop2-6197ef4426f62efc	ok: new round pedestal table 100x76 cm on four feet, grounded; :bistro (bar height), :low, :wide read as tables
+LIB/core/rowboat	prop2-eaff7d23c9e143b9	ok: plank hull, pointed bow, square stern, two thwarts, oars out; canoe and beached presets read.
 LIB/core/rubble_pile	prop2-860727b8096500b8	ok (user review 2026-10-12); author: ok: $wall masonry blocks, top block by chance, tipped block, wedge, jittered chips, ~1.3 m, all grounded/touching
 LIB/core/sack	prop2-3b814ba70d594e13	ok (user review 2026-10-12); author: ok: plump lathe body on floor, tilted tied neck with rope and flared top reads as sack, patch sits on surface, ~0.75 m
 LIB/core/shelf	prop2-b1c576b621214cc0	ok (user review 2026-10-12); author: ok: 120x180x35 case, back at z0 + wall_mount, 5 boards, varied books/jars sit on boards, no z-fight, front +z
@@ -41,7 +51,9 @@ LIB/core/stalagmite	prop2-e8a57e02c9f137aa	ok (user review 2026-10-12); author: 
 LIB/core/sword	prop2-97255c8e8fda21eb	ok: fork of Kenney weapon-sword rebuilt slim, 97 cm point up, pommel on the floor (was 22 cm below), grip socket on the handle; :dagger, :greatsword
 LIB/core/table	prop2-324fc24e309a9398	ok: knobs length/height/depth added, default unchanged; :wide (merges the Kenney low wide table), :small, :long, :low read as tables
 LIB/core/tap_barrel	prop2-d84526c6541c5ce6	ok: new: LIB/core/barrel by ref lying on two notched cradles, brass tap in its head, 97 cm long; :keg, :hogshead
+LIB/core/tent	prop2-5b8941b9e4650bb7	ok: accent A-frame, dark doorway, open flap, guyed poles; pup and bell presets read.
 LIB/core/tent_stall	prop2-624a948875bd1107	ok: round pavilion, cone roof, valance, ring counter with pots; small, grand and bare draw
+LIB/core/trough	prop2-6c08bf37ac2906b6	ok: plank trough on four legs, water near rim; :feed shows a flat hay bed
 LIB/core/urn	prop2-b291f94b7ab20341	ok (user review 2026-10-12); author: ok: lathe body on foot, dark band and mouth read, handles join shoulder to neck, sits on floor, ~0.7 m vs figure
 LIB/core/wall_torch	prop2-3d67cd78b03b8761	ok: fire and reach knobs added, default unchanged; :out drops flame and light, :long sets the torch 30 cm out; wall_mount kept
 LIB/core/wash_tub	prop2-a1cb2d851dcc078c	ok: open tub with hoops, lugs and water; small, wide and dry draw

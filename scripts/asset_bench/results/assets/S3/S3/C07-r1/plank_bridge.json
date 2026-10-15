@@ -1,0 +1,9 @@
+{"format":2,"name":"plank_bridge","unit":"cm",
+"description":"A plank bridge deck with side rails.",
+"materials":{
+"dark":{"color":"#594635"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"beam":{"type":"box","size":[20,36,680],"pos":[100,18,0],"mat":"dark","mirror":"x"},
+"deck":{"type":"box","size":[260,16,700],"pos":[0,40,0],"mat":"wood"},
+"rail":{"type":"box","size":[10,50,700],"pos":[125,73,0],"mat":"dark","mirror":"x"}}}

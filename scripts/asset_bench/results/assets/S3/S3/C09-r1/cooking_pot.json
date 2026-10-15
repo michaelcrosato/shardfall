@@ -1,0 +1,10 @@
+{"format":2,"name":"cooking_pot","unit":"cm",
+"description":"An iron cooking pot with a rim, two handles and stew inside.",
+"materials":{
+"iron":{"color":"#33343a","metallic":0.6},
+"stew":{"color":"#a65a2a"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,0],[14,0],[19,7],[22,22],[22,38],[0,38]],"mat":"iron"},
+"handle":{"type":"torus","radius":5,"minor_radius":1.5,"pos":[24,32,0],"roll":90,"mat":"iron","mirror":"x"},
+"rim":{"type":"tube","radius":21,"thickness":2.5,"height":4,"pos":[0,38,0],"mat":"iron"},
+"stew":{"type":"cylinder","radius":20,"height":2,"pos":[0,37,0],"mat":"stew"}}}

@@ -52,15 +52,18 @@ fn the_store_finds_shelves_credits_and_refuses() {
     }
     let tree = call(&mut s, "assets", json!({"find": "tree"}));
     assert!(tree["route"].as_str().unwrap().starts_with("make it:"), "{tree}");
-    assert!(names(&tree["nearest"]).iter().any(|name| name.contains("mushroom")), "the vegetation hint: {tree}");
+    assert!(tree["nearest"].as_array().unwrap().iter().all(|row| row[1] == "vegetation"), "the vegetation hint: {tree}");
     let character = call(&mut s, "assets", json!({"find": "character"}));
     assert!(character["route"].as_str().unwrap().contains("heroes.toml"), "{character}");
+    // Two words, one of them matching (S3): rows that match it, marked partial, not `none`.
+    let lamp = call(&mut s, "assets", json!({"find": "lamp tower"}));
+    assert!(lamp["partial"].is_string() && names(&lamp["rows"]).contains(&"BUILTIN/lantern".to_owned()), "{lamp}");
     // Materials match word by word too (S3): a compound holds its word, a mere substring does not,
     // and nothing matching says `none` with a route.
     let floor = call(&mut s, "assets", json!({"kind": "material", "find": "stone floor"}));
     assert!(floor.get("partial").is_none() && names(&floor["rows"]).contains(&"MAT/flagstones".to_owned()), "{floor}");
     let rough = call(&mut s, "assets", json!({"kind": "material", "find": "rough"}));
-    assert!(rough["none"].is_string(), "\"wrought\" does not hold \"rough\": {rough}");
+    assert!(!rough["rows"].to_string().contains("MAT/wrought_iron"), "\"wrought\" does not hold \"rough\": {rough}");
     let zebra = call(&mut s, "assets", json!({"kind": "material", "find": "zebra"}));
     assert!(zebra["none"].is_string() && zebra["route"].as_str().unwrap().starts_with("make it:"), "{zebra}");
     let misses = std::fs::read_to_string(scratch.join("misses.tsv")).unwrap();
@@ -91,13 +94,14 @@ fn the_store_finds_shelves_credits_and_refuses() {
         assert!(tokens <= 1_500, "shelf={kind}: {tokens} tokens");
     }
     let props = call(&mut s, "assets", json!({"shelf": "prop"})).to_string();
-    assert!(props.contains("LIB/core/chair") && props.contains("LIB/kenney_mini_dungeon/table"), "{props}");
+    assert!(props.contains("\"chair ") && props.contains("LIB/kenney_mini_dungeon/table"), "{props}");
     assert!(!props.contains("LIB/kenney_mini_dungeon/wall\""), "a 94% mesh import is not on the shelf: {props}");
-    // It leads with the foundations by archetype, each with its knobs and presets, listed once (S2).
-    assert!(props.starts_with("{\"foundations\":{\"barrel\":[\"LIB/core/barrel "), "{props}");
-    assert!(props.contains("\"LIB/core/cask 64x73x64 girth=18-48 height=40-120 :keg :tun\""), "{props}");
-    assert!(props.contains("\"LIB/core/chair 44x96x45 @sit back=slat/none/high :high_back :stool\""), "{props}");
-    assert_eq!(props.matches("LIB/core/chair ").count(), 1, "{props}");
+    // It leads with the foundations by archetype (LIB/core leaves since S3), each with its size,
+    // knobs and presets, listed once (S2).
+    assert!(props.starts_with("{\"foundations\":{\"barrel\":[\"barrel "), "{props}");
+    assert!(props.contains("\"cask 64x73x64 girth=18-48 height=40-120 :keg :tun\""), "{props}");
+    assert!(props.contains("\"chair 44x96x45 @sit back=slat/none/high :high_back :stool\""), "{props}");
+    assert_eq!(props.matches("\"chair ").count(), 1, "{props}");
 
     // Every row the store reads has an admitted licence and none comes from a local tier.
     let root = repo().join("assets/props");
@@ -157,7 +161,7 @@ fn the_store_finds_shelves_credits_and_refuses() {
         assert!(line.len() <= asset_library::STORE_ROW_BYTES, "{line}");
         *kinds.entry(kind.to_owned()).or_insert(0) += 1;
     }
-    assert!(kinds["prop"] >= 90 && kinds["clip"] >= 400 && kinds["material"] == 15, "{kinds:?}");
+    assert!(kinds["prop"] >= 90 && kinds["clip"] >= 400 && kinds["material"] == 18, "{kinds:?}");
     assert!(table.contains("\nLIB/core/cask\tprop\tstandard\tCC0-1.0\tedited\timport\t"), "the Kenney fork is standard");
     let shares = table.lines().nth(1).unwrap();
     assert!(["prop", "clip", "material"].iter().all(|kind| shares.contains(&format!("{kind} "))), "{shares}");

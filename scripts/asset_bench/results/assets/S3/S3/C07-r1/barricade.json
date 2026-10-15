@@ -1,0 +1,9 @@
+{"format":2,"name":"barricade","unit":"cm",
+"description":"A wooden barricade of stacked planks between two posts, with crossed braces.",
+"materials":{
+"dark":{"color":"#594635"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"brace":{"type":"box","size":[10,6],"from":[-85,10,-9],"to":[85,110,-9],"mat":"dark"},
+"plank":{"type":"box","size":[184,14,10],"pos":[0,56,0],"mat":"wood","array":{"count":4,"step":[0,28,0]}},
+"post":{"type":"box","size":[16,16],"from":[-92,0,0],"to":[-92,130,0],"mat":"dark","mirror":"x"}}}

@@ -1,0 +1,11 @@
+{"format":2,"name":"bedroll","unit":"cm",
+"description":"A rolled-out canvas bedroll with a pillow roll and a tie strap.",
+"materials":{
+"blanket":{"color":"#5a7a4a"},
+"pad":{"color":"#c9b17e"},
+"strap":{"color":"#4a3220"}},
+"parts":{
+"blanket":{"type":"rounded_box","size":[60,6,140],"radius":2.5,"pos":[0,8,-20],"mat":"blanket"},
+"pad":{"type":"rounded_box","size":[65,5,190],"radius":2,"pos":[0,2.5,0],"mat":"pad"},
+"pillow":{"type":"rounded_box","size":[50,9,28],"radius":4,"pos":[0,9.5,80],"mat":"pad"},
+"strap":{"type":"box","size":[62,7,6],"pos":[0,8.5,30],"mat":"strap"}}}

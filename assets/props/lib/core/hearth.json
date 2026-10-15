@@ -1,0 +1,27 @@
+{"format":2,"name":"hearth","unit":"cm",
+"description":"Stone fireplace, oak mantel, lit fire; knobs make a bread oven or forge.",
+"tags":["hearth","fireplace","oven","forge","fire"],
+"category":"lighting",
+"materials":{
+"soot":{"color":"#241e1a"}},
+"parts":{
+"base":{"type":"box","size":[160,90],"from":[0,0,5],"to":[0,10,5],"color":"$wall"},
+"fire":{"pos":[0,10,5],"color":"$light","parts":{
+  "coals":{"type":"ellipsoid","size":[50,8,30],"pos":[0,4,0],"emissive":1.5},
+  "flame":{"type":"cone","radius":14,"from":[0,6,0],"to":[0,36,0],"look":"unlit","emissive":2,"solid":false,"light":{"color":"$light","radius":700,"intensity":1.8},"fx":{"preset":"fire","size":0.4}},
+  "logs":{"type":"cylinder","radius":5,"height":52,"pos":[2,10,0],"axis":"x","yaw":22,"mat":"soot","mirror":"x"}}},
+"hearth":{"color":"$wall","parts":{
+  "back":{"type":"box","size":[92,76,2],"pos":[0,48,-9],"mat":"soot"},
+  "breast":{"type":"box","size":[132,170,30],"pos":[0,95,-25]},
+  "jamb":{"type":"box","size":[32,76,30],"pos":[62,48,5],"mirror":"x"},
+  "mantel":{"type":"box","size":[176,14,40],"pos":[0,93,6],"mat":"MAT/oak_planks"}}},
+"oven":{"color":"$wall","chance":0,"parts":{
+  "dome":{"type":"ellipsoid","size":[96,116,84],"pos":[0,100,0]},
+  "mouth":{"type":"ellipsoid","size":[40,44,8],"pos":[0,100,40],"mat":"soot"}}}},
+"params":{
+"fire":{"choices":["lit","cold"],"set":{"fire.chance":[1,0]}},
+"form":{"choices":["hearth","oven","forge"],"set":{"base.to.1":[10,100,86],"fire.logs.chance":[1,1,0],"fire.pos.1":[10,100,86],"fire.pos.2":[5,38,5],"hearth.chance":[1,0,0],"oven.chance":[0,1,0]}}},
+"presets":{
+"cold":{"fire":"cold"},
+"forge":{"form":"forge"},
+"oven":{"form":"oven"}}}

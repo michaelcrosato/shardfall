@@ -1,0 +1,10 @@
+{"format":2,"name":"sq_hay","unit":"cm",
+"description":"A rectangular hay bale tied with twine.",
+"tags":["hay","bale","farm"],
+"category":"vegetation",
+"materials":{
+"hay":{"color":"#c9a53f","look":"cel"},
+"twine":{"color":"#6b5230"}},
+"parts":{
+"bale":{"type":"rounded_box","size":[100,45,50],"radius":5,"pos":[0,22.5,0],"mat":"hay"},
+"tie":{"type":"box","size":[4,46,52],"pos":[-25,22.5,0],"mat":"twine","mirror":"x"}}}

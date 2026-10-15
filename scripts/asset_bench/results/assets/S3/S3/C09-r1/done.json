@@ -1,0 +1,7 @@
+{"items":[
+{"role":"fireplace","kind":"prop","id":"WORKSHOP/fireplace","how":"made","from":"","pos":[0,0,30],"yaw":0,"scale":1},
+{"role":"cooking pot","kind":"prop","id":"WORKSHOP/cooking_pot","how":"made","from":"","pos":[0,0,95],"yaw":0,"scale":1},
+{"role":"broom","kind":"prop","id":"WORKSHOP/broom","how":"made","from":"","pos":[150,0,0],"yaw":0,"scale":1},
+{"role":"floor","kind":"material","id":"MAT/workshop/checker_tile","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"cook stirring","kind":"clip","id":"WORKSHOP/cook_stir","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1}
+],"notes":"Made all five; broom leans on wall at z=0, pot before hearth, checker tile floor."}

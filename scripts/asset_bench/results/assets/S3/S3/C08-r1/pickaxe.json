@@ -1,0 +1,14 @@
+{"format":2,"name":"pickaxe","unit":"cm",
+"description":"A miner's pickaxe, 90 cm, wooden haft and curved iron head.",
+"tags":["pickaxe","tool","weapon"],
+"category":"tool",
+"materials":{
+"iron":{"color":"#4a4a52"},
+"wood":{"color":"#9a6a3c"}},
+"parts":{
+"haft":{"type":"cylinder","radius":2.2,"height":88,"pos":[0,44,0],"mat":"wood"},
+"head":{"type":"box","size":[4,5],"from":[-4,86,0],"to":[4,86,0],"mat":"iron"},
+"headl":{"type":"cone","radius":2.6,"radius_end":0.4,"height":28,"pos":[-18,86,0],"roll":90,"mat":"iron"},
+"headr":{"type":"cone","radius":2.6,"radius_end":0.4,"height":28,"pos":[18,86,0],"roll":-90,"mat":"iron"}},
+"sockets":{
+"grip":{"pos":[0,30,0]}}}

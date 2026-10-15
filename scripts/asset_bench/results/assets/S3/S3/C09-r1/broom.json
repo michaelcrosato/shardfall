@@ -1,0 +1,10 @@
+{"format":2,"name":"broom","unit":"cm",
+"description":"A straw broom leaning against the wall, bristles on the floor.",
+"materials":{
+"straw":{"color":"#d2a84a"},
+"twine":{"color":"#5a4028"},
+"wood":{"color":"#8a6038"}},
+"parts":{
+"binding":{"type":"cylinder","radius":3.4,"from":[0,28,12.5],"to":[0,33,12],"mat":"twine"},
+"bristles":{"type":"cone","radius":1,"radius_end":7,"from":[0,1,15.5],"to":[0,32,12],"mat":"straw"},
+"handle":{"type":"cylinder","radius":1.8,"from":[0,14,14],"to":[0,129,1],"mat":"wood"}}}

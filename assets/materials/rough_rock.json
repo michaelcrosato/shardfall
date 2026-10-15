@@ -1,0 +1,6 @@
+{"format":1, "name":"rough_rock", "unit":"cm", "description":"Fractured grey rock with dark cracks and pale tops: cave walls, cliffs, mine faces, rough ground.", "tags":["rock", "stone", "cave", "cliff", "mine"], "source":{"library": "own", "license": "CC0-1.0", "author": "Shardfall contributors"}, "color":"#77716a",
+ "layers":[
+  {"type":"voronoi","size":38,"jitter":1,"feature":"edges","gap":2.5,"vary":0.35,"cavity":0.55,"shade":0.45},
+  {"type":"noise","size":18,"detail":4,"distort":0.6,"cover":0.55,"color":"#575249","strength":0.55},
+  {"type":"noise","size":70,"cover":0.35,"color":"#8e877b","strength":0.4,"facing":"up"}
+ ]}

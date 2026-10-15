@@ -1,0 +1,5 @@
+{"format":1, "name":"packed_earth", "unit":"cm", "description":"Packed brown earth with soft patches: dirt paths, tilled fields, yards, cave floors.", "tags":["dirt", "earth", "soil", "ground", "path"], "source":{"library": "own", "license": "CC0-1.0", "author": "Shardfall contributors"}, "color":"#7a5f43",
+ "layers":[
+  {"type":"noise","size":45,"detail":3,"distort":0.7,"cover":0.5,"soft":0.9,"color":"#5f4832","strength":0.55},
+  {"type":"noise","size":14,"detail":2,"cover":0.3,"soft":0.6,"color":"#93785a","strength":0.4}
+ ]}

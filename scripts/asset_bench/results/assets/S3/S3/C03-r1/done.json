@@ -1,0 +1,7 @@
+{"items":[
+{"role":"shrine gate","kind":"prop","id":"WORKSHOP/shrine_gate","how":"made","from":"","pos":[0,0,3],"yaw":0,"scale":1},
+{"role":"stone lantern","kind":"prop","id":"WORKSHOP/stone_lantern","how":"made","from":"","pos":[1.0,0,-1],"yaw":0,"scale":1},
+{"role":"fox statue","kind":"prop","id":"WORKSHOP/fox_statue","how":"made","from":"","pos":[0.2,0,-1],"yaw":0,"scale":1},
+{"role":"paving","kind":"material","id":"MAT/mossy_stone","how":"placed","from":"MAT/mossy_stone"},
+{"role":"pilgrim bow","kind":"clip","id":"WORKSHOP/PilgrimBow","how":"made","from":""}
+],"notes":"Gate, lantern, fox built from primitives; mossy_stone paving; bow clip authored from rest pose."}

@@ -1,0 +1,21 @@
+{"format":2,"name":"trough","unit":"cm",
+"description":"A plank water trough on four short legs. Knobs: length, fill (water, hay, empty), material.",
+"tags":["trough","water","manger","feed","farm","stable"],
+"category":"container",
+"materials":{
+"body":{"base":"MAT/oak_planks","color":"#8a5a3a"},
+"water":{"color":"#4d7f99","roughness":0.1}},
+"parts":{
+"body":{"type":"extrude","points":[[-26,0],[26,0],[32,40],[27,40],[21,5],[-21,5],[-27,40],[-32,40]],"depth":180,"pos":[0,14,0],"yaw":90,"mat":"body"},
+"end":{"type":"extrude","points":[[-26,0],[26,0],[32,40],[-32,40]],"depth":4,"pos":[88,14,0],"yaw":90,"mat":"body","mirror":"x"},
+"hay":{"type":"rounded_box","size":[172,14,52],"radius":5,"pos":[0,50,0],"color":"#d6b25e","chance":0},
+"leg":{"type":"box","size":[10,16,10],"pos":[72,8,19],"mat":"body","mirror":["x","z"]},
+"water":{"type":"box","size":[172,1,50],"pos":[0,48,0],"mat":"water","chance":1}},
+"params":{
+"fill":{"choices":["water","hay","empty"],"set":{"hay.chance":[0,1,0],"water.chance":[1,0,0]}},
+"length":{"range":[100,240],"set":{"body.depth":1,"end.pos.0":0.48889,"hay.size.0":0.95556,"leg.pos.0":0.4,"water.size.0":0.95556}},
+"material":{"choices":["wood","stone"],"set":{"materials.body.base":["MAT/oak_planks","MAT/mossy_stone"],"materials.body.color":["#8a5a3a","#8e8b80"]}}},
+"presets":{
+"feed":{"fill":"hay"},
+"short":{"length":110},
+"stone":{"material":"stone"}}}

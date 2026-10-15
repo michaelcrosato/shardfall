@@ -1,0 +1,15 @@
+{"format":2,"name":"mine_lamp","unit":"cm",
+"description":"A small hanging mine lamp with glowing flame.",
+"tags":["lamp","light","mine"],
+"category":"lighting",
+"materials":{
+"glow":{"color":"#ffcc66","emissive":3},
+"iron":{"color":"#3a3a40"}},
+"parts":{
+"base":{"type":"cylinder","radius":8,"height":4,"pos":[0,9,0],"mat":"iron"},
+"body":{"type":"cylinder","radius":7,"height":18,"pos":[0,20,0],"mat":"glow","light":{"color":"#ffb050","radius":400,"intensity":1.5}},
+"flame":{"type":"sphere","radius":3,"pos":[0,4.5,0],"mat":"glow"},
+"hook":{"type":"torus","radius":3,"minor_radius":0.8,"pos":[0,37,0],"pitch":90,"mat":"iron"},
+"top":{"type":"cone","radius":9,"radius_end":3,"height":7,"pos":[0,32,0],"mat":"iron"}},
+"sockets":{
+"hang":{"pos":[0,40,0]}}}

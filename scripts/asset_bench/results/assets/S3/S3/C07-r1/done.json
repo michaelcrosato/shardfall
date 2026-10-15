@@ -1,0 +1,7 @@
+{"items":[
+{"role":"barricade","kind":"prop","id":"WORKSHOP/barricade","how":"made","from":"","pos":[0,0,3.2],"yaw":0,"scale":1},
+{"role":"alarm bell post","kind":"prop","id":"WORKSHOP/alarm_bell_post","how":"made","from":"","pos":[-1.8,0,3.2],"yaw":0,"scale":1},
+{"role":"bridge","kind":"prop","id":"WORKSHOP/plank_bridge","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"bridge deck","kind":"material","id":"MAT/oak_planks","how":"placed","from":"MAT/oak_planks"},
+{"role":"guard sword swing","kind":"clip","id":"QUATERNIUS/Sword_Attack","how":"placed","from":"QUATERNIUS/Sword_Attack"}],
+"notes":"Barricade 200cm, bell post 180cm; oak planks deck; single stepping sword slash clip."}

@@ -6,7 +6,8 @@ layers (planks, brick, cobbles, noise …). No images, no UVs. Props wear them b
 ## Names
 
 - Core, read-only: MAT/oak_planks, barrel_staves (oak planks upright), brick_wall, cobblestone,
-  mossy_stone, roof_shingles, awning_stripes, wrought_iron, gold_trim, pb/gold, pb/iron, and the
+  mossy_stone, roof_shingles, awning_stripes, wrought_iron, gold_trim, rough_rock (cave and cliff
+  rock), checker_tiles, packed_earth (dirt, soil, paths), pb/gold, pb/iron, and the
   dungeon set in theme colours: flagstones (stones in $floor and $floor2), dungeon_wall ($wall,
   $floor dust at the foot), pillar_stone ($pillar drums), wall_cap (1 m coping stones).
   `assets kind=material [find=wood]` lists them with layers and cost.

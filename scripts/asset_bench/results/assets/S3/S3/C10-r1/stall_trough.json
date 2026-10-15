@@ -1,0 +1,14 @@
+{"format":2,"name":"stall_trough","unit":"cm",
+"description":"A wooden water trough, 180 cm long, filled with water.",
+"tags":["trough","stable","wood"],
+"category":"container",
+"materials":{
+"dark":{"color":"#594635"},
+"water":{"color":"#4a86b8","look":"lit"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"bottom":{"type":"box","size":[180,6,50],"pos":[0,13,0],"mat":"wood"},
+"end":{"type":"box","size":[6,30,38],"pos":[87,25,0],"mat":"wood","mirror":"x"},
+"foot":{"type":"box","size":[10,10,44],"pos":[70,5,0],"mat":"dark","mirror":"x"},
+"side":{"type":"box","size":[180,30,6],"pos":[0,25,22],"mat":"wood","mirror":"z"},
+"water":{"type":"box","size":[168,2,38],"pos":[0,32,0],"mat":"water"}}}

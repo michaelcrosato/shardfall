@@ -1,0 +1,52 @@
+gate	arm	task	run	role	kind	need	how	id	source	offered	met	used
+S3	S3	C01	1	rowboat	prop	prop: a small rowboat about 300 cm long	made	WORKSHOP/rowboat		0	0	0
+S3	S3	C01	1	lamp post	prop	prop: a lamp post about 180 cm tall that gives light	made	WORKSHOP/lamp_post		0	0	0
+S3	S3	C01	1	fish crate	prop	prop: a fish crate about 60 cm wide	placed	LIB/core/slat_crate	lib/core/slat_crate	1	1	1
+S3	S3	C01	1	dock boards	material	material: weathered wooden planks for the dock	placed	MAT/oak_planks	mat/oak_planks	1	1	1
+S3	S3	C01	1	fisherman idle	clip	clip: a fisherman's looping idle	placed	QUATERNIUS/Idle_Loop	quaternius/idle_loop	1	1	1
+S3	S3	C02	1	grindstone	prop	prop: a foot-pedal grindstone about 90 cm tall	made	WORKSHOP/grindstone		0	0	0
+S3	S3	C02	1	quenching barrel	prop	prop: a wooden quenching barrel about 80 cm tall	placed	LIB/core/barrel	lib/core/barrel	1	1	1
+S3	S3	C02	1	bellows	prop	prop: a forge bellows about 90 cm long	made	WORKSHOP/bellows		0	0	0
+S3	S3	C02	1	back wall	material	material: sooty dark brick for the wall	derived	MAT/workshop/wall	mat/brick_wall	1	1	1
+S3	S3	C02	1	smith hammering	clip	clip: a smith's looping hammering motion	forked	WORKSHOP/smith_hammering	mesh2motion/chop_tree	1	1	1
+S3	S3	C03	1	shrine gate	prop	prop: a wooden shrine gate about 300 cm tall	made	WORKSHOP/shrine_gate		0	0	0
+S3	S3	C03	1	stone lantern	prop	prop: a stone lantern about 120 cm tall that gives light	made	WORKSHOP/stone_lantern		0	0	0
+S3	S3	C03	1	fox statue	prop	prop: a stone fox statue about 80 cm tall	made	WORKSHOP/fox_statue		0	0	0
+S3	S3	C03	1	paving	material	material: mossy stone paving	placed	MAT/mossy_stone	mat/mossy_stone	1	1	1
+S3	S3	C03	1	pilgrim bow	clip	clip: a character bowing once	made	WORKSHOP/PilgrimBow		0	0	0
+S3	S3	C04	1	barred gate	prop	prop: an iron barred cell gate about 220 cm tall	made	WORKSHOP/cell_gate		0	0	0
+S3	S3	C04	1	cot	prop	prop: a plain cot about 190 cm long	made	WORKSHOP/cell_cot		0	0	0
+S3	S3	C04	1	bucket	prop	prop: a wooden bucket about 30 cm tall	made	WORKSHOP/cell_bucket		0	0	0
+S3	S3	C04	1	wall torch	prop	prop: a wall torch that gives light	placed	LIB/core/wall_torch	lib/core/wall_torch	1	1	1
+S3	S3	C04	1	cell walls	material	material: damp stone brick	forked	MAT/workshop/damp_brick	mat/dungeon_wall	1	1	1
+S3	S3	C04	1	prisoner idle	clip	clip: a slumped prisoner's looping idle	forked	WORKSHOP/PrisonerSlump	quaternius/sitting_idle_loop	0	0	1
+S3	S3	C05	1	well	prop	prop: a stone well about 110 cm tall	made	WORKSHOP/sq_well		0	0	0
+S3	S3	C05	1	bucket	prop	prop: a wooden bucket about 30 cm tall	made	WORKSHOP/sq_bucket		0	0	0
+S3	S3	C05	1	hay bale	prop	prop: a hay bale about 100 cm wide	made	WORKSHOP/sq_hay		0	0	0
+S3	S3	C05	1	square ground	material	material: cobblestones for the square	derived	MAT/workshop/sq_cobbles	mat/cobblestone	1	1	1
+S3	S3	C05	1	villager wave	clip	clip: a villager's friendly wave	placed	CMU/Wave_Hello	cmu/wave_hello	1	1	1
+S3	S3	C06	1	tent	prop	prop: a canvas tent about 200 cm tall	made	WORKSHOP/scout_tent		0	0	0
+S3	S3	C06	1	bedroll	prop	prop: a bedroll about 190 cm long	made	WORKSHOP/bedroll		0	0	0
+S3	S3	C06	1	supply crate	prop	prop: a supply crate about 60 cm wide	placed	BUILTIN/crate	builtin/crate	1	1	1
+S3	S3	C06	1	lantern	prop	prop: a small lantern about 30 cm tall that gives light	placed	BUILTIN/lantern	builtin/lantern	1	1	1
+S3	S3	C06	1	sentry patrol walk	clip	clip: a sentry's looping walk	placed	QUATERNIUS/Walk_Loop	quaternius/walk_loop	1	1	1
+S3	S3	C07	1	barricade	prop	prop: a wooden barricade about 200 cm wide	made	WORKSHOP/barricade		0	0	0
+S3	S3	C07	1	alarm bell post	prop	prop: an alarm bell hanging on a post about 180 cm tall	made	WORKSHOP/alarm_bell_post		0	0	0
+S3	S3	C07	1	bridge deck	material	material: wooden planks for the bridge deck	placed	MAT/oak_planks	mat/oak_planks	1	1	1
+S3	S3	C07	1	guard sword swing	clip	clip: a single sword swing attack	placed	QUATERNIUS/Sword_Attack	quaternius/sword_attack	0	0	1
+S3	S3	C08	1	support beam	prop	prop: a timber mine support beam about 250 cm tall	made	WORKSHOP/mine_beam		0	0	0
+S3	S3	C08	1	hanging lamp	prop	prop: a hanging mine lamp that gives light	made	WORKSHOP/mine_lamp		0	0	0
+S3	S3	C08	1	minecart	prop	prop: a minecart about 120 cm long	made	WORKSHOP/minecart		0	0	0
+S3	S3	C08	1	pickaxe	prop	prop: a pickaxe about 90 cm long	made	WORKSHOP/pickaxe		0	0	0
+S3	S3	C08	1	rock face	material	material: rough rock for the cave wall	made	MAT/workshop/mine_rock		0	0	0
+S3	S3	C08	1	miner pick swing	clip	clip: a miner's looping pickaxe swing	made	WORKSHOP/MinerSwing		0	0	0
+S3	S3	C09	1	fireplace	prop	prop: a stone fireplace about 180 cm tall that gives light	made	WORKSHOP/fireplace		0	0	0
+S3	S3	C09	1	cooking pot	prop	prop: an iron cooking pot about 40 cm tall	made	WORKSHOP/cooking_pot		0	0	0
+S3	S3	C09	1	broom	prop	prop: a straw broom about 130 cm long	made	WORKSHOP/broom		0	0	0
+S3	S3	C09	1	floor	material	material: checkered tile floor	made	MAT/workshop/checker_tile		0	0	0
+S3	S3	C09	1	cook stirring	clip	clip: a cook's looping stirring motion	made	WORKSHOP/cook_stir		0	0	0
+S3	S3	C10	1	water trough	prop	prop: a wooden water trough about 180 cm long	made	WORKSHOP/stall_trough		0	0	0
+S3	S3	C10	1	hay bale	prop	prop: a hay bale about 100 cm wide	made	WORKSHOP/stall_hay		0	0	0
+S3	S3	C10	1	saddle on rail	prop	prop: a horse saddle on a rail about 50 cm tall	made	WORKSHOP/stall_saddle_rail		0	0	0
+S3	S3	C10	1	stall planks	material	material: wooden planks for the stall	placed	MAT/oak_planks	mat/oak_planks	1	1	1
+S3	S3	C10	1	horse idle	clip	clip: a horse's looping idle	forked	WORKSHOP/HorseIdle	mesh2motion/idle_subtle	0	0	1

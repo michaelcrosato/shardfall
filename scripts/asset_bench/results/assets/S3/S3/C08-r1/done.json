@@ -1,0 +1,8 @@
+{"items":[
+{"role":"support beam","kind":"prop","id":"WORKSHOP/mine_beam","how":"made","from":"","pos":[0,0,-60],"yaw":0,"scale":1},
+{"role":"hanging lamp","kind":"prop","id":"WORKSHOP/mine_lamp","how":"made","from":"","pos":[0,182,-60],"yaw":0,"scale":1},
+{"role":"minecart","kind":"prop","id":"WORKSHOP/minecart","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"pickaxe","kind":"prop","id":"WORKSHOP/pickaxe","how":"made","from":"","pos":[70,0,10],"yaw":0,"scale":1},
+{"role":"rock face","kind":"material","id":"MAT/workshop/mine_rock","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"miner pick swing","kind":"clip","id":"WORKSHOP/MinerSwing","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1}
+],"notes":"Hand-built props, custom voronoi rock material, authored looping swing clip."}

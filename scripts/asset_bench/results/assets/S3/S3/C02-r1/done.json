@@ -1,0 +1,7 @@
+{"items":[
+{"role":"grindstone","kind":"prop","id":"WORKSHOP/grindstone","how":"made","from":"","pos":[-1,0,-0.4],"yaw":0,"scale":1},
+{"role":"quenching barrel","kind":"prop","id":"LIB/core/barrel","how":"placed","from":"LIB/core/barrel","pos":[1,0,-0.4],"yaw":0,"scale":0.88},
+{"role":"bellows","kind":"prop","id":"WORKSHOP/bellows","how":"made","from":"","pos":[0,0,-0.5],"yaw":90,"scale":1},
+{"role":"back wall","kind":"material","id":"MAT/workshop/wall","how":"derived","from":"MAT/brick_wall","pos":[0,0,-1],"yaw":0,"scale":1},
+{"role":"smith hammering","kind":"clip","id":"WORKSHOP/smith_hammering","how":"forked","from":"MESH2MOTION/Chop_Tree","pos":[0,0,0.3],"yaw":0,"scale":1}
+],"notes":"Barrel scaled 0.88 to 80 cm; hammering forked from chop loop unedited."}

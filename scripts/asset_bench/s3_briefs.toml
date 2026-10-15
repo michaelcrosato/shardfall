@@ -1,3 +1,9 @@
+# Asset store S3 briefs (docs/AGENT_ASSET_STORE.md §13 S3): ten fresh briefs by the blind
+# store-brief-writer (2026-10-15), each with a need list. Fields as in store_briefs.toml, plus kind
+# per role (prop, material, clip) and needs (one line per role, in order).
+
+cap = [60, 8]
+
 [[brief]]
 id = "C01"
 order = 1

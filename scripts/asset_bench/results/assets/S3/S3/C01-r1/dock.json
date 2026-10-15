@@ -1,0 +1,9 @@
+{"format":2,"name":"dock","unit":"cm",
+"description":"A short plank dock on piles, 400 cm long.",
+"materials":{
+"post":{"color":"#4a3a2a"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"deck":{"type":"box","size":[160,8,400],"pos":[0,56,0],"mat":"wood"},
+"pile":{"type":"cylinder","radius":8,"height":58,"pos":[68,29,0],"mat":"post","mirror":"x","array":{"count":3,"step":[0,0,170]}},
+"stringer":{"type":"box","size":[10,12,396],"pos":[60,46,0],"mat":"post","mirror":"x"}}}

@@ -1,0 +1,16 @@
+{"format":2,"name":"sq_well","unit":"cm",
+"description":"A low stone village well with a wooden frame and crank beam.",
+"tags":["well","stone","village","town"],
+"category":"town",
+"materials":{
+"cap":{"color":"#8a8a86","roughness":0.8},
+"stone":{"base":"MAT/cobblestone","map":"axis"},
+"water":{"color":"#2b4a5c","roughness":0.2},
+"wood":{"base":"MAT/oak_planks","color":"#6b4e33","turn":true}},
+"parts":{
+"axle":{"type":"cylinder","radius":3,"height":80,"pos":[0,96,0],"axis":"x","mat":"wood"},
+"beam":{"type":"box","size":[8,8],"from":[-48,106,0],"to":[48,106,0],"mat":"wood"},
+"capstone":{"type":"tube","radius":51,"thickness":18,"height":8,"pos":[0,74,0],"mat":"cap"},
+"post":{"type":"box","size":[8,8],"from":[44,78,0],"to":[44,110,0],"mat":"wood","mirror":"x"},
+"ring":{"type":"tube","radius":50,"thickness":14,"height":70,"pos":[0,35,0],"mat":"stone"},
+"water":{"type":"cylinder","radius":38,"height":2,"pos":[0,40,0],"mat":"water","solid":false}}}

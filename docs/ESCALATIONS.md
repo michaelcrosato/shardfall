@@ -23,8 +23,9 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   and gives the user the lines to paste into their template. 2. The owner's own one-line approval
   comment on riftlight #49 for the Kenney 1-Bit Pack. No default: an agent may not approve for the
   owner, so S5's imported arm stays "pending user" until the comment exists.
-- **Decided by:** pending. Question 1's default applies 15 minutes after the run starts if no
-  answer is recorded here.
+- **Decided by:** the agent, after 15 minutes without an answer: the run started at 20:53 UTC
+  and question 1's default applied at 21:09. S3 added the three lines to FEEDBACK.md's paraphrase
+  ("Asset store lines"); the lines to paste into the template went to the user in chat.
 - **Later:** the user scoped the run to Shardfall (2026-10-15), so S5's riftlight side is a
   hand-off prompt and question 2 goes with it: the run no longer waits on #49.
 

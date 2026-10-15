@@ -1,0 +1,14 @@
+{"format":2,"name":"cell_gate","unit":"cm",
+"description":"A barred iron prison gate with frame and crossbands.",
+"tags":["gate","prison","iron","dungeon"],
+"category":"dungeon",
+"materials":{
+"iron":"MAT/wrought_iron"},
+"parts":{
+"band1":{"type":"box","size":[110,5,4],"pos":[0,70,0],"mat":"iron"},
+"band2":{"type":"box","size":[110,5,4],"pos":[0,150,0],"mat":"iron"},
+"bars":{"type":"cylinder","radius":1.8,"height":200,"pos":[0,110,0],"mat":"iron","array":{"count":7,"step":[15,0,0]}},
+"bot":{"type":"box","size":[130,10,10],"pos":[0,5,0],"mat":"iron"},
+"lock":{"type":"box","size":[12,16,8],"pos":[50,105,0],"mat":"iron"},
+"post":{"type":"box","size":[10,220,10],"pos":[60,110,0],"mat":"iron","mirror":"x"},
+"top":{"type":"box","size":[130,10,10],"pos":[0,215,0],"mat":"iron"}}}

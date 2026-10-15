@@ -1,0 +1,16 @@
+{"format":2,"name":"grindstone","unit":"cm",
+"description":"A stone grinding wheel on a wooden frame with a foot crank, 90 cm tall.",
+"tags":["grindstone","smithy","tool"],
+"category":"tool",
+"materials":{
+"iron":"MAT/wrought_iron",
+"stone":{"color":"#9a9a98","layers":[{"type":"noise","size":12,"cover":0.4,"shade":0.8}]},
+"wood":"MAT/oak_planks"},
+"parts":{
+"axle":{"type":"cylinder","radius":2.5,"height":56,"pos":[0,60,0],"axis":"x","mat":"iron"},
+"brace":{"type":"box","size":[6,5],"from":[-24,14,0],"to":[24,14,0],"mat":"wood"},
+"crank":{"type":"box","size":[3,14,3],"pos":[30,54,0],"mat":"iron"},
+"handle":{"type":"cylinder","radius":2,"height":9,"pos":[34,48,0],"axis":"x","mat":"wood"},
+"post":{"type":"box","size":[6,60,26],"pos":[24,30,0],"mat":"wood","mirror":"x"},
+"trough":{"type":"box","size":[46,6,24],"pos":[0,16,14],"mat":"wood"},
+"wheel":{"type":"cylinder","radius":30,"height":12,"pos":[0,60,0],"axis":"x","mat":"stone"}}}

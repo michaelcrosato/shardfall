@@ -403,7 +403,8 @@ pub fn prop_shelf(rows: &[Row]) -> Value {
     let number = |x: f32| if x.fract() == 0.0 { format!("{}", x as i64) } else { format!("{x}") };
     let mut foundations: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     for foundation in rules::foundations() {
-        let mut line = foundation.id.to_owned();
+        // Every foundation is LIB/core: the shelf names its leaf (S3, to fit more foundations).
+        let mut line = foundation.id.strip_prefix("LIB/core/").unwrap_or(foundation.id).to_owned();
         if let Some(row) = rows.iter().find(|row| row.name == foundation.id) {
             line.push_str(&format!(" {}{}", row.size_cm, sockets(row)));
         }
@@ -429,13 +430,13 @@ pub fn prop_shelf(rows: &[Row]) -> Value {
     entries.sort_by(|a, b| a.name.cmp(&b.name));
     for row in entries {
         let cat = if row.cat.is_empty() { "other".to_owned() } else { row.cat.clone() };
-        by_cat.entry(cat).or_default().push(format!("{} {}{}", row.name, row.size_cm, sockets(row)));
+        by_cat.entry(cat).or_default().push(format!("{}{}", row.name, sockets(row)));
     }
     json!({
         "foundations": foundations,
         "others": by_cat,
         "shelf": "prop",
-        "use": "foundations: where each archetype starts, with knobs and :presets; place a variant with asset_spawn name=X:preset params={...} (rooms: asset = \"X:preset\"); techniques and examples in store/foundations.tsv. standard = embedded (rooms and game data may name it), checked = on disk. asset_edit action=inspect name=X reads one; action=copy from=X name=y forks it; assets find=words searches everything",
+        "use": "foundations are LIB/core/<name> size knobs :presets; place LIB/core/X:preset or params={...}; inspect or copy one with asset_edit; find=words gives sizes",
     })
 }
 
@@ -541,11 +542,14 @@ pub fn t_assets(_: &mut Session, a: &Args) -> Result<Output> {
     let n = query.terms.len();
     let hits = rank(rows.clone(), &query);
     let whole: Vec<&Hit> = hits.iter().filter(|hit| hit.matched == n).collect();
-    let partial = whole.is_empty() && n >= 3 && hits.first().is_some_and(|hit| hit.matched >= 2);
+    // Nothing matches every word: rows matching all but one (at least one) of two or more words,
+    // so "lamp post" still offers the lanterns.
+    let floor = n.saturating_sub(1).clamp(1, 2);
+    let partial = whole.is_empty() && n >= 2 && hits.first().is_some_and(|hit| hit.matched >= floor);
     let mut result = if !whole.is_empty() || n == 0 || query.similar.is_some() || builtin {
         page_of(&whole, page, limit)
     } else if partial {
-        let shown: Vec<&Hit> = hits.iter().filter(|hit| hit.matched >= 2).collect();
+        let shown: Vec<&Hit> = hits.iter().filter(|hit| hit.matched >= floor).collect();
         let missing: Vec<&str> =
             query.terms.iter().filter(|term| term_score(&shown[0].row, term) == 0.0).map(|term| term.word.as_str()).collect();
         let mut result = page_of(&shown, page, limit);

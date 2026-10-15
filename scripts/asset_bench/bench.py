@@ -19,6 +19,9 @@ it would normally get, make better assets for fewer tokens?
   bench.py store-score [--gate S1]                 each store run's ids, roles, sizes, findings
   bench.py tokens [--gate S1] [--main]             model calls, tokens read, weighted cost from transcripts
   bench.py store-report [--gate S1]                S1's rule: arm L cheaper on 5 of 6 briefs
+  bench.py store-prepare --gate S3 --arm S3 --bin-arm S3 --briefs-file s3_briefs.toml   S3's mixed briefs
+  bench.py store-needs [--gate S3]                 S3's met/needs per kind and the logged misses
+  bench.py cost --mark S3-start | --stage S3 | --test S3 bench --gate S3   US$ as Claude Code bills it
 
 Runs live in .cache/asset_bench/runs/<gate>/<arm>/<task>-r<k>/ (git-ignored). Each author run is
 one fresh `asset-bench-author` agent (.claude/agents/) that reads RUN/brief.md and RUN/docs/ and
@@ -1438,9 +1441,10 @@ def base_id(name):
     return (head if head and "/" not in tail else name).lower()
 
 
-def offered(run):
-    """What a run's searches put in front of the agent (S3's "top 5"): the first 5 rows of each
-    find reply, the nearest rows of a `none`, every entry on a shelf it opened."""
+def offered(run, top=5):
+    """What a run's searches put in front of the agent (S3's "top 5"): the first `top` rows of
+    each find reply (None: every row), the nearest rows of a `none`, every entry on a shelf it
+    opened."""
     seen = set()
     for tool, args, reply in log_rows(run):
         try:
@@ -1462,11 +1466,16 @@ def offered(run):
                     for x in v:
                         walk(x)
             walk(value)
+            # Since S3 the prop shelf names foundations by their LIB/core leaf.
+            for lines in (value.get("foundations") or {}).values():
+                for line in lines if isinstance(lines, list) else []:
+                    if isinstance(line, str) and line.split():
+                        seen.add(base_id("LIB/core/" + line.split()[0]))
         elif (tool == "assets" and "find" in args) or (tool == "clips" and "find" in args):
-            for row in (value.get("rows") or [])[:5] + (value.get("nearest") or [])[:5]:
+            for row in (value.get("rows") or [])[:top] + (value.get("nearest") or [])[:top]:
                 if isinstance(row, list) and row:
                     seen.add(base_id(row[0]))
-            for clip in (value.get("clips") or [])[:5]:
+            for clip in (value.get("clips") or [])[:top]:
                 if isinstance(clip, dict) and clip.get("name"):
                     seen.add(base_id(clip["name"]))
     return seen
@@ -1487,17 +1496,21 @@ def score_mixed_run(binary, run, brief, items, facts):
     materials inspected, clips looked up), then each need met or not."""
     roles = {r["role"]: r for r in brief["roles"]}
     workshop_clips = (load(run / "anim/workshop.json", {}) or {}).get("clips") or {}
-    lines, plan = [], []
+    lines, plan = [json.dumps({"tool": "load", "args": {"scene": "empty"}})], []
     for item in items:
         role = roles.get(item.get("role"))
         kind = role_kind(role) if role else item.get("kind", "prop")
         name = str(item.get("id", ""))
         start = len(lines)
-        if kind == "prop":
-            args = {"action": "inspect", "name": name, "bounds": True}
+        if kind == "prop" and (":" in name or isinstance(item.get("params"), dict)):
+            # A derived variant (NAME:preset, params): sized by spawning it; checked as its base.
+            args = {"action": "add", "name": name, "pos": [0, 0, 0]}
             if isinstance(item.get("params"), dict):
                 args["params"] = item["params"]
-            lines.append(json.dumps({"tool": "asset_edit", "args": args}))
+            lines.append(json.dumps({"tool": "asset_spawn", "args": args}))
+            lines.append(json.dumps({"tool": "asset_edit", "args": {"action": "check", "name": name.split(":")[0], "all": True}}))
+        elif kind == "prop":
+            lines.append(json.dumps({"tool": "asset_edit", "args": {"action": "inspect", "name": name, "bounds": True}}))
             lines.append(json.dumps({"tool": "asset_edit", "args": {"action": "check", "name": name, "all": True}}))
         elif kind == "material":
             lines.append(json.dumps({"tool": "asset_edit", "args": {"kind": "material", "action": "inspect", "name": name}}))
@@ -1508,13 +1521,19 @@ def score_mixed_run(binary, run, brief, items, facts):
     reply = lambda k: replies[k] if k < len(replies) else {"error": "no reply"}
     resolved = {}
     for item, role, kind, name, start, end in plan:
+        before = len(facts["problems"])
         facts["ids"].append(name)
         if role is None:
-            facts["problems"].append(f"{name}: role {item.get('role')!r} is not in the brief")
+            # An extra item for a role the brief doesn't name (a dock under the dock's boards):
+            # noted, not a problem.
+            facts.setdefault("extras", []).append(name)
             continue
         ok = True
         if kind == "prop":
             inspect, check = reply(start), reply(start + 1)
+            if "instance" in inspect:
+                bounds = inspect["instance"].get("bounds") or {}
+                inspect = {"asset": True, "bounds": [bounds.get("min", [0, 0, 0]), bounds.get("max", [0, 0, 0])]}
             if not inspect.get("asset"):
                 facts["problems"].append(f"{name}: does not resolve ({str(inspect.get('error', ''))[:80]})")
                 ok = False
@@ -1553,7 +1572,8 @@ def score_mixed_run(binary, run, brief, items, facts):
                 ok = False
             elif role.get("loop") and not looping:
                 facts["problems"].append(f"{name}: {item.get('role')} must loop")
-        resolved[id(item)] = ok
+        # Met needs only resolving items that also pass their role's size, light and loop checks.
+        resolved[id(item)] = ok and len(facts["problems"]) == before
     for role_name, spec in roles.items():
         have = sum(1 for i in items if i.get("role") == role_name)
         if have < spec.get("count", 1):
@@ -1562,11 +1582,11 @@ def score_mixed_run(binary, run, brief, items, facts):
         facts["problems"].append("no done.json")
     # Needs (§13 S3): one per role, in brief order; met when an item for it was placed, forked or
     # derived from an entry the run's searches offered, and it resolves.
-    shown, sources = offered(run), copy_sources(run)
+    shown, anywhere, sources = offered(run), offered(run, None), copy_sources(run)
     needs = brief.get("needs") or [f"{role_kind(r)}: {r['role']}" for r in brief["roles"]]
     facts["needs"] = []
     for k, role in enumerate(brief["roles"]):
-        best = {"how": "", "id": "", "source": "", "offered": 0, "met": 0}
+        best = {"how": "", "id": "", "source": "", "offered": 0, "met": 0, "used": 0}
         for item in (i for i in items if i.get("role") == role["role"]):
             how = str(item.get("how", "")).lower()
             name = str(item.get("id", ""))
@@ -1577,9 +1597,12 @@ def score_mixed_run(binary, run, brief, items, facts):
             elif how in ("placed", "derived") and not source:
                 source = base_id(name)
             hit = int(bool(source) and source in shown)
-            met = int(how in ("placed", "forked", "derived") and hit and resolved.get(id(item), False))
-            row = {"how": how, "id": name, "source": source, "offered": hit, "met": met}
-            if (met, hit) > (best["met"], best["offered"]) or not best["how"]:
+            good = how in ("placed", "forked", "derived") and resolved.get(id(item), False)
+            met = int(good and hit)
+            # Secondary: the entry came from any row the run's searches showed, not only the top 5.
+            used = int(good and bool(source) and source in anywhere)
+            row = {"how": how, "id": name, "source": source, "offered": hit, "met": met, "used": used}
+            if (met, used, hit) > (best["met"], best["used"], best["offered"]) or not best["how"]:
                 best = row
         facts["needs"].append({"role": role["role"], "kind": role_kind(role),
                                "need": needs[k] if k < len(needs) else role["role"], **best})
@@ -1617,7 +1640,7 @@ def cmd_store_score(args):
     write_tsv(STORE_RUNS, columns, rows, args.gate)
     if need_rows:
         write_tsv(STORE_NEEDS, ["gate", "arm", "task", "run", "role", "kind", "need", "how", "id", "source", "offered",
-                                "met"], need_rows, args.gate)
+                                "met", "used"], need_rows, args.gate)
     # Each run's done.json and workshop assets, as text, for re-scoring later (run folders stay in
     # .cache/, git-ignored).
     for run in run_dirs(args.gate):
@@ -1803,6 +1826,37 @@ def mixed_brief_text(brief, cap, roles):
         "", f"Budget: {cap[0]} engine commands and {cap[1]} images. Then reply \"done\".", ""])
 
 
+def cmd_store_needs(args):
+    """S3's measure (§13): met/needs per kind over a gate's runs (results/store_needs.tsv, written
+    by store-score), and the misses the runs logged, most frequent first."""
+    rows = [r for r in read_tsv(STORE_NEEDS) if r["gate"] == args.gate and (not args.run or r["run"] == args.run)]
+    if not rows:
+        sys.exit(f"no needs for {args.gate}: run bench.py store-score --gate {args.gate} first")
+    kinds, used = {}, {}
+    for r in rows:
+        met, total = kinds.get(r["kind"], (0, 0))
+        kinds[r["kind"]] = (met + int(r["met"]), total + 1)
+        used[r["kind"]] = used.get(r["kind"], 0) + int(r.get("used") or 0)
+    for task in sorted({r["task"] for r in rows}):
+        mine = [r for r in rows if r["task"] == task]
+        print(f"{task}: {sum(int(r['met']) for r in mine)}/{len(mine)} met  " + "; ".join(
+            f"{r['role']} {r['how'] or '-'}{' ' + r['id'] if r['id'] else ''}{' (met)' if r['met'] == '1' else ''}" for r in mine))
+    passed = all(met / total >= 0.8 for met, total in kinds.values())
+    print("met/needs: " + ", ".join(f"{k} {m}/{t} = {m / t:.2f}" for k, (m, t) in sorted(kinds.items())) +
+          f" -> {'critical mass' if passed else 'below 0.8'}")
+    print("store used (any row shown, not only the top 5): " +
+          ", ".join(f"{k} {used[k]}/{t}" for k, (_, t) in sorted(kinds.items())))
+    misses = {}
+    for run in run_dirs(args.gate):
+        path = run / "store/misses.tsv"
+        for line in path.read_text().splitlines()[1:] if path.exists() else []:
+            cells = line.split("\t")
+            if len(cells) >= 3:
+                key = (cells[1], cells[2].lower())
+                misses[key] = misses.get(key, 0) + 1
+    print("misses: " + "; ".join(f"{k} \"{q}\" x{n}" for (k, q), n in sorted(misses.items(), key=lambda kv: (-kv[1], kv[0]))))
+
+
 # --- US$ as Claude Code bills it (docs/AGENT_ASSET_STORE.md §15, "Tests and cost") ---------------
 
 STAGE_MARKS = RESULTS / "stage_marks.tsv"
@@ -1942,7 +1996,19 @@ def cmd_cost(args):
     if not start:
         sys.exit(f"no {args.stage}-start mark: bench.py cost --mark {args.stage}-start")
     until = end or iso(time.time())
-    calls = priced_calls(all_transcripts(), start, until)
+    # Stages can overlap (a builder agent for one stage runs while another stage tests): drop
+    # the subagents whose first prompt holds an --exclude text, or keep only an --only text's.
+    paths = all_transcripts()
+    if args.exclude or args.only:
+        def keep(path):
+            if "/subagents/" not in str(path):
+                return not args.only
+            prompt = first_prompt(path)
+            if args.only:
+                return any(text in prompt for text in args.only)
+            return not any(text in prompt for text in args.exclude)
+        paths = [p for p in paths if keep(p)]
+    calls = priced_calls(paths, start, until)
     total = sum(c[2] for c in calls)
     by_model = {}
     for _, model, usd in calls:
@@ -2028,10 +2094,12 @@ def main():
     p.add_argument("--effort", default="medium")
     p.add_argument("--harness", default="Claude Code subagent asset-bench-author, cloud session")
     p.add_argument("--docs", default="binary", help="binary (docs at the binary's commit) or worktree")
+    p.add_argument("--briefs-file", help="a briefs file other than store_briefs.toml (S3: s3_briefs.toml)")
     p.add_argument("--force", action="store_true")
     p = sub.add_parser("store-score")
     p.add_argument("--gate", default="S1")
     p.add_argument("--bin")
+    p.add_argument("--briefs-file", help="default: the file each run was prepared from")
     p = sub.add_parser("tokens")
     p.add_argument("--gate", default="S1")
     p.add_argument("--session", help="session id (default: the newest transcript)")
@@ -2041,6 +2109,9 @@ def main():
     p = sub.add_parser("store-report")
     p.add_argument("--gate", default="S1")
     p.add_argument("--run", default="1")
+    p = sub.add_parser("store-needs")
+    p.add_argument("--gate", default="S3")
+    p.add_argument("--run")
     p = sub.add_parser("cost")
     p.add_argument("--mark", help="<stage>-start or <stage>-end: note the time in results/stage_marks.tsv")
     p.add_argument("--stage", help="report the stage's total and test US$ and hours")
@@ -2048,6 +2119,8 @@ def main():
     p.add_argument("--gate", help="with --test: one row per run folder of this gate")
     p.add_argument("--run", help="with --test and --match: the row's name")
     p.add_argument("--match", help="with --test: text in the subagent's first prompt (e.g. its OUT path)")
+    p.add_argument("--exclude", action="append", help="with --stage: leave out subagents whose first prompt holds this")
+    p.add_argument("--only", action="append", help="with --stage: only subagents whose first prompt holds this")
     args = parser.parse_args()
     globals()[f"cmd_{args.command.replace('-', '_')}"](args)
 

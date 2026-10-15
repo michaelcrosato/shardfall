@@ -1,0 +1,10 @@
+{"format":2,"name":"stall_hay","unit":"cm",
+"description":"A rectangular hay bale, 100 cm wide, tied with two cords.",
+"tags":["hay","stable","bale"],
+"category":"vegetation",
+"materials":{
+"cord":{"color":"#6b4e2e"},
+"hay":{"color":"#d9b84f","layers":[{"type":"stripes","size":8,"axis":"x","cover":0.5,"shade":0.8}]}},
+"parts":{
+"bale":{"type":"rounded_box","size":[100,45,50],"radius":4,"pos":[0,22.5,0],"mat":"hay"},
+"cord":{"type":"box","size":[4,46,52],"pos":[22,23,0],"mat":"cord","mirror":"x"}}}

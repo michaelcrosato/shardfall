@@ -23,3 +23,8 @@
 # local packs, WORKSHOP_LOCAL copies and local materials stay on this machine.
 /assets/props/local
 /assets/materials/local
+
+# Claude Code agent worktrees
+.claude/worktrees/
+/assets/props/workshop/
+/assets/materials/workshop/

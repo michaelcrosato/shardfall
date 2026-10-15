@@ -17,10 +17,10 @@ barrel	LIB/core/barrel	:brass seed=1	A stave lathe in four iron hoops; a choices
 barrel	LIB/core/cask	:keg :tun	Fork of Kenney's 115 cm barrel: an 8-sided lathe and bands; height and girth reach into profile points.
 barrel	LIB/core/tap_barrel	:keg :hogshead	Reuses LIB/core/barrel by ref, rolled onto notched cradles; the size knob scales the ref and moves the rest.
 barrel	LIB/core/wash_tub	:small :dry params={"diameter":90}	An open lathe turning down inside its rim; diameter reaches profile radii, hoops and lugs; fill drains it.
-light	LIB/core/brazier	roles={"$light":"#6fd0ff"} seed=5	Coals, flames and light all use $light, so a roles palette recolours the fire; seeds jitter the flames.
+fire	LIB/core/brazier	roles={"$light":"#6fd0ff"} seed=5	Coals, flames and light all use $light, so a roles palette recolours the fire; seeds jitter the flames.
 light	LIB/core/candle_cluster	:altar :pair	A radial ring of candles whose count is a knob, round a tall candle whose height is another.
 light	LIB/core/wall_torch	:out :long	Back on the wall at z 0 (wall_mount); a choices knob drops the flame with its light, reach sets the arm.
-light	LIB/core/campfire	:embers :pit roles={"$light":"#9fe870"}	Fork of Quaternius bonfire_lit: radial stones and leaning logs, coals glowing in $light, flames by choice.
+fire	LIB/core/campfire	:embers :pit roles={"$light":"#9fe870"}	Fork of Quaternius bonfire_lit: radial stones and leaning logs, coals glowing in $light, flames by choice.
 crate	LIB/core/crate_stack	:single seed=1	Grouped crates with seeded jitter; a choices knob sets the top crate's chance: by seed, never or always.
 crate	LIB/core/chest	:open :coffer	Fork of Kenney's chest: the lid is a group pivoting at its hinge, so a choices knob swings it open.
 crate	LIB/core/slat_crate	:oranges :empty	Arrayed slats round a produce grid; one choices knob swaps the produce's material and size, or empties it.
@@ -33,3 +33,15 @@ stall	LIB/core/market_stall	:apples :closed :plain	Arrays with material cycles; 
 stall	LIB/core/gable_stall	:shed :narrow	Fork of Quaternius marketstand_1: a striped wedge roof whose peak knob turns gable into shed.
 stall	LIB/core/canopy_stall	:wide :bare roles={"$accent":"#2f6fb0"}	Thin poles under a low wedge canopy in $accent; the width knob spreads poles, table, bolts and valance.
 stall	LIB/core/tent_stall	:small :bare roles={"$accent":"#8c2f2f"}	Radial posts and valance under a cone roof in $accent; one diameter knob spreads roof, posts, counter and goods.
+light	LIB/core/lamp_post	:stone_lantern :wall params={"height":240}	A style choice swaps material, radii and whole pos vectors: a stone lantern or a bracket arm.
+light	LIB/core/hand_lantern	:hanging :mine roles={"$light":"#6fd0ff"}	One body group: a choices knob hangs it from its ring; a style choice makes a brass mine lamp.
+container	LIB/core/bucket	:pail :tall params={"fill":"empty"}	A tapered stave lathe; height scales profile, hoops and bail; style swaps to a tin pail.
+bed	LIB/core/cot	:bedroll :bed roles={"$accent":"#2f6fb0"}	One style choice switches whole groups on and off and lifts the bedding onto each deck.
+gate	LIB/core/gate	:shrine :farm params={"bars":"iron","width":180}	Choices swap the infill (bars) and the frame (lintel, torii in $accent, field posts).
+vegetation	LIB/core/hay_bale	:round :stack params={"size":75}	Size scales bale and mirrored twine bands; form shows a round roll or a second bale on top.
+vehicle	LIB/core/rowboat	:canoe :beached params={"length":220}	An arc tube hull rolls on its keel; one choice swaps canoe radii, one poses the oars.
+shelter	LIB/core/tent	:small :bell roles={"$accent":"#2f6fb0"}	Mirrored half-triangle extrudes; size carries body, fly, poles and door; shape makes a bell tent.
+tool	LIB/core/hafted_tool	:broom :hammer params={"head":"rake","length":120}	One extrude head whose points a choices knob swaps: pick, broom, spade, sledge, rake.
+container	LIB/core/trough	:feed :stone params={"length":240}	A concave U extrude with end caps; fill picks water or hay; material swaps the planks base.
+fire	LIB/core/hearth	:oven :forge roles={"$light":"#6fd0ff"}	One choices knob turns groups on and off and moves a shared fire: fireplace, oven or forge.
+container	LIB/core/cooking_pot	:kettle :large roles={"$accent":"#6a8f3a"}	Groups cannot scale, so size scales the belly and wall radii; a hang choice puts the bail on the origin.

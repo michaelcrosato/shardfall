@@ -787,7 +787,7 @@ fn rank_clips(lib: &clips::ClipLib, terms: &[pav_core::store::Term], store_only:
 }
 
 /// `clips find=WORDS` and `assets find=WORDS kind=clip`: clips matching every word (with
-/// singulars and synonyms), else those matching most of 3 or more, else `none` with the
+/// singulars and synonyms), else those matching all but one of 2 or more, else `none` with the
 /// nearest clips and a route; a miss is logged in `store/misses.tsv`.
 pub(crate) fn find_clips(find: &str, limit: usize, store_only: bool) -> Value {
     let lib = clips::library();
@@ -806,8 +806,11 @@ pub(crate) fn find_clips(find: &str, limit: usize, store_only: bool) -> Value {
         let rows: Vec<Value> = whole.iter().take(limit).map(|hit| clip_row(&lib, hit.id)).collect();
         return json!({"found": whole.len(), "clips": rows});
     }
-    if n >= 3 && hits.first().is_some_and(|hit| hit.matched >= 2) {
-        let shown: Vec<&ClipHit> = hits.iter().filter(|hit| hit.matched >= 2).collect();
+    // Rows matching all but one (at least one) of two or more words: "patrol walk" still offers
+    // the walks (S3).
+    let floor = n.saturating_sub(1).clamp(1, 2);
+    if n >= 2 && hits.first().is_some_and(|hit| hit.matched >= floor) {
+        let shown: Vec<&ClipHit> = hits.iter().filter(|hit| hit.matched >= floor).collect();
         return json!({
             "found": shown.len(),
             "partial": "no clip matches every word; these match most of them",

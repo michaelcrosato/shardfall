@@ -1,0 +1,10 @@
+{"format":2,"name":"lamp_post","unit":"cm",
+"description":"A dock lamp post with a warm glowing lantern, 180 cm tall.",
+"materials":{
+"glow":{"color":"#ffcc66","emissive":3},
+"iron":{"color":"#2e2e34"}},
+"parts":{
+"base":{"type":"cylinder","radius":10,"height":12,"pos":[0,6,0],"mat":"iron"},
+"cage":{"type":"box","size":[18,24,18],"pos":[0,152,0],"mat":"glow","light":{"color":"#ffb050","radius":500,"intensity":1.5}},
+"cap":{"type":"cone","radius":16,"radius_end":2,"height":14,"pos":[0,171,0],"mat":"iron"},
+"pole":{"type":"cylinder","radius":4,"height":150,"pos":[0,75,0],"mat":"iron"}}}

@@ -1,0 +1,7 @@
+{"items":[
+{"role":"water trough","kind":"prop","id":"WORKSHOP/stall_trough","how":"made","pos":[0,0,-1.2],"yaw":0,"scale":1},
+{"role":"hay bale","kind":"prop","id":"WORKSHOP/stall_hay","how":"made","pos":[1.5,0,1.0],"yaw":0,"scale":1},
+{"role":"saddle on rail","kind":"prop","id":"WORKSHOP/stall_saddle_rail","how":"made","pos":[-1.5,0,-1.2],"yaw":0,"scale":1},
+{"role":"stall planks","kind":"material","id":"MAT/oak_planks","how":"placed","from":"MAT/oak_planks"},
+{"role":"horse idle","kind":"clip","id":"WORKSHOP/HorseIdle","how":"forked","from":"MESH2MOTION/Idle_Subtle"}
+],"notes":"No horse model or quadruped clips exist; horse idle is a biped idle copy, unrigged for horses."}

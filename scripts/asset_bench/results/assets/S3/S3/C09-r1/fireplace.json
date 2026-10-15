@@ -1,0 +1,17 @@
+{"format":2,"name":"fireplace","unit":"cm",
+"description":"A stone cottage fireplace with mantel, chimney breast and a log fire.",
+"materials":{
+"dark":{"color":"#1e1a18"},
+"flame":{"color":"#ffa030","emissive":3},
+"stone":{"base":"MAT/brick_wall","color":"#8a857c"},
+"wood":{"color":"#6b4a2c"}},
+"parts":{
+"back":{"type":"box","size":[94,100,6],"pos":[0,60,-25],"mat":"dark"},
+"breast":{"type":"box","size":[120,40,40],"pos":[0,160,-10],"mat":"stone"},
+"chimney":{"type":"box","size":[90,20,32],"pos":[0,170,-14],"mat":"stone"},
+"fire":{"type":"cone","radius":16,"radius_end":2,"height":34,"pos":[0,32,-8],"mat":"flame","light":{"color":"#ff9030","radius":300,"intensity":1.5},"fx":{"preset":"fire"}},
+"hearth":{"type":"box","size":[190,10,60],"pos":[0,5,0],"mat":"stone"},
+"lintel":{"type":"box","size":[154,22,50],"pos":[0,121,-4],"mat":"stone"},
+"log":{"type":"cylinder","radius":7,"height":70,"pos":[0,17,-8],"pitch":0,"roll":90,"mat":"wood"},
+"mantel":{"type":"box","size":[180,8,56],"pos":[0,136,-2],"mat":"wood"},
+"pillar":{"type":"box","size":[30,110,50],"pos":[62,65,-4],"mat":"stone","mirror":"x"}}}

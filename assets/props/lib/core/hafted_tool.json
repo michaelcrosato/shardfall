@@ -1,0 +1,18 @@
+{"format":2,"name":"hafted_tool","unit":"cm","color":"#8b5e3c",
+"description":"Long tool on its handle end. Knobs: head, length.",
+"tags":["pickaxe","shovel","broom","rake","hammer"],
+"category":"tool",
+"parts":{
+"haft":{"type":"cylinder","radius":2,"from":[0,0,0],"to":[0,90,0]},
+"head":{"type":"extrude","points":[[-30,-7],[0,3],[30,-7],[0,-2]],"depth":5,"pos":[0,90,0],"color":"#5f646e"},
+"tine":{"type":"box","size":[2,2,10],"pos":[0,90,6],"array":{"count":7,"step":[7,0,0]},"chance":0}},
+"sockets":{
+"grip":{"pos":[0,15,0]}},
+"params":{
+"head":{"choices":["pick","broom","shovel","hammer","rake"],"set":{"head.color":["#5f646e","#d6b25e","#5f646e","#5f646e","#5f646e"],"head.depth":[5,6,2,12,4],"head.points":[[[-30,-7],[0,3],[30,-7],[0,-2]],[[-4,0],[4,0],[13,30],[-13,30]],[[-12,0],[12,0],[12,21],[0,30],[-12,21]],[[-14,-7],[14,-7],[14,7],[-14,7]],[[-24,0],[24,0],[24,3],[-24,3]]],"tine.chance":[0,0,0,0,1]}},
+"length":{"range":[60,140],"set":{"haft.to.1":1,"head.pos.1":1,"tine.pos.1":1}}},
+"presets":{
+"broom":{"head":"broom"},
+"hammer":{"head":"hammer"},
+"pickaxe":{"head":"pick"},
+"shovel":{"head":"shovel"}}}

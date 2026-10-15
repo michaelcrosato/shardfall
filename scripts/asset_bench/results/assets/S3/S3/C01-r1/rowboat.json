@@ -1,0 +1,14 @@
+{"format":2,"name":"rowboat","unit":"cm",
+"description":"A small wooden rowboat with thwarts.",
+"materials":{
+"dark":{"color":"#5a3f2a"},
+"paint":{"color":"#3b6e8f"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"bow":{"type":"wedge","size":[96,36,40],"peak":1,"pos":[0,24,135],"yaw":180,"mat":"paint"},
+"bowtip":{"type":"box","size":[6,36,30],"pos":[0,24,148],"mat":"paint"},
+"floor":{"type":"box","size":[70,6,230],"pos":[0,3,0],"mat":"wood"},
+"rim":{"type":"box","size":[4,4,230],"pos":[53,43,0],"roll":-14,"mat":"dark","mirror":"x"},
+"side":{"type":"box","size":[6,36,230],"pos":[45,24,0],"roll":-14,"mat":"paint","mirror":"x"},
+"stern":{"type":"box","size":[90,36,6],"pos":[0,24,-118],"mat":"paint"},
+"thwart":{"type":"box","size":[88,5,18],"pos":[0,34,0],"mat":"dark","array":{"count":2,"step":[0,0,80]}}}}

@@ -1,0 +1,14 @@
+{"format":2,"name":"shrine_gate","unit":"cm",
+"description":"A wooden shrine gate with two posts, a tie beam and a curved top lintel.",
+"tags":["gate","shrine","wood"],
+"category":"architecture",
+"materials":{
+"dark":{"color":"#2e2a28"},
+"wood":{"color":"#8a3a2a"}},
+"parts":{
+"cap":{"type":"box","size":[350,14,32],"pos":[0,293,0],"mat":"dark"},
+"foot":{"type":"cylinder","radius":21,"height":14,"pos":[110,7,0],"mat":"dark","mirror":"x"},
+"lintel":{"type":"rounded_box","size":[330,22,26],"radius":4,"pos":[0,277,0],"mat":"wood"},
+"post":{"type":"cylinder","radius":16,"height":280,"pos":[110,140,0],"mat":"wood","mirror":"x"},
+"strut":{"type":"box","size":[18,40,16],"pos":[0,250,0],"mat":"wood"},
+"tie":{"type":"box","size":[250,18,16],"pos":[0,225,0],"mat":"wood"}}}

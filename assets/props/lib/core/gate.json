@@ -1,0 +1,31 @@
+{"format":2,"name":"gate","unit":"cm","mat":"frame",
+"description":"A gate in its frame: planks, iron bars or rails; lintel, torii or field posts.",
+"tags":["gate","door","entrance","torii"],
+"category":"architecture",
+"materials":{
+"dark":{"color":"#2b2622"},
+"fill":{"color":"#7b5534"},
+"frame":{"color":"#6b4a2e"}},
+"parts":{
+"leaf":{"mat":"fill","parts":{
+  "bar":{"type":"box","size":[12,196,5],"pos":[0,102,0],"array":{"count":7,"span":[84,0,0]}},
+  "brace":{"type":"box","size":[5,9],"from":[-44,20,0],"to":[44,108,0],"chance":0},
+  "latch":{"type":"box","size":[7,14,6],"pos":[40,100,5],"mat":"MAT/wrought_iron"},
+  "rail":{"type":"box","size":[106,9,4],"pos":[0,102,4.5],"array":{"count":2,"step":[0,130,0]}}}},
+"lintel":{"type":"box","size":[130,16,20],"pos":[0,214,0]},
+"post":{"pos":[57,0,0],"mirror":"x","parts":{
+  "jamb":{"type":"box","size":[16,16],"from":[0,0,0],"to":[0,206,0]},
+  "torii":{"chance":0,"parts":{
+    "base":{"type":"cylinder","radius":16,"from":[0,0,0],"to":[0,30,0],"mat":"dark"},
+    "round":{"type":"cylinder","radius":13,"from":[0,0,0],"to":[0,286,0]}}}}},
+"top":{"chance":0,"parts":{
+  "beam":{"type":"box","size":[190,14,26],"pos":[0,293,0],"mat":"dark"},
+  "strut":{"type":"box","size":[12,48,12],"pos":[0,262,0]}}}},
+"params":{
+"bars":{"choices":["planks","iron","rails"],"set":{"leaf.bar.chance":[1,1,0],"leaf.bar.size.0":[12,4,12],"leaf.brace.chance":[0,0,1],"leaf.rail.array.count":[2,3,5],"leaf.rail.array.step.1":[130,85,22],"leaf.rail.pos.1":[102,102,64],"materials.fill.color":["#7b5534","#3a3a3e","#9c7d55"]}},
+"frame":{"choices":["lintel","torii","posts"],"set":{"leaf.chance":[1,0,1],"lintel.chance":[1,1,0],"lintel.pos.1":[214,230,214],"materials.frame.color":["#6b4a2e","$accent","#8a6d4a"],"post.jamb.chance":[1,0,1],"post.jamb.to.1":[206,206,125],"post.torii.chance":[0,1,0],"top.chance":[0,1,0]}},
+"width":{"range":[112,300],"set":{"leaf.bar.array.span.0":0.6462,"leaf.brace.from.0":-0.3385,"leaf.brace.to.0":0.3385,"leaf.latch.pos.0":0.3077,"leaf.rail.size.0":0.8154,"lintel.size.0":1,"post.pos.0":0.4385,"top.beam.size.0":1.4615}}},
+"presets":{
+"barred":{"bars":"iron","width":120},
+"farm":{"bars":"rails","frame":"posts","width":200},
+"shrine":{"frame":"torii","width":220}}}

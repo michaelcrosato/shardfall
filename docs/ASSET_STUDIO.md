@@ -96,8 +96,9 @@ params={"broken":"yes"}`, `asset_preview name=x:low` (params=, seed=), a room's
 docs/asset_plan/examples/families/fence.f2.json.
 
 **Foundations.** `store/foundations.tsv` names a few standard props per archetype (table, seat,
-barrel, light, crate, weapon, stall) that transform into the rest; `assets shelf=prop` lists
-them first with their knobs and presets. Before making one of these, place a variant: a preset
+bed, barrel, container, crate, light, fire, weapon, tool, stall, shelter, gate, vehicle,
+vegetation) that transform into the rest; `assets shelf=prop` lists them first (LIB/core
+leaves) with their size, knobs and presets. Before making one of these, place a variant: a preset
 (`asset_spawn name=LIB/core/chair:stool`), knob values (`params={"height":45}`), a palette for
 its roles (`roles={"$accent":"#2f6fb0"}`) or a seed. Each row's transforms are tested examples
 and its `why` the technique to copy. Fork one when no knob reaches what you need. A copy of a

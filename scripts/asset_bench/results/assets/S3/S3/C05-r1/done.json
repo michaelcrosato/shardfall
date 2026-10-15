@@ -1,0 +1,7 @@
+{"items":[
+{"role":"well","kind":"prop","id":"WORKSHOP/sq_well","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"bucket","kind":"prop","id":"WORKSHOP/sq_bucket","how":"made","from":"","pos":[0,0.78,0.51],"yaw":0,"scale":1},
+{"role":"hay bale","kind":"prop","id":"WORKSHOP/sq_hay","how":"made","from":"","pos":[1.3,0,0],"yaw":0,"scale":1},
+{"role":"square ground","kind":"material","id":"MAT/workshop/sq_cobbles","how":"derived","from":"MAT/cobblestone"},
+{"role":"villager wave","kind":"clip","id":"CMU/Wave_Hello","how":"placed","from":"CMU/Wave_Hello"}
+],"notes":"Low well, bucket on capstone rim, hay bale beside; cobble material derived; existing wave clip."}

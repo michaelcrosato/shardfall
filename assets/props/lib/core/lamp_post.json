@@ -1,0 +1,23 @@
+{"format":2,"name":"lamp_post","unit":"cm","mat":"metal",
+"description":"An iron lamp post on a tapered foot, its glass lantern head glowing. Knobs: height; style stone or bracket.",
+"tags":["lamp","lamppost","streetlight","lantern","light","street"],
+"category":"lighting",
+"materials":{
+"glow":{"color":"$light","look":"unlit","emissive":2.5},
+"metal":{"base":"MAT/wrought_iron"}},
+"parts":{
+"arm":{"type":"box","size":[5,5],"from":[0,147,0],"to":[0,147,36],"chance":0},
+"base":{"type":"cylinder","radius":16,"radius_end":11,"height":16,"segments":8,"pos":[0,8,0]},
+"head":{"pos":[0,140,0],"parts":{
+  "bar":{"type":"box","size":[4,28,4],"pos":[9,17,9],"mirror":["x","z"]},
+  "finial":{"type":"sphere","radius":4,"pos":[0,44,0]},
+  "floor":{"type":"box","size":[26,4,26],"pos":[0,2,0]},
+  "glass":{"type":"box","size":[18,26,18],"pos":[0,17,0],"mat":"glow","light":{"color":"$light","radius":700,"intensity":1.6,"flicker":0.1}},
+  "roof":{"type":"cone","radius":18,"height":12,"segments":4,"pos":[0,36,0],"yaw":45}}},
+"post":{"type":"cylinder","radius":4,"segments":8,"from":[0,16,0],"to":[0,140,0]}},
+"params":{
+"height":{"range":[150,260],"set":{"head.pos.1":0.736842,"post.to.1":0.736842}},
+"style":{"choices":["iron","stone","bracket"],"set":{"arm.chance":[0,0,1],"base.radius":[16,26,16],"head.floor.size":[[26,4,26],[40,4,40],[26,4,26]],"head.pos":[[0,140,0],[0,64,0],[0,96.5,30]],"head.roof.radius":[18,34,18],"materials.metal.base":["MAT/wrought_iron","MAT/pillar_stone","MAT/wrought_iron"],"post.radius":[4,10,4],"post.to":[[0,140,0],[0,64,0],[0,150,0]]}}},
+"presets":{
+"stone_lantern":{"style":"stone"},
+"wall":{"style":"bracket"}}}

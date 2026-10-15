@@ -1,0 +1,15 @@
+{"format":2,"name":"stall_saddle_rail","unit":"cm",
+"description":"A saddle resting on a wall-mounted wooden rail, 50 cm tall.",
+"tags":["saddle","stable","rail"],
+"category":"furniture",
+"materials":{
+"dark":{"color":"#4a2a18"},
+"leather":{"color":"#8a4a2a"},
+"wood":"MAT/oak_planks"},
+"parts":{
+"cantle":{"type":"rounded_box","size":[8,8,22],"radius":2,"pos":[-16,45.5,0],"mat":"leather"},
+"flap":{"type":"rounded_box","size":[30,2,8],"radius":0.8,"pos":[0,39,13],"mat":"dark","mirror":"z"},
+"pommel":{"type":"rounded_box","size":[8,8,18],"radius":2,"pos":[16,46,0],"mat":"leather"},
+"post":{"type":"box","size":[6,38,6],"pos":[35,19,0],"mat":"wood","mirror":"x"},
+"rail":{"type":"box","size":[84,6,8],"pos":[0,36,0],"mat":"wood"},
+"seat":{"type":"rounded_box","size":[40,6,22],"radius":2.5,"pos":[0,42,0],"mat":"leather"}}}

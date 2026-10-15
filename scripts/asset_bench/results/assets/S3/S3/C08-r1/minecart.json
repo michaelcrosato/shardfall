@@ -1,0 +1,16 @@
+{"format":2,"name":"minecart","unit":"cm",
+"description":"An iron minecart on wheels, open top, filled with ore.",
+"tags":["cart","mine","iron"],
+"category":"container",
+"materials":{
+"iron":{"color":"#5a5560"},
+"ore":{"color":"#3c3a40"},
+"rust":{"color":"#7a4a30"}},
+"parts":{
+"axle":{"type":"box","size":[4,4],"from":[40,11,-38],"to":[40,11,38],"mat":"iron","mirror":"x"},
+"end":{"type":"box","size":[5,34,60],"pos":[57,41,0],"mat":"rust","mirror":"x"},
+"floor":{"type":"box","size":[116,6,70],"pos":[0,22,0],"mat":"iron"},
+"ore":{"type":"rounded_box","size":[100,10,56],"radius":4,"pos":[0,60,0],"mat":"ore"},
+"rim":{"type":"box","size":[120,4,8],"pos":[0,59,32],"mat":"iron","mirror":"z"},
+"side":{"type":"box","size":[120,34,5],"pos":[0,41,32],"mat":"rust","mirror":"z"},
+"wheel":{"type":"cylinder","radius":11,"height":6,"pos":[40,11,38],"axis":"z","mat":"iron","mirror":["x","z"]}}}
