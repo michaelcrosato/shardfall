@@ -44,7 +44,7 @@ fn index_files_are_current() {
         let path = folder.join("index.tsv");
         let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         let old = index::parse(&text, Tier::Disk).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-        let rows = index::build(&folder, &set, &old, &|name| props::resolve_in(&root, name).ok().flatten()).unwrap();
+        let rows = pav_tools::asset_search::build_index(&root, &folder, &set, &old).unwrap();
         let pack = set.rsplit('/').next().unwrap();
         let fix = if set == "BUILTIN" { "templates" } else { pack };
         assert_eq!(index::text(&rows), text, "{} is stale: run `pav assets reindex={fix}`", path.display());

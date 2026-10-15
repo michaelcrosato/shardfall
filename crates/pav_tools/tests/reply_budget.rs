@@ -46,17 +46,18 @@ fn asset_replies_fit_their_budgets() {
         assert_no_float_noise(&reply);
     }
     let listing: Value = serde_json::from_str(&call(&mut s, "assets", json!({}))).unwrap();
-    assert_eq!(listing["cols"], "name cat size_cm parts tok tags desc");
+    assert_eq!(listing["cols"], "name cat size_cm tier mesh tok tags desc");
     let rows = listing["rows"].as_array().unwrap();
     let matched = listing["matched"].as_u64().unwrap() as usize;
     assert!(matched >= 5 && rows.len() == matched.min(20) && listing.get("next").is_some() == (matched > 20));
-    // ≤ 40 tokens a row (plan §9.2). o200k reads these rows at 3.0-3.8 bytes per token (tiktoken
-    // on the template rows), so at most 3 bytes a token is a safe count without a tokenizer.
+    // ≤ 46 tokens a row: plan §9.2's 40, plus the store tier and mesh share (store §8, S0). o200k
+    // reads these rows at 3.0-3.8 bytes per token (tiktoken on the template rows), so at most 3
+    // bytes a token is a safe count without a tokenizer.
     let found: Value = serde_json::from_str(&call(&mut s, "assets", json!({"find":"wood"}))).unwrap();
     assert_eq!(found["rows"][0][0], "BUILTIN/crate", "{found}");
     for row in rows.iter().chain(found["rows"].as_array().unwrap()) {
         let tokens = row.to_string().len().div_ceil(3);
-        assert!(tokens <= 40, "listing row of ~{tokens} tokens: {row}");
+        assert!(tokens <= 46, "listing row of ~{tokens} tokens: {row}");
         assert_no_float_noise(&row.to_string());
     }
     let paged: Value = serde_json::from_str(&call(&mut s, "assets", json!({"limit":2}))).unwrap();

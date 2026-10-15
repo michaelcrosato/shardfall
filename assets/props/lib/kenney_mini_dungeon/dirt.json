@@ -1,7 +1,8 @@
 {"format":2,"name":"dirt","unit":"cm","color":"#3e3e45",
-"tags":["dirt","kenney"],
+"description":"A dark cube of packed earth 2.2 m on a side: a dungeon fill block.",
+"tags":["dirt","earth","soil","block","cube"],
 "category":"dungeon",
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"dirt"},
 "fit":{"mean_mm":0,"worst_mm":0,"iou":1,"de":1.4,"mesh_pct":0},
 "parts":{
-"dark_box":{"type":"box","size":[100,90,100],"pos":[0,45,0]}}}
+"dark_box":{"type":"box","size":[220,198,220],"pos":[0,99,0]}}}

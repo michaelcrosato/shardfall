@@ -1,9 +1,10 @@
 {"format":2,"name":"column","unit":"cm","color":"#9fa6c7",
-"tags":["column","dungeon"],
+"description":"A square stone pillar with a wide base and capital, 2.4 m tall.",
+"tags":["column","pillar","stone","support","dungeon"],
 "category":"architecture",
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"column"},
-"fit":{"mean_mm":6,"worst_mm":21,"iou":0.95,"de":2.2,"mesh_pct":0},
+"fit":{"mean_mm":12.5,"worst_mm":45,"iou":0.94,"de":2.2,"mesh_pct":0},
 "parts":{
-"blue_extrude":{"type":"extrude","points":[[-5,-25],[17,-24],[25,-5],[25,7],[24,17],[23,18],[5,25],[-17,24],[-25,5],[-24,-17]],"depth":20,"pos":[0,100,0],"yaw":10,"pitch":-90},
-"blue_extrude2":{"type":"extrude","points":[[-5,-25],[17,-24],[25,-5],[25,7],[24,17],[23,18],[5,25],[-17,24],[-25,5],[-24,-17]],"depth":20,"pos":[0,10,0],"yaw":10,"pitch":-90},
-"grey_extrude":{"type":"extrude","points":[[-4,-18],[12,-18],[18,-4],[18,5],[18,12],[16,13],[4,18],[-12,18],[-18,4],[-18,-12]],"depth":70,"pos":[0,55,0],"yaw":10,"pitch":-90,"color":"#73768b"}}}
+"blue_extrude":{"type":"extrude","points":[[-12,-54],[37,-53],[54,-12],[54,16],[53,37],[50,39],[12,54],[-37,53],[-54,12],[-53,-37]],"depth":44,"pos":[0,220,0],"yaw":10,"pitch":-90},
+"blue_extrude2":{"type":"extrude","points":[[-12,-54],[37,-53],[54,-12],[54,16],[53,37],[50,39],[12,54],[-37,53],[-54,12],[-53,-37]],"depth":44,"pos":[0,22,0],"yaw":10,"pitch":-90},
+"grey_extrude":{"type":"extrude","points":[[-8,-40],[27,-39],[40,-8],[40,12],[39,27],[36,29],[8,40],[-27,39],[-40,8],[-39,-27]],"depth":154,"pos":[0,121,0],"yaw":10,"pitch":-90,"color":"#73768b"}}}

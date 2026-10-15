@@ -1,1 +1,1 @@
-{"format":1,"name":"barrel_staves","unit":"cm","description":"Oak planks turned upright for barrels and fences.","base":"MAT/oak_planks","turn":true}
+{"format":1,"name":"barrel_staves","unit":"cm","description":"Oak planks turned upright for barrels and fences.","source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"base":"MAT/oak_planks","turn":true}

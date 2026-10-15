@@ -1,5 +1,6 @@
 {"format":2,"name":"bench_1","unit":"cm","color":"#624226",
-"tags":["bench","village"],
+"description":"A long wooden bench with a slatted seat and backrest, 2 m wide.",
+"tags":["bench","seat","wood","park","village"],
 "category":"furniture",
 "source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bench_1"},
 "fit":{"mean_mm":1.9,"worst_mm":10,"iou":0.92,"de":0.1,"mesh_pct":0},

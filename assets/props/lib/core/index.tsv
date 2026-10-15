@@ -1,29 +1,29 @@
-name	cat	size_cm	parts	tok	fid	src	tags	sockets	note	desc
-LIB/core/altar	dungeon	150x140x84	14	565	authored	own	altar shrine candle cloth temple dungeon			A stone altar on a low plinth, a cloth runner draped over its top and front, two lit candles at the back.
-LIB/core/anvil	tool	64x79x48	6	266	authored	own	anvil smithy forge iron tool			A blacksmith's iron anvil with a tapered horn, set on a squat wooden stump.
-LIB/core/banner	dungeon	113x170x9.6	9	512	authored	own	banner flag cloth wall heraldry dungeon	wall_mount		A pointed cloth banner with a gold emblem hanging from an iron rod on two wall brackets; back at z 0.
-LIB/core/barrel	container	60x91x60	7	384	authored	own	barrel wood storage cargo tavern dungeon			An oak barrel of upright staves bound by four iron hoops, closed by a plank lid.
-LIB/core/bench	furniture	180x45x40	6	283	authored	own	bench seat wood tavern furniture inn	sit		A long plank bench on two notched trestle legs joined by a stretcher; seats two or three.
-LIB/core/bone_pile	dungeon	108x24x87	20	547	authored	own	bones skull remains crypt dungeon scatter			Three long bones and a skull scattered on the floor, about 1 m across.
-LIB/core/brazier	lighting	70x107x72	18	568	authored	own	brazier fire light iron dungeon camp			An iron brazier: a wide bowl of glowing coals on three splayed legs, lighting the room.
-LIB/core/cage	dungeon	150x216x150	29	474	authored	own	cage prison iron bars jail dungeon			A hanging-style iron cage set on the floor: barred sides, a pyramid roof with a ring, a padlocked front.
-LIB/core/candle_cluster	lighting	32x26x32	11	438	authored	own	candle light wax table shrine tavern			A cluster of wax candles of different heights on a small pewter plate, giving a soft warm light.
-LIB/core/chains	dungeon	75x129x17	31	576	authored	own	chains manacles iron wall prison dungeon	wall_mount		Two iron chains with manacles hanging from rings on wall plates; back on the wall at z 0.
-LIB/core/chair	furniture	44x96x45	10	375	authored	own	chair seat wood tavern furniture inn	sit		A wooden tavern chair: plank seat at 45 cm, four legs, a raked back with top rail and splat.
-LIB/core/column	architecture	104x280x104	6	325	authored	own	column pillar stone temple dungeon hall			A 2.8 m stone column: square plinth, round moulded base, tapering shaft and a flared capital.
-LIB/core/column_broken	architecture	255x169x167	8	604	authored	own	column pillar ruin broken stone dungeon			A snapped stone column, 1.2-1.8 m, on its plinth; its fallen drum lies beside it with a few chips.
-LIB/core/crate_stack	container	122x167x122	20	551	authored	own	crate box wood storage cargo dungeon			A plank crate with dark edge bands and braces; half the seeds stack a smaller crate on top.
-LIB/core/crystal_cluster	rock	98x116x67	4	528	authored	own	crystal glow magic cave light dungeon			Two to four glowing hexagonal crystals, 0.4-1.2 m, leaning out of a rock base; lights the room in the accent colour.
-LIB/core/fence	town	216x115x16	8	285	authored	own	fence wood rail town farm modular			A 2 m post-and-rail fence segment; end posts sit on x=+-100 so segments join end to end.
-LIB/core/market_stall	town	273x254x192	68	694	authored	own	market stall awning produce town shop			A market stall: plank counter with crates of apples, oranges and cabbages under a striped awning.
-LIB/core/mushroom_cluster	vegetation	120x97x107	8	587	authored	own	mushroom fungus glow cave plant dungeon			Two to four giant cave mushrooms, 0.3-1.1 m, with pale stems and glowing spotted caps in the accent colour.
-LIB/core/rock_cluster	rock	158x113x131	5	423	authored	own	rock boulder stone cave dungeon scatter			Three rounded boulders of varied size huddled on the floor; stone tinted by the room's wall colour.
-LIB/core/rubble_pile	rock	128x56x98	9	443	authored	own	rubble ruin stone debris dungeon scatter			Fallen masonry: squared stone blocks, one tipped on the others, a broken wedge and scattered chips.
-LIB/core/sack	container	58x74x58	5	355	authored	own	sack grain burlap storage farm cargo			A plump burlap grain sack, its floppy neck tied with rope under a flared, bunched top.
-LIB/core/shelf	furniture	120x180x35	56	618	authored	own	shelf bookcase books wood library furniture	wall_mount		A tall oak bookcase for a wall: five shelves of leaning books, jars and a lying stack; back at z 0.
-LIB/core/signpost	town	133x239x44	7	386	authored	own	signpost sign road wood town crossroads			A wooden crossroads signpost: a capped post with two arrow boards pointing different ways, stones at its foot.
-LIB/core/stalagmite	rock	91x114x72	4	361	authored	own	stalagmite spire cave stone rock dungeon			A tapering cave spire, 1-2 m, rising from a low skirt of stone with smaller spires at its foot.
-LIB/core/table	furniture	160x78x80	12	315	authored	own	table wood tavern furniture inn			A sturdy tavern table: an oak plank top on four square legs with aprons and an H-stretcher.
-LIB/core/urn	container	54x71x49	6	327	authored	own	urn pot ceramic clay storage dungeon			A terracotta urn on a small foot with a dark painted band, a flared lip and two loop handles.
-LIB/core/wall_torch	lighting	14x61x29	7	465	authored	own	torch light fire wall iron dungeon	wall_mount		An iron wall bracket holding a wooden torch tilted out from the wall, its flame lighting the room; back at z 0.
-LIB/core/well	town	178x252x148	16	718	authored	own	well water stone town village square			A round cobblestone well under a little shingled wooden roof, with a crank, rope and hanging bucket.
+name	cat	size_cm	parts	tok	fid	src	tier	tags	sockets	note	desc
+LIB/core/altar	dungeon	150x140x84	14	565	authored	own	standard	altar shrine candle cloth temple dungeon			A stone altar on a low plinth, a cloth runner draped over its top and front, two lit candles at the back.
+LIB/core/anvil	tool	64x79x48	6	266	authored	own	standard	anvil smithy forge iron tool			A blacksmith's iron anvil with a tapered horn, set on a squat wooden stump.
+LIB/core/banner	dungeon	113x170x9.6	9	512	authored	own	standard	banner flag cloth wall heraldry dungeon	wall_mount		A pointed cloth banner with a gold emblem hanging from an iron rod on two wall brackets; back at z 0.
+LIB/core/barrel	container	60x91x60	7	384	authored	own	standard	barrel wood storage cargo tavern dungeon			An oak barrel of upright staves bound by four iron hoops, closed by a plank lid.
+LIB/core/bench	furniture	180x45x40	6	283	authored	own	standard	bench seat wood tavern furniture inn	sit		A long plank bench on two notched trestle legs joined by a stretcher; seats two or three.
+LIB/core/bone_pile	dungeon	108x24x87	20	547	authored	own	standard	bones skull remains crypt dungeon scatter			Three long bones and a skull scattered on the floor, about 1 m across.
+LIB/core/brazier	lighting	70x107x72	18	568	authored	own	standard	brazier fire light iron dungeon camp			An iron brazier: a wide bowl of glowing coals on three splayed legs, lighting the room.
+LIB/core/cage	dungeon	150x216x150	29	474	authored	own	standard	cage prison iron bars jail dungeon			A hanging-style iron cage set on the floor: barred sides, a pyramid roof with a ring, a padlocked front.
+LIB/core/candle_cluster	lighting	32x26x32	11	438	authored	own	standard	candle light wax table shrine tavern			A cluster of wax candles of different heights on a small pewter plate, giving a soft warm light.
+LIB/core/chains	dungeon	75x129x17	31	576	authored	own	standard	chains manacles iron wall prison dungeon	wall_mount		Two iron chains with manacles hanging from rings on wall plates; back on the wall at z 0.
+LIB/core/chair	furniture	44x96x45	10	375	authored	own	standard	chair seat wood tavern furniture inn	sit		A wooden tavern chair: plank seat at 45 cm, four legs, a raked back with top rail and splat.
+LIB/core/column	architecture	104x280x104	6	325	authored	own	standard	column pillar stone temple dungeon hall			A 2.8 m stone column: square plinth, round moulded base, tapering shaft and a flared capital.
+LIB/core/column_broken	architecture	255x169x167	8	604	authored	own	standard	column pillar ruin broken stone dungeon			A snapped stone column, 1.2-1.8 m, on its plinth; its fallen drum lies beside it with a few chips.
+LIB/core/crate_stack	container	122x167x122	20	551	authored	own	standard	crate box wood storage cargo dungeon			A plank crate with dark edge bands and braces; half the seeds stack a smaller crate on top.
+LIB/core/crystal_cluster	rock	98x116x67	4	528	authored	own	standard	crystal glow magic cave light dungeon			Two to four glowing hexagonal crystals, 0.4-1.2 m, leaning out of a rock base; lights the room in the accent colour.
+LIB/core/fence	town	216x115x16	8	285	authored	own	standard	fence wood rail town farm modular			A 2 m post-and-rail fence segment; end posts sit on x=+-100 so segments join end to end.
+LIB/core/market_stall	town	273x254x192	68	694	authored	own	standard	market stall awning produce town shop			A market stall: plank counter with crates of apples, oranges and cabbages under a striped awning.
+LIB/core/mushroom_cluster	vegetation	120x97x107	8	587	authored	own	standard	mushroom fungus glow cave plant dungeon			Two to four giant cave mushrooms, 0.3-1.1 m, with pale stems and glowing spotted caps in the accent colour.
+LIB/core/rock_cluster	rock	158x113x131	5	423	authored	own	standard	rock boulder stone cave dungeon scatter			Three rounded boulders of varied size huddled on the floor; stone tinted by the room's wall colour.
+LIB/core/rubble_pile	rock	128x56x98	9	443	authored	own	standard	rubble ruin stone debris dungeon scatter			Fallen masonry: squared stone blocks, one tipped on the others, a broken wedge and scattered chips.
+LIB/core/sack	container	58x74x58	5	355	authored	own	standard	sack grain burlap storage farm cargo			A plump burlap grain sack, its floppy neck tied with rope under a flared, bunched top.
+LIB/core/shelf	furniture	120x180x35	56	618	authored	own	standard	shelf bookcase books wood library furniture	wall_mount		A tall oak bookcase for a wall: five shelves of leaning books, jars and a lying stack; back at z 0.
+LIB/core/signpost	town	133x239x44	7	386	authored	own	standard	signpost sign road wood town crossroads			A wooden crossroads signpost: a capped post with two arrow boards pointing different ways, stones at its foot.
+LIB/core/stalagmite	rock	91x114x72	4	361	authored	own	standard	stalagmite spire cave stone rock dungeon			A tapering cave spire, 1-2 m, rising from a low skirt of stone with smaller spires at its foot.
+LIB/core/table	furniture	160x78x80	12	315	authored	own	standard	table wood tavern furniture inn			A sturdy tavern table: an oak plank top on four square legs with aprons and an H-stretcher.
+LIB/core/urn	container	54x71x49	6	327	authored	own	standard	urn pot ceramic clay storage dungeon			A terracotta urn on a small foot with a dark painted band, a flared lip and two loop handles.
+LIB/core/wall_torch	lighting	14x61x29	7	465	authored	own	standard	torch light fire wall iron dungeon	wall_mount		An iron wall bracket holding a wooden torch tilted out from the wall, its flame lighting the room; back at z 0.
+LIB/core/well	town	178x252x148	16	718	authored	own	standard	well water stone town village square			A round cobblestone well under a little shingled wooden roof, with a crank, rope and hanging bucket.

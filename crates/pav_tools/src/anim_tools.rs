@@ -705,6 +705,213 @@ fn clip_row(lib: &clips::ClipLib, id: u32) -> Value {
     json!({ "name": lib.name_of(id), "seconds": c.dur, "loop": c.looping, "tags": c.tags, "desc": c.desc })
 }
 
+/// Whether a set's every source carries a licence the store admits for clips (§6): sets from
+/// `anim/local` (Mixamo, LaFAN1, Bandai Namco) do not, so the store never finds or shelves them.
+fn admitted_set(set: &ClipSet) -> bool {
+    set.sources
+        .values()
+        .all(|source| pav_core::store::admitted(source.get("license").and_then(Value::as_str).unwrap_or(""), "clip").is_ok())
+}
+
+/// Sets in the order the store prefers them: CC0 sets first (`standard`), then the others.
+fn set_rank(set: &ClipSet) -> usize {
+    let cc0 = set
+        .sources
+        .values()
+        .all(|source| pav_core::store::spdx(source.get("license").and_then(Value::as_str).unwrap_or("")) == Some("CC0-1.0"));
+    usize::from(!cc0)
+}
+
+/// Where a word matches a clip: its name 5, a tag 3, its set 2, its description 1.
+fn clip_field_score(set: &str, name: &str, tags: &[String], desc: &str, word: &str) -> f32 {
+    let starts = |text: &str| text.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w.starts_with(word));
+    if starts(name) {
+        5.0
+    } else if tags.iter().any(|tag| tag.starts_with(word)) {
+        3.0
+    } else if starts(set) {
+        2.0
+    } else if starts(desc) {
+        1.0
+    } else {
+        0.0
+    }
+}
+
+/// A ranked clip: its id, how many terms it matched, its score, and its set's rank.
+struct ClipHit {
+    id: u32,
+    matched: usize,
+    score: f32,
+    set_rank: usize,
+    name: String,
+}
+
+/// The clips matching at least one term, best first: by terms matched, score, the store's set
+/// order, then name. `store_only` leaves out sets whose licences the store does not admit.
+fn rank_clips(lib: &clips::ClipLib, terms: &[pav_core::store::Term], store_only: bool) -> Vec<ClipHit> {
+    let mut hits = Vec::new();
+    for s in &lib.sets {
+        if store_only && !admitted_set(s) {
+            continue;
+        }
+        let (set, rank) = (s.set.to_ascii_lowercase(), set_rank(s));
+        for (k, c) in &s.clips {
+            let (name, desc) = (k.to_ascii_lowercase(), c.desc.to_ascii_lowercase());
+            let tags: Vec<String> = c.tags.iter().map(|t| t.to_ascii_lowercase()).collect();
+            let score = |word: &str| clip_field_score(&set, &name, &tags, &desc, word);
+            let scores: Vec<f32> = terms
+                .iter()
+                .map(|term| {
+                    let exact = term.forms.iter().map(|w| score(w)).fold(0.0, f32::max);
+                    let near = term.synonyms.iter().map(|w| 0.8 * score(w)).fold(0.0, f32::max);
+                    exact.max(near)
+                })
+                .collect();
+            let matched = scores.iter().filter(|score| **score > 0.0).count();
+            if matched > 0 {
+                let id = clips::clip_id(&s.set, k);
+                hits.push(ClipHit { id, matched, score: scores.iter().sum(), set_rank: rank, name: format!("{}/{k}", s.set) });
+            }
+        }
+    }
+    hits.sort_by(|a, b| {
+        b.matched
+            .cmp(&a.matched)
+            .then(b.score.total_cmp(&a.score))
+            .then(a.set_rank.cmp(&b.set_rank))
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    hits
+}
+
+/// `clips find=WORDS` and `assets find=WORDS kind=clip`: clips matching every word (with
+/// singulars and synonyms), else those matching most of 3 or more, else `none` with the
+/// nearest clips and a route; a miss is logged in `store/misses.tsv`.
+pub(crate) fn find_clips(find: &str, limit: usize, store_only: bool) -> Value {
+    let lib = clips::library();
+    let terms = pav_core::store::terms(find);
+    let n = terms.len();
+    if crate::asset_search::builtin_only() {
+        // The benchmark's control arm: no library to find.
+        return json!({"found": 0, "clips": []});
+    }
+    if n == 0 {
+        return json!({"found": 0, "clips": [], "use": "find=WORDS, e.g. find=\"heavy walk\""});
+    }
+    let hits = rank_clips(&lib, &terms, store_only);
+    let whole: Vec<&ClipHit> = hits.iter().filter(|hit| hit.matched == n).collect();
+    if !whole.is_empty() {
+        let rows: Vec<Value> = whole.iter().take(limit).map(|hit| clip_row(&lib, hit.id)).collect();
+        return json!({"found": whole.len(), "clips": rows});
+    }
+    if n >= 3 && hits.first().is_some_and(|hit| hit.matched >= 2) {
+        let shown: Vec<&ClipHit> = hits.iter().filter(|hit| hit.matched >= 2).collect();
+        return json!({
+            "found": shown.len(),
+            "partial": "no clip matches every word; these match most of them",
+            "clips": shown.iter().take(limit).map(|hit| clip_row(&lib, hit.id)).collect::<Vec<_>>(),
+        });
+    }
+    let nearest: Vec<&ClipHit> = hits.iter().take(3).collect();
+    let names: Vec<String> = nearest.iter().map(|hit| hit.name.clone()).collect();
+    crate::asset_search::log_miss(&crate::asset_search::store_root(), "clip", find, &names);
+    let slug = crate::asset_search::slug(&terms);
+    let route = match nearest.first() {
+        Some(hit) => format!(
+            "make it: anim_edit action=copy from={} name=WORKSHOP/{slug} and edit its key poses (docs/ANIMATION_STUDIO.md), or mocap find=\"{find}\" for a capture to cut",
+            hit.name
+        ),
+        None => format!(
+            "make it: anim_edit action=create name=WORKSHOP/{slug} (docs/ANIMATION_STUDIO.md), or mocap find=\"{find}\" for a capture to cut"
+        ),
+    };
+    json!({
+        "found": 0,
+        "none": format!("no clip matches \"{find}\""),
+        "nearest": nearest.iter().map(|hit| clip_row(&lib, hit.id)).collect::<Vec<_>>(),
+        "route": route,
+    })
+}
+
+/// `assets kind=clip`: the store's facet for clips, handed to the clips ranker.
+pub fn t_clip_find(_: &mut Session, a: &Args) -> Result<Output> {
+    let builtin = crate::asset_search::builtin_only();
+    let args: &[&str] = if builtin { &["find", "limit"] } else { &["find", "limit", "shelf"] };
+    for key in a.keys() {
+        if !args.contains(&key.as_str()) && !["scene", "seed", "ticks"].contains(&key.as_str()) {
+            bail!("{key}: assets kind=clip takes find=, limit= and shelf=clip (clips name= shows one clip)");
+        }
+    }
+    if let Some(kind) = get_str(a, "shelf") {
+        if kind != "clip" {
+            bail!("kind=clip shows shelf=clip");
+        }
+        return Ok(Output::Json(clip_shelf()));
+    }
+    let find = get_str(a, "find").ok_or_else(|| anyhow!("assets kind=clip needs find=WORDS (or shelf=clip)"))?;
+    let limit = get_u64(a, "limit", 20)? as usize;
+    Ok(Output::Json(find_clips(find, limit, true)))
+}
+
+/// The actions the clip shelf lists, each a tag the clips carry.
+const SHELF_ACTIONS: &[&str] = &[
+    "idle", "walk", "run", "jump", "dodge", "attack", "block", "hurt", "death", "getup", "sit", "climb", "crouch", "interact",
+    "work", "talk", "emote", "dance", "magic",
+];
+
+/// `assets shelf=clip`: the embedded sets the store admits, and per action up to 5 clips (CC0
+/// sets first), within about 1,500 tokens.
+pub fn clip_shelf() -> Value {
+    let lib = clips::library();
+    let embedded: Vec<String> = pav_core::anim::files("json")
+        .iter()
+        .filter_map(|name| ClipSet::parse(&pav_core::anim::source(name)?).ok().map(|set| set.set))
+        .collect();
+    let sets: Vec<&std::sync::Arc<ClipSet>> = lib.sets.iter().filter(|s| embedded.contains(&s.set) && admitted_set(s)).collect();
+    let mut entries = serde_json::Map::new();
+    for action in SHELF_ACTIONS {
+        let mut found: Vec<(usize, String)> = sets
+            .iter()
+            .flat_map(|s| {
+                let rank = set_rank(s);
+                s.clips
+                    .iter()
+                    .filter(|(_, c)| c.tags.iter().any(|t| t == action))
+                    .map(move |(k, _)| (rank, format!("{}/{k}", s.set)))
+            })
+            .collect();
+        found.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.len().cmp(&b.1.len())).then_with(|| a.1.cmp(&b.1)));
+        let total = found.len();
+        if total > 0 {
+            let mut names: Vec<Value> = found.into_iter().take(5).map(|(_, name)| json!(name)).collect();
+            if total > 5 {
+                names.push(json!(format!("+{} more: assets find={action} kind=clip", total - 5)));
+            }
+            entries.insert((*action).into(), Value::Array(names));
+        }
+    }
+    let set_rows: Vec<Value> = sets
+        .iter()
+        .map(|s| {
+            let licence = s
+                .sources
+                .values()
+                .next()
+                .and_then(|src| src.get("license"))
+                .and_then(Value::as_str)
+                .and_then(pav_core::store::spdx);
+            json!(format!("{} {} clips {}", s.set, s.clips.len(), licence.unwrap_or("?")))
+        })
+        .collect();
+    json!({
+        "shelf": "clip",
+        "use": "clips name=SET/Clip reads one; NPCs and looks name clips (clips=, walk_clip=, idle_clip=); anim_edit action=copy forks one; assets find=WORDS kind=clip searches every clip",
+        "sets": set_rows,
+        "entries": entries,
+    })
+}
+
 /// `clips`: the motion clip library.
 pub fn t_clips(_: &mut Session, a: &Args) -> Result<Output> {
     if let Some(sub) = get_str(a, "load") {
@@ -738,21 +945,7 @@ pub fn t_clips(_: &mut Session, a: &Args) -> Result<Output> {
     }
     let limit = get_u64(a, "limit", 40)? as usize;
     if let Some(words) = get_str(a, "find") {
-        let words: Vec<String> = words.split_whitespace().map(|w| w.to_lowercase()).collect();
-        let mut hits = Vec::new();
-        for s in &lib.sets {
-            for (k, c) in &s.clips {
-                let hay = format!("{} {} {} {}", s.set, k, c.tags.join(" "), c.desc).to_lowercase();
-                if words.iter().all(|w| hay.contains(w)) {
-                    hits.push(clips::clip_id(&s.set, k));
-                }
-            }
-        }
-        let total = hits.len();
-        return Ok(Output::Json(json!({
-            "found": total,
-            "clips": hits.iter().take(limit).map(|id| clip_row(&lib, *id)).collect::<Vec<_>>(),
-        })));
+        return Ok(Output::Json(find_clips(words, limit, false)));
     }
     if let Some(name) = get_str(a, "set") {
         let s = lib.sets.iter().find(|s| s.set.eq_ignore_ascii_case(name)).ok_or_else(|| anyhow!("no set '{name}'"))?;

@@ -1,0 +1,9 @@
+# The licences the agent asset store admits (docs/AGENT_ASSET_STORE.md §6). A row whose licence
+# is not here is refused. Excluded entirely, in any form: Fab Standard, Unity Asset Store,
+# Mixamo, NC, ND, SA, GPL, unknown and UNLICENSED (Shardfall's git-ignored local tiers hold some;
+# the store never indexes them, §14 Q2). Own work is CC0-1.0 (§14 Q1).
+id	kinds	credit	terms
+CC0-1.0	prop material clip	no	Public domain dedication: use, modify and redistribute without conditions.
+CC-BY-3.0	prop material clip	yes	Use, modify and redistribute; carry the credit line with every copy and fork.
+CC-BY-4.0	prop material clip	yes	Use, modify and redistribute; carry the credit line with every copy and fork.
+LicenseRef-CMU	clip	yes	CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu): free to use, copy, modify and redistribute; the data may not be resold, even in converted form (reviewed 2026-10-15, §14 Q4).

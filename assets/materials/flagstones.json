@@ -1,4 +1,4 @@
-{"format":1,"name":"flagstones","unit":"cm","description":"Big irregular slabs in the theme's two floor colours: dungeon floors.","tags":["stone","floor"],"color":"$floor",
+{"format":1,"name":"flagstones","unit":"cm","description":"Big irregular slabs in the theme's two floor colours: dungeon floors.","tags":["stone","floor"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"$floor",
  "layers":[
   {"type":"cobbles","size":80,"jitter":0.5,"gap":3,"bevel":4,"vary":0.18,"cavity":0.25,"cells":["$floor","$floor2"]}
  ]}

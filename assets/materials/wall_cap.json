@@ -1,4 +1,4 @@
-{"format":1,"name":"wall_cap","unit":"cm","description":"Coping stones a metre square on top of walls and furniture.","tags":["stone","wall"],"color":"$wall",
+{"format":1,"name":"wall_cap","unit":"cm","description":"Coping stones a metre square on top of walls and furniture.","tags":["stone","wall"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"$wall",
  "layers":[
   {"type":"tiles","size":100,"gap":3,"vary":0.15,"cavity":0.5,"facing":"up"},
   {"type":"noise","size":40,"detail":2,"cover":0.35,"shade":0.85}

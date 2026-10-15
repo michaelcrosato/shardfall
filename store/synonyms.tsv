@@ -1,0 +1,64 @@
+# Search words that mean the same thing (docs/AGENT_ASSET_STORE.md §8). One group per line: a
+# query word in a group also matches the group's other words, ranked a little below an exact
+# match. `@category` lines are hints only: they pick the nearest rows for a query that found
+# nothing (`@character` routes to the character tools; `@clip` to `assets kind=clip`).
+wood wooden timber oak plank lumber
+stone stony masonry cobble flagstone
+rock boulder pebble outcrop
+metal iron steel brass bronze
+cloth fabric canvas linen
+chair seat stool throne
+bench seat pew
+table desk counter workbench
+barrel cask keg
+crate box
+chest trunk coffer strongbox
+sack bag pouch
+pot urn vase jar jug
+shelf shelving bookcase rack
+bed cot bunk
+light lamp lantern torch candle brazier sconce
+fire campfire bonfire flame hearth
+sword blade sabre
+spear pike polearm lance halberd
+axe hatchet
+weapon arms armament
+shield buckler
+column pillar
+stairs steps staircase
+floor tile ground paving
+banner flag pennant
+sign signpost signboard
+coin gold money treasure loot
+door gate doorway
+fence railing palisade
+stall stand booth kiosk market
+awning canopy
+well
+cart wagon
+anvil forge smithy
+altar shrine
+mushroom fungus toadstool
+crystal gem
+bones skeleton skull
+chain chains shackle
+cage prison cell
+rubble debris ruin
+statue sculpture idol
+walk stroll stride gait
+run sprint jog dash
+idle stand standing rest breathe
+jump leap hop
+attack strike swing slash punch kick
+hurt hit flinch react damage
+death die dead dying
+taunt mock jeer provoke insult
+cheer victory triumph celebrate
+dance dancing
+sit seated sitting
+climb climbing
+crouch sneak stealth
+heavy fat weighty lumbering
+@vegetation tree trees bush shrub plant flower grass hedge
+@character character person human people npc hero villager monster creature figure
+@clip animation motion clip move moves gesture emote

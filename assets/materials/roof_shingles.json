@@ -1,4 +1,4 @@
-{"format":1,"name":"roof_shingles","unit":"cm","description":"Slate-blue round shingles: roofs. Tongues point down on walls and to local -z on top faces.","tags":["roof"],"color":"#4f5d6e",
+{"format":1,"name":"roof_shingles","unit":"cm","description":"Slate-blue round shingles: roofs. Tongues point down on walls and to local -z on top faces.","tags":["roof"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"#4f5d6e",
  "layers":[
   {"type":"shingles","size":[32,22],"vary":0.25,"cavity":0.45}
  ]}

@@ -247,6 +247,8 @@ reload automatically. See `docs/ANIMATION_STUDIO.md`. REPLs accept structured JS
 Use the returned `revision` as `if_revision` on later edits. Copy source clips before editing;
 keep local source copies and their history in `anim/local`.
 
+Asset store (`docs/AGENT_ASSET_STORE.md`): before making a prop or clip, `assets shelf=prop` (or `shelf=clip`) lists the best entries and `assets find=words` (`kind=clip` for motion) searches; a miss gives `none` and a route.
+
 Object Studio: `scripts/asset-studio.sh` or `shardfall --asset-studio` opens reusable prop
 authoring on the same live bridge (`.mcp.studio.json`). `assets find=words` searches templates
 (`BUILTIN/`), library packs (`LIB/pack/name`; `LIB/core` is embedded in every build, other packs

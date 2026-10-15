@@ -1,8 +1,8 @@
 # The agent asset store
 
 A library of game assets that agents search, use as they are, fork and change, or learn from. It
-plays the part Epic's Fab store plays for people, but its customer is an agent. Status: design
-only; nothing here is built. Facts come from a read-only survey of Shardfall and its sibling
+plays the part Epic's Fab store plays for people, but its customer is an agent. Status: S0 is
+built (2026-10-15, `docs/HISTORY.md`); the rest is design. Facts come from a read-only survey of Shardfall and its sibling
 repositories on 2026-10-14, re-checked where noted; *unverified* marks what was not checked.
 Agents using the store read `store/README.md` and the shelf (built in S0-S2), not this file.
 

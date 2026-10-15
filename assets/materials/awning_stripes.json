@@ -1,4 +1,4 @@
-{"format":1,"name":"awning_stripes","unit":"cm","description":"Red and cream canvas stripes: market awnings, tents, banners.","tags":["cloth"],"color":"#efe3c8","roughness":0.9,
+{"format":1,"name":"awning_stripes","unit":"cm","description":"Red and cream canvas stripes: market awnings, tents, banners.","tags":["cloth"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"#efe3c8","roughness":0.9,
  "layers":[
   {"type":"stripes","size":50,"color":"#b8332a"}
  ]}

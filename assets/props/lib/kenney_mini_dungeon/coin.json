@@ -1,7 +1,8 @@
 {"format":2,"name":"coin","unit":"cm","color":"#ffad44",
-"tags":["coin","kenney"],
+"description":"An oversized gold coin standing on its edge: a treasure or pickup marker.",
+"tags":["coin","gold","treasure","money","loot"],
 "category":"dungeon",
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"coin"},
-"fit":{"mean_mm":11.7,"worst_mm":43,"iou":0.96,"de":2.4,"mesh_pct":0},
+"fit":{"mean_mm":23.8,"worst_mm":93,"iou":0.98,"de":2.4,"mesh_pct":0},
 "parts":{
-"orange_extrude":{"type":"extrude","points":[[-5,-21],[5,-21],[16,-17],[21,-4],[21,4],[17,16],[5,21],[-5,21],[-17,17],[-21,5],[-21,-5],[-17,-17]],"depth":17,"pos":[0,21,0]}}}
+"orange_extrude":{"type":"extrude","points":[[-11,-46],[11,-46],[36,-37],[46,-10],[46,10],[37,36],[11,46],[-11,46],[-37,37],[-46,11],[-46,-11],[-37,-37]],"depth":37,"pos":[0,46,0]}}}

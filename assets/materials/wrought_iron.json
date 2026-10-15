@@ -1,4 +1,4 @@
-{"format":1,"name":"wrought_iron","unit":"cm","description":"Dark hammered iron, rust on top faces: hinges, bands, gates, sconces.","tags":["metal"],"base":"MAT/pb/iron","color":"#3b3735","roughness":0.5,
+{"format":1,"name":"wrought_iron","unit":"cm","description":"Dark hammered iron, rust on top faces: hinges, bands, gates, sconces.","tags":["metal"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"base":"MAT/pb/iron","color":"#3b3735","roughness":0.5,
  "layers":[
   {"type":"noise","size":12,"cover":0.35,"shade":0.7},
   {"type":"noise","size":30,"cover":0.15,"color":"#7a4424","strength":0.7,"facing":"up"}

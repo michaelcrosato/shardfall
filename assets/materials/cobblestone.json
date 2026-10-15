@@ -1,4 +1,4 @@
-{"format":1,"name":"cobblestone","unit":"cm","description":"Rounded grey cobbles with dark joints: town squares, old streets.","tags":["stone","floor"],"color":"#8a8580",
+{"format":1,"name":"cobblestone","unit":"cm","description":"Rounded grey cobbles with dark joints: town squares, old streets.","tags":["stone","floor"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"#8a8580",
  "layers":[
   {"type":"cobbles","size":30,"gap":3.5,"vary":0.2,"cavity":0.35,"shade":0.55},
   {"type":"noise","size":80,"cover":0.3,"color":"#6f6a58","strength":0.35}

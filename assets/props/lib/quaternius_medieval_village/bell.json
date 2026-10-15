@@ -1,5 +1,6 @@
 {"format":2,"name":"bell","unit":"cm","color":"#af8136",
-"tags":["bell","village"],
+"description":"A large brass bell with a hanging loop, about 2.2 m tall, for a bell tower or square.",
+"tags":["bell","brass","tower","church","village"],
 "category":"town",
 "source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bell"},
 "fit":{"mean_mm":28.3,"worst_mm":107,"iou":0.96,"de":0.1,"mesh_pct":0},

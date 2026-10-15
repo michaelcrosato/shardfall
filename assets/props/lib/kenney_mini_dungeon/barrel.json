@@ -1,9 +1,10 @@
 {"format":2,"name":"barrel","unit":"cm","color":"#ca714f",
-"tags":["barrel","dungeon"],
+"description":"A squat wooden barrel banded in metal, wider than tall: chunky low-poly dungeon storage.",
+"tags":["barrel","cask","keg","wood","storage"],
 "category":"container",
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"barrel"},
-"fit":{"mean_mm":2.6,"worst_mm":4,"iou":0.98,"de":2.2,"mesh_pct":0},
+"fit":{"mean_mm":5.5,"worst_mm":8,"iou":0.98,"de":2,"mesh_pct":0},
 "parts":{
-"blue_extrude":{"type":"extrude","points":[[-10,-24],[10,-24],[24,-10],[24,10],[10,24],[-10,24],[-24,10],[-24,-10]],"depth":9.6,"pos":[0,14,0],"yaw":23,"pitch":-90,"color":"#9399b8"},
-"blue_extrude2":{"type":"extrude","points":[[-10,-24],[10,-24],[24,-10],[24,10],[10,24],[-10,24],[-24,10],[-24,-10]],"depth":9.6,"pos":[0,33.4,0],"yaw":23,"pitch":-90,"color":"#a8b0d3"},
-"red_lathe":{"type":"lathe","profile":[[20,-24],[24,-10],[24,10],[20,24]],"segments":8,"pos":[0,24,0]}}}
+"blue_extrude":{"type":"extrude","points":[[-22,-53],[21,-53],[53,-22],[53,21],[22,53],[-21,53],[-53,22],[-53,-21]],"depth":21,"pos":[0,31,0],"yaw":23,"pitch":-90,"color":"#9399b8"},
+"blue_extrude2":{"type":"extrude","points":[[-22,-53],[21,-53],[53,-22],[53,21],[22,53],[-21,53],[-53,22],[-53,-21]],"depth":21,"pos":[0,74,0],"yaw":23,"pitch":-90,"color":"#a8b0d3"},
+"red_lathe":{"type":"lathe","profile":[[44,-52],[54,-22],[54,22],[44,52]],"segments":8,"pos":[0,52,0]}}}

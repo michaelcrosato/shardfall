@@ -1,9 +1,10 @@
 {"format":2,"name":"weapon-spear","unit":"cm","color":"#9ca4c4",
-"tags":["spear","dungeon"],
+"description":"A short spear standing upright: a wooden shaft and a chunky metal head, 1.3 m.",
+"tags":["spear","polearm","pike","lance","dungeon"],
 "category":"weapon",
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"weapon-spear"},
-"fit":{"mean_mm":1,"worst_mm":6,"iou":0.95,"de":1.8,"mesh_pct":38},
+"fit":{"mean_mm":4.7,"worst_mm":17,"iou":0.91,"de":2.3,"mesh_pct":0},
 "parts":{
-"blue_extrude":{"type":"extrude","points":[[-3.5,-10],[3.5,-10],[7,0],[6.5,2],[6,2],[5.5,4],[5,4],[5,5],[4,5],[3.5,7],[3,7],[2.5,9],[2,9],[2,10],[-2,10],[-3.5,7],[-4,6],[-4.5,5],[-5,4],[-6,3],[-6,3],[-7,1],[-7,1],[-7,0]],"depth":7,"pos":[0,50,0]},
-"blue_extrude2":{"type":"extrude","points":[[-3,-6],[3,-6],[6,-3],[6,3],[3,6],[-3,6],[-6,3],[-6,-3]],"depth":10,"pos":[0,35,0],"pitch":-90},
-"mesh":{"mesh":"kenney_mini_dungeon/weapon-spear"}}}
+"blue_extrude":{"type":"extrude","points":[[-8,-22],[8,-22],[16,0],[14,4],[13,4],[12,8],[11,8],[10,11],[9,12],[8,15],[7,16],[5,20],[5,20],[4,22],[-4,22],[-8,15],[-9,14],[-10,10],[-11,10],[-12,6],[-13,6],[-15,2],[-16,1],[-16,0]],"depth":15,"pos":[0,110,0]},
+"blue_extrude2":{"type":"extrude","points":[[-7,-13],[7,-13],[13,-7],[13,7],[7,13],[-7,13],[-13,7],[-13,-7]],"depth":22,"pos":[0,77,0],"pitch":-90},
+"red_box":{"type":"box","size":[15,66,15],"pos":[0,33,0],"color":"#c96f4e"}}}

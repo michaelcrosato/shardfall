@@ -110,6 +110,81 @@ pub fn write_credits(root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Whether a library asset is `checked` (docs/AGENT_ASSET_STORE.md §7): no `check` findings,
+/// the library gate passed (description, category, 2-6 tags, token cap, licence) and an admitted
+/// licence. The caller checks the mesh share.
+pub fn checked(def: &PropDef, pack: &Pack) -> bool {
+    pav_core::store::admitted(&pack.license, "prop").is_ok()
+        && gate(def, pack).is_empty()
+        && crate::asset_tools::check_lines(def).is_empty()
+}
+
+/// Every source of the store's entries for its credits text: the clip sets embedded in the build
+/// and those in `anim/<folder>/` on disk (never `anim/local`), and the committed object packs.
+pub fn credit_sources(props_root: &Path) -> Result<Vec<pav_core::store::Credit>> {
+    use pav_core::clips::ClipSet;
+    use pav_core::store::{Credit, licence_credit};
+    let mut out = Vec::new();
+    let mut add_set = |set: &ClipSet, where_: &'static str| {
+        let mut seen = BTreeSet::new();
+        for source in set.sources.values() {
+            let licence = source.get("license").and_then(Value::as_str).unwrap_or("").to_owned();
+            let credit = licence_credit(&licence).map(str::to_owned).unwrap_or_else(|| set.credit.clone());
+            if seen.insert((licence.clone(), credit.clone())) {
+                out.push(Credit { kind: "clip", what: set.set.clone(), where_, licence, credit });
+            }
+        }
+    };
+    for name in pav_core::anim::files("json") {
+        let text = pav_core::anim::source(&name).unwrap_or_default();
+        let set = ClipSet::parse(&text).map_err(|e| anyhow!("anim/{name}: {e}"))?;
+        add_set(&set, "embedded");
+    }
+    if let Some(dir) = pav_core::anim::disk_dir() {
+        let mut folders: Vec<PathBuf> = std::fs::read_dir(&dir)
+            .map_err(|e| anyhow!("{}: {e}", dir.display()))?
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| path.is_dir())
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name != "catalogs" && name != "local" && !name.to_string_lossy().starts_with('.'))
+            })
+            .collect();
+        folders.sort();
+        for folder in folders {
+            let mut files: Vec<PathBuf> = std::fs::read_dir(&folder)
+                .map_err(|e| anyhow!("{}: {e}", folder.display()))?
+                .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+                .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+                .collect();
+            files.sort();
+            for file in files {
+                let text = std::fs::read_to_string(&file).map_err(|e| anyhow!("{}: {e}", file.display()))?;
+                add_set(&ClipSet::parse(&text).map_err(|e| anyhow!("{}: {e}", file.display()))?, "on disk");
+            }
+        }
+    }
+    for (name, folder) in committed_packs(props_root) {
+        let pack = read_pack(&folder)?;
+        let where_ = if name == store::CORE { "embedded" } else { "on disk" };
+        out.push(Credit { kind: "prop", what: format!("LIB/{}", pack.pack), where_, licence: pack.license, credit: pack.credit });
+    }
+    Ok(out)
+}
+
+/// `assets reindex=store`: writes the store's generated files (`CREDITS.md`) under the store
+/// folder (`$PAV_STORE`, else `./store`).
+pub fn write_store(props_root: &Path) -> Result<Value> {
+    let dir = crate::asset_search::store_root();
+    if !dir.is_dir() {
+        bail!("no store folder at {} (run from the repository, or set PAV_STORE)", dir.display());
+    }
+    let credits = pav_core::store::credits_text(&credit_sources(props_root)?);
+    let path = dir.join("CREDITS.md");
+    std::fs::write(&path, &credits).map_err(|e| anyhow!("write {}: {e}", path.display()))?;
+    Ok(json!({"written": [path], "credits_lines": credits.lines().filter(|line| line.starts_with("- ")).count()}))
+}
+
 /// Tokens a library asset may cost by category (plan §9.3): small things 400, dressing 600,
 /// furniture and gear 800, set pieces 2,000.
 fn token_cap(category: Option<Category>) -> usize {

@@ -6,9 +6,10 @@ you do not import: `assets find=words` already lists the imported packs.
 
 ## Use what is imported
 
-- `assets find=barrel` ranks every pack's assets with the templates and the workshop.
-  `tier=disk` keeps committed packs (`LIB/kenney_mini_dungeon/...`, `LIB/quaternius_medieval_village/...`),
-  `tier=local` those kept on this machine.
+- `assets find=barrel` ranks every pack's assets with the templates and the workshop; each row
+  says its store tier (`standard`, `checked`, `disk`) and mesh share. `tier=disk` keeps committed
+  packs (`LIB/kenney_mini_dungeon/...`, `LIB/quaternius_medieval_village/...`), `tier=checked`
+  their editable, lint-clean assets, `tier=local` those kept on this machine (left out otherwise).
 - A library asset is read-only: `asset_edit action=copy from=LIB/<pack>/<name> name=x`, then edit
   the copy. Never edit a `{"mesh":...}` part's file; recolour it (`recolor`) or replace it with
   primitives.

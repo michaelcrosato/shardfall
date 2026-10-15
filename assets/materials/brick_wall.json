@@ -1,4 +1,4 @@
-{"format":1,"name":"brick_wall","unit":"cm","description":"Red brick in running bond, pale mortar, grime at the foot.","tags":["stone","wall"],"color":"#9c4a32",
+{"format":1,"name":"brick_wall","unit":"cm","description":"Red brick in running bond, pale mortar, grime at the foot.","tags":["stone","wall"],"source":{"library":"own","license":"CC0-1.0","author":"Shardfall contributors"},"color":"#9c4a32",
  "layers":[
   {"type":"brick","size":[40,18],"gap":3,"vary":0.2,"color":"#b8ad9c"},
   {"type":"gradient","from":0,"to":60,"shade":0.6,"strength":0.7}

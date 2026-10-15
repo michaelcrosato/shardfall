@@ -4,6 +4,6 @@
 "source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"gate"},
 "fit":{"mean_mm":0.1,"worst_mm":0,"iou":1,"de":0.2,"mesh_pct":91},
 "parts":{
-"blue_box":{"type":"box","size":[60,10,5],"pos":[0,35,2.5]},
-"blue_extrude":{"type":"extrude","points":[[-9,-6.6],[9,-6.6],[9,6.6],[4,6.6],[4,-2],[-4,-2],[-4,6.6],[-9,6.6]],"depth":6,"pos":[0,23,0.5],"pitch":-16,"color":"#9ba3c3"},
+"blue_box":{"type":"box","size":[132,22,11],"pos":[0,77,5.5]},
+"blue_extrude":{"type":"extrude","points":[[-19,-14],[19,-14],[19,15],[9,15],[9,-5],[-9,-5],[-9,15],[-19,15]],"depth":13,"pos":[0,51,1],"pitch":-16,"color":"#9ba3c3"},
 "mesh":{"mesh":"kenney_mini_dungeon/gate"}}}

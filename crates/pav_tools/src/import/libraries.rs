@@ -202,7 +202,7 @@ pub fn directory() -> Value {
 }
 
 /// The date today (UTC), for SOURCE.json only.
-fn today() -> String {
+pub(crate) fn today() -> String {
     let days =
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() / 86_400).unwrap_or(0) as i64;
     // Civil from days (Howard Hinnant's algorithm).

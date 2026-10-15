@@ -76,6 +76,7 @@ fn limb<'de, D: Deserializer<'de>>(d: D) -> Result<[f32; 5], D::Error> {
 
 /// One key pose (see `LEGEND`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Key {
     pub t: f32,
     pub hips: [f32; 3],
@@ -122,6 +123,7 @@ pub const LEGEND: &[&str] = &[
 
 /// One clip.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Clip {
     /// Its name within the set (filled in from the set's key when absent).
     #[serde(default)]
@@ -150,6 +152,7 @@ pub struct Clip {
 
 /// A set: clips from one source family, with their credits.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ClipSet {
     pub set: String,
     #[serde(default)]
@@ -173,10 +176,23 @@ pub struct ClipSet {
 }
 
 impl ClipSet {
-    /// Parses a set file (`//` comment lines are allowed and skipped).
+    /// Parses a set file (`//` comment lines are allowed and skipped). Only format 1 is read: a
+    /// file that names another format, or a field this reader does not know, is refused, since
+    /// reading it as format 1 would drop what it says (format 2.0's `handL`, `spine`, `yaw`…).
     pub fn parse(text: &str) -> Result<Self, String> {
         let clean: String = text.lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
-        let mut s: ClipSet = serde_json::from_str(&clean).map_err(|e| e.to_string())?;
+        let value: serde_json::Value = serde_json::from_str(&clean).map_err(|e| e.to_string())?;
+        if let Some(format) = value.get("format").filter(|format| format.as_u64() != Some(1)) {
+            let issue = crate::issue::Issue::error("format", crate::issue::Code::Format, format!("clip format {format} is not read here"))
+                .expected("1 (key poses as my-3D2dge writes them)")
+                .fix("translate the set to format 1, or keep it out of anim/: format 2.0's hands, fingers, spine, yaw and requires would be lost");
+            return Err(issue.to_string());
+        }
+        let mut s: ClipSet = serde_json::from_value(value).map_err(|e| {
+            crate::issue::Issue::error("clips", crate::issue::Code::UnknownKey, e.to_string())
+                .fix("a format-1 set holds set, title, format, credit, legend, fps, sources, fit and clips")
+                .to_string()
+        })?;
         for (name, c) in s.clips.iter_mut() {
             if c.clip.is_empty() {
                 c.clip = name.clone();
@@ -1000,6 +1016,23 @@ mod tests {
         assert!(next.replacing_set(set("A", "B/C")).is_err());
         assert_eq!(next.get(id).unwrap().keys[0].hips[2], 60.0, "a failed replacement leaves its input unchanged");
         assert!(next.get(other).is_some());
+    }
+
+    #[test]
+    fn other_formats_and_unknown_fields_are_refused_with_an_issue() {
+        let key = r#"{"t":0,"hips":[0,0,100],"body":[0,0,0],"chest":[0,0,0],"head":[0,0,0],"armL":[0,0,-100,0,0],"armR":[0,0,-100,0,0],"legL":[0,0,-100,0,0],"legR":[0,0,-100,0,0]}"#;
+        let set = |format: &str, extra: &str| {
+            format!(r#"{{"set":"T","format":{format},"clips":{{"Stand":{{"dur":1,"keys":[{key}]{extra}}}}}}}"#)
+        };
+        assert!(ClipSet::parse(&set("1", "")).is_ok());
+        for format in ["\"2.0\"", "2.0", "2"] {
+            let error = ClipSet::parse(&set(format, "")).unwrap_err();
+            assert!(error.contains("format") && error.contains("not read here") && error.contains("expected"), "{error}");
+        }
+        let error = ClipSet::parse(&set("1", r#","handL":[0,0,0]"#)).unwrap_err();
+        assert!(error.contains("handL"), "a field format 1 does not know is refused, not dropped: {error}");
+        let error = ClipSet::parse(&set("1", "").replace(r#""t":0,"#, r#""t":0,"spine":[1,2,3],"#)).unwrap_err();
+        assert!(error.contains("spine"), "{error}");
     }
 
     #[test]

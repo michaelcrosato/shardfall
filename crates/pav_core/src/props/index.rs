@@ -10,7 +10,7 @@ use super::store::{self, Tier};
 use super::{PropDef, compile};
 use crate::issue;
 
-pub const HEADER: &str = "name\tcat\tsize_cm\tparts\ttok\tfid\tsrc\ttags\tsockets\tnote\tdesc";
+pub const HEADER: &str = "name\tcat\tsize_cm\tparts\ttok\tfid\tsrc\ttier\ttags\tsockets\tnote\tdesc";
 
 /// One asset as queries see it.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,6 +29,9 @@ pub struct Row {
     pub fid: String,
     /// `own`, or the source's licence and library, e.g. `CC0-1.0 kenney`.
     pub src: String,
+    /// Its store tier (docs/AGENT_ASSET_STORE.md §7): `standard` (embedded), `checked` (on disk,
+    /// passing every check), `disk`; `local` and `workshop` rows are not store entries.
+    pub level: String,
     pub tags: Vec<String>,
     pub sockets: Vec<String>,
     /// Free text kept across reindexing.
@@ -37,6 +40,16 @@ pub struct Row {
     pub desc: String,
     /// Where the row was read from (not written).
     pub tier: Tier,
+}
+
+/// A row's store tier before the checks that can raise it: embedded rows are `standard`.
+pub fn level(tier: Tier) -> &'static str {
+    match tier {
+        Tier::Embedded => "standard",
+        Tier::Disk => "disk",
+        Tier::Local => "local",
+        Tier::Workshop => "workshop",
+    }
 }
 
 /// Tokens of a file of `bytes` bytes: about 2.8 bytes per token for asset JSON.
@@ -73,6 +86,7 @@ impl Row {
             tok: tokens(doc.text().len()),
             fid,
             src,
+            level: level(tier).into(),
             tags: doc.tags.clone(),
             sockets: doc.sockets.keys().cloned().collect(),
             note: String::new(),
@@ -99,6 +113,7 @@ impl Row {
             self.tok.to_string(),
             self.fid.clone(),
             self.src.clone(),
+            self.level.clone(),
             self.tags.join(" "),
             self.sockets.join(" "),
             field(&self.note),
@@ -120,8 +135,8 @@ pub fn parse(text: &str, tier: Tier) -> Result<Vec<Row>, String> {
         .filter(|(_, line)| !line.trim().is_empty())
         .map(|(i, line)| {
             let cells: Vec<&str> = line.split('\t').collect();
-            let [name, cat, size_cm, parts, tok, fid, src, tags, sockets, note, desc] = cells[..] else {
-                return Err(format!("line {}: {} fields (expected 11)", i + 2, cells.len()));
+            let [name, cat, size_cm, parts, tok, fid, src, level, tags, sockets, note, desc] = cells[..] else {
+                return Err(format!("line {}: {} fields (expected 12)", i + 2, cells.len()));
             };
             let number = |what: &str, text: &str| text.parse::<usize>().map_err(|_| format!("line {}: {what} \"{text}\"", i + 2));
             Ok(Row {
@@ -132,6 +147,7 @@ pub fn parse(text: &str, tier: Tier) -> Result<Vec<Row>, String> {
                 tok: number("tok", tok)?,
                 fid: fid.into(),
                 src: src.into(),
+                level: level.into(),
                 tags: words(tags),
                 sockets: words(sockets),
                 note: note.into(),
