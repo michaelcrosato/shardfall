@@ -14,6 +14,17 @@ evaluation of the engine (used/not used, engine work you wrote ranked by output 
 changes, bugs and wrong docs, source you had to read, fidelity limits, testing, what helped and
 hurt, missing features by impact, the one change). The questions get adjusted as patterns show.
 
+**Asset store lines** (the store's S3, 2026-10-15; the user pastes them into the template). Each
+game's answers count toward the store's critical mass (`docs/AGENT_ASSET_STORE.md` §13): a need
+is met when the game placed, forked or derived a store entry instead of making it from scratch.
+1. Before you make a prop, material or clip, `assets shelf=prop` (or `shelf=clip`) lists the
+   engine's asset store and `assets find=words` searches it (`store/README.md`).
+2. Assets you looked for: one line each, the query and the id you used, or `none`.
+3. Up to 5 things you built that another game could reuse: the file and one line each.
+
+The user flags the store entries each game used on a per-game review page (`scripts/
+review_page.py` with a `flags` manifest): looks, feels, reads, works or broken (§7).
+
 **Cost** is counted end to end from the agent's transcript (model calls, tokens read, weighted
 cost at cache reads 0.1, cache writes 1.25, visible output 5; hidden reasoning is not recorded).
 

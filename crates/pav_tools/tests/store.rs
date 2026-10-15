@@ -55,8 +55,17 @@ fn the_store_finds_shelves_credits_and_refuses() {
     assert!(names(&tree["nearest"]).iter().any(|name| name.contains("mushroom")), "the vegetation hint: {tree}");
     let character = call(&mut s, "assets", json!({"find": "character"}));
     assert!(character["route"].as_str().unwrap().contains("heroes.toml"), "{character}");
+    // Materials match word by word too (S3): a compound holds its word, a mere substring does not,
+    // and nothing matching says `none` with a route.
+    let floor = call(&mut s, "assets", json!({"kind": "material", "find": "stone floor"}));
+    assert!(floor.get("partial").is_none() && names(&floor["rows"]).contains(&"MAT/flagstones".to_owned()), "{floor}");
+    let rough = call(&mut s, "assets", json!({"kind": "material", "find": "rough"}));
+    assert!(rough["none"].is_string(), "\"wrought\" does not hold \"rough\": {rough}");
+    let zebra = call(&mut s, "assets", json!({"kind": "material", "find": "zebra"}));
+    assert!(zebra["none"].is_string() && zebra["route"].as_str().unwrap().starts_with("make it:"), "{zebra}");
     let misses = std::fs::read_to_string(scratch.join("misses.tsv")).unwrap();
     assert!(misses.contains("\tprop\ttree\t") && misses.contains("\tprop\tcharacter\t"), "{misses}");
+    assert!(misses.contains("\tmaterial\tzebra\t"), "{misses}");
     // Rows carry their store tier and mesh share; the local tier is not searched by default.
     let barrel = call(&mut s, "assets", json!({"find": "barrel"}));
     assert_eq!(barrel["cols"], "name cat size_cm tier mesh tok tags desc");

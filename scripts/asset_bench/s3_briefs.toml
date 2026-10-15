@@ -1,0 +1,140 @@
+[[brief]]
+id = "C01"
+order = 1
+title = "Fishing Dock at Dusk"
+text = """Build a short wooden dock reaching into the water, about 400 cm long. Moor a rowboat about 300 cm long beside it, put a fish crate about 60 cm wide on the boards, and light the end with a lamp post about 180 cm tall. A fisherman stands at the edge in a looping idle."""
+roles = [
+  {role = "rowboat", kind = "prop", count = 1, l = [255, 345]},
+  {role = "lamp post", kind = "prop", count = 1, h = [153, 207], light = true},
+  {role = "fish crate", kind = "prop", count = 1, l = [51, 69]},
+  {role = "dock boards", kind = "material", count = 1},
+  {role = "fisherman idle", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a small rowboat about 300 cm long", "prop: a lamp post about 180 cm tall that gives light", "prop: a fish crate about 60 cm wide", "material: weathered wooden planks for the dock", "clip: a fisherman's looping idle"]
+
+[[brief]]
+id = "C02"
+order = 2
+title = "Smithy Grinding Corner"
+text = """Set up the working corner of a smithy with a grindstone about 90 cm tall, a quenching barrel about 80 cm tall and a forge bellows about 90 cm long. The back wall is soot-dark brick. A smith hammers at the work area in a loop."""
+roles = [
+  {role = "grindstone", kind = "prop", count = 1, h = [77, 104]},
+  {role = "quenching barrel", kind = "prop", count = 1, h = [68, 92]},
+  {role = "bellows", kind = "prop", count = 1, l = [77, 104]},
+  {role = "back wall", kind = "material", count = 1},
+  {role = "smith hammering", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a foot-pedal grindstone about 90 cm tall", "prop: a wooden quenching barrel about 80 cm tall", "prop: a forge bellows about 90 cm long", "material: sooty dark brick for the wall", "clip: a smith's looping hammering motion"]
+
+[[brief]]
+id = "C03"
+order = 3
+title = "Mossy Forest Shrine"
+text = """Make a small forest shrine reached through a wooden gate about 300 cm tall. A stone lantern about 120 cm tall glows beside a stone fox statue about 80 cm tall, and the ground is mossy stone paving. A pilgrim bows once before the statue."""
+roles = [
+  {role = "shrine gate", kind = "prop", count = 1, h = [255, 345]},
+  {role = "stone lantern", kind = "prop", count = 1, h = [102, 138], light = true},
+  {role = "fox statue", kind = "prop", count = 1, h = [68, 92]},
+  {role = "paving", kind = "material", count = 1},
+  {role = "pilgrim bow", kind = "clip", count = 1, loop = false},
+]
+needs = ["prop: a wooden shrine gate about 300 cm tall", "prop: a stone lantern about 120 cm tall that gives light", "prop: a stone fox statue about 80 cm tall", "material: mossy stone paving", "clip: a character bowing once"]
+
+[[brief]]
+id = "C04"
+order = 4
+title = "Dungeon Prison Cell"
+text = """Build a cramped cell with a barred gate about 220 cm tall, a cot about 190 cm long and a wooden bucket about 30 cm tall. A wall torch about 40 cm long lights it. Walls and floor are damp stone brick, and a prisoner sits slumped in a looping idle."""
+roles = [
+  {role = "barred gate", kind = "prop", count = 1, h = [187, 253]},
+  {role = "cot", kind = "prop", count = 1, l = [162, 218]},
+  {role = "bucket", kind = "prop", count = 1, h = [26, 35]},
+  {role = "wall torch", kind = "prop", count = 1, h = [34, 46], light = true},
+  {role = "cell walls", kind = "material", count = 1},
+  {role = "prisoner idle", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: an iron barred cell gate about 220 cm tall", "prop: a plain cot about 190 cm long", "prop: a wooden bucket about 30 cm tall", "prop: a wall torch that gives light", "material: damp stone brick", "clip: a slumped prisoner's looping idle"]
+
+[[brief]]
+id = "C05"
+order = 5
+title = "Village Well Square"
+text = """Lay out a small cobbled square around a stone well about 110 cm tall. Add a bucket about 30 cm tall at its rim and a hay bale about 100 cm wide beside it. A villager waves at the player once."""
+roles = [
+  {role = "well", kind = "prop", count = 1, h = [94, 127]},
+  {role = "bucket", kind = "prop", count = 1, h = [26, 35]},
+  {role = "hay bale", kind = "prop", count = 1, l = [85, 115]},
+  {role = "square ground", kind = "material", count = 1},
+  {role = "villager wave", kind = "clip", count = 1, loop = false},
+]
+needs = ["prop: a stone well about 110 cm tall", "prop: a wooden bucket about 30 cm tall", "prop: a hay bale about 100 cm wide", "material: cobblestones for the square", "clip: a villager's friendly wave"]
+
+[[brief]]
+id = "C06"
+order = 6
+title = "Scout Tent Lookout"
+text = """Pitch a canvas tent about 200 cm tall on a hillside. Put a bedroll about 190 cm long and a supply crate about 60 cm wide by the entrance, with a small lantern about 30 cm tall glowing on the crate. A sentry patrols past in a looping walk."""
+roles = [
+  {role = "tent", kind = "prop", count = 1, h = [170, 230]},
+  {role = "bedroll", kind = "prop", count = 1, l = [162, 218]},
+  {role = "supply crate", kind = "prop", count = 1, l = [51, 69]},
+  {role = "lantern", kind = "prop", count = 1, h = [26, 35], light = true},
+  {role = "sentry patrol walk", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a canvas tent about 200 cm tall", "prop: a bedroll about 190 cm long", "prop: a supply crate about 60 cm wide", "prop: a small lantern about 30 cm tall that gives light", "clip: a sentry's looping walk"]
+
+[[brief]]
+id = "C07"
+order = 7
+title = "Bridge Guard Post"
+text = """Build a plank bridge with a guard post at one end. Place a wooden barricade about 200 cm wide across the approach and an alarm bell on a post about 180 cm tall beside it. A guard performs a single sword swing at an intruder."""
+roles = [
+  {role = "barricade", kind = "prop", count = 1, l = [170, 230]},
+  {role = "alarm bell post", kind = "prop", count = 1, h = [153, 207]},
+  {role = "bridge deck", kind = "material", count = 1},
+  {role = "guard sword swing", kind = "clip", count = 1, loop = false},
+]
+needs = ["prop: a wooden barricade about 200 cm wide", "prop: an alarm bell hanging on a post about 180 cm tall", "material: wooden planks for the bridge deck", "clip: a single sword swing attack"]
+
+[[brief]]
+id = "C08"
+order = 8
+title = "Mine Entrance Tracks"
+text = """Frame a mine mouth with a timber support beam about 250 cm tall and a hanging lamp about 40 cm tall that gives light. A minecart about 120 cm long sits on the track, with a pickaxe about 90 cm long leaning on it. The rock face is rough stone, and a miner swings a pick in a loop."""
+roles = [
+  {role = "support beam", kind = "prop", count = 1, h = [213, 288]},
+  {role = "hanging lamp", kind = "prop", count = 1, h = [34, 46], light = true},
+  {role = "minecart", kind = "prop", count = 1, l = [102, 138]},
+  {role = "pickaxe", kind = "prop", count = 1, l = [77, 104]},
+  {role = "rock face", kind = "material", count = 1},
+  {role = "miner pick swing", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a timber mine support beam about 250 cm tall", "prop: a hanging mine lamp that gives light", "prop: a minecart about 120 cm long", "prop: a pickaxe about 90 cm long", "material: rough rock for the cave wall", "clip: a miner's looping pickaxe swing"]
+
+[[brief]]
+id = "C09"
+order = 9
+title = "Cottage Hearth Kitchen"
+text = """Fill a cottage kitchen corner with a stone fireplace about 180 cm tall, a cooking pot about 40 cm tall, and a broom about 130 cm long leaning on the wall. The floor is checkered tile. A cook stirs the pot in a loop."""
+roles = [
+  {role = "fireplace", kind = "prop", count = 1, h = [153, 207], light = true},
+  {role = "cooking pot", kind = "prop", count = 1, h = [34, 46]},
+  {role = "broom", kind = "prop", count = 1, l = [111, 150]},
+  {role = "floor", kind = "material", count = 1},
+  {role = "cook stirring", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a stone fireplace about 180 cm tall that gives light", "prop: an iron cooking pot about 40 cm tall", "prop: a straw broom about 130 cm long", "material: checkered tile floor", "clip: a cook's looping stirring motion"]
+
+[[brief]]
+id = "C10"
+order = 10
+title = "Stable Stall Interior"
+text = """Make a stable stall with a water trough about 180 cm long, a hay bale about 100 cm wide and a saddle on a rail about 50 cm tall. The stall floor and walls are wooden planks. A horse stands in the stall in a looping idle."""
+roles = [
+  {role = "water trough", kind = "prop", count = 1, l = [153, 207]},
+  {role = "hay bale", kind = "prop", count = 1, l = [85, 115]},
+  {role = "saddle on rail", kind = "prop", count = 1, h = [43, 58]},
+  {role = "stall planks", kind = "material", count = 1},
+  {role = "horse idle", kind = "clip", count = 1, loop = true},
+]
+needs = ["prop: a wooden water trough about 180 cm long", "prop: a hay bale about 100 cm wide", "prop: a horse saddle on a rail about 50 cm tall", "material: wooden planks for the stall", "clip: a horse's looping idle"]

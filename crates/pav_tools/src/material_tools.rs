@@ -188,33 +188,76 @@ pub fn t_materials(_: &mut Session, a: &Args) -> Result<Output> {
         }
     };
     let (limit, page) = (number("limit", 30)?, number("page", 1)?);
-    let find = get_str(a, "find").unwrap_or("").to_ascii_lowercase();
+    let find = get_str(a, "find").unwrap_or("");
+    let terms = pav_core::store::terms(find);
     let lib = Library::current();
-    let matched: Vec<(&str, &Arc<Material>)> = lib
+    // Each word matches by any of its forms or synonyms anywhere in the name, description or
+    // tags; rows matching every word come first, ranked by how many words their name holds.
+    let mut scored: Vec<(usize, usize, &str, &Arc<Material>)> = lib
         .names()
         .filter_map(|name| lib.get(name).map(|m| (name, m)))
-        .filter(|(name, _)| {
-            let doc = lib.doc(name);
-            let text = doc.map(|d| format!("{} {}", d.description, d.tags.join(" "))).unwrap_or_default();
-            name.to_ascii_lowercase().contains(&find) || text.to_ascii_lowercase().contains(&find)
-        })
-        .collect();
-    let skip = (page - 1) * limit;
-    let rows: Vec<Value> = matched
-        .iter()
-        .skip(skip)
-        .take(limit)
         .map(|(name, m)| {
-            let desc = lib.doc(name).map(|d| summary(&d.description)).unwrap_or_default();
-            let layers: Vec<&str> = m.layers.iter().map(|l| l.pattern.name()).collect();
-            json!([name, layers.join("+"), num(m.cost()), desc])
+            let lower = name.to_ascii_lowercase();
+            let text = lib.doc(name).map(|d| format!("{} {}", d.description, d.tags.join(" "))).unwrap_or_default();
+            let text = format!("{lower} {}", text.to_ascii_lowercase());
+            // A word matches a form when it starts with it, or ends with it as a compound
+            // ("flagstones" holds "stone"; "wrought" does not hold "rough").
+            let hit = |term: &pav_core::store::Term, haystack: &str| {
+                haystack.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).any(|word| {
+                    let one = pav_core::store::singular(word);
+                    term.forms
+                        .iter()
+                        .chain(&term.synonyms)
+                        .any(|form| one.starts_with(form.as_str()) || (form.len() >= 4 && one.ends_with(form.as_str())))
+                })
+            };
+            let matched = terms.iter().filter(|term| hit(term, &text)).count();
+            let in_name = terms.iter().filter(|term| hit(term, &lower)).count();
+            (matched, in_name, name, m)
         })
+        .filter(|(matched, ..)| terms.is_empty() || *matched > 0)
         .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then_with(|| a.2.cmp(b.2)));
+    let whole = scored.iter().filter(|row| row.0 == terms.len()).count();
+    if !terms.is_empty() && whole == 0 {
+        // Nothing matches every word: rows matching some, or none with the nearest and a route.
+        if scored.is_empty() {
+            let distance = |name: &str| {
+                let leaf = name.rsplit('/').next().unwrap_or(name);
+                terms.iter().map(|term| issue::edit_distance(&term.forms[0], leaf)).min().unwrap_or(usize::MAX)
+            };
+            let mut near: Vec<&str> = lib.names().collect();
+            near.sort_by(|x, y| distance(x).cmp(&distance(y)).then_with(|| x.cmp(y)));
+            near.truncate(3);
+            let names: Vec<String> = near.iter().map(|name| name.to_string()).collect();
+            crate::asset_search::log_miss(&crate::asset_search::store_root(), "material", find, &names);
+            let slug = crate::asset_search::slug(&terms);
+            return Ok(Output::Json(json!({
+                "cols": "name layers cost desc",
+                "none": format!("nothing matches \"{find}\""),
+                "nearest": near.iter().filter_map(|name| lib.get(name).map(|m| material_row(&lib, name, m))).collect::<Vec<_>>(),
+                "route": format!("make it: asset_edit kind=material action=copy from=<one of the {} in assets kind=material> name={slug} and change its layers, or action=create name={slug}; asset_edit kind=material action=schema is the field guide", lib.names().count()),
+            })));
+        }
+    }
+    let partial = !terms.is_empty() && whole == 0;
+    let matched: Vec<(&str, &Arc<Material>)> = scored.iter().map(|(_, _, name, m)| (*name, *m)).collect();
+    let skip = (page - 1) * limit;
+    let rows: Vec<Value> = matched.iter().skip(skip).take(limit).map(|(name, m)| material_row(&lib, name, m)).collect();
     let mut out = json!({"cols": "name layers cost desc", "rows": rows, "total": lib.names().count(), "matched": matched.len()});
+    if partial {
+        out["partial"] = json!("no material matches every word; these match some");
+    }
     if skip + limit < matched.len() {
         out["next"] = json!(page + 1);
     }
     Ok(Output::Json(out))
+}
+
+fn material_row(lib: &Library, name: &str, m: &Material) -> Value {
+    let desc = lib.doc(name).map(|d| summary(&d.description)).unwrap_or_default();
+    let layers: Vec<&str> = m.layers.iter().map(|l| l.pattern.name()).collect();
+    json!([name, layers.join("+"), num(m.cost()), desc])
 }
 
 // --- asset_edit kind=material ----------------------------------------------------------------

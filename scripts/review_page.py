@@ -18,6 +18,11 @@ Images are embedded (data URIs; the page must stay under 16 MB). Verdicts and no
 the artifact's store, collection `verdicts`, one document per item id ({verdict, note}), which
 the agent reads back with ArtifactData; without the store they stay in the browser, and
 "Copy verdicts" gives them as text to paste into chat.
+
+A per-game flag page (the asset store's §7 flags) sets `"flags"` instead of `"verdicts"`: each
+label toggles on its own (looks, feels, reads, works, broken; up to nine), and each item's
+document is {flags: [...], note}. One item per store entry the game used, with its id as the
+item id.
 """
 
 import base64
@@ -78,6 +83,8 @@ figcaption { font-size: .78rem; color: var(--muted); }
 .verdicts button[data-v="ok"][aria-pressed="true"] { background: var(--ok); border-color: var(--ok); }
 .verdicts button[data-v="fix"][aria-pressed="true"] { background: var(--fix); border-color: var(--fix); }
 .verdicts button[data-v="drop"][aria-pressed="true"] { background: var(--drop); border-color: var(--drop); }
+.verdicts button.flag[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.verdicts button.flag[data-v="broken"][aria-pressed="true"] { background: var(--drop); border-color: var(--drop); }
 textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: vertical; font: .9rem var(--body);
   color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .zoom { position: fixed; inset: 0; z-index: 5; background: var(--bg); display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
@@ -96,7 +103,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
     <button type="button" id="copy">Copy verdicts</button>
     <span class="copied" id="copied" hidden>Copied</span>
   </div>
-  <p class="keys">Click a card, then <kbd>1</kbd> __K1__ <kbd>2</kbd> __K2__ <kbd>3</kbd> __K3__, <kbd>j</kbd>/<kbd>k</kbd> next and previous. Click a picture to enlarge it.</p>
+  <p class="keys">Click a card, then __KEYS__, <kbd>j</kbd>/<kbd>k</kbd> next and previous. Click a picture to enlarge it.</p>
   <textarea id="copytext" hidden readonly aria-label="Verdicts as text"></textarea>
   <div class="grid" id="grid"></div>
 </div>
@@ -105,6 +112,8 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
 <script>
 (() => {
   const VERDICTS = __VERDICTS__;
+  const FLAGS = __FLAGS__;  // a flag page: labels toggle independently
+  const LABELS = FLAGS || VERDICTS;
   const items = JSON.parse(document.getElementById("items").textContent);
   const state = {};  // id -> {verdict, note}
   let db = null;
@@ -137,9 +146,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
       el.append(fig);
     });
     const row = document.createElement("div"); row.className = "verdicts";
-    VERDICTS.forEach((v) => {
+    LABELS.forEach((v) => {
       const b = document.createElement("button"); b.type = "button"; b.dataset.v = v; b.textContent = v;
-      b.setAttribute("aria-pressed", "false"); b.addEventListener("click", () => choose(item.id, v));
+      if (FLAGS) b.className = "flag";
+      b.setAttribute("aria-pressed", "false"); b.addEventListener("click", () => FLAGS ? toggle(item.id, v) : choose(item.id, v));
       row.append(b);
     });
     el.append(row);
@@ -151,20 +161,23 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
   }
 
   function paint() {
-    const counts = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
+    const counts = Object.fromEntries(LABELS.map((v) => [v, 0]));
     let open = 0;
     items.forEach((item) => {
       const s = state[item.id] || {};
       const el = document.querySelector('.card[data-id="' + CSS.escape(item.id) + '"]');
       if (!el) return;
-      el.dataset.verdict = s.verdict || "";
-      el.querySelectorAll(".verdicts button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.verdict)));
+      const flags = FLAGS ? (s.flags || []) : [];
+      el.dataset.verdict = FLAGS ? (flags.includes("broken") ? "drop" : flags.length ? "ok" : "") : (s.verdict || "");
+      el.querySelectorAll(".verdicts button").forEach((b) => b.setAttribute("aria-pressed",
+        String(FLAGS ? flags.includes(b.dataset.v) : b.dataset.v === s.verdict)));
       const t = el.querySelector("textarea");
       if (document.activeElement !== t) t.value = s.note || "";
-      if (s.verdict in counts) counts[s.verdict]++; else open++;
+      if (FLAGS) { flags.forEach((f) => { if (f in counts) counts[f]++; }); if (!flags.length) open++; }
+      else if (s.verdict in counts) counts[s.verdict]++; else open++;
     });
     $("tally").innerHTML = "";
-    VERDICTS.forEach((v) => {
+    LABELS.forEach((v) => {
       const c = document.createElement("span"); c.className = "chip " + v;
       c.innerHTML = "<b></b> "; c.querySelector("b").textContent = counts[v]; c.append(v); $("tally").append(c);
     });
@@ -174,13 +187,20 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
   async function write(id) {
     const s = state[id] || {};
     if (db) {
-      try { await db.collection("verdicts").doc(id).set({ verdict: s.verdict || "", note: s.note || "" }); return; }
+      const doc = FLAGS ? { flags: s.flags || [], note: s.note || "" } : { verdict: s.verdict || "", note: s.note || "" };
+      try { await db.collection("verdicts").doc(id).set(doc); return; }
       catch (e) { $("store").textContent = "Could not save to the shared store (" + (e && e.code || "error") + "); verdicts stay in this browser."; }
     }
     saveLocal();
   }
   function choose(id, v) {
     state[id] = Object.assign({}, state[id], { verdict: state[id] && state[id].verdict === v ? "" : v });
+    paint(); write(id);
+  }
+  function toggle(id, v) {
+    const flags = new Set((state[id] && state[id].flags) || []);
+    if (flags.has(v)) flags.delete(v); else flags.add(v);
+    state[id] = Object.assign({}, state[id], { flags: LABELS.filter((f) => flags.has(f)) });
     paint(); write(id);
   }
   function note(id, text) {
@@ -191,7 +211,8 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
   function asText() {
     return items.map((item) => {
       const s = state[item.id] || {};
-      return item.id + ": " + (s.verdict || "unreviewed") + (s.note ? " — " + s.note : "");
+      const said = FLAGS ? ((s.flags || []).join(", ") || "unflagged") : (s.verdict || "unreviewed");
+      return item.id + ": " + said + (s.note ? " — " + s.note : "");
     }).join("\n");
   }
   $("copy").addEventListener("click", () => {
@@ -215,7 +236,8 @@ textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: verti
       return;
     }
     const n = Number(e.key);
-    if (cardEl && n >= 1 && n <= VERDICTS.length) {
+    if (cardEl && n >= 1 && n <= LABELS.length && FLAGS) { toggle(cardEl.dataset.id, LABELS[n - 1]); return; }
+    if (cardEl && n >= 1 && n <= LABELS.length) {
       choose(cardEl.dataset.id, VERDICTS[n - 1]);
       const next = cards[Number(cardEl.dataset.index) + 1];
       if (next) { next.focus(); next.scrollIntoView({ block: "nearest" }); }
@@ -255,8 +277,11 @@ def main() -> None:
     manifest_path = Path(sys.argv[1])
     manifest = json.loads(manifest_path.read_text())
     verdicts = manifest.get("verdicts", ["ok", "fix", "drop"])
+    flags = manifest.get("flags")
     if not 1 <= len(verdicts) <= 3:
         sys.exit("verdicts: one to three labels")
+    if flags is not None and not 1 <= len(flags) <= 9:
+        sys.exit("flags: one to nine labels")
     ids = [item["id"] for item in manifest["items"]]
     if len(set(ids)) != len(ids):
         sys.exit(f"item ids must be unique: {sorted({i for i in ids if ids.count(i) > 1})}")
@@ -270,12 +295,15 @@ def main() -> None:
             images.append({"src": data_uri(path), "label": image.get("label", "")})
         items.append({"id": item["id"], "title": item.get("title", item["id"]), "facts": item.get("facts", []),
                       "note": item.get("note", ""), "images": images})
-    keys = [html.escape(v) for v in verdicts] + ["", ""]
+    labels = flags or verdicts
+    keys = ", ".join(f"<kbd>{i + 1}</kbd> {html.escape(v)}" for i, v in enumerate(labels))
+    if flags:
+        keys = "toggle " + keys
     page = (PAGE.replace("__TITLE__", html.escape(manifest["title"]))
             .replace("__HEADING__", html.escape(manifest.get("heading", manifest["title"])))
             .replace("__INTRO__", html.escape(manifest.get("intro", "")))
-            .replace("__K1__", keys[0]).replace("__K2__", keys[1]).replace("__K3__", keys[2])
-            .replace("__VERDICTS__", json.dumps(verdicts))
+            .replace("__KEYS__", keys)
+            .replace("__VERDICTS__", json.dumps(verdicts)).replace("__FLAGS__", json.dumps(flags))
             .replace("__ITEMS__", json.dumps(items).replace("</", "<\\/")))
     out = Path(sys.argv[2])
     out.parent.mkdir(parents=True, exist_ok=True)
