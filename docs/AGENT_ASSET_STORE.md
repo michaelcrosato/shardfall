@@ -604,12 +604,13 @@ one).
 2026-10-15: they are separate projects, and a clone costs disk; ai-hub alone is 3.1 GB): ai-hub
 (read) only to count games that arrived for S3; my-3danimations (read) for S3b; my-3dge (push)
 for S4; riftlight (push) for S5. Then `add_repo`, clone where it says, `register_repo_root`,
-`repo-setup <path>`, and delete the clone when the stage is done. The old clones in `/home/user/michaelcrosato/` have
-no credentials: read only; a failed push there is no refusal. my-3dge: merge once `x ci --local` is
-green; a new dependency escalates via `node x esc`. riftlight: a pushed `claude/*` branch merges at
-once, so push only a finished step with `scripts/check.sh` green (or label the PR `hold`). A
-sibling's `.claude/agents/verifier.md` runs as a general-purpose subagent given that file's body.
-Refused by `add_repo`: log it in `docs/ESCALATIONS.md` and build the Shardfall side.
+`repo-setup <path>`, and delete the clone when the stage is done. The old clones in
+`/home/user/michaelcrosato/` have no credentials: read only; a failed push there is no refusal.
+my-3dge: merge once `x ci --local` is green; a new dependency escalates via `node x esc`.
+riftlight: a pushed `claude/*` branch merges at once, so push only a finished step with
+`scripts/check.sh` green (or label the PR `hold`). A sibling's `.claude/agents/verifier.md` runs as
+a general-purpose subagent given that file's body. Refused by `add_repo`: log it in
+`docs/ESCALATIONS.md` and build the Shardfall side.
 
 **User-only items** never stop work. Ask once, early: numbered, with options and a default; log it
 in ESCALATIONS, set a 15-minute `send_later` check-in and carry on; no answer by then, apply the
