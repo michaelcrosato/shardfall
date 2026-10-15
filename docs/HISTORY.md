@@ -52,6 +52,9 @@ with no answer in 15 minutes their defaults apply (`docs/ESCALATIONS.md`).
 - **The clip reader** refuses a set whose `format` is not 1, and any field it does not know,
   with an Issue; all 5,987 clips (437 embedded, 780 in `anim/100style`, 4,770 in `anim/cmu`)
   still read.
+- **The benchmark's control arm:** with `PAV_FIND=builtin`, `assets find=` sees only the
+  templates and the workshop (no partial or `none` replies), `clips find=` and `kind=clip` find
+  nothing, and there is no shelf, so S1's two arms run one binary built from this head.
 - **The eval (§8).** 10 present assets were drawn at random (seed 20261015) from the 46 standard
   and checked rows. A fresh subagent saw only their id-labelled contact sheets, never the index
   or descriptions, and wrote all 15 queries. find@5 is **9/10**: only "grey cube block" missed
