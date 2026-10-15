@@ -407,4 +407,11 @@ fn the_object_doc_names_every_checked_key() {
     let call: serde_json::Value = serde_json::from_str(blocks[1]).unwrap();
     let patched = patch_document(&bench, &call["args"]["ops"], &get).unwrap_or_else(|issues| panic!("{}", render(&issues)));
     assert!(patched.doc.parts.contains_key("arm") && !patched.doc.parts.contains_key("crossbar"));
+    // The family example adds knobs to the fence family's parts.
+    let mut fence: serde_json::Value = serde_json::from_str(include_str!("fixtures/props/families/fence.json")).unwrap();
+    fence.as_object_mut().unwrap().retain(|key, _| key != "params" && key != "presets");
+    let call: serde_json::Value = serde_json::from_str(blocks[2]).unwrap();
+    let family = patch_document(&Doc::from_value(&fence).unwrap(), &call["args"]["ops"], &get)
+        .unwrap_or_else(|issues| panic!("{}", render(&issues)));
+    assert_eq!((family.doc.params.len(), family.doc.presets.len()), (3, 1));
 }

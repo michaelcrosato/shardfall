@@ -14,8 +14,9 @@ use crate::issue::{self, Code, Issue, join};
 use crate::params::ChoiceParam;
 use crate::props::doc::{
     Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Light, Lineage, Material, MaterialEntry,
-    Method, Node, Origin, PRESETS, Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
+    Method, Node, Origin, PRESETS, Param, Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
 };
+use crate::props::family::{self, MAX_CHOICES, MAX_PARAMS, MAX_PRESETS, MAX_TARGETS, Target};
 use crate::props::{MAX_PARTS, PropDef, validate_name, validate_part_name};
 use crate::shape::{Look, Sway};
 
@@ -61,12 +62,17 @@ pub const DOCUMENT_FIELDS: &[(&str, &str)] = &[
         "category",
         "furniture | container | architecture | lighting | vegetation | rock | weapon | armour | tool | food | town | dungeon | signage",
     ),
-    ("lineage", "{method,origin,parents,license,credit}: what it was made from (copy writes it)"),
+    ("lineage", "{method,origin,parents,license,credit}: written by copy"),
     ("source", "{library,url,license,author,sha256,title,norm}: where it came from (tools write it)"),
     ("fit", "{mean_mm,worst_mm,iou,de,mesh_pct,parts_hash}: how well it fits its source (tools write it)"),
     ("materials", "{key: {color,look,emissive,roughness,metallic,map,scale,turn,layers}}; parts say mat:key"),
     ("parts", "{id: node}: 1-256 nodes, groups and refs included (required)"),
     ("sockets", "{grip|grip2|tip|top|wall_mount|hang|sit: {pos|attach, offset, axis|yaw,pitch,roll}}"),
+    (
+        "params",
+        "family knobs, ≤ 8: {name: {range:[lo,hi], int?, set:{\"part.field.i\": factor}} or {choices:[a,b], set:{path:[value per choice]}}}; the file's values are the defaults",
+    ),
+    ("presets", "{name: {param: value}}, ≤ 16; place one as NAME:preset"),
 ];
 
 /// Node fields (besides the shape fields) and their field-guide lines.
@@ -214,7 +220,6 @@ fn hint(level: &str, key: &str, value: &Value) -> Option<String> {
         ("doc", "version") => "use \"format\":2".into(),
         ("doc", "objects" | "children" | "shapes" | "components" | "nodes") => "parts go in \"parts\":{id:{...}}".into(),
         ("doc", "title" | "label") => "use description".into(),
-        ("doc", "params" | "presets") => "parametric families are not available yet".into(),
         ("node", "rotation" | "rot" | "rotate" | "angle" | "angles" | "orientation" | "direction") => {
             "use axis (a round part's direction), from/to (a part between two points) or yaw, pitch and roll in degrees".into()
         }
@@ -271,6 +276,9 @@ fn hint(level: &str, key: &str, value: &Value) -> Option<String> {
         ("attach", "own") => "use self".into(),
         ("socket", "position") => "use pos:[x,y,z]".into(),
         ("socket", "rotation" | "direction") => "use axis or yaw, pitch and roll".into(),
+        ("param", "default" | "value") => "the file's values are the defaults: write them in the parts".into(),
+        ("param", "targets" | "fields" | "paths" | "factors") => "use set:{\"part.field\": factor}".into(),
+        ("param", "min" | "max" | "values" | "options") => "use range:[lo,hi] or choices:[a,b,…]".into(),
         _ => return None,
     })
 }
@@ -398,6 +406,9 @@ struct Reader<'a> {
 pub(crate) fn doc(value: &Value, assets: &dyn Fn(&str) -> Option<Arc<PropDef>>) -> Result<Doc, Vec<Issue>> {
     let mut reader = Reader { issues: Vec::new(), unit: Unit::Cm, materials: BTreeSet::new(), assets };
     let doc = reader.document(value);
+    if let Some(doc) = doc.as_ref().filter(|doc| reader.issues.is_empty() && !doc.params.is_empty()) {
+        reader.issues.extend(probe(value, doc, assets));
+    }
     match doc {
         Some(doc) if reader.issues.is_empty() => Ok(doc),
         _ if reader.issues.is_empty() => Err(vec![Issue::error("", Code::Format, "not a readable format-2 document")]),
@@ -821,6 +832,7 @@ impl Reader<'_> {
             None => BTreeMap::new(),
             Some(value) => self.sockets(value),
         };
+        let (params, presets) = self.family(value);
         let parts = parts?;
         if let Some(Value::Object(raw)) = object.get("parts") {
             self.attachments(&parts, raw, &sockets);
@@ -838,7 +850,298 @@ impl Reader<'_> {
             materials,
             parts,
             sockets,
+            params,
+            presets,
         })
+    }
+
+    /// `params` and `presets`. A range's targets must be written and imply one default
+    /// (within max(0.5, 0.5%)); a written choices target must be the first choice's value.
+    fn family(&mut self, doc: &Value) -> (BTreeMap<String, Param>, BTreeMap<String, BTreeMap<String, Value>>) {
+        let mut params = BTreeMap::new();
+        let raw = doc.get("params");
+        if let Some(value) = raw {
+            match value.as_object() {
+                None => self.push(wrong_type("params", "an object {name: {range or choices, set}}", value)),
+                Some(map) => {
+                    if map.len() > MAX_PARAMS {
+                        self.push(
+                            Issue::error("params", Code::Limit, format!("{} params", map.len()))
+                                .expected(format!("at most {MAX_PARAMS}"))
+                                .fix("split the family, or fold knobs into presets"),
+                        );
+                    }
+                    let mut owners: BTreeMap<&String, &String> = BTreeMap::new();
+                    for (name, value) in map {
+                        let path = format!("params.{name}");
+                        if let Err(error) = validate_part_name(name) {
+                            self.push(Issue::error(
+                                &path,
+                                Code::UnknownValue,
+                                format!("\"{name}\" is not a param name: {error}"),
+                            ));
+                        }
+                        let Some(param) = self.param(&path, name, value, doc) else { continue };
+                        for target in value.get("set").and_then(Value::as_object).into_iter().flat_map(|set| set.keys()) {
+                            if let Some(other) = owners.insert(target, name) {
+                                self.push(
+                                    Issue::error(format!("{path}.set.{target}"), Code::Duplicate, format!("{other} sets it too"))
+                                        .fix("a target belongs to one param"),
+                                );
+                            }
+                        }
+                        params.insert(name.clone(), param);
+                    }
+                }
+            }
+        }
+        let mut presets = BTreeMap::new();
+        let Some(value) = doc.get("presets") else { return (params, presets) };
+        let Some(map) = value.as_object() else {
+            self.push(wrong_type("presets", "an object {name: {param: value}}", value));
+            return (params, presets);
+        };
+        if map.len() > MAX_PRESETS {
+            self.push(
+                Issue::error("presets", Code::Limit, format!("{} presets", map.len())).expected(format!("at most {MAX_PRESETS}")),
+            );
+        }
+        if raw.is_none() {
+            self.push(Issue::error("params", Code::Missing, "presets set params").fix("add params first"));
+        }
+        let names: Vec<&str> = raw.and_then(Value::as_object).map(|m| m.keys().map(String::as_str).collect()).unwrap_or_default();
+        for (name, value) in map {
+            let path = format!("presets.{name}");
+            if let Err(error) = validate_part_name(name) {
+                self.push(Issue::error(&path, Code::UnknownValue, format!("\"{name}\" is not a preset name: {error}")));
+            }
+            let Some(object) = value.as_object() else {
+                self.push(wrong_type(&path, "an object {param: value}", value));
+                continue;
+            };
+            if object.is_empty() {
+                self.push(Issue::error(&path, Code::Missing, "a preset sets at least one param"));
+            }
+            let mut values = BTreeMap::new();
+            for (key, v) in object {
+                let at = join(&path, key);
+                match params.get(key) {
+                    // A param that failed its own check is reported there.
+                    None if names.contains(&key.as_str()) => {}
+                    None => self.push(unknown_key(&path, key, &names, None)),
+                    Some(Param::Range { range: [lo, hi], int, .. }) => {
+                        if let Some(x) = self.ranged(&at, v, *lo, *hi) {
+                            if *int && x.fract() != 0.0 {
+                                self.push(Issue::error(&at, Code::InvalidType, format!("expected a whole number, got {v}")));
+                            } else {
+                                values.insert(key.clone(), v.clone());
+                            }
+                        }
+                    }
+                    Some(Param::Choices { choices, .. }) => {
+                        let names: Vec<&str> = choices.iter().map(String::as_str).collect();
+                        if self.choice(&at, v, "choice", &names, |c| names.contains(&c).then_some(()), |_| None).is_some() {
+                            values.insert(key.clone(), v.clone());
+                        }
+                    }
+                }
+            }
+            presets.insert(name.clone(), values);
+        }
+        (params, presets)
+    }
+
+    fn param(&mut self, path: &str, name: &str, value: &Value, doc: &Value) -> Option<Param> {
+        let object = self.object(path, value, &["range", "int", "choices", "set"], "param")?;
+        let set_path = join(path, "set");
+        let set = match object.get("set") {
+            None => {
+                self.push(
+                    Issue::error(&set_path, Code::Missing, "missing")
+                        .fix("add set:{\"part.field\": factor} (choices: [value per choice])"),
+                );
+                return None;
+            }
+            Some(Value::Object(set)) => set,
+            Some(value) => {
+                self.push(wrong_type(&set_path, "an object {path: factor or [values]}", value));
+                return None;
+            }
+        };
+        if set.is_empty() || set.len() > MAX_TARGETS {
+            self.push(
+                Issue::error(&set_path, Code::Limit, format!("{} targets", set.len())).expected(format!("1 to {MAX_TARGETS}")),
+            );
+            return None;
+        }
+        match (object.get("range"), object.get("choices")) {
+            (Some(_), Some(_)) => {
+                self.push(Issue::error(path, Code::Conflict, "range and choices").fix("a param has one of them"));
+                None
+            }
+            (None, None) => {
+                self.push(
+                    Issue::error(join(path, "range"), Code::Missing, "missing").expected("range:[lo,hi] or choices:[a,b,…]"),
+                );
+                None
+            }
+            (Some(range), None) => self.range_param(path, name, object, range, set, doc),
+            (None, Some(choices)) => {
+                if object.contains_key("int") {
+                    self.push(unknown_key(path, "int", &["choices", "set"], Some("int goes with range".into())));
+                }
+                let choices = self.list(&join(path, "choices"), choices, 2..=MAX_CHOICES, "names", |r, p, v| r.text(p, v))?;
+                let mut seen = BTreeSet::new();
+                for (index, choice) in choices.iter().enumerate() {
+                    if !seen.insert(choice) {
+                        self.push(Issue::error(
+                            format!("{path}.choices[{index}]"),
+                            Code::Duplicate,
+                            format!("\"{choice}\" appears twice"),
+                        ));
+                    }
+                }
+                let same = |a: &Value, b: &Value| match (a.as_f64(), b.as_f64()) {
+                    (Some(a), Some(b)) => (a - b).abs() <= 1e-6 * a.abs().max(1.0),
+                    _ => a == b,
+                };
+                let mut targets = BTreeMap::new();
+                for (target, values) in set {
+                    let at = format!("{set_path}.{target}");
+                    let Some(values) = values.as_array() else {
+                        self.push(wrong_type(&at, "a list of one value per choice", values));
+                        continue;
+                    };
+                    if values.len() != choices.len() {
+                        self.push(Issue::error(
+                            &at,
+                            Code::InvalidType,
+                            format!("{} values for {} choices", values.len(), choices.len()),
+                        ));
+                        continue;
+                    }
+                    let Some(found) = self.knob_target(&at, doc, target) else { continue };
+                    if let Some(literal) = found.literal.filter(|literal| !same(literal, &values[0])) {
+                        self.push(
+                            Issue::error(
+                                &at,
+                                Code::Conflict,
+                                format!("the file says {literal}, the first choice (the default) {}", values[0]),
+                            )
+                            .fix("make the first choice the file's value"),
+                        );
+                        continue;
+                    }
+                    targets.insert(target.clone(), values.clone());
+                }
+                (targets.len() == set.len()).then_some(Param::Choices { choices, set: targets })
+            }
+        }
+    }
+
+    /// A range knob: every target written, each implying the same default.
+    fn range_param(
+        &mut self,
+        path: &str,
+        name: &str,
+        object: &Map<String, Value>,
+        range: &Value,
+        set: &Map<String, Value>,
+        doc: &Value,
+    ) -> Option<Param> {
+        let set_path = join(path, "set");
+        let range = self.list(&join(path, "range"), range, 2..=2, "numbers [lo,hi]", |r, p, v| r.ranged(p, v, -1e6, 1e6))?;
+        let int = object.get("int").and_then(|v| self.boolean(&join(path, "int"), v)).unwrap_or(false);
+        let (lo, hi) = (range[0] as f64, range[1] as f64);
+        if lo >= hi {
+            self.push(
+                Issue::error(join(path, "range"), Code::OutOfRange, format!("[{lo},{hi}] is empty")).expected("lo below hi"),
+            );
+            return None;
+        }
+        if int && (lo.fract() != 0.0 || hi.fract() != 0.0) {
+            self.push(Issue::error(join(path, "range"), Code::InvalidType, "an int param's range is whole numbers"));
+            return None;
+        }
+        // (target, factor, the file's value, the default it implies)
+        let mut implied = Vec::new();
+        for (target, factor) in set {
+            let at = format!("{set_path}.{target}");
+            let Some(factor) = factor.as_f64().filter(|f| f.is_finite() && *f != 0.0) else {
+                self.push(wrong_type(&at, "a non-zero factor (target = value × factor)", factor));
+                continue;
+            };
+            match self.knob_target(&at, doc, target).map(|t| t.literal) {
+                None => {}
+                Some(None) => self.push(
+                    Issue::error(&at, Code::Missing, format!("{target} is not written"))
+                        .fix("write it in the file: its value is the default"),
+                ),
+                Some(Some(literal)) => match literal.as_f64() {
+                    Some(x) => implied.push((target, factor, x, x / factor)),
+                    None => self.push(
+                        Issue::error(&at, Code::InvalidType, format!("the file's value is {literal}, not a number"))
+                            .fix("a range sets numbers; choices set other values"),
+                    ),
+                },
+            }
+        }
+        if implied.len() != set.len() {
+            return None;
+        }
+        // The largest factor gives the most exact default.
+        let mut best = &implied[0];
+        for t in &implied[1..] {
+            if t.1.abs() > best.1.abs() {
+                best = t;
+            }
+        }
+        let (from, _, _, default) = *best;
+        let tolerance = (0.005 * default.abs()).max(0.5);
+        let mut agree = true;
+        for (target, factor, x, v) in &implied {
+            if (v - default).abs() > tolerance {
+                agree = false;
+                self.push(
+                    Issue::error(
+                        format!("{set_path}.{target}"),
+                        Code::Conflict,
+                        format!("{} implies {name} {}, but {from} implies {}", amount(*x), amount(*v), amount(default)),
+                    )
+                    .fix(format!(
+                        "write {} there, or use factor {}",
+                        amount(default * factor),
+                        amount(x / default)
+                    )),
+                );
+            }
+        }
+        let default = if int { default.round() } else { default };
+        if agree && !(lo..=hi).contains(&default) {
+            agree = false;
+            self.push(
+                Issue::error(
+                    join(path, "range"),
+                    Code::OutOfRange,
+                    format!("the default {} (the file's values) is outside {} to {}", amount(default), amount(lo), amount(hi)),
+                )
+                .fix("widen the range to include it"),
+            );
+        }
+        let set = implied.iter().map(|(target, factor, _, _)| ((*target).clone(), *factor as f32)).collect();
+        agree.then_some(Param::Range { range: [lo as f32, hi as f32], int, set, default: default as f32 })
+    }
+
+    /// A knob's target, or None with the problem reported at `at`.
+    fn knob_target(&mut self, at: &str, doc: &Value, path: &str) -> Option<Target> {
+        match family::target(doc, path) {
+            Ok(target) => Some(target),
+            Err(mut issue) => {
+                issue.path = at.to_owned();
+                self.push(issue);
+                None
+            }
+        }
     }
 
     fn tags(&mut self, value: &Value) -> Vec<String> {
@@ -2128,6 +2431,39 @@ impl Reader<'_> {
 }
 
 /// `name`, `name[i]`, `name~xz`, `name[i]~x`: the name, the copy and the mirror axes.
+/// Each knob alone at its range's ends, and each other choice, must still read: a family
+/// never offers a setting that breaks the asset.
+fn probe(value: &Value, family_doc: &Doc, assets: &dyn Fn(&str) -> Option<Arc<PropDef>>) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    for (name, param) in &family_doc.params {
+        let (settings, fix): (Vec<Value>, &str) = match param {
+            Param::Range { range, int, .. } => {
+                (range.iter().map(|x| family::number_value(*x as f64, *int)).collect(), "narrow the range or change the factors")
+            }
+            Param::Choices { choices, .. } => (choices[1..].iter().map(|c| json!(c)).collect(), "change that choice's values"),
+        };
+        for setting in settings {
+            let values = family::Params::from([(name.clone(), setting.clone())]);
+            let found = match family::apply_value(value, &family_doc.params, &values) {
+                Ok(applied) => doc(&applied, assets).err().unwrap_or_default(),
+                Err(error) => vec![Issue::error("", Code::Conflict, error)],
+            };
+            if let Some(first) = found.first() {
+                issues.push(
+                    Issue::error(
+                        format!("params.{name}"),
+                        Code::OutOfRange,
+                        format!("{name} {setting} breaks the asset: {first}"),
+                    )
+                    .fix(fix),
+                );
+                break;
+            }
+        }
+    }
+    issues
+}
+
 fn parse_segment(segment: &str) -> Option<(&str, Option<usize>, Vec<Axis>)> {
     let (rest, mirror) = match segment.split_once('~') {
         Some((rest, axes)) => {
@@ -2644,7 +2980,7 @@ mod tests {
             doc("", r#""g":{"parts":{"a":{"type":"box","size":[1,1,1],"size":[2,2,2]}}}"#),
             [r#"parts.g.parts.a.size: "size" appears twice — keep one; names must be unique"#]
         );
-        assert_eq!(doc(r#""params":{},"#, cube), ["params: unknown key — parametric families are not available yet"]);
+        assert!(doc(r#""params":{},"#, cube).is_empty(), "no knobs: a plain asset");
         assert_eq!(
             document(
                 r##"{"format":2,"name":"probe","unit":"cm","materials":{"m":{"color":"#ffffff","layers":[{"type":"plank","size":10}],"texture":"x"},"n":{"look":"cutout"}},"parts":{"a":{"type":"box","size":[1,1,1],"mat":"m"}}}"##

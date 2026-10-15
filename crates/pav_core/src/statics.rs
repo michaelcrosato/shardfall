@@ -279,7 +279,7 @@ impl StaticProp {
 
     /// Its variant's compiled parts (None when this build lacks the asset).
     pub fn parts(&self) -> Option<Arc<CompiledProp>> {
-        crate::props::resolve_ref(&self.asset).ok().map(|def| def.variant(self.seed))
+        crate::props::resolve_parts(&self.asset, self.seed).ok()
     }
 
     /// The world box round what it draws.
@@ -519,11 +519,11 @@ impl StaticWorld {
     /// Bakes a library asset into an active region (its collider made now). Errors: an asset
     /// this build lacks, or a bad scale or pose.
     pub fn add_prop_to(&mut self, physics: &mut PhysicsState, key: RegionKey, mut prop: StaticProp) -> Result<(), String> {
-        let def = crate::props::resolve_ref(&prop.asset)?;
-        prop.asset = crate::props::canonical(&prop.asset)?;
+        // `NAME:preset` bakes a family's preset.
+        let parts = crate::props::resolve_parts(&prop.asset, prop.seed)?;
+        prop.asset = crate::props::canonical_placed(&prop.asset)?;
         crate::prop_instance::validate_scale(prop.scale)?;
         crate::prop_instance::validate_pose(prop.pos, prop.rot)?;
-        let parts = def.variant(prop.seed);
         prop.collider = prop.collider(&parts).map(|c| physics.insert_static(c));
         let b = prop.bounds(&parts);
         let chunk = self.chunk_mut(key);

@@ -392,11 +392,13 @@ impl Sim {
         let mut named: BTreeMap<String, EntityId> = BTreeMap::new();
         for o in &slot.def.objects {
             if let Some(asset) = &o.asset {
-                let placed = crate::props::resolve_ref(asset)
-                    .and_then(|definition| {
-                        crate::prop_instance::PropInstance::new(asset, definition, o.scale, o.body == BodyKind::Fixed)
+                let placed = crate::props::resolve_placed(asset, &o.params)
+                    .and_then(|(name, definition, params)| {
+                        crate::prop_instance::PropInstance::new(&name, definition, o.scale, o.body == BodyKind::Fixed)?
+                            .with_seed(o.seed)
+                            .with_params(&params)
                     })
-                    .and_then(|copy| copy.with_seed(o.seed).with_roles(o.roles.clone()))
+                    .and_then(|copy| copy.with_roles(o.roles.clone()))
                     .and_then(|copy| {
                         self.place_prop(copy, slot.place.point(o.pos), slot.place.quat() * o.local_rot(), Some(region))
                     });
@@ -1220,6 +1222,7 @@ impl Sim {
                     scale: e.prop.as_ref().map(|p| p.scale).unwrap_or(1.0),
                     seed: e.prop.as_ref().map(|p| p.seed).unwrap_or(0),
                     roles: e.prop.as_ref().map(|p| p.roles.clone()).unwrap_or_default(),
+                    params: e.prop.as_ref().map(|p| p.params.clone()).unwrap_or_default(),
                     pos: (local * 1000.0).round() / 1000.0,
                     yaw: r1(yaw),
                     pitch: r1(pitch),
@@ -1319,6 +1322,17 @@ pub fn object_toml(o: &crate::room::ObjectDef) -> String {
         if !o.roles.is_empty() {
             let roles: Vec<String> = o.roles.iter().map(|(role, color)| format!("{role:?} = {color:?}")).collect();
             text.push_str(&format!("roles = {{ {} }}\n", roles.join(", ")));
+        }
+        if !o.params.is_empty() {
+            let params: Vec<String> = o
+                .params
+                .iter()
+                .map(|(name, value)| match value {
+                    serde_json::Value::String(choice) => format!("{name} = {choice:?}"),
+                    value => format!("{name} = {value}"),
+                })
+                .collect();
+            text.push_str(&format!("params = {{ {} }}\n", params.join(", ")));
         }
         return text;
     }

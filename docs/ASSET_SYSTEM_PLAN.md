@@ -1374,9 +1374,17 @@ Why this order:
 - [x] 5.2 I3 fit + I4 fidelity metrics on the CPU, compare image (L): mesh parts in the engine (F4's loader); Kenney MD median IoU 0.983 at 293 tokens; the split before the mesh part was tried and dropped (HISTORY)
 - [x] 5.3 I5 catalogs, licence gate, tiers, ASSET_IMPORT.md + I6 pilot GO/NO-GO (lean G5) (M): 267 models from 6 packs, 99% `fit`, median IoU 0.983, median 521 chars, 0 panics, identical rebuilds, but 31% of fits editable; GO for the two packs that pass every criterion (Kenney Mini Dungeon, Quaternius Medieval Village: `lib/`, 288 KB), the other four (Castle, Nature, Food, KayKit Dungeon: 20-35% editable) kept local with the reason in their catalogs; the colour-split fix round was dropped (HISTORY). As built: catalog model lines `"<pack>/<id>": ["<category> <tags>", "<desc>"]`, `listed`, `local`; Quaternius via OpenGameArt's Medieval Village Pack; `find=`/`catalog=` args and per-asset placement left out
 - [x] 6.1 I8 scale-out of the GO packs into on-disk packs, indexed for retrieval (L): closed with the pilot. Both GO packs were imported whole in 5.3 (Kenney Mini Dungeon, Quaternius Medieval Village: 61 assets in `lib/`, found by `assets find=`). No further pack has shown a need; any pinned pack rebuilds locally with `asset_import`
+- [x] LIB-4 parametric families (asset store S2, 2026-10-15): `params` and `presets` read, checked (a
+  range's targets agree on the default; each range end and each choice must still read) and written;
+  `props::apply_params` runs before compile, variants keyed by (params hash, seed); `params=` and
+  `NAME:preset` in `asset_spawn`, `asset_preview`, rooms (`ObjectDef.params`), statics, dressing and
+  `emit_asset`; fence default/low/long = 13/11/17 parts and a snapshot round trip
+  (`pav_core/tests/prop_families.rs`). Not built: `asset_edit action=param` (a document `set` of
+  `params.<name>` adds one; the check names the factors that fit), params on `ref` nodes and dressing
+  items, the index's `params` column
 
 **Deferred on 2026-10-12** (no shown need yet; feedback from the test games decides whether any
-returns): LIB-4 parametric families, LIB-6 exemplar waves to ~520, SF-3 theme kits, SF-4 item and
+returns; LIB-4 returned for the asset store's S2): LIB-6 exemplar waves to ~520, SF-3 theme kits, SF-4 item and
 weapon models, SF-5 monster gear, SF-6 town as data, MAT-7 texture-library fits, MAT-8 Physically
 Based importer, MAT-9 material growth beyond what the rows use, MAT-10, I4's GPU cross-check, I7
 re-authorings beyond the core exemplars, I9, and every judge panel.

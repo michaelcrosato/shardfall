@@ -81,6 +81,9 @@ pub struct PropPreviewState {
     /// The variant shown (0: as authored).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub seed: u32,
+    /// A family's knob values shown (defaults left out).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub params: props::Params,
 }
 
 fn is_zero(seed: &u32) -> bool {
@@ -117,6 +120,8 @@ pub struct PropPreviewChange {
     pub step: Option<i32>,
     /// The variant to show.
     pub seed: Option<u32>,
+    /// A family's knob values to show, checked (`PropDef::param_values`).
+    pub params: Option<props::Params>,
 }
 
 impl PropPreviewChange {
@@ -156,6 +161,7 @@ impl PropPreviewState {
             ticks: 0,
             figure: false,
             seed: 0,
+            params: props::Params::new(),
         }
     }
 
@@ -169,9 +175,9 @@ impl PropPreviewState {
             name: self.name.clone(),
             revision: definition.map(|d| d.revision.clone()).unwrap_or_default(),
             available: definition.is_some(),
-            parts: definition.map(|d| d.variant(self.seed).parts.len()).unwrap_or(0),
+            parts: definition.map(|d| d.variant_with(&self.params, self.seed).parts.len()).unwrap_or(0),
             bounds: definition
-                .map(|d| d.variant(self.seed).bounds_at(self.scale))
+                .map(|d| d.variant_with(&self.params, self.seed).bounds_at(self.scale))
                 .unwrap_or(Bounds { min: Vec3::ZERO, max: Vec3::ZERO }),
             time: self.time,
             playing: self.playing,
@@ -217,6 +223,9 @@ impl PropPreviewState {
         if let Some(seed) = change.seed {
             self.seed = seed;
         }
+        if let Some(params) = &change.params {
+            self.params = params.clone();
+        }
         Ok(())
     }
 
@@ -250,7 +259,7 @@ impl PropPreviewState {
                 visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
                 prop: Some(PropFrame {
                     asset: self.name.clone(),
-                    parts: definition.variant(self.seed),
+                    parts: definition.variant_with(&self.params, self.seed),
                     definition,
                     scale: self.scale,
                     roles,
@@ -402,13 +411,21 @@ impl Sim {
     }
 
     pub fn prop_preview_open(&mut self, name: Option<&str>) -> Result<PropPreviewInfo, String> {
-        let name = match name {
-            Some(name) => props::canonical(name)?,
-            None => self.state.prop_preview.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "BUILTIN/bench".into()),
+        // `NAME:preset` shows a family's preset.
+        let (name, preset) = match name {
+            Some(name) => {
+                let (base, preset) = props::split_preset(name);
+                (props::canonical(base)?, preset)
+            }
+            None => (self.state.prop_preview.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "BUILTIN/bench".into()), None),
         };
         let definition = props::resolve_ref(&name)?;
+        let params = preset.map(|preset| definition.param_values(Some(preset), &props::Params::new())).transpose()?;
         if self.state.prop_preview.as_ref().is_none_or(|p| p.name != name) {
             self.state.prop_preview = Some(PropPreviewState::new(name, definition.bounds(1.0)));
+        }
+        if let Some(params) = params {
+            self.state.prop_preview.as_mut().unwrap().params = params;
         }
         self.set_studio_mode(StudioMode::Prop);
         Ok(self.state.prop_preview.as_ref().unwrap().info())

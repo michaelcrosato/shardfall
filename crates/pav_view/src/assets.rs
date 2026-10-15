@@ -99,7 +99,8 @@ static MESHES: Mutex<Option<GeneratedMeshes>> = Mutex::new(None);
 /// Meshes kept before the cache starts over.
 const KEEP: usize = 1024;
 
-/// Draws the asset `name` (`LIB/core/barrel`, `BUILTIN/crate`, `WORKSHOP/tank`) into `scene`
+/// Draws the asset `name` (`LIB/core/barrel`, `BUILTIN/crate`, `WORKSHOP/tank`; a family's
+/// preset as `LIB/core/fence:low`) into `scene`
 /// for this frame at `at`: its parts, their glow and its lights, as a placed copy draws them.
 /// `seed` picks the variant (`chance`, `jitter`, `pick`; 0 as authored; each asset keeps 64
 /// seeds compiled, so use a few, e.g. `id % 8`). `palette` colours its `$roles`. Particles
@@ -107,8 +108,7 @@ const KEEP: usize = 1024;
 /// at objects and a whole-scene style reach it. Errors: an unknown name (with the nearest one), a bad scale, position
 /// or palette.
 pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palette: &Palette) -> Result<(), String> {
-    let def = props::resolve_ref(name)?;
-    let asset = props::canonical(name)?;
+    let (asset, def, params) = props::resolve_placed(name, &props::Params::new())?;
     validate_scale(at.scale)?;
     if !at.pos.is_finite() || !at.rot.is_finite() || at.rot.length_squared() < 1e-6 {
         return Err(format!("{name}: placement needs a finite pos and rotation"));
@@ -116,7 +116,7 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
     validate_roles(palette)?;
     // A turn that drifted from unit length (accumulated in game code) is renormalised.
     let rot = if (at.rot.length_squared() - 1.0).abs() > 1e-4 { at.rot.normalize() } else { at.rot };
-    let parts = def.variant(seed);
+    let parts = def.variant_with(&params, seed);
     let o = RenderObject {
         id: EntityId(at.id),
         pos: at.pos,
