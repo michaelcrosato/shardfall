@@ -693,8 +693,13 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
                     }
                     template
                 };
-                let source = read_asset(root, &source)?.ok_or_else(|| anyhow!("no source asset '{source}'"))?;
-                source.doc.clone()
+                let def = read_asset(root, &source)?.ok_or_else(|| anyhow!("no source asset '{source}'"))?;
+                let mut doc = def.doc.clone();
+                if action == "copy" {
+                    // A fork records what it was made from (docs/AGENT_ASSET_STORE.md §9).
+                    doc.lineage = crate::asset_library::fork_lineage(root, &source, &def);
+                }
+                doc
             };
             doc.name = leaf.into();
             if let Some(description) = get_str(a, "description") {
@@ -729,7 +734,14 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
                         }
                     }
                 }
-                "replace" => definition(json_arg(a, "asset")?, &name, false)?,
+                "replace" => {
+                    // The whole document is new, but not what the asset was made from.
+                    let mut doc = definition(json_arg(a, "asset")?, &name, false)?;
+                    if current.doc.lineage.is_some() {
+                        doc.lineage = current.doc.lineage.clone();
+                    }
+                    doc
+                }
                 _ => unreachable!("action was checked"),
             })
         }
@@ -1170,6 +1182,86 @@ mod tests {
         assert!(index.contains(&format!("{published}\ttown")), "{index}");
         assert!(std::fs::read_to_string(root.join("CREDITS.md")).unwrap().contains("## LIB/core: Core"));
         props::remove(&format!("WORKSHOP/{name}")).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn copies_record_lineage_and_keep_it_through_edits_and_publish() {
+        use props::doc::{Method, Origin};
+        let root = temp_root("lineage");
+        let pack = root.join("lib/importpack");
+        std::fs::create_dir_all(&pack).unwrap();
+        let licence = r#"{"pack":"importpack","title":"Posts","license":"CC0-1.0","credit":"Post Maker (example.org)","source":"https://example.org/posts.zip"}"#;
+        std::fs::write(pack.join("PACK.json"), licence).unwrap();
+        std::fs::write(
+            pack.join("post.json"),
+            r##"{"format":2,"name":"post","unit":"cm","description":"A wooden post.","tags":["wood","post"],"category":"town",
+                "source":{"library":"maker/posts","license":"CC0-1.0","title":"Post"},
+                "parts":{"post":{"type":"box","size":[10,100,10],"pos":[0,50,0],"color":"#806040"}}}"##,
+        )
+        .unwrap();
+        let lineage = |name: &str| props::get(name).unwrap().doc.lineage.clone().unwrap();
+        let parent = edit(&root, json!({"action":"inspect","name":"LIB/importpack/post"}));
+        // A fork of an import: its parent at its revision, edited, origin import, and the
+        // pack's licence and credit.
+        edit(&root, json!({"action":"copy","from":"LIB/importpack/post","name":"test_lineage_import"}));
+        let fork = lineage("WORKSHOP/test_lineage_import");
+        assert_eq!((fork.method, fork.origin), (Method::Edited, Origin::Import));
+        assert_eq!(fork.parents, [format!("LIB/importpack/post@{}", parent["revision"].as_str().unwrap())]);
+        assert_eq!((fork.license.as_deref(), fork.credit.as_deref()), (Some("CC0-1.0"), Some("Post Maker (example.org)")));
+        let text = std::fs::read_to_string(asset_path(&root, "WORKSHOP/test_lineage_import")).unwrap();
+        assert!(
+            text.contains("\n\"lineage\":{\"method\":\"edited\",\"origin\":\"import\",\"parents\":[\"LIB/importpack/post@prop2-"),
+            "{text}"
+        );
+        // A fork of own work: origin agent, CC0 and the own-work credit.
+        let chair = props::get("LIB/core/chair").unwrap().revision.clone();
+        edit(&root, json!({"action":"copy","from":"LIB/core/chair","name":"test_lineage_core"}));
+        let own = lineage("WORKSHOP/test_lineage_core");
+        assert_eq!(
+            (own.method, own.origin, own.parents),
+            (Method::Edited, Origin::Agent, vec![format!("LIB/core/chair@{chair}")])
+        );
+        assert_eq!((own.license.as_deref(), own.credit.as_deref()), (Some("CC0-1.0"), Some(pav_core::store::OWN_CREDIT)));
+        // A fork of a fork inherits the origin, licence and credit; its parent is the fork.
+        let first = edit(&root, json!({"action":"inspect","name":"WORKSHOP/test_lineage_import"}));
+        edit(&root, json!({"action":"copy","from":"WORKSHOP/test_lineage_import","name":"test_lineage_grand"}));
+        let grand = lineage("WORKSHOP/test_lineage_grand");
+        assert_eq!(grand.parents, [format!("WORKSHOP/test_lineage_import@{}", first["revision"].as_str().unwrap())]);
+        assert_eq!((grand.origin, grand.credit), (Origin::Import, fork.credit.clone()));
+        // A copy of a format-1 template stays format 1, which holds no lineage.
+        edit(&root, json!({"action":"copy","from":"BUILTIN/bench","name":"test_lineage_bench"}));
+        let bench = props::get("WORKSHOP/test_lineage_bench").unwrap();
+        assert!(bench.v1.is_some() && bench.doc.lineage.is_none());
+        // Patches and replace keep it; a patch cannot set it.
+        let patched = edit(
+            &root,
+            json!({"action":"patch","name":"test_lineage_import","ops":[{"op":"set","part":"post","fields":{"color":"#705030"}}]}),
+        );
+        assert_eq!(lineage("WORKSHOP/test_lineage_import"), fork);
+        let ops = json!([{"op":"set","fields":{"lineage":{"method":"authored","origin":"human"}}}]);
+        let error = edit_at(&root, &args(json!({"action":"patch","name":"test_lineage_import","ops":ops}))).err().unwrap();
+        assert!(error.to_string().contains("not set this way"), "{error}");
+        let mut whole: Value = serde_json::from_str(&text).unwrap();
+        whole.as_object_mut().unwrap().remove("lineage");
+        whole["description"] = json!("A weathered wooden post.");
+        let replaced =
+            edit(&root, json!({"action":"replace","name":"test_lineage_import","asset":whole,"if_revision":patched["revision"]}));
+        assert_eq!(lineage("WORKSHOP/test_lineage_import"), fork);
+        // Publish keeps it in the library file, and the index row says edited.
+        std::fs::create_dir_all(root.join("lib/core")).unwrap();
+        let core = r#"{"pack":"core","title":"Core","license":"CC0-1.0","credit":"Test","source":"own"}"#;
+        std::fs::write(root.join("lib/core/PACK.json"), core).unwrap();
+        let review = "ok: reads at game distance";
+        edit(&root, json!({"action":"publish","name":"test_lineage_import","review":review,"if_revision":replaced["revision"]}));
+        let published = std::fs::read_to_string(root.join("lib/core/test_lineage_import.json")).unwrap();
+        let doc = props::Doc::read(&published).unwrap();
+        assert_eq!(doc.lineage, Some(fork));
+        let index = std::fs::read_to_string(root.join("lib/core/index.tsv")).unwrap();
+        assert!(index.contains("\tprop\tCC0-1.0\tedited\tstandard\t"), "{index}");
+        for name in ["test_lineage_import", "test_lineage_core", "test_lineage_grand", "test_lineage_bench"] {
+            props::remove(&format!("WORKSHOP/{name}")).unwrap();
+        }
         std::fs::remove_dir_all(root).unwrap();
     }
 }

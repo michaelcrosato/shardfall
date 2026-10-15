@@ -10,7 +10,10 @@ use super::store::{self, Tier};
 use super::{PropDef, compile};
 use crate::issue;
 
-pub const HEADER: &str = "name\tcat\tsize_cm\tparts\ttok\tfid\tsrc\ttier\ttags\tsockets\tnote\tdesc";
+pub const HEADER: &str = "name\tcat\tsize_cm\tparts\ttok\tfid\tsrc\tkind\tlicence\tmethod\ttier\ttags\tsockets\tnote\tdesc";
+
+/// The `kind` column of an object index (docs/AGENT_ASSET_STORE.md §5).
+pub const KIND: &str = "prop";
 
 /// One asset as queries see it.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,6 +32,10 @@ pub struct Row {
     pub fid: String,
     /// `own`, or the source's licence and library, e.g. `CC0-1.0 kenney`.
     pub src: String,
+    /// Its licence's SPDX id (own work is CC0-1.0, §14 Q1), from its lineage or source.
+    pub licence: String,
+    /// `authored`, `imported`, `edited` or `generated` (`Doc::provenance`).
+    pub method: String,
     /// Its store tier (docs/AGENT_ASSET_STORE.md §7): `standard` (embedded), `checked` (on disk,
     /// passing every check), `disk`; `local` and `workshop` rows are not store entries.
     pub level: String,
@@ -57,6 +64,15 @@ pub fn tokens(bytes: usize) -> usize {
     (bytes * 10).div_ceil(28)
 }
 
+/// A row's licence column: the SPDX id a licence text names, else the text itself (a licence
+/// the store does not admit, on a local row), else `unknown`.
+pub fn licence_id(text: Option<&str>) -> String {
+    match text {
+        Some(text) => crate::store::spdx(text).map(str::to_owned).unwrap_or_else(|| field(text).replace(' ', "_")),
+        None => "unknown".into(),
+    }
+}
+
 /// One line of text for a TSV field.
 fn field(text: &str) -> String {
     text.split(['\t', '\n', '\r']).map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
@@ -78,6 +94,7 @@ impl Row {
             }
             None => "own".into(),
         };
+        let lineage = doc.provenance();
         Self {
             name: name.to_owned(),
             cat: doc.category.map(|cat| cat.name().to_owned()).unwrap_or_default(),
@@ -86,6 +103,8 @@ impl Row {
             tok: tokens(doc.text().len()),
             fid,
             src,
+            licence: licence_id(lineage.license.as_deref()),
+            method: lineage.method.name().into(),
             level: level(tier).into(),
             tags: doc.tags.clone(),
             sockets: doc.sockets.keys().cloned().collect(),
@@ -113,6 +132,9 @@ impl Row {
             self.tok.to_string(),
             self.fid.clone(),
             self.src.clone(),
+            KIND.into(),
+            self.licence.clone(),
+            self.method.clone(),
             self.level.clone(),
             self.tags.join(" "),
             self.sockets.join(" "),
@@ -135,9 +157,13 @@ pub fn parse(text: &str, tier: Tier) -> Result<Vec<Row>, String> {
         .filter(|(_, line)| !line.trim().is_empty())
         .map(|(i, line)| {
             let cells: Vec<&str> = line.split('\t').collect();
-            let [name, cat, size_cm, parts, tok, fid, src, level, tags, sockets, note, desc] = cells[..] else {
-                return Err(format!("line {}: {} fields (expected 12)", i + 2, cells.len()));
+            let [name, cat, size_cm, parts, tok, fid, src, kind, licence, method, level, tags, sockets, note, desc] = cells[..]
+            else {
+                return Err(format!("line {}: {} fields (expected 15)", i + 2, cells.len()));
             };
+            if kind != KIND {
+                return Err(format!("line {}: kind \"{kind}\" (an object index holds {KIND} rows)", i + 2));
+            }
             let number = |what: &str, text: &str| text.parse::<usize>().map_err(|_| format!("line {}: {what} \"{text}\"", i + 2));
             Ok(Row {
                 name: store::canonical(name).map_err(|e| format!("line {}: {e}", i + 2))?,
@@ -147,6 +173,8 @@ pub fn parse(text: &str, tier: Tier) -> Result<Vec<Row>, String> {
                 tok: number("tok", tok)?,
                 fid: fid.into(),
                 src: src.into(),
+                licence: licence.into(),
+                method: method.into(),
                 level: level.into(),
                 tags: words(tags),
                 sockets: words(sockets),

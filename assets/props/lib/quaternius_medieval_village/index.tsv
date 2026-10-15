@@ -1,34 +1,34 @@
-name	cat	size_cm	parts	tok	fid	src	tier	tags	sockets	note	desc
-LIB/quaternius_medieval_village/bag	container	46x18x33	1	110	mesh100	CC0-1.0 quaternius/medieval_village	disk	bag village			
-LIB/quaternius_medieval_village/bag_open	container	45x31x61	1	118	mesh100	CC0-1.0 quaternius/medieval_village	disk	bag open village			
-LIB/quaternius_medieval_village/bags	container	81x32x72	1	110	mesh100	CC0-1.0 quaternius/medieval_village	disk	bags village			
-LIB/quaternius_medieval_village/barrel	container	47x61x48	11	698	mesh42	CC0-1.0 quaternius/medieval_village	disk	barrel village			
-LIB/quaternius_medieval_village/bell	town	188x220x188	3	301	fit96	CC0-1.0 quaternius/medieval_village	checked	bell brass tower church village			A large brass bell with a hanging loop, about 2.2 m tall, for a bell tower or square.
-LIB/quaternius_medieval_village/bench_1	furniture	200x94x73	10	690	fit92	CC0-1.0 quaternius/medieval_village	checked	bench seat wood park village			A long wooden bench with a slatted seat and backrest, 2 m wide.
-LIB/quaternius_medieval_village/bench_2	furniture	200x56x66	10	600	fit92	CC0-1.0 quaternius/medieval_village	disk	bench village			
-LIB/quaternius_medieval_village/bonfire	lighting	122x34x109	14	593	mesh31	CC0-1.0 quaternius/medieval_village	disk	bonfire village			
-LIB/quaternius_medieval_village/bonfire_lit	lighting	122x106x109	15	639	mesh43	CC0-1.0 quaternius/medieval_village	disk	bonfire lit village			
-LIB/quaternius_medieval_village/cart	town	139x239x279	48	2355	mesh22	CC0-1.0 quaternius/medieval_village	disk	cart village			
-LIB/quaternius_medieval_village/cauldron	container	109x75x88	13	815	mesh25	CC0-1.0 quaternius/medieval_village	disk	cauldron village			
-LIB/quaternius_medieval_village/crate	container	48x48x48	14	400	mesh37	CC0-1.0 quaternius/medieval_village	disk	crate village			
-LIB/quaternius_medieval_village/door_round	architecture	151x217x89	51	1947	fit99	CC0-1.0 quaternius/medieval_village	disk	door round village			
-LIB/quaternius_medieval_village/door_straight	architecture	151x213x89	53	1724	fit98	CC0-1.0 quaternius/medieval_village	disk	door straight village			
-LIB/quaternius_medieval_village/fence	architecture	238x98x7.8	4	288	fit90	CC0-1.0 quaternius/medieval_village	disk	fence village			
-LIB/quaternius_medieval_village/gazebo	town	312x405x378	15	597	mesh29	CC0-1.0 quaternius/medieval_village	disk	gazebo village			
-LIB/quaternius_medieval_village/hay	vegetation	36x54x38	5	309	mesh69	CC0-1.0 quaternius/medieval_village	disk	hay village			
-LIB/quaternius_medieval_village/marketstand_1	town	285x315x357	36	1169	mesh40	CC0-1.0 quaternius/medieval_village	disk	market stand village			
-LIB/quaternius_medieval_village/marketstand_2	town	155x313x346	24	811	mesh57	CC0-1.0 quaternius/medieval_village	disk	market stand village			
-LIB/quaternius_medieval_village/package_1	container	84x39x55	4	194	mesh52	CC0-1.0 quaternius/medieval_village	disk	package village			
-LIB/quaternius_medieval_village/package_2	container	57x47x56	5	179	mesh39	CC0-1.0 quaternius/medieval_village	disk	package village			
-LIB/quaternius_medieval_village/path_square	architecture	147x15x144	25	846	fit96	CC0-1.0 quaternius/medieval_village	disk	path square village			
-LIB/quaternius_medieval_village/path_straight	architecture	150x14x293	51	1616	fit96	CC0-1.0 quaternius/medieval_village	disk	path straight village			
-LIB/quaternius_medieval_village/rock_1	rock	77x52x63	1	113	mesh100	CC0-1.0 quaternius/medieval_village	disk	village quaternius			
-LIB/quaternius_medieval_village/rock_2	rock	71x45x30	2	155	mesh69	CC0-1.0 quaternius/medieval_village	disk	village quaternius			
-LIB/quaternius_medieval_village/rock_3	rock	90x24x80	2	149	mesh78	CC0-1.0 quaternius/medieval_village	disk	village quaternius			
-LIB/quaternius_medieval_village/sawmill_saw	tool	213x165x511	8	422	mesh45	CC0-1.0 quaternius/medieval_village	disk	sawmill saw village			
-LIB/quaternius_medieval_village/stairs	architecture	151x37x88	17	618	fit97	CC0-1.0 quaternius/medieval_village	disk	stairs village			
-LIB/quaternius_medieval_village/well	town	200x375x302	71	4060	mesh14	CC0-1.0 quaternius/medieval_village	disk	well village			
-LIB/quaternius_medieval_village/window_1	architecture	114x114x36	4	271	fit98	CC0-1.0 quaternius/medieval_village	disk	window village			
-LIB/quaternius_medieval_village/window_2	architecture	134x112x46	5	369	fit99	CC0-1.0 quaternius/medieval_village	disk	window village			
-LIB/quaternius_medieval_village/window_3	architecture	134x167x46	5	377	fit99	CC0-1.0 quaternius/medieval_village	disk	window village			
-LIB/quaternius_medieval_village/window_4	architecture	134x167x46	7	424	fit99	CC0-1.0 quaternius/medieval_village	disk	window village			
+name	cat	size_cm	parts	tok	fid	src	kind	licence	method	tier	tags	sockets	note	desc
+LIB/quaternius_medieval_village/bag	container	46x18x33	1	110	mesh100	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bag village			
+LIB/quaternius_medieval_village/bag_open	container	45x31x61	1	118	mesh100	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bag open village			
+LIB/quaternius_medieval_village/bags	container	81x32x72	1	110	mesh100	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bags village			
+LIB/quaternius_medieval_village/barrel	container	47x61x48	11	698	mesh42	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	barrel village			
+LIB/quaternius_medieval_village/bell	town	188x220x188	3	301	fit96	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	checked	bell brass tower church village			A large brass bell with a hanging loop, about 2.2 m tall, for a bell tower or square.
+LIB/quaternius_medieval_village/bench_1	furniture	200x94x73	10	690	fit92	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	checked	bench seat wood park village			A long wooden bench with a slatted seat and backrest, 2 m wide.
+LIB/quaternius_medieval_village/bench_2	furniture	200x56x66	10	600	fit92	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bench village			
+LIB/quaternius_medieval_village/bonfire	lighting	122x34x109	14	593	mesh31	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bonfire village			
+LIB/quaternius_medieval_village/bonfire_lit	lighting	122x106x109	15	639	mesh43	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	bonfire lit village			
+LIB/quaternius_medieval_village/cart	town	139x239x279	48	2355	mesh22	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	cart village			
+LIB/quaternius_medieval_village/cauldron	container	109x75x88	13	815	mesh25	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	cauldron village			
+LIB/quaternius_medieval_village/crate	container	48x48x48	14	400	mesh37	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	crate village			
+LIB/quaternius_medieval_village/door_round	architecture	151x217x89	51	1947	fit99	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	door round village			
+LIB/quaternius_medieval_village/door_straight	architecture	151x213x89	53	1724	fit98	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	door straight village			
+LIB/quaternius_medieval_village/fence	architecture	238x98x7.8	4	288	fit90	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	fence village			
+LIB/quaternius_medieval_village/gazebo	town	312x405x378	15	597	mesh29	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	gazebo village			
+LIB/quaternius_medieval_village/hay	vegetation	36x54x38	5	309	mesh69	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	hay village			
+LIB/quaternius_medieval_village/marketstand_1	town	285x315x357	36	1169	mesh40	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	market stand village			
+LIB/quaternius_medieval_village/marketstand_2	town	155x313x346	24	811	mesh57	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	market stand village			
+LIB/quaternius_medieval_village/package_1	container	84x39x55	4	194	mesh52	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	package village			
+LIB/quaternius_medieval_village/package_2	container	57x47x56	5	179	mesh39	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	package village			
+LIB/quaternius_medieval_village/path_square	architecture	147x15x144	25	846	fit96	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	path square village			
+LIB/quaternius_medieval_village/path_straight	architecture	150x14x293	51	1616	fit96	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	path straight village			
+LIB/quaternius_medieval_village/rock_1	rock	77x52x63	1	113	mesh100	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	village quaternius			
+LIB/quaternius_medieval_village/rock_2	rock	71x45x30	2	155	mesh69	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	village quaternius			
+LIB/quaternius_medieval_village/rock_3	rock	90x24x80	2	149	mesh78	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	village quaternius			
+LIB/quaternius_medieval_village/sawmill_saw	tool	213x165x511	8	422	mesh45	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	sawmill saw village			
+LIB/quaternius_medieval_village/stairs	architecture	151x37x88	17	618	fit97	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	stairs village			
+LIB/quaternius_medieval_village/well	town	200x375x302	71	4060	mesh14	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	well village			
+LIB/quaternius_medieval_village/window_1	architecture	114x114x36	4	271	fit98	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	window village			
+LIB/quaternius_medieval_village/window_2	architecture	134x112x46	5	369	fit99	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	window village			
+LIB/quaternius_medieval_village/window_3	architecture	134x167x46	5	377	fit99	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	window village			
+LIB/quaternius_medieval_village/window_4	architecture	134x167x46	7	424	fit99	CC0-1.0 quaternius/medieval_village	prop	CC0-1.0	imported	disk	window village			

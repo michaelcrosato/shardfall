@@ -83,6 +83,9 @@ fn committed_packs_are_redistributable() {
     let root = assets().join("props");
     for (pack, folder) in asset_library::committed_packs(&root) {
         let info = asset_library::read_pack(&folder).unwrap();
+        if pack == "core" {
+            assert_eq!(info.credit, pav_core::store::OWN_CREDIT, "lineage credits own work with core's line");
+        }
         for (name, def) in pack_assets(&pack, &folder) {
             asset_library::source_allowed(def.doc.source.as_ref(), &info.license).unwrap_or_else(|e| panic!("{name}: {e}"));
         }

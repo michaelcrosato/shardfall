@@ -84,6 +84,7 @@ const NOT_DOCUMENT_FIELDS: &[(&str, &str)] = &[
     ("parts", "address parts with part or parts"),
     ("materials", "address materials with material"),
     ("sockets", "address sockets with socket"),
+    ("lineage", "copy writes it and edits keep it: it records what the asset was made from"),
 ];
 
 /// A patched document, and which operation last touched each entry, so later problems (the

@@ -13,8 +13,8 @@ use super::{amount, color_fix, is_color, look_hint, number, wrong_type};
 use crate::issue::{self, Code, Issue, join};
 use crate::params::ChoiceParam;
 use crate::props::doc::{
-    Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Light, Material, MaterialEntry, Node, PRESETS,
-    Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
+    Anchor, Array, Attach, Axis, Category, Dir, Doc, Fit, Fx, Grid, Jitter, Kind, Light, Lineage, Material, MaterialEntry,
+    Method, Node, Origin, PRESETS, Prim, PrimType, ROLES, Radial, Replicate, Socket, SocketName, Source, Surface, Unit,
 };
 use crate::props::{MAX_PARTS, PropDef, validate_name, validate_part_name};
 use crate::shape::{Look, Sway};
@@ -61,6 +61,7 @@ pub const DOCUMENT_FIELDS: &[(&str, &str)] = &[
         "category",
         "furniture | container | architecture | lighting | vegetation | rock | weapon | armour | tool | food | town | dungeon | signage",
     ),
+    ("lineage", "{method,origin,parents,license,credit}: what it was made from (copy writes it)"),
     ("source", "{library,url,license,author,sha256,title,norm}: where it came from (tools write it)"),
     ("fit", "{mean_mm,worst_mm,iou,de,mesh_pct,parts_hash}: how well it fits its source (tools write it)"),
     ("materials", "{key: {color,look,emissive,roughness,metallic,map,scale,turn,layers}}; parts say mat:key"),
@@ -754,6 +755,7 @@ impl Reader<'_> {
         let category = object
             .get("category")
             .and_then(|value| self.choice("category", value, "category", Category::NAMES, Category::parse, |_| None));
+        let lineage = object.get("lineage").and_then(|value| self.lineage(value));
         let source = object.get("source").and_then(|value| self.source(value));
         let fit = object.get("fit").and_then(|value| self.fit(value));
         let materials = match object.get("materials") {
@@ -823,7 +825,20 @@ impl Reader<'_> {
         if let Some(Value::Object(raw)) = object.get("parts") {
             self.attachments(&parts, raw, &sockets);
         }
-        Some(Doc { name: name?, unit: unit?, surface, description, tags, category, source, fit, materials, parts, sockets })
+        Some(Doc {
+            name: name?,
+            unit: unit?,
+            surface,
+            description,
+            tags,
+            category,
+            lineage,
+            source,
+            fit,
+            materials,
+            parts,
+            sockets,
+        })
     }
 
     fn tags(&mut self, value: &Value) -> Vec<String> {
@@ -877,6 +892,49 @@ impl Reader<'_> {
             );
         }
         Some(source)
+    }
+
+    /// `lineage`: a method and an origin, up to 8 parents `name@revision`, and the licence and
+    /// credit the parents pass on.
+    fn lineage(&mut self, value: &Value) -> Option<Lineage> {
+        let object = self.object("lineage", value, &["method", "origin", "parents", "license", "credit"], "lineage")?;
+        let required = |reader: &mut Self, key: &str, names: &[&str]| {
+            if !object.contains_key(key) {
+                reader.push(Issue::error(join("lineage", key), Code::Missing, "missing").expected(names.join(", ")));
+            }
+        };
+        required(self, "method", Method::NAMES);
+        required(self, "origin", Origin::NAMES);
+        let method =
+            object.get("method").and_then(|v| self.choice("lineage.method", v, "method", Method::NAMES, Method::parse, |_| None));
+        let origin =
+            object.get("origin").and_then(|v| self.choice("lineage.origin", v, "origin", Origin::NAMES, Origin::parse, |_| None));
+        let parents = match object.get("parents") {
+            None => Some(Vec::new()),
+            Some(value) => self.list("lineage.parents", value, 0..=8, "parents", |reader, path, value| {
+                let parent = reader.text(path, value)?;
+                let named = parent.split_once('@').filter(|(name, revision)| {
+                    !revision.is_empty() && crate::props::store::canonical(name).is_ok_and(|canonical| canonical == *name)
+                });
+                if named.is_none() {
+                    reader.push(
+                        Issue::error(path, Code::UnknownValue, format!("\"{parent}\" is not a parent"))
+                            .expected("name@revision, e.g. LIB/core/chair@prop2-…"),
+                    );
+                    return None;
+                }
+                Some(parent)
+            }),
+        };
+        let mut field = |key: &str| {
+            let text = object.get(key).and_then(|v| self.text(&format!("lineage.{key}"), v))?;
+            if text.trim().is_empty() || text.chars().count() > 200 {
+                self.push(Issue::error(join("lineage", key), Code::Limit, "empty or too long").expected("1-200 characters"));
+            }
+            Some(text)
+        };
+        let (license, credit) = (field("license"), field("credit"));
+        Some(Lineage { method: method?, origin: origin?, parents: parents?, license, credit })
     }
 
     fn fit(&mut self, value: &Value) -> Option<Fit> {
@@ -2226,6 +2284,32 @@ mod tests {
     }
 
     #[test]
+    fn lineage_reads_writes_in_place_and_refuses_what_is_not_provenance() {
+        let post = r##""parts":{"post":{"type":"box","size":[10,100,10],"pos":[0,50,0],"color":"#806040"}}"##;
+        let lineage = r#""lineage":{"credit":"Kenney (www.kenney.nl)","license":"CC0-1.0","parents":["LIB/kenney_mini_dungeon/barrel@prop2-0123456789abcdef"],"origin":"import","method":"edited"}"#;
+        let text = format!(
+            r#"{{"format":2,"name":"post","unit":"cm","source":{{"license":"CC0-1.0"}},"category":"town",{lineage},{post}}}"#
+        );
+        let doc = Doc::read(&text).unwrap();
+        let written = doc.text();
+        assert!(
+            written.contains("\n\"category\":\"town\",\n\"lineage\":{\"method\":\"edited\",\"origin\":\"import\",\"parents\":[\"LIB/kenney_mini_dungeon/barrel@prop2-0123456789abcdef\"],\"license\":\"CC0-1.0\",\"credit\":\"Kenney (www.kenney.nl)\"},\n\"source\""),
+            "{written}"
+        );
+        assert_eq!(Doc::read(&written).unwrap(), doc, "it round-trips");
+        assert_eq!(doc.provenance(), doc.lineage.clone().unwrap());
+        let probe = |lineage: &str| document(&format!(r#"{{"format":2,"name":"post","unit":"cm","lineage":{lineage},{post}}}"#));
+        assert_eq!(probe(r#"{"origin":"agent"}"#), ["lineage.method: missing (expected authored, generated, imported, edited)"]);
+        assert!(probe(r#"{"method":"copied","origin":"agent"}"#)[0].starts_with("lineage.method: unknown method \"copied\""));
+        assert!(probe(r#"{"method":"edited","origin":"agent","parents":["LIB/core/chair"]}"#)[0].contains("is not a parent"));
+        assert!(
+            probe(r#"{"method":"edited","origin":"agent","parents":["lib/Core/chair@prop2-1"]}"#)[0].contains("is not a parent")
+        );
+        assert!(probe(r#"{"method":"edited","origin":"agent","licence":"CC0-1.0"}"#)[0].contains("lineage.licence: unknown key"));
+        assert!(probe(r#"{"method":"authored","origin":"human","parents":[]}"#).is_empty());
+    }
+
+    #[test]
     fn common_guesses_get_their_fix() {
         check(&[
             (
@@ -2614,8 +2698,20 @@ mod tests {
             }
         }
         assert_eq!(MATERIAL_FIELDS.len(), 10);
-        for key in ["format", "name", "unit", "description", "tags", "category", "source", "fit", "materials", "parts", "sockets"]
-        {
+        for key in [
+            "format",
+            "name",
+            "unit",
+            "description",
+            "tags",
+            "category",
+            "lineage",
+            "source",
+            "fit",
+            "materials",
+            "parts",
+            "sockets",
+        ] {
             assert!(guide(DOCUMENT_FIELDS).contains(key), "{key}");
         }
         let all = schema(None).unwrap();
