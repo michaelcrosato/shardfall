@@ -5,6 +5,34 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S5: the sprite trial, Shardfall's arm — 2026-10-15
+
+Stage S5 of `docs/AGENT_ASSET_STORE.md` (§11, §13, §15), Shardfall's side. **Exit: Shardfall's
+arm renders all 3 briefs; §11's four criteria are pending: riftlight session**
+(`docs/handoffs/S5-riftlight.md`).
+- **The three briefs** (`scripts/asset_bench/s5_briefs.toml`, written here since §11 named none):
+  P1 a dungeon treasure nook (chest, two lights, bones, barrel), P2 a village well corner (well,
+  signpost, crates, fence), P3 a forest camp (campfire, tent, log seat, rocks). Each a 5 x 5 m
+  object scene at the high camera; characters are left out so every arm draws the same things.
+- **Shardfall's arm:** one pinned `asset-bench-author` run per brief (model 1, binary `cd710b0`),
+  then `bench.py store-render --gate S5`: each run's `done.json` rebuilt in the empty scene,
+  centred, at a fixed camera (tilt 62°, 10.5 m), rendered plain and under the `16-bit` look
+  (`pixel_art` 4 px blocks with outlines; no new renderer path). All three accepted with zero
+  findings, every prop placed from LIB/core (chest, wall torches, bone pile, barrel; well,
+  signpost, crate stack, fence; campfire, tent, log seat, rock cluster) in 4-5 engine commands
+  and 4-5 model calls each.
+- **Review page:** https://claude.ai/artifact/NAqUvr4ZyFVw3yfTmkeekr (private): the three
+  scenes, pixel and plain; the riftlight session's both-orders page takes Shardfall's renders
+  from it. Nothing waits on its verdicts.
+- **The hand-off** builds the rest in riftlight: palette-indexed sprite rows and a reader, edit
+  operations with render diffs, the mixing check with 5 planted faults, a harness with a blind
+  author definition, the code-drawn arm, the imported arm (Kenney 1-Bit Pack, waiting for the
+  owner's own approval comment on riftlight #49, which an agent never posts or links), and the
+  both-orders page.
+- **Costs:** tests $0.11 (3 author runs; limit $25); S5 total $5.93 against the $80 estimate,
+  about 0.3 h of work (22:27-22:37 UTC, inside S3's window, and 23:10-23:13 and 23:38-23:41)
+  before its PR's review wait.
+
 ## Asset store S4: ten clips a second engine reads from their rows — 2026-10-15
 
 Stage S4 of `docs/AGENT_ASSET_STORE.md` (§13, §15), Shardfall's side. **Exit: met on

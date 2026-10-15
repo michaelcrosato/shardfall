@@ -6,6 +6,14 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-15 — S3b: rigid figures, or build skinning?
+- **Question** (the user's alone, §15: no default): the five imported KayKit characters play
+  every clip as rigid per-bone segments. Do the joints read well enough, or should skinning be
+  built (the creature path's CPU skinning)?
+- **Asked:** in chat, with the review page https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs
+  (one verdict per figure: "reads well" or "joints read badly"; verdicts reach the agent).
+- **Decided by:** pending user. S3b was built around it and merged rigid (#64).
+
 ## 2026-10-15 — S3, S3b, S4 and S5 built despite S1's "no" (the user's call)
 - **Question:** S1's "no" still stands, and the store design (§13) builds nothing after it. Build
   the rest of the plan?

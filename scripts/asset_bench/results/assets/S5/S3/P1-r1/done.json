@@ -1,0 +1,7 @@
+{"items":[
+{"role":"chest","id":"LIB/core/chest","how":"placed","pos":[0,0,-2.0],"yaw":0,"scale":0.91},
+{"role":"light","id":"LIB/core/wall_torch","how":"placed","pos":[-1.2,1.5,-2.5],"yaw":0,"scale":1},
+{"role":"light","id":"LIB/core/wall_torch","how":"placed","pos":[1.2,1.5,-2.5],"yaw":0,"scale":1},
+{"role":"bones","id":"LIB/core/bone_pile","how":"placed","pos":[-1.5,0,-1.0],"yaw":20,"scale":1},
+{"role":"barrel","id":"LIB/core/barrel","how":"placed","pos":[1.8,0,-1.9],"yaw":0,"scale":1}
+],"notes":"All existing core assets placed; chest scaled to 60 cm tall; torches mounted on back wall."}

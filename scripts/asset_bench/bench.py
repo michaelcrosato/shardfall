@@ -1826,6 +1826,44 @@ def mixed_brief_text(brief, cap, roles):
         "", f"Budget: {cap[0]} engine commands and {cap[1]} images. Then reply \"done\".", ""])
 
 
+def cmd_store_render(args):
+    """S5: each run's scene rebuilt from its done.json in the empty scene (the player removed) and
+    rendered at a fixed camera under a look (default `16-bit`, the pixel_art filter), plus the
+    same view unfiltered -> RUN/out/scene-<look>.png and scene-plain.png."""
+    for run in run_dirs(args.gate):
+        config = load(run / "run.json")
+        done = load(run / "done.json")
+        if config.get("kind") != "store" or not isinstance(done, dict):
+            continue
+        binary = Path(args.bin).resolve() if args.bin else Path(config["bin"])
+        lines = [json.dumps({"tool": "load", "args": {"scene": "empty"}}),
+                 json.dumps({"tool": "despawn", "args": {"id": 1}})]
+        props = [i for i in done.get("items", []) if i.get("kind", "prop") == "prop"]
+        # The camera looks at the origin: centre the scene's footprint there.
+        spots = [(i.get("pos") or [0, 0, 0]) for i in props]
+        cx = sum(p[0] for p in spots) / len(spots) if spots else 0
+        cz = sum(p[2] for p in spots) / len(spots) if spots else 0
+        for item in props:
+            pos = list(item.get("pos") or [0, 0, 0])[:3]
+            pos = [pos[0] - cx, pos[1], pos[2] - cz]
+            spawn = {"action": "add", "name": str(item.get("id", "")), "pos": pos,
+                     "yaw": float(item.get("yaw", 0) or 0), "scale": float(item.get("scale", 1) or 1)}
+            if isinstance(item.get("params"), dict):
+                spawn["params"] = item["params"]
+            lines.append(json.dumps({"tool": "asset_spawn", "args": spawn}))
+        for path, value in (("camera.distance", args.distance), ("camera.tilt", args.tilt), ("camera.height_offset", 0)):
+            lines.append(json.dumps({"tool": "set", "args": {"path": path, "value": str(value)}}))
+        lines.append(json.dumps({"tool": "step", "args": {"ticks": 30}}))
+        lines.append(json.dumps({"tool": "capture", "args": {"out": "out/scene-plain.png", "width": 640, "height": 360}}))
+        slug = args.look.lower().replace(" ", "-")
+        lines.append(json.dumps({"tool": "look", "args": {"name": args.look}}))
+        lines.append(json.dumps({"tool": "capture", "args": {"out": f"out/scene-{slug}.png", "width": 640, "height": 360}}))
+        replies = run_engine(binary, run, lines)
+        errors = [r for r in replies if "error" in r]
+        print(f"{run.relative_to(RUNS)}: {len(done.get('items', []))} items, {len(errors)} errors"
+              + (f" ({errors[0]['error'][:100]})" if errors else ""))
+
+
 def cmd_store_needs(args):
     """S3's measure (§13): met/needs per kind over a gate's runs (results/store_needs.tsv, written
     by store-score), and the misses the runs logged, most frequent first."""
@@ -2109,6 +2147,12 @@ def main():
     p = sub.add_parser("store-report")
     p.add_argument("--gate", default="S1")
     p.add_argument("--run", default="1")
+    p = sub.add_parser("store-render")
+    p.add_argument("--gate", default="S5")
+    p.add_argument("--bin")
+    p.add_argument("--look", default="16-bit")
+    p.add_argument("--distance", type=float, default=9)
+    p.add_argument("--tilt", type=float, default=62)
     p = sub.add_parser("store-needs")
     p.add_argument("--gate", default="S3")
     p.add_argument("--run")

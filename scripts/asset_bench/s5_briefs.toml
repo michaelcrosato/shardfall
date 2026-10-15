@@ -1,0 +1,52 @@
+# Asset store S5 briefs (docs/AGENT_ASSET_STORE.md §11, §13 S5): the sprite trial's three briefs,
+# shared by every arm (imported sprites, code-drawn art, and Shardfall's 3D props through the
+# pixel_art filter). Each is a small object scene, about 5 x 5 m, seen from the game's high
+# camera; characters are left out so every arm draws the same things. Fields as in
+# store_briefs.toml (roles: h/l in cm, light, count).
+
+cap = [40, 6]
+
+[[brief]]
+id = "P1"
+order = 1
+title = "dungeon treasure nook"
+text = """A dungeon nook about 5 x 5 m: a treasure chest about 60 cm tall, two wall torches or
+standing lights that give off light, a pile of bones, and a barrel. Small, readable objects with
+clear silhouettes from a high camera."""
+roles = [
+  {role = "chest", kind = "prop", count = 1, h = [40, 90]},
+  {role = "light", kind = "prop", count = 2, light = true},
+  {role = "bones", kind = "prop", count = 1},
+  {role = "barrel", kind = "prop", count = 1, h = [60, 110]},
+]
+needs = ["prop: a treasure chest", "prop: two torches or lights", "prop: a pile of bones", "prop: a barrel"]
+
+[[brief]]
+id = "P2"
+order = 2
+title = "village well corner"
+text = """A village corner about 5 x 5 m: a stone well, a signpost about 2 m tall, a stack of
+crates, and a fence segment along one side. Small, readable objects with clear silhouettes from a
+high camera."""
+roles = [
+  {role = "well", kind = "prop", count = 1},
+  {role = "signpost", kind = "prop", count = 1, h = [150, 260]},
+  {role = "crates", kind = "prop", count = 1},
+  {role = "fence", kind = "prop", count = 1},
+]
+needs = ["prop: a stone well", "prop: a signpost about 2 m tall", "prop: a stack of crates", "prop: a fence segment"]
+
+[[brief]]
+id = "P3"
+order = 3
+title = "forest camp"
+text = """A camp in a clearing about 5 x 5 m: a campfire that gives off light, a tent, a log seat
+by the fire, and a rock cluster. Small, readable objects with clear silhouettes from a high
+camera."""
+roles = [
+  {role = "campfire", kind = "prop", count = 1, light = true},
+  {role = "tent", kind = "prop", count = 1, h = [100, 260]},
+  {role = "seat", kind = "prop", count = 1},
+  {role = "rocks", kind = "prop", count = 1},
+]
+needs = ["prop: a campfire", "prop: a tent", "prop: a log seat", "prop: a rock cluster"]

@@ -37,18 +37,11 @@ The current state, kept to one page because every session reads it (Claude Code 
 - Pavilion Lite (`pavilion-lite/`) is frozen: a finished experiment and handoff package.
 
 ## Next
-**Agent asset store** (designed 2026-10-15): `docs/AGENT_ASSET_STORE.md`, a library of
-foundational assets plus transforms for agents across the engine family. Its nine §14 rulings took
-their defaults (`docs/ESCALATIONS.md`). **S0 is done:** `assets find=` matches plurals and
-synonyms, says `none` with nearest rows and a route, and logs misses (`store/misses.tsv`);
-`assets shelf=prop|clip`; admitted licences (`store/licences.tsv`) and `store/CREDITS.md`;
-`find@5` 9/10, absent 5/5. **S1's answer is no, final** (2026-10-15): with the store, a fresh
-agent was cheaper on only 2 of 6 room-scale briefs, the two whose assets the store held (about
-half the tokens), and 10-30% dearer on the rest. The user then asked for **S2** anyway, and it is
-done: `size_band` and `socket_missing` checks, fork lineage, `store/STORE.tsv` and
-`store/README.md`, format-2 `params`/`presets`/`NAME:preset`, 28 foundations (four for each of
-seven archetypes in `store/foundations.tsv`) and the `library_hall`, `limits` and `catalogue`
-rooms. **S3 is done: below critical mass** (2026-10-15): 20 fresh blind briefs over two rounds;
+**Agent asset store** (`docs/AGENT_ASSET_STORE.md`; every stage's journal in HISTORY):
+foundational assets plus transforms for agents. **S0:** find with plurals, synonyms, `none` and a
+route; the shelf; admitted licences and credits. **S1:** no, final (the store paid only where it
+held the asset). **S2 (the user's call):** checks, lineage, `STORE.tsv`, format-2 knobs and
+presets, foundations, the Hall, Limits and Catalogue rooms. **S3 is done: below critical mass** (2026-10-15): 20 fresh blind briefs over two rounds;
 after a fill of 12 foundations (LIB/core has 59 assets, 40 foundations in 15 archetypes), 3 core
 materials and search fixes, met/needs reached props 0.29, clips 0.25, materials 0.43 (rule: 0.8);
 `bench.py cost` prices stages in US$. **S3b is done:** five CC0 KayKit characters imported as
@@ -56,12 +49,24 @@ rigid figures (16 segments each) that play every embedded clip with no check fin
 `character` store kind, in the Catalogue; skinning waits for the user's verdict on its review
 page (pending user). **S4 is done** on Shardfall's side: ten CC0 clips readable from their
 store rows, their body points in mm as a fixture; the cross-engine match is pending a my-3dge
-session (`docs/handoffs/S4-my-3dge.md`). **Next: S5**, run from the plan's §15 ("Executing
-S3–S5"): built and merged whatever its exit result, within its hard test limit.
+session (`docs/handoffs/S4-my-3dge.md`). **S5 is done** on Shardfall's side: its arm (store
+props under the `16-bit` pixel look) renders the 3 briefs; §11's criteria wait for a riftlight
+session (`docs/handoffs/S5-riftlight.md`). The plan's S0-S5 are built; what remains is armed.
 Shardfall only (the user, 2026-10-15): assets may come in from sibling repositories when they fit
-Shardfall's formats, but nothing is written there; S4's my-3dge reader and S5's riftlight sprite
-side become hand-off prompts in `docs/handoffs/`.
-**Armed, not run:** S6 (fires when the benchmark agent changes) and the §13 triggers.
+Shardfall's formats, but nothing is written there.
+**Armed, not run** (`docs/AGENT_ASSET_STORE.md` §13), each with a small plan when it fires:
+- **S6 phase-out, per kind** (test limit $0 until then): fires at each change of the benchmark
+  agent; the sprite trial reruns on the same event.
+- **Harvester** (lift reusable files from test games): fires when 3 games list reusable files in
+  store formats (FEEDBACK's new prompt lines collect them).
+- **New kinds** beyond props, materials, clips and characters: fire when a game needs one.
+- **Several voters:** a second voter. **Lineage reports:** 3 forks change one field. **Lock
+  file:** a build needs one. **Semantic lane:** held-out recall below 8/10.
+- **Props and feel across engines:** my-3dge gains a model importer and headless capture.
+- **Clip federation and a separate repository** (§12): a second engine needs props or materials.
+- **JSON Schema:** a TypeScript engine reads entries.
+- **Pending elsewhere:** S3b's rigid-or-skinned verdict (the user); S4's cross-engine match (a
+  my-3dge session); S5's criteria (a riftlight session).
 
 **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the engine
 and evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file

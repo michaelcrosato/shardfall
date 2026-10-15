@@ -55,3 +55,6 @@ S3	S3	D07	2	1	1	9	0	13	0	0	15.5	WORKSHOP/gold_pile WORKSHOP/goblet WORKSHOP/gobl
 S3	S3	D08	2	1	1	5	0	14	0	0	21.3	WORKSHOP/swamp_hut WORKSHOP/plank_walkway WORKSHOP/glow_mushrooms WORKSHOP/hang_lantern MAT/workshop/mossy_rot_planks	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
 S3	S3	D09	2	1	1	6	2	19	1	0	25.5	WORKSHOP/straw_dummy WORKSHOP/straw_dummy WORKSHOP/yard_bench WORKSHOP/sword_barrel MAT/workshop/sand_yard QUATERNIUS/Sword_Attack	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
 S3	S3	D10	2	1	0	5	0	12	0	0	17.7	WORKSHOP/watchtower LIB/core/brazier WORKSHOP/ladder MAT/workshop/snow_planks CMU/Looking_Around	model 1	medium	Claude Code subagent asset-bench-author, cloud session	WORKSHOP/watchtower: watchtower h 380 cm, wanted 255-345; CMU/Looking_Around: guard look-around must loop
+S5	S3	P1	1	1	1	5	0	5	0	0	5.9	LIB/core/chest LIB/core/wall_torch LIB/core/wall_torch LIB/core/bone_pile LIB/core/barrel	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S5	S3	P2	1	1	1	4	0	4	0	0	0.0	LIB/core/well LIB/core/signpost LIB/core/crate_stack LIB/core/fence	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S5	S3	P3	1	1	1	4	0	4	0	0	0.0	LIB/core/campfire LIB/core/tent LIB/core/log_seat LIB/core/rock_cluster	model 1	medium	Claude Code subagent asset-bench-author, cloud session	

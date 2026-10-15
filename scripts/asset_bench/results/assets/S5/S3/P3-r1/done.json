@@ -1,0 +1,6 @@
+{"items":[
+{"role":"campfire","id":"LIB/core/campfire","how":"placed","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"tent","id":"LIB/core/tent","how":"placed","pos":[0,0,-1.9],"yaw":0,"scale":1},
+{"role":"seat","id":"LIB/core/log_seat","how":"placed","pos":[1.2,0,0.4],"yaw":-90,"scale":1},
+{"role":"rocks","id":"LIB/core/rock_cluster","how":"placed","pos":[-1.6,0,1.3],"yaw":30,"scale":0.8}
+],"notes":"Placed core assets: tent door faces fire, log seat beside fire, rocks at clearing edge."}

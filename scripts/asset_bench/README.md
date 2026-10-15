@@ -107,3 +107,15 @@ store-score` resolves and checks them, `bench.py tokens` reads each run's model 
 and weighted cost from the session's subagent transcripts (`--main`: the session's own), and
 `bench.py store-report --run N` applies S1's rule (`docs/HISTORY.md`, 2026-10-15).
 
+## The asset store's S3-S5
+
+S3 measures critical mass on mixed briefs (`s3_briefs.toml`, `s3_briefs_r2.toml`, written by the
+blind `store-brief-writer`): `store-prepare --gate S3 --arm S3 --bin-arm S3 --briefs-file FILE
+--run N`, one `asset-bench-author` run per brief, then `store-score --gate S3` (resolves props,
+materials and clips; derived props are sized by spawning `NAME:preset`) and `store-needs --gate S3
+[--run N]` (met/needs per kind from `results/store_needs.tsv`, and the logged misses). S5's
+Shardfall arm: `store-prepare --gate S5 ... --briefs-file s5_briefs.toml`, the runs, then
+`store-render --gate S5` (each `done.json` rebuilt, centred, rendered plain and under a look,
+default `16-bit`). `cost` prices model calls as Claude Code bills them (`--mark`, `--stage`,
+`--test`; prices in git-ignored `.cache/asset_bench/prices.json`).
+
