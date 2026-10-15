@@ -1,0 +1,22 @@
+{"format":2,"name":"log_seat","unit":"cm",
+"description":"A split log seat for a camp: bark below, a sawn flat top, two chocks. Knobs: length; seeds add stubs.",
+"tags":["seat","log","bench","camp","wood","forest"],
+"category":"furniture",
+"materials":{
+"bark":{"color":"#5b4331"},
+"chock":{"color":"#6e5238"},
+"heart":{"color":"#c09466"}},
+"parts":{
+"chock":{"type":"box","size":[8,7,10],"pos":[42,3.5,13],"mat":"chock","mirror":["x","z"]},
+"end":{"type":"extrude","points":[[13.4,30],[17.7,21.1],[16.9,11.8],[11.6,4.2],[0,0],[-11.6,4.2],[-16.9,11.8],[-17.7,21.1],[-13.4,30]],"depth":0.6,"pos":[60.3,0,0],"yaw":90,"mat":"heart","mirror":"x"},
+"face":{"type":"box","size":[118,0.6,26.6],"pos":[0,30.3,0],"mat":"heart"},
+"knot":{"type":"cylinder","radius":2.6,"radius_end":1.8,"from":[-25,20,-15],"to":[-28,25,-23],"mat":"bark","chance":0.5},
+"log":{"type":"extrude","points":[[13.4,30],[17.7,21.1],[16.9,11.8],[11.6,4.2],[0,0],[-11.6,4.2],[-16.9,11.8],[-17.7,21.1],[-13.4,30]],"depth":120,"yaw":90,"mat":"bark"},
+"stub":{"type":"cylinder","radius":3,"radius_end":2.2,"from":[18,14,15],"to":[22,19,24],"mat":"bark","chance":0.5}},
+"sockets":{
+"sit":{"pos":[0,30.6,0]}},
+"params":{
+"length":{"range":[60,240],"set":{"chock.pos.0":0.35,"end.pos.0":0.5025,"face.size.0":0.98333,"log.depth":1}}},
+"presets":{
+"long":{"length":220},
+"short":{"length":70}}}

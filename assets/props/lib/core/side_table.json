@@ -1,0 +1,23 @@
+{"format":2,"name":"side_table","unit":"cm",
+"description":"A small square side table on turned, tapered legs with one drawer. Knobs: height, width, drawer.",
+"tags":["table","side","nightstand","wood","furniture","bedroom"],
+"category":"furniture",
+"materials":{
+"brass":{"color":"#c9a24a","roughness":0.35,"metallic":0.7},
+"frame":{"base":"MAT/oak_planks","color":"#6b4a2c"},
+"front":{"color":"#8a6240"},
+"top":"MAT/oak_planks"},
+"parts":{
+"apron":{"type":"box","size":[42,8,42],"pos":[0,56,0],"mat":"frame"},
+"drawer":{"type":"box","size":[30,6,1],"pos":[0,56,21.5],"mat":"front","chance":1},
+"leg":{"type":"cylinder","radius":2.2,"radius_end":1.4,"segments":8,"from":[20,60,20],"to":[20,0,20],"mat":"frame","mirror":["x","z"]},
+"pull":{"type":"sphere","radius":1.2,"pos":[0,56,22.8],"mat":"brass","chance":1},
+"top":{"type":"rounded_box","size":[50,3,50],"radius":0.8,"pos":[0,61.5,0],"mat":"top"}},
+"params":{
+"drawer":{"choices":["drawer","none"],"set":{"drawer.chance":[1,0],"pull.chance":[1,0]}},
+"height":{"range":[40,110],"set":{"apron.pos.1":0.88889,"apron.size.1":0.12698,"drawer.pos.1":0.88889,"drawer.size.1":0.09524,"leg.from.1":0.95238,"pull.pos.1":0.88889,"top.pos.1":0.97619,"top.size.1":0.04762}},
+"width":{"range":[36,90],"set":{"apron.size.0":0.84,"leg.from.0":0.4,"leg.to.0":0.4,"top.size.0":1}}},
+"presets":{
+"bare":{"drawer":"none"},
+"console":{"height":80,"width":90},
+"nightstand":{"height":56,"width":44}}}

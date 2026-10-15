@@ -4,6 +4,7 @@ LIB/core/anvil	prop2-18decdbfda7429ec	ok (user review 2026-10-12); author: ok: g
 LIB/core/axe	prop2-aef60b9a1ad776ff	ok: new bearded axe, 86 cm on its haft end, head reads beside the figure, grip socket on the wrap; :hatchet, :greataxe
 LIB/core/banner	prop2-2ff57e6596fe9fd3	ok (user review 2026-10-12); author: ok: 80x165 cm pointed $accent banner on iron rod + brackets, gold hem/finials, picked emblem with dark backing, back z 0, wall_mount
 LIB/core/barrel	prop2-43b155194c6abba8	ok: bands knob swaps the four hoops to an inline brass material, default unchanged; :brass reads at game distance
+LIB/core/basket	prop2-bf468b46b5575dd8	ok: wicker basket with bail handle and apples; empty, small and large draw
 LIB/core/bench	prop2-60276f69c7b81789	ok: length knob added, default unchanged; :short (90 cm) and :long keep the trestles under the seat ends; sit kept
 LIB/core/bone_pile	prop2-63d02e3cae425622	ok (user review 2026-10-12); author: ok: 3 knobbed long bones + skull with dark sockets, #d9d0bb, ~1.1 m across, all on floor, seed jitter, reads at game distance
 LIB/core/brazier	prop2-d01d7bb139c3c46a	ok (user review 2026-10-12); author: ok: glowing coal bowl with one $light point light, 3 splayed legs + brace on floor, front leg +z, ~1 m vs figure, no pokes
@@ -22,7 +23,8 @@ LIB/core/crystal_cluster	prop2-0ca56b8da5346b1f	ok (user review 2026-10-12); aut
 LIB/core/fence	prop2-f4008ceff0796e5a	ok (user review 2026-10-12); author: ok: 3 capped posts at x -100/0/100 so ends coincide when tiled, 2 rails span full 200 cm, on floor, ~waist-high vs figure
 LIB/core/gable_stall	prop2-40f51c4f7c647df4	ok: fork of Quaternius marketstand_1 (40% mesh, side-facing) rebuilt facing +z: posts, striped gable wedge, counter, jars, shelf; :shed, :narrow
 LIB/core/hall_table	prop2-28317df9a0c4ec47	ok: new 2 m hall table, A-frame extrude trestles and stretcher, $accent runner; :short, :long, :bare read as tables
-LIB/core/mage_staff	prop2-d599d0a98f12ccbf	ok: 1.85 m ash shaft, leather grip wrap, iron ferrule and claw collar, glowing crystal reads at the figure sheet; grip socket at the wrap, +y up the shaft
+LIB/core/log_seat	prop2-ec1ec5ea6143c637	ok: split log with sawn face and chocks; short and long draw, sit socket on the face
+LIB/core/mage_staff	prop2-a312ab72c347493d	ok: knobs added, default geometry unchanged; walking drops the crystal, ember recolours it
 LIB/core/market_stall	prop2-6666caa724848e72	ok: goods and awning knobs added, default unchanged; :apples, :closed (empty crates), :plain (red awning) read at game distance
 LIB/core/mushroom_cluster	prop2-c2e07e82ccadd9b4	ok (user review 2026-10-12); author: ok: 2-4 mushrooms 0.3-1.0 m, #d8cfb8 stems, glowing spotted $accent caps e0.7, grounded, reads at game distance
 LIB/core/park_bench	prop2-05c0eceac72213d3	ok: fork of Quaternius bench_1 turned to face +z, slats as rounded boxes for a length knob, sit socket added; :short, :long
@@ -31,6 +33,7 @@ LIB/core/round_table	prop2-6197ef4426f62efc	ok: new round pedestal table 100x76 
 LIB/core/rubble_pile	prop2-860727b8096500b8	ok (user review 2026-10-12); author: ok: $wall masonry blocks, top block by chance, tipped block, wedge, jittered chips, ~1.3 m, all grounded/touching
 LIB/core/sack	prop2-3b814ba70d594e13	ok (user review 2026-10-12); author: ok: plump lathe body on floor, tilted tied neck with rope and flared top reads as sack, patch sits on surface, ~0.75 m
 LIB/core/shelf	prop2-b1c576b621214cc0	ok (user review 2026-10-12); author: ok: 120x180x35 case, back at z0 + wall_mount, 5 boards, varied books/jars sit on boards, no z-fight, front +z
+LIB/core/side_table	prop2-5e8f0580dcdb14e7	ok: side table, apron and drawer read clearly; console, nightstand and bare presets draw
 LIB/core/signpost	prop2-6c9762a2cdb7a05c	ok (user review 2026-10-12); author: ok: 2.3 m capped post, two arrow boards pointing opposite ways off the post sides, $wall stones at foot, on floor
 LIB/core/slat_crate	prop2-beb415b37870e7be	ok: new open slat crate 56x31x38 heaped with apples; fill knob swaps the produce material (:oranges) or empties it
 LIB/core/spear	prop2-7c1ea94e258d25b5	ok: fork of Kenney weapon-spear rebuilt as a 2 m ash shaft with collar and leaf head, grip socket at 90 cm; :javelin, :pike
@@ -38,6 +41,8 @@ LIB/core/stalagmite	prop2-e8a57e02c9f137aa	ok (user review 2026-10-12); author: 
 LIB/core/sword	prop2-97255c8e8fda21eb	ok: fork of Kenney weapon-sword rebuilt slim, 97 cm point up, pommel on the floor (was 22 cm below), grip socket on the handle; :dagger, :greatsword
 LIB/core/table	prop2-324fc24e309a9398	ok: knobs length/height/depth added, default unchanged; :wide (merges the Kenney low wide table), :small, :long, :low read as tables
 LIB/core/tap_barrel	prop2-d84526c6541c5ce6	ok: new: LIB/core/barrel by ref lying on two notched cradles, brass tap in its head, 97 cm long; :keg, :hogshead
+LIB/core/tent_stall	prop2-624a948875bd1107	ok: round pavilion, cone roof, valance, ring counter with pots; small, grand and bare draw
 LIB/core/urn	prop2-b291f94b7ab20341	ok (user review 2026-10-12); author: ok: lathe body on foot, dark band and mouth read, handles join shoulder to neck, sits on floor, ~0.7 m vs figure
 LIB/core/wall_torch	prop2-3d67cd78b03b8761	ok: fire and reach knobs added, default unchanged; :out drops flame and light, :long sets the torch 30 cm out; wall_mount kept
+LIB/core/wash_tub	prop2-a1cb2d851dcc078c	ok: open tub with hoops, lugs and water; small, wide and dry draw
 LIB/core/well	prop2-740b992bb54432a3	ok (user review 2026-10-12); author: ok: $wall cobble ring + capstone, water, posts carry shingled roof, crank/drum/rope/bucket visible under eaves, on floor

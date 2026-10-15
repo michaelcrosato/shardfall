@@ -8,12 +8,15 @@ archetype	id	transforms	why
 table	LIB/core/table	:wide :small params={"height":45}	Legs, aprons and stretchers by from/to: one length knob moves 8 fields. :wide merges Kenney's low wide table.
 table	LIB/core/round_table	:bistro :low params={"diameter":140}	A lathe pedestal on radial feet; the height knob reaches into the lathe's profile points.
 table	LIB/core/hall_table	:short :bare roles={"$accent":"#2f6fb0"}	Extruded A-frame trestles; the runner shows by a chance knob and takes the $accent role colour.
+table	LIB/core/side_table	:console :bare params={"height":45}	Tapered legs under an apron: height scales every vertical field, width only x; a choices knob hides the drawer.
 seat	LIB/core/chair	:stool :high_back	One choices knob rewrites 8 fields: the back goes (a stool) or rises (high back); the sit socket stays.
 seat	LIB/core/bench	:short :long	Extruded trestle legs under a plank seat; the length knob keeps them under the seat ends.
 seat	LIB/core/park_bench	:short params={"length":240}	Fork of Quaternius bench_1: slats rebuilt as arrayed rounded boxes so one knob sets their length.
+seat	LIB/core/log_seat	:short :long seed=1	An extruded D-profile log with a sawn face; the length knob carries ends and chocks; seeds add branch stubs.
 barrel	LIB/core/barrel	:brass seed=1	A stave lathe in four iron hoops; a choices knob swaps the hoops' material, the seed shows a bung or not.
 barrel	LIB/core/cask	:keg :tun	Fork of Kenney's 115 cm barrel: an 8-sided lathe and bands; height and girth reach into profile points.
 barrel	LIB/core/tap_barrel	:keg :hogshead	Reuses LIB/core/barrel by ref, rolled onto notched cradles; the size knob scales the ref and moves the rest.
+barrel	LIB/core/wash_tub	:small :dry params={"diameter":90}	An open lathe turning down inside its rim; diameter reaches profile radii, hoops and lugs; fill drains it.
 light	LIB/core/brazier	roles={"$light":"#6fd0ff"} seed=5	Coals, flames and light all use $light, so a roles palette recolours the fire; seeds jitter the flames.
 light	LIB/core/candle_cluster	:altar :pair	A radial ring of candles whose count is a knob, round a tall candle whose height is another.
 light	LIB/core/wall_torch	:out :long	Back on the wall at z 0 (wall_mount); a choices knob drops the flame with its light, reach sets the arm.
@@ -21,9 +24,12 @@ light	LIB/core/campfire	:embers :pit roles={"$light":"#9fe870"}	Fork of Quaterni
 crate	LIB/core/crate_stack	:single seed=1	Grouped crates with seeded jitter; a choices knob sets the top crate's chance: by seed, never or always.
 crate	LIB/core/chest	:open :coffer	Fork of Kenney's chest: the lid is a group pivoting at its hinge, so a choices knob swings it open.
 crate	LIB/core/slat_crate	:oranges :empty	Arrayed slats round a produce grid; one choices knob swaps the produce's material and size, or empties it.
+crate	LIB/core/basket	:empty :large	An open wicker lathe under a half-torus handle (arc, axis z); gridded apples on a heap show or empty by choice.
 weapon	LIB/core/sword	:dagger :greatsword	Fork of Kenney's sword: blade extrude points and guard width are knobs; grip socket, +y toward the tip.
 weapon	LIB/core/spear	:javelin :pike	Fork of Kenney's spear: a from/to shaft whose length knob carries collar and head; grip on the shaft.
 weapon	LIB/core/axe	:hatchet :greataxe	An extruded bearded head on a from/to haft; the haft knob moves head, eye and poll together.
+weapon	LIB/core/mage_staff	:walking :ember params={"length":210}	A from/to shaft whose length knob carries collar and crystal; a choices knob recolours the crystal or drops it.
 stall	LIB/core/market_stall	:apples :closed :plain	Arrays with material cycles; choices knobs replace the cycle lists (goods, awning) or empty the crates.
 stall	LIB/core/gable_stall	:shed :narrow	Fork of Quaternius marketstand_1: a striped wedge roof whose peak knob turns gable into shed.
 stall	LIB/core/canopy_stall	:wide :bare roles={"$accent":"#2f6fb0"}	Thin poles under a low wedge canopy in $accent; the width knob spreads poles, table, bolts and valance.
+stall	LIB/core/tent_stall	:small :bare roles={"$accent":"#8c2f2f"}	Radial posts and valance under a cone roof in $accent; one diameter knob spreads roof, posts, counter and goods.

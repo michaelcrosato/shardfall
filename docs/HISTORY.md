@@ -5,6 +5,31 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S2: a fourth foundation per archetype — 2026-10-15
+
+The goal asked for about 4 foundations per archetype; S2 left six of the seven at 3. Each now has
+4 (`store/foundations.tsv`, 28 rows), every one with 2-3 tested transforms and a ≤ 40-token `why`:
+- **New where nothing existed**, published through the loop:
+  - `side_table`: tapered legs; height, width and drawer knobs; :console, :nightstand, :bare.
+  - `log_seat`: an extruded split log with a `sit` socket; S1's campfire agents built one in both
+    arms. Length knob; seeds add branch stubs.
+  - `wash_tub`: an open lathe turning down inside its rim; diameter and fill knobs.
+  - `basket`: a wicker lathe with a half-torus handle and a heap of apples; diameter and goods
+    knobs.
+  - `tent_stall`: a round pavilion, cone roof in `$accent`, radial posts and valance over a ring
+    counter; diameter and goods knobs.
+- **Existing core:** `mage_staff` became the fourth weapon. It gained a length knob and a
+  crystal choice (frost, ember, none), with its default geometry unchanged.
+- **Imports left uncovered are presets of existing foundations**, so none was forked:
+  - Quaternius `marketstand_2` (a lean-to) is `gable_stall:shed`;
+  - its small barrel is `barrel`;
+  - its crate is `crate_stack:single`;
+  - its `bench_2` is `bench`.
+- Names were kept clear of the benchmark's tasks: a work table (P24), a hand cart (P19, E2) and
+  grain sacks (P04) were passed over.
+- LIB/core is 47 assets; the Hall has 51 plinths (regenerated). `assets shelf=prop` is about
+  1,400 tokens (cap 1,500).
+
 ## Asset store S2: proof of concept end to end — 2026-10-15
 
 Stage S2 of `docs/AGENT_ASSET_STORE.md` (§13), built though S1's "no" stands: the user asked for it

@@ -125,9 +125,9 @@ tokens), and 10-30% dearer on the rest, both before and after a discovery fix an
 model. The user then asked for **S2** anyway, and it is done: `size_band` and `socket_missing`
 checks, a missing texture fails an import, five planted defects caught; fork lineage; index
 columns, `store/STORE.tsv` and `store/README.md`; format-2 `params`/`presets`/`NAME:preset`
-(LIB-4); 22 foundations for seven archetypes (`store/foundations.tsv`, LIB/core now 42 assets,
-the Kenney cask fork at standard); the `library_hall` (generated), `limits` and `catalogue`
-rooms. Next would be S3 (critical mass), then S3b (characters).
+(LIB-4); 28 foundations, four for each of seven archetypes (`store/foundations.tsv`, LIB/core
+now 47 assets, the Kenney cask fork at standard); the `library_hall` (generated), `limits` and
+`catalogue` rooms. Next would be S3 (critical mass), then S3b (characters).
 
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,

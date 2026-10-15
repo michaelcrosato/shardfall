@@ -1,0 +1,23 @@
+{"format":2,"name":"basket","unit":"cm",
+"description":"A round wicker market basket with a bail handle, heaped with apples. Knobs: diameter, goods.",
+"tags":["basket","wicker","storage","market","farm","produce"],
+"category":"container",
+"materials":{
+"apple":{"color":"#b8322a"},
+"apple2":{"color":"#d9a033"},
+"heap":{"color":"#7a2a22"},
+"rim":{"color":"#8c6638"},
+"wicker":{"color":"#b48a52"}},
+"parts":{
+"apples":{"type":"sphere","radius":4.6,"pos":[0,22,0],"grid":{"count":[3,3],"step":[9,9],"plane":"xz","cycle":["apple","apple","apple2"]},"chance":1},
+"body":{"type":"lathe","profile":[[0,0.5],[15,0],[21,22],[19.5,23],[14,1.5],[0,1.5]],"segments":16,"mat":"wicker"},
+"handle":{"type":"torus","radius":19.5,"minor_radius":1.1,"arc":180,"pos":[0,22.5,0],"axis":"z","mat":"rim"},
+"heap":{"type":"ellipsoid","size":[37,10,37],"pos":[0,18,0],"mat":"heap","chance":1},
+"rim":{"type":"torus","radius":20.4,"minor_radius":1.4,"pos":[0,22.5,0],"mat":"rim"}},
+"params":{
+"diameter":{"range":[28,70],"set":{"apples.grid.step.0":0.21429,"apples.grid.step.1":0.21429,"body.profile.1.0":0.35714,"body.profile.2.0":0.5,"body.profile.3.0":0.46429,"body.profile.4.0":0.33333,"handle.radius":0.46429,"rim.radius":0.48571}},
+"goods":{"choices":["apples","none"],"set":{"apples.chance":[1,0],"heap.chance":[1,0]}}},
+"presets":{
+"empty":{"goods":"none"},
+"large":{"diameter":64},
+"small":{"diameter":30}}}

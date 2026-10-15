@@ -1,0 +1,21 @@
+{"format":2,"name":"wash_tub","unit":"cm",
+"description":"An open coopered wash tub in two iron hoops, two lug staves, water inside. Knobs: diameter, fill.",
+"tags":["barrel","tub","water","wood","village","laundry"],
+"category":"container",
+"materials":{
+"iron":"MAT/wrought_iron",
+"water":{"color":"#4d7f99","roughness":0.1},
+"wood":{"base":"MAT/barrel_staves","color":"#9a6a40","map":"axis"}},
+"parts":{
+"body":{"type":"lathe","profile":[[0,1],[27,0],[31,42],[29,43],[26,3],[0,3]],"segments":20,"mat":"wood"},
+"hoop_high":{"type":"torus","radius":30.6,"minor_radius":1,"pos":[0,35,0],"mat":"iron"},
+"hoop_low":{"type":"torus","radius":27.9,"minor_radius":1,"pos":[0,7,0],"mat":"iron"},
+"lug":{"type":"box","size":[9,12,3],"pos":[0,46,29.6],"mat":"wood","mirror":"z"},
+"water":{"type":"cylinder","radius":28.3,"height":0.6,"pos":[0,34,0],"mat":"water","chance":1}},
+"params":{
+"diameter":{"range":[40,96],"set":{"body.profile.1.0":0.43548,"body.profile.2.0":0.5,"body.profile.3.0":0.46774,"body.profile.4.0":0.41935,"hoop_high.radius":0.49355,"hoop_low.radius":0.45,"lug.pos.2":0.47742,"water.radius":0.45645}},
+"fill":{"choices":["water","empty"],"set":{"water.chance":[1,0]}}},
+"presets":{
+"dry":{"fill":"empty"},
+"small":{"diameter":44},
+"wide":{"diameter":92}}}
