@@ -481,7 +481,9 @@ errors, normalisation, the `asset_import` tool), `tests/import_fit.rs` (a table 
 and mirrored legs, a vase is a lathe, a blade an extrusion, a noisy blob a mesh part within budget;
 the engine reads every translation back; byte-identical twice; translate, check, compare and
 survey through the tool), `tests/import_library.rs` (packs go to lib/ or local/ by licence
-with their `PACK.json`, credits, index and catalog tags; unknown licences refused) and
+with their `PACK.json`, credits, index and catalog tags; unknown licences refused),
+`tests/planted_defects.rs` (the store's five planted defects, each caught: size_band,
+below_floor, socket_missing, a missing texture failing the import) and
 `tests/import_khronos.rs` (opt-in,
 `-- --ignored`: 12 Khronos sample models at a pinned commit). `pav_core/tests/prop_materials.rs`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,

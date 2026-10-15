@@ -78,6 +78,11 @@ the catalog and translating again) moves its files and keeps the index notes.
 | `exact` | the whole model as one mesh part (`fit=mesh`) at IoU ≥ 0.98 |
 | `fail` | not written; the ledger row says so |
 
+A model whose material names a base texture that is missing, unreadable or not decoded (a
+JPEG, WebP or broken PNG) is not translated: the error names the material and the texture
+(`material wood: texture crate_wood.png: …`), since it would draw white and ΔE would not see it.
+A survey still lists it (flag `undecoded`, or a warning).
+
 A pack goes to `lib/` after a pilot: ≥ 80% `fit`, median IoU ≥ 0.90, median ≤ 2,500 chars,
 ≥ 40% of fit assets editable, no panics, identical bytes on a rebuild (plan §10.3, G5). A pack
 that misses one is kept `local` with the reason in its catalog.
@@ -100,4 +105,5 @@ one model with the image; `fit=prims` (no mesh part) or `fit=mesh` (all mesh) fo
 - One connected mesh painted in several colours (castle walls, most food) becomes one mesh part:
   exact to look at, not editable.
 - Sizes are the pack's own unless the catalog scales it (Food Kit 0.3, Quaternius 3).
-- JPEG textures and FBX-only packs are not read (plan I9).
+- JPEG textures and FBX-only packs are not read (plan I9): a JPEG-textured model fails to
+  translate.

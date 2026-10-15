@@ -62,7 +62,8 @@ fn the_store_finds_shelves_credits_and_refuses() {
     assert_eq!(barrel["cols"], "name cat size_cm tier mesh tok tags desc");
     let first = &barrel["rows"][0];
     assert_eq!((first[0].as_str().unwrap(), first[3].as_str().unwrap()), ("LIB/core/barrel", "standard"), "{barrel}");
-    assert!(barrel["rows"].as_array().unwrap().iter().any(|row| row[3] == "checked"), "{barrel}");
+    let table = call(&mut s, "assets", json!({"find": "table"}));
+    assert!(table["rows"].as_array().unwrap().iter().any(|row| row[3] == "checked"), "{table}");
 
     // kind=clip hands the words to the clips ranker; store rows only.
     let walk = call(&mut s, "assets", json!({"find": "heavy walk", "kind": "clip", "limit": 5}));

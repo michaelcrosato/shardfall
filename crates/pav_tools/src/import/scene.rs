@@ -115,6 +115,9 @@ pub struct Material {
     pub double_sided: bool,
     pub unlit: bool,
     pub base_tex: Option<TexRef>,
+    /// Why the base texture it names cannot be drawn (missing, unreadable or not decoded),
+    /// naming the texture: a translation refuses the model rather than draw it white.
+    pub tex_fault: Option<String>,
 }
 
 impl Default for Material {
@@ -129,6 +132,7 @@ impl Default for Material {
             double_sided: false,
             unlit: false,
             base_tex: None,
+            tex_fault: None,
         }
     }
 }
@@ -139,11 +143,13 @@ impl Default for Material {
 #[derive(Clone, Debug, Default)]
 pub struct Image {
     pub name: String,
-    /// `png`, `jpeg`, `webp`, `ktx2` or `unknown`.
+    /// `png`, `jpeg`, `webp`, `ktx2`, `unknown`, or `missing` when its file could not be read.
     pub kind: String,
     pub w: u32,
     pub h: u32,
     pub rgba: Vec<u8>,
+    /// Why a base colour's image has no pixels: its file could not be read, or it did not decode.
+    pub fault: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]

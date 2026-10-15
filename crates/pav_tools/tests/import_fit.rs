@@ -352,3 +352,67 @@ fn the_tool_translates_checks_compares_and_surveys() {
     let e = tool(&mut s, json!({"survey": pack.join("a/m2.glb").to_str().unwrap()})).unwrap_err();
     assert!(e.to_string().contains("part of testlib/pack1"), "{e}");
 }
+
+/// A cube in one material whose base colour is texture `tex`.
+fn textured_cube(b: &mut MeshBuilder, tex: usize) {
+    let mat = b.material(json!({"name": "painted", "pbrMetallicRoughness": {"baseColorTexture": {"index": tex}}}));
+    let p = b.box_prim([-0.2, 0.0, -0.2], [0.2, 0.4, 0.2], Some(mat));
+    let m = b.mesh(vec![p]);
+    b.node(json!({"name": "crate", "mesh": m}));
+}
+
+/// The error a model's translation fails with.
+fn refused(path: &Path) -> String {
+    let mut s = read_model(path).unwrap();
+    normalize::normalize(&mut s, &Norm::default());
+    let o = Options { pack: "test_fit".into(), name: "crate".into(), ..Default::default() };
+    fit::translate(&s, &o).err().expect("the translation is refused").to_string()
+}
+
+/// A base texture that is missing, unreadable or not decoded fails the translation, naming the
+/// texture, instead of drawing white (docs/AGENT_ASSET_STORE.md §7); reading the model still
+/// works, so a survey lists it.
+#[test]
+fn a_missing_or_undecoded_texture_fails_the_translation() {
+    let dir = temp_dir("fit_textures");
+    let mut b = MeshBuilder::new();
+    b.images.push(json!({"uri": "missing.png"}));
+    b.textures.push(json!({"source": 0}));
+    textured_cube(&mut b, 0);
+    let missing = write(&dir, "missing.gltf", b.gltf_embedded(&[0]));
+    assert!(read_model(&missing).unwrap().info.warnings.iter().any(|w| w.contains("missing.png")));
+    let e = refused(&missing);
+    assert!(e.starts_with("material painted: texture missing.png: ") && e.contains("draw white"), "{e}");
+    for (name, bytes, why) in [
+        ("photo", &[0xff, 0xd8, 0xff, 0xe0, 0, 16][..], "jpeg is not decoded (PNG only)"),
+        ("broken", &b"\x89PNG\r\n\x1a\nnot a png"[..], "png: "),
+    ] {
+        let mut b = MeshBuilder::new();
+        let tex = b.png_texture(bytes, name);
+        textured_cube(&mut b, tex);
+        let e = refused(&write(&dir, &format!("{name}.glb"), b.glb(&[0])));
+        assert!(e.contains(&format!("texture {name}: {why}")), "{e}");
+    }
+    let mut b = MeshBuilder::new();
+    textured_cube(&mut b, 3);
+    b.textures = vec![json!({"source": 0}); 4];
+    let e = refused(&write(&dir, "no_image.glb", b.glb(&[0])));
+    assert!(e.contains("texture image #0: no such image"), "{e}");
+    // An OBJ whose map_Kd names no file.
+    write(&dir, "crate.mtl", "newmtl wood\nKd 1 1 1\nmap_Kd gone.png\n");
+    let (p, _, i) = cuboid([0.0; 3], [0.4; 3]);
+    let mut obj = String::from("mtllib crate.mtl\nusemtl wood\n");
+    obj += &p.iter().map(|v| format!("v {} {} {}\n", v[0], v[1], v[2])).collect::<String>();
+    obj += &i.chunks(3).map(|t| format!("f {} {} {}\n", t[0] + 1, t[1] + 1, t[2] + 1)).collect::<String>();
+    let e = refused(&write(&dir, "crate.obj", obj));
+    assert!(e.contains("material wood: texture gone.png: "), "{e}");
+    // Through the tool: the error, and nothing written. With its texture the model translates.
+    let mut s = Session::new("empty", 1).unwrap();
+    let out = dir.join("out");
+    let e = tool(&mut s, json!({"from": missing.to_str().unwrap(), "out": out.to_str().unwrap()})).unwrap_err().to_string();
+    assert!(e.contains("texture missing.png"), "{e}");
+    assert!(!out.join("missing.json").exists());
+    write(&dir, "missing.png", common::png_rgba(1, 1, &[[200, 120, 40, 255]]));
+    let fixed = tool(&mut s, json!({"from": missing.to_str().unwrap(), "out": out.to_str().unwrap()})).unwrap();
+    assert!(out.join("missing.json").is_file(), "{fixed}");
+}

@@ -1,0 +1,37 @@
+# Real-world size bands and the sockets each archetype needs (docs/AGENT_ASSET_STORE.md §7),
+# read by `asset_edit action=check`: `size_band`, `socket_missing`. An asset's archetype is the
+# last word of its name listed here (`wall_torch`: torch; a plural counts), else its first tag. A
+# name with a group or part word (stack, pile, cluster, rack, lid ...: GROUP in
+# crates/pav_core/src/props/lint.rs) has none, and a word does not count when the asset's
+# category is another kind than `cats` (town and dungeon fit every archetype). Bands are
+# generous: they catch a 32 cm table, not a low one. measure: height (y) or length (the longest
+# side, for held things); wide: the most either side of the footprint may be; socket: what a
+# format-2 asset of the archetype must have. `-`: none.
+archetype	words	cats	measure	min	max	wide	socket
+table	table desk	furniture	height	45	120	-	-
+chair	chair armchair	furniture	height	65	150	-	sit
+stool	stool	furniture	height	25	100	-	sit
+throne	throne	furniture	height	90	350	-	sit
+bench	bench	furniture	height	30	160	-	sit
+seat	seat	furniture	-	-	-	-	sit
+bed	bed cot	furniture	height	20	200	-	-
+chest	chest coffer	container furniture	height	20	130	-	-
+barrel	barrel cask keg	container	height	40	150	100	-
+crate	crate	container	height	15	200	-	-
+sack	sack	container	height	20	150	-	-
+door	door	architecture	height	150	450	-	-
+column	column pillar	architecture	height	80	1500	-	-
+candle	candle	lighting	height	2	80	-	-
+lantern	lantern lamp	lighting	height	10	500	-	-
+torch	torch	lighting	height	20	300	-	-
+sword	sword sabre saber longsword broadsword	weapon	length	40	220	-	grip
+dagger	dagger knife	weapon tool	length	10	60	-	grip
+spear	spear pike lance halberd polearm	weapon	length	100	450	-	grip
+axe	axe hatchet	weapon tool	length	20	200	-	grip
+mace	mace club hammer flail	weapon tool	length	20	200	-	grip
+shield	shield buckler	armour weapon	length	25	200	-	-
+banner	banner flag	signage	height	40	1000	-	-
+stall	stall	architecture	height	150	450	-	-
+well	well	architecture	height	40	600	-	-
+cart	cart wagon	tool	height	50	400	-	-
+fence	fence railing	architecture	height	30	300	-	-

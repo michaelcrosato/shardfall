@@ -4,7 +4,7 @@ LIB/quaternius_medieval_village/bag_open	container	45x31x61	1	118	mesh100	CC0-1.
 LIB/quaternius_medieval_village/bags	container	81x32x72	1	110	mesh100	CC0-1.0 quaternius/medieval_village	disk	bags village			
 LIB/quaternius_medieval_village/barrel	container	47x61x48	11	698	mesh42	CC0-1.0 quaternius/medieval_village	disk	barrel village			
 LIB/quaternius_medieval_village/bell	town	188x220x188	3	301	fit96	CC0-1.0 quaternius/medieval_village	checked	bell brass tower church village			A large brass bell with a hanging loop, about 2.2 m tall, for a bell tower or square.
-LIB/quaternius_medieval_village/bench_1	furniture	200x94x73	10	690	fit92	CC0-1.0 quaternius/medieval_village	checked	bench seat wood park village			A long wooden bench with a slatted seat and backrest, 2 m wide.
+LIB/quaternius_medieval_village/bench_1	furniture	200x94x73	10	690	fit92	CC0-1.0 quaternius/medieval_village	disk	bench seat wood park village			A long wooden bench with a slatted seat and backrest, 2 m wide.
 LIB/quaternius_medieval_village/bench_2	furniture	200x56x66	10	600	fit92	CC0-1.0 quaternius/medieval_village	disk	bench village			
 LIB/quaternius_medieval_village/bonfire	lighting	122x34x109	14	593	mesh31	CC0-1.0 quaternius/medieval_village	disk	bonfire village			
 LIB/quaternius_medieval_village/bonfire_lit	lighting	122x106x109	15	639	mesh43	CC0-1.0 quaternius/medieval_village	disk	bonfire lit village			
