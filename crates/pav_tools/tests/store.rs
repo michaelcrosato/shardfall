@@ -123,5 +123,31 @@ fn the_store_finds_shelves_credits_and_refuses() {
         // Sets on disk are listed as a range; every embedded one by name.
         assert!(source.where_ != "embedded" || text.contains(&format!("- {} (embedded)", source.what)), "{}", source.what);
     }
+
+    // STORE.tsv is current (S2): one row per entry of each kind, each with an admitted licence,
+    // none from a local tier, standard holding only CC0 and own work, about 50 tokens a row.
+    let table = asset_library::store_table(&root).unwrap();
+    let committed = std::fs::read_to_string(repo().join("store/STORE.tsv")).unwrap();
+    assert_eq!(table, committed, "store/STORE.tsv is stale: run `pav assets reindex=store`");
+    let mut lines = table.lines().filter(|line| !line.starts_with('#'));
+    assert_eq!(lines.next(), Some(asset_library::STORE_HEADER));
+    let mut kinds = std::collections::BTreeMap::new();
+    for line in lines {
+        let cells: Vec<&str> = line.split('\t').collect();
+        let [id, kind, tier, licence, ..] = cells[..] else { panic!("{line}") };
+        assert_eq!(cells.len(), 10, "{line}");
+        assert!(pav_core::store::admitted(licence, kind).is_ok() && !pav_core::store::local_path(id), "{line}");
+        assert!(tier != "standard" || licence == "CC0-1.0", "standard is CC0 and own work: {line}");
+        assert!(line.len() <= asset_library::STORE_ROW_BYTES, "{line}");
+        *kinds.entry(kind.to_owned()).or_insert(0) += 1;
+    }
+    assert!(kinds["prop"] >= 90 && kinds["clip"] >= 400 && kinds["material"] == 15, "{kinds:?}");
+    let shares = table.lines().nth(1).unwrap();
+    assert!(["prop", "clip", "material"].iter().all(|kind| shares.contains(&format!("{kind} "))), "{shares}");
+    assert!(shares.contains("% imported"), "the header reports each kind's imported share: {shares}");
+
+    // The store's README stays within its budget (§12: 1,500 tokens).
+    let readme = std::fs::read_to_string(repo().join("store/README.md")).unwrap();
+    assert!(index::tokens(readme.len()) <= 1_500, "store/README.md: {} tokens", index::tokens(readme.len()));
     std::fs::remove_dir_all(&scratch).unwrap();
 }

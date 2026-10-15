@@ -88,7 +88,10 @@ needs grip, a seat (chair, stool, bench, throne) sit. A hang socket hangs the ob
 wall_mount puts its back (z 0) on the wall. Sheets also take views=[front,top,30], elevation= and tile=.
 `asset_spawn action=add name=x pos=[x,y,z]` places a copy in the world. Saves go to
 assets/props/workshop/name.json; a metre template's copy is in metres: send
-{"op":"unit","to":"cm"} before centimetres.
+{"op":"unit","to":"cm"} before centimetres. `copy from=X` writes the fork's lineage:
+`"lineage":{"method":"edited","origin":"import","parents":["X@rev"],"license":"CC0-1.0","credit":"…"}`,
+with X's origin (`import` for an import, `agent` for own work), licence and credit; edits and
+publish keep it, a patch cannot set it, and a copy of a format-1 template stays format 1 without one.
 
 ## Names and tiers
 

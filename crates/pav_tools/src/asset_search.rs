@@ -168,7 +168,7 @@ fn mesh(row: &Row) -> u32 {
 }
 
 /// `text` cut at a word to at most `max` bytes, with … when cut.
-fn cut(text: &str, max: usize) -> String {
+pub(crate) fn cut(text: &str, max: usize) -> String {
     if text.len() <= max {
         return text.into();
     }
@@ -244,7 +244,7 @@ pub fn build_index(root: &Path, folder: &Path, set: &str, old: &[Row]) -> Result
     if !local {
         // A store row must carry an admitted licence (§14 Q2); local packs are not store rows.
         for row in &rows {
-            if let Err(error) = rules::admitted(&row.src, "prop") {
+            if let Err(error) = rules::admitted(&row.src, "prop").and(rules::admitted(&row.licence, "prop")) {
                 bail!("{}: refused: {error}", row.name);
             }
         }
@@ -562,6 +562,8 @@ mod tests {
             tok,
             fid: "authored".into(),
             src: "own".into(),
+            licence: "CC0-1.0".into(),
+            method: "authored".into(),
             level: if name.starts_with("WORKSHOP/") { "workshop".into() } else { "standard".into() },
             tags: tags.split_whitespace().map(String::from).collect(),
             sockets: Vec::new(),
@@ -678,6 +680,9 @@ mod tests {
         assert_eq!(names(&ranked(rows.clone(), &local)), ["LIB/searchlocal/stake"]);
         assert_eq!(listing_row(&rows[1])[6], "wood fence @top");
         assert_eq!(rows[1].level, "checked", "a lint-clean, described, tagged editable row");
+        assert_eq!((rows[1].licence.as_str(), rows[1].method.as_str()), ("CC0-1.0", "authored"), "own work");
+        let text = std::fs::read_to_string(root.join("lib/searchpack/index.tsv")).unwrap();
+        assert!(text.contains("\town\tprop\tCC0-1.0\tauthored\tchecked\t"), "{text}");
         assert!(reindex(&root, "core").is_err(), "no lib/core under this root");
         let credits = std::fs::read_to_string(root.join("CREDITS.md")).unwrap();
         assert!(credits.contains("## LIB/searchpack: Stakes") && !credits.contains("searchlocal"), "{credits}");

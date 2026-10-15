@@ -8,6 +8,9 @@ use std::sync::OnceLock;
 const LICENCES: &str = include_str!("../../../store/licences.tsv");
 const SYNONYMS: &str = include_str!("../../../store/synonyms.tsv");
 
+/// The credit line of own work (`assets/props/lib/core/PACK.json`'s, which a test holds equal).
+pub const OWN_CREDIT: &str = "Shardfall contributors (own work)";
+
 /// One admitted licence (a row of `store/licences.tsv`).
 #[derive(Debug)]
 pub struct Licence {

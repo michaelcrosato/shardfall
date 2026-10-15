@@ -424,6 +424,17 @@ impl Doc {
         if let Some(category) = self.category {
             section("category", quoted(category.name()));
         }
+        if let Some(l) = &self.lineage {
+            let mut f = Fields::default();
+            f.add("method", quoted(l.method.name()));
+            f.add("origin", quoted(l.origin.name()));
+            if !l.parents.is_empty() {
+                f.add("parents", strings(&l.parents));
+            }
+            f.opt("license", l.license.as_ref(), |v| quoted(v));
+            f.opt("credit", l.credit.as_ref(), |v| quoted(v));
+            section("lineage", f.object());
+        }
         if let Some(s) = &self.source {
             let mut f = Fields::default();
             for (key, value) in [

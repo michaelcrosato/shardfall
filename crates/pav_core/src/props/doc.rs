@@ -136,6 +136,17 @@ names! {
 }
 
 names! {
+    /// How an asset was made (docs/AGENT_ASSET_STORE.md §5).
+    Method { Authored => "authored", Generated => "generated", Imported => "imported", Edited => "edited" }
+}
+
+names! {
+    /// Where an asset's line starts (docs/AGENT_ASSET_STORE.md §5): forks inherit it, and the
+    /// phase-out counts it (§13 S6).
+    Origin { Import => "import", Agent => "agent", Human => "human", Generator => "generator" }
+}
+
+names! {
     /// Socket names: where other things attach. +y is the socket's working direction.
     SocketName {
         Grip => "grip",
@@ -206,6 +217,7 @@ pub struct Doc {
     pub description: String,
     pub tags: Vec<String>,
     pub category: Option<Category>,
+    pub lineage: Option<Lineage>,
     pub source: Option<Source>,
     pub fit: Option<Fit>,
     pub materials: BTreeMap<String, MaterialEntry>,
@@ -514,6 +526,21 @@ pub struct Source {
     pub norm: Option<String>,
 }
 
+/// What an asset was made from (docs/AGENT_ASSET_STORE.md §5, §9): `asset_edit action=copy`
+/// writes it, and patches, `replace` and `publish` keep it. A document without one is an import
+/// when it has a `source`, else own work (`Doc::provenance`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Lineage {
+    pub method: Method,
+    pub origin: Origin,
+    /// The assets it was made from, each `name@revision`.
+    pub parents: Vec<String>,
+    /// An SPDX identifier, inherited from the parents.
+    pub license: Option<String>,
+    /// The credit line every copy carries, inherited from the parents.
+    pub credit: Option<String>,
+}
+
 /// How closely a translated asset fits its source (written by tools).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Fit {
@@ -587,6 +614,7 @@ impl Doc {
             description: asset.description.clone(),
             tags: Vec::new(),
             category: None,
+            lineage: None,
             source: None,
             fit: None,
             materials: BTreeMap::new(),
@@ -610,6 +638,7 @@ impl Doc {
             ("solid", self.surface.solid.is_some()),
             ("tags", !self.tags.is_empty()),
             ("category", self.category.is_some()),
+            ("lineage", self.lineage.is_some()),
             ("source", self.source.is_some()),
             ("fit", self.fit.is_some()),
             ("materials", !self.materials.is_empty()),
@@ -668,6 +697,32 @@ impl Doc {
             }
         }
         None
+    }
+
+    /// Its lineage: the one written, else what the document says by itself. An import (it has
+    /// a `source`) is `imported`, origin `import`, under its source's licence and author; own
+    /// work is `authored` by an `agent` (every asset here was made by agents through the tools;
+    /// a person's work says `human` in a written lineage), CC0-1.0 (§14 Q1).
+    pub fn provenance(&self) -> Lineage {
+        if let Some(lineage) = &self.lineage {
+            return lineage.clone();
+        }
+        match &self.source {
+            Some(source) => Lineage {
+                method: Method::Imported,
+                origin: Origin::Import,
+                parents: Vec::new(),
+                license: source.license.clone(),
+                credit: source.author.clone(),
+            },
+            None => Lineage {
+                method: Method::Authored,
+                origin: Origin::Agent,
+                parents: Vec::new(),
+                license: Some("CC0-1.0".into()),
+                credit: Some(crate::store::OWN_CREDIT.into()),
+            },
+        }
     }
 
     pub fn needed_format(&self) -> u32 {
