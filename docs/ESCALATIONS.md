@@ -6,6 +6,16 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-15 — S2 built despite S1's "no" (the user's call)
+- **Question:** S1's "no" was final, and under the store design (§13) and the goal nothing after
+  S0 is built. The goal's stop hook kept asking for S2, so the agent asked the user: build S2
+  anyway, or stop?
+- **Decided by:** the user, in chat: build S2 anyway ("There is a good reason. I'll explain
+  later."), and take it to completion overnight.
+- **Call:** S2's whole §13 row is built, with format-2 `params` (LIB-4) and the foundations the goal
+  names. S1's measurement stands as recorded; S2 doesn't re-test it.
+- **PR:** S2's PR.
+
 ## 2026-10-15 — S1's model-2 rerun: spend past the approval, or stay inside it
 - **Question:** the user approved 6M tokens for S1's 12 runs plus one same-size rerun. Round 1
   read 1.0M. The rerun as specified (a general-purpose agent with model 2 and the author file's
