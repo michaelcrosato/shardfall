@@ -600,8 +600,11 @@ with it, the Shardfall arm through `pixel_art` or `Look::Cutout`, a both-orders 
 arm waits for the owner's own approval comment on riftlight #49 (an agent never posts or links
 one).
 
-**Siblings.** `add_repo` (ai-hub, my-3danimations read; my-3dge, riftlight push), clone where it
-says, `register_repo_root`, `repo-setup <path>`. The old clones in `/home/user/michaelcrosato/` have
+**Siblings.** Attach and clone each only when a stage needs it, never all up front (the user,
+2026-10-15: they are separate projects, and a clone costs disk; ai-hub alone is 3.1 GB): ai-hub
+(read) only to count games that arrived for S3; my-3danimations (read) for S3b; my-3dge (push)
+for S4; riftlight (push) for S5. Then `add_repo`, clone where it says, `register_repo_root`,
+`repo-setup <path>`, and delete the clone when the stage is done. The old clones in `/home/user/michaelcrosato/` have
 no credentials: read only; a failed push there is no refusal. my-3dge: merge once `x ci --local` is
 green; a new dependency escalates via `node x esc`. riftlight: a pushed `claude/*` branch merges at
 once, so push only a finished step with `scripts/check.sh` green (or label the PR `hold`). A
