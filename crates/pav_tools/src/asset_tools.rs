@@ -524,10 +524,12 @@ impl Cost {
     }
 }
 
-/// The lint (with the compile warnings) plus the budget findings that need the renderer's
-/// meshes.
-fn findings(compiled: &CompiledProp, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
+/// The lint (with the compile warnings), the store's archetype checks (size band, sockets) and
+/// the budget findings that need the renderer's meshes.
+fn findings(def: &PropDef, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
+    let compiled = &def.compiled;
     let mut found = lint::lint(compiled, &lint::Options { target_cm: target });
+    found.extend(lint::archetype(def));
     let cost = Cost::of(compiled);
     let mut over = |code: &'static str, fact: String| found.push(Finding { code, ids: vec![], line: format!("{code}: {fact}") });
     if cost.triangles > 20_000 {
@@ -545,17 +547,17 @@ fn findings(compiled: &CompiledProp, target: Option<[Option<f32>; 3]>) -> (Vec<F
     (found, cost)
 }
 
-/// Findings of `after` that `before` did not have: what an edit introduced.
-/// `check`'s findings for `def` (lint and cost budgets), as `check` lists them.
+/// `check`'s findings for `def` (lint, archetype and cost budgets), as `check` lists them.
 pub fn check_lines(def: &PropDef) -> Vec<String> {
-    lint::lines(&findings(&def.compiled, None).0)
+    lint::lines(&findings(def, None).0)
 }
 
+/// Findings of `after` that `before` did not have: what an edit introduced.
 fn new_findings(before: Option<&PropDef>, after: Option<&PropDef>) -> Vec<String> {
     let Some(after) = after else { return Vec::new() };
     let old: BTreeSet<String> =
-        before.map(|before| findings(&before.compiled, None).0.iter().map(Finding::key).collect()).unwrap_or_default();
-    let new: Vec<Finding> = findings(&after.compiled, None).0.into_iter().filter(|f| !old.contains(&f.key())).collect();
+        before.map(|before| findings(before, None).0.iter().map(Finding::key).collect()).unwrap_or_default();
+    let new: Vec<Finding> = findings(after, None).0.into_iter().filter(|f| !old.contains(&f.key())).collect();
     lint::lines(&new)
 }
 
@@ -617,7 +619,7 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
     }
     if action == "check" {
         let def = read_asset(root, &name)?.ok_or_else(|| anyhow!("no asset '{name}'; assets find=WORDS searches the library"))?;
-        let (found, cost) = findings(&def.compiled, target_arg(a)?);
+        let (found, cost) = findings(&def, target_arg(a)?);
         let mut result =
             json!({"name": name, "revision": def.revision, "size_cm": def.bounds(1.0).size_cm(), "cost": cost.line()});
         if !found.is_empty() {

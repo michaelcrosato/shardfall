@@ -544,6 +544,7 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
             _ => Alpha::Opaque,
         };
         let bt = &pbr["baseColorTexture"];
+        let mut tex_fault = None;
         let base_tex = match bt["index"].as_u64() {
             Some(t) => {
                 let tex = textures.get(t as usize).ok_or_else(|| anyhow!("material {mi}: texture {t} does not exist"))?;
@@ -564,6 +565,7 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
                         info.warnings.push(format!(
                             "material {mi}: its base texture has no PNG or JPEG source (an extension's format): colour factors only"
                         ));
+                        tex_fault = Some(format!("#{t}: no PNG or JPEG source (an extension's format)"));
                         None
                     }
                 }
@@ -580,6 +582,7 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
             double_sided: m["doubleSided"].as_bool().unwrap_or(false),
             unlit: m["extensions"].get("KHR_materials_unlit").is_some(),
             base_tex,
+            tex_fault,
         });
     }
     let img_list = j["images"].as_array().cloned().unwrap_or_default();
@@ -604,14 +607,22 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
             Ok(b) => images.push(image::read(&name, &b, base_images.contains(&ii), &mut info.warnings)),
             Err(e) => {
                 info.warnings.push(format!("image {name}: {e}"));
-                images.push(Image { name, kind: "missing".into(), ..Image::default() });
+                images.push(Image { name, kind: "missing".into(), fault: Some(format!("{e:#}")), ..Image::default() });
             }
         }
     }
     for m in &mut materials {
-        if m.base_tex.is_some_and(|t| t.image >= images.len()) {
-            info.warnings.push(format!("material {}: its base texture names a missing image", m.name));
-            m.base_tex = None;
+        let Some(t) = m.base_tex else { continue };
+        match images.get(t.image) {
+            None => {
+                info.warnings.push(format!("material {}: its base texture names a missing image", m.name));
+                m.tex_fault = Some(format!("image #{}: no such image in the file", t.image));
+                m.base_tex = None;
+            }
+            Some(img) if img.rgba.is_empty() => {
+                m.tex_fault = Some(format!("{}: {}", img.name, img.fault.as_deref().unwrap_or("not decoded")));
+            }
+            Some(_) => {}
         }
     }
 

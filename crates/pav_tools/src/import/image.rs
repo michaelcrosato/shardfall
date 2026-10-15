@@ -78,23 +78,28 @@ pub fn decode_png(b: &[u8]) -> Result<(u32, u32, Vec<u8>)> {
 }
 
 /// An image read from its bytes: decoded when `decode` (PNG within the size limit), else only
-/// its kind and size. Why it was not decoded goes to `warnings`.
+/// its kind and size. Why it was not decoded goes to `warnings` and the image's `fault`.
 pub fn read(name: &str, b: &[u8], decode: bool, warnings: &mut Vec<String>) -> Image {
     let kind = kind_of(b).to_string();
     let (w, h) = size_of(b).unwrap_or((0, 0));
-    let mut img = Image { name: name.to_string(), kind, w, h, rgba: Vec::new() };
+    let mut img = Image { name: name.to_string(), kind, w, h, ..Image::default() };
     if !decode {
         return img;
     }
     if img.kind != "png" {
-        warnings.push(format!("image {name}: {} is not decoded (PNG only): its material uses its colour factors", img.kind));
+        let why = format!("{} is not decoded (PNG only)", img.kind);
+        warnings.push(format!("image {name}: {why}: its material uses its colour factors"));
+        img.fault = Some(why);
         return img;
     }
     match decode_png(b) {
         Ok((w, h, rgba)) => {
             (img.w, img.h, img.rgba) = (w, h, rgba);
         }
-        Err(e) => warnings.push(format!("image {name}: {e}: its material uses its colour factors")),
+        Err(e) => {
+            warnings.push(format!("image {name}: {e}: its material uses its colour factors"));
+            img.fault = Some(e.to_string());
+        }
     }
     img
 }

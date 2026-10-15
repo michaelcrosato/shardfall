@@ -290,6 +290,12 @@ pub fn see_through(s: &Scene) -> f64 {
 
 /// Translates a normalised scene.
 pub fn translate(s: &Scene, o: &Options) -> Result<Translation> {
+    // A texture it cannot draw would render white, and the compare image (drawn from the same
+    // scene) would not show it: refuse the model instead.
+    let mut used = s.meshes.iter().filter_map(|m| m.material).filter_map(|i| s.materials.get(i));
+    if let Some((m, fault)) = used.find_map(|m| m.tex_fault.as_ref().map(|fault| (m, fault))) {
+        bail!("material {}: texture {fault}; a textured model translates only with its textures (it would draw white)", m.name);
+    }
     let source = raster::scene_tris(s);
     if source.is_empty() {
         bail!("the model has no triangles");

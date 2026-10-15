@@ -1,6 +1,6 @@
 name	cat	size_cm	parts	tok	fid	src	tier	tags	sockets	note	desc
 LIB/kenney_mini_dungeon/banner	signage	132x142x22	1	106	mesh100	CC0-1.0 kenney/mini_dungeon	disk	banner dungeon			
-LIB/kenney_mini_dungeon/barrel	container	115x104x115	3	310	fit98	CC0-1.0 kenney/mini_dungeon	checked	barrel cask keg wood storage			A squat wooden barrel banded in metal, wider than tall: chunky low-poly dungeon storage.
+LIB/kenney_mini_dungeon/barrel	container	115x104x115	3	310	fit98	CC0-1.0 kenney/mini_dungeon	disk	barrel cask keg wood storage			A squat wooden barrel banded in metal, wider than tall: chunky low-poly dungeon storage.
 LIB/kenney_mini_dungeon/chair	furniture	76x105x82	6	235	mesh49	CC0-1.0 kenney/mini_dungeon	disk	chair dungeon			
 LIB/kenney_mini_dungeon/chest	container	110x99x110	2	206	mesh43	CC0-1.0 kenney/mini_dungeon	disk	chest dungeon			
 LIB/kenney_mini_dungeon/coin	dungeon	92x92x37	1	202	fit98	CC0-1.0 kenney/mini_dungeon	checked	coin gold treasure money loot			An oversized gold coin standing on its edge: a treasure or pickup marker.
@@ -23,7 +23,7 @@ LIB/kenney_mini_dungeon/wall	architecture	221x242x221	5	292	mesh94	CC0-1.0 kenne
 LIB/kenney_mini_dungeon/wall-half	architecture	220x220x221	7	305	mesh91	CC0-1.0 kenney/mini_dungeon	disk	wall half dungeon			
 LIB/kenney_mini_dungeon/wall-narrow	architecture	220x220x222	8	313	mesh86	CC0-1.0 kenney/mini_dungeon	disk	wall narrow dungeon			
 LIB/kenney_mini_dungeon/wall-opening	architecture	220x220x231	6	255	mesh99	CC0-1.0 kenney/mini_dungeon	disk	wall opening dungeon			
-LIB/kenney_mini_dungeon/weapon-spear	weapon	32x132x26	3	317	fit91	CC0-1.0 kenney/mini_dungeon	checked	spear polearm pike lance dungeon			A short spear standing upright: a wooden shaft and a chunky metal head, 1.3 m.
+LIB/kenney_mini_dungeon/weapon-spear	weapon	32x132x26	3	317	fit91	CC0-1.0 kenney/mini_dungeon	disk	spear polearm pike lance dungeon			A short spear standing upright: a wooden shaft and a chunky metal head, 1.3 m.
 LIB/kenney_mini_dungeon/weapon-sword	weapon	52x99x24	3	316	fit91	CC0-1.0 kenney/mini_dungeon	disk	sword dungeon			
 LIB/kenney_mini_dungeon/wood-structure	architecture	240x220x240	17	515	mesh7	CC0-1.0 kenney/mini_dungeon	checked	scaffold frame timber beams wood			A square timber frame: four posts joined by beams at the top, like a mine support.
 LIB/kenney_mini_dungeon/wood-support	architecture	240x220x52	7	381	mesh5	CC0-1.0 kenney/mini_dungeon	checked	beam timber support doorway wood			A wooden post-and-lintel frame, two posts and a crossbeam: a mine or tunnel support.

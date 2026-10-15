@@ -80,9 +80,12 @@ action=inspect returns the document (resolved=true: every part after copies).
 ## Check and the rest
 
 `asset_edit action=check name=x [target=WxHxD]` (cm) lists all findings and a cost line. Faults:
-floating, below_floor, not_grounded, unit_suspect, size; judge on the sheet: poke, hidden,
-z_fight, mirror, tiny. A hang socket hangs the object from it; wall_mount puts its back (z 0) on
-the wall. Sheets also take views=[front,top,30], elevation= and tile=.
+floating, below_floor, not_grounded, unit_suspect, size, size_band, socket_missing; judge on the
+sheet: poke, hidden, z_fight, mirror, tiny. size_band: an object of a known archetype (the last
+word of its name in store/size_bands.tsv, else its first tag: table, chair, barrel, sword …) far
+outside its real size, e.g. a 32 cm table; the line gives a scale op. socket_missing: a weapon
+needs grip, a seat (chair, stool, bench, throne) sit. A hang socket hangs the object from it;
+wall_mount puts its back (z 0) on the wall. Sheets also take views=[front,top,30], elevation= and tile=.
 `asset_spawn action=add name=x pos=[x,y,z]` places a copy in the world. Saves go to
 assets/props/workshop/name.json; a metre template's copy is in metres: send
 {"op":"unit","to":"cm"} before centimetres.

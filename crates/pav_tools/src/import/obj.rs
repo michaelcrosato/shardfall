@@ -119,6 +119,7 @@ pub fn scene(path: &Path) -> Result<Scene> {
         let kd = m.diffuse.unwrap_or([0.8, 0.8, 0.8]);
         let ke = m.unknown_param.get("Ke").map(|v| floats(v)).filter(|v| v.len() >= 3).map_or([0.0; 3], |v| [v[0], v[1], v[2]]);
         let map = m.diffuse_texture.as_deref().and_then(tex_map);
+        let mut tex_fault = None;
         let base_tex = match &map {
             Some(map) => {
                 let name = map.file.as_str();
@@ -134,14 +135,19 @@ pub fn scene(path: &Path) -> Result<Scene> {
                         }
                         Some(Err(e)) => {
                             info.warnings.push(format!("material {}: texture {e}: colour factor only", m.name));
+                            tex_fault = Some(format!("{name}: {e}"));
                             None
                         }
                         None => {
                             info.warnings.push(format!("material {}: texture {name} is outside the model's folder", m.name));
+                            tex_fault = Some(format!("{name}: outside the model's folder"));
                             None
                         }
                     },
                 };
+                if let Some(img) = at.map(|i| &images[i]).filter(|img| img.rgba.is_empty()) {
+                    tex_fault = Some(format!("{name}: {}", img.fault.as_deref().unwrap_or("not decoded")));
+                }
                 // The options act on OBJ's v-up coordinates (u·s + o); ours run v down.
                 let ([su, sv, _], [ou, ov, _]) = (map.scale, map.offset);
                 let xform = [su, 0.0, ou, 0.0, sv, 1.0 - sv - ov];
@@ -160,6 +166,7 @@ pub fn scene(path: &Path) -> Result<Scene> {
             double_sided: false,
             unlit: false,
             base_tex,
+            tex_fault,
         });
     }
 

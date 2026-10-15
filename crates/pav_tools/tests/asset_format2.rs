@@ -24,7 +24,8 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     let stool = json!({"format":2,"unit":"cm","materials":{"wood":{"color":"#8a5a35"}},"parts":{
         "seat":{"type":"cylinder","radius":18,"height":4,"pos":[0,45,0],"mat":"wood"},
         "leg":{"type":"cylinder","radius":2,"from":[0,0,0],"to":[0,43,0],"mat":"wood","radial":{"count":3,"radius":12}},
-        "ring":{"type":"tube","radius":13,"thickness":1.5,"height":2,"pos":[0,15,0],"mat":"wood"}}});
+        "ring":{"type":"tube","radius":13,"thickness":1.5,"height":2,"pos":[0,15,0],"mat":"wood"}},
+        "sockets":{"sit":{"pos":[0,47,0]}}});
 
     // A dry run predicts the save and writes nothing.
     let dry = edit(&mut s, json!({"action":"create","name":"stool","asset":stool,"preview":false,"dry_run":true})).unwrap();

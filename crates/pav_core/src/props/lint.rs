@@ -3,14 +3,15 @@
 //! by their bounding box, contained exactly; generated shapes by their local box); an
 //! axis-aligned sweep finds candidate pairs and a 15-axis separating-axis test measures their
 //! gap. Thresholds are the ones tuned on the templates and the dogfood assets
-//! (docs/ASSET_SYSTEM_PLAN.md §7.3).
+//! (docs/ASSET_SYSTEM_PLAN.md §7.3). `archetype` adds the store's checks on what the asset is
+//! (its name, tags and category): its size band and the socket its kind needs.
 
 use std::collections::BTreeMap;
 
 use glam::Vec3;
 
 use super::geom::Primitive;
-use super::{CompiledProp, ResolvedPart};
+use super::{CompiledProp, PropDef, ResolvedPart};
 use crate::shape::Look;
 
 /// Parts closer than this count as touching (floating, floor contact).
@@ -486,6 +487,133 @@ pub fn lines(findings: &[Finding]) -> Vec<String> {
     lines
 }
 
+const BANDS: &str = include_str!("../../../../store/size_bands.tsv");
+
+/// Name words that make an asset a group or a part of a thing, which no band fits.
+const GROUP: &str = "stack pile heap cluster set group row pair bundle rack stand holder display collection lid leg \
+                     handle piece fragment";
+
+/// Categories that say where an asset belongs rather than what it is: every archetype fits.
+const SETTINGS: &[&str] = &["town", "dungeon"];
+
+/// One archetype of `store/size_bands.tsv`.
+#[derive(Debug)]
+pub struct Band {
+    pub archetype: &'static str,
+    pub words: Vec<&'static str>,
+    pub cats: Vec<&'static str>,
+    /// `height` (y) or `length` (the longest side), and its range in cm.
+    pub measure: Option<(&'static str, f32, f32)>,
+    /// The most either side of the footprint may be, in cm.
+    pub wide: Option<f32>,
+    /// The socket a format-2 asset of this archetype needs.
+    pub socket: Option<&'static str>,
+}
+
+/// The rows of `store/size_bands.tsv`.
+pub fn bands() -> &'static [Band] {
+    static ROWS: std::sync::OnceLock<Vec<Band>> = std::sync::OnceLock::new();
+    ROWS.get_or_init(|| {
+        let cell = |text: &'static str| (text != "-").then_some(text);
+        let cm = |text: &'static str| {
+            cell(text).map(|t| t.parse::<f32>().unwrap_or_else(|_| panic!("store/size_bands.tsv: {t} is not a number")))
+        };
+        BANDS
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("archetype\t"))
+            .map(|line| {
+                let cells: Vec<&'static str> = line.split('\t').collect();
+                let [archetype, words, cats, measure, min, max, wide, socket] = cells[..] else {
+                    panic!("store/size_bands.tsv: {line}")
+                };
+                let measure = cell(measure).map(|m| {
+                    let range = cm(min).zip(cm(max)).unwrap_or_else(|| panic!("store/size_bands.tsv: {archetype} has no range"));
+                    (m, range.0, range.1)
+                });
+                Band {
+                    archetype,
+                    words: words.split(' ').collect(),
+                    cats: cats.split(' ').collect(),
+                    measure,
+                    wide: cm(wide),
+                    socket: cell(socket),
+                }
+            })
+            .collect()
+    })
+}
+
+/// The archetype an asset's name names (its last listed word), else its first tag, unless the
+/// name has a group or part word or the asset's category is another kind.
+pub fn band_of(name: &str, tags: &[String], category: Option<&str>) -> Option<&'static Band> {
+    let fits = |band: &&Band| category.is_none_or(|c| SETTINGS.contains(&c) || band.cats.contains(&c));
+    let find = |word: &str| {
+        let word = word.to_lowercase();
+        let forms = [Some(word.as_str()), word.strip_suffix('s'), word.strip_suffix("es")];
+        forms.into_iter().flatten().find_map(|w| bands().iter().find(|band| band.words.contains(&w))).filter(fits)
+    };
+    let leaf = name.rsplit('/').next().unwrap_or(name).to_lowercase();
+    let words: Vec<&str> = leaf.split(|c: char| !c.is_ascii_alphabetic()).filter(|w| !w.is_empty()).collect();
+    if words.iter().any(|w| GROUP.split_whitespace().any(|g| g == *w)) {
+        return None;
+    }
+    words.iter().rev().find_map(|w| find(w)).or_else(|| tags.first().and_then(|tag| find(tag)))
+}
+
+/// The store's checks on what an asset is (docs/AGENT_ASSET_STORE.md §7): its size against its
+/// archetype's real-world band (`size_band`) and the socket its kind needs (`socket_missing`;
+/// format 2 only, since format 1 has no sockets).
+pub fn archetype(def: &PropDef) -> Vec<Finding> {
+    let doc = &def.doc;
+    let Some(band) = band_of(&doc.name, &doc.tags, doc.category.map(|c| c.name())) else { return Vec::new() };
+    let size = def.compiled.bounds.size() * 100.0;
+    let mut out = Vec::new();
+    if size.max_element() <= 0.0 {
+        return out;
+    }
+    let what = band.archetype;
+    let round = |by: f32| (by * 100.0).round() / 100.0;
+    let mut push = |code: &'static str, line: String| out.push(Finding { code, ids: vec![], line: format!("{code}: {line}") });
+    if let Some((measure, min, max)) = band.measure {
+        let (value, dim) = if measure == "length" { (size.max_element(), "long") } else { (size.y, "tall") };
+        if value < min || value > max {
+            let by = round((min * max).sqrt() / value);
+            push(
+                "size_band",
+                format!(
+                    "a {what} {} cm {dim} (band {min}-{max} cm); scale it, e.g. {{\"op\":\"scale\",\"by\":{by}}}",
+                    cm(value / 100.0)
+                ),
+            );
+        }
+    }
+    let footprint = size.x.max(size.z);
+    if let Some(wide) = band.wide
+        && footprint > wide
+    {
+        let by = round(0.9 * wide / footprint);
+        push(
+            "size_band",
+            format!(
+                "a {what} {} cm wide (at most {wide} cm); scale it, e.g. {{\"op\":\"scale\",\"by\":{by}}}",
+                cm(footprint / 100.0)
+            ),
+        );
+    }
+    if let Some(socket) = band.socket
+        && def.v1.is_none()
+        && !def.compiled.sockets.contains_key(socket)
+    {
+        let hint = match socket {
+            "grip" => "grip on the handle, +y along the blade or shaft",
+            "sit" => "sit on the seat top, +y up",
+            other => other,
+        };
+        push("socket_missing", format!("a {what} needs a {socket} socket (sockets: {hint})"));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -556,6 +684,25 @@ mod tests {
         assert!(text.contains(&"hidden: core is inside seat"), "{text:?}");
         assert!(text.contains(&"poke: peg pokes 2 cm out of seat"), "{text:?}");
         assert!(text.contains(&"z_fight: inlay and seat share a face (y=89 cm)"), "{text:?}");
+    }
+
+    #[test]
+    fn archetypes_come_from_the_name_then_the_first_tag() {
+        let band = |name: &str, tags: &[&str], category: Option<&str>| {
+            band_of(name, &tags.iter().map(|t| t.to_string()).collect::<Vec<_>>(), category).map(|band| band.archetype)
+        };
+        assert_eq!(band("LIB/core/wall_torch", &["torch", "light"], Some("lighting")), Some("torch"));
+        assert_eq!(band("weapon-sword", &[], Some("weapon")), Some("sword"));
+        assert_eq!(band("table_lamp", &[], None), Some("lantern"), "the last listed word");
+        assert_eq!(band("prop_7", &["benches", "wood"], None), Some("bench"), "a plural first tag");
+        assert_eq!(band("candle_cluster", &["candle"], Some("lighting")), None, "a group");
+        assert_eq!(band("altar", &["altar", "candle"], Some("dungeon")), None, "only the first tag");
+        assert_eq!(band("sword", &[], Some("furniture")), None, "another kind of thing");
+        assert_eq!(band("market_stall", &[], Some("town")), Some("stall"), "town fits every archetype");
+        // The templates stay clean, the bench too: format 1 has no sockets.
+        for name in ["BUILTIN/box", "BUILTIN/crate", "BUILTIN/bench", "BUILTIN/lantern"] {
+            assert!(archetype(&get(name).unwrap()).is_empty(), "{name}");
+        }
     }
 
     #[test]
