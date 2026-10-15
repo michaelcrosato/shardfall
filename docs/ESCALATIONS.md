@@ -6,6 +6,37 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-15 — The agent asset store's nine rulings (docs/AGENT_ASSET_STORE.md §14)
+- **Question:** the nine open questions of the store design, each with a default. They were
+  posted together in chat at 01:13 UTC, before any of S0's rows were written, with a check-in
+  set for 15 minutes.
+- **Decided by:** the agent, after 15 minutes without an answer (none by 01:49 UTC), under the
+  user's goal for S0-S2, which named two of them:
+  1. **Own work's licence:** CC0-1.0 for LIB/core, the 13 own materials (now with a `source`
+     licence field), VehicleDefs, particle presets, themes and agent-made assets (logged
+     before S0's rows).
+  2. **Local licence lanes:** they stay as they are, outside the store. The store never
+     indexes, finds, shelves or exports them. `assets find=` leaves the local tier out unless
+     `tier=local` asks for it, and a test refuses any row whose licence `store/licences.tsv`
+     does not admit.
+  3. **D5:** kept. Standard holds CC0 and own work; CC-BY tops out at `checked`. STYLE100's 98
+     and CMU's 60 embedded clips are logged exceptions until the user rules. The credits text
+     (`store/CREDITS.md`) ships either way.
+  4. **CMU mocap:** admitted for clips. The user's goal confirms its terms allow redistribution
+     and modification. Every CMU row carries the no-resale term from the reviewed row in
+     `store/licences.tsv` (`LicenseRef-CMU`).
+  5. **Quaternius models:** the pinned CC0 December 2020 release is admitted, checked against
+     its licence-file hash.
+  6. **Sprites and SVG:** SVG paths count as text and enter when a game asks. Palette-indexed
+     sprite rows count as text only for the S5 trial.
+  7. **SpawnForge:** no creatures until the user licenses blueprints and compiled outputs.
+  8. **Rigged characters:** not in the proof of concept. They come in S3b, after critical mass,
+     rigid segments first.
+  9. **The Fab haul:** left out. Checked: no Fab file is tracked by git here (the only match,
+     `fabrik.ts`, is an IK solver). The question for the collecting agent (how it chose what to
+     take) goes to the user in the S0-S2 report.
+- **PR:** S0's PR.
+
 ## 2026-10-12 — Asset plan resumed in slim form (answer to the G2 escalation below)
 - **Question:** the G2 NO-GO below: stop, re-judge, change the gate, or go on.
 - **Decided by:** the user, in chat: finish Phases 3-6 with only the features that are needed and
