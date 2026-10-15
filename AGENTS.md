@@ -85,7 +85,8 @@ recorded; it never stops, skips or reverts planned work.
     builds the change) once, on the head you mark ready.
   - After a rebase or a small fix, run only the tests of what changed. A docs-only PR needs none.
   - Take the one Codex review that marking a PR ready starts. Fix its real findings, answer the
-    rest on their threads, and merge, without asking for another round.
+    rest on their threads, and merge, without asking for another round. No review within 30
+    minutes: say so in one PR comment and merge.
   - The Vercel status is only the browser preview, and the user pauses deployments while not
     testing: a blocked or paused Vercel status never holds up a PR.
 

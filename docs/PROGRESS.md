@@ -48,7 +48,9 @@ half the tokens), and 10-30% dearer on the rest. The user then asked for **S2** 
 done: `size_band` and `socket_missing` checks, fork lineage, `store/STORE.tsv` and
 `store/README.md`, format-2 `params`/`presets`/`NAME:preset`, 28 foundations (four for each of
 seven archetypes in `store/foundations.tsv`; LIB/core has 47 assets) and the `library_hall`,
-`limits` and `catalogue` rooms. Next would be S3 (critical mass), then S3b (characters).
+`limits` and `catalogue` rooms. **Next: S3, S3b, S4 and S5**, run from the plan's §15 ("Executing
+S3–S5"): each built and merged whatever its exit result, within hard test limits per stage.
+**Armed, not run:** S6 (fires when the benchmark agent changes) and the §13 triggers.
 
 **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the engine
 and evaluate it; each game goes to `michaelcrosato/ai-hub` as one HTML file

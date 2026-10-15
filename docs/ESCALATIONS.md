@@ -6,6 +6,26 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-15 — S3, S3b, S4 and S5 built despite S1's "no" (the user's call)
+- **Question:** S1's "no" still stands, and the store design (§13) builds nothing after it. Build
+  the rest of the plan?
+- **Decided by:** the user, in chat: "take the plan to completion", then "provide me with a concise
+  prompt to finish the project". Their decisions in the same session: completion first; costs in
+  US$ as Claude Code bills them; hard test limits per stage (S3 $30 4 h, S3b $10 1 h, S4 $5 1 h,
+  S5 $25 3 h, S6 $0) and soft estimates; S6 and the triggers armed, not run.
+- **Call:** S3, S3b, S4 and S5 are built and merged whatever their exit results
+  (`docs/AGENT_ASSET_STORE.md` §15). S1's measurement stands as recorded.
+- **PR:** the PR that adds §15.
+
+## 2026-10-15 — Asked before S3: the test-game prompt; riftlight #49
+- **Questions** (asked in chat before the S3-S5 run): 1. The verbatim test-game prompt template
+  (`docs/FEEDBACK.md` holds a paraphrase). Default: S3 adds its three lines to that paraphrase
+  and gives the user the lines to paste into their template. 2. The owner's own one-line approval
+  comment on riftlight #49 for the Kenney 1-Bit Pack. No default: an agent may not approve for the
+  owner, so S5's imported arm stays "pending user" until the comment exists.
+- **Decided by:** pending. Question 1's default applies 15 minutes after the run starts if no
+  answer is recorded here.
+
 ## 2026-10-15 — S2 built despite S1's "no" (the user's call)
 - **Question:** S1's "no" was final, and under the store design (§13) and the goal nothing after
   S0 is built. The goal's stop hook kept asking for S2, so the agent asked the user: build S2

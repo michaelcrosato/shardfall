@@ -5,6 +5,27 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store: the run section for S3–S5 — 2026-10-15
+
+The user asked for a short prompt that finishes the store plan, with the plan updated as needed.
+A workflow audited `docs/AGENT_ASSET_STORE.md` against the repo and the sibling repositories'
+clones, drafted the run section, reviewed it through three lenses (a fresh agent, consistency, cost
+and completion; 25 issues, 12 major) and fixed what it confirmed.
+- **§15 "Executing S3–S5"** holds what the run needs with no chat history: completion first; the
+  hard test limits and soft estimates in US$; a `bench.py cost` command first; per stage what to
+  build and what exists (S3's `bench.py` gaps, S3b's KayKit pack and bone tables, S4's reader pin,
+  S5's parts in riftlight); sibling rules (riftlight merges a pushed `claude/*` branch at once);
+  user-only items; PRs; hazards; when the run is done.
+- **51 stale passages** fixed: S0-S2 described as future, S1's "nothing later is built", token
+  estimates (now US$ within §15's limits), counts (47 core props, 11 checked imports), line
+  references, rulings that took their defaults.
+- Checked by hand: cost comes from the transcripts' `cost-state` records, not `~/.claude.json`
+  (its `lastCost` is written only when a process ends); new `.claude/agents/` files load within
+  seconds, so §15 needs no command-line fallback for blind agents.
+- **New:** `.claude/agents/store-brief-writer.md`, S3's blind brief writer (`omitClaudeMd`, Write
+  only). ESCALATIONS records the user's call to build S3-S5 and the two questions asked before the
+  run (the verbatim test-game prompt; the owner's approval on riftlight #49).
+
 ## Agent instruction files brought up to current practice — 2026-10-15
 
 The user asked for AGENTS.md and the other files agents read to be checked against current best
@@ -36,8 +57,8 @@ rules).
 - **Subagents** load CLAUDE.md and its imports, so both asset-bench agents now set
   `omitClaudeMd: true`: they stay blind to the repository's docs and their runs don't grow by the
   imports. Before, they carried the 3-line CLAUDE.md and the cloud environment's
-  `~/.claude/CLAUDE.md`, about 0.3k tokens of a ~55k fixed prompt, so S1's numbers stay
-  comparable. A blind agent for later stages (S3's brief writer) needs the same flag.
+  `~/.claude/CLAUDE.md`: about 0.2k tokens of the pinned author's ~5k fixed prompt, a few percent
+  of a run's 70-220k tokens, so S1's numbers stay comparable. A blind agent for later stages (S3's brief writer) needs the same flag.
 - **PROGRESS.md** was 149 lines against its own one-page rule; the asset-system narrative, all of
   it in this file's entries, is now one bullet: 76 lines.
 - Left as they are: `docs/DOCTRINE.md` (the user's), Pavilion Lite (frozen), the `.mcp*.json`
