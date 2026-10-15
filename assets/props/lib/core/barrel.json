@@ -3,6 +3,7 @@
 "tags":["barrel","wood","storage","cargo","tavern","dungeon"],
 "category":"container",
 "materials":{
+"brass":{"color":"#b08d3c","roughness":0.4,"metallic":0.7},
 "iron":"MAT/wrought_iron",
 "lid":"MAT/oak_planks",
 "staves":{"base":"MAT/barrel_staves","map":"axis"}},
@@ -13,4 +14,8 @@
 "hoop_mid":{"type":"tube","radius":29.6,"thickness":1.6,"height":4,"pos":[0,22,0],"mat":"iron"},
 "hoop_rim":{"type":"tube","radius":27.4,"thickness":1.6,"height":5,"pos":[0,83.5,0],"mat":"iron"},
 "hoop_top":{"type":"tube","radius":29.6,"thickness":1.6,"height":4,"pos":[0,68,0],"mat":"iron"},
-"lid":{"type":"cylinder","radius":24.6,"height":3,"pos":[0,87.5,0],"mat":"lid","color":"#9a6a3e"}}}
+"lid":{"type":"cylinder","radius":24.6,"height":3,"pos":[0,87.5,0],"mat":"lid","color":"#9a6a3e"}},
+"params":{
+"bands":{"choices":["iron","brass"],"set":{"hoop_low.mat":["iron","brass"],"hoop_mid.mat":["iron","brass"],"hoop_rim.mat":["iron","brass"],"hoop_top.mat":["iron","brass"]}}},
+"presets":{
+"brass":{"bands":"brass"}}}

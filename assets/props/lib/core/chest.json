@@ -1,0 +1,23 @@
+{"format":2,"name":"chest","unit":"cm",
+"description":"A plank chest with a domed lid on a back hinge, iron straps and a brass lock. Knobs: width, lid open.",
+"tags":["chest","treasure","wood","storage","dungeon"],
+"category":"container",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/kenney_mini_dungeon/chest@prop2-1b4cdd7a33a623cb"],"license":"CC0-1.0","credit":"Kenney (www.kenney.nl)"},
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"chest"},
+"materials":{
+"brass":{"color":"#c9a227","roughness":0.35,"metallic":0.8},
+"iron":"MAT/wrought_iron",
+"wood":{"base":"MAT/oak_planks","color":"#8a5a3a"}},
+"parts":{
+"body":{"type":"rounded_box","size":[88,40,52],"radius":1.5,"pos":[0,20,0],"mat":"wood"},
+"lid":{"pos":[0,40,-26],"pitch":0,"parts":{
+  "band":{"type":"tube","radius":26.4,"thickness":1.4,"height":5,"arc":180,"facing":"y","pos":[28,0,26],"axis":"x","mat":"iron","mirror":"x"},
+  "dome":{"type":"cylinder","radius":26,"height":88,"arc":180,"facing":"y","pos":[0,0,26],"axis":"x","mat":"wood"}}},
+"lock":{"type":"box","size":[8,10,2.5],"pos":[0,33,27],"mat":"brass"},
+"strap":{"type":"box","size":[5,39,53],"pos":[28,19.5,0],"mat":"iron","mirror":"x"}},
+"params":{
+"lid":{"choices":["closed","open"],"set":{"lid.pitch":[0,-105]}},
+"width":{"range":[50,160],"set":{"body.size.0":1,"lid.band.pos.0":0.3182,"lid.dome.height":1,"strap.pos.0":0.3182}}},
+"presets":{
+"coffer":{"width":56},
+"open":{"lid":"open"}}}

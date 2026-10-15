@@ -1,0 +1,18 @@
+{"format":2,"name":"round_table","unit":"cm",
+"description":"A round oak table on a turned pedestal with four feet. Knobs: diameter, height.",
+"tags":["table","round","wood","tavern","furniture"],
+"category":"furniture",
+"materials":{
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"top":"MAT/oak_planks"},
+"parts":{
+"column":{"type":"lathe","profile":[[7,4],[5,12],[4.5,40],[6,62],[10,71]],"segments":12,"mat":"frame"},
+"foot":{"type":"box","size":[8,5,36],"pos":[0,2.5,0],"mat":"frame","radial":{"count":4,"radius":18}},
+"top":{"type":"cylinder","radius":50,"height":5,"segments":24,"pos":[0,73.5,0],"mat":"top"}},
+"params":{
+"diameter":{"range":[50,180],"set":{"foot.radial.radius":0.18,"foot.size.2":0.36,"top.radius":0.5}},
+"height":{"range":[45,110],"set":{"column.profile.1.1":0.1579,"column.profile.2.1":0.5263,"column.profile.3.1":0.8158,"column.profile.4.1":0.9342,"top.pos.1":0.9671}}},
+"presets":{
+"bistro":{"diameter":60,"height":105},
+"low":{"diameter":80,"height":45},
+"wide":{"diameter":160}}}

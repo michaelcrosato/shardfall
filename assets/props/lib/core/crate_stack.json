@@ -19,4 +19,8 @@
     "band_lo":{"type":"box","size":[76,8,76],"pos":[0,4.5,0],"mat":"dark"},
     "body":{"type":"rounded_box","size":[72,72,72],"radius":2,"pos":[0,36,0],"mat":"wood"},
     "brace":{"type":"box","size":[8,3],"from":[-28,11,37.5],"to":[28,61,37.5],"spin":90,"mat":"trim","mirror":"z"},
-    "post":{"type":"box","size":[8,71,8],"pos":[35,36,35],"mat":"dark","mirror":["x","z"]}}}}}}}
+    "post":{"type":"box","size":[8,71,8],"pos":[35,36,35],"mat":"dark","mirror":["x","z"]}}}}}},
+"params":{
+"stack":{"choices":["seed","no","yes"],"set":{"crate.top.chance":[0.5,0,1]}}},
+"presets":{
+"single":{"stack":"no"}}}

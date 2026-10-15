@@ -1,0 +1,27 @@
+{"format":2,"name":"gable_stall","unit":"cm",
+"description":"A market stall under a striped gable roof on four posts: plank counter with jars in front, a shelf behind.",
+"tags":["market","stall","roof","town","shop","village"],
+"category":"town",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/quaternius_medieval_village/marketstand_1@prop2-793fc730df07c9ff"],"license":"CC0-1.0","credit":"Quaternius (quaternius.com)"},
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"MarketStand_1"},
+"materials":{
+"boards":{"base":"MAT/oak_planks","turn":true},
+"clay":{"color":"#b5653a"},
+"cloth":"MAT/awning_stripes",
+"cream":{"color":"#eee2c6"},
+"post":{"base":"MAT/oak_planks","color":"#6b4e33","turn":true},
+"top":"MAT/oak_planks"},
+"parts":{
+"beam":{"type":"box","size":[230,10,10],"pos":[0,215,70],"mat":"post","mirror":"z"},
+"counter":{"type":"box","size":[200,85,45],"pos":[0,42.5,55],"mat":"boards"},
+"counter_top":{"type":"rounded_box","size":[208,5,54],"radius":1,"pos":[0,87.5,55],"mat":"top"},
+"jar":{"type":"cylinder","radius":7,"radius_end":5,"height":16,"pos":[0,98,55],"array":{"count":5,"step":[36,0,0],"cycle":["clay","cream"]}},
+"post":{"type":"box","size":[10,10],"from":[110,0,70],"to":[110,215,70],"mat":"post","mirror":["x","z"]},
+"roof":{"type":"wedge","size":[260,75,200],"peak":0,"pos":[0,257.5,0],"mat":"cloth"},
+"shelf":{"type":"box","size":[210,4,30],"pos":[0,120,-55],"mat":"top"}},
+"params":{
+"roof":{"choices":["gable","shed"],"set":{"roof.peak":[0,-1]}},
+"width":{"range":[100,340],"set":{"beam.size.0":1.15,"counter.size.0":1,"counter_top.size.0":1.04,"jar.array.step.0":0.18,"post.from.0":0.55,"post.to.0":0.55,"roof.size.0":1.3,"shelf.size.0":1.05}}},
+"presets":{
+"narrow":{"width":120},
+"shed":{"roof":"shed"}}}

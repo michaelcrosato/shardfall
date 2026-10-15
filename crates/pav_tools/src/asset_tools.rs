@@ -697,8 +697,11 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
                 };
                 let def = read_asset(root, &source)?.ok_or_else(|| anyhow!("no source asset '{source}'"))?;
                 let mut doc = def.doc.clone();
-                if action == "copy" {
-                    // A fork records what it was made from (docs/AGENT_ASSET_STORE.md §9).
+                // A fork records what it was made from (docs/AGENT_ASSET_STORE.md §9). A copy of
+                // a core asset under its own leaf is that asset's next revision (publish puts it
+                // back), so it keeps the asset's lineage rather than naming itself as a parent.
+                let next_revision = props::store::pack(&source) == Some(props::store::CORE) && props::leaf(&source) == leaf;
+                if action == "copy" && !next_revision {
                     doc.lineage = crate::asset_library::fork_lineage(root, &source, &def);
                 }
                 doc

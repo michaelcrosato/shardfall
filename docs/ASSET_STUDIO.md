@@ -95,6 +95,15 @@ params={"broken":"yes"}`, `asset_preview name=x:low` (params=, seed=), a room's
 `asset = "LIB/core/x:low"` with `params = { height = 70 }`. Example:
 docs/asset_plan/examples/families/fence.f2.json.
 
+**Foundations.** `store/foundations.tsv` names a few standard props per archetype (table, seat,
+barrel, light, crate, weapon, stall) that transform into the rest; `assets shelf=prop` lists
+them first with their knobs and presets. Before making one of these, place a variant: a preset
+(`asset_spawn name=LIB/core/chair:stool`), knob values (`params={"height":45}`), a palette for
+its roles (`roles={"$accent":"#2f6fb0"}`) or a seed. Each row's transforms are tested examples
+and its `why` the technique to copy. Fork one when no knob reaches what you need. A copy of a
+core asset under its own name (`copy from=LIB/core/table name=table`) is its next revision: it
+keeps that asset's lineage, so publishing it back adds knobs without making it a fork of itself.
+
 ## Check and the rest
 
 `asset_edit action=check name=x [target=WxHxD]` (cm) lists all findings and a cost line. Faults:

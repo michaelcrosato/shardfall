@@ -1,0 +1,17 @@
+{"format":2,"name":"tap_barrel","unit":"cm",
+"description":"The core barrel lying on two notched cradles, a brass tap in its head: a tavern's ale cask. Knob: size.",
+"tags":["barrel","cask","tap","ale","tavern","wood"],
+"category":"container",
+"materials":{
+"brass":{"color":"#c9a227","roughness":0.35,"metallic":0.8},
+"wood":{"base":"MAT/oak_planks","color":"#6b4a2e"}},
+"parts":{
+"barrel":{"ref":"LIB/core/barrel","pos":[45.5,40,0],"roll":90,"scale":1},
+"cradle":{"type":"extrude","points":[[-30,0],[30,0],[30,22],[20,20.5],[0,12.3],[-20,20.5],[-30,22]],"depth":8,"pos":[28,0,0],"yaw":90,"mat":"wood","mirror":"x"},
+"handle":{"type":"box","size":[2,7,2],"pos":[51,29.5,0],"mat":"brass"},
+"tap":{"type":"cylinder","radius":1.6,"height":7,"pos":[49,25,0],"axis":"x","mat":"brass"}},
+"params":{
+"size":{"range":[0.6,1.2],"set":{"barrel.pos.0":45.5,"barrel.pos.1":40,"barrel.scale":1,"cradle.pos.0":28,"handle.pos.0":51,"handle.pos.1":29.5,"tap.pos.0":49,"tap.pos.1":25}}},
+"presets":{
+"hogshead":{"size":1.2},
+"keg":{"size":0.6}}}

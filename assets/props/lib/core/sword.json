@@ -1,0 +1,23 @@
+{"format":2,"name":"sword","unit":"cm",
+"description":"A straight arming sword standing point up: tapered steel blade, crossguard, wrapped grip, round pommel.",
+"tags":["sword","blade","steel","weapon","dungeon"],
+"category":"weapon",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/kenney_mini_dungeon/weapon-sword@prop2-1498856cb5a7ec4a"],"license":"CC0-1.0","credit":"Kenney (www.kenney.nl)"},
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"weapon-sword"},
+"materials":{
+"dark":{"color":"#6e7086","roughness":0.5,"metallic":0.6},
+"steel":{"color":"#b4bcd2","roughness":0.3,"metallic":0.8},
+"wrap":{"color":"#8a4a32"}},
+"parts":{
+"blade":{"type":"extrude","points":[[-2.4,0],[2.4,0],[2,68],[0,76],[-2,68]],"depth":0.9,"pos":[0,21,0],"mat":"steel"},
+"grip":{"type":"cylinder","radius":1.7,"radius_end":1.5,"from":[0,6,0],"to":[0,18,0],"mat":"wrap"},
+"guard":{"type":"rounded_box","size":[20,3,4],"radius":1,"pos":[0,19.5,0],"mat":"dark"},
+"pommel":{"type":"sphere","radius":3.2,"pos":[0,3.2,0],"mat":"dark"}},
+"sockets":{
+"grip":{"pos":[0,12,0]}},
+"params":{
+"blade":{"range":[25,130],"set":{"blade.points.2.1":0.8947,"blade.points.3.1":1}},
+"guard":{"range":[8,36],"set":{"guard.size.0":1}}},
+"presets":{
+"dagger":{"blade":28,"guard":10},
+"greatsword":{"blade":118,"guard":32}}}

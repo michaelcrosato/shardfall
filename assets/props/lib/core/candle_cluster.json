@@ -14,4 +14,10 @@
 "plate":{"type":"cylinder","radius":15,"height":1.5,"pos":[0,0.75,0],"mat":"pewter"},
 "plate_rim":{"type":"torus","radius":15,"minor_radius":1,"pos":[0,1.5,0],"mat":"pewter"},
 "tall":{"type":"cylinder","radius":3.3,"height":20,"pos":[-1,11.5,-1],"mat":"wax"},
-"tall_flame":{"type":"ellipsoid","size":[2.6,5,2.6],"pos":[-1,23.9,-1],"mat":"flame","solid":false,"light":{"color":"$light","radius":260,"intensity":0.7,"flicker":0.2}}}}
+"tall_flame":{"type":"ellipsoid","size":[2.6,5,2.6],"pos":[-1,23.9,-1],"mat":"flame","solid":false,"light":{"color":"$light","radius":260,"intensity":0.7,"flicker":0.2}}},
+"params":{
+"candles":{"range":[1,8],"int":true,"set":{"candle.radial.count":1}},
+"tall":{"range":[8,40],"set":{"tall.height":1,"tall.pos.1":0.575,"tall_flame.pos.1":1.195}}},
+"presets":{
+"altar":{"candles":7,"tall":32},
+"pair":{"candles":1,"tall":14}}}

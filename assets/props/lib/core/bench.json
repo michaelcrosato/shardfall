@@ -11,4 +11,9 @@
 "stretcher":{"type":"box","size":[6,5],"from":[-65.5,18,0],"to":[65.5,18,0],"mat":"frame"},
 "trestle":{"type":"extrude","points":[[-17,0],[-7,0],[0,9],[7,0],[17,0],[15,40],[-15,40]],"depth":5,"pos":[68,0,0],"yaw":90,"mat":"frame","mirror":"x"}},
 "sockets":{
-"sit":{"pos":[0,45,0]}}}
+"sit":{"pos":[0,45,0]}},
+"params":{
+"length":{"range":[80,320],"set":{"cleat.pos.0":-0.3333,"seat.size.0":1,"stretcher.from.0":-0.3639,"stretcher.to.0":0.3639,"trestle.pos.0":0.3778}}},
+"presets":{
+"long":{"length":300},
+"short":{"length":90}}}

@@ -1,0 +1,27 @@
+{"format":2,"name":"canopy_stall","unit":"cm",
+"description":"A trader's open stall: a low canopy in the accent colour on four poles over a table of cloth bolts.",
+"tags":["stall","canopy","tent","market","town","cloth"],
+"category":"town",
+"materials":{
+"bolt_a":{"color":"#7a4a8c"},
+"bolt_b":{"color":"#d9c27a"},
+"bolt_c":{"color":"#3f6e8c"},
+"canvas":{"color":"$accent"},
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"pole":{"color":"#6b4e33"},
+"top":"MAT/oak_planks",
+"trim":{"color":"#eee2c6"}},
+"parts":{
+"bolt":{"type":"cylinder","radius":8,"height":46,"pos":[0,85.5,0],"axis":"x","grid":{"count":[3,2],"step":[52,18],"cycle":["bolt_a","bolt_b","bolt_c"]},"chance":1},
+"canopy":{"type":"wedge","size":[220,25,170],"peak":0,"pos":[0,217.5,0],"mat":"canvas"},
+"pole":{"type":"cylinder","radius":3,"from":[100,0,75],"to":[100,205,75],"mat":"pole","mirror":["x","z"]},
+"table_leg":{"type":"box","size":[5,5],"from":[78,0,30],"to":[78,72.5,30],"mat":"frame","mirror":["x","z"]},
+"table_top":{"type":"rounded_box","size":[170,5,70],"radius":1,"pos":[0,75,0],"mat":"top"},
+"valance":{"type":"extrude","points":[[-10,0],[10,0],[0,-12]],"depth":1,"pos":[0,205,85],"mat":"trim","mirror":"z","array":{"count":11,"step":[20,0,0]}}},
+"params":{
+"goods":{"choices":["cloth","none"],"set":{"bolt.chance":[1,0]}},
+"width":{"range":[140,340],"set":{"bolt.grid.step.0":0.2364,"canopy.size.0":1,"pole.from.0":0.4545,"pole.to.0":0.4545,"table_leg.from.0":0.3545,"table_leg.to.0":0.3545,"table_top.size.0":0.7727,"valance.array.step.0":0.0909}}},
+"presets":{
+"bare":{"goods":"none"},
+"small":{"width":150},
+"wide":{"width":320}}}

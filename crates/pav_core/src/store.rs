@@ -1,12 +1,50 @@
 //! The agent asset store's shared rules (docs/AGENT_ASSET_STORE.md): the licences it admits
-//! (`store/licences.tsv`), the words a search understands (`store/synonyms.tsv`), and the
-//! credits text generated from clip set `sources` and object packs' `PACK.json`.
+//! (`store/licences.tsv`), the words a search understands (`store/synonyms.tsv`), the
+//! foundations each archetype starts from (`store/foundations.tsv`), and the credits text
+//! generated from clip set `sources` and object packs' `PACK.json`.
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 const LICENCES: &str = include_str!("../../../store/licences.tsv");
 const SYNONYMS: &str = include_str!("../../../store/synonyms.tsv");
+const FOUNDATIONS: &str = include_str!("../../../store/foundations.tsv");
+
+/// One foundation (a row of `store/foundations.tsv`, §4): a standard prop an archetype starts
+/// from, with examples of the transforms that derive its variants.
+#[derive(Debug)]
+pub struct Foundation {
+    /// The archetype it founds: `table`, `seat`, `barrel`, `light`, `crate`, `weapon`, `stall`.
+    pub archetype: &'static str,
+    /// Its asset name (`LIB/core/x` or `BUILTIN/x`).
+    pub id: &'static str,
+    /// Example transforms: `:preset`, `params={…}`, `roles={…}` or `seed=N`.
+    pub transforms: Vec<&'static str>,
+    /// The technique it shows, at most 40 tokens.
+    pub why: &'static str,
+}
+
+/// The foundations, in the file's order (grouped by archetype).
+pub fn foundations() -> &'static [Foundation] {
+    static ROWS: OnceLock<Vec<Foundation>> = OnceLock::new();
+    ROWS.get_or_init(|| {
+        FOUNDATIONS
+            .lines()
+            .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
+            .skip(1)
+            .map(|line| {
+                let cells: Vec<&'static str> = line.split('\t').collect();
+                let [archetype, id, transforms, why] = cells[..] else { panic!("store/foundations.tsv: {line}") };
+                Foundation { archetype, id, transforms: transforms.split_whitespace().collect(), why }
+            })
+            .collect()
+    })
+}
+
+/// The foundation an asset name is, if any.
+pub fn foundation(id: &str) -> Option<&'static Foundation> {
+    foundations().iter().find(|foundation| foundation.id == id)
+}
 
 /// The credit line of own work (`assets/props/lib/core/PACK.json`'s, which a test holds equal).
 pub const OWN_CREDIT: &str = "Shardfall contributors (own work)";
@@ -256,6 +294,29 @@ mod tests {
         assert!(admitted("free for all uses", "clip").is_ok());
         assert!(admitted("free for all uses", "prop").is_err(), "CMU's terms admit clips only");
         assert!(admitted("CC-BY-4.0", "material").unwrap().credit);
+    }
+
+    #[test]
+    fn foundations_are_a_few_per_archetype_with_transforms_and_a_short_why() {
+        let rows = foundations();
+        let mut per: BTreeMap<&str, usize> = BTreeMap::new();
+        for row in rows {
+            *per.entry(row.archetype).or_default() += 1;
+            assert!(row.id.starts_with("LIB/core/") || row.id.starts_with("BUILTIN/"), "{}: standard only", row.id);
+            assert_eq!(rows.iter().filter(|other| other.id == row.id).count(), 1, "{} is listed twice", row.id);
+            assert!((2..=3).contains(&row.transforms.len()), "{}: 2-3 transforms", row.id);
+            for transform in &row.transforms {
+                let known = transform.starts_with(':')
+                    || ["params={", "roles={", "seed="].iter().any(|prefix| transform.starts_with(prefix));
+                assert!(known, "{}: unknown transform {transform}", row.id);
+            }
+            let tokens = crate::props::index::tokens(row.why.len());
+            assert!(!row.why.is_empty() && tokens <= 40, "{}: why is {tokens} tokens", row.id);
+        }
+        assert_eq!(per.keys().copied().collect::<Vec<_>>(), ["barrel", "crate", "light", "seat", "stall", "table", "weapon"]);
+        assert!(per.values().all(|n| (3..=5).contains(n)), "3-5 foundations per archetype: {per:?}");
+        assert_eq!(foundation("LIB/core/cask").map(|row| row.archetype), Some("barrel"));
+        assert!(foundation("LIB/core/urn").is_none());
     }
 
     #[test]

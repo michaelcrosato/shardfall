@@ -1,0 +1,21 @@
+{"format":2,"name":"slat_crate","unit":"cm",
+"description":"An open produce crate of spaced slats on corner posts, heaped with apples. Knob: fill.",
+"tags":["crate","produce","fruit","wood","market","farm"],
+"category":"container",
+"materials":{
+"apple":{"color":"#c0392b"},
+"cabbage":{"color":"#7aa84a"},
+"orange":{"color":"#e8892a"},
+"post":{"color":"#6b4e33"},
+"wood":{"base":"MAT/oak_planks","color":"#a7784a"}},
+"parts":{
+"bottom":{"type":"box","size":[52,2,34],"pos":[0,1,0],"mat":"wood"},
+"post":{"type":"box","size":[4,30,4],"pos":[26,15,17],"mat":"post","mirror":["x","z"]},
+"produce":{"type":"sphere","radius":5.5,"pos":[0,25,0],"mat":"apple","grid":{"count":[5,3],"step":[10,10]},"chance":1,"jitter":{"pos":[1,1.5,1]}},
+"slat_long":{"type":"box","size":[48,6,1.5],"pos":[0,15,18.25],"mat":"wood","mirror":"z","array":{"count":3,"step":[0,10,0]}},
+"slat_short":{"type":"box","size":[1.5,6,30],"pos":[27.25,15,0],"mat":"wood","mirror":"x","array":{"count":3,"step":[0,10,0]}}},
+"params":{
+"fill":{"choices":["apples","oranges","cabbages","empty"],"set":{"produce.chance":[1,1,1,0],"produce.mat":["apple","orange","cabbage","apple"],"produce.radius":[5.5,5.5,6.5,5.5]}}},
+"presets":{
+"empty":{"fill":"empty"},
+"oranges":{"fill":"oranges"}}}

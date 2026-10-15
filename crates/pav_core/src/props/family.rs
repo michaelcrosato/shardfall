@@ -269,7 +269,9 @@ impl PropDef {
                             .expected(range)
                             .to_string());
                     };
-                    if !(*lo as f64..=*hi as f64).contains(&x) {
+                    // In the range's own precision, as the reader checks presets: 0.6 is in
+                    // [0.6, 1.2] though 0.6f32 widens to 0.6000000238.
+                    if !(*lo..=*hi).contains(&(x as f32)) {
                         return Err(
                             Issue::error(path, Code::OutOfRange, format!("{} is outside {range}", read::amount(x))).to_string()
                         );

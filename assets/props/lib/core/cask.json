@@ -1,0 +1,20 @@
+{"format":2,"name":"cask","unit":"cm",
+"description":"A squat octagonal keg of orange staves in two steel bands: chunky low-poly storage. Knobs: height, girth.",
+"tags":["barrel","cask","keg","wood","storage","tavern"],
+"category":"container",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/kenney_mini_dungeon/barrel@prop2-d7e9bd374cd92f52"],"license":"CC0-1.0","credit":"Kenney (www.kenney.nl)"},
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"barrel"},
+"materials":{
+"lid":{"base":"MAT/oak_planks","color":"#a85f3c"},
+"steel":{"color":"#9aa2c2","roughness":0.4,"metallic":0.6},
+"wood":{"base":"MAT/barrel_staves","color":"#c46f48","map":"axis"}},
+"parts":{
+"band":{"type":"cylinder","radius":32,"height":13,"segments":8,"pos":[0,36,0],"mat":"steel","array":{"count":2,"span":[0,30,0]}},
+"body":{"type":"lathe","profile":[[25,0],[31,20],[31,52],[25,72]],"segments":8,"mat":"wood"},
+"lid":{"type":"cylinder","radius":23,"height":2,"segments":8,"pos":[0,72,0],"mat":"lid"}},
+"params":{
+"girth":{"range":[18,48],"set":{"band.radius":1.0323,"body.profile.0.0":0.8065,"body.profile.1.0":1,"body.profile.2.0":1,"body.profile.3.0":0.8065,"lid.radius":0.7419}},
+"height":{"range":[40,120],"set":{"band.array.span.1":0.4167,"band.height":0.1806,"band.pos.1":0.5,"body.profile.1.1":0.2778,"body.profile.2.1":0.7222,"body.profile.3.1":1,"lid.pos.1":1}}},
+"presets":{
+"keg":{"girth":21,"height":46},
+"tun":{"girth":46,"height":110}}}

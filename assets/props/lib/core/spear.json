@@ -1,0 +1,22 @@
+{"format":2,"name":"spear","unit":"cm",
+"description":"A 2 m spear standing upright: an ash shaft, an iron collar and a leaf-shaped steel head.",
+"tags":["spear","polearm","pike","weapon","dungeon"],
+"category":"weapon",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/kenney_mini_dungeon/weapon-spear@prop2-3b042b3b3b42c89d"],"license":"CC0-1.0","credit":"Kenney (www.kenney.nl)"},
+"source":{"library":"kenney/mini_dungeon","license":"CC0-1.0","title":"weapon-spear"},
+"materials":{
+"ash":{"color":"#b98a58"},
+"iron":"MAT/wrought_iron",
+"steel":{"color":"#b4bcd2","roughness":0.3,"metallic":0.8}},
+"parts":{
+"butt":{"type":"cylinder","radius":2.1,"height":4,"segments":8,"pos":[0,2,0],"mat":"iron"},
+"collar":{"type":"cylinder","radius":2.4,"radius_end":1.8,"segments":8,"from":[0,168,0],"to":[0,178,0],"mat":"iron"},
+"head":{"type":"extrude","points":[[-1.6,0],[1.6,0],[4.5,10],[0,30],[-4.5,10]],"depth":1.2,"pos":[0,177,0],"mat":"steel"},
+"shaft":{"type":"cylinder","radius":1.8,"from":[0,0,0],"to":[0,172,0],"mat":"ash"}},
+"sockets":{
+"grip":{"pos":[0,90,0]}},
+"params":{
+"shaft":{"range":[60,400],"set":{"collar.from.1":0.9767,"collar.to.1":1.0349,"head.pos.1":1.0291,"shaft.to.1":1}}},
+"presets":{
+"javelin":{"shaft":110},
+"pike":{"shaft":360}}}

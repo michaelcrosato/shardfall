@@ -1,0 +1,23 @@
+{"format":2,"name":"campfire","unit":"cm",
+"description":"A campfire: four logs leaning over glowing coals in a ring of stones, lighting the area.",
+"tags":["campfire","fire","light","camp","stone","wood"],
+"category":"lighting",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/quaternius_medieval_village/bonfire_lit@prop2-879d5b2cb37622c8"],"license":"CC0-1.0","credit":"Quaternius (quaternius.com)"},
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bonfire_Lit"},
+"materials":{
+"bark":{"color":"#6b4a2e"},
+"coals":{"color":"#2c1f1a","layers":[{"type":"voronoi","size":9,"feature":"edges","cover":0.35,"color":"$light","glow":4}]},
+"flame":{"color":"$light","look":"unlit","emissive":0.5},
+"stone":{"color":"#8a8f96"}},
+"parts":{
+"coals":{"type":"ellipsoid","size":[40,8,40],"pos":[0,4,0],"mat":"coals"},
+"flame":{"type":"cone","radius":12,"height":40,"pos":[0,32,0],"mat":"flame","solid":false,"light":{"color":"$light","radius":650,"intensity":1.8,"flicker":0.4},"fx":{"preset":"fire","size":0.4}},
+"flames":{"type":"cone","radius":6,"height":22,"pos":[0,22,0],"mat":"flame","solid":false,"radial":{"count":3,"radius":10}},
+"logs":{"type":"cylinder","radius":5,"height":46,"pos":[0,12,0],"axis":"z","pitch":18,"mat":"bark","radial":{"count":4,"radius":14,"start":45}},
+"stones":{"type":"ellipsoid","size":[16,10,13],"pos":[0,5,0],"mat":"stone","radial":{"count":10,"radius":40}}},
+"params":{
+"fire":{"choices":["lit","embers"],"set":{"flame.chance":[1,0],"flames.chance":[1,0]}},
+"ring":{"range":[25,70],"set":{"stones.radial.count":0.25,"stones.radial.radius":1}}},
+"presets":{
+"embers":{"fire":"embers"},
+"pit":{"ring":62}}}

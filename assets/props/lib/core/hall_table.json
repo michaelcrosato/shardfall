@@ -1,0 +1,20 @@
+{"format":2,"name":"hall_table","unit":"cm",
+"description":"A long plank top on two A-frame trestles joined by a stretcher, a cloth runner in the accent colour.",
+"tags":["table","trestle","wood","hall","feast","furniture"],
+"category":"furniture",
+"materials":{
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"runner":{"color":"$accent"},
+"top":"MAT/oak_planks"},
+"parts":{
+"runner":{"type":"box","size":[200,0.6,34],"pos":[0,78.3,0],"mat":"runner","chance":1},
+"stretcher":{"type":"box","size":[6,6],"from":[-77,30,0],"to":[77,30,0],"mat":"frame"},
+"top":{"type":"rounded_box","size":[200,6,80],"radius":1.5,"pos":[0,75,0],"mat":"top"},
+"trestle":{"type":"extrude","points":[[-32,0],[-14,0],[0,18],[14,0],[32,0],[26,72],[-26,72]],"depth":6,"pos":[80,0,0],"yaw":90,"mat":"frame","mirror":"x"}},
+"params":{
+"cloth":{"choices":["runner","bare"],"set":{"runner.chance":[1,0]}},
+"length":{"range":[100,360],"set":{"runner.size.0":1,"stretcher.from.0":-0.385,"stretcher.to.0":0.385,"top.size.0":1,"trestle.pos.0":0.4}}},
+"presets":{
+"bare":{"cloth":"bare"},
+"long":{"length":340},
+"short":{"length":120}}}

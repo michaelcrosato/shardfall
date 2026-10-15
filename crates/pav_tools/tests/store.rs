@@ -84,6 +84,11 @@ fn the_store_finds_shelves_credits_and_refuses() {
     let props = call(&mut s, "assets", json!({"shelf": "prop"})).to_string();
     assert!(props.contains("LIB/core/chair") && props.contains("LIB/kenney_mini_dungeon/table"), "{props}");
     assert!(!props.contains("LIB/kenney_mini_dungeon/wall\""), "a 94% mesh import is not on the shelf: {props}");
+    // It leads with the foundations by archetype, each with its knobs and presets, listed once (S2).
+    assert!(props.starts_with("{\"foundations\":{\"barrel\":[\"LIB/core/barrel "), "{props}");
+    assert!(props.contains("\"LIB/core/cask 64x73x64 girth=18-48 height=40-120 :keg :tun\""), "{props}");
+    assert!(props.contains("\"LIB/core/chair 44x96x45 @sit back=slat/none/high :high_back :stool\""), "{props}");
+    assert_eq!(props.matches("LIB/core/chair ").count(), 1, "{props}");
 
     // Every row the store reads has an admitted licence and none comes from a local tier.
     let root = repo().join("assets/props");
@@ -135,13 +140,16 @@ fn the_store_finds_shelves_credits_and_refuses() {
     for line in lines {
         let cells: Vec<&str> = line.split('\t').collect();
         let [id, kind, tier, licence, ..] = cells[..] else { panic!("{line}") };
-        assert_eq!(cells.len(), 10, "{line}");
+        assert_eq!(cells.len(), 11, "{line}");
+        let foundation = pav_core::store::foundation(id).map_or("-", |foundation| foundation.archetype);
+        assert_eq!(cells[8], foundation, "the foundation column: {line}");
         assert!(pav_core::store::admitted(licence, kind).is_ok() && !pav_core::store::local_path(id), "{line}");
         assert!(tier != "standard" || licence == "CC0-1.0", "standard is CC0 and own work: {line}");
         assert!(line.len() <= asset_library::STORE_ROW_BYTES, "{line}");
         *kinds.entry(kind.to_owned()).or_insert(0) += 1;
     }
     assert!(kinds["prop"] >= 90 && kinds["clip"] >= 400 && kinds["material"] == 15, "{kinds:?}");
+    assert!(table.contains("\nLIB/core/cask\tprop\tstandard\tCC0-1.0\tedited\timport\t"), "the Kenney fork is standard");
     let shares = table.lines().nth(1).unwrap();
     assert!(["prop", "clip", "material"].iter().all(|kind| shares.contains(&format!("{kind} "))), "{shares}");
     assert!(shares.contains("% imported"), "the header reports each kind's imported share: {shares}");

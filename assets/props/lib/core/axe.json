@@ -1,0 +1,22 @@
+{"format":2,"name":"axe","unit":"cm",
+"description":"A bearded war axe standing on its haft end: an iron head with a curved edge on an 80 cm ash haft.",
+"tags":["axe","weapon","iron","wood","dungeon"],
+"category":"weapon",
+"materials":{
+"ash":{"color":"#b98a58"},
+"iron":"MAT/wrought_iron",
+"steel":{"color":"#b4bcd2","roughness":0.3,"metallic":0.8},
+"wrap":{"color":"#8a4a32"}},
+"parts":{
+"blade":{"type":"extrude","points":[[0,-4],[7,-5],[14,-13],[19,-11],[19,12],[15,14],[7,5],[0,4]],"depth":1.4,"pos":[2,72,0],"mat":"steel"},
+"eye":{"type":"rounded_box","size":[6,12,5],"radius":1,"pos":[0,72,0],"mat":"iron"},
+"haft":{"type":"cylinder","radius":2,"radius_end":1.7,"from":[0,0,0],"to":[0,78,0],"mat":"ash"},
+"poll":{"type":"rounded_box","size":[6,6,4],"radius":1,"pos":[-5,72,0],"mat":"iron"},
+"wrap":{"type":"cylinder","radius":2.2,"from":[0,6,0],"to":[0,22,0],"mat":"wrap"}},
+"sockets":{
+"grip":{"pos":[0,14,0]}},
+"params":{
+"haft":{"range":[30,160],"set":{"blade.pos.1":0.9231,"eye.pos.1":0.9231,"haft.to.1":1,"poll.pos.1":0.9231}}},
+"presets":{
+"greataxe":{"haft":150},
+"hatchet":{"haft":42}}}

@@ -18,7 +18,10 @@ is trusted. Start from an entry instead of from nothing. Design: docs/AGENT_ASSE
 ## The shelf
 
 `assets shelf=prop` and `assets shelf=clip`: the best entries of a kind by category, one call,
-about 1,500 tokens. Read the shelf before a scene that needs several things.
+about 1,500 tokens. Read the shelf before a scene that needs several things. Props lead with
+the foundations (`store/foundations.tsv`: a few per archetype, their knobs, tested examples and
+the technique each shows): place a variant, e.g. `asset_spawn name=LIB/core/table:wide`, before
+making a new asset.
 
 ## Tiers
 

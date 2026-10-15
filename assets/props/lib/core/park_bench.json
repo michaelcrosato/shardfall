@@ -1,0 +1,23 @@
+{"format":2,"name":"park_bench","unit":"cm",
+"description":"A park bench of three seat slats and two back slats between dark frames with armrests; seats three.",
+"tags":["bench","seat","wood","park","town","village"],
+"category":"furniture",
+"lineage":{"method":"edited","origin":"import","parents":["LIB/quaternius_medieval_village/bench_1@prop2-14c863f487a932ef"],"license":"CC0-1.0","credit":"Quaternius (quaternius.com)"},
+"source":{"library":"quaternius/medieval_village","license":"CC0-1.0","title":"Bench_1"},
+"materials":{
+"frame":{"color":"#4e3420"},
+"slat":{"base":"MAT/oak_planks","color":"#8a5e3a"}},
+"parts":{
+"arm":{"type":"rounded_box","size":[7,4,46],"radius":1,"pos":[93,66,-3],"mat":"frame","mirror":"x"},
+"back":{"type":"rounded_box","size":[180,10,3],"radius":1,"pos":[0,66,-24],"pitch":-10,"mat":"slat","array":{"count":2,"step":[0,15,-2.6]}},
+"leg":{"type":"box","size":[6,6],"from":[93,0,14],"to":[93,64,14],"mat":"frame","mirror":"x"},
+"post":{"type":"box","size":[6,6],"from":[93,0,-17],"to":[93,84,-28],"mat":"frame","mirror":"x"},
+"rail":{"type":"box","size":[6,6,40],"pos":[93,37,-2],"mat":"frame","mirror":"x"},
+"seat":{"type":"rounded_box","size":[190,4,11],"radius":1,"pos":[0,42,0],"mat":"slat","array":{"count":3,"step":[0,0,12.5]}}},
+"sockets":{
+"sit":{"pos":[0,44,0]}},
+"params":{
+"length":{"range":[80,320],"set":{"arm.pos.0":0.4895,"back.size.0":0.9474,"leg.from.0":0.4895,"leg.to.0":0.4895,"post.from.0":0.4895,"post.to.0":0.4895,"rail.pos.0":0.4895,"seat.size.0":1}}},
+"presets":{
+"long":{"length":300},
+"short":{"length":110}}}

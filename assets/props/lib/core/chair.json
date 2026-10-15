@@ -14,4 +14,9 @@
 "splat":{"type":"box","size":[12,40.5,2],"pos":[0,65,-19.6],"pitch":-2.7,"mat":"seat"},
 "top_rail":{"type":"box","size":[40,9,3.5],"pos":[0,89,-20.7],"pitch":-2.7,"mat":"frame"}},
 "sockets":{
-"sit":{"pos":[0,45,2]}}}
+"sit":{"pos":[0,45,2]}},
+"params":{
+"back":{"choices":["slat","none","high"],"set":{"leg_back.to.1":[96,41,120],"leg_back.to.2":[-21,-16.5,-22.1],"splat.chance":[1,0,1],"splat.pos.1":[65,65,77],"splat.size.1":[40.5,40.5,64],"top_rail.chance":[1,0,1],"top_rail.pos.1":[89,89,113],"top_rail.pos.2":[-20.7,-20.7,-21.8]}}},
+"presets":{
+"high_back":{"back":"high"},
+"stool":{"back":"none"}}}

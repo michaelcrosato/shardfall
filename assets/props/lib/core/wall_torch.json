@@ -16,4 +16,10 @@
   "flame":{"type":"capsule","radius":5.6,"radius_end":1,"from":[0,19,0],"to":[0,41,0],"mat":"flame","light":{"color":"$light","radius":600,"intensity":1.6,"flicker":0.5},"fx":{"preset":"fire","rate":12,"size":0.2}},
   "handle":{"type":"cylinder","radius":2.2,"radius_end":3,"segments":8,"from":[0,-22,0],"to":[0,14,0],"mat":"wood"}}}},
 "sockets":{
-"wall_mount":{"pos":[0,160,0],"axis":"-z"}}}
+"wall_mount":{"pos":[0,160,0],"axis":"-z"}},
+"params":{
+"fire":{"choices":["lit","out"],"set":{"torch.flame.chance":[1,0]}},
+"reach":{"range":[8,40],"set":{"arm.to.2":1,"strut.to.2":1,"torch.pos.2":1.1333}}},
+"presets":{
+"long":{"reach":30},
+"out":{"fire":"out"}}}
