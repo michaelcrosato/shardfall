@@ -227,6 +227,17 @@ pub fn resolve_parts(name: &str, seed: u32) -> Result<Arc<CompiledProp>, String>
     Ok(def.variant_with(&values, seed))
 }
 
+/// `def` with `asset_edit` patch ops applied: a placed copy's one-off variant (room objects'
+/// `patch`). `def` itself when there are none. The variant keeps the asset's name.
+pub fn patched(def: &Arc<PropDef>, ops: &[Value]) -> Result<Arc<PropDef>, String> {
+    if ops.is_empty() {
+        return Ok(def.clone());
+    }
+    let ops = Value::Array(ops.to_vec());
+    let doc = super::patch_document(&def.doc, &ops, &super::get).map_err(|issues| issue::render(&issues))?.doc;
+    PropDef::new(doc).map(Arc::new).map_err(|issues| issue::render(&issues))
+}
+
 impl PropDef {
     /// Checked knob values for a placement: a preset's, then `given` over them. A value equal
     /// to its default is left out, so the default placement is the plain asset.

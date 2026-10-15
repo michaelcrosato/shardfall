@@ -37,6 +37,10 @@ pub struct PropInstance {
     /// A family's knob values (format-2 `params`), defaults left out.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub params: props::Params,
+    /// The patch ops its definition was made with (room objects' `patch`), kept so a saved room
+    /// writes them back.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patch: Vec<serde_json::Value>,
 }
 
 fn is_zero(seed: &u32) -> bool {
@@ -93,7 +97,16 @@ impl PropInstance {
         if props::leaf(&asset) != definition.doc.name {
             return Err("asset reference does not match its embedded definition".into());
         }
-        Ok(Self { asset, definition, scale, collide, seed: 0, roles: BTreeMap::new(), params: props::Params::new() })
+        Ok(Self {
+            asset,
+            definition,
+            scale,
+            collide,
+            seed: 0,
+            roles: BTreeMap::new(),
+            params: props::Params::new(),
+            patch: Vec::new(),
+        })
     }
 
     /// This copy's variant: chance, jitter and pick resolve with `seed`.
@@ -115,6 +128,12 @@ impl PropInstance {
         self.definition.try_variant(&params, self.seed).map_err(|issues| issue::render(&issues))?;
         self.params = params;
         Ok(self)
+    }
+
+    /// Records the patch ops its definition was made with (see `props::patched`).
+    pub fn with_patch(mut self, patch: &[serde_json::Value]) -> Self {
+        self.patch = patch.to_vec();
+        self
     }
 
     /// The parts this copy draws and collides with.
@@ -302,14 +321,15 @@ impl Sim {
         for id in &ids {
             let entity = self.state.entities.get_mut(*id).unwrap();
             let prop = entity.prop.as_mut().unwrap();
-            prop.definition = definition.clone();
+            // A patched copy keeps its patch over the new revision.
+            prop.definition = props::patched(&definition, &prop.patch).unwrap_or_else(|_| definition.clone());
             entity.visual = Some(prop.visual());
             self.rebuild_prop_body(*id);
         }
         let mut count = ids.len();
         for dormant in self.state.world.dormant_entities.values_mut().flatten() {
             if let Some(prop) = dormant.entity.prop.as_mut().filter(|p| p.asset == name) {
-                prop.definition = definition.clone();
+                prop.definition = props::patched(&definition, &prop.patch).unwrap_or_else(|_| definition.clone());
                 dormant.entity.visual = Some(prop.visual());
                 count += 1;
             }

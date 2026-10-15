@@ -641,7 +641,7 @@ pub static TOOLS: &[Tool] = &[
             arg("similar", "string", "rank like this asset"),
             arg("limit", "integer", "rows per page (20, ≤100)"),
             arg("page", "integer", "page (1)"),
-            arg("reindex", "string", "templates, a pack or store"),
+            arg("reindex", "string", "templates, pack, store, hall"),
             arg("shelf", "string", "prop or clip"),
         ],
         run: crate::asset_search::t_assets,
@@ -1574,11 +1574,8 @@ fn t_room_check(_: &mut Session, a: &Args) -> Result<Output> {
             let unknown: Vec<String> = d
                 .objects
                 .iter()
-                .filter_map(|o| {
-                    let asset = o.asset.as_ref()?;
-                    let error = pav_core::props::resolve_placed(asset, &o.params).err();
-                    error.map(|error| format!("object '{}': {error}", o.name))
-                })
+                .filter(|o| o.asset.is_some())
+                .filter_map(|o| o.placed().err().map(|error| format!("object '{}': {error}", o.name)))
                 .collect();
             let mut out =
                 json!({ "ok": unknown.is_empty(), "name": d.name, "size": d.layout.extent(), "objects": d.objects.len() });

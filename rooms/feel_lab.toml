@@ -347,3 +347,12 @@ size = 0.4
 text = "24"
 pos = [26.5, 0.03, 5.6]
 size = 0.4
+
+[[label]]
+text = """
+ENTRIES · movement models
+instant · momentum · grid · committed
+(engine code, not store entries)"""
+pos = [7.0, 0.03, 23.8]
+size = 0.18
+color = "#f1f4fa"

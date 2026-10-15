@@ -147,6 +147,16 @@ impl Sim {
                         e.behavior = Behavior::Spawner(sp);
                     }
                 }
+                Behavior::Catalogue(mut cat) => {
+                    let region = e.region;
+                    let step = cat.step(&signals);
+                    if step != 0 {
+                        self.catalogue_page(region, epos, erot, &mut cat, step);
+                        if let Some(e) = self.state.entities.get_mut(id) {
+                            e.behavior = Behavior::Catalogue(cat);
+                        }
+                    }
+                }
                 Behavior::Rain { interval, max, area, height, mut timer, mut spawned } => {
                     let origin = e.pos;
                     timer += 1;

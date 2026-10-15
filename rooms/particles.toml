@@ -412,6 +412,16 @@ color = "#f0ead8"
 
 # Free-placed objects.
 
+[[label]]
+text = """
+ENTRIES · particle presets
+fire · smoke · steam · sparks · embers
+fountain · magic · bubbles · dust · confetti
+snow · rain · fireflies"""
+pos = [8.0, 0.03, 27.6]
+size = 0.16
+color = "#f1f4fa"
+
 [[object]]
 name = "plinth_fire"
 shape = { type = "cylinder", half_height = 0.3, radius = 0.4 }

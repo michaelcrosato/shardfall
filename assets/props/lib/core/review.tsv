@@ -22,6 +22,7 @@ LIB/core/crystal_cluster	prop2-0ca56b8da5346b1f	ok (user review 2026-10-12); aut
 LIB/core/fence	prop2-f4008ceff0796e5a	ok (user review 2026-10-12); author: ok: 3 capped posts at x -100/0/100 so ends coincide when tiled, 2 rails span full 200 cm, on floor, ~waist-high vs figure
 LIB/core/gable_stall	prop2-40f51c4f7c647df4	ok: fork of Quaternius marketstand_1 (40% mesh, side-facing) rebuilt facing +z: posts, striped gable wedge, counter, jars, shelf; :shed, :narrow
 LIB/core/hall_table	prop2-28317df9a0c4ec47	ok: new 2 m hall table, A-frame extrude trestles and stretcher, $accent runner; :short, :long, :bare read as tables
+LIB/core/mage_staff	prop2-d599d0a98f12ccbf	ok: 1.85 m ash shaft, leather grip wrap, iron ferrule and claw collar, glowing crystal reads at the figure sheet; grip socket at the wrap, +y up the shaft
 LIB/core/market_stall	prop2-6666caa724848e72	ok: goods and awning knobs added, default unchanged; :apples, :closed (empty crates), :plain (red awning) read at game distance
 LIB/core/mushroom_cluster	prop2-c2e07e82ccadd9b4	ok (user review 2026-10-12); author: ok: 2-4 mushrooms 0.3-1.0 m, #d8cfb8 stems, glowing spotted $accent caps e0.7, grounded, reads at game distance
 LIB/core/park_bench	prop2-05c0eceac72213d3	ok: fork of Quaternius bench_1 turned to face +z, slats as rounded boxes for a length knob, sit socket added; :short, :long

@@ -263,10 +263,14 @@ pub fn build_index(root: &Path, folder: &Path, set: &str, old: &[Row]) -> Result
 }
 
 /// `templates` or a pack: write the index.tsv of its folder under `root`, and for a committed
-/// pack the credits (`CREDITS.md`) too. `store` writes the store's generated files.
+/// pack the credits (`CREDITS.md`) too. `store` writes the store's generated files; `hall` the
+/// Library Hall room (`crate::hall`).
 pub(crate) fn reindex(root: &Path, target: &str) -> Result<Value> {
     if target == "store" {
         return crate::asset_library::write_store(root);
+    }
+    if target == "hall" {
+        return crate::hall::write();
     }
     let (folder, set) = match target {
         "templates" => (root.join("templates"), "BUILTIN".to_owned()),

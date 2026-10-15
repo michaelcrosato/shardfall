@@ -55,6 +55,10 @@ pub struct WeaponLook {
     pub size: f32,
     pub offhand: OffhandKind,
     pub offhand_color: String,
+    /// A library prop drawn in place of the weapon (`LIB/core/mage_staff`), held by its `grip`
+    /// socket with the socket's +y along the weapon; `kind` still sets the reach and the swings.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub asset: String,
 }
 
 impl Default for WeaponLook {
@@ -67,6 +71,7 @@ impl Default for WeaponLook {
             size: 1.0,
             offhand: OffhandKind::None,
             offhand_color: "#8a6a3a".into(),
+            asset: String::new(),
         }
     }
 }
@@ -1489,7 +1494,9 @@ pub fn weapon_parts(w: &WeaponLook, k: f32, h: Vec3, d: Vec3, off: Vec3, out: &m
     let mut seg = |a: Vec3, b: Vec3, ra: f32, rb: f32, color: Color, glow: f32| {
         out.push(PuppetPart { a, b, ra: ra * k, rb: rb * k, color, glow });
     };
-    match w.kind {
+    // A held library prop is drawn by the view, at the hand (`pose_ex`'s span).
+    let kind = if w.asset.is_empty() { w.kind } else { WeaponKind::None };
+    match kind {
         WeaponKind::None => {}
         WeaponKind::Sword | WeaponKind::Greatsword => {
             let big = w.kind == WeaponKind::Greatsword;

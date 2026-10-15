@@ -11,17 +11,16 @@ is trusted. Start from an entry instead of from nothing. Design: docs/AGENT_ASSE
   (`@sit` is a socket), `tier=standard`, `similar=NAME`.
 - `assets find=walk kind=clip` and `assets find=planks kind=material` search clips and materials.
 - A miss says `none` with the nearest rows and a route (what to make, or where else to look) and
-  is logged to `store/misses.tsv`, so the store learns what games look for.
+  is logged to `store/misses.tsv`.
 - `store/STORE.tsv` lists every entry of every kind in one table (generated; search, don't read
   it whole).
 
 ## The shelf
 
-`assets shelf=prop` and `assets shelf=clip`: the best entries of a kind by category, one call,
-about 1,500 tokens. Read the shelf before a scene that needs several things. Props lead with
-the foundations (`store/foundations.tsv`: a few per archetype, their knobs, tested examples and
-the technique each shows): place a variant, e.g. `asset_spawn name=LIB/core/table:wide`, before
-making a new asset.
+`assets shelf=prop` and `assets shelf=clip`: the best entries of a kind, one call, about 1,500
+tokens; read it before a scene that needs several things. Props lead with the foundations
+(`store/foundations.tsv`): place a variant (`asset_spawn name=LIB/core/table:wide`) before
+making one.
 
 ## Tiers
 
@@ -48,7 +47,7 @@ fork it rather than starting blank:
 
     asset_edit action=copy from=LIB/kenney_mini_dungeon/barrel name=cask
 
-The copy records its lineage in the document:
+The copy records its lineage:
 `"lineage":{"method":"edited","origin":"import","parents":["LIB/kenney_mini_dungeon/barrel@prop2-…"],"license":"CC0-1.0","credit":"Kenney (www.kenney.nl)"}`.
 `origin` is where the line starts (`import`, `agent`, `human`, `generator`) and every fork
 inherits it with the licence and credit. Edits and publish keep the lineage; a patch cannot set
@@ -76,3 +75,6 @@ CC-BY credit travels with every copy and fork (it is in the lineage).
 `pav assets reindex=store` writes `store/CREDITS.md` and `store/STORE.tsv`; `pav assets
 reindex=<pack>` (or `=templates`, `=core`) rewrites a pack's `index.tsv`. Tests fail when any
 is stale. Never edit them by hand; edit the assets, the `PACK.json` or the clip sets.
+
+In the game's Workshop wing: `library_hall` (the standard tier; `reindex=hall` rewrites it), `limits`
+(what checks miss), `catalogue` (every row; desktop builds).

@@ -370,6 +370,15 @@ pos = [35.5, 0.03, 37.6]
 size = 0.7
 color = "#f6f3ea"
 
+[[label]]
+text = """
+ENTRIES · vehicles
+grippy · drifty
+(feel entries: a VehicleDef line each)"""
+pos = [24.5, 0.03, 42.7]
+size = 0.18
+color = "#f1f4fa"
+
 # Cars on the grid, then the pads' props. Pavilion convention: yaw 90 = facing east (+X).
 [[object]]
 name = "grippy"

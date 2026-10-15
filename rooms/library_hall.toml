@@ -1,0 +1,1551 @@
+# Library Hall (Workshop wing): the asset store's standard objects on plinths, each beside a 1.8 m
+# figure and signed with its index row, and three performers on the stage at the back.
+# Everything below the GENERATED line is written by `pav assets reindex=hall` from the embedded
+# index (the templates and LIB/core): after publishing to core, rebuild and run it again (a test
+# fails while the file is stale). Edit the card and the station guide above the line by hand.
+name = "Library Hall"
+about = "Every standard object of the asset store on a plinth beside a 1.8 m figure, signed with its index row (size, tier, licence, tokens), and Kestrel and Ysolde showing sockets and one clip on two bodies."
+try = [
+  "Walk the plinths: each sign is the object's row in the index, and the grey figure beside it is 1.8 m tall",
+  "At the back, Kestrel sits on the core chair through its sit socket",
+  "Ysolde holds the core mage staff by its grip socket, and dances the same clip as the second Kestrel",
+  "In the REPL: assets shelf=prop lists the best entries, assets find=chair searches the store",
+  "Press H for how the hall is generated from the index",
+]
+wing = "misc"
+order = 1
+primary_device = "keyboard_mouse"
+
+[camera]
+tilt = 45.0
+distance = 22.0
+fov = 40.0
+
+# Station guide (H in the game).
+[learn]
+what = "The asset store's standard tier: every object every build embeds (the templates and LIB/core), each on a plinth beside the 1.8 m figure that contact sheets use, signed with its index row: name, size in centimetres, tier, licence and payload tokens. On the stage at the back, Kestrel sits on the core chair through the chair's sit socket, Ysolde holds the core mage staff by its grip socket, and she and a second Kestrel dance one captured clip at their own proportions."
+how = [
+  "Each object is readable JSON made of named primitive parts. Its index row (assets/props/lib/core/index.tsv) is generated from the file: size from the compiled bounds, tokens from the file's bytes (about 2.8 bytes a token), tier from where it lives and whether it passed the checks.",
+  "This room is generated too: `pav assets reindex=hall` reads the embedded index and writes every plinth, figure, sign and the map below a marker line in the room file, so an object published to LIB/core appears here after a rebuild and a reindex. A test fails while the file is stale.",
+  "Sockets are named points with a direction on an object: sit on a seat top, grip on a handle with +y along the blade or shaft. A performer with seat = the chair's object stands where the sit socket puts its first clip's pelvis on the seat, facing the way the seat faces.",
+  "A look's weapon can be a library object: weapon.asset draws it at the hand by its grip socket, the socket's +y along the weapon, while the weapon kind still sets the reach and the swings.",
+  "A clip stores the hips as a share of hip height and each limb as a direction and a bend, so the same keys fit Kestrel's short, broad body and Ysolde's tall, slim one.",
+]
+uses = [
+  "Asset libraries with metadata: Unity's Asset Store and Unreal's Fab list size, licence and format for every entry; Quixel Megascans adds real-world scale.",
+  "Sockets: Unreal's skeletal mesh sockets attach weapons to hands; The Sims and most RPGs use seat slots so characters sit on any chair.",
+  "Scale references: level designers keep a human-sized figure in the editor (Unreal's mannequin, Valve's dev textures) to judge props against.",
+]
+ask = [
+  "show every asset in the library at real size",
+  "a character sitting on a chair from the library",
+  "a character holding a prop by its grip socket",
+  "play the same animation on two different bodies",
+  "regenerate the asset hall after publishing a prop",
+]
+cost = "The hall places one entity per object, two per figure and three performers; objects draw as their parts (a few hundred triangles each, generated meshes shared). Generating the room reads the embedded index and compiles each object once."
+terms = ["asset store", "socket", "retargeting", "procedural generation"]
+
+[[learn.code]]
+title = "A seated performer stands where the seat's sit socket puts its pelvis"
+file = "crates/pav_core/src/room.rs"
+lang = "rust"
+src = '''
+let socket = parts.sockets.get("sit").ok_or_else(|| fail(format!("({}) has no sit socket", def.doc.name)))?;
+let rot = o.local_rot();
+let at = o.pos + rot * (socket.pos * o.scale);
+let front = rot * socket.rot * Vec3::Z;
+let front = Vec3::new(front.x, 0.0, front.z).normalize_or(Vec3::Z);
+// The first clip's pelvis sits this far ahead of the feet (sitting clips: behind them).
+let ahead = n
+    .clips
+    .first()
+    .and_then(|name| crate::clips::find(name))
+    .and_then(|id| crate::clips::with(id, |clip| clip.key_at(0.0).hips[0]))
+    .unwrap_or(0.0);
+let hip = crate::clips::hip_height(&n.puppet()?);
+let feet = at - front * (ahead / 100.0 * hip);
+'''
+
+[[learn.code]]
+title = "A held library object: its grip socket at the hand, +y along the weapon"
+file = "crates/pav_view/src/build.rs"
+lang = "rust"
+src = '''
+fn held_asset(scene: &mut Scene, name: &str, hand: Vec3, tip: Vec3, id: u32) {
+    let Ok(parts) = pav_core::props::resolve_parts(name, 0) else { return };
+    let (grip, turn) = parts.sockets.get("grip").map_or((Vec3::ZERO, Quat::IDENTITY), |s| (s.pos, s.rot));
+    let rot = Quat::from_rotation_arc((turn * Vec3::Y).normalize_or(Vec3::Y), (tip - hand).normalize_or(Vec3::Y));
+    let at = crate::assets::Placement::at(hand - rot * grip).rot(rot).id(id);
+    // Names were checked when the look was read; a prop this build lacks is not drawn.
+    let _ = crate::assets::emit_asset(scene, name, at, 0, &Default::default());
+}
+'''
+
+# ---- GENERATED by `pav assets reindex=hall` from the embedded index: do not edit below ----
+[entrance]
+at = [18, 43]
+facing = "south"
+
+[layout]
+origin = [-18.5, 0.0, -22.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+#####################################
+#-----------------------------------#
+#-----------------------------------#
+#-----------------------------------#
+#-----------------------------------#
+#-----------------------------------#
+#-----------------------------------#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#pppp.pppp.pppp.pppp.pppp.pppp.pppp.#
+#...................................#
+#...................................#
+#pppp.pppp.pppp.pppp................#
+#pppp.pppp.pppp.pppp................#
+#pppp.pppp.pppp.pppp................#
+#...................................#
+#...................................#
+#...................................#
+##################.##################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+
+[layout.legend.'-']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#4a4160" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }, { y0 = 0, y1 = 3.0, color = "#2c3042" }]
+
+[layout.legend.'p']
+blocks = [{ y0 = -0.5, y1 = 0.2, color = "#5a6078" }]
+
+# ---- labels, characters and objects ----
+
+[[label]]
+text = "LIBRARY HALL · 46 STANDARD OBJECTS FROM THE INDEX"
+pos = [18.5, 0.03, 1.4]
+size = 0.5
+color = "#f1f4fa"
+
+[[label]]
+text = """
+SITS THROUGH sit
+LIB/core/chair
+QUATERNIUS/Sitting_Idle_Loop"""
+pos = [10.5, 0.03, 6.0]
+size = 0.24
+color = "#f1f4fa"
+
+[[label]]
+text = """
+HOLDS THROUGH grip
+LIB/core/mage_staff"""
+pos = [21.5, 0.03, 6.0]
+size = 0.24
+color = "#f1f4fa"
+
+[[label]]
+text = """
+ONE CLIP, TWO BODIES
+QUATERNIUS/Dance_Loop"""
+pos = [23.25, 0.03, 2.4]
+size = 0.24
+color = "#f1f4fa"
+
+[[label]]
+text = """
+BUILTIN/bench
+220x142x98 cm · standard
+CC0-1.0 · 344 tok"""
+pos = [3.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+BUILTIN/box
+100x100x100 cm · standard
+CC0-1.0 · 77 tok"""
+pos = [8.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+BUILTIN/crate
+126x120x130 cm · standard
+CC0-1.0 · 242 tok"""
+pos = [13.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+BUILTIN/lantern
+70x206x70 cm · standard
+CC0-1.0 · 276 tok"""
+pos = [18.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/altar
+150x140x84 cm · standard
+CC0-1.0 · 565 tok"""
+pos = [23.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/anvil
+64x79x48 cm · standard
+CC0-1.0 · 266 tok"""
+pos = [28.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/axe
+29x86x5 cm · standard
+CC0-1.0 · 394 tok"""
+pos = [33.0, 0.03, 10.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/banner
+113x170x9.6 cm · standard
+CC0-1.0 · 512 tok"""
+pos = [3.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/barrel
+60x91x60 cm · standard
+CC0-1.0 · 486 tok"""
+pos = [8.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/bench
+180x45x40 cm · standard
+CC0-1.0 · 361 tok"""
+pos = [13.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/bone_pile
+108x24x87 cm · standard
+CC0-1.0 · 547 tok"""
+pos = [18.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/brazier
+70x107x72 cm · standard
+CC0-1.0 · 568 tok"""
+pos = [23.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/cage
+150x216x150 cm · standard
+CC0-1.0 · 474 tok"""
+pos = [28.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/campfire
+89x52x93 cm · standard
+CC0-1.0 · 599 tok"""
+pos = [33.0, 0.03, 15.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/candle_cluster
+32x26x32 cm · standard
+CC0-1.0 · 529 tok"""
+pos = [3.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/canopy_stall
+220x230x171 cm · standard
+CC0-1.0 · 580 tok"""
+pos = [8.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/cask
+64x73x64 cm · standard
+CC0-1.0 · 523 tok"""
+pos = [13.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/chains
+75x129x17 cm · standard
+CC0-1.0 · 576 tok"""
+pos = [18.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/chair
+44x96x45 cm · standard
+CC0-1.0 · 504 tok"""
+pos = [23.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/chest
+88x66x55 cm · standard
+CC0-1.0 · 522 tok"""
+pos = [28.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/column
+104x280x104 cm · standard
+CC0-1.0 · 325 tok"""
+pos = [33.0, 0.03, 20.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/column_broken
+255x169x167 cm · standard
+CC0-1.0 · 604 tok"""
+pos = [3.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/crate_stack
+122x167x122 cm · standard
+CC0-1.0 · 597 tok"""
+pos = [8.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/crystal_cluster
+98x116x67 cm · standard
+CC0-1.0 · 528 tok"""
+pos = [13.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/fence
+216x115x16 cm · standard
+CC0-1.0 · 285 tok"""
+pos = [18.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/gable_stall
+260x295x200 cm · standard
+CC0-1.0 · 638 tok"""
+pos = [23.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/hall_table
+200x79x80 cm · standard
+CC0-1.0 · 396 tok"""
+pos = [28.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/mage_staff
+10x185x10 cm · standard
+CC0-1.0 · 366 tok"""
+pos = [33.0, 0.03, 25.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/market_stall
+273x254x192 cm · standard
+CC0-1.0 · 870 tok"""
+pos = [3.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/mushroom_cluster
+120x97x107 cm · standard
+CC0-1.0 · 587 tok"""
+pos = [8.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/park_bench
+193x85x51 cm · standard
+CC0-1.0 · 560 tok"""
+pos = [13.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/rock_cluster
+158x113x131 cm · standard
+CC0-1.0 · 423 tok"""
+pos = [18.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/round_table
+100x76x100 cm · standard
+CC0-1.0 · 363 tok"""
+pos = [23.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/rubble_pile
+128x56x98 cm · standard
+CC0-1.0 · 443 tok"""
+pos = [28.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/sack
+58x74x58 cm · standard
+CC0-1.0 · 355 tok"""
+pos = [33.0, 0.03, 30.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/shelf
+120x180x35 cm · standard
+CC0-1.0 · 618 tok"""
+pos = [3.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/signpost
+133x239x44 cm · standard
+CC0-1.0 · 386 tok"""
+pos = [8.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/slat_crate
+56x31x38 cm · standard
+CC0-1.0 · 447 tok"""
+pos = [13.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/spear
+9x207x4.8 cm · standard
+CC0-1.0 · 453 tok"""
+pos = [18.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/stalagmite
+91x114x72 cm · standard
+CC0-1.0 · 361 tok"""
+pos = [23.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/sword
+20x97x6.4 cm · standard
+CC0-1.0 · 472 tok"""
+pos = [28.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/table
+160x78x80 cm · standard
+CC0-1.0 · 560 tok"""
+pos = [33.0, 0.03, 35.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/tap_barrel
+97x70x60 cm · standard
+CC0-1.0 · 368 tok"""
+pos = [3.0, 0.03, 40.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/urn
+54x71x49 cm · standard
+CC0-1.0 · 327 tok"""
+pos = [8.0, 0.03, 40.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/wall_torch
+14x61x29 cm · standard
+CC0-1.0 · 544 tok"""
+pos = [13.0, 0.03, 40.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIB/core/well
+178x252x148 cm · standard
+CC0-1.0 · 718 tok"""
+pos = [18.0, 0.03, 40.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[npc]]
+name = "kestrel_seated"
+pos = [10.5, 0.0, 4.0]
+yaw = 0
+clips = ["QUATERNIUS/Sitting_Idle_Loop", "QUATERNIUS/Sitting_Talking_Loop"]
+hold = 8.0
+seat = "kestrel_chair"
+look = { accent = "#141012", arm_length = 0.55, eyes = "#1a1210", gear = { belt = "#c2302a", gloves = "#f1eadb" }, head_radius = 0.2, hip_width = 0.12, idle_clip = "CMU/Boxing_Guard_Loop", leg_length = 0.76, limb_radius = 0.085, pants = "#ece4d2", parts = [{ color = "#141012", count = 8, kind = "crest", size = 2.0 }], scale = 0.96, shirt = "#a8693f", shoes = "#a8693f", shoulder_width = 0.26, skin = "#a8693f", torso_length = 0.4, torso_radius = 0.22 }
+
+[[npc]]
+name = "ysolde"
+pos = [21.5, 0.0, 4.0]
+yaw = 0
+clips = ["QUATERNIUS/Dance_Loop"]
+hold = 8.0
+look = { accent = "#7fd8ff", arm_length = 0.6, eyes = "#7fe4ff", gear = { belt = "#d4ad4f", cape = 1.0, cape_color = "#262a66", gloves = "#2b2d6c", helm = "hood", helm_color = "#2b2d6c" }, head_radius = 0.185, hip_width = 0.1, idle_clip = "QUATERNIUS/Spell_Simple_Idle_Loop", leg_length = 0.84, limb_radius = 0.056, pants = "#30337a", parts = [{ color = "#86dcff", count = 3, glow = 2.0, kind = "orbs", size = 0.8 }], scale = 1.06, shirt = "#3b3f94", shoes = "#221d38", shoulder_width = 0.19, skin = "#e6d2c4", torso_length = 0.46, torso_radius = 0.16, weapon = { asset = "LIB/core/mage_staff", kind = "staff" } }
+
+[[npc]]
+name = "kestrel"
+pos = [25.0, 0.0, 4.0]
+yaw = 0
+clips = ["QUATERNIUS/Dance_Loop"]
+hold = 8.0
+look = { accent = "#141012", arm_length = 0.55, eyes = "#1a1210", gear = { belt = "#c2302a", gloves = "#f1eadb" }, head_radius = 0.2, hip_width = 0.12, idle_clip = "CMU/Boxing_Guard_Loop", leg_length = 0.76, limb_radius = 0.085, pants = "#ece4d2", parts = [{ color = "#141012", count = 8, kind = "crest", size = 2.0 }], scale = 0.96, shirt = "#a8693f", shoes = "#a8693f", shoulder_width = 0.26, skin = "#a8693f", torso_length = 0.4, torso_radius = 0.22 }
+
+[[object]]
+name = "kestrel_chair"
+asset = "LIB/core/chair"
+pos = [10.0, 0.0, 4.0]
+yaw = 90
+body = "none"
+
+[[object]]
+name = "bench"
+asset = "BUILTIN/bench"
+pos = [2.605, 0.2, 8.61]
+body = "fixed"
+
+[[object]]
+name = "figure_bench"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [4.275, 0.975, 8.23]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_bench"
+shape = { type = "sphere", radius = 0.125 }
+pos = [4.275, 1.875, 8.23]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "box"
+asset = "BUILTIN/box"
+pos = [7.605, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_box"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.675, 0.975, 8.22]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_box"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.675, 1.875, 8.22]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "crate"
+asset = "BUILTIN/crate"
+pos = [12.605, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_crate"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [13.805, 0.975, 8.07]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_crate"
+shape = { type = "sphere", radius = 0.125 }
+pos = [13.805, 1.875, 8.07]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "lantern"
+asset = "BUILTIN/lantern"
+pos = [17.605, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_lantern"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [18.525, 0.975, 8.37]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_lantern"
+shape = { type = "sphere", radius = 0.125 }
+pos = [18.525, 1.875, 8.37]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "altar"
+asset = "LIB/core/altar"
+pos = [22.605, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_altar"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [23.925, 0.975, 8.3]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_altar"
+shape = { type = "sphere", radius = 0.125 }
+pos = [23.925, 1.875, 8.3]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "anvil"
+asset = "LIB/core/anvil"
+pos = [27.525, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_anvil"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [28.495, 0.975, 8.48]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_anvil"
+shape = { type = "sphere", radius = 0.125 }
+pos = [28.495, 1.875, 8.48]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "axe"
+asset = "LIB/core/axe"
+pos = [32.54, 0.2, 8.5]
+body = "fixed"
+
+[[object]]
+name = "figure_axe"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.32, 0.975, 8.695]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_axe"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.32, 1.875, 8.695]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "banner"
+asset = "LIB/core/banner"
+pos = [2.605, 0.2, 13.452]
+body = "fixed"
+
+[[object]]
+name = "figure_banner"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [3.741, 0.975, 13.672]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_banner"
+shape = { type = "sphere", radius = 0.125 }
+pos = [3.741, 1.875, 13.672]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "barrel"
+asset = "LIB/core/barrel"
+pos = [7.605, 0.2, 13.5]
+body = "fixed"
+
+[[object]]
+name = "figure_barrel"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.475, 0.975, 13.42]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_barrel"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.475, 1.875, 13.42]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "bench"
+asset = "LIB/core/bench"
+pos = [12.605, 0.2, 13.5]
+body = "fixed"
+
+[[object]]
+name = "figure_bench"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [14.075, 0.975, 13.52]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_bench"
+shape = { type = "sphere", radius = 0.125 }
+pos = [14.075, 1.875, 13.52]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "bone_pile"
+asset = "LIB/core/bone_pile"
+pos = [17.641, 0.2, 13.475]
+body = "fixed"
+
+[[object]]
+name = "figure_bone_pile"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [18.717, 0.975, 13.284]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_bone_pile"
+shape = { type = "sphere", radius = 0.125 }
+pos = [18.717, 1.875, 13.284]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "brazier"
+asset = "LIB/core/brazier"
+pos = [22.605, 0.2, 13.491]
+body = "fixed"
+
+[[object]]
+name = "figure_brazier"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [23.523, 0.975, 13.363]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_brazier"
+shape = { type = "sphere", radius = 0.125 }
+pos = [23.523, 1.875, 13.363]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "cage"
+asset = "LIB/core/cage"
+pos = [27.605, 0.2, 13.5]
+body = "fixed"
+
+[[object]]
+name = "figure_cage"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [28.925, 0.975, 12.97]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_cage"
+shape = { type = "sphere", radius = 0.125 }
+pos = [28.925, 1.875, 12.97]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "campfire"
+asset = "LIB/core/campfire"
+pos = [32.605, 0.2, 13.5]
+body = "fixed"
+
+[[object]]
+name = "figure_campfire"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.622, 0.975, 13.255]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_campfire"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.622, 1.875, 13.255]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "candle_cluster"
+asset = "LIB/core/candle_cluster"
+pos = [2.605, 0.2, 18.5]
+body = "fixed"
+
+[[object]]
+name = "figure_candle_cluster"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [3.335, 0.975, 18.56]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_candle_cluster"
+shape = { type = "sphere", radius = 0.125 }
+pos = [3.335, 1.875, 18.56]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "canopy_stall"
+asset = "LIB/core/canopy_stall"
+pos = [7.605, 0.2, 18.5]
+body = "fixed"
+
+[[object]]
+name = "figure_canopy_stall"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [9.275, 0.975, 17.865]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_canopy_stall"
+shape = { type = "sphere", radius = 0.125 }
+pos = [9.275, 1.875, 17.865]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "cask"
+asset = "LIB/core/cask"
+pos = [12.605, 0.2, 18.5]
+body = "fixed"
+
+[[object]]
+name = "figure_cask"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [13.495, 0.975, 18.4]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_cask"
+shape = { type = "sphere", radius = 0.125 }
+pos = [13.495, 1.875, 18.4]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "chains"
+asset = "LIB/core/chains"
+pos = [17.605, 0.2, 18.47]
+body = "fixed"
+
+[[object]]
+name = "figure_chains"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [18.55, 0.975, 18.637]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_chains"
+shape = { type = "sphere", radius = 0.125 }
+pos = [18.55, 1.875, 18.637]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "chair"
+asset = "LIB/core/chair"
+pos = [22.605, 0.2, 18.506]
+body = "fixed"
+
+[[object]]
+name = "figure_chair"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [23.395, 0.975, 18.494]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_chair"
+shape = { type = "sphere", radius = 0.125 }
+pos = [23.395, 1.875, 18.494]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "chest"
+asset = "LIB/core/chest"
+pos = [27.605, 0.2, 18.491]
+body = "fixed"
+
+[[object]]
+name = "figure_chest"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [28.615, 0.975, 18.446]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_chest"
+shape = { type = "sphere", radius = 0.125 }
+pos = [28.615, 1.875, 18.446]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "column"
+asset = "LIB/core/column"
+pos = [32.605, 0.2, 18.5]
+body = "fixed"
+
+[[object]]
+name = "figure_column"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.695, 0.975, 18.2]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_column"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.695, 1.875, 18.2]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "column_broken"
+asset = "LIB/core/column_broken"
+pos = [2.009, 0.2, 23.399]
+body = "fixed"
+
+[[object]]
+name = "figure_column_broken"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [4.449, 0.975, 22.886]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_column_broken"
+shape = { type = "sphere", radius = 0.125 }
+pos = [4.449, 1.875, 22.886]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "crate_stack"
+asset = "LIB/core/crate_stack"
+pos = [7.605, 0.2, 23.5]
+body = "fixed"
+
+[[object]]
+name = "figure_crate_stack"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.786, 0.975, 23.109]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_crate_stack"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.786, 1.875, 23.109]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "crystal_cluster"
+asset = "LIB/core/crystal_cluster"
+pos = [12.674, 0.2, 23.483]
+body = "fixed"
+
+[[object]]
+name = "figure_crystal_cluster"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [13.665, 0.975, 23.383]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_crystal_cluster"
+shape = { type = "sphere", radius = 0.125 }
+pos = [13.665, 1.875, 23.383]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "fence"
+asset = "LIB/core/fence"
+pos = [17.605, 0.2, 23.5]
+body = "fixed"
+
+[[object]]
+name = "figure_fence"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [19.253, 0.975, 23.642]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_fence"
+shape = { type = "sphere", radius = 0.125 }
+pos = [19.253, 1.875, 23.642]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "gable_stall"
+asset = "LIB/core/gable_stall"
+pos = [22.605, 0.2, 23.5]
+body = "fixed"
+
+[[object]]
+name = "figure_gable_stall"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [24.475, 0.975, 22.72]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_gable_stall"
+shape = { type = "sphere", radius = 0.125 }
+pos = [24.475, 1.875, 22.72]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "hall_table"
+asset = "LIB/core/hall_table"
+pos = [27.605, 0.2, 23.5]
+body = "fixed"
+
+[[object]]
+name = "figure_hall_table"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [29.175, 0.975, 23.32]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_hall_table"
+shape = { type = "sphere", radius = 0.125 }
+pos = [29.175, 1.875, 23.32]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "mage_staff"
+asset = "LIB/core/mage_staff"
+pos = [32.605, 0.2, 23.5]
+body = "fixed"
+
+[[object]]
+name = "figure_mage_staff"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.225, 0.975, 23.67]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_mage_staff"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.225, 1.875, 23.67]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "market_stall"
+asset = "LIB/core/market_stall"
+pos = [2.605, 0.2, 28.225]
+body = "fixed"
+
+[[object]]
+name = "figure_market_stall"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [4.54, 0.975, 27.761]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_market_stall"
+shape = { type = "sphere", radius = 0.125 }
+pos = [4.54, 1.875, 27.761]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "mushroom_cluster"
+asset = "LIB/core/mushroom_cluster"
+pos = [7.598, 0.2, 28.541]
+body = "fixed"
+
+[[object]]
+name = "figure_mushroom_cluster"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.776, 0.975, 28.183]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_mushroom_cluster"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.776, 1.875, 28.183]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "park_bench"
+asset = "LIB/core/park_bench"
+pos = [12.605, 0.2, 28.555]
+body = "fixed"
+
+[[object]]
+name = "figure_park_bench"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [14.14, 0.975, 28.465]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_park_bench"
+shape = { type = "sphere", radius = 0.125 }
+pos = [14.14, 1.875, 28.465]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "rock_cluster"
+asset = "LIB/core/rock_cluster"
+pos = [17.648, 0.2, 28.494]
+body = "fixed"
+
+[[object]]
+name = "figure_rock_cluster"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [18.965, 0.975, 28.063]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_rock_cluster"
+shape = { type = "sphere", radius = 0.125 }
+pos = [18.965, 1.875, 28.063]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "round_table"
+asset = "LIB/core/round_table"
+pos = [22.605, 0.2, 28.5]
+body = "fixed"
+
+[[object]]
+name = "figure_round_table"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [23.675, 0.975, 28.22]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_round_table"
+shape = { type = "sphere", radius = 0.125 }
+pos = [23.675, 1.875, 28.22]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "rubble_pile"
+asset = "LIB/core/rubble_pile"
+pos = [27.664, 0.2, 28.37]
+body = "fixed"
+
+[[object]]
+name = "figure_rubble_pile"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [28.815, 0.975, 28.23]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_rubble_pile"
+shape = { type = "sphere", radius = 0.125 }
+pos = [28.815, 1.875, 28.23]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "sack"
+asset = "LIB/core/sack"
+pos = [32.605, 0.2, 28.5]
+body = "fixed"
+
+[[object]]
+name = "figure_sack"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.465, 0.975, 28.43]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_sack"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.465, 1.875, 28.43]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "shelf"
+asset = "LIB/core/shelf"
+pos = [2.605, 0.2, 33.325]
+body = "fixed"
+
+[[object]]
+name = "figure_shelf"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [3.775, 0.975, 33.545]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_shelf"
+shape = { type = "sphere", radius = 0.125 }
+pos = [3.775, 1.875, 33.545]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "signpost"
+asset = "LIB/core/signpost"
+pos = [7.563, 0.2, 33.481]
+body = "fixed"
+
+[[object]]
+name = "figure_signpost"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.842, 0.975, 33.499]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_signpost"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.842, 1.875, 33.499]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "slat_crate"
+asset = "LIB/core/slat_crate"
+pos = [12.605, 0.2, 33.5]
+body = "fixed"
+
+[[object]]
+name = "figure_slat_crate"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [13.455, 0.975, 33.53]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_slat_crate"
+shape = { type = "sphere", radius = 0.125 }
+pos = [13.455, 1.875, 33.53]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "spear"
+asset = "LIB/core/spear"
+pos = [17.605, 0.2, 33.5]
+body = "fixed"
+
+[[object]]
+name = "figure_spear"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [18.22, 0.975, 33.696]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_spear"
+shape = { type = "sphere", radius = 0.125 }
+pos = [18.22, 1.875, 33.696]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "stalagmite"
+asset = "LIB/core/stalagmite"
+pos = [22.538, 0.2, 33.511]
+body = "fixed"
+
+[[object]]
+name = "figure_stalagmite"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [23.63, 0.975, 33.362]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_stalagmite"
+shape = { type = "sphere", radius = 0.125 }
+pos = [23.63, 1.875, 33.362]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "sword"
+asset = "LIB/core/sword"
+pos = [27.605, 0.2, 33.5]
+body = "fixed"
+
+[[object]]
+name = "figure_sword"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [28.275, 0.975, 33.688]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_sword"
+shape = { type = "sphere", radius = 0.125 }
+pos = [28.275, 1.875, 33.688]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "table"
+asset = "LIB/core/table"
+pos = [32.605, 0.2, 33.5]
+body = "fixed"
+
+[[object]]
+name = "figure_table"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [33.975, 0.975, 33.32]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_table"
+shape = { type = "sphere", radius = 0.125 }
+pos = [33.975, 1.875, 33.32]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "tap_barrel"
+asset = "LIB/core/tap_barrel"
+pos = [2.568, 0.2, 38.5]
+body = "fixed"
+
+[[object]]
+name = "figure_tap_barrel"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [3.663, 0.975, 38.42]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_tap_barrel"
+shape = { type = "sphere", radius = 0.125 }
+pos = [3.663, 1.875, 38.42]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "urn"
+asset = "LIB/core/urn"
+pos = [7.605, 0.2, 38.5]
+body = "fixed"
+
+[[object]]
+name = "figure_urn"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [8.445, 0.975, 38.476]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_urn"
+shape = { type = "sphere", radius = 0.125 }
+pos = [8.445, 1.875, 38.476]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "wall_torch"
+asset = "LIB/core/wall_torch"
+pos = [12.605, 0.2, 38.355]
+body = "fixed"
+
+[[object]]
+name = "figure_wall_torch"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [13.245, 0.975, 38.575]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_wall_torch"
+shape = { type = "sphere", radius = 0.125 }
+pos = [13.245, 1.875, 38.575]
+color = "#a7aeb5"
+body = "none"
+
+[[object]]
+name = "well"
+asset = "LIB/core/well"
+pos = [17.555, 0.2, 38.5]
+body = "fixed"
+
+[[object]]
+name = "figure_well"
+shape = { type = "capsule", half_height = 0.555, radius = 0.22 }
+pos = [19.065, 0.975, 37.98]
+color = "#8d949b"
+body = "none"
+
+[[object]]
+name = "head_well"
+shape = { type = "sphere", radius = 0.125 }
+pos = [19.065, 1.875, 37.98]
+color = "#a7aeb5"
+body = "none"

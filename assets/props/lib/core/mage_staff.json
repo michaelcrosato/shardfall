@@ -1,0 +1,17 @@
+{"format":2,"name":"mage_staff","unit":"cm",
+"description":"A 1.8 m wizard's staff: a dark ash shaft with a leather grip and iron ferrule, an iron claw holding a glowing crystal.",
+"tags":["staff","magic","wizard","crystal","weapon"],
+"category":"weapon",
+"materials":{
+"crystal":{"color":"#9fe8ff","look":"unlit","emissive":2},
+"iron":"MAT/wrought_iron",
+"leather":{"color":"#4a3360"},
+"wood":{"color":"#5a3f2a"}},
+"parts":{
+"collar":{"type":"cylinder","radius":2.6,"radius_end":4.4,"segments":8,"from":[0,154,0],"to":[0,162,0],"mat":"iron"},
+"crystal":{"type":"lathe","profile":[[0,0],[5,8],[3.6,18],[0,25]],"segments":6,"pos":[0,160,0],"mat":"crystal"},
+"ferrule":{"type":"cylinder","radius":3,"radius_end":2.8,"segments":8,"from":[0,0,0],"to":[0,6,0],"mat":"iron"},
+"grip":{"type":"cylinder","radius":3.1,"segments":8,"from":[0,56,0],"to":[0,80,0],"mat":"leather"},
+"shaft":{"type":"cylinder","radius":2.6,"radius_end":2.2,"segments":8,"from":[0,4,0],"to":[0,158,0],"mat":"wood"}},
+"sockets":{
+"grip":{"pos":[0,68,0]}}}

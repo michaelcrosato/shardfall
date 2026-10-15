@@ -1,0 +1,265 @@
+# Limits (Workshop wing): what the asset store's checks catch, and what they do not. Each
+# exhibit is signed with its number and the check that catches it, or "not caught";
+# crates/pav_tools/tests/store_rooms.rs runs `check` on every exhibit and measures the clips, so
+# a sign that stops being true fails the build.
+#   BACK   five object exhibits on dark squares: a 48 cm chair placed at scale 0.5, the same
+#          chair copied at half size, a barrel and a table sunk 76 cm, a missing material
+#   MIDDLE two clip exhibits: a walk that strays 546 mm from its capture, a two-hand clip on a
+#          standard and a short body
+#   FRONT  the limits only imports show (counted from the committed indexes)
+name = "Limits"
+about = "What the asset store's checks catch and what they miss: a doll-sized chair, objects sunk into the floor, a missing material, a captured walk that strays from its capture and a two-hand clip on a short body, each signed with the check that catches it or 'not caught'."
+try = [
+  "Read each sign: its number, then the check that catches the defect, or 'not caught'",
+  "Compare 1 and 2: the same 48 cm chair, but only the copy whose file says 48 cm is caught",
+  "Compare 3 and 4: both sunk 76 cm, but the table's top still reaches the floor, so check reads it as hanging",
+  "Watch 7: the same clip brings the hands together on the standard body and leaves them apart on the short one",
+  "In the REPL: asset_edit action=check name=LIB/core/chair runs the checks on an object",
+]
+wing = "misc"
+order = 2
+primary_device = "keyboard_mouse"
+entrance = { at = [14, 21], facing = "south" }
+
+[camera]
+tilt = 45.0
+distance = 18.0
+fov = 40.0
+
+# Station guide (H in the game).
+[learn]
+what = "Seven defects and one sign. At the back, five objects: a core chair placed at scale 0.5, the same chair copied at half size, a barrel and a table each sunk 76 cm into the floor, and a barrel whose staves name a material the library lacks (it draws magenta). In the middle, two clips: 100STYLE's WildLegs_Walk, whose worst point strays 546 mm from its capture, and a two-handed pistol idle on a standard and a short body. At the front, the limits only imported objects show. Every sign names the check that catches its exhibit, or says it is not caught."
+how = [
+  "asset_edit action=check lints an object's file: parts below the floor (below_floor), a size outside its kind's real-world band (size_band, from store/size_bands.tsv), a missing socket (socket_missing), a material the library lacks (unknown_material), floating, hidden and z-fighting parts.",
+  "Checks run on assets, not on where a room puts them: exhibit 1 is the core chair placed at scale 0.5, which no check sees; exhibit 2 is a copy whose own parts are scaled to 48 cm (a room object's patch, the ops asset_edit takes), and size_band catches it.",
+  "Below the floor has an exception: an object whose top ends at its origin hangs from it (a lantern on a hook). The table sunk 76 cm keeps its top 2 cm above the floor, inside that tolerance, so check reads it as hanging and stays quiet; the barrel's top is 15 cm up, so it is caught.",
+  "A material the library lacks draws magenta, so it shows at a glance, and check names the part and the nearest real material.",
+  "Clips are fitted to their capture with as few key poses as stay close; clips name= reports the mean and worst error in millimetres, but no check refuses a clip. Clips store limb directions, not contacts, so hands that meet on one body can miss on another with shorter arms or wider shoulders.",
+]
+uses = [
+  "Asset validation in production pipelines: Unreal's Data Validation and Unity's asset postprocessors reject wrong scale, missing materials and bad pivots on import.",
+  "Scale checks against a reference figure: Bethesda and Valve keep human-sized figures in their editors because a model's units say nothing about its intended size.",
+  "Retargeting fixes: Unreal's IK Retargeter and Unity's Animation Rigging pin hands to a two-handed weapon so they meet on any body.",
+]
+ask = [
+  "check this object for problems before I place it",
+  "why is my prop magenta",
+  "make the hands meet on a two-handed weapon for every body",
+  "what do the asset checks not catch",
+]
+cost = "Free at runtime: the exhibits are ordinary placed objects and performers. check compiles an object once and measures its parts' boxes; a room object's patch is applied once, when the room is built."
+terms = ["lint", "asset store", "retargeting", "motion capture"]
+
+[[learn.code]]
+title = "Below the floor, unless the object hangs from its origin"
+file = "crates/pav_core/src/props/lint.rs"
+lang = "rust"
+src = '''
+let hangs = hi.y.abs() <= 0.02 && lo.y < -JOIN;
+let below: Vec<&str> = solids.iter().filter(|s| s.min.y < -JOIN).map(|s| s.name).collect();
+if hangs || mounted.is_some() {
+} else if !below.is_empty() {
+    let fact = format!("{} reach{} y={} cm", names(&below, 4), if below.len() == 1 { "es" } else { "" }, cm(lo.y));
+    push("below_floor", below.clone(), fact);
+} else if lo.y > JOIN {
+    push("not_grounded", vec![], format!("the lowest part is at y={} cm", cm(lo.y)));
+}
+'''
+
+[[learn.code]]
+title = "A room object's patch: a one-off variant of an embedded object"
+file = "crates/pav_core/src/props/family.rs"
+lang = "rust"
+src = '''
+pub fn patched(def: &Arc<PropDef>, ops: &[Value]) -> Result<Arc<PropDef>, String> {
+    if ops.is_empty() {
+        return Ok(def.clone());
+    }
+    let ops = Value::Array(ops.to_vec());
+    let doc = super::patch_document(&def.doc, &ops, &super::get).map_err(|issues| issue::render(&issues))?.doc;
+    PropDef::new(doc).map(Arc::new).map_err(|issues| issue::render(&issues))
+}
+'''
+
+[layout]
+origin = [-14.0, 0.0, -11.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+############################
+#..........................#
+#..........................#
+#..xxx..xxx..xxx..xxx..xxx.#
+#..xxx..xxx..xxx..xxx..xxx.#
+#..xxx..xxx..xxx..xxx..xxx.#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+#.....xxx.......xxxxxx.....#
+#.....xxx.......xxxxxx.....#
+#.....xxx.......xxxxxx.....#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+#..........................#
+##############.#############
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+
+[layout.legend.'x']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#2a2e3d" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }, { y0 = 0, y1 = 3.0, color = "#2c3042" }]
+
+# ---- labels, characters and objects (keep at the end of the file) ----
+
+[[label]]
+text = "LIMITS · WHAT THE CHECKS CATCH, AND WHAT THEY DO NOT"
+pos = [14.0, 0.03, 1.5]
+size = 0.5
+color = "#f1f4fa"
+
+[[label]]
+text = """
+1 · A 48 cm CHAIR
+LIB/core/chair · placed at scale 0.5
+not caught: check runs on assets,
+not on a placed copy's scale"""
+pos = [4.5, 0.03, 7.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+2 · THE SAME CHAIR, COPIED AT HALF SIZE
+LIB/core/chair · patch: scale 0.5
+caught by size_band
+(a chair is 65-150 cm tall)"""
+pos = [9.5, 0.03, 7.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+3 · A BARREL SUNK 76 cm
+LIB/core/barrel · patch: parts moved -76 cm
+caught by below_floor"""
+pos = [14.5, 0.03, 7.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+4 · A TABLE SUNK 76 cm
+LIB/core/table · patch: parts moved -76 cm
+not caught: its top ends 2 cm up, so check
+reads it as hanging from its origin"""
+pos = [19.5, 0.03, 7.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+5 · A MISSING MATERIAL
+LIB/core/barrel · its staves name a material
+the library lacks, so they draw magenta
+caught by unknown_material"""
+pos = [24.0, 0.03, 7.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+6 · A WALK THAT STRAYS FROM ITS CAPTURE
+STYLE100/WildLegs_Walk
+worst point 546 mm off (mean 71 mm)
+not caught: clips name= reports fit_mm,
+no check refuses a clip"""
+pos = [7.5, 0.03, 15.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+7 · A TWO-HAND CLIP ON A SHORT BODY
+QUATERNIUS/Pistol_Idle_Loop
+hands 12 cm apart on the standard body, 31 cm on the short one
+not caught: no check measures where hands meet"""
+pos = [19.0, 0.03, 15.3]
+size = 0.17
+color = "#f1f4fa"
+
+[[label]]
+text = """
+LIMITS ONLY IMPORTS SHOW (see them in the Catalogue)
+28 of 61 imports are over 30% mesh: placed, scaled and recoloured, never edited
+textures flattened to face colours: not caught (the compare image uses the same flattened source)
+creatures wait: their exhibits come when creatures are actors"""
+pos = [14.0, 0.03, 18.5]
+size = 0.2
+color = "#f1f4fa"
+
+[[npc]]
+name = "wild_legs"
+pos = [7.5, 0.0, 12.5]
+yaw = 0
+clips = ["STYLE100/WildLegs_Walk"]
+look = { shirt = "#c0569a", pants = "#2a2a3a" }
+
+[[npc]]
+name = "two_hand_standard"
+pos = [17.5, 0.0, 12.5]
+yaw = 0
+clips = ["QUATERNIUS/Pistol_Idle_Loop"]
+look = { shirt = "#5b8def", pants = "#2e3440" }
+
+[[npc]]
+name = "two_hand_short"
+pos = [20.5, 0.0, 12.5]
+yaw = 0
+clips = ["QUATERNIUS/Pistol_Idle_Loop"]
+look = { shirt = "#e0a040", pants = "#2e3440", scale = 0.8, arm_length = 0.36, shoulder_width = 0.3, torso_radius = 0.25, leg_length = 0.55 }
+
+[[object]]
+name = "exhibit_1"
+asset = "LIB/core/chair"
+scale = 0.5
+pos = [4.5, 0.0, 4.5]
+body = "fixed"
+
+[[object]]
+name = "exhibit_2"
+asset = "LIB/core/chair"
+patch = [{ op = "scale", by = 0.5 }]
+pos = [9.5, 0.0, 4.5]
+body = "fixed"
+
+[[object]]
+name = "exhibit_3"
+asset = "LIB/core/barrel"
+patch = [{ op = "move", parts = ["body", "bung", "hoop_low", "hoop_mid", "hoop_rim", "hoop_top", "lid"], by = [0, -76, 0] }]
+pos = [14.5, 0.0, 4.5]
+body = "none"
+
+[[object]]
+name = "exhibit_4"
+asset = "LIB/core/table"
+patch = [{ op = "move", parts = ["apron_long", "apron_short", "leg", "stretcher_mid", "stretcher_side", "top"], by = [0, -76, 0] }]
+pos = [19.5, 0.0, 4.5]
+body = "none"
+
+[[object]]
+name = "exhibit_5"
+asset = "LIB/core/barrel"
+patch = [{ op = "set", material = "staves", fields = { base = "MAT/barrel_stave" } }]
+pos = [24.5, 0.0, 4.5]
+body = "fixed"
