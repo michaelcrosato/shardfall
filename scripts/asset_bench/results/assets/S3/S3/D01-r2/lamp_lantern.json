@@ -1,0 +1,19 @@
+{"format":2,"name":"lamp_lantern","unit":"cm",
+"description":"A big lighthouse lantern: iron pedestal, glass cage, glowing flame, domed cap.",
+"tags":["lantern","lighthouse","lamp","light"],
+"category":"lighting",
+"materials":{
+"brass":"MAT/gold_trim",
+"flame":{"color":"#ffcc55","emissive":4},
+"glass":{"color":"#bfe6ff","emissive":0.6},
+"iron":"MAT/wrought_iron"},
+"parts":{
+"base":{"type":"cylinder","radius":24,"height":8,"pos":[0,4,0],"mat":"iron"},
+"cap":{"type":"cone","radius":25,"radius_end":4,"height":28,"pos":[0,97,0],"mat":"iron"},
+"deck":{"type":"cylinder","radius":26,"height":5,"pos":[0,40.5,0],"mat":"brass"},
+"flame":{"type":"sphere","radius":11,"pos":[0,58,0],"mat":"flame","light":{"color":"#ffcc66","radius":600,"intensity":2}},
+"glass":{"type":"cylinder","radius":20,"height":34,"pos":[0,60,0],"mat":"glass","solid":false},
+"knob":{"type":"sphere","radius":5,"pos":[0,114,0],"mat":"brass"},
+"pedestal":{"type":"cone","radius":18,"radius_end":14,"height":30,"pos":[0,23,0],"mat":"iron"},
+"post":{"type":"box","size":[3,40,3],"pos":[0,61,0],"mat":"iron","radial":{"count":4,"radius":19}},
+"ring":{"type":"cylinder","radius":24,"height":4,"pos":[0,81,0],"mat":"brass"}}}

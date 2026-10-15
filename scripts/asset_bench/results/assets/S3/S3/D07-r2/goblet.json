@@ -1,0 +1,12 @@
+{"format":2,"name":"goblet","unit":"cm",
+"description":"A small golden goblet, 15 cm tall.",
+"tags":["goblet","cup","gold"],
+"category":"container",
+"materials":{
+"gem":{"color":"#c02040"},
+"gold":{"color":"#f2c230"}},
+"parts":{
+"bowl":{"type":"cone","radius":2,"radius_end":4.5,"height":7.5,"pos":[0,11.25,0],"mat":"gold"},
+"foot":{"type":"cylinder","radius":3.5,"height":1.5,"pos":[0,0.75,0],"mat":"gold"},
+"gem":{"type":"sphere","radius":1.2,"pos":[0,4.5,1.2],"mat":"gem"},
+"stem":{"type":"cylinder","radius":1,"height":6,"pos":[0,4.5,0],"mat":"gold"}}}

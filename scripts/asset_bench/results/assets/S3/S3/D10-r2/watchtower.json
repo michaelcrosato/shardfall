@@ -1,0 +1,17 @@
+{"format":2,"name":"watchtower","unit":"cm",
+"description":"A timber watchtower with a snowy plank platform 300 cm up and a railing.",
+"materials":{
+"dark":{"color":"#5a4430"},
+"floor":"MAT/workshop/snow_planks",
+"snow":{"color":"#f2f6fa"},
+"wood":{"color":"#8a6a48"}},
+"parts":{
+"brace_x":{"type":"box","size":[10,8],"from":[-130,20,140],"to":[130,280,140],"mat":"wood"},
+"brace_x2":{"type":"box","size":[10,8],"from":[-130,280,-140],"to":[130,20,-140],"mat":"wood"},
+"deck":{"type":"box","size":[320,16,320],"pos":[0,292,0],"mat":"floor"},
+"post":{"type":"box","size":[18,18],"from":[130,0,130],"to":[130,292,130],"mat":"dark","mirror":["x","z"]},
+"rail_b":{"type":"box","size":[300,8,8],"pos":[0,370,-150],"mat":"wood"},
+"rail_f":{"type":"box","size":[300,8,8],"pos":[0,370,150],"mat":"wood"},
+"rail_l":{"type":"box","size":[8,8,300],"pos":[-150,370,0],"mat":"wood"},
+"rail_r":{"type":"box","size":[8,8,300],"pos":[150,370,0],"mat":"wood"},
+"rpost":{"type":"box","size":[10,10],"from":[150,300,150],"to":[150,380,150],"mat":"dark","mirror":["x","z"]}}}

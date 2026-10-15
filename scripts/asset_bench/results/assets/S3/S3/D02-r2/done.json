@@ -1,0 +1,8 @@
+{"items":[
+{"role":"headstone","kind":"prop","id":"WORKSHOP/headstone","how":"made","from":"","pos":[-1.5,0,0.5],"yaw":5,"scale":1},
+{"role":"headstone","kind":"prop","id":"WORKSHOP/headstone","how":"made","from":"","pos":[0,0,0.5],"yaw":-8,"scale":1},
+{"role":"headstone","kind":"prop","id":"WORKSHOP/headstone","how":"made","from":"","pos":[1.5,0,0.5],"yaw":3,"scale":1},
+{"role":"iron fence","kind":"prop","id":"WORKSHOP/iron_fence","how":"made","from":"","pos":[0,0,-2],"yaw":0,"scale":1},
+{"role":"lantern post","kind":"prop","id":"WORKSHOP/lantern_post","how":"made","from":"","pos":[2.5,0,-1.5],"yaw":0,"scale":1},
+{"role":"zombie shamble","kind":"clip","id":"CMU/Zombie_Walk_Loop","how":"placed","from":"CMU/Zombie_Walk_Loop"}
+],"notes":"Headstone reused three times; fence and lantern post made new; zombie clip placed as is."}

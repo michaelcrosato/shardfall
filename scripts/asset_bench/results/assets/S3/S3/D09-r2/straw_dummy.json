@@ -1,0 +1,16 @@
+{"format":2,"name":"straw_dummy","unit":"cm",
+"description":"A straw practice dummy on a post: sack torso, round head, crossbar arms.",
+"tags":["dummy","training","straw"],
+"materials":{
+"cloth":{"color":"#8a6a45"},
+"straw":{"color":"#d4b45a","layers":[{"type":"stripes","size":12,"cover":0.4,"shade":0.8}]},
+"wood":{"color":"#7a5532"}},
+"parts":{
+"arms":{"type":"box","size":[100,9,9],"pos":[0,133,0],"mat":"wood"},
+"base":{"type":"cylinder","radius":26,"height":8,"pos":[0,4,0],"mat":"wood"},
+"belt":{"type":"tube","radius":19,"thickness":2,"height":6,"pos":[0,100,0],"mat":"cloth"},
+"hand_l":{"type":"sphere","radius":8,"pos":[-52,133,0],"mat":"straw"},
+"hand_r":{"type":"sphere","radius":8,"pos":[52,133,0],"mat":"straw"},
+"head":{"type":"sphere","radius":14,"pos":[0,156,0],"mat":"straw"},
+"post":{"type":"box","size":[10,10],"from":[0,8,0],"to":[0,150,0],"mat":"wood"},
+"torso":{"type":"capsule","radius":19,"height":78,"pos":[0,112,0],"mat":"straw"}}}

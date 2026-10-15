@@ -1,0 +1,9 @@
+{"items":[
+{"role":"throne","kind":"prop","id":"WORKSHOP/throne","how":"made","from":"","pos":[0,0.3,-1.0],"yaw":0,"scale":1},
+{"role":"dais","kind":"prop","id":"WORKSHOP/dais","how":"made","from":"","pos":[0,0,-1.0],"yaw":0,"scale":1},
+{"role":"banner","kind":"prop","id":"WORKSHOP/banner_stand","how":"made","from":"","pos":[-2.2,0,-0.5],"yaw":0,"scale":1},
+{"role":"banner","kind":"prop","id":"WORKSHOP/banner_stand","how":"made","from":"","pos":[2.2,0,-0.5],"yaw":0,"scale":1},
+{"role":"rug","kind":"prop","id":"WORKSHOP/rug","how":"made","from":"","pos":[0,0,3.0],"yaw":0,"scale":1},
+{"role":"floor","kind":"material","id":"MAT/workshop/throne_floor","how":"derived","from":"MAT/flagstones"},
+{"role":"king command gesture","kind":"clip","id":"WORKSHOP/king_command","how":"forked","from":"MESH2MOTION/Insult"}
+],"notes":"Throne on dais at z=-1; banners flank; rug runs toward it; custom seated command clip."}

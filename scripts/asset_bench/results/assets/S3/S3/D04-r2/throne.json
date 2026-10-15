@@ -1,0 +1,19 @@
+{"format":2,"name":"throne","unit":"cm",
+"description":"A tall stone throne with gold trim and a red cushion.",
+"tags":["throne","seat","king","stone"],
+"category":"furniture",
+"materials":{
+"gold":"MAT/gold_trim",
+"red":{"color":"#a01c24"},
+"stone":{"base":"MAT/pillar_stone","color":"#8a8780"}},
+"parts":{
+"arm":{"type":"box","size":[12,24,60],"pos":[40,70,0],"mat":"stone","mirror":"x"},
+"back":{"type":"box","size":[76,80,14],"pos":[0,90,-30],"mat":"stone"},
+"base":{"type":"box","size":[90,20,80],"pos":[0,10,0],"mat":"stone"},
+"crest":{"type":"wedge","size":[76,26,14],"peak":0,"pos":[0,143,-30],"mat":"stone"},
+"cushion":{"type":"rounded_box","size":[64,10,54],"radius":3,"pos":[0,55,2],"mat":"red"},
+"finial":{"type":"sphere","radius":4,"pos":[0,160,-30],"mat":"gold"},
+"seat":{"type":"box","size":[74,30,64],"pos":[0,35,0],"mat":"stone"},
+"trim":{"type":"box","size":[56,60,2],"pos":[0,92,-22],"mat":"red"}},
+"sockets":{
+"sit":{"pos":[0,60,2]}}}

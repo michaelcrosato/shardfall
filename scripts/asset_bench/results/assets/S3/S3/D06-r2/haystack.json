@@ -1,0 +1,10 @@
+{"format":2,"name":"haystack","unit":"cm",
+"description":"A conical haystack with a rounded top.",
+"tags":["hay","farm","prop"],
+"materials":{
+"hay":{"color":"#d8b855"},
+"hay2":{"color":"#bf9a3e"}},
+"parts":{
+"base":{"type":"cylinder","radius":70,"height":50,"pos":[0,25,0],"mat":"hay2"},
+"mid":{"type":"cone","radius":70,"radius_end":40,"height":70,"pos":[0,85,0],"mat":"hay"},
+"top":{"type":"cone","radius":40,"radius_end":6,"height":50,"segments":12,"pos":[0,125,0],"mat":"hay2"}}}

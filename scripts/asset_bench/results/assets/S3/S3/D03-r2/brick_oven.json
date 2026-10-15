@@ -1,0 +1,16 @@
+{"format":2,"name":"brick_oven","unit":"cm",
+"description":"A brick bread oven with a domed chamber, chimney and glowing mouth.",
+"tags":["oven","bread","brick","bakery"],
+"category":"lighting",
+"materials":{
+"brick":"MAT/brick_wall",
+"dark":{"color":"#2a2220"},
+"glow":{"color":"#ff8a30","emissive":2}},
+"parts":{
+"base":{"type":"box","size":[130,80,100],"pos":[0,40,0],"mat":"brick"},
+"cap":{"type":"box","size":[50,8,46],"pos":[0,177,-24],"mat":"dark"},
+"chimney":{"type":"box","size":[40,80,36],"pos":[0,140,-24],"mat":"brick"},
+"dome":{"type":"ellipsoid","size":[130,90,100],"pos":[0,110,0],"mat":"brick"},
+"fire":{"type":"box","size":[34,22,4],"pos":[0,54,54],"mat":"glow"},
+"mouth":{"type":"box","size":[44,34,6],"pos":[0,60,50],"mat":"dark"},
+"step":{"type":"box","size":[140,6,12],"pos":[0,3,50],"mat":"dark"}}}

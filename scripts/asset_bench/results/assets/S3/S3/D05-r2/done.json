@@ -1,0 +1,8 @@
+{"items":[
+{"role":"rowboat","kind":"prop","id":"LIB/core/rowboat","how":"placed","from":"LIB/core/rowboat","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"crate","kind":"prop","id":"BUILTIN/crate","how":"placed","from":"BUILTIN/crate","pos":[3.4,0,-0.6],"yaw":10,"scale":0.48},
+{"role":"crate","kind":"prop","id":"BUILTIN/crate","how":"placed","from":"BUILTIN/crate","pos":[3.4,0,0.4],"yaw":-8,"scale":0.48},
+{"role":"palm tree","kind":"prop","id":"WORKSHOP/palm_tree","how":"made","from":"","pos":[-3.5,0,-2],"yaw":0,"scale":1},
+{"role":"rope coil","kind":"prop","id":"WORKSHOP/rope_coil","how":"made","from":"","pos":[2.5,0,2],"yaw":0,"scale":1},
+{"role":"sailor wave","kind":"clip","id":"CMU/Wave_Hello","how":"placed","from":"CMU/Wave_Hello"}
+],"notes":"Rowboat and wave clip reused; crates scaled to 60 cm; palm and rope made."}

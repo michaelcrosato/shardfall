@@ -1,0 +1,7 @@
+{"items":[
+{"role":"stilt hut","kind":"prop","id":"WORKSHOP/swamp_hut","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"walkway","kind":"prop","id":"WORKSHOP/plank_walkway","how":"made","from":"","pos":[0,0,2.15],"yaw":0,"scale":1},
+{"role":"glowing mushrooms","kind":"prop","id":"WORKSHOP/glow_mushrooms","how":"made","from":"","pos":[1.0,0,1.6],"yaw":0,"scale":1},
+{"role":"hanging lantern","kind":"prop","id":"WORKSHOP/hang_lantern","how":"made","from":"","pos":[-0.9,0,3.0],"yaw":0,"scale":1},
+{"role":"walkway surface","kind":"material","id":"MAT/workshop/mossy_rot_planks","how":"made","from":""}
+],"notes":"Reeds and murky water omitted; hut, walkway, mushrooms, lantern made new; mossy plank material."}

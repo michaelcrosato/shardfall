@@ -1,0 +1,13 @@
+{"format":2,"name":"glow_mushrooms","unit":"cm",
+"description":"Cluster of glowing swamp mushrooms.",
+"materials":{
+"cap":{"color":"#4fe0c0","emissive":3},
+"stem":{"color":"#d8d2b0"}},
+"parts":{
+"c1":{"type":"ellipsoid","size":[34,22,34],"pos":[0,49,0],"mat":"cap"},
+"c2":{"type":"ellipsoid","size":[24,16,24],"pos":[18,34,8],"mat":"cap"},
+"c3":{"type":"ellipsoid","size":[20,14,20],"pos":[-15,27,-6],"mat":"cap"},
+"light":{"type":"sphere","radius":1,"pos":[0,40,0],"color":"#4fe0c0","light":{"color":"#4fe0c0","radius":150,"intensity":1}},
+"s1":{"type":"cylinder","radius":4,"height":40,"pos":[0,20,0],"mat":"stem"},
+"s2":{"type":"cylinder","radius":3,"height":26,"pos":[18,13,8],"mat":"stem"},
+"s3":{"type":"cylinder","radius":2.5,"height":20,"pos":[-15,10,-6],"mat":"stem"}}}

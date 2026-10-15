@@ -1,0 +1,18 @@
+{"format":2,"name":"palm_tree","unit":"cm",
+"description":"A tall beach palm tree with a curved trunk and drooping fronds.",
+"tags":["palm","tree","beach"],
+"category":"vegetation",
+"materials":{
+"bark":{"color":"#8a6a45"},
+"bark2":{"color":"#6e5236"},
+"leaf":{"color":"#3f9a45"},
+"nut":{"color":"#5a3a22"}},
+"parts":{
+"crown":{"type":"sphere","radius":14,"pos":[18,375,0],"mat":"leaf"},
+"fronds":{"type":"ellipsoid","size":[90,8,26],"pos":[18,372,0],"pitch":0,"mat":"leaf","radial":{"count":7,"radius":28}},
+"nut1":{"type":"sphere","radius":9,"pos":[14,360,9],"mat":"nut"},
+"nut2":{"type":"sphere","radius":9,"pos":[14,360,-9],"mat":"nut"},
+"t1":{"type":"cylinder","radius":16,"height":130,"pos":[0,65,0],"mat":"bark"},
+"t2":{"type":"cylinder","radius":13,"height":130,"pos":[6,190,0],"roll":-3,"mat":"bark2"},
+"t3":{"type":"cylinder","radius":10,"height":120,"pos":[14,310,0],"roll":-6,"mat":"bark"},
+"tip":{"type":"cone","radius":8,"radius_end":0,"height":25,"pos":[18,393,0],"mat":"leaf"}}}

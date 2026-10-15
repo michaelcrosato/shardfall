@@ -1,0 +1,26 @@
+{"format":2,"name":"bakers_table","unit":"cm",
+"description":"A sturdy tavern table: an oak plank top on four square legs with aprons and an H-stretcher.",
+"tags":["table","wood","tavern","furniture","inn"],
+"category":"furniture",
+"lineage":{"method":"edited","origin":"agent","parents":["LIB/core/table@prop2-324fc24e309a9398"],"license":"CC0-1.0","credit":"Shardfall contributors (own work)"},
+"materials":{
+"flour":{"base":"MAT/oak_planks","color":"#e6dcc8"},
+"frame":{"base":"MAT/oak_planks","color":"#74502f"},
+"top":"MAT/oak_planks"},
+"parts":{
+"apron_long":{"type":"box","size":[75,10,3],"pos":[0,67,23.25],"mat":"frame","mirror":"z"},
+"apron_short":{"type":"box","size":[3,10,40.5],"pos":[39.9,67,0],"mat":"frame","mirror":"x"},
+"flour":{"type":"box","size":[40,0.6,26],"pos":[-8,78.3,2],"color":"#f5f0e6"},
+"leg":{"type":"box","size":[8,8],"from":[39.9,0,23.25],"to":[39.9,72,23.25],"mat":"frame","mirror":["x","z"]},
+"stretcher_mid":{"type":"box","size":[5,5],"from":[-38.8,14,0],"to":[38.8,14,0],"mat":"frame"},
+"stretcher_side":{"type":"box","size":[5,5,40.5],"pos":[39.9,14,0],"mat":"frame","mirror":"x"},
+"top":{"type":"rounded_box","size":[90,6,60],"radius":1.5,"pos":[0,75,0],"mat":"flour"}},
+"params":{
+"depth":{"range":[50,160],"set":{"apron_long.pos.2":0.3875,"apron_short.size.2":0.675,"leg.from.2":0.3875,"leg.to.2":0.3875,"stretcher_side.size.2":0.675,"top.size.2":1}},
+"height":{"range":[40,110],"set":{"apron_long.pos.1":0.859,"apron_short.pos.1":0.859,"leg.to.1":0.9231,"top.pos.1":0.9615}},
+"length":{"range":[60,320],"set":{"apron_long.size.0":0.8375,"apron_short.pos.0":0.44375,"leg.from.0":0.44375,"leg.to.0":0.44375,"stretcher_mid.from.0":-0.43125,"stretcher_mid.to.0":0.43125,"stretcher_side.pos.0":0.44375,"top.size.0":1}}},
+"presets":{
+"long":{"length":300},
+"low":{"height":45},
+"small":{"depth":60,"length":80},
+"wide":{"depth":140,"height":70,"length":190}}}

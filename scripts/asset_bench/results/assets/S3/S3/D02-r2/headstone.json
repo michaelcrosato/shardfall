@@ -1,0 +1,13 @@
+{"format":2,"name":"headstone","unit":"cm",
+"description":"A rounded gravestone with a cross carved on a small base.",
+"tags":["grave","headstone","stone"],
+"category":"dungeon",
+"materials":{
+"dark":{"color":"#5d6066"},
+"stone":{"color":"#8d9097"}},
+"parts":{
+"base":{"type":"rounded_box","size":[70,14,34],"radius":3,"pos":[0,7,0],"mat":"dark"},
+"crossh":{"type":"box","size":[6,3],"from":[-10,80,8.5],"to":[10,80,8.5],"mat":"dark"},
+"crossv":{"type":"box","size":[6,3],"from":[0,60,8.5],"to":[0,90,8.5],"mat":"dark"},
+"slab":{"type":"rounded_box","size":[56,60,16],"radius":4,"pos":[0,44,0],"mat":"stone"},
+"top":{"type":"cylinder","radius":28,"height":16,"pos":[0,74,0],"axis":"z","mat":"stone"}}}

@@ -1,0 +1,6 @@
+{"items":[
+{"role":"lighthouse lantern","kind":"prop","id":"WORKSHOP/lamp_lantern","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"cot","kind":"prop","id":"LIB/core/cot","how":"placed","from":"LIB/core/cot","pos":[-0.8,0,-1.55],"yaw":0,"scale":1.05},
+{"role":"barrel","kind":"prop","id":"LIB/core/barrel","how":"placed","from":"LIB/core/barrel","pos":[1.6,0,-1.6],"yaw":0,"scale":1},
+{"role":"floor","kind":"material","id":"MAT/workshop/worn_planks","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1}
+],"notes":"Lantern made; core cot scaled to 200 cm and barrel placed against back wall; worn plank floor material."}

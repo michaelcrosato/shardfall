@@ -1,0 +1,17 @@
+{"format":2,"name":"gold_pile","unit":"cm",
+"description":"A heaped mound of gold coins and nuggets, about 120 cm high.",
+"tags":["gold","treasure","hoard"],
+"category":"dungeon",
+"materials":{
+"gold":{"color":"#f2c230"},
+"gold2":{"color":"#c99a1c"}},
+"parts":{
+"base":{"type":"cone","radius":110,"radius_end":55,"height":50,"pos":[0,25,0],"mat":"gold2"},
+"c1":{"type":"cylinder","radius":14,"height":4,"pos":[85,10,60],"pitch":20,"mat":"gold"},
+"c2":{"type":"cylinder","radius":12,"height":4,"pos":[-90,8,50],"roll":25,"mat":"gold"},
+"c3":{"type":"sphere","radius":12,"pos":[60,48,-30],"mat":"gold"},
+"c4":{"type":"sphere","radius":10,"pos":[-50,60,35],"mat":"gold"},
+"cap":{"type":"sphere","radius":14,"pos":[0,106,0],"mat":"gold"},
+"crown":{"type":"cylinder","radius":8,"height":16,"pos":[0,112,0],"mat":"gold"},
+"mid":{"type":"cone","radius":75,"radius_end":30,"height":50,"pos":[0,70,0],"mat":"gold"},
+"top":{"type":"cone","radius":35,"radius_end":6,"height":45,"pos":[0,97.5,0],"mat":"gold2"}}}

@@ -1,3 +1,8 @@
+# Asset store S3 round 2 briefs (docs/AGENT_ASSET_STORE.md §13 S3): ten more fresh briefs by the
+# blind store-brief-writer, measured after round 1's fill. Fields as in s3_briefs.toml.
+
+cap = [60, 8]
+
 [[brief]]
 id = "D01"
 order = 1

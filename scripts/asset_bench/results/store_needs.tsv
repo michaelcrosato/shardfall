@@ -50,3 +50,52 @@ S3	S3	C10	1	hay bale	prop	prop: a hay bale about 100 cm wide	made	WORKSHOP/stall
 S3	S3	C10	1	saddle on rail	prop	prop: a horse saddle on a rail about 50 cm tall	made	WORKSHOP/stall_saddle_rail		0	0	0
 S3	S3	C10	1	stall planks	material	material: wooden planks for the stall	placed	MAT/oak_planks	mat/oak_planks	1	1	1
 S3	S3	C10	1	horse idle	clip	clip: a horse's looping idle	forked	WORKSHOP/HorseIdle	mesh2motion/idle_subtle	0	0	1
+S3	S3	D01	2	lighthouse lantern	prop	prop: a large lantern about 120 cm tall that gives light	made	WORKSHOP/lamp_lantern		0	0	0
+S3	S3	D01	2	cot	prop	prop: a narrow cot about 200 cm long	placed	LIB/core/cot	lib/core/cot	1	1	1
+S3	S3	D01	2	barrel	prop	prop: a barrel about 90 cm tall	placed	LIB/core/barrel	lib/core/barrel	1	1	1
+S3	S3	D01	2	floor	material	material: worn planks for the floor	made	MAT/workshop/worn_planks		0	0	0
+S3	S3	D02	2	headstone	prop	prop: three headstones about 100 cm tall	made	WORKSHOP/headstone		0	0	0
+S3	S3	D02	2	iron fence	prop	prop: an iron fence section about 200 cm long	made	WORKSHOP/iron_fence		0	0	0
+S3	S3	D02	2	lantern post	prop	prop: a lantern post about 220 cm tall that gives light	made	WORKSHOP/lantern_post		0	0	0
+S3	S3	D02	2	zombie shamble	clip	clip: a zombie's looping shambling walk	placed	CMU/Zombie_Walk_Loop	cmu/zombie_walk_loop	0	0	1
+S3	S3	D03	2	bread oven	prop	prop: a bread oven about 180 cm tall with a fire glow	made	WORKSHOP/brick_oven		0	0	0
+S3	S3	D03	2	work table	prop	prop: a work table about 90 cm long	forked	WORKSHOP/bakers_table	lib/core/table	1	1	1
+S3	S3	D03	2	bread loaf	prop	prop: bread loaves about 30 cm long	made	WORKSHOP/loaf		0	0	0
+S3	S3	D03	2	wall	material	material: brick for the walls	placed	MAT/brick_wall	mat/brick_wall	1	1	1
+S3	S3	D03	2	baker kneading	clip	clip: a looping kneading motion	made	WORKSHOP/BakerKnead		0	0	0
+S3	S3	D04	2	throne	prop	prop: a throne about 160 cm tall	made	WORKSHOP/throne		0	0	0
+S3	S3	D04	2	banner	prop	prop: tall banners about 250 cm high	made	WORKSHOP/banner_stand		0	0	0
+S3	S3	D04	2	rug	prop	prop: a long runner rug	made	WORKSHOP/rug		0	0	0
+S3	S3	D04	2	floor	material	material: stone slabs for the floor	derived	MAT/workshop/throne_floor	mat/flagstones	1	1	1
+S3	S3	D04	2	king command gesture	clip	clip: a king's commanding hand gesture	forked	WORKSHOP/king_command	mesh2motion/insult	1	1	1
+S3	S3	D05	2	rowboat	prop	prop: a rowboat about 300 cm long	placed	LIB/core/rowboat	lib/core/rowboat	1	0	0
+S3	S3	D05	2	crate	prop	prop: wooden crates about 60 cm tall	placed	BUILTIN/crate	builtin/crate	1	1	1
+S3	S3	D05	2	palm tree	prop	prop: a palm tree about 400 cm tall	made	WORKSHOP/palm_tree		0	0	0
+S3	S3	D05	2	rope coil	prop	prop: a coil of rope	made	WORKSHOP/rope_coil		0	0	0
+S3	S3	D05	2	sailor wave	clip	clip: a sailor waving, looping	placed	CMU/Wave_Hello	cmu/wave_hello	1	0	0
+S3	S3	D06	2	scarecrow	prop	prop: a scarecrow about 190 cm tall	made	WORKSHOP/scarecrow		0	0	0
+S3	S3	D06	2	haystack	prop	prop: a haystack about 150 cm tall	made	WORKSHOP/haystack		0	0	0
+S3	S3	D06	2	wooden fence	prop	prop: a low wooden fence about 250 cm long	forked	WORKSHOP/field_fence	lib/core/fence	1	1	1
+S3	S3	D06	2	wheelbarrow	prop	prop: a wheelbarrow	made	WORKSHOP/wheelbarrow		0	0	0
+S3	S3	D06	2	tilled soil	material	material: tilled soil for the ground	placed	MAT/packed_earth	mat/packed_earth	1	1	1
+S3	S3	D06	2	farmer hoeing	clip	clip: a farmer's looping hoeing motion	placed	CMU/Dig	cmu/dig	1	0	0
+S3	S3	D07	2	gold pile	prop	prop: a gold coin pile about 120 cm high	made	WORKSHOP/gold_pile		0	0	0
+S3	S3	D07	2	goblet	prop	prop: goblets about 15 cm tall	made	WORKSHOP/goblet		0	0	0
+S3	S3	D07	2	stalagmite	prop	prop: stalagmites about 150 cm tall	placed	LIB/core/stalagmite	lib/core/stalagmite	1	1	1
+S3	S3	D07	2	wall torch	prop	prop: a wall torch that gives light	placed	LIB/core/wall_torch	lib/core/wall_torch	1	1	1
+S3	S3	D07	2	dragon sleeping idle	clip	clip: a dragon's looping sleeping idle	placed	MESH2MOTION/Sleeping	mesh2motion/sleeping	1	1	1
+S3	S3	D08	2	stilt hut	prop	prop: a hut on stilts about 300 cm tall	made	WORKSHOP/swamp_hut		0	0	0
+S3	S3	D08	2	walkway	prop	prop: a plank walkway about 250 cm long	made	WORKSHOP/plank_walkway		0	0	0
+S3	S3	D08	2	glowing mushrooms	prop	prop: a glowing mushroom cluster about 60 cm tall	made	WORKSHOP/glow_mushrooms		0	0	0
+S3	S3	D08	2	hanging lantern	prop	prop: a hanging lantern	made	WORKSHOP/hang_lantern		0	0	0
+S3	S3	D08	2	walkway surface	material	material: mossy rotten planks	made	MAT/workshop/mossy_rot_planks		0	0	0
+S3	S3	D09	2	practice dummy	prop	prop: straw practice dummies about 170 cm tall	made	WORKSHOP/straw_dummy		0	0	0
+S3	S3	D09	2	bench	prop	prop: a bench about 150 cm long	forked	WORKSHOP/yard_bench	lib/core/bench	1	1	1
+S3	S3	D09	2	sword barrel	prop	prop: a barrel holding wooden swords	forked	WORKSHOP/sword_barrel	lib/core/barrel	1	1	1
+S3	S3	D09	2	sand ground	material	material: packed sand for the ground	made	MAT/workshop/sand_yard		0	0	0
+S3	S3	D09	2	sword swing	clip	clip: a one-handed sword swing	placed	QUATERNIUS/Sword_Attack	quaternius/sword_attack	0	0	1
+S3	S3	D10	2	watchtower	prop	prop: a timber watchtower about 300 cm tall	made	WORKSHOP/watchtower		0	0	0
+S3	S3	D10	2	beacon	prop	prop: a signal beacon about 100 cm tall that gives light	placed	LIB/core/brazier	lib/core/brazier	1	1	1
+S3	S3	D10	2	ladder	prop	prop: a ladder about 300 cm long	made	WORKSHOP/ladder		0	0	0
+S3	S3	D10	2	platform floor	material	material: snow-dusted planks	made	MAT/workshop/snow_planks		0	0	0
+S3	S3	D10	2	guard look-around	clip	clip: a guard's looping look-around idle	placed	CMU/Looking_Around	cmu/looking_around	1	0	0

@@ -1,0 +1,12 @@
+{"format":2,"name":"iron_fence","unit":"cm",
+"description":"A 2 m wrought iron fence with spiked pickets.",
+"tags":["fence","iron","graveyard"],
+"category":"town",
+"materials":{
+"iron":{"color":"#2b2d33"}},
+"parts":{
+"picket":{"type":"box","size":[2.5,2.5],"from":[0,0,0],"to":[0,100,0],"mat":"iron","array":{"count":15,"step":[12.5,0,0]}},
+"post":{"type":"box","size":[8,8],"from":[96,0,0],"to":[96,110,0],"mat":"iron","mirror":"x"},
+"railbot":{"type":"box","size":[4,4],"from":[-96,25,0],"to":[96,25,0],"mat":"iron"},
+"railtop":{"type":"box","size":[4,4],"from":[-96,95,0],"to":[96,95,0],"mat":"iron"},
+"tip":{"type":"cone","radius":2.5,"radius_end":0,"height":8,"pos":[0,104,0],"mat":"iron","array":{"count":15,"step":[12.5,0,0]}}}}

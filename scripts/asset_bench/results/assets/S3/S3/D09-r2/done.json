@@ -1,0 +1,8 @@
+{"items":[
+{"role":"practice dummy","kind":"prop","id":"WORKSHOP/straw_dummy","how":"made","from":"","pos":[-1.5,0,1],"yaw":90,"scale":1},
+{"role":"practice dummy","kind":"prop","id":"WORKSHOP/straw_dummy","how":"made","from":"","pos":[-1.5,0,-1],"yaw":90,"scale":1},
+{"role":"bench","kind":"prop","id":"WORKSHOP/yard_bench","how":"forked","from":"LIB/core/bench","pos":[2,0,-2],"yaw":0,"scale":1},
+{"role":"sword barrel","kind":"prop","id":"WORKSHOP/sword_barrel","how":"forked","from":"LIB/core/barrel","pos":[1.5,0,2],"yaw":0,"scale":1},
+{"role":"sand ground","kind":"material","id":"MAT/workshop/sand_yard","how":"made","from":""},
+{"role":"sword swing","kind":"clip","id":"QUATERNIUS/Sword_Attack","how":"placed","from":"QUATERNIUS/Sword_Attack"}
+],"notes":"Dummies and bench forked or made in cm; positions in metres."}

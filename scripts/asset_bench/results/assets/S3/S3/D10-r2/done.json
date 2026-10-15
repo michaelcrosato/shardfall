@@ -1,0 +1,7 @@
+{"items":[
+{"role":"watchtower","kind":"prop","id":"WORKSHOP/watchtower","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"beacon","kind":"prop","id":"LIB/core/brazier","how":"placed","from":"LIB/core/brazier","pos":[0,3,0],"yaw":0,"scale":1},
+{"role":"ladder","kind":"prop","id":"WORKSHOP/ladder","how":"made","from":"","pos":[0,0,1.6],"yaw":0,"scale":1},
+{"role":"platform floor","kind":"material","id":"MAT/workshop/snow_planks","how":"made","from":""},
+{"role":"guard look-around","kind":"clip","id":"CMU/Looking_Around","how":"placed","from":"CMU/Looking_Around"}
+],"notes":"Made tower, ladder, snow plank material; placed library brazier and look-around clip."}

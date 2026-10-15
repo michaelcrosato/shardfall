@@ -1,0 +1,8 @@
+{"items":[
+{"role":"scarecrow","kind":"prop","id":"WORKSHOP/scarecrow","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"haystack","kind":"prop","id":"WORKSHOP/haystack","how":"made","from":"","pos":[2,0,-0.5],"yaw":0,"scale":1},
+{"role":"wooden fence","kind":"prop","id":"WORKSHOP/field_fence","how":"forked","from":"LIB/core/fence","pos":[0,0,-2],"yaw":0,"scale":1},
+{"role":"wheelbarrow","kind":"prop","id":"WORKSHOP/wheelbarrow","how":"made","from":"","pos":[-2,0,-0.5],"yaw":0,"scale":1},
+{"role":"tilled soil","kind":"material","id":"MAT/packed_earth","how":"placed","from":"MAT/packed_earth"},
+{"role":"farmer hoeing","kind":"clip","id":"CMU/Dig","how":"placed","from":"CMU/Dig"}
+],"notes":"Positions in metres were meant; props laid out around the field. Dig clip stands in for hoeing."}

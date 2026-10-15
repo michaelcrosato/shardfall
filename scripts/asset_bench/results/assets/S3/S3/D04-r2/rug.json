@@ -1,0 +1,10 @@
+{"format":2,"name":"rug","unit":"cm",
+"description":"A long red runner rug with gold borders.",
+"tags":["rug","carpet","red","runner"],
+"category":"furniture",
+"materials":{
+"gold":"MAT/gold_trim",
+"red":{"color":"#a01c24"}},
+"parts":{
+"body":{"type":"box","size":[140,2,700],"pos":[0,1,0],"mat":"red"},
+"border":{"type":"box","size":[8,0.6,700],"pos":[60,2.2,0],"mat":"gold","mirror":"x"}}}

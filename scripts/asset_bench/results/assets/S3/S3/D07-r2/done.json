@@ -1,0 +1,11 @@
+{"items":[
+{"role":"gold pile","kind":"prop","id":"WORKSHOP/gold_pile","how":"made","from":"","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"goblet","kind":"prop","id":"WORKSHOP/goblet","how":"made","from":"","pos":[1.5,0,0.8],"yaw":0,"scale":1},
+{"role":"goblet","kind":"prop","id":"WORKSHOP/goblet","how":"made","from":"","pos":[-1.6,0,1.4],"yaw":40,"scale":1},
+{"role":"goblet","kind":"prop","id":"WORKSHOP/goblet","how":"made","from":"","pos":[0.5,0,1.8],"yaw":120,"scale":1},
+{"role":"stalagmite","kind":"prop","id":"LIB/core/stalagmite","how":"placed","from":"LIB/core/stalagmite","pos":[-2.5,0,-2],"yaw":0,"scale":1.32},
+{"role":"stalagmite","kind":"prop","id":"LIB/core/stalagmite","how":"placed","from":"LIB/core/stalagmite","pos":[2.8,0,-2.2],"yaw":90,"scale":1.32},
+{"role":"wall torch","kind":"prop","id":"LIB/core/wall_torch","how":"placed","from":"LIB/core/wall_torch","pos":[0,1.5,-3],"yaw":0,"scale":1},
+{"role":"knight skeleton","kind":"prop","id":"LIB/core/bone_pile","how":"placed","from":"LIB/core/bone_pile","pos":[-2,0,1],"yaw":20,"scale":1},
+{"role":"dragon sleeping idle","kind":"clip","id":"MESH2MOTION/Sleeping","how":"placed","from":"MESH2MOTION/Sleeping"}
+],"notes":"Gold pile and goblet made; stalagmite scaled 1.32 to 150cm; dragon uses existing Sleeping clip."}

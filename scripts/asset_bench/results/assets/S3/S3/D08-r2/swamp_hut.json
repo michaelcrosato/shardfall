@@ -1,0 +1,14 @@
+{"format":2,"name":"swamp_hut","unit":"cm",
+"description":"A thatched swamp hut on stilts with a door and window.",
+"materials":{
+"dark":{"color":"#3e3226"},
+"glow":{"color":"#ffcc66","emissive":2},
+"thatch":{"color":"#7a6a3a"},
+"wood":"MAT/workshop/mossy_rot_planks"},
+"parts":{
+"door":{"type":"box","size":[34,56,4],"pos":[0,188,71],"mat":"dark"},
+"floor":{"type":"box","size":[190,10,170],"pos":[0,155,0],"mat":"wood"},
+"roof":{"type":"wedge","size":[200,60,180],"peak":0,"pos":[0,270,0],"roll":0,"mat":"thatch"},
+"stilt":{"type":"cylinder","radius":8,"height":150,"pos":[70,75,60],"mat":"dark","mirror":["x","z"]},
+"walls":{"type":"box","size":[160,80,140],"pos":[0,200,0],"mat":"wood"},
+"window":{"type":"box","size":[26,26,4],"pos":[55,215,71],"mat":"glow"}}}

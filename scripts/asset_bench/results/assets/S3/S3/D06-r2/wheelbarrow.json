@@ -1,0 +1,14 @@
+{"format":2,"name":"wheelbarrow","unit":"cm",
+"description":"A wooden wheelbarrow with one wheel and two handles.",
+"tags":["wheelbarrow","farm","tool"],
+"materials":{
+"iron":{"color":"#3a3a40"},
+"tub":{"color":"#5a7a4a"},
+"wood":{"color":"#9a7048"}},
+"parts":{
+"axle":{"type":"box","size":[4,4],"from":[-22,18,50],"to":[22,18,50],"mat":"iron"},
+"fork":{"type":"box","size":[4,4],"from":[22,18,50],"to":[22,44,40],"mat":"wood","mirror":"x"},
+"handle":{"type":"box","size":[4,4],"from":[22,44,40],"to":[22,60,-95],"mat":"wood","mirror":"x"},
+"leg":{"type":"box","size":[4,4],"from":[22,38,-45],"to":[22,0,-52],"mat":"wood","mirror":"x"},
+"tub":{"type":"wedge","size":[60,28,70],"pos":[0,50,-5],"mat":"tub"},
+"wheel":{"type":"cylinder","radius":18,"height":6,"pos":[0,18,50],"axis":"x","mat":"iron"}}}

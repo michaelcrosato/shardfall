@@ -1,0 +1,16 @@
+{"format":2,"name":"banner_stand","unit":"cm",
+"description":"A tall standing red banner on a pole with a gold finial and stone foot.",
+"tags":["banner","flag","cloth","pole"],
+"category":"signage",
+"materials":{
+"cloth":{"color":"#b01c26"},
+"gold":"MAT/gold_trim",
+"iron":"MAT/wrought_iron",
+"stone":{"color":"#77736c"}},
+"parts":{
+"bar":{"type":"box","size":[84,4,4],"pos":[0,238,0],"mat":"gold"},
+"cloth":{"type":"extrude","points":[[-38,0],[38,0],[38,-140],[0,-175],[-38,-140]],"depth":2,"pos":[0,236,0],"mat":"cloth"},
+"emblem":{"type":"cylinder","radius":14,"height":1,"pos":[0,150,2],"axis":"z","mat":"gold"},
+"finial":{"type":"sphere","radius":6,"pos":[0,244,0],"mat":"gold"},
+"foot":{"type":"cylinder","radius":22,"height":10,"pos":[0,5,0],"mat":"stone"},
+"pole":{"type":"cylinder","radius":3,"height":240,"pos":[0,125,0],"mat":"iron"}}}

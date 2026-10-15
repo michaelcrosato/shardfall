@@ -1,0 +1,9 @@
+{"items":[
+{"role":"bread oven","kind":"prop","id":"WORKSHOP/brick_oven","how":"made","from":"","pos":[-1.5,0,-1.2],"yaw":0,"scale":1},
+{"role":"work table","kind":"prop","id":"WORKSHOP/bakers_table","how":"forked","from":"LIB/core/table","pos":[1.2,0,0.3],"yaw":0,"scale":1},
+{"role":"bread loaf","kind":"prop","id":"WORKSHOP/loaf","how":"made","from":"","pos":[0.85,0.79,0.3],"yaw":0,"scale":1},
+{"role":"bread loaf","kind":"prop","id":"WORKSHOP/loaf","how":"made","from":"","pos":[1.2,0.79,0.45],"yaw":20,"scale":1},
+{"role":"bread loaf","kind":"prop","id":"WORKSHOP/loaf","how":"made","from":"","pos":[1.5,0.79,0.25],"yaw":-15,"scale":1},
+{"role":"wall","kind":"material","id":"MAT/brick_wall","how":"placed","from":"MAT/brick_wall","pos":[0,0,0],"yaw":0,"scale":1},
+{"role":"baker kneading","kind":"clip","id":"WORKSHOP/BakerKnead","how":"made","from":"","pos":[1.2,0,0.9],"yaw":180,"scale":1}
+],"notes":"Oven, loaf, kneading clip made; table forked and shortened; brick wall material placed."}

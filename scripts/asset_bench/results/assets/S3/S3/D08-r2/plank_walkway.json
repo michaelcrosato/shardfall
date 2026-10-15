@@ -1,0 +1,9 @@
+{"format":2,"name":"plank_walkway","unit":"cm",
+"description":"Short mossy rotten plank walkway on posts.",
+"materials":{
+"dark":{"color":"#3e3226"},
+"wood":"MAT/workshop/mossy_rot_planks"},
+"parts":{
+"deck":{"type":"box","size":[70,6,250],"pos":[0,34,0],"mat":"wood"},
+"plank":{"type":"box","size":[72,2,14],"pos":[0,38,0],"mat":"dark","array":{"count":3,"step":[0,0,60]}},
+"post":{"type":"cylinder","radius":5,"height":34,"pos":[30,17,100],"mat":"dark","mirror":["x","z"]}}}

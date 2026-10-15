@@ -5,6 +5,72 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S3: critical mass, measured over two rounds — 2026-10-15
+
+Stage S3 of `docs/AGENT_ASSET_STORE.md` (§13, §15). **Exit: below critical mass, shortfall
+recorded.** Met/needs (top 5) after two rounds: props 0.29, clips 0.25, materials 0.43 (the
+rule is 0.8 for each kind).
+- **Cost tooling first:** `bench.py cost` prices every model call in the project's transcripts
+  the way Claude Code bills it (Claude Code's own price table, 1-hour cache writes at their rate;
+  it matched a `cost-state` record to the cent, $8.5840), since `cost-state` records are written
+  only now and then. `--mark S-start|-end` (`results/stage_marks.tsv`), `--stage S` (total US$,
+  test US$, hours; `--exclude`/`--only` split stages whose agents overlap) and `--test STAGE KIND`
+  (rows in `results/test_cost.tsv`). Prices live in git-ignored `.cache/asset_bench/prices.json`.
+- **FEEDBACK.md** gains the store's three prompt lines; question 1's default applied after 15
+  minutes (ESCALATIONS). **`review_page.py`** gains a flags mode (looks, feels, reads, works,
+  broken; each toggles), the per-game page for the user's flags. No test game has arrived, so no
+  flag page was published.
+- **Harness:** an `S3` arm (S1L's shelf line) on a release binary of the head; `--briefs-file`;
+  mixed briefs with one item format for props, materials and clips (`placed`, `forked`, `derived`,
+  `made`, `from`); derived props sized by spawning `NAME:preset`/params; `results/store_needs.tsv`
+  (one row per need: how, source, offered, met, used) and `bench.py store-needs`. A need is met
+  when its item was placed, forked or derived from an entry in the top 5 of a find reply, the
+  nearest rows of a `none`, or a shelf the run opened, resolves, and passes its role's size, light
+  and loop checks. "Used" counts any row a reply showed.
+- **Briefs:** 20 fresh briefs from the blind `store-brief-writer` (two batches of 10, $0.06):
+  `s3_briefs.toml` (C01-C10: dock, smithy, shrine, cell, well square, tent, bridge post, mine,
+  kitchen, stable) and `s3_briefs_r2.toml` (D01-D10: lighthouse, graveyard, bakery, throne room,
+  beach, farm, dragon hoard, swamp hut, training yard, watchtower). 73 needs.
+- **Round 1** (C01-C10, model 1, binary `2b5dbbb`): props 5/32 = 0.16, clips 4/10 = 0.40,
+  materials 7/9 = 0.78; used: clips 7/10. 9 of 10 runs accepted. Agents searched for nearly every
+  role and built what the store lacked: boats, lamp posts, gates, beds, buckets, hay, tents, tools,
+  troughs, hearths, pots, statues. "lamp post" and "barred gate" found nothing although a lantern
+  and a gate existed: a two-word query with one matching word gave `none`.
+- **The fill** (one round, from round 1's misses):
+  - Twelve LIB/core foundations, each by a maker agent through the publish loop (zero findings,
+    sheets at the game camera, one fix round) and published here: `lamp_post` (:stone_lantern
+    :wall), `hand_lantern` (:hanging :mine), `hearth` (:oven :forge :cold), `bucket` (:pail :tall),
+    `trough` (:feed :stone :short), `cooking_pot` (:kettle :large), `cot` (:bedroll :bed), `gate`
+    (:barred :shrine :farm), `hay_bale` (:round :small :stack), `rowboat` (:canoe :beached), `tent`
+    (:small :bell), `hafted_tool` (:pickaxe :broom :shovel :hammer). LIB/core has 59 assets;
+    foundations.tsv 40 rows. Archetypes: `light` split into light and `fire`, and new `bed`,
+    `container`, `gate`, `shelter`, `tool`, `vegetation`, `vehicle` (S2's seven keep 3-5 each;
+    new ones start at 1-3).
+  - Core materials `rough_rock`, `checker_tiles`, `packed_earth` (18 core materials).
+  - Search: material find goes word by word (forms, synonyms, compound endings: "flagstones" holds
+    "stone", "wrought" does not hold "rough") with partial rows, `none`, a route and a logged miss;
+    two-word prop and clip queries fall back to rows matching one word ("lamp tower" offers the
+    lanterns); clip synonyms for chopping/mining, fishing and waving.
+  - The prop shelf names foundations by their LIB/core leaf and drops sizes from the other rows
+    (about 1,480 tokens with 40 foundations; cap 1,500).
+- **Round 2** (D01-D10, fresh briefs, binary `cd710b0`): props 10/34 = 0.29, clips 2/8 = 0.25,
+  materials 3/7 = 0.43; used: clips 4/8. 7 of 10 accepted. The new cot, rowboat, packed earth and
+  core fence, bench, barrel and table were placed or forked. Shortfalls: the rowboat's oars span
+  461 cm, past "about 300 cm long"; CMU's wave, dig and look-around don't loop where briefs asked
+  for loops; agents labelled derived plank materials (worn, mossy, snowy) `made`; and they still
+  made a lantern post beside two that fit.
+- **Stopped at two rounds** (the rule allows three): props would have to rise from 0.29 to 0.8 in
+  one more fill, and each fill reaches only the misses it saw. A library that meets a new scene's
+  needs 80% of the time is far beyond the dozens of foundations a round can add, so a third round
+  would change no decision (AGENTS.md "Testing budget"). Seeding of the proof-of-concept kinds
+  stops here, as §13 says. The logged misses fell from 30 to 20 after the fill, and all 50 are
+  distinct queries: none repeated across briefs, the long tail S1 predicted.
+- **Plan changes:** cost from priced transcripts, with `cost-state` as a check (§15 named
+  `cost-state` alone); a stop after two rounds, with the reason above.
+- **Costs:** tests $1.97 (20 bench runs $1.92, 2 brief batches $0.06), limit $30; S3 total
+  __TOTAL__ against the $90 estimate, __HOURS__ h (20:53-__END__ UTC; the S3b builder that ran
+  alongside is S3b's).
+
 ## Asset store: S3–S5 scoped to Shardfall — 2026-10-15
 
 The user's ruling, after an environment check had cloned all four sibling repositories (4.3 GB)

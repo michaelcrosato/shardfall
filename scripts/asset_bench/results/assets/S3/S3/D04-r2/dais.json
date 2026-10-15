@@ -1,0 +1,10 @@
+{"format":2,"name":"dais","unit":"cm",
+"description":"A two-step raised stone dais for a throne.",
+"tags":["dais","platform","stone","throne"],
+"category":"architecture",
+"materials":{
+"edge":{"color":"#6e6a64"},
+"stone":{"base":"MAT/flagstones","color":"#9a968e"}},
+"parts":{
+"lower":{"type":"box","size":[360,15,260],"pos":[0,7.5,0],"mat":"edge"},
+"upper":{"type":"box","size":[300,15,200],"pos":[0,22.5,-10],"mat":"stone"}}}

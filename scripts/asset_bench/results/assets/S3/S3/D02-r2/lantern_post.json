@@ -1,0 +1,16 @@
+{"format":2,"name":"lantern_post","unit":"cm",
+"description":"An iron post with a curved arm and a hanging glowing lantern.",
+"tags":["lantern","post","light"],
+"category":"lighting",
+"materials":{
+"glass":{"color":"#ffc860","emissive":3},
+"iron":{"color":"#2b2d33"}},
+"parts":{
+"arm":{"type":"box","size":[4,4],"from":[0,212,0],"to":[40,212,0],"mat":"iron"},
+"base":{"type":"cylinder","radius":12,"height":14,"pos":[0,7,0],"mat":"iron"},
+"cap":{"type":"sphere","radius":5,"pos":[0,214,0],"mat":"iron"},
+"chain":{"type":"box","size":[1.5,1.5],"from":[40,212,0],"to":[40,196,0],"mat":"iron"},
+"lamp":{"type":"cylinder","radius":7,"height":20,"pos":[40,178,0],"mat":"glass","light":{"color":"#ffb050","radius":400,"intensity":1.5}},
+"lbase":{"type":"cylinder","radius":8,"height":3,"pos":[40,167,0],"mat":"iron"},
+"lroof":{"type":"cone","radius":10,"radius_end":2,"height":8,"pos":[40,192,0],"mat":"iron"},
+"pole":{"type":"cylinder","radius":4,"height":210,"pos":[0,105,0],"mat":"iron"}}}

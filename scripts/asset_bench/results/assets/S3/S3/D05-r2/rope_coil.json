@@ -1,0 +1,13 @@
+{"format":2,"name":"rope_coil","unit":"cm",
+"description":"A coil of thick rope lying flat on the ground.",
+"tags":["rope","coil","nautical"],
+"category":"tool",
+"materials":{
+"rope":{"color":"#c9a86a"},
+"rope2":{"color":"#a98a50"}},
+"parts":{
+"end":{"type":"capsule","radius":3.5,"from":[20,4,0],"to":[44,4,10],"mat":"rope"},
+"r1":{"type":"torus","radius":20,"minor_radius":4,"pos":[0,4,0],"mat":"rope"},
+"r2":{"type":"torus","radius":15,"minor_radius":4,"pos":[0,6,0],"mat":"rope2"},
+"r3":{"type":"torus","radius":10,"minor_radius":4,"pos":[0,9,0],"mat":"rope"},
+"r4":{"type":"torus","radius":17,"minor_radius":4,"pos":[0,11,0],"mat":"rope2"}}}

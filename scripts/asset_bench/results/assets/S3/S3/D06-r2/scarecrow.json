@@ -1,0 +1,20 @@
+{"format":2,"name":"scarecrow","unit":"cm",
+"description":"A straw scarecrow on a pole with a hat and ragged shirt.",
+"tags":["scarecrow","farm","prop"],
+"materials":{
+"face":{"color":"#e0c9a0"},
+"hat":{"color":"#5a3f2a"},
+"shirt":{"color":"#4f6fa8"},
+"straw":{"color":"#d9b84f"},
+"wood":{"color":"#7a5636"}},
+"parts":{
+"arms":{"type":"box","size":[7,7],"from":[-65,138,0],"to":[65,138,0],"mat":"wood"},
+"base":{"type":"cylinder","radius":8,"height":6,"pos":[0,3,0],"mat":"wood"},
+"hand":{"type":"sphere","radius":8,"pos":[-68,138,0],"mat":"straw","mirror":"x"},
+"hat_brim":{"type":"cylinder","radius":24,"height":3,"pos":[0,171,0],"mat":"hat"},
+"hat_top":{"type":"cone","radius":14,"radius_end":9,"height":18,"pos":[0,181,0],"mat":"hat"},
+"head":{"type":"sphere","radius":14,"pos":[0,160,0],"mat":"face"},
+"pole":{"type":"box","size":[7,7],"from":[0,5,0],"to":[0,170,0],"mat":"wood"},
+"skirt":{"type":"cone","radius":22,"radius_end":14,"height":24,"pos":[0,86,0],"mat":"straw"},
+"torso":{"type":"rounded_box","size":[40,56,22],"radius":6,"pos":[0,122,0],"mat":"shirt"},
+"tuft":{"type":"cone","radius":9,"radius_end":3,"height":20,"pos":[-18,64,0],"mat":"straw","mirror":"x"}}}

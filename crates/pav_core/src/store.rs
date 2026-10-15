@@ -316,8 +316,21 @@ mod tests {
         assert_eq!(
             per.keys().copied().collect::<Vec<_>>(),
             [
-                "barrel", "bed", "container", "crate", "fire", "gate", "light", "seat", "shelter", "stall", "table", "tool",
-                "vegetation", "vehicle", "weapon"
+                "barrel",
+                "bed",
+                "container",
+                "crate",
+                "fire",
+                "gate",
+                "light",
+                "seat",
+                "shelter",
+                "stall",
+                "table",
+                "tool",
+                "vegetation",
+                "vehicle",
+                "weapon"
             ]
         );
         // S2's seven archetypes hold 3-5 each; S3's new ones start from the misses that founded them.

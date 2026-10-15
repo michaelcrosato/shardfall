@@ -1,0 +1,10 @@
+{"format":2,"name":"loaf","unit":"cm",
+"description":"A crusty loaf of bread with slashes on top.",
+"tags":["bread","loaf","food"],
+"category":"food",
+"materials":{
+"crust":{"color":"#c08240"},
+"slash":{"color":"#e8c88a"}},
+"parts":{
+"body":{"type":"ellipsoid","size":[30,12,14],"pos":[0,6,0],"mat":"crust"},
+"s":{"type":"box","size":[2,1,8],"pos":[0,11.5,0],"yaw":0,"mat":"slash","array":{"count":3,"step":[7,0,0]}}}}

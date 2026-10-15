@@ -1,0 +1,12 @@
+{"format":2,"name":"hang_lantern","unit":"cm",
+"description":"A lantern hanging from a post arm on a chain.",
+"materials":{
+"glow":{"color":"#ffcc66","emissive":4},
+"iron":{"color":"#2c2c30"}},
+"parts":{
+"arm":{"type":"box","size":[4,4],"from":[0,148,0],"to":[30,148,0],"mat":"iron"},
+"capb":{"type":"box","size":[16,2,16],"pos":[30,117,0],"mat":"iron"},
+"capt":{"type":"box","size":[16,2,16],"pos":[30,133,0],"mat":"iron"},
+"chain":{"type":"cylinder","radius":0.8,"height":14,"pos":[30,141,0],"mat":"iron"},
+"flame":{"type":"box","size":[10,17,10],"pos":[30,125,0],"mat":"glow","light":{"color":"#ffcc66","radius":250,"intensity":1.5}},
+"post":{"type":"cylinder","radius":4,"height":150,"pos":[0,75,0],"mat":"iron"}}}
