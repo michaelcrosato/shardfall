@@ -450,8 +450,8 @@ are US$ as Claude Code bills them, stated before a test and reported after, with
 | S2 Proof of concept, end to end (done 2026-10-15) | Columns `kind licence method tier`, `store/STORE.tsv`, `store/README.md` with a token test. `size_band`, socket lints, texture hard fail, five planted defects. `copy` records lineage. Kenney Mini Dungeon through every step: ledger, gate, rows, find, the Catalogue room, a fork published to standard and shown in the Hall. CC0 clip sets and 15 core materials as rows. Hall, Limits and Catalogue rooms. | Planted defects 5/5 caught; the rooms pass `room_check` and the ids test; a prop forked from an import reaches standard through the publish loop; the user flips through one review page of the rooms. |
 | S3 Critical mass | The test-game prompt (`docs/FEEDBACK.md`) gains three lines: "assets you looked for: query, found id or none"; "up to 5 things you built that another game could reuse: file, one line"; a pointer to the shelf. A per-game review page for the user's flags. 10 fresh briefs with need lists, by `store-brief-writer`, an agent blind to `store/`, every `index.tsv` and LIB (its `.claude/agents/` file sets `omitClaudeMd: true`), taking no subject from `tasks.toml` or `store_briefs.toml`; its runs count against S3's test limit (§15). | **Critical mass:** a need is one line in a brief's need list or a game's answer; it is met when the agent placed, forked or derived (transformed) an entry from the top 5 instead of authoring from scratch (read from transcripts and `store/misses.tsv`). Reached when met/needs ≥ 0.8 for each proof-of-concept kind over the 10 briefs plus any games that arrived. Below that: studio-made foundations or new knobs for the most-logged misses first, one import only for misses a studio could not fill, re-measure; at most 3 rounds, then record the shortfall. Seeding of the proof-of-concept kinds stops either way. |
 | S3b Characters | One CC0 low-poly rigged pack (KayKit or Kenney): bones mapped with my-3danimations' tables, look proportions read from the bones, rigid per-bone parts. Skinning through the creature path's CPU skinning only if rigid joints read badly. | Every embedded clip plays on 3 imported characters with no `check` findings; they appear in the Catalogue room (in the Hall once one is published to standard); the user flips one review page of them performing, rigid and (if built) skinned side by side. |
-| S4 Second engine, clips only | my-3dge reads store clip rows through its existing Shardfall reader. | 10 clip entries load in both engines; each clip's fit in mm matches within a tolerance fixed when the stage starts. |
-| S5 Sprite trial | §11, in riftlight, after S2 (pencilled in at the user's request). | §11's criteria. |
+| S4 Second engine, clips only | Shardfall's side only (the run is Shardfall-only, the user, 2026-10-15): 10 CC0 clip entries a second engine can read from their store rows, each clip's fit in mm recorded from Shardfall as a fixture, and a hand-off prompt for a my-3dge session that points its existing Shardfall reader at them. | The 10 entries load in Shardfall and the fixture holds their fits; the cross-engine match (within a tolerance fixed when the stage starts) is recorded "pending: my-3dge session". |
+| S5 Sprite trial | §11, after S2 (pencilled in at the user's request). Shardfall builds its own arm (3D props through `pixel_art` or `Look::Cutout`) on the 3 briefs; the sprite side, in riftlight, is a hand-off prompt for a riftlight session. | Shardfall's arm renders all 3 briefs; §11's criteria are judged once the riftlight session has run, recorded "pending: riftlight session" until then. |
 | S6 Phase-out, per kind (armed, not run; test limit $0 until it fires) | At each change of the benchmark agent, for each kind still importing: `scripts/asset_bench` runs 10 authoring briefs with that kind's imports hidden (its pinned author runner; no judge step; cost stated in US$ before it runs). The user compares agent-made with imported on a review page: 10 pairs, each in both orders, verdicts left, right or same (about 10 minutes). An ablation reruns 5 fresh briefs with the imports hidden from find. | A pair counts for agent-made only if both verdicts call it better or the same; inconsistent pairs count against it. Pass: ≥ 5 of 10 pairs; every agent-made entry passes `check` within its token cap; ablation briefs pass their checks 5 of 5, with calls higher on at most 1. Two passes in a row freeze the kind's importer catalogs; a third retires imports (§1). `STORE.tsv`'s header reports the imported share per kind, by `origin`. |
 
 **Triggers, not stages**, each with its own small plan when it fires: the harvester and the kinds
@@ -575,8 +575,8 @@ its evidence, in that stage's HISTORY entry.
   briefs scored per role (clips via `clips`, `kind = "material"` via `asset_edit kind=material`); a
   `derived` how in `done.json` (preset, params, palette, seed); met/needs per kind, the top 5 read
   from each run's `log.jsonl` find and shelf replies and its misses. Serial runs on
-  `asset-bench-author` as pinned (model 1), model recorded per run; games arrived in ai-hub count
-  too.
+  `asset-bench-author` as pinned (model 1), model recorded per run. Test games count once they
+  arrive with S3's lines; none has yet, so the run doesn't look for them.
 - Below 0.8 for a kind: fill the most-logged misses (studio foundations or knobs before one import),
   re-measure on fresh briefs where the limit allows; at most 3 rounds. `assets shelf=prop` and
   `store/README.md` are near their 1,500-token caps: rework the layout before adding foundations.
@@ -587,36 +587,41 @@ by SHA-256); raw GLBs in `.cache/`. Port `packages/core/src/skeleton/tables.ts` 
 Rust, plus a KayKit table; a character path past the skinned-model refusal (`asset_import.rs:709`);
 rigid per-bone parts by dominant joint weight; a `character` kind in rows and the Catalogue; a
 character `check`; every embedded clip swept on 3 characters; a review page. Skinning only if the
-user says rigid reads badly.
+user says rigid reads badly. From my-3danimations read only the two files named here ("Shardfall
+only" below).
 
-**S4 Second engine, clips only** (§13). First fix and log the mm tolerance and what "fit matches"
-means. my-3dge's `tools/anim/shardfall.ts` reads 8 set files pinned at Shardfall `fa2dab6`: move the
-pin to a commit with `store/STORE.tsv` and read its clip rows (id → set file → clip; the decoder
-converts degrees). 10 CC0 entries, from MESH2MOTION (new to my-3dge) and QUATERNIUS.
+**S4 Second engine, clips only** (§13), Shardfall's side. First fix and log the mm tolerance and
+what "fit matches" means. Pick 10 CC0 entries from MESH2MOTION (new to my-3dge) and QUATERNIUS,
+check that each has a row in `store/STORE.tsv` naming its set file and clip (id → set file →
+clip; degrees), and record each clip's fit in mm from Shardfall as a fixture with a test. Then write
+`docs/handoffs/S4-my-3dge.md`: a prompt for a session in my-3dge, whose `tools/anim/shardfall.ts`
+reads 8 set files pinned at Shardfall `fa2dab6`, to move that pin to a commit with
+`store/STORE.tsv`, read the 10 rows (its decoder converts degrees) and compare its fits with the
+fixture.
 
-**S5 Sprite trial** (§11), in riftlight: sprite rows and reader, edit operations with render diffs,
-the mixing check with 5 planted faults, a harness whose runs use a blind author definition written
-with it, the Shardfall arm through `pixel_art` or `Look::Cutout`, a both-orders page. The imported
-arm waits for the owner's own approval comment on riftlight #49 (an agent never posts or links
-one).
+**S5 Sprite trial** (§11), Shardfall's side: the 3 briefs, Shardfall's arm (3D props through
+`pixel_art` or `Look::Cutout`) rendered for each, and `docs/handoffs/S5-riftlight.md`, a prompt for
+a session in riftlight to build the rest there: sprite rows and reader, edit operations with
+render diffs, the mixing check with 5 planted faults, a harness whose runs use a blind author
+definition written with it, the code-drawn arm, and a both-orders page that includes Shardfall's
+renders. The imported arm waits for the owner's own approval comment on riftlight #49 (an agent
+never posts or links one); that wait travels with the hand-off.
 
-**Siblings.** Attach and clone each only when a stage needs it, never all up front (the user,
-2026-10-15: they are separate projects, and a clone costs disk; ai-hub alone is 3.1 GB): ai-hub
-(read) only to count games that arrived for S3; my-3danimations (read) for S3b; my-3dge (push)
-for S4; riftlight (push) for S5. Then `add_repo`, clone where it says, `register_repo_root`,
-`repo-setup <path>`, and delete the clone when the stage is done. The old clones in
-`/home/user/michaelcrosato/` have no credentials: read only; a failed push there is no refusal.
-my-3dge: merge once `x ci --local` is green; a new dependency escalates via `node x esc`.
-riftlight: a pushed `claude/*` branch merges at once, so push only a finished step with
-`scripts/check.sh` green (or label the PR `hold`). A sibling's `.claude/agents/verifier.md` runs as
-a general-purpose subagent given that file's body. Refused by `add_repo`: log it in
-`docs/ESCALATIONS.md` and build the Shardfall side.
+**Shardfall only** (the user, 2026-10-15: this project is a prototype for Shardfall). The run
+writes to no other repository and attaches none with `add_repo`. It may bring assets in from the
+sibling repositories when they fit Shardfall's formats (props, materials, format-1 clips) or
+Shardfall's own importers translate them: they are public, so fetch only the files needed (a
+shallow sparse fetch into `.cache/`, removed after), never a full clone or a sibling's setup. Such
+an asset is an import (§6): admitted licence (`store/licences.tsv`), credit kept, restricted
+licences to the local tiers. Work that belongs in a sibling goes into a prompt in
+`docs/handoffs/`, which the user starts as a session in that repository; its results stay
+"pending: <repo> session" until then.
 
 **User-only items** never stop work. Ask once, early: numbered, with options and a default; log it
 in ESCALATIONS, set a 15-minute `send_later` check-in and carry on; no answer by then, apply the
-default and log it (DOCTRINE, "Escalation"). What cannot be defaulted (#49, flags, S3b's
-rigid-or-skinned call, S5's verdicts) is built around and recorded "pending user" with the page URL.
-Already asked (ESCALATIONS, "Asked before S3"): read the answers there and on #49; don't re-ask.
+default and log it (DOCTRINE, "Escalation"). What cannot be defaulted (flags, S3b's
+rigid-or-skinned call) is built around and recorded "pending user" with the page URL. Already
+asked (ESCALATIONS, "Asked before S3"): read the answers there; don't re-ask.
 
 **PRs.** AGENTS.md "Per PR" and Conventions; one Shardfall PR per stage. Squash; reset the branch
 to `origin/main`; push Shardfall often.
@@ -628,9 +633,9 @@ definition with `omitClaudeMd: true` (a general-purpose agent loads CLAUDE.md, w
 AGENTS.md and so names the store); new or edited definitions load within seconds.
 
 **Done** when all hold on `main`:
-1. S3, S3b, S4 and S5 each have a merged Shardfall PR (S4 and S5 also the sibling's, merged where
-   its rules allow, else linked; if refused, the ESCALATIONS entry) and a dated HISTORY entry: exit
-   result in numbers or "pending user", test and total US$ against the estimate, hours.
+1. S3, S3b, S4 and S5 each have a merged Shardfall PR and a dated HISTORY entry: exit result in
+   numbers, "pending user" or "pending: <repo> session", test and total US$ against the estimate,
+   hours. S4's and S5's hand-off prompts are in `docs/handoffs/`.
 2. PROGRESS lists S6 and each trigger (§13) with what fires it.
 3. A final report in chat: per stage the PR, exit result, test and total US$ against the estimate,
    hours; plan changes; open escalations.

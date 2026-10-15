@@ -25,6 +25,8 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   owner, so S5's imported arm stays "pending user" until the comment exists.
 - **Decided by:** pending. Question 1's default applies 15 minutes after the run starts if no
   answer is recorded here.
+- **Later:** the user scoped the run to Shardfall (2026-10-15), so S5's riftlight side is a
+  hand-off prompt and question 2 goes with it: the run no longer waits on #49.
 
 ## 2026-10-15 — S2 built despite S1's "no" (the user's call)
 - **Question:** S1's "no" was final, and under the store design (§13) and the goal nothing after

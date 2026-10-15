@@ -50,6 +50,9 @@ done: `size_band` and `socket_missing` checks, fork lineage, `store/STORE.tsv` a
 seven archetypes in `store/foundations.tsv`; LIB/core has 47 assets) and the `library_hall`,
 `limits` and `catalogue` rooms. **Next: S3, S3b, S4 and S5**, run from the plan's §15 ("Executing
 S3–S5"): each built and merged whatever its exit result, within hard test limits per stage.
+Shardfall only (the user, 2026-10-15): assets may come in from sibling repositories when they fit
+Shardfall's formats, but nothing is written there; S4's my-3dge reader and S5's riftlight sprite
+side become hand-off prompts in `docs/handoffs/`.
 **Armed, not run:** S6 (fires when the benchmark agent changes) and the §13 triggers.
 
 **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the engine

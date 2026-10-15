@@ -5,6 +5,21 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store: S3–S5 scoped to Shardfall — 2026-10-15
+
+The user's ruling, after an environment check had cloned all four sibling repositories (4.3 GB)
+because §15 told the run to attach them: this project is a prototype for Shardfall, and the
+siblings are separate projects.
+- **Writes stay in Shardfall.** The run attaches no other repository and pushes nowhere else.
+  S4 builds Shardfall's side (10 CC0 clip entries readable from their store rows, their fits in mm
+  as a fixture) and a hand-off prompt for a my-3dge session; S5 builds Shardfall's arm on the 3
+  briefs and a hand-off prompt for the riftlight sprite side. Their cross-engine results stay
+  "pending: <repo> session".
+- **Assets may come in** from the siblings when they fit Shardfall's formats or its importers
+  translate them, as imports under the licence gate: fetch only the files needed, no full clone.
+- Pushing to a sibling had also needed an `add_repo` grant that the session's auto-mode check
+  refused; the new scope needs none.
+
 ## Asset store: the run section for S3–S5 — 2026-10-15
 
 The user asked for a short prompt that finishes the store plan, with the plan updated as needed.
