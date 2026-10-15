@@ -68,7 +68,7 @@ rule is 0.8 for each kind).
 - **Plan changes:** cost from priced transcripts, with `cost-state` as a check (§15 named
   `cost-state` alone); a stop after two rounds, with the reason above.
 - **Costs:** tests $1.97 (20 bench runs $1.92, 2 brief batches $0.06), limit $30; S3 total
-  __TOTAL__ against the $90 estimate, __HOURS__ h (20:53-__END__ UTC; the S3b builder that ran
+  $41.12 against the $90 estimate, 2.07 h (20:53-22:58 UTC; the S3b builder that ran
   alongside is S3b's).
 
 ## Asset store: S3–S5 scoped to Shardfall — 2026-10-15
