@@ -31,6 +31,7 @@ use pav_core::props::mesh::MeshFile;
 
 use crate::asset_library;
 use crate::import::catalog::Catalog;
+use crate::import::character;
 use crate::import::fit::{self, Mode, Translation, segment};
 use crate::import::ledger::Ledger;
 use crate::import::libraries::{self, lib_pack, models_in};
@@ -669,6 +670,8 @@ struct Done {
     cols: BTreeMap<&'static str, String>,
     error: Option<String>,
     translation: Option<Translation>,
+    /// A rigged model translated into a figure (`import::character`).
+    character: Option<character::Figure>,
     /// Why it is not translated: its catalog's `$skip` line, or a rigged model (the creature
     /// domain, plan §8.4).
     skip: Option<String>,
@@ -678,7 +681,7 @@ struct Done {
 
 impl Done {
     fn error(cols: BTreeMap<&'static str, String>, e: String) -> Done {
-        Done { cols, error: Some(e), translation: None, skip: None, panicked: false }
+        Done { cols, error: Some(e), translation: None, character: None, skip: None, panicked: false }
     }
 }
 
@@ -704,12 +707,60 @@ fn process_one(src: &Src, i: usize, mode: Option<Mode>) -> Done {
         Err(e) => return Done::error(BTreeMap::from([("flags", "error".to_string())]), format!("{e:#}")),
     };
     let mut cols = census(&s, &done);
-    let Some(mode) = mode else { return Done { cols, error: None, translation: None, skip: None, panicked: false } };
+    let Some(mode) = mode else {
+        return Done { cols, error: None, translation: None, character: None, skip: None, panicked: false };
+    };
     let meta = &src.meta[i];
-    let skip = meta.skip.clone().or_else(|| s.info.skinned.then(|| "rigged (skinned): rigs belong to the creature tools".into()));
+    if meta.skip.is_none() && s.info.skinned {
+        // A rigged humanoid becomes a figure: rigid per-bone segments (docs/ASSET_IMPORT.md,
+        // "Characters"); other rigs belong to the creature tools.
+        let Some(table) = character::recognised(&s) else {
+            cols.insert("tier", "skip".into());
+            let skip = Some(
+                "rigged (skinned), and no bone-name table knows its skeleton: rigs that are not humanoid belong to the creature tools"
+                    .into(),
+            );
+            return Done { cols, error: None, translation: None, character: None, skip, panicked: false };
+        };
+        let path = src.dir.join(&src.files[i]);
+        let sha = std::fs::read(&path).map(|b| fetch::sha256_hex(&b)).unwrap_or_default();
+        let mut source = serde_json::Map::new();
+        for (k, v) in [
+            ("library", src.lib_pack.clone()),
+            ("url", src.lib_pack.is_none().then(|| path.to_string_lossy().replace('\\', "/"))),
+            ("license", src.license.clone()),
+            ("sha256", Some(sha)),
+            ("title", Some(src.ids[i].clone())),
+        ] {
+            if let Some(v) = v {
+                source.insert(k.into(), json!(v));
+            }
+        }
+        let o = character::Options {
+            pack: src.pack.clone(),
+            name: src.names[i].clone(),
+            description: meta.description.clone(),
+            tags: meta.tags.clone(),
+            source,
+            budget: 0,
+        };
+        return match character::translate(&s, &o) {
+            Ok(f) => {
+                cols.insert("parts", f.meshes.len().to_string());
+                cols.insert("mesh_pct", "100".into());
+                cols.insert("tier", format!("figure ({} rig)", table.table));
+                Done { cols, error: None, translation: None, character: Some(f), skip: None, panicked: false }
+            }
+            Err(e) => {
+                cols.insert("tier", "fail".into());
+                Done { cols, error: Some(format!("{e:#}")), translation: None, character: None, skip: None, panicked: false }
+            }
+        };
+    }
+    let skip = meta.skip.clone();
     if skip.is_some() {
         cols.insert("tier", "skip".into());
-        return Done { cols, error: None, translation: None, skip, panicked: false };
+        return Done { cols, error: None, translation: None, character: None, skip, panicked: false };
     }
     let id = &src.ids[i];
     let o = fit::Options {
@@ -739,11 +790,11 @@ fn process_one(src: &Src, i: usize, mode: Option<Mode>) -> Done {
             cols.insert("de", format!("{:.1}", t.fidelity.de));
             cols.insert("chars", t.chars.to_string());
             cols.insert("tier", t.tier.to_string());
-            Done { cols, error: None, translation: Some(t), skip: None, panicked: false }
+            Done { cols, error: None, translation: Some(t), character: None, skip: None, panicked: false }
         }
         Err(e) => {
             cols.insert("tier", "fail".into());
-            Done { cols, error: Some(format!("{e:#}")), translation: None, skip: None, panicked: false }
+            Done { cols, error: Some(format!("{e:#}")), translation: None, character: None, skip: None, panicked: false }
         }
     }
 }
@@ -773,6 +824,10 @@ fn process_all(src: &Src, mode: Option<Mode>) -> Vec<Done> {
 
 fn row_line(id: &str, d: &Done) -> String {
     let g = |k: &str| d.cols.get(k).map(String::as_str).unwrap_or("");
+    if let (None, Some(f)) = (&d.error, &d.character) {
+        let tris = f.meshes.iter().map(|(_, m)| m.f.len()).sum::<usize>();
+        return format!("{id} figure: {} rig, {} segments, {tris} tris", f.rig.table, f.meshes.len());
+    }
     match (&d.error, &d.translation) {
         (Some(e), _) => format!("{id}: {e}"),
         (None, Some(_)) => format!(
@@ -811,6 +866,7 @@ fn fit_summary(done: &[Done], seconds: f64) -> Value {
     let r = rnd;
     json!({
         "translated": ts.len(),
+        "figures": done.iter().filter(|d| d.character.is_some()).count(),
         "skipped": done.iter().filter(|d| d.skip.is_some()).count(),
         "panics": done.iter().filter(|d| d.panicked).count(),
         "tiers": tiers,
@@ -927,6 +983,43 @@ fn write_translation(dir: &Path, t: &Translation) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Writes a figure: its body as `<dir>/<name>.json`, a mesh per segment as
+/// `<dir>/meshes/<name>_<segment>.json`, its rig as `<dir>/rigs/<name>.json` (stale segment
+/// meshes of the same figure are removed). Returns the body's path.
+fn write_figure(dir: &Path, f: &character::Figure) -> Result<PathBuf> {
+    for (name, mesh) in &f.meshes {
+        pav_core::props::mesh::install(name, mesh.clone()).map_err(|e| anyhow!("{name}: {e}"))?;
+    }
+    let text = serde_json::to_string(&f.body)?;
+    let doc = pav_core::props::Doc::read(&text).map_err(|e| anyhow!("{}: {}", f.rig.name, issue::render(&e)))?;
+    let path = dir.join(format!("{}.json", f.rig.name));
+    write_text(&path, &doc.text())?;
+    let keep: Vec<String> = f.meshes.iter().map(|(n, _)| format!("{}.json", pav_core::props::leaf(n))).collect();
+    for (name, mesh) in &f.meshes {
+        write_text(&dir.join("meshes").join(format!("{}.json", pav_core::props::leaf(name))), &mesh.text())?;
+    }
+    for seg in pav_core::figure::Seg::NAMES {
+        let file = format!("{}_{seg}.json", f.rig.name);
+        if !keep.contains(&file) {
+            let _ = std::fs::remove_file(dir.join("meshes").join(file));
+        }
+    }
+    write_text(&dir.join("rigs").join(format!("{}.json", f.rig.name)), &f.rig.text())?;
+    Ok(path)
+}
+
+fn figure_reply(f: &character::Figure, path: &Path) -> Value {
+    let mut v = f.report.clone();
+    v["file"] = json!(path.display().to_string());
+    let rig = path.parent().unwrap_or(Path::new(".")).join("rigs").join(format!("{}.json", f.rig.name));
+    v["rig"] = json!(rig.display().to_string());
+    v["next"] = json!(format!(
+        "asset_edit action=check name={0} checks it as a figure; animsheet def={{\"figure\":\"{0}\"}} clip=<SET/Clip> shows it moving",
+        f.rig.body
+    ));
+    v
+}
+
 fn translation_reply(t: &Translation, path: &Path) -> Value {
     let f = &t.fidelity;
     let r = rnd;
@@ -994,8 +1087,12 @@ fn finish_tier(src: &Src, dest: &Dest, written: &[String]) -> Result<Value> {
         asset_library::read_pack(&dest.dir)?;
     }
     if !src.partial {
-        let keep: std::collections::BTreeSet<String> = written.iter().map(|n| format!("{n}.json")).collect();
-        for folder in [dest.dir.clone(), dest.dir.join("meshes")] {
+        let mut keep: std::collections::BTreeSet<String> = written.iter().map(|n| format!("{n}.json")).collect();
+        // A figure's segment meshes are `<name>_<segment>.json`.
+        for n in written.iter().filter(|n| dest.dir.join("rigs").join(format!("{n}.json")).is_file()) {
+            keep.extend(pav_core::figure::Seg::NAMES.iter().map(|seg| format!("{n}_{seg}.json")));
+        }
+        for folder in [dest.dir.clone(), dest.dir.join("meshes"), dest.dir.join("rigs")] {
             let Ok(entries) = std::fs::read_dir(&folder) else { continue };
             for path in entries.flatten().map(|e| e.path()) {
                 let file = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
@@ -1092,6 +1189,18 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
         if let Some(why) = &d.skip {
             bail!("{}: skipped: {why}", src.ids[0]);
         }
+        if let Some(f) = &d.character {
+            let path = write_figure(&dir, f)?;
+            let mut reply = figure_reply(f, &path);
+            if dest.tier.is_some() {
+                finish_tier(&src, &dest, std::slice::from_ref(&f.rig.name))?;
+                reply["to"] = json!(dest.tier);
+                if let Some(why) = &dest.why {
+                    reply["why"] = json!(why);
+                }
+            }
+            return Ok(Output::Json(reply));
+        }
         let t = d.translation.as_ref().ok_or_else(|| anyhow!("{}", d.error.clone().unwrap_or_default()))?;
         // Like a folder's: a failed translation is not written (plan §8.6).
         if t.tier == "fail" {
@@ -1126,6 +1235,10 @@ fn translate_from(a: &Args, what: &str) -> Result<Output> {
         if let Some(t) = d.translation.as_ref().filter(|t| t.tier != "fail") {
             write_translation(&dir, t)?;
             written.push(t.doc.name.clone());
+        }
+        if let Some(f) = &d.character {
+            write_figure(&dir, f)?;
+            written.push(f.rig.name.clone());
         }
     }
     let limit = get_u64(a, "limit", 20)? as usize;
@@ -1173,6 +1286,10 @@ fn check(a: &Args, file: &str) -> Result<Output> {
     let path = PathBuf::from(file);
     let text = std::fs::read_to_string(&path).map_err(|e| anyhow!("check={file}: {e}"))?;
     let value: Value = serde_json::from_str(&text).map_err(|e| anyhow!("check={file}: not JSON: {e}"))?;
+    if value["category"] == "character" {
+        // Its parts stand in the display pose, not the source's bind pose: no fidelity to measure.
+        bail!("check={file}: a figure's body; asset_edit action=check name=LIB/<pack>/<name> checks it and its rig");
+    }
     // Its mesh files sit in meshes/ beside it.
     let mut names = Vec::new();
     mesh_names(value.get("parts").unwrap_or(&Value::Null), &mut names);

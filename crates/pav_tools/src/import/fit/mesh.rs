@@ -82,8 +82,14 @@ fn median_cut(colours: &[[f64; 3]], max: usize) -> (Vec<String>, Vec<usize>) {
 
 /// A mesh file of `tris` (metres, linear colours) named `name`.
 pub fn mesh_file(name: &str, tris: &[Tri]) -> Option<MeshFile> {
-    // Whole millimetres; over budget, coarser cells (a fifth larger each time) until it fits.
-    let mut cell = 1.0;
+    mesh_file_at(name, tris, 1.0)
+}
+
+/// `mesh_file` with corners welded on cells of `cell` millimetres at least (vertex clustering:
+/// a coarser cell, fewer triangles).
+pub fn mesh_file_at(name: &str, tris: &[Tri], cell: f64) -> Option<MeshFile> {
+    // Over budget, coarser cells (a fifth larger each time) until it fits.
+    let mut cell = cell.max(1.0);
     let (v, faces) = loop {
         let (v, faces) = weld(tris, cell);
         if faces.len() <= MAX_TRIS || cell > 1e6 {

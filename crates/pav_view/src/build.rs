@@ -1711,6 +1711,13 @@ fn emit_puppet(scene: &mut Scene, def: &PuppetDef, o: &RenderObject, p: &PuppetF
     // Characters are never sliced by the cutaway.
     let flags = rs::flags::NO_CUT;
     let (tint, wash) = p.tint.map(|(c, k)| (Vec3::from(c), k)).unwrap_or((Vec3::ONE, 0.0));
+    // An imported figure stands in for the puppet's parts (a figure that does not load: the puppet).
+    if !def.figure.is_empty()
+        && def.body == pav_core::puppet::BodyPlan::Biped
+        && crate::assets::emit_figure_for(scene, def, &p.state, feet, o.id.0, (wash > 0.0).then_some((tint, wash))).is_ok()
+    {
+        return;
+    }
     let (parts, span) = pav_core::puppet::pose_ex(def, &p.state, p.rig.as_ref(), feet, cam_fwd);
     if let (false, Some((hand, tip))) = (def.weapon.asset.is_empty(), span) {
         held_asset(scene, &def.weapon.asset, hand, tip, o.id.0);

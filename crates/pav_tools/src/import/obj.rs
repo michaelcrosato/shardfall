@@ -211,6 +211,7 @@ pub fn scene(path: &Path) -> Result<Scene> {
             uv1: Vec::new(),
             col: three(&m.vertex_color).into_iter().map(|c| [c[0], c[1], c[2], 1.0]).collect(),
             tris,
+            ..Mesh::default()
         });
     }
     Ok(Scene { nodes, meshes, materials, images, info })

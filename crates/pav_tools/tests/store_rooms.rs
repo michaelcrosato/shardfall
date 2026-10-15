@@ -304,6 +304,9 @@ fn catalogue_pages_through_every_store_row() {
         seen.extend(shown);
     }
     assert_eq!(seen, names, "every row once, in order");
+    // The imported figures (S3b) stand on a page in their display pose, as props do.
+    let figures = seen.iter().filter(|n| n.starts_with("LIB/kaykit_adventurers/")).count();
+    assert!(figures >= 3, "{figures} figures in the Catalogue");
     // Paging wraps round; BACK from the first page shows the last.
     json_of(&mut s, "signal", json!({"name": "next"}));
     assert_eq!(page(&s).1.page, 0);

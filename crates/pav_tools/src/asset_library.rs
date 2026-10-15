@@ -270,7 +270,8 @@ fn prop_entries(props_root: &Path) -> Result<Vec<Entry>> {
             if pav_core::store::local_path(&row.name) {
                 continue;
             }
-            let licence = pav_core::store::admitted(&row.licence, "prop").map_err(|e| anyhow!("{}: refused: {e}", row.name))?;
+            let kind: &'static str = if row.kind == index::CHARACTER { index::CHARACTER } else { index::KIND };
+            let licence = pav_core::store::admitted(&row.licence, kind).map_err(|e| anyhow!("{}: refused: {e}", row.name))?;
             let file = folder.join(format!("{}.json", props::leaf(&row.name)));
             let value: Value = std::fs::read_to_string(&file)
                 .ok()
@@ -284,7 +285,7 @@ fn prop_entries(props_root: &Path) -> Result<Vec<Entry>> {
             };
             out.push(Entry {
                 id: row.name.clone(),
-                kind: index::KIND,
+                kind,
                 tier: row.level.clone(),
                 licence: licence.id,
                 method: row.method.clone(),
@@ -355,11 +356,14 @@ fn material_entries() -> Result<Vec<Entry>> {
 }
 
 /// `store/STORE.tsv`: one row per store entry (docs/AGENT_ASSET_STORE.md §5), objects from the
-/// committed indexes under `props_root`, then the embedded clips and the core materials, each
-/// kind by id. The header says it is generated and reports each kind's share by origin (§13 S6);
+/// committed indexes under `props_root`, then the figures (`character`), the embedded clips and
+/// the core materials, each kind by id. The header says it is generated and reports each kind's share by origin (§13 S6);
 /// the `foundation` column marks the foundations (`store/foundations.tsv`, §4).
 pub fn store_table(props_root: &Path) -> Result<String> {
-    let mut kinds = [prop_entries(props_root)?, clip_entries()?, material_entries()?];
+    // Figures' bodies (kind `character`) are rows of the object indexes too.
+    let (characters, objects): (Vec<Entry>, Vec<Entry>) =
+        prop_entries(props_root)?.into_iter().partition(|entry| entry.kind == index::CHARACTER);
+    let mut kinds = [objects, characters, clip_entries()?, material_entries()?];
     let mut shares = Vec::new();
     for entries in &mut kinds {
         entries.sort_by(|a, b| a.id.cmp(&b.id));

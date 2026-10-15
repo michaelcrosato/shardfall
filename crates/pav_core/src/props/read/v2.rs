@@ -60,7 +60,7 @@ pub const DOCUMENT_FIELDS: &[(&str, &str)] = &[
     ("tags", "up to 16 words of a-z, 0-9 and _, each at most 24 characters"),
     (
         "category",
-        "furniture | container | architecture | lighting | vegetation | rock | weapon | armour | tool | food | town | dungeon | signage",
+        "furniture | container | architecture | lighting | vegetation | rock | weapon | armour | tool | food | town | dungeon | signage | character",
     ),
     ("lineage", "{method,origin,parents,license,credit}: written by copy"),
     ("source", "{library,url,license,author,sha256,title,norm}: where it came from (tools write it)"),
@@ -2972,7 +2972,7 @@ mod tests {
             doc(r#""tags":["Wood","ok"],"category":"furnature","#, cube),
             [
                 r#"tags[0]: "Wood" is not a tag (expected 1-24 characters of a-z, 0-9 and _)"#,
-                r#"category: unknown category "furnature" (expected furniture, container, architecture, lighting, vegetation, rock, weapon, armour, tool, food, town, dungeon, signage) — did you mean "furniture"?"#,
+                r#"category: unknown category "furnature" (expected furniture, container, architecture, lighting, vegetation, rock, weapon, armour, tool, food, town, dungeon, signage, character) — did you mean "furniture"?"#,
             ]
         );
         assert_eq!(doc(r#""tags":["ok","ok"],"#, cube), [r#"tags[1]: "ok" appears twice — keep one"#]);

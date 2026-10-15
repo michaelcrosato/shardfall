@@ -12,14 +12,18 @@ use crate::issue;
 
 pub const HEADER: &str = "name\tcat\tsize_cm\tparts\ttok\tfid\tsrc\tkind\tlicence\tmethod\ttier\ttags\tsockets\tnote\tdesc";
 
-/// The `kind` column of an object index (docs/AGENT_ASSET_STORE.md §5).
+/// The `kind` column of an object index (docs/AGENT_ASSET_STORE.md §5): a prop, or a figure's
+/// body (`CHARACTER`, an asset of category `character`; its rig sits in `rigs/`).
 pub const KIND: &str = "prop";
+pub const CHARACTER: &str = "character";
 
 /// One asset as queries see it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     /// The canonical name, e.g. `LIB/core/barrel`.
     pub name: String,
+    /// `prop` or `character` (`KIND`, `CHARACTER`).
+    pub kind: String,
     /// Its category (`furniture`, `container`, …), or empty.
     pub cat: String,
     /// Width x height x depth in centimetres.
@@ -95,8 +99,10 @@ impl Row {
             None => "own".into(),
         };
         let lineage = doc.provenance();
+        let character = doc.category == Some(super::doc::Category::Character);
         Self {
             name: name.to_owned(),
+            kind: if character { CHARACTER } else { KIND }.into(),
             cat: doc.category.map(|cat| cat.name().to_owned()).unwrap_or_default(),
             size_cm: def.bounds(1.0).size_cm(),
             parts: def.compiled.parts.len(),
@@ -132,7 +138,7 @@ impl Row {
             self.tok.to_string(),
             self.fid.clone(),
             self.src.clone(),
-            KIND.into(),
+            self.kind.clone(),
             self.licence.clone(),
             self.method.clone(),
             self.level.clone(),
@@ -161,12 +167,13 @@ pub fn parse(text: &str, tier: Tier) -> Result<Vec<Row>, String> {
             else {
                 return Err(format!("line {}: {} fields (expected 15)", i + 2, cells.len()));
             };
-            if kind != KIND {
-                return Err(format!("line {}: kind \"{kind}\" (an object index holds {KIND} rows)", i + 2));
+            if kind != KIND && kind != CHARACTER {
+                return Err(format!("line {}: kind \"{kind}\" (an object index holds {KIND} and {CHARACTER} rows)", i + 2));
             }
             let number = |what: &str, text: &str| text.parse::<usize>().map_err(|_| format!("line {}: {what} \"{text}\"", i + 2));
             Ok(Row {
                 name: store::canonical(name).map_err(|e| format!("line {}: {e}", i + 2))?,
+                kind: kind.into(),
                 cat: cat.into(),
                 size_cm: size_cm.into(),
                 parts: number("parts", parts)?,

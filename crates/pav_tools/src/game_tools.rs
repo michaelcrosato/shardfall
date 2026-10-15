@@ -890,6 +890,12 @@ fn authored_look(s: &Session, a: &Args) -> Result<(String, pav_core::puppet::Pup
         }
     }
     let def: pav_core::puppet::PuppetDef = serde_json::from_value(base).map_err(|e| anyhow!("def: {e}"))?;
+    // An imported figure stands at its own proportions.
+    let def = if def.figure.is_empty() {
+        def
+    } else {
+        pav_core::figure::get(&def.figure).map_err(|e| anyhow!("def.figure: {e}"))?.fit(&def)
+    };
     Ok((format!("{name} (authored)"), def, skill))
 }
 
@@ -917,6 +923,7 @@ fn creature_frames(
     frames: usize,
     size: u32,
     motion: Motion,
+    tilt: f32,
 ) -> Result<Vec<Vec<u8>>> {
     s.gpu()?;
     let mut tmp = Session::new("empty", 1)?;
@@ -926,7 +933,7 @@ fn creature_frames(
     }
     let id = tmp.sim.spawn_npc("subject", Vec3::new(0.5, 0.0, 0.5), 0.0, look.clone(), None, None);
     tmp.sim.run(20, &pav_core::InputFrame::default());
-    tmp.camera.params.tilt = 22.0;
+    tmp.camera.params.tilt = tilt;
     tmp.camera.params.fov = 38.0;
     tmp.camera.params.height_offset = 0.0;
     tmp.camera.params.follow_lag = 0.0;
@@ -1013,7 +1020,7 @@ pub fn t_turntable(s: &mut Session, a: &Args) -> Result<Output> {
     let body = crate::agent_tools::anatomy(&look);
     let angles = get_u64(a, "angles", 8)?.clamp(1, 16) as usize;
     let size = get_u64(a, "size", 256)?.clamp(64, 1024) as u32;
-    let shots = creature_frames(s, look, angles, size, Motion::Turn)?;
+    let shots = creature_frames(s, look, angles, size, Motion::Turn, 22.0)?;
     let cols = get_u64(a, "columns", 4)? as u32;
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
     let png = pav_render::capture::encode_png(tw, th, &px)?;
@@ -1084,7 +1091,8 @@ pub fn t_animsheet(s: &mut Session, a: &Args) -> Result<Output> {
             }
         }
     };
-    let shots = creature_frames(s, look, frames, size, motion)?;
+    let tilt = get_f32(a, "tilt", 22.0)?.clamp(0.0, 89.0);
+    let shots = creature_frames(s, look, frames, size, motion, tilt)?;
     let cols = get_u64(a, "columns", 8)? as u32;
     let (tw, th, px) = pav_render::capture::tile_frames(&shots, size, size, cols);
     let png = pav_render::capture::encode_png(tw, th, &px)?;

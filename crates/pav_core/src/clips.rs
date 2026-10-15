@@ -593,8 +593,6 @@ pub fn skel(def: &PuppetDef, k: &Key, travel: bool) -> Skel {
     let leg = def.leg_length * sc;
     let arm = def.arm_length * sc;
     let hr = def.head_radius * sc;
-    let tr = def.torso_radius * sc;
-    let lr = def.limb_radius * sc;
     let hip_h = hip_height(def);
     let qp = euler(k.body);
     let qc = qp * euler(k.chest);
@@ -667,15 +665,24 @@ pub fn skel(def: &PuppetDef, k: &Key, travel: bool) -> Skel {
     };
     // Nothing goes through the floor: a pose that dips below it (pointed toes in a jump, a body
     // lying on the ground) is lifted until its lowest point stands on it.
-    let mut low = sk.ankle[0].y.min(sk.ankle[1].y);
-    for i in 0..2 {
-        low = low.min(sk.knee[i].y - lr).min(sk.hand[i].y - lr).min((sk.ankle[i] + sk.toe[i] * 0.12 * sc).y);
-    }
-    low = low.min(sk.head.y - hr).min(sk.pelvis.y - tr * 0.9).min(sk.chest.y - tr * 0.9);
+    let low = lowest(def, &sk);
     if low < 0.0 {
         sk.transform(Quat::IDENTITY, Vec3::Y * -low);
     }
     sk
+}
+
+/// The height of a skeleton's lowest point with the puppet's thickness: ankles and toes, knees
+/// and hands less a limb's radius, the head, pelvis and chest less theirs. `skel` stands a pose
+/// that dips below the floor on it; an imported figure stands its own lowest point there.
+pub fn lowest(def: &PuppetDef, sk: &Skel) -> f32 {
+    let sc = def.scale;
+    let (hr, tr, lr) = (def.head_radius * sc, def.torso_radius * sc, def.limb_radius * sc);
+    let mut low = sk.ankle[0].y.min(sk.ankle[1].y);
+    for i in 0..2 {
+        low = low.min(sk.knee[i].y - lr).min(sk.hand[i].y - lr).min((sk.ankle[i] + sk.toe[i] * 0.12 * sc).y);
+    }
+    low.min(sk.head.y - hr).min(sk.pelvis.y - tr * 0.9).min(sk.chest.y - tr * 0.9)
 }
 
 fn smooth(w: f32) -> f32 {

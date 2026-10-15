@@ -736,6 +736,10 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
             out.uv = uv.map(|u| u.chunks(2).map(|c| [c[0] as f32, c[1] as f32]).collect()).unwrap_or_default();
             out.uv1 = uv1.map(|u| u.chunks(2).map(|c| [c[0] as f32, c[1] as f32]).collect()).unwrap_or_default();
             out.col = col.unwrap_or_default();
+            if let (Some(sk), true) = (skin, blend.is_some()) {
+                (out.joints, out.weights) =
+                    skin_weights(g, sk, &ours, &attrs["JOINTS_0"], &attrs["WEIGHTS_0"], nv).map_err(|e| anyhow!("{at}: {e}"))?;
+            }
             // A mirroring placement turns triangles inside out: reverse them.
             if blend.is_none() && node_m.determinant() < 0.0 {
                 for t in &mut tris {
@@ -753,6 +757,41 @@ fn read_scene(g: &Gltf, file: &str) -> Result<Scene> {
         info.warnings.push("skinned: read in its bind pose (the creature and character domain; skipped by surveys' fits)".into());
     }
     Ok(Scene { nodes: out_nodes, meshes, materials, images, info })
+}
+
+/// Each vertex's joints (as the scene's node indices, `ours`) and weights, the first four of
+/// JOINTS_0 and WEIGHTS_0; a joint outside the default scene, or a weight of 0, reads as joint
+/// `u32::MAX` with weight 0.
+fn skin_weights(
+    g: &Gltf,
+    skin: &Value,
+    ours: &[usize],
+    joints: &Value,
+    weights: &Value,
+    nv: usize,
+) -> Result<(Vec<[u32; 4]>, Vec<[f32; 4]>)> {
+    let (Some(ja), Some(wa)) = (joints.as_u64(), weights.as_u64()) else { return Ok((Vec::new(), Vec::new())) };
+    let list: Vec<usize> =
+        skin["joints"].as_array().into_iter().flatten().filter_map(Value::as_u64).map(|v| v as usize).collect();
+    let (jv, jn) = g.read(ja as usize)?;
+    let (wv, wn) = g.read(wa as usize)?;
+    if jv.len() / jn.max(1) != nv || wv.len() / wn.max(1) != nv {
+        bail!("JOINTS_0 or WEIGHTS_0 does not match its vertices");
+    }
+    let (mut js, mut ws) = (Vec::with_capacity(nv), Vec::with_capacity(nv));
+    for v in 0..nv {
+        let (mut j4, mut w4) = ([u32::MAX; 4], [0.0f32; 4]);
+        for k in 0..jn.min(wn).min(4) {
+            let w = wv[v * wn + k];
+            let node = list.get(jv[v * jn + k] as usize).and_then(|&n| ours.get(n)).copied().filter(|&n| n != usize::MAX);
+            if let (true, Some(n)) = (w > 0.0, node) {
+                (j4[k], w4[k]) = (n as u32, w as f32);
+            }
+        }
+        js.push(j4);
+        ws.push(w4);
+    }
+    Ok((js, ws))
 }
 
 /// The bind-pose matrix of each vertex of a skinned primitive: its joints' world · inverse bind

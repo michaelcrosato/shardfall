@@ -529,16 +529,23 @@ impl Cost {
 fn findings(def: &PropDef, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, Cost) {
     let compiled = &def.compiled;
     let mut found = lint::lint(compiled, &lint::Options { target_cm: target });
+    found.retain(|f| !pav_core::figure::exempt(def, f));
     found.extend(lint::archetype(def));
     let cost = Cost::of(compiled);
     let mut over = |code: &'static str, fact: String| found.push(Finding { code, ids: vec![], line: format!("{code}: {fact}") });
     if cost.triangles > 20_000 {
         over("heavy", format!("{} triangles (budget 20000)", cost.triangles));
     }
-    if cost.meshes > 8 {
+    // A figure's body draws one mesh per segment (pav_core::figure): 16 at most.
+    let figure = def.doc.category == Some(pav_core::props::doc::Category::Character);
+    let mesh_budget = if figure { pav_core::figure::Seg::ALL.len() } else { 8 };
+    if cost.meshes > mesh_budget {
         over(
             "meshes",
-            format!("{} distinct meshes (budget 8); reuse the sizes of rounded boxes and generated shapes", cost.meshes),
+            format!(
+                "{} distinct meshes (budget {mesh_budget}); reuse the sizes of rounded boxes and generated shapes",
+                cost.meshes
+            ),
         );
     }
     if cost.lights > 4 {
@@ -550,6 +557,30 @@ fn findings(def: &PropDef, target: Option<[Option<f32>; 3]>) -> (Vec<Finding>, C
 /// `check`'s findings for `def` (lint, archetype and cost budgets), as `check` lists them.
 pub fn check_lines(def: &PropDef) -> Vec<String> {
     lint::lines(&findings(def, None).0)
+}
+
+/// A figure's own findings (`pav_core::figure::check`) for the body `name` (`def`) under the
+/// props root `root`: its rig file read beside it, then the rig's segments, meshes, floor and
+/// proportions checked. One line each, `figure: <where>: <what>`.
+pub fn figure_lines(root: &std::path::Path, name: &str, def: std::sync::Arc<PropDef>) -> Vec<String> {
+    let Some(path) = pav_core::figure::rig_file(root, name) else {
+        return vec![format!("figure: no rig file: rigs/{}.json beside the body (asset_import writes it)", props::leaf(name))];
+    };
+    let rig = match std::fs::read_to_string(&path).map_err(|e| e.to_string()).and_then(|t| pav_core::figure::RigFile::parse(&t)) {
+        Ok(rig) => rig,
+        Err(e) => return vec![format!("figure: {}: {e}", path.display())],
+    };
+    match pav_core::figure::Figure::new(name, rig, def) {
+        Ok(figure) => pav_core::figure::check(&figure)
+            .iter()
+            .map(|i| {
+                let at = if i.path.is_empty() { "figure".to_string() } else { format!("figure: {}", i.path) };
+                let expected = i.expected.as_ref().map(|e| format!(" (expected {e})")).unwrap_or_default();
+                format!("{at}: {}{expected}", i.message)
+            })
+            .collect(),
+        Err(e) => vec![format!("figure: {e}")],
+    }
 }
 
 /// Findings of `after` that `before` did not have: what an edit introduced.
@@ -622,12 +653,20 @@ fn edit_at(root: &Path, a: &Args) -> Result<Edited> {
         let (found, cost) = findings(&def, target_arg(a)?);
         let mut result =
             json!({"name": name, "revision": def.revision, "size_cm": def.bounds(1.0).size_cm(), "cost": cost.line()});
-        if !found.is_empty() {
-            result["check"] = if get_bool(a, "all", false)? {
-                json!(found.iter().map(|f| &f.line).collect::<Vec<_>>())
-            } else {
-                json!(lint::lines(&found))
-            };
+        let mut lines: Vec<String> =
+            if get_bool(a, "all", false)? { found.iter().map(|f| f.line.clone()).collect() } else { lint::lines(&found) };
+        if def.doc.category == Some(pav_core::props::doc::Category::Character) {
+            // A figure's body: its rig is checked too.
+            lines.extend(figure_lines(root, &name, def.clone()));
+            if let Some(rig) = pav_core::figure::rig_file(root, &name)
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .and_then(|t| pav_core::figure::RigFile::parse(&t).ok())
+            {
+                result["figure"] = json!({"table": rig.table, "look": rig.look, "segments": rig.segments.len()});
+            }
+        }
+        if !lines.is_empty() {
+            result["check"] = json!(lines);
         }
         return read_only(result);
     }

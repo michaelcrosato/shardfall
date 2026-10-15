@@ -132,6 +132,8 @@ names! {
         Town => "town",
         Dungeon => "dungeon",
         Signage => "signage",
+        /// An imported figure's body (`crate::figure`): its rig file sits in `rigs/` beside it.
+        Character => "character",
     }
 }
 

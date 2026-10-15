@@ -87,7 +87,8 @@ pub fn mesh_share(row: &Row) -> u32 {
 /// What `asset_edit action=check` lints in an asset: its geometry, size band and sockets (check
 /// also counts render budgets).
 pub fn findings(def: &PropDef) -> usize {
-    props::lint::lint(&def.compiled, &props::lint::Options::default()).len() + props::lint::archetype(def).len()
+    let lint = props::lint::lint(&def.compiled, &props::lint::Options::default());
+    lint.iter().filter(|f| !crate::figure::exempt(def, f)).count() + props::lint::archetype(def).len()
 }
 
 /// A prop's sign: its name, then its row.

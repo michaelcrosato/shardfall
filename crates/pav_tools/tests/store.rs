@@ -53,8 +53,13 @@ fn the_store_finds_shelves_credits_and_refuses() {
     let tree = call(&mut s, "assets", json!({"find": "tree"}));
     assert!(tree["route"].as_str().unwrap().starts_with("make it:"), "{tree}");
     assert!(tree["nearest"].as_array().unwrap().iter().all(|row| row[1] == "vegetation"), "the vegetation hint: {tree}");
+    // S3b's imported figures answer `character`; a person no row names gets the route.
     let character = call(&mut s, "assets", json!({"find": "character"}));
-    assert!(character["route"].as_str().unwrap().contains("heroes.toml"), "{character}");
+    assert!(names(&character["rows"]).iter().any(|name| name.starts_with("LIB/kaykit_adventurers/")), "{character}");
+    let villager = call(&mut s, "assets", json!({"find": "villager"}));
+    let route = villager["route"].as_str().unwrap();
+    assert!(route.contains("heroes.toml") && route.contains("category=character"), "{villager}");
+    assert!(names(&villager["nearest"]).iter().any(|name| name.starts_with("LIB/kaykit_adventurers/")), "{villager}");
     // Two words, one of them matching (S3): rows that match it, marked partial, not `none`.
     let lamp = call(&mut s, "assets", json!({"find": "lamp tower"}));
     assert!(lamp["partial"].is_string() && names(&lamp["rows"]).contains(&"BUILTIN/lantern".to_owned()), "{lamp}");
@@ -67,7 +72,7 @@ fn the_store_finds_shelves_credits_and_refuses() {
     let zebra = call(&mut s, "assets", json!({"kind": "material", "find": "zebra"}));
     assert!(zebra["none"].is_string() && zebra["route"].as_str().unwrap().starts_with("make it:"), "{zebra}");
     let misses = std::fs::read_to_string(scratch.join("misses.tsv")).unwrap();
-    assert!(misses.contains("\tprop\ttree\t") && misses.contains("\tprop\tcharacter\t"), "{misses}");
+    assert!(misses.contains("\tprop\ttree\t") && misses.contains("\tprop\tvillager\t"), "{misses}");
     assert!(misses.contains("\tmaterial\tzebra\t"), "{misses}");
     // Rows carry their store tier and mesh share; the local tier is not searched by default.
     let barrel = call(&mut s, "assets", json!({"find": "barrel"}));

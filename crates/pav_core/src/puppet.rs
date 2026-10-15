@@ -230,6 +230,11 @@ pub struct PuppetDef {
     /// dodge roll in place of the procedural tumble, sped up to be done a moment after the roll
     /// (bipeds). Empty = the tumble.
     pub dodge_clip: String,
+    /// An imported figure drawn in place of the puppet's parts (`LIB/kaykit_adventurers/knight`,
+    /// `crate::figure`): rigid per-bone segments that follow the biped's pose at the figure's
+    /// own proportions (bipeds; desktop builds). Empty = the puppet.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub figure: String,
 }
 
 /// A name for a skill, or one for each swing of its combo, written as a string or a list.
@@ -321,6 +326,7 @@ impl Default for PuppetDef {
             attack_clips: Default::default(),
             attack_moves: Default::default(),
             dodge_clip: String::new(),
+            figure: String::new(),
         }
     }
 }
@@ -908,6 +914,17 @@ pub fn pose_ex(
 /// Whole-body motion on top of any body plan: lunges, whirlwind spins, leap height and dying
 /// (topple over backwards, then sink into the ground).
 fn motion(def: &PuppetDef, st: &PuppetState, feet: Vec3, parts: &mut [PuppetPart]) {
+    let (q, shift) = body_motion(def, st);
+    for p in parts.iter_mut() {
+        for v in [&mut p.a, &mut p.b] {
+            *v = feet + q * (*v - feet) + shift;
+        }
+    }
+}
+
+/// The whole-body motion of `motion` as one rigid move about the feet: a point `x` goes to
+/// `feet + q · (x − feet) + shift`.
+pub fn body_motion(def: &PuppetDef, st: &PuppetState) -> (Quat, Vec3) {
     let k = def.scale;
     let fwd = Quat::from_rotation_y(st.facing) * Vec3::Z;
     let right = Quat::from_rotation_y(st.facing) * Vec3::X;
@@ -927,18 +944,7 @@ fn motion(def: &PuppetDef, st: &PuppetState, feet: Vec3, parts: &mut [PuppetPart
     // The sink comes after either (a body that lies where it fell, the hero's, stays at half).
     let topple = (down > 0.0).then(|| Quat::from_axis_angle(right, -1.45 * smooth(0.0, 0.45, down) * (1.0 - st.clip_w)));
     let sink = Vec3::Y * (-1.2 * k * smooth(0.55, 1.0, down));
-    for p in parts.iter_mut() {
-        for v in [&mut p.a, &mut p.b] {
-            let mut x = *v - feet;
-            if let Some(q) = spin {
-                x = q * x;
-            }
-            if let Some(q) = topple {
-                x = q * x;
-            }
-            *v = feet + x + shift + sink;
-        }
-    }
+    (topple.unwrap_or(Quat::IDENTITY) * spin.unwrap_or(Quat::IDENTITY), shift + sink)
 }
 
 /// Camera-aware cheats applied to the finished parts: lean toward the camera, and the cutout
@@ -1046,7 +1052,8 @@ impl Skel {
     }
 }
 
-fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
+/// `st` held on its animation frame when the look animates in steps (`anim_fps`).
+fn stepped(def: &PuppetDef, st: &PuppetState) -> PuppetState {
     let mut st = *st;
     if def.anim_fps > 0.5 {
         // Stepped animation: hold poses between discrete animation frames.
@@ -1056,9 +1063,21 @@ fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Ve
         st.phase = (st.phase - dt * st.speed / (def.stride * def.scale).max(0.1)).rem_euclid(1.0);
         st.clip_t -= dt * if st.clip_speed > 0.0 { st.clip_speed } else { 1.0 };
     }
+    st
+}
+
+/// A biped's skeleton for this frame, in character space (feet at the origin, facing +z): the
+/// procedural pose with the clips it plays laid over it, as `pose` dresses it. An imported
+/// figure (`crate::figure`) is posed from it.
+pub fn biped_skel(def: &PuppetDef, st: &PuppetState) -> Skel {
+    let st = stepped(def, st);
     let table = crate::moves::table();
-    let skel = crate::clips::over(def, &st, procedural(def, &st, &table));
-    dress(def, &st, &skel, feet, cam_fwd)
+    crate::clips::over(def, &st, procedural(def, &st, &table))
+}
+
+fn biped_ex(def: &PuppetDef, st: &PuppetState, feet: Vec3, cam_fwd: Vec3) -> (Vec<PuppetPart>, Option<(Vec3, Vec3)>) {
+    let skel = biped_skel(def, st);
+    dress(def, &stepped(def, st), &skel, feet, cam_fwd)
 }
 
 /// The procedural pose: standing, walking and running (the legs stride the way the body

@@ -246,7 +246,7 @@ pub fn build_index(root: &Path, folder: &Path, set: &str, old: &[Row]) -> Result
     if !local {
         // A store row must carry an admitted licence (§14 Q2); local packs are not store rows.
         for row in &rows {
-            if let Err(error) = rules::admitted(&row.src, "prop").and(rules::admitted(&row.licence, "prop")) {
+            if let Err(error) = rules::admitted(&row.src, &row.kind).and(rules::admitted(&row.licence, &row.kind)) {
                 bail!("{}: refused: {error}", row.name);
             }
         }
@@ -340,7 +340,7 @@ pub(crate) fn slug(terms: &[Term]) -> String {
 fn route(terms: &[Term], nearest: &[Row], related: bool) -> String {
     let words: Vec<&str> = terms.iter().map(|term| term.word.as_str()).collect();
     match terms.iter().find_map(|term| term.hint) {
-        Some("character") => "characters are not props: playable looks are game/heroes.toml (hero character=, turntable character=), creatures come from genome and turntable def=; their motion: assets find=<move> kind=clip".into(),
+        Some("character") => "imported bodies are rows of category character (assets category=character; a look wears one as figure=, animsheet def={\"figure\":NAME}); playable looks are game/heroes.toml (hero character=), creatures come from genome and turntable def=; their motion: assets find=<move> kind=clip".into(),
         Some("clip") => format!("motion is a clip: assets find=\"{}\" kind=clip", words.join(" ")),
         _ => {
             let name = slug(terms);
@@ -362,7 +362,7 @@ fn nearest(hits: &[Hit], rows: &[Row], terms: &[Term]) -> (Vec<Row>, bool) {
     let mut out: Vec<Row> = hits.iter().take(3).map(|hit| hit.row.clone()).collect();
     let usable = |row: &&Row| row.tier != Tier::Local;
     let hint = terms.iter().find_map(|term| term.hint);
-    if matches!(hint, Some("character" | "clip")) {
+    if hint == Some("clip") {
         // Not props: the route names their tools, and no prop is near.
         return (out, false);
     }
@@ -423,7 +423,7 @@ pub fn prop_shelf(rows: &[Row]) -> Value {
     let mut by_cat: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut entries: Vec<&Row> = rows
         .iter()
-        .filter(|row| matches!(row.level.as_str(), "standard" | "checked"))
+        .filter(|row| matches!(row.level.as_str(), "standard" | "checked") && row.kind == index::KIND)
         .filter(|row| rules::admitted(&row.src, "prop").is_ok())
         .filter(|row| rules::foundation(&row.name).is_none())
         .collect();
@@ -590,6 +590,7 @@ mod tests {
 
     fn row(name: &str, cat: &str, size: &str, parts: usize, tok: usize, tags: &str, desc: &str) -> Row {
         Row {
+            kind: index::KIND.into(),
             name: name.into(),
             cat: cat.into(),
             size_cm: size.into(),

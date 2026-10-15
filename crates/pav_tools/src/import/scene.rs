@@ -43,6 +43,10 @@ pub struct Mesh {
     pub uv1: Vec<[f32; 2]>,
     /// Vertex colours, linear RGBA.
     pub col: Vec<[f32; 4]>,
+    /// A skinned mesh's joints per vertex (indices into `Scene::nodes`) and their weights
+    /// (JOINTS_0, WEIGHTS_0); empty for a rigid mesh.
+    pub joints: Vec<[u32; 4]>,
+    pub weights: Vec<[f32; 4]>,
     pub tris: Vec<[u32; 3]>,
 }
 

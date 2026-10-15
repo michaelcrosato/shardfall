@@ -18,6 +18,7 @@ pub mod creatures;
 pub mod destruct;
 pub mod entity;
 pub mod feel;
+pub mod figure;
 pub mod frame;
 pub mod fxdef;
 pub mod guide;

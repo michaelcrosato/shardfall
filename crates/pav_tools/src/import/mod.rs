@@ -16,8 +16,11 @@
 //! - `raster`: a CPU rasteriser of orthographic views; `metrics`: the fidelity metrics, the
 //!   tiers and the compare image.
 //! - `report`: writing what was made, and the replies.
+//! - `skeleton`: the bone-name tables that recognise a rig (ported from my-3danimations);
+//!   `character`: a rigged model translated into a figure (`pav_core::figure`).
 
 pub mod catalog;
+pub mod character;
 pub mod fetch;
 pub mod fit;
 pub mod gltf;
@@ -31,6 +34,7 @@ pub mod obj;
 pub mod raster;
 pub mod report;
 pub mod scene;
+pub mod skeleton;
 
 use std::path::Path;
 

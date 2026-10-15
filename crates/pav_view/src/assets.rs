@@ -117,9 +117,29 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
     // A turn that drifted from unit length (accumulated in game code) is renormalised.
     let rot = if (at.rot.length_squared() - 1.0).abs() > 1e-4 { at.rot.normalize() } else { at.rot };
     let parts = def.variant_with(&params, seed);
-    let o = RenderObject {
-        id: EntityId(at.id),
-        pos: at.pos,
+    let o = object(at.id, at.pos, rot);
+    draw_parts(scene, &asset, &parts, &|_| Some(o.clone()), at.scale, palette, None);
+    for (i, light) in parts.lights.iter().enumerate() {
+        let def = LightDef {
+            color: role_hex(&light.color, palette).to_owned(),
+            radius: light.radius * at.scale,
+            intensity: light.intensity,
+            flicker: light.flicker,
+            pulse: light.pulse,
+            shadows: light.shadows,
+            offset: Vec3::ZERO,
+        };
+        let pos = at.pos + rot * (light.pos * at.scale);
+        scene.point_lights.push(crate::fx::light(&def, pos, scene.time, at.id as f32 * 1.7 + i as f32));
+    }
+    Ok(())
+}
+
+/// A stand-in object at `pos`, turned `rot`, for drawing parts with `emit_prim`.
+fn object(id: u32, pos: Vec3, rot: Quat) -> RenderObject {
+    RenderObject {
+        id: EntityId(id),
+        pos,
         rot,
         visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
         prop: None,
@@ -129,7 +149,21 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
         vehicle: None,
         cone: None,
         scenery: false,
-    };
+    }
+}
+
+/// Draws the visible parts of `parts` (asset `asset`), each placed by the object `place` gives
+/// for its index (None: not drawn), in the frame's style and material table. `wash` lerps every
+/// colour toward a tint (a hit flash).
+fn draw_parts(
+    scene: &mut Scene,
+    asset: &str,
+    parts: &pav_core::props::CompiledProp,
+    place: &dyn Fn(usize) -> Option<RenderObject>,
+    scale: f32,
+    palette: &Palette,
+    wash: Option<(Vec3, f32)>,
+) {
     let mut cache = MESHES.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let meshes = cache.get_or_insert_with(GeneratedMeshes::default);
     if meshes.built.len() > KEEP {
@@ -150,27 +184,67 @@ pub fn emit_asset(scene: &mut Scene, name: &str, at: Placement, seed: u32, palet
     let mut table = frame.as_ref().and_then(|frame| frame.materials.try_lock().ok());
     let library = Library::current();
     for (index, part) in parts.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
-        let (color, material) = match table.as_deref_mut() {
-            Some(table) => Surfaces { table, library: &library, asset: &asset, roles: palette }
-                .part(part, materials::seed(at.id, index as u32)),
+        let Some(o) = place(index) else { continue };
+        let (mut color, material) = match table.as_deref_mut() {
+            Some(table) => {
+                Surfaces { table, library: &library, asset, roles: palette }.part(part, materials::seed(o.id.0, index as u32))
+            }
             None => (part_color(part.surface_color(), part.tint, palette), 0),
         };
-        emit_prim(scene, meshes, part, &o, at.scale, style, color, material);
+        if let Some((tint, k)) = wash {
+            color = color.lerp(tint, k);
+        }
+        emit_prim(scene, meshes, part, &o, scale, style, color, material);
     }
-    for (i, light) in parts.lights.iter().enumerate() {
-        let def = LightDef {
-            color: role_hex(&light.color, palette).to_owned(),
-            radius: light.radius * at.scale,
-            intensity: light.intensity,
-            flicker: light.flicker,
-            pulse: light.pulse,
-            shadows: light.shadows,
-            offset: Vec3::ZERO,
-        };
-        let pos = at.pos + rot * (light.pos * at.scale);
-        scene.point_lights.push(crate::fx::light(&def, pos, scene.time, at.id as f32 * 1.7 + i as f32));
+}
+
+/// Draws the imported figure `name` (`LIB/kaykit_adventurers/knight`, `pav_core::figure`)
+/// posed by `poses` (its segments' frames from `Figure::pose`, character space) at `at`: each
+/// segment's mesh part moved whole onto its bone, through the same part drawing as
+/// `emit_asset`. `wash` lerps its colours toward a tint (hit flashes). Errors: no such figure,
+/// a bad placement.
+pub fn emit_figure(
+    scene: &mut Scene,
+    name: &str,
+    poses: &[pav_core::figure::SegPose],
+    at: Placement,
+    palette: &Palette,
+    wash: Option<(Vec3, f32)>,
+) -> Result<(), String> {
+    let figure = pav_core::figure::get(name)?;
+    validate_scale(at.scale)?;
+    if !at.pos.is_finite() || !at.rot.is_finite() || at.rot.length_squared() < 1e-6 {
+        return Err(format!("{name}: placement needs a finite pos and rotation"));
     }
+    let rot = at.rot.normalize();
+    let mut by_part: BTreeMap<usize, RenderObject> = BTreeMap::new();
+    for (index, q, t) in figure.part_transforms(poses) {
+        if q.is_finite() && t.is_finite() {
+            by_part.insert(index, object(at.id, at.pos + rot * (t * at.scale), rot * q));
+        }
+    }
+    draw_parts(scene, &figure.name, &figure.body.compiled, &|i| by_part.get(&i).cloned(), at.scale, palette, wash);
     Ok(())
+}
+
+/// Draws the figure a look names (`def.figure`) in the pose the biped `def` takes in animation
+/// state `st` (its procedural motion and the clips it plays, at the figure's proportions),
+/// standing at `feet`, turned by `st.facing` and moved by its whole-body motion.
+pub fn emit_figure_for(
+    scene: &mut Scene,
+    def: &pav_core::puppet::PuppetDef,
+    st: &pav_core::puppet::PuppetState,
+    feet: Vec3,
+    id: u32,
+    wash: Option<(Vec3, f32)>,
+) -> Result<(), String> {
+    let figure = pav_core::figure::get(&def.figure)?;
+    let def = figure.fit(def);
+    let sk = pav_core::puppet::biped_skel(&def, st);
+    let poses = figure.pose(&def, &sk);
+    let (q, shift) = pav_core::puppet::body_motion(&def, st);
+    let at = Placement::at(feet + shift).rot(q * Quat::from_rotation_y(st.facing)).id(id);
+    emit_figure(scene, &def.figure, &poses, at, &Palette::new(), wash)
 }
 
 #[cfg(test)]
@@ -345,6 +419,82 @@ mod tests {
         };
         assert!(two(0.0) && !two(1.0));
         props::remove("WORKSHOP/view_two_sided").unwrap();
+    }
+
+    #[test]
+    fn a_figure_draws_each_segment_where_its_pose_puts_it() {
+        use pav_core::figure::{self, Proportions, RigFile, Seg, SegFile, SegPose};
+        use pav_core::props::mesh::{MeshFile, install as install_mesh};
+        let tetra = MeshFile {
+            name: "seg".into(),
+            budget: 4096,
+            two_sided: false,
+            palette: vec!["#a08060".into()],
+            v: vec![[0, 0, 0], [30, 0, 0], [0, 30, 0], [0, 0, 30]],
+            f: vec![[0, 2, 1, 0], [0, 1, 3, 0], [0, 3, 2, 0], [1, 2, 3, 0]],
+            source: None,
+        };
+        install_mesh("view_fig/seg", tetra).unwrap();
+        // A body whose segments stand in a row (its display pose), and a rig naming them all.
+        let parts: Vec<String> = Seg::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, s)| format!(r#""{}":{{"mesh":"view_fig/seg","pos":[{},50,0],"yaw":30}}"#, s.name(), i * 10))
+            .collect();
+        let doc =
+            format!(r#"{{"format":2,"name":"view_figure","unit":"cm","category":"character","parts":{{{}}}}}"#, parts.join(","));
+        install(&doc, "view_figure");
+        let segments = Seg::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let x = i as f32 * 10.0;
+                (
+                    s.name().to_string(),
+                    SegFile { bones: vec![s.vrm().into()], joint: [x, 50.0, 0.0], tail: [x, 60.0, 0.0], tris: 4 },
+                )
+            })
+            .collect();
+        let rig = RigFile {
+            format: 1,
+            name: "view_figure".into(),
+            body: "WORKSHOP/view_figure".into(),
+            unit: "cm".into(),
+            table: "vrm".into(),
+            look: Proportions::default(),
+            segments,
+            folded: Vec::new(),
+            left_out: Vec::new(),
+        };
+        figure::install(rig).unwrap();
+        let poses: Vec<SegPose> = Seg::ALL
+            .iter()
+            .enumerate()
+            .map(|(i, s)| SegPose { seg: *s, rot: Quat::from_rotation_x(0.1 * i as f32), pos: Vec3::new(i as f32, 1.0, 0.0) })
+            .collect();
+        let mut scene = Scene::default();
+        let at = Placement::at(Vec3::new(0.0, 0.0, 5.0)).yaw(90.0).id(3);
+        emit_figure(&mut scene, "WORKSHOP/view_figure", &poses, at, &Palette::new(), None).unwrap();
+        assert_eq!(scene.meshes.len(), 16, "one mesh per segment");
+        for (i, p) in poses.iter().enumerate() {
+            // Each segment's frame lands where its pose, then the placement, put it.
+            let want_pos = at.pos + at.rot * p.pos;
+            let want_rot = at.rot * p.rot;
+            let m = scene.meshes.iter().find(|m| (m.transform.w_axis.truncate() - want_pos).length() < 1e-4);
+            let m = m.unwrap_or_else(|| panic!("segment {i} is not at {want_pos}"));
+            let (_, rot, _) = m.transform.to_scale_rotation_translation();
+            assert!(rot.angle_between(want_rot) < 1e-3, "segment {i}");
+            assert_eq!(m.group, 5, "the figure's outline group");
+        }
+        // A hit flash washes its colours toward the tint.
+        let mut flashed = Scene::default();
+        emit_figure(&mut flashed, "WORKSHOP/view_figure", &poses, at, &Palette::new(), Some((Vec3::new(1.0, 0.0, 0.0), 0.5)))
+            .unwrap();
+        let (lit, plain) = (flashed.meshes[0].color, scene.meshes[0].color);
+        assert!(lit.y < plain.y && lit.z < plain.z && lit.x >= plain.x, "{lit} {plain}");
+        assert!(emit_figure(&mut scene, "WORKSHOP/no_figure", &poses, at, &Palette::new(), None).is_err());
+        figure::forget("WORKSHOP/view_figure");
+        props::remove("WORKSHOP/view_figure").unwrap();
     }
 
     #[test]

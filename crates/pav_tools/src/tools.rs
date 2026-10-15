@@ -446,7 +446,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "turntable",
-        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, character= (a playable character, game/heroes.toml), or the hero; def= lays JSON puppet fields over it (author a creature: colours, proportions, parts, body plan). Reports its anatomy (height, length, parts, colours).",
+        help: "Render a creature alone from several angles into one PNG: seed= (genome, with body/archetype/element), family=, boss=, character= (game/heroes.toml), or the hero; def= lays JSON puppet fields over it (colours, proportions, parts, body plan). Reports its anatomy.",
         args: &[
             arg("character", "string", "a playable character (game/heroes.toml) in their starting kit"),
             arg("seed", "integer", "genome seed"),
@@ -469,7 +469,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "animsheet",
-        help: "Render a creature (the hero by default) through an action or a motion clip frame by frame into one PNG: skill= (or its first skill; swing= for a combo's later swings), any move= from anim/moves.toml, or clip= from the clip library.",
+        help: "Render a creature (default: the hero) acting, frame by frame, into one PNG: skill= (swing= a combo's later swing), move= (anim/moves.toml) or clip=; def={\"figure\":NAME} draws an imported body.",
         args: &[
             arg("character", "string", "a playable character (game/heroes.toml)"),
             arg("seed", "integer", "genome seed"),
@@ -486,6 +486,7 @@ pub static TOOLS: &[Tool] = &[
             arg("travel", "boolean", "clip= moving the body as it travels"),
             arg("def", "object", "puppet fields over the subject (JSON)"),
             arg("frames", "integer", "frames (default 8)"),
+            arg("tilt", "number", "camera tilt, degrees (22; the game: 56)"),
             arg("size", "integer", "pixels per frame"),
             arg("out", "string", "PNG path"),
         ],
@@ -538,7 +539,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "asset_import",
-        help: "Model libraries (glTF, OBJ) to format-2 props. No args: libraries. get=lib/pack downloads; from=FILE|DIR|lib/pack translates (list=true: summary); survey= writes a ledger; check=FILE measures.",
+        help: "Model libraries (glTF, OBJ) to format-2 props; rigs to figures. No args: libraries. get=lib/pack downloads; from=FILE|DIR|lib/pack translates (list=true: summary); survey= writes a ledger; check=FILE measures.",
         args: &[
             arg("get", "string", "lib/pack to download"),
             arg("survey", "string", "lib/pack or folder"),
