@@ -27,7 +27,9 @@ rules).
 - **New:** the Testing budget is rewritten from the user's heuristic (test only to change a
   decision, size the test to the gap, make the call near 50/50, settle close calls only with tool
   tests; costs in US$ as Claude Code bills them). `## Code Review Rules`, the heading Codex reads,
-  names the P0/P1 breaks that matter here. Working rule 6 is now cost over speed.
+  names the P0/P1 breaks that matter here. Working rule 6 is now cost over speed. Per PR, a
+  blocked or paused Vercel status never holds anything up: the user pauses Vercel deployments
+  while not testing the web build.
 - **CLAUDE.md** told Claude in words to read three files; per Anthropic's docs Claude then sees
   them only if it decides to open them. It now imports them (`@docs/DOCTRINE.md`, `@AGENTS.md`,
   `@docs/PROGRESS.md`): about 30 KB at launch, half what the reading list cost.
