@@ -5,6 +5,50 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S3b: imported characters as rigid figures — 2026-10-15
+
+Stage S3b of `docs/AGENT_ASSET_STORE.md` (§4, §13, §15). **Exit: met; the rigid-or-skinned call
+is pending user** (review page https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs, private: one
+verdict per figure, "reads well" or "joints read badly"). Built by one agent in its own worktree,
+merged here after S3.
+- **Source:** KayKit Character Pack Adventurers 1.0 at `672074b` (CC0, Kay Lousberg): Knight
+  (SHA-256 matches my-3danimations' `rigs.json` pin), Barbarian, Mage, Rogue and Rogue_Hooded,
+  each pinned by SHA-256; raw GLBs stay in `.cache/`. From my-3danimations only
+  `packages/core/src/skeleton/tables.ts` and `tools/fixtures/rigs.json` were read (`70a45c6`).
+- **Bone tables:** `pav_tools/src/import/skeleton.rs` ports `tables.ts` (MIT, credited with file
+  and commit) and adds a KayKit table; `recognize()` picks the table that covers the most
+  required bones.
+- **Figures:** a skinned model whose rig is recognised becomes a figure instead of being
+  skipped (`import/character.rs`, `pav_core/src/figure.rs`). Each triangle goes to the joint that
+  weights it most, bones fold into 16 segments, held weapons, shields and books are left out,
+  helmets, hats and capes stay. Files in `assets/props/lib/kaykit_adventurers/`: a format-2 body
+  prop of the new category `character` (one mesh part per segment, standing), `meshes/<name>_<seg>.json`
+  in each segment's frame, `rigs/<name>.json` (bone table, proportions read from the bones,
+  segments). No decimation: vertex clustering blurred the Knight's helmet, so figures are whole
+  (budget 8,000 triangles). The pack is 502 KB of text. Format in `docs/ASSET_IMPORT.md`,
+  "Characters (figures)".
+- **Drawing:** a look can name a figure (`PuppetDef.figure`); `pav_view::assets::emit_figure`
+  draws it through `emit_asset`'s mesh-part path. Limbs are re-solved at the figure's own bone
+  lengths and the body stands where the puppet's lowest point is; limbs follow the puppet's side
+  by where they sit, so figures mirror clips as the puppet does. Catalog scale 0.8 (1.75-2.17 m
+  with hats).
+- **Store:** a `character` kind (`store/licences.tsv` admits it): 5 rows in STORE.tsv, at `disk`
+  (100% mesh), in the credits; `assets find=knight` finds the Knight, `find=villager` routes to
+  heroes.toml with the figures nearest; the Catalogue room shows them (`store_rooms.rs`).
+- **Check:** `asset_edit action=check` adds figure findings: a required bone unmapped, fewer than
+  12 segments, a mesh far from its bone, a joint outside its parent's mesh, proportions out of
+  range, a body off the floor.
+- **Exit test:** `pav_tools/tests/figures.rs` sweeps all 437 embedded clips, plain and
+  mirrored, at 7 times each, on the Knight, Barbarian and Mage: no check findings, every
+  transform finite; re-importing gives identical bytes. The figures stand in the Catalogue. The
+  review page has 40 sheets (5 figures x walk, attack, idle, wave x game and low camera, plus the
+  puppet).
+- **Not built:** skinning (waits for the user's verdicts); weapons in a figure's hand; the sim's
+  collision capsule still uses the look's size. Tool help was trimmed to stay under the 48,000-
+  character tool list.
+- **Costs:** tests $0 (cargo tests only; limit $10); the builder agent __BUILD__, this session's
+  merge, page and checks __MAIN__; S3b total __TOTAL__ against the $120 estimate, __HOURS__ h.
+
 ## Asset store S3: critical mass, measured over two rounds — 2026-10-15
 
 Stage S3 of `docs/AGENT_ASSET_STORE.md` (§13, §15). **Exit: below critical mass, shortfall
