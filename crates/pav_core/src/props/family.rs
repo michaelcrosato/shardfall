@@ -172,6 +172,112 @@ pub(crate) fn apply_value(doc: &Value, params: &BTreeMap<String, Param>, values:
     Ok(out)
 }
 
+/// The value at `tokens` in `doc`, if written.
+fn read_at<'v>(doc: &'v Value, tokens: &[String]) -> Option<&'v Value> {
+    tokens.iter().try_fold(doc, |node, key| match node {
+        Value::Object(map) => map.get(key),
+        Value::Array(items) => key.parse::<usize>().ok().and_then(|i| items.get(i)),
+        _ => None,
+    })
+}
+
+/// `x` to 6 significant digits, as a knob factor is written.
+fn significant(x: f64) -> f64 {
+    if x == 0.0 || !x.is_finite() {
+        return x;
+    }
+    let scale = 10f64.powi(5 - x.abs().log10().floor() as i32);
+    (x * scale).round() / scale
+}
+
+/// A family's knobs follow an edit that moves or scales what they set (patch ops `scale`,
+/// `unit`, `move`): `before` is the document before the op, `after` after it, `apply` runs the
+/// same op on another document. A choice's values each go through the op (on a copy of
+/// `before` holding that value), so a choice still matches what the file writes. A range whose
+/// targets the op changed keeps the file's new values as its default: a document scale by `k`
+/// scales the range and the presets' values with it and the factors follow; any other change
+/// re-derives the changed targets' factors from the new values.
+pub(crate) fn carry(before: &Value, after: &mut Value, scale: Option<f64>, apply: &dyn Fn(&mut Value) -> Result<(), Issue>) {
+    let Some(params) = before.get("params").and_then(Value::as_object) else { return };
+    if after.get("params") != before.get("params") {
+        return;
+    }
+    let number = |value: Option<&Value>| value.and_then(Value::as_f64);
+    for (name, param) in params {
+        let Some(set) = param.get("set").and_then(Value::as_object) else { continue };
+        let targets: Vec<(&String, &Value, Vec<String>)> =
+            set.iter().filter_map(|(path, entry)| target(before, path).ok().map(|target| (path, entry, target.tokens))).collect();
+        if let Some(choices) = param.get("choices").and_then(Value::as_array) {
+            for (path, values, tokens) in targets {
+                let (Some(was), Some(now)) = (read_at(before, &tokens), read_at(after, &tokens)) else { continue };
+                if was == now {
+                    continue;
+                }
+                let carried: Vec<Value> = values
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .take(choices.len())
+                    .enumerate()
+                    .map(|(i, value)| {
+                        if i == 0 {
+                            return now.clone();
+                        }
+                        let mut copy = before.clone();
+                        write(&mut copy, &tokens, value.clone());
+                        match apply(&mut copy) {
+                            Ok(()) => read_at(&copy, &tokens).cloned().unwrap_or_else(|| value.clone()),
+                            Err(_) => value.clone(),
+                        }
+                    })
+                    .collect();
+                after["params"][name]["set"][path.as_str()] = Value::Array(carried);
+            }
+            continue;
+        }
+        let Some([lo, hi]) = param.get("range").and_then(Value::as_array).and_then(|r| {
+            let r: Vec<f64> = r.iter().filter_map(Value::as_f64).collect();
+            <[f64; 2]>::try_from(r).ok()
+        }) else {
+            continue;
+        };
+        // Each target's factor and its value before and after the op.
+        let values: Vec<(&String, f64, Option<f64>, Option<f64>)> = targets
+            .iter()
+            .map(|(path, factor, tokens)| {
+                (*path, factor.as_f64().unwrap_or(0.0), number(read_at(before, tokens)), number(read_at(after, tokens)))
+            })
+            .collect();
+        if values.iter().all(|(_, _, was, now)| was == now) {
+            continue;
+        }
+        // The default the file's values implied before the op.
+        let Some(default) = values.iter().find_map(|(_, factor, was, _)| (*factor != 0.0).then_some((*was)? / factor)) else {
+            continue;
+        };
+        let k = scale.filter(|_| param.get("int") != Some(&Value::Bool(true)));
+        let new_default = default * k.unwrap_or(1.0);
+        if let Some(k) = k {
+            let round = |x: f64| (x * 1e4).round() / 1e4;
+            after["params"][name]["range"] = serde_json::json!([round(lo * k), round(hi * k)]);
+            if let Some(presets) = after.get_mut("presets").and_then(Value::as_object_mut) {
+                for preset in presets.values_mut() {
+                    if let Some(x) = preset.get(name).and_then(Value::as_f64) {
+                        preset[name.as_str()] = serde_json::json!(round(x * k));
+                    }
+                }
+            }
+        }
+        for (path, factor, was, now) in values {
+            let factor = match now {
+                Some(value) if k.is_some() || was != now => value / new_default,
+                _ => factor * default / new_default,
+            };
+            after["params"][name]["set"][path.as_str()] = serde_json::json!(significant(factor));
+        }
+    }
+}
+
 /// The document a placement with these knob values compiles: the family's targets set, its
 /// `params` and `presets` gone. `values` come from `PropDef::param_values`.
 pub fn apply_params(doc: &Doc, values: &Params, deps: compile::Deps) -> Result<Doc, Vec<Issue>> {

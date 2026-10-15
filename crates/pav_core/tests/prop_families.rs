@@ -193,3 +193,43 @@ fn families_refuse_bad_targets_disagreeing_defaults_and_limits() {
     has(issues(&|d| d["presets"]["low"]["heigth"] = json!(70)), &["presets.low.heigth: unknown key", "did you mean \"height\"?"]);
     has(issues(&|d| d["presets"]["low"]["height"] = json!(50)), &["presets.low.height: 50 is outside 60 to 140"]);
 }
+
+/// `doc` installed as `WORKSHOP/<name>`.
+fn installed(mut doc: Doc, name: &str) -> String {
+    doc.name = name.into();
+    let asset = format!("WORKSHOP/{name}");
+    props::install(&asset, PropDef::new(doc).unwrap()).unwrap();
+    asset
+}
+
+#[test]
+fn scale_unit_and_move_ops_carry_a_familys_knobs() {
+    let size = |name: &str| props::resolve_parts(name, 0).unwrap().bounds_at(1.0).size();
+    let patched = |doc: &Doc, ops: Value, name: &str| {
+        let patched = props::patch_document(doc, &ops, &props::get).unwrap_or_else(|e| panic!("{name}: {}", issue::render(&e)));
+        installed(patched.doc, name)
+    };
+    let close = |a: Vec3, b: Vec3| (a - b).abs().max_element() < 2e-3;
+    let fence = Doc::read(FENCE).unwrap();
+    let whole = installed(fence.clone(), "family_fence_whole");
+    // A document scale (what size_band suggests) scales the ranges and the presets, so every
+    // variant scales; a unit change keeps every variant's size.
+    let half = patched(&fence, json!([{"op": "scale", "by": 0.5}]), "family_fence_half");
+    let def = props::get(&half).unwrap();
+    let props::doc::Param::Range { range, .. } = &def.doc.params["length"] else { panic!("{:?}", def.doc.params) };
+    assert_eq!(*range, [50.0, 150.0]);
+    assert_eq!(def.doc.presets["long"]["length"], json!(150.0));
+    for preset in ["", ":low", ":long"] {
+        assert!(close(size(&format!("{half}{preset}")), size(&format!("{whole}{preset}")) * 0.5), "{preset}");
+    }
+    let metres = patched(&fence, json!([{"op": "unit", "to": "m"}]), "family_fence_metres");
+    assert!(close(size(&format!("{metres}:long")), size(&format!("{whole}:long"))));
+    // A choice whose values are lengths goes through the op too: the chair's high back.
+    let chair = props::get("LIB/core/chair").unwrap();
+    let small = patched(&chair.doc, json!([{"op": "scale", "by": 0.5}]), "family_chair_half");
+    assert!(close(size(&format!("{small}:high_back")), size("LIB/core/chair:high_back") * 0.5));
+    // A move keeps the file's new values the defaults: the fence lifted 10 cm still places.
+    let ops = json!([{"op": "move", "parts": ["post", "rail", "picket"], "by": [0, 10, 0]}]);
+    let lifted = patched(&fence, ops, "family_fence_lifted");
+    assert!((size(&lifted).y - 1.1).abs() < 1e-3 && props::resolve_parts(&format!("{lifted}:low"), 0).is_ok());
+}

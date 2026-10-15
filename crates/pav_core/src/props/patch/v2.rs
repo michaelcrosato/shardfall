@@ -175,7 +175,23 @@ pub fn patch(doc: &Doc, ops: &Value, assets: &dyn Fn(&str) -> Option<Arc<PropDef
     let issues: Vec<Issue> = ops
         .iter()
         .enumerate()
-        .filter_map(|(index, op)| Op::new(index, op).and_then(|op| op.apply(&mut value, &mut touched)).err())
+        .filter_map(|(index, op)| {
+            Op::new(index, op)
+                .and_then(|op| {
+                    // A family's knobs follow ops that move or scale what they set.
+                    let before =
+                        (value.get("params").is_some() && matches!(op.kind, "scale" | "unit" | "move")).then(|| value.clone());
+                    op.apply(&mut value, &mut touched)?;
+                    if let Some(before) = before {
+                        let scale = op.document_scale(&before);
+                        crate::props::family::carry(&before, &mut value, scale, &|doc: &mut Value| {
+                            op.apply(doc, &mut Touched::default())
+                        });
+                    }
+                    Ok(())
+                })
+                .err()
+        })
         .collect();
     if !issues.is_empty() {
         return Err(issues);
@@ -359,6 +375,20 @@ impl<'a> Op<'a> {
                 Ok(())
             }
             (Target::Document, _) => self.unit(doc, touched),
+        }
+    }
+
+    /// The factor a document-wide `scale` or `unit` op scales every length by (`before`: the
+    /// document it applies to); None for other ops.
+    fn document_scale(&self, before: &Value) -> Option<f64> {
+        match (&self.target, self.kind) {
+            (Target::Document, "scale") => self.factor().ok(),
+            (Target::Document, "unit") => {
+                let to = self.object.get("to").and_then(Value::as_str).and_then(Unit::parse)?;
+                let from = before.get("unit").and_then(Value::as_str).and_then(Unit::parse).unwrap_or(Unit::Cm);
+                Some((to.per_metre() / from.per_metre()) as f64)
+            }
+            _ => None,
         }
     }
 

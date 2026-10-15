@@ -60,10 +60,12 @@ fn starts_a_word(text: &str, word: &str) -> bool {
     text.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w.starts_with(word))
 }
 
-/// Where `word` matches a row: in the leaf 5, a tag, socket or the category 3, the name 2, the
-/// description 1; 0 nowhere.
+/// Where `word` matches a row: the whole leaf 5.5 (`table` before `round_table`), in the leaf 5,
+/// a tag, socket or the category 3, the name 2, the description 1; 0 nowhere.
 fn field_score(row: &Row, leaf: &str, name: &str, desc: &str, word: &str) -> f32 {
-    if leaf.contains(word) {
+    if leaf == word {
+        5.5
+    } else if leaf.contains(word) {
         5.0
     } else if row.cat.starts_with(word)
         || row.tags.iter().any(|tag| tag.starts_with(word))
