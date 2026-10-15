@@ -15,6 +15,7 @@ do not edit. A CC-BY credit travels with every copy and fork.
 
 ## Objects
 
+- LIB/kaykit_adventurers (on disk): CC0-1.0. Credit: Kay Lousberg (www.kaylousberg.com).
 - LIB/kenney_mini_dungeon (on disk): CC0-1.0. Credit: Kenney (www.kenney.nl).
 - LIB/quaternius_medieval_village (on disk): CC0-1.0. Credit: Quaternius (quaternius.com).
 - LIB/core (embedded): CC0-1.0. Credit: Shardfall contributors (own work).

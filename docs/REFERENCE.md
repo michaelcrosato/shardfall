@@ -323,7 +323,9 @@ with their `PACK.json`, credits, index and catalog tags; unknown licences refuse
 below_floor, socket_missing, a missing texture failing the import), `tests/store_rooms.rs` (the
 Library Hall is current, the store rooms pass room_check, every id a sign names resolves, each
 Limits sign is true, the Catalogue pages through every row with rewind and snapshots, Kenney
-Mini Dungeon through every step) and
+Mini Dungeon through every step), `tests/figures.rs` (S3b: the KayKit adventurers check clean
+as props and figures, every embedded clip poses three of them whole, finite and on the floor,
+limbs follow the puppet's side, a planted defect is caught, `assets find=knight`) and
 `tests/import_khronos.rs` (opt-in,
 `-- --ignored`: 12 Khronos sample models at a pinned commit). `pav_core/tests/prop_materials.rs`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,

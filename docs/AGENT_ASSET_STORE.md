@@ -177,7 +177,8 @@ are fitted like props; a skinned body, if built, is exempt from the mesh cap and
   rig's bones with my-3danimations' tables, read the look's proportions from its bones, and every
   clip plays. Cheapest drawing first: rigid per-bone segments of one CC0 low-poly pack (blocky
   bodies hide the joints); then skinning, reusing the creature path's CPU skinning, if the rigid
-  joints read badly on the review page.
+  joints read badly on the review page. Built in S3b as figures (`pav_core::figure`; the path and
+  its file format: docs/ASSET_IMPORT.md, "Characters").
 
 ## 5. The standard
 

@@ -9,6 +9,12 @@ The licence and credit of each committed object pack (`assets/props/lib/`), writ
 - Credit: Shardfall contributors (own work)
 - Source: own
 
+## LIB/kaykit_adventurers: KayKit Character Pack: Adventurers
+
+- Licence: CC0-1.0
+- Credit: Kay Lousberg (www.kaylousberg.com)
+- Source: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 at 672074b73ba276876a19e8816ecdc5241817ab47
+
 ## LIB/kenney_mini_dungeon: Kenney Mini Dungeon
 
 - Licence: CC0-1.0

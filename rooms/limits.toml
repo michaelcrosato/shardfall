@@ -201,7 +201,7 @@ color = "#f1f4fa"
 [[label]]
 text = """
 LIMITS ONLY IMPORTS SHOW (see them in the Catalogue)
-28 of 61 imports are over 30% mesh: placed, scaled and recoloured, never edited
+33 of 66 imports are over 30% mesh: placed, scaled and recoloured, never edited (the 5 figures are all mesh)
 textures flattened to face colours: not caught (the compare image uses the same flattened source)
 creatures wait: their exhibits come when creatures are actors"""
 pos = [14.0, 0.03, 18.5]

@@ -1,8 +1,9 @@
 # Asset Import
 
 `asset_import` turns open model libraries (glTF, OBJ) into format-2 props: primitives where
-they fit, plus at most one read-only vertex-coloured mesh part for the rest. Most of the time
-you do not import: `assets find=words` already lists the imported packs.
+they fit, plus at most one read-only vertex-coloured mesh part for the rest. A rigged humanoid
+becomes a figure instead ("Characters" below). Most of the time you do not import: `assets
+find=words` already lists the imported packs.
 
 ## Use what is imported
 
@@ -34,8 +35,9 @@ asset_import survey=kenney/castle_kit             # fit without writing: the led
 - After the source, one line per model, written by hand or by a script and read over:
   `"<pack>/<id>": ["<category> <2-6 tags>", "<description>"]`. The first word is the category
   (furniture, container, architecture, lighting, vegetation, rock, weapon, armour, tool, food,
-  town, dungeon, signage); the tags are what `assets find=` matches besides the name. `$skip`:
-  `"<pack>/<id>": "why"` (rigged characters, effects; rigged models are skipped anyway). A source
+  town, dungeon, signage, character); the tags are what `assets find=` matches besides the name.
+  `$skip`: `"<pack>/<id>": "why"` (effects; a rigged model whose skeleton no table knows is
+  skipped anyway, with the reason). A source
   with `"listed": true` translates only the models it has a line for. A line naming no model is
   an error.
 - `from=` writes `<pack>/<name>.json` and `<pack>/meshes/<name>.json`, removes files of models it
@@ -98,6 +100,64 @@ any placement other than the pin) and returns the image: the source's six views 
 translation's (front, back, left, right, top, iso). Look at it before trusting a number: IoU
 misses colour patches and thin detail. `from=<model file> compare=true out=<folder>` translates
 one model with the image; `fit=prims` (no mesh part) or `fit=mesh` (all mesh) force a mode.
+
+## Characters (figures)
+
+A skinned model whose skeleton a bone-name table recognises (`import/skeleton.rs`: VRM, Unity,
+Mixamo, Unreal 4/5, Rigify, CMU, 100STYLE, ported from my-3danimations' `tables.ts`, MIT; plus
+KayKit's own names) is translated into a **figure** (`pav_core::figure`): rigid per-bone
+segments that play every clip and move the puppets play. Nothing is skinned; each segment
+moves whole (S3b; skinning waits for the user's call on the review page).
+
+```
+asset_import from=kaykit/adventurers              # Knight, Barbarian, Mage, Rogue, Rogue_Hooded
+asset_edit action=check name=LIB/kaykit_adventurers/knight      # prop and figure findings
+animsheet def={"figure":"LIB/kaykit_adventurers/knight"} clip=CMU/Wave_Hello tilt=56
+```
+
+- **Bones to segments.** The engine's figure plan has 16 segments: `hips spine chest head`,
+  `upper_arm lower_arm hand`, `upper_leg lower_leg foot` (`_l`, `_r`: the rig's own sides). The
+  table maps the rig's bones to VRM 1.0 bones and each VRM bone folds into a segment (shoulders,
+  upper chest and neck into the chest; fingers into the hand; toes into the foot). Each triangle
+  goes to the segment its vertices' joint weights favour; a bone the table does not name (IK
+  helpers, KayKit's `hand.l`) gives its triangles to its nearest mapped ancestor. Rigid meshes
+  ride with their bone (helmets, hats, capes); those held in a hand slot (weapons, shields,
+  books) are left out: a look's weapon is drawn by the engine. The 15 VRM-required bones must
+  map, or the model is refused naming what it lacks; a model facing −z is refused (`yaw=180`).
+- **Files** (all text, in the pack's `lib/` folder like props):
+  - `<name>.json`: the body, a format-2 prop of category `character`: one mesh part per segment,
+    named after it, placed in a standing display pose (what the Catalogue and previews show);
+  - `meshes/<name>_<segment>.json`: each segment's mesh in the segment's own frame (origin at its
+    joint; the torso and head in the character's axes; a limb's +y along the bone and +z where
+    its middle joint bends out, elbows back, knees forward; a foot's +y forward, +z up);
+  - `rigs/<name>.json`: format 1, `unit: cm`: `table`, `look` (the `PuppetDef` proportions read
+    from the bones, metres: leg and arm length, torso length, hip and shoulder half-widths,
+    head, torso and limb radii), and per segment the model's `bones`, its rest `joint`, `tail`
+    and `tris`; `folded` (unnamed bones and kept meshes, by the segment they went to) and
+    `left_out`.
+- **Drawing.** A look naming `figure` (`PuppetDef.figure`) draws the figure in place of the
+  puppet's parts: the puppet's skeleton is posed at the figure's proportions, the torso and
+  head turn with the pelvis, chest and head, each limb's root follows its parent, its end the
+  puppet's hand or ankle, and its middle joint is solved again at the figure's own unequal
+  bone lengths; the body then stands with its lowest point where the puppet's is. Limbs follow
+  the puppet's side they sit on (+x is the puppet's index 1, the clips' right): figures perform
+  clips as the puppets do. Game code calls `pav_view::assets::emit_figure` (the same part
+  drawing as `emit_asset`). Desktop builds only (the rig is read from disk).
+- **Check.** `asset_edit action=check` on a figure's body adds the figure's findings: a required
+  segment missing, fewer than 12 segments drawn, a segment's mesh far from its bone, a joint
+  outside the box of the mesh it hangs from (the body would come apart), proportions out of a
+  biped's range, a body off the floor when it stands. The prop lint's `mirror` does not apply
+  (imported costumes are asymmetric), and a body may draw 16 meshes.
+- **Store.** Index rows of category `character` are kind `character` (`STORE.tsv`, the licence
+  gate in `store/licences.tsv`); `assets find=knight` finds them. They are 100% mesh, so they
+  stay at `disk` (§4's mesh cap) and the Catalogue room shows them.
+- **Size.** A figure over 8,000 triangles is cut by vertex clustering (`character::BUDGET`);
+  KayKit's adventurers (4,000-4,800) are written whole: 86-103 KB of mesh text, 2 KB of body and
+  2 KB of rig each. The pack's catalog scale (0.8) stands them 1.75-2.17 m tall, hats and helmets included.
+- **Limits.** Rigid joints show at elbows and knees on smooth bodies (blocky low-poly packs hide
+  them); no wrists, fingers, toes or separate neck; the puppet's squash and stretch and its
+  camera cheats do not reach figures; weapons are not drawn in a figure's hand yet; the sim's
+  capsule is the look's, not the figure's.
 
 ## Known limits
 

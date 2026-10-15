@@ -51,8 +51,28 @@
         "addons/kaykit_dungeon_remastered/Assets/gltf/wall_pillar.gltf.glb",
         "addons/kaykit_dungeon_remastered/Assets/gltf/wall_window_closed.gltf.glb",
         "addons/kaykit_dungeon_remastered/Assets/LICENSE.txt"
+      ]},
+    "adventurers": {"label": "KayKit Character Pack: Adventurers", "origin": "KayKit Character Pack: Adventurers 1.0 by Kay Lousberg (www.kaylousberg.com), rigged glTF binaries", "credit": "Kay Lousberg (www.kaylousberg.com)", "license": "CC0-1.0",
+      "repo": "KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0", "version": "672074b73ba276876a19e8816ecdc5241817ab47", "sha256": "2442e0118b9536d1d6ce834eb4a236389aa5f268fef030560704bf9bc3614b49",
+      "licence_file": "LICENSE.txt", "licence_sha256": "ae322141814056dda0deea7540d74c41d87aee1da319977cd1bd84ee5a923629", "models": "addons/kaykit_character_pack_adventures/Characters/gltf/*.glb", "pack": "kaykit_adventurers", "yaw": 0, "scale": 0.8, "place": "keep",
+      "files": [
+        "addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb",
+        "addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb",
+        "addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb",
+        "addons/kaykit_character_pack_adventures/Characters/gltf/Rogue.glb",
+        "addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb",
+        "LICENSE.txt"
       ]}
   },
+  // Adventurers: rigged characters, translated into figures (pav_core::figure): rigid per-bone
+  // segments that play the clip library. Their files stand 2.2-2.3 units tall; at scale 0.8
+  // they are 1.75-1.85 m, the Catalogue's figure's height. Weapons and shields in their hand
+  // slots are left out (a look's weapon is drawn by the engine).
+  "adventurers/Barbarian": ["character barbarian warrior fighter hero adventurer", "A bearded low-poly barbarian in a bear-head hood, blue tunic and dark cape: an imported figure that plays every clip."],
+  "adventurers/Knight": ["character knight warrior fighter hero adventurer", "A low-poly knight in grey plate armour and a full helmet, a red cape behind: an imported figure that plays every clip."],
+  "adventurers/Mage": ["character mage wizard caster hero adventurer", "A low-poly mage in a wide purple wizard hat, dark robes and a red cape: an imported figure that plays every clip."],
+  "adventurers/Rogue": ["character rogue thief archer hero adventurer", "A low-poly rogue with long auburn hair, green tunic and cape, leather gloves: an imported figure that plays every clip."],
+  "adventurers/Rogue_Hooded": ["character rogue thief hooded hero adventurer", "A low-poly rogue in a green hood and cape, leather gloves and boots: an imported figure that plays every clip."],
   // Dungeon Remastered: the 40 pilot files.
   "dungeon_remastered/banner_patternA_red": ["signage banner pattern red dungeon", ""],
   "dungeon_remastered/banner_shield_red": ["signage banner shield red dungeon", ""],
