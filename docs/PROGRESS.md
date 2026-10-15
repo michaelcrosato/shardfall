@@ -112,6 +112,11 @@ Row 6.1 closes the plan: the two GO packs were imported whole in 5.3, so the sca
 code. More packs wait for a game that needs them: any pinned pack rebuilds locally with
 `asset_import`, and joins `lib/` by passing G5. What the plan deferred is listed in its §11.
 
+**Agent asset store** (designed 2026-10-15, nothing built): `docs/AGENT_ASSET_STORE.md`, a library
+of foundational assets plus transforms for agents across the engine family. Next is its S0 (search
+that finds common words, Kenney rescaled, a shelf), then S1, which measures whether a library helps
+at all. Nine decisions for the user are listed in its §14.
+
 New content or polish: add data (themes, levels, families, affixes, uniques, tree clusters,
 characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable def=`,
 `turntable character=`, `animsheet character= skill= swing=`).

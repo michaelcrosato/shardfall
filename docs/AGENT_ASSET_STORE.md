@@ -12,6 +12,10 @@ Agents using the store read `store/README.md` and the shelf (built in S0-S2), no
   props, material recipes, key-pose clips); the store adds generated rows, never a second copy.
 - **Agents choose from rows:** one row per entry (about 50 tokens), one `find` with a `kind=`
   facet, and a short shelf per kind fetched with one call.
+- **Foundations, not a catalogue.** Per kind, a few foundational entries (about 4 chairs, 5 jumps,
+  8 car frames) that transform into the rest through knobs, materials, palettes and seeds, each with
+  examples of its transforms (§4). Like training data: the right pieces, not more of them. An import
+  becomes an inspired version that fits our schema and look, not a replica.
 - **A proof of concept first, built to scale:** props, materials and clips, one or two key packs
   each, run end to end, inside Shardfall. Other kinds are designed here and enter when games ask,
   except characters (S3b, right after critical mass) and the sprite trial (S5, after S2).
@@ -32,9 +36,9 @@ is measured in S1, after a few days of work and before anything else is built.
 | Ordinary engineering | Genuinely hard |
 |---|---|
 | Generated rows; byte-identical rebuild tests | **Showing a library helps at all.** Never measured here: the plan's library arm and import tasks IT1-IT6 never ran. riftlight's Gate A failed three times on tokens (R = 0.98, 1.02, then 1.75 with the full library, because its frozen prompt made the agent read the whole 233 KB source instead of searching); that last run won 3 of 4 briefs on quality. |
-| Licence gate (exists, default-deny); credits text | **Judging "looks good".** Shardfall's agent judges flipped 11 of 24 tasks between rounds against identical baselines, each reading about 120k tokens to see one image; SpawnForge's single-order reviewers picked side B in 60-75% of pairs. Looks go to the user's review page, never to agent judges. |
-| Size and socket lints; planted-defect tests | **Faithful translation of imports.** Textures become one colour per triangle; 31% of the pilot's 264 fits came out editable; photoreal and trim-sheet packs do not translate. |
-| Pinned imports | **Characters across rigs.** my-3danimations' retarget gate G4 run 1 failed 5 of 8 steps; its sweep read 89.1% under the original rule and 97.2% under the owner's later reading (its D80; KayKit Knight lowest at 94.1%). Run 2 is pending. |
+| Licence gate (exists, default-deny); credits text | **Judging "looks good".** Shardfall's agent judges flipped 11 of 24 tasks between rounds against identical baselines, each reading about 120k tokens to see one image; SpawnForge's single-order reviewers picked side B in 60-75% of pairs. Looks go to the user's review page, never to agent judges. Good enough is the bar: basic checks, then the user scrolls the Catalogue or plays and flags what looks off. |
+| Size and socket lints; planted-defect tests | **Choosing the foundations.** Which few pieces each kind derives from, and transforms rich enough to cover the variants, is a design problem. Likeness to a source is not the goal: textures become one colour per triangle and only 31% of the pilot's 264 fits came out editable, so imports are adapted, not copied. |
+| Pinned imports | **Characters across rigs.** my-3danimations' retarget gate G4 run 1 failed 5 of 8 steps; its sweep read 89.1% under the original rule and 97.2% under the owner's later reading (its D80; KayKit Knight lowest at 94.1%). Run 2 is pending. Simple graphics were chosen so the system can grow into an answer; if none works now, it is a matter of when. |
 | Lexical search to about 1,000 rows; three demo rooms | **Search over 10,000+ mixed assets.** Unproven anywhere in the family (§8). |
 
 **Rulings needed from the user:** nine, each with a default an agent applies and logs after 15
@@ -118,15 +122,39 @@ Already shared: format-1 clips (my-3d2dge, my-3dge, Shardfall) and `$library` ca
 | 2D vector | SVG path subset (no filters, text, images, script) | none | a game's HUD or UI asks (paths are text, §14 Q6) |
 | sprite | palette-indexed rows plus a legend | none | only through the trial (§11) |
 
-**The rule for imports, stated once.** An import enters a pack on disk only if it passes the
-licence gate and the fit thresholds and is at most 30% mesh (mesh parts can be placed, scaled and
-recoloured, never edited, so they teach nothing). It becomes `checked` with zero findings, a
-description, tags and its token cap. The 61 committed imports predate the rule. The 15 that are
-editable and lint-clean (13 Kenney; Quaternius bell and bench_1) get descriptions and become
-`checked` in S0. The other 46 stay on disk as they are: findable, mesh share and findings in the
-row, never on the shelf. (`check` runs of 2026-10-14; S0's Kenney rescale may change them.)
-S3b characters: per-bone segments are fitted like props; a skinned body, if built, is exempt
-from the mesh cap and stays at `disk`.
+### Foundations and transforms
+
+The store holds the axioms, not every variation: like a cheat sheet that keeps the core formulas
+and how to transform them into the rest. Each kind gets a few foundational entries, and each
+foundation names its knobs and shows two or three derivations.
+
+| Kind | Foundations (first guess) | Transforms that derive the rest |
+|---|---|---|
+| prop | about 4 per archetype (chairs, tables, beds, crates…) | size within its band; part knobs (format-2 `params`, deferred as LIB-4, needed now); material slots; palettes; seeds |
+| material | a few base patterns (planks, brick, stone, metal…) | layer knobs, palette, scale |
+| clip | a handful per action (about 5 jumps; walks, runs, attacks, hits, deaths) | tempo, amplitude, mirror, upper body only, crossfades, retargeting to the body |
+| feel | about 8 car frames | parameter ranges, each with measured facts |
+
+- **Inspired, not replicas.** Pixel filters, cel shading, different GPUs, upscalers and screens all
+  change how an asset looks anyway. A traditional wooden bed that is clearly another traditional
+  wooden bed, adapted to our schema and look, is preferred to a faithful copy.
+- **Near-duplicates merge** into one foundation plus knobs: a dozen wooden chairs become a few
+  chairs that transform. The large clip libraries on disk (CMU, 100STYLE) stay as inspiration to
+  derive foundations from; most of their variants never become entries.
+- **Recipes over results.** .kkrieger built a whole 96 KB game from a few generators and chains of
+  operators; the store keeps the recipe and its knobs, not every output. QUOD is on the list to
+  study (*not yet surveyed*).
+
+**The rule for imports, stated once.** An import enters a pack on disk only if it passes the licence
+gate and the fit thresholds and is at most 30% mesh (mesh parts can be placed, scaled and
+recoloured, never edited, so they teach nothing). Likeness is a floor, not a target: the fit
+thresholds only ask that it reads as the same kind of thing at the game camera, and a simpler
+editable translation beats a faithful mesh. It becomes `checked` with zero findings, a description,
+tags and its token cap. The 61 committed imports predate the rule. The 15 that are editable and
+lint-clean (13 Kenney; Quaternius bell and bench_1) get descriptions and become `checked` in S0. The
+other 46 stay on disk as they are: findable, mesh share and findings in the row, never on the shelf.
+(`check` runs of 2026-10-14; S0's Kenney rescale may change them.) S3b characters: per-bone segments
+are fitted like props; a skinned body, if built, is exempt from the mesh cap and stays at `disk`.
 
 ### Characters: is it a size thing?
 
@@ -208,9 +236,10 @@ shim would silently lose `handL/R`, `fingersL/R`, `spine`, `yaw`, `requires`. S0
 
 **The gate**, for every door: an allowed licence; zero `check` findings; a description of 1-120
 characters; 2-6 tags; the category's token cap (400, 600, 800 or 2,000); complete provenance.
-Imports and generated entries also need the fit thresholds and a byte-identical rebuild. Text
-fields get a length cap and a short deny-list (`ignore`, `system`, `you must`) until outside
-contributors exist. Errors use the Issue format (`crates/pav_core/src/issue.rs`).
+Imports and generated entries also need the fit thresholds (a recognisability floor, §4) and a
+byte-identical rebuild. Text fields get a length cap and a short deny-list (`ignore`, `system`, `you
+must`) until outside contributors exist. Errors use the Issue format
+(`crates/pav_core/src/issue.rs`).
 
 ### Licence gate
 
@@ -251,6 +280,10 @@ Four signals, stored apart and never averaged: **correct** (licence, lint, budge
 determinism), **recognisable** (a contact sheet), **good** (the user's flags), **used** (games
 that placed it; searches that ended in a placement or fork). They disagree: SpawnForge matched 20
 of 20 prompts blind while its bipeds read as "a sack or sleeping bag with arms".
+
+**Good enough is the bar.** Agents run the basic checks (licence, lints, size band, one contact
+sheet) and stop: no polishing rounds, no tokens spent chasing perfect. The user does the rest by
+scrolling the Catalogue room or a review page, or while playing, and flags what looks off.
 
 | Tier | Where it lives | Needs | Decided by |
 |---|---|---|---|
@@ -298,9 +331,10 @@ labelled first) must reach find@5 ≥ 8/10; 5 for absent assets must get `none` 
 my-3danimations went from 4/10 to 8/10 on a fresh held-out round (7/10 on CC0 alone) after
 rebuilding vocabulary, idioms and scoring. Here vocabulary work stops after one rebuild.
 
-**The known future problem: scale.** At about 1,400 rows (159 KB for my-3danimations' clips) an
-agent can no longer read a catalog whole; 10,000 rows is roughly 350k tokens. Responses, each on a
-trigger: shard by kind; a taxonomy of at most 3 levels (Poly Haven's pattern); default to checked
+**The known future problem: scale.** Foundations keep it small: a few entries per archetype plus
+knobs means search rarely faces 10,000 rows. At about 1,400 rows (159 KB for my-3danimations' clips)
+an agent can no longer read a catalog whole; 10,000 rows is roughly 350k tokens. Responses, each on
+a trigger: shard by kind; a taxonomy of at most 3 levels (Poly Haven's pattern); default to checked
 or better; dedupe by fingerprint; a semantic lane only when held-out recall falls below 8/10.
 
 ## 9. Use
@@ -335,8 +369,8 @@ label.
   generated from the index. Kestrel sits on a chair through `sit`, Ysolde holds a staff through
   `grip`, and one clip plays on both bodies.
 - **Limits room.** Each exhibit is signed with its number and the check that catches it, or "not
-  caught": a core chair scaled to 48 cm (`size_band` from S2; not caught today); a core prop
-  sunk 76 cm (`below_floor`); a prop with a missing material reference (`unknown_material`, magenta);
+  caught": a core chair scaled to 48 cm (`size_band` from S2; not caught today); a core prop sunk 76
+  cm (`below_floor`); a prop with a missing material reference (`unknown_material`, magenta);
   STYLE100 `WildLegs_Walk` (546 mm worst-point error); a two-hand clip whose hands miss on a short
   body. A sign gives the limits only imports show: 29 of 61 imports over 30% mesh; textures
   flattened to face colours (not caught: the compare image uses the same flattened source). Those
@@ -404,9 +438,9 @@ states its token cost before it runs and reports the actual cost after.
 | Stage | Work | Exit test |
 |---|---|---|
 | S0 Smallest step (days) | Kenney Mini Dungeon rescaled (about 2.2) and re-checked. Descriptions and synonym-rich tags for the 15 editable, lint-clean imports. Find fixes and the `tier` column (§8). `assets shelf=` for props and clips. Credits text with a unit test. Clip reader refuses unknown formats and fields. Licence fields for own work (§14 Q1). The store never indexes `local/` paths, and a row test refuses any entry whose licence is not admitted (§14 Q2). One line in AGENTS.md. | The eval (§8): find@5 ≥ 8/10, absent queries 5/5 `none` plus a route; a row with a non-admitted licence is refused; `wooden table`, `tables`, `tree`, `character` each give a hit or `none` with a route; every CC-BY entry in the build is in the credits text; a format-2.0 clip file is refused with an Issue; shelf token test passes. |
-| S1 Does it pay? | Arm A: `assets find=` and `clips find=` return only BUILTIN templates, no shelf. Arm L: S0's find and shelf. 6 briefs that existing tools pass or fail: a tavern corner (table, 2 chairs, barrel, candles; sizes ±15%); a market stall forked from a library prop, with an awning material; a corridor in 3 materials; a weapon rack of 3 weapons; a heavy walk and a taunt from library clips; a campfire with seats. Scored from transcripts: model calls, price-weighted tokens (as FEEDBACK counts them, shelf included), `check` findings, every placed id resolves. 1 run per arm and brief: 12 runs, about 4.8M tokens at about 400k a run. Room-scale briefs may cost more (*unverified*), so the largest runs first and the estimate is restated. | Arm L lower in calls and in price-weighted tokens on at least 5 of 6 briefs, with no more findings (the approved lean rule, plan §10.3; one fix round). If not: fix discovery once and rerun; if it fails again, the store stays S0's find and shelf and nothing later is built. |
+| S1 Does it pay? | Arm A: `assets find=` and `clips find=` return only BUILTIN templates, no shelf. Arm L: S0's find and shelf. 6 briefs that existing tools pass or fail: a tavern corner (table, 2 chairs, barrel, candles; sizes ±15%); a market stall forked from a library prop, with an awning material; a corridor in 3 materials; a weapon rack of 3 weapons; a heavy walk and a taunt from library clips; a campfire with seats. Scored from transcripts: model calls, price-weighted tokens (as FEEDBACK counts them, shelf included), `check` findings, every placed id resolves. 1 run per arm and brief: 12 runs, about 4.8M tokens at about 400k a run. Room-scale briefs may cost more (*unverified*), so the largest runs first and the estimate is restated. Each run records its model and harness. | Arm L lower in calls and in price-weighted tokens on at least 5 of 6 briefs, with no more findings (the approved lean rule, plan §10.3; one fix round). If not: fix discovery once and rerun; if it fails again with a second model too, the store stays S0's find and shelf and nothing later is built. |
 | S2 Proof of concept, end to end | Columns `kind licence method tier`, `store/STORE.tsv`, `store/README.md` with a token test. `size_band`, socket lints, texture hard fail, five planted defects. `copy` records lineage. Kenney Mini Dungeon through every step: ledger, gate, rows, find, the Catalogue room, a fork published to standard and shown in the Hall. CC0 clip sets and 15 core materials as rows. Hall, Limits and Catalogue rooms. | Planted defects 5/5 caught; the rooms pass `room_check` and the ids test; a prop forked from an import reaches standard through the publish loop; the user flips through one review page of the rooms. |
-| S3 Critical mass | The test-game prompt (`docs/FEEDBACK.md`) gains three lines: "assets you looked for: query, found id or none"; "up to 5 things you built that another game could reuse: file, one line"; a pointer to the shelf. A per-game review page for the user's flags. 10 fresh briefs with need lists, by an agent that never saw the catalog (about 4M tokens). | **Critical mass:** a need is one line in a brief's need list or a game's answer; it is met when the agent placed or forked an entry from the top 5 instead of authoring from scratch (read from transcripts and `store/misses.tsv`). Reached when met/needs ≥ 0.8 for each proof-of-concept kind over the 10 briefs plus any games that arrived. Below that: studio-made entries for the most-logged misses first, one import only for misses a studio could not fill, re-measure; at most 3 rounds, then record the shortfall. Seeding of the proof-of-concept kinds stops either way. |
+| S3 Critical mass | The test-game prompt (`docs/FEEDBACK.md`) gains three lines: "assets you looked for: query, found id or none"; "up to 5 things you built that another game could reuse: file, one line"; a pointer to the shelf. A per-game review page for the user's flags. 10 fresh briefs with need lists, by an agent that never saw the catalog (about 4M tokens). | **Critical mass:** a need is one line in a brief's need list or a game's answer; it is met when the agent placed, forked or derived (transformed) an entry from the top 5 instead of authoring from scratch (read from transcripts and `store/misses.tsv`). Reached when met/needs ≥ 0.8 for each proof-of-concept kind over the 10 briefs plus any games that arrived. Below that: studio-made foundations or new knobs for the most-logged misses first, one import only for misses a studio could not fill, re-measure; at most 3 rounds, then record the shortfall. Seeding of the proof-of-concept kinds stops either way. |
 | S3b Characters | One CC0 low-poly rigged pack (KayKit or Kenney): bones mapped with my-3danimations' tables, look proportions read from the bones, rigid per-bone parts. Skinning through the creature path's CPU skinning only if rigid joints read badly. | Every embedded clip plays on 3 imported characters with no `check` findings; they appear in the Catalogue room (in the Hall once one is published to standard); the user flips one review page of them performing, rigid and (if built) skinned side by side. |
 | S4 Second engine, clips only | my-3dge reads store clip rows through its existing Shardfall reader. | 10 clip entries load in both engines; each clip's fit in mm matches within a tolerance fixed when the stage starts. |
 | S5 Sprite trial | §11, in riftlight, after S2 (pencilled in at the user's request). | §11's criteria. |
@@ -422,16 +456,19 @@ model importer and headless capture); clip federation and a separate repository 
 
 ## 14. Risks, open questions and not doing
 
-**Risks.** The core claim is unmeasured, and S1's one run per brief can pass 5 of 6 by chance
-about 1 time in 9. Test games are rare (FEEDBACK's tally: 1 game, which used no props, clips or
-studios), so S3 measures on fresh briefs. Imports translate poorly (31% editable), so the seed may
-be thin. A bad licence cannot be recalled once a game ships; Quaternius' licence drift already
-splits the engines (Shardfall imports its pinned CC0 December 2020 props; my-3d2dge excludes its
-models). Descriptions are a prompt-injection channel, and agents copy examples whose names match
-the brief, which inflates name-based evals. Process weight: my-3danimations runs 56 work packages
-and 11 gates; this store should stay rows, lints, a shelf and a review page until a trigger fires.
-**A deviation, for review:** "phased out entirely" keeps a yank line and the credit lines forks
-inherit, because CC-BY attribution travels with every fork. Shipped games are unaffected.
+**Risks.** The core claim is unmeasured, and S1's one run per brief can pass 5 of 6 by chance about
+1 time in 9. Test games are rare (FEEDBACK's tally: 1 game, which used no props, clips or studios),
+so S3 measures on fresh briefs. Imports translate poorly (31% editable), so the seed may be thin. A
+bad licence cannot be recalled once a game ships; Quaternius' licence drift already splits the
+engines (Shardfall imports its pinned CC0 December 2020 props; my-3d2dge excludes its models).
+Descriptions are a prompt-injection channel, and agents copy examples whose names match the brief,
+which inflates name-based evals. Process weight: my-3danimations runs 56 work packages and 11 gates;
+this store should stay rows, lints, a shelf and a review page until a trigger fires. Results depend
+on the model and the harness: the test games so far ran in browser chats whose context windows and
+depth differ from the same models at a CLI, and none went deep into the clip library. S1 records
+each run's model and harness, and a no is final only after a rerun with a second model. **A
+deviation, for review:** "phased out entirely" keeps a yank line and the credit lines forks inherit,
+because CC-BY attribution travels with every fork. Shipped games are unaffected.
 
 **Open questions for the user** (not for agents). Each is asked in chat and logged in
 `docs/ESCALATIONS.md`; after 15 minutes without an answer an agent applies the default and logs it.
@@ -472,12 +509,15 @@ inherit, because CC-BY attribution travels with every fork. Shipped games are un
 store (Shardfall's local lanes stay outside it, §14 Q2); a service, database, web gallery or
 marketplace (the Catalogue room is a demo room); binary payloads; a bulk import (Kenney's 60,000+,
 Poly Haven, the Fab haul) before a game asks; embeddings before the eval asks; stars, rewards or
-agent votes; USD, Lottie or Spine; a new egui panel; freehand agent sprites; skinned characters
-before rigid segments have been tried.
+agent votes; faithful replicas; near-duplicate variants a transform can produce (a dozen wooden
+chairs, thousands of clip variants); USD, Lottie or Spine; a new egui panel; freehand agent sprites;
+skinned characters before rigid segments have been tried.
 
 **Rejected:** a separate repository or service from day one (no second engine consumes props);
-hand-written card files beside payloads (two sources of truth); one neutral payload for every
-engine (it pulls all of them to the weakest; a format alone did not beat code on tokens in
-riftlight, 0.98 and 1.02); agent judges (noisy, side-biased, about 120k tokens each, ruled out by
-the user on 2026-10-12); critical mass as a count (my-3d2dge's plan: 300+ shapes, 300+ sprites),
-which says nothing about use; a fixed date to end imports (quality differs by kind).
+hand-written card files beside payloads (two sources of truth); one neutral payload for every engine
+(it pulls all of them to the weakest; a format alone did not beat code on tokens in riftlight, 0.98
+and 1.02); agent judges (noisy, side-biased, about 120k tokens each, ruled out by the user on
+2026-10-12); critical mass as a count (my-3d2dge's plan: 300+ shapes, 300+ sprites), which says
+nothing about use; a fixed date to end imports (quality differs by kind); likeness to the source as
+a goal (filters, shaders, upscalers and screens change looks anyway; inspired, transformable
+foundations serve better).

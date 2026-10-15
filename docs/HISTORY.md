@@ -5,6 +5,36 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Design: the agent asset store — 2026-10-15
+
+`docs/AGENT_ASSET_STORE.md` designs a Fab-like library whose customer is an agent, for Shardfall
+and its sibling engines (my-3danimations, my-3dge, my-3d2dge, riftlight, SpawnForge). It is design
+only; nothing is built. It came from a read-only survey of all six repositories and of outside
+stores and standards, three competing designs, four adversarial reviews and a revision, then the
+user's corrections.
+- **Shape.** Index rows generated from the payloads that already exist (no second copy), a shelf of
+  the best entries per kind, one `find`; it lives in Shardfall's `store/` until a second engine
+  needs props.
+- **Foundations, not a catalogue** (the user's direction). A few foundational entries per kind
+  (about 4 chairs, 5 jumps, 8 car frames) plus the transforms that derive the rest. Imports become
+  inspired versions in our editable formats, not replicas; likeness is a floor, not a target.
+- **Licences.** Only CC0, CC-BY with credit and our own work enter; everything else is excluded.
+  Fab's Standard licence (its free assets) bars translation and redistribution, so the collected
+  Fab haul stays out. Shardfall's local tiers (`anim/local`, `assets/props/local`) stay outside
+  the store.
+- **Measure first.** Whether a library makes agents cheaper or better has never been measured in
+  any of the repositories (riftlight's library run cost 1.75×, its agent read the whole file). S1
+  tests it after a few days of work (S0: search that finds "wooden table", Kenney rescaled, the
+  shelf), recording model and harness.
+- **Good enough.** Basic checks only; the user judges looks by scrolling the Catalogue room or a
+  review page, or by playing. No agent judges.
+- **Later stages:** a proof of concept with props, materials and clips and three demo rooms (Hall,
+  Limits, Catalogue); critical mass measured by use (needs met ≥ 0.8); imported characters (S3b,
+  rigid per-bone parts first; CPU skinning already exists for compiled creatures); clips shared
+  with my-3dge; a sprite trial in riftlight with keep/drop criteria; imports retired per kind once
+  agent-made assets match them on the user's review page.
+- **Open:** nine decisions for the user, each with a default (§14).
+
 ## Cloud sessions: the MCP server waits for the cold build — 2026-10-14
 
 A fresh cloud session came up without the `shardfall` MCP server ("connection timed out after
