@@ -46,8 +46,9 @@ merged here after S3.
 - **Not built:** skinning (waits for the user's verdicts); weapons in a figure's hand; the sim's
   collision capsule still uses the look's size. Tool help was trimmed to stay under the 48,000-
   character tool list.
-- **Costs:** tests $0 (cargo tests only; limit $10); the builder agent __BUILD__, this session's
-  merge, page and checks __MAIN__; S3b total __TOTAL__ against the $120 estimate, __HOURS__ h.
+- **Costs:** tests $0 (cargo tests only; limit $10); the builder agent $26.65 (21:08-22:42 UTC),
+  this session's merge, page and checks $3.03; S3b total $29.68 against the $120 estimate,
+  2.5 h (21:08-23:38 UTC, alongside S3).
 
 ## Asset store S3: critical mass, measured over two rounds — 2026-10-15
 
