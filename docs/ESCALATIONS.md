@@ -27,7 +27,10 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   goal's rule: with no answer, don't spend, work inside the approval.
 - **Call:** option B for all 12 runs (run 3), B1 included, so every brief has one harness. The two
   general-purpose B1 runs (run 2) stay in the results as a harness note.
-- **PR:** S1's PR.
+- **Later, the user:** after the S0-S2 report, asked again whether to rerun the model-2 round on
+  the general-purpose agent as specified (about 7.7M more read, 1.86M left in the approval), the
+  user answered "S1 stands": the rerun is waived and S1's result stands as recorded.
+- **PR:** S1's PR; the user's answer, the follow-up PR that adds this line.
 
 ## 2026-10-15 — The agent asset store's nine rulings (docs/AGENT_ASSET_STORE.md §14)
 - **Question:** the nine open questions of the store design, each with a default. They were
