@@ -200,5 +200,24 @@ fn format2_assets_are_created_drawn_placed_and_undone() {
     let checked = call(&mut s, "room_check", json!({"path": room})).unwrap();
     assert_eq!(checked["ok"], false, "{checked}");
     assert_eq!(checked["error"], "object 'seat': no prop 'WORKSHOP/stoool' — did you mean \"WORKSHOP/stool\"?");
+
+    // A family (plan §9.4) saves its params and presets; spawn and preview take NAME:preset
+    // and params=.
+    let fence: Value = serde_json::from_str(include_str!("../../pav_core/tests/fixtures/props/families/fence.json")).unwrap();
+    let created = edit(&mut s, json!({"action":"create","name":"fence","asset":fence,"preview":false})).unwrap();
+    assert_eq!(created["parts"], 13, "{created}");
+    let saved = std::fs::read_to_string(root.join("workshop/fence.json")).unwrap();
+    assert!(saved.contains("\n\"params\":{\n") && saved.contains("\n\"presets\":{\n"), "{saved}");
+    let spawn = json!({"action":"add","name":"WORKSHOP/fence:long","pos":[0,0,0],"params":{"broken":"yes"},"seed":3});
+    let placed = call(&mut s, "asset_spawn", spawn).unwrap();
+    assert_eq!(placed["instance"]["params"], json!({"broken":"yes","length":300,"pickets":13}), "{placed}");
+    let shown = call(&mut s, "asset_preview", json!({"name":"WORKSHOP/fence:low"})).unwrap();
+    assert_eq!((&shown["parts"], &shown["params"]), (&json!(11), &json!({"height":70,"pickets":7})), "{shown}");
+    let sheet = call(&mut s, "asset_preview", json!({"views":["front"],"params":{"length":100}})).unwrap();
+    assert!(sheet.to_string().contains("fence"), "{sheet}");
+    call(&mut s, "asset_preview", json!({"close":true})).unwrap();
+    let wrong = json!({"action":"add","name":"WORKSHOP/fence","pos":[0,0,0],"params":{"heigth":70}});
+    let wrong = call(&mut s, "asset_spawn", wrong).unwrap_err();
+    assert!(wrong.contains("params.heigth: unknown param") && wrong.contains("did you mean \"height\"?"), "{wrong}");
     let _ = std::fs::remove_dir_all(&root);
 }

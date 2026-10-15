@@ -73,8 +73,9 @@ fn game_asset_refs_are_embedded() {
         walk(&value, &file, &mut refs);
     }
     for (at, name) in &refs {
-        let canonical = props::canonical(name).unwrap_or_else(|e| panic!("{at}: {e}"));
+        // `NAME:preset` names a family's preset: NAME must be embedded.
+        let canonical = props::canonical(props::split_preset(name).0).unwrap_or_else(|e| panic!("{at}: {e}"));
         assert!(store::embedded(&canonical), "{at}: {name} is not embedded (BUILTIN/ or LIB/core/): the browser build lacks it");
-        props::resolve_ref(name).unwrap_or_else(|e| panic!("{at}: {e}"));
+        props::resolve_placed(name, &props::Params::new()).unwrap_or_else(|e| panic!("{at}: {e}"));
     }
 }

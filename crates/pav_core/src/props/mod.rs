@@ -3,6 +3,7 @@
 
 pub mod compile;
 pub mod doc;
+pub mod family;
 pub mod geom;
 pub mod index;
 pub mod lint;
@@ -26,6 +27,7 @@ use crate::shape::{Look, Shape, Visual};
 
 pub use compile::{CompiledProp, DEFAULT_ROLES, ResolvedPart};
 pub use doc::Doc;
+pub use family::{Params, apply_params, canonical_placed, resolve_parts, resolve_placed, split_preset};
 pub use patch::MAX_OPS;
 pub use patch::v2::{OPS as OPS2, Patched, patch as patch_document};
 /// Format 2's field tables, legend and field guide.
@@ -437,6 +439,8 @@ pub struct PropDef {
     /// Seed 0, which a placed copy draws unless it has a seed of its own.
     pub compiled: Arc<CompiledProp>,
     variants: Mutex<BTreeMap<u32, Arc<CompiledProp>>>,
+    /// Knob variants of a family, by (params hash, seed).
+    families: Mutex<BTreeMap<(u64, u32), Arc<CompiledProp>>>,
     /// The definitions its references compiled against: every seed variant uses the same.
     pinned: BTreeMap<String, Arc<PropDef>>,
     /// The format-1 asset when format 1 holds the document: format-1 patches and the
@@ -508,6 +512,7 @@ impl PropDef {
             varies,
             compiled: Arc::new(compiled),
             variants: Mutex::default(),
+            families: Mutex::default(),
             pinned,
             v1,
         })

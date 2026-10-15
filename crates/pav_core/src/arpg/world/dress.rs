@@ -84,11 +84,11 @@ pub fn check_sets(sets: &BTreeMap<String, PropSet>) -> Result<(), String> {
         }
         for (i, item) in set.items.iter().enumerate() {
             let at = format!("game/props.toml [{key}] items[{i}]");
-            let name = props::canonical(&item.asset).map_err(|e| format!("{at}: {e}"))?;
-            if !props::store::embedded(&name) {
+            let name = props::canonical_placed(&item.asset).map_err(|e| format!("{at}: {e}"))?;
+            if !props::store::embedded(props::split_preset(&name).0) {
                 return Err(format!("{at}: {name} is not embedded (BUILTIN/ or LIB/core/): the browser build lacks it"));
             }
-            props::resolve_ref(&name).map_err(|e| format!("{at}: {e}"))?;
+            props::resolve_placed(&name, &props::Params::new()).map_err(|e| format!("{at}: {e}"))?;
             let [lo, hi] = item.scale;
             if !(item.w > 0.0 && item.w.is_finite()) || !(0.1..=10.0).contains(&lo) || !(lo..=10.0).contains(&hi) {
                 return Err(format!("{at}: w must be above 0 and scale [lo, hi] within 0.1..10"));
@@ -139,8 +139,8 @@ impl Builder<'_> {
                 let place = item.place.unwrap_or(set.place);
                 let variant = rng.below(VARIANTS);
                 let scale = rng.range(item.scale[0], item.scale[1]);
-                let Ok(def) = props::resolve_ref(&item.asset) else { continue };
-                let parts = def.variant(variant);
+                let Ok((name, def, params)) = props::resolve_placed(&item.asset, &props::Params::new()) else { continue };
+                let parts = def.variant_with(&params, variant);
                 let bounds = parts.bounds_at(scale);
                 let spot = match place {
                     PlaceMode::WallMount => self.mount_spot(room, &bounds, &mut rng, &hung),
@@ -155,8 +155,8 @@ impl Builder<'_> {
                     let Ok(key) = st.statics.add_prop(&mut st.physics, prop) else { continue };
                     regions.insert(key);
                 } else {
-                    let copy = PropInstance::new(&item.asset, def.clone(), scale, solid)
-                        .map(|c| c.with_seed(variant))
+                    let copy = PropInstance::new(&name, def.clone(), scale, solid)
+                        .and_then(|c| c.with_seed(variant).with_params(&params))
                         .and_then(|c| c.with_roles(palette.clone()));
                     let Ok(copy) = copy else { continue };
                     if self.sim.place_prop(copy, pos, rot, None).is_err() {

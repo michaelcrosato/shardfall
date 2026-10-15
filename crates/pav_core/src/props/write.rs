@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use glam::Vec3;
 use serde_json::{Map, Value};
 
-use super::doc::{Anchor, Attach, Doc, Kind, MaterialEntry, Node, Prim, Replicate, Socket, Surface};
+use super::doc::{Anchor, Attach, Doc, Kind, MaterialEntry, Node, Param, Prim, Replicate, Socket, Surface};
 use super::{Look, PropAsset, PropPart, Shape};
 use crate::params::ChoiceParam;
 use crate::shape::Sway;
@@ -307,6 +307,28 @@ fn socket(s: &Socket) -> String {
     f.object()
 }
 
+/// One family knob on one line: its range or choices, then its targets in key order.
+fn param(p: &Param) -> String {
+    let mut f = Fields::default();
+    let targets = |set: Vec<(&String, String)>| {
+        format!("{{{}}}", set.into_iter().map(|(path, text)| format!("{}:{text}", quoted(path))).collect::<Vec<_>>().join(","))
+    };
+    match p {
+        Param::Range { range, int, set, .. } => {
+            f.add("range", nums(range));
+            if *int {
+                f.add("int", "true".into());
+            }
+            f.add("set", targets(set.iter().map(|(path, factor)| (path, num(*factor))).collect()));
+        }
+        Param::Choices { choices, set } => {
+            f.add("choices", strings(choices));
+            f.add("set", targets(set.iter().map(|(path, values)| (path, value(&Value::Array(values.clone())))).collect()));
+        }
+    }
+    f.object()
+}
+
 /// Line breaks and indentation between entries; none in the compact text.
 struct Layout {
     compact: bool,
@@ -459,6 +481,15 @@ impl Doc {
         section("parts", layout.entries(0, &self.parts, |node| layout.node(node, 0)));
         if !self.sockets.is_empty() {
             section("sockets", layout.entries(0, &self.sockets, socket));
+        }
+        if !self.params.is_empty() {
+            section("params", layout.entries(0, &self.params, param));
+        }
+        if !self.presets.is_empty() {
+            section(
+                "presets",
+                layout.entries(0, &self.presets, |values| value(&Value::Object(values.clone().into_iter().collect()))),
+            );
         }
         let mut text = format!("{{{}}}", sections.join(","));
         if !compact {

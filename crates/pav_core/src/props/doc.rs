@@ -211,6 +211,21 @@ pub struct Doc {
     pub materials: BTreeMap<String, MaterialEntry>,
     pub parts: BTreeMap<String, Node>,
     pub sockets: BTreeMap<String, Socket>,
+    /// A family's knobs (format 2): each sets fields at target paths. The file's own values
+    /// are their defaults, so a family is also a concrete asset.
+    pub params: BTreeMap<String, Param>,
+    /// Named knob settings, `{preset: {param: value}}`; a placement names one as `NAME:preset`.
+    pub presets: BTreeMap<String, BTreeMap<String, Value>>,
+}
+
+/// A family knob (format 2 `params`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Param {
+    /// `{"range":[lo,hi],"int"?:true,"set":{path:factor}}`: each target is value × factor.
+    /// `default` is what the file's values imply.
+    Range { range: [f32; 2], int: bool, set: BTreeMap<String, f32>, default: f32 },
+    /// `{"choices":[a,b,…],"set":{path:[value per choice]}}`: the first choice is the default.
+    Choices { choices: Vec<String>, set: BTreeMap<String, Vec<Value>> },
 }
 
 /// Surface fields, which cascade from the root through groups to parts: at each level an
@@ -592,6 +607,8 @@ impl Doc {
             materials: BTreeMap::new(),
             parts,
             sockets: BTreeMap::new(),
+            params: BTreeMap::new(),
+            presets: BTreeMap::new(),
         }
     }
 
@@ -614,6 +631,8 @@ impl Doc {
             ("fit", self.fit.is_some()),
             ("materials", !self.materials.is_empty()),
             ("sockets", !self.sockets.is_empty()),
+            ("params", !self.params.is_empty()),
+            ("presets", !self.presets.is_empty()),
         ] {
             if set {
                 return found(key, key);

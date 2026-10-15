@@ -55,6 +55,10 @@ pub struct ObjectDef {
     /// A prop's palette: colours for the theme roles its parts name (`$wall` = "#5a6b7c").
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub roles: BTreeMap<String, String>,
+    /// A family's knob values (`params = { height = 70 }`), over the preset `asset` names
+    /// (`LIB/core/fence:low`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub params: crate::props::Params,
     pub pos: Vec3,
     /// Rotation about the vertical axis (degrees).
     #[serde(default)]
@@ -445,7 +449,7 @@ impl RoomDef {
     pub fn validate(&self) -> Result<(), String> {
         for object in &self.objects {
             if let Some(asset) = &object.asset {
-                crate::props::canonical(asset).map_err(|e| format!("object '{}': {e}", object.name))?;
+                crate::props::canonical_placed(asset).map_err(|e| format!("object '{}': {e}", object.name))?;
                 crate::prop_instance::validate_roles(&object.roles).map_err(|e| format!("object '{}': {e}", object.name))?;
                 crate::prop_instance::validate_scale(object.scale)?;
                 crate::prop_instance::validate_pose(object.pos, object.local_rot())?;

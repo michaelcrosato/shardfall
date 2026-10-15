@@ -65,7 +65,7 @@ fn unknown_actions_kinds_args_and_tools_name_the_nearest_valid_one() {
     );
     assert_eq!(
         error(&mut s, "asset_spawn", json!({"action":"list","nmae":"x"})),
-        r#"nmae: unknown argument (expected action, name, id, pos, yaw, scale, collide, room, roles) — did you mean "name"?"#
+        r#"nmae: unknown argument (expected action, name, id, pos, yaw, scale, collide, room, roles, params) — did you mean "name"?"#
     );
     assert_eq!(error(&mut s, "asset_edt", json!({})), r#"unknown tool "asset_edt" — did you mean "asset_edit"?"#);
 }
@@ -95,7 +95,8 @@ fn the_field_guide_and_tool_list_stay_compact() {
     // Row 4.1's retrieval args (~0.4 KB) were paid for by trimming three creature/job help strings,
     // row 4.2's `review` arg by trimming the clip library's `load=` help, kind=material (row
     // 3.3) by trimming help text, and `level rooms=` (row 3.4) by trimming `level`'s help. The
-    // store's `shelf=` and `kind=clip` (S0) by trimming `assets`' help.
+    // store's `shelf=` and `kind=clip` (S0) by trimming `assets`' help; LIB-4's `params=` by
+    // trimming creature_status and creature_preview help.
     assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();

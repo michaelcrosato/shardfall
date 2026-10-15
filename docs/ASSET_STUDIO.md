@@ -77,6 +77,24 @@ the change.
 Replies carry revision, size_cm (width x height x depth), changed_parts and new findings.
 action=inspect returns the document (resolved=true: every part after copies).
 
+## Families (params and presets)
+
+```json
+{"tool":"asset_edit","args":{"action":"patch","name":"fence","ops":[{"op":"set","fields":{"params.length":{"range":[100,300],"set":{"post.pos.0":0.5,"rail.size.0":1}},"params.pickets":{"range":[3,15],"int":true,"set":{"picket.array.count":1}},"params.broken":{"choices":["no","yes"],"set":{"picket.chance":[1,0.6]}},"presets.long":{"length":300,"pickets":13}}}]}}
+```
+
+A range param sets each target to value × factor; a choices param sets each target to that
+choice's value. The file's own values are the defaults, so a family is still a concrete asset:
+a range's targets must agree on one default (within 0.5 or 0.5%; the check names the factor that
+fits), and the first choice must match what the file writes. Targets are part.field paths
+(group.child.size.1, rail.array.span.0, materials.wood.color), never type, ref, mesh or
+attach.to: attach, mirror, array.span and chance place what depends on a size. At most 8 params,
+8 targets each, 8 choices, 16 presets; a document set (above) adds them.
+Place or show a variant by preset, knobs over it, or both: `asset_spawn name=x:long
+params={"broken":"yes"}`, `asset_preview name=x:low` (params=, seed=), a room's
+`asset = "LIB/core/x:low"` with `params = { height = 70 }`. Example:
+docs/asset_plan/examples/families/fence.f2.json.
+
 ## Check and the rest
 
 `asset_edit action=check name=x [target=WxHxD]` (cm) lists all findings and a cost line. Faults:
