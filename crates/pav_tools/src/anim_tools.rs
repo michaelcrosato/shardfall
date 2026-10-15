@@ -780,6 +780,7 @@ fn rank_clips(lib: &clips::ClipLib, terms: &[pav_core::store::Term], store_only:
             .cmp(&a.matched)
             .then(b.score.total_cmp(&a.score))
             .then(a.set_rank.cmp(&b.set_rank))
+            .then(a.name.len().cmp(&b.name.len()))
             .then_with(|| a.name.cmp(&b.name))
     });
     hits
