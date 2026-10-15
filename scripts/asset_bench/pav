@@ -2,8 +2,9 @@
 """The engine for one benchmark run: `scripts/asset_bench/pav RUN < commands`.
 
 Each stdin line is one pav REPL command (`tool key=value ...` or {"tool":..,"args":..}). One
-`pav repl` of the run's arm (RUN/run.json) runs per invocation, with cwd RUN and the run's own
-asset folders, so saved assets persist between invocations and nothing else does. Replies print
+`pav repl` of the run's arm (RUN/run.json) runs per invocation, with cwd RUN, the run's own
+asset folders and the arm's environment (`env` in run.json), so saved assets persist between
+invocations and nothing else does. Replies print
 unchanged; RUN/log.jsonl records every command. Past the run's command or image cap a command
 is refused instead of run. Standard library only.
 """
@@ -73,6 +74,12 @@ def main():
             state = json.load(f)
     state["invocations"] += 1
     env = dict(os.environ, PAV_ASSETS=os.path.join(run, "props"), PAV_CREATURES=os.path.join(run, "creatures"))
+    # Store runs (S1): the run's own clip folder and miss log, and the arm's switch (PAV_FIND).
+    for key, folder in (("PAV_ANIM", "anim"), ("PAV_STORE", "store")):
+        if os.path.isdir(os.path.join(run, folder)):
+            env[key] = os.path.join(run, folder)
+    env.pop("PAV_FIND", None)
+    env.update(config.get("env", {}))
     os.makedirs(os.path.join(run, "out"), exist_ok=True)
     engine = None
     with open(os.path.join(run, "log.jsonl"), "a") as log:

@@ -1,0 +1,91 @@
+# Asset store S1 briefs (docs/AGENT_ASSET_STORE.md §13 S1): does a library pay? Six room-scale
+# briefs that existing tools pass or fail, each run once per arm on one binary built from S0's
+# merged head: S1A (PAV_FIND=builtin: find sees only the templates, clips find nothing, no shelf)
+# and S1L (S0's find and shelf). tasks.toml stays frozen; these briefs live here.
+#
+# Each brief lists roles. done.json names every item placed, forked or made, with its role and
+# position; scoring resolves each id, checks the made and forked ones, and applies the role's
+# size range to the item's bounds times its scale:
+#   h = [lo, hi]: height in cm; l = [lo, hi]: the longest side in cm; count: at least this many.
+#   light: the item gives off light. loop: the clip loops (clip roles).
+# extras: forked (a role's item is a WORKSHOP copy of another asset), materials = N (at least N
+# distinct patterned materials across the items), docs (extra docs both arms read).
+# order: larger briefs first (S1 runs them first and restates its token estimate after them).
+
+cap = [60, 8]
+
+[[brief]]
+id = "B1"
+order = 1
+title = "tavern corner"
+text = """A tavern corner, ready to drop into a room: a table, two chairs at it, a barrel against the
+wall behind them, and candles standing on the table. Sizes: the table about 75 cm tall, the chairs
+about 95 cm, the barrel about 90 cm, each within ±15%; the candles 10-45 cm tall."""
+roles = [
+  {role = "table", count = 1, h = [64, 86]},
+  {role = "chair", count = 2, h = [81, 109]},
+  {role = "barrel", count = 1, h = [77, 104]},
+  {role = "candles", count = 1, h = [10, 45]},
+]
+
+[[brief]]
+id = "B6"
+order = 2
+title = "campfire with seats"
+text = """A camp: a campfire that gives off light, and at least two seats around it (logs, stools or
+benches) within 2.5 m of the fire. The fire is 60-160 cm across; seats 25-110 cm tall."""
+roles = [
+  {role = "fire", count = 1, l = [60, 160], light = true},
+  {role = "seat", count = 2, h = [25, 110]},
+]
+
+[[brief]]
+id = "B4"
+order = 3
+title = "weapon rack"
+text = """An armoury weapon rack holding three weapons: the rack 120-220 cm tall, and three weapons
+(swords, spears, axes or the like), each 60-220 cm long, placed on or against it."""
+roles = [
+  {role = "rack", count = 1, h = [120, 220]},
+  {role = "weapon", count = 3, l = [60, 220]},
+]
+
+[[brief]]
+id = "B3"
+order = 4
+title = "corridor in three materials"
+text = """A short dungeon corridor section about 4 m long: a floor, two side walls, and a ceiling or
+overhead beams, built from at least three different patterned materials (stone floor, brick or
+block walls, wood or metal above, or similar)."""
+roles = [
+  {role = "floor", count = 1},
+  {role = "wall", count = 2, h = [200, 450]},
+  {role = "ceiling", count = 1},
+]
+materials = 3
+docs = ["MATERIALS.md"]
+
+[[brief]]
+id = "B2"
+order = 5
+title = "forked market stall"
+text = """A market stall forked from an existing asset: copy an asset that already exists
+(asset_edit action=copy), then turn the copy into a market stall with a cloth awning that wears a
+patterned material. The stall is 200-320 cm wide and 200-320 cm tall."""
+roles = [
+  {role = "stall", count = 1, h = [200, 320], forked = true, material = true},
+]
+docs = ["MATERIALS.md"]
+
+[[brief]]
+id = "B5"
+order = 6
+title = "heavy walk and taunt"
+text = """Motion for an ogre NPC, from library clips where they exist: a heavy, lumbering walk that
+loops, and a taunt (a one-off gesture that provokes an enemy). Name existing clips (SET/Clip), or
+make them in the Animation Studio (anim_edit) and name yours."""
+roles = [
+  {role = "walk", count = 1, kind = "clip", loop = true},
+  {role = "taunt", count = 1, kind = "clip"},
+]
+docs = ["ANIMATION_STUDIO.md"]

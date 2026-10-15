@@ -1,0 +1,13 @@
+gate	arm	task	run	done	accepted	items	findings	calls	failed	refused	wall_s	ids	model	effort	harness	problems
+S1	S1A	B1	1	1	1	5	0	12	0	0	23.2	WORKSHOP/tav_table WORKSHOP/tav_chair WORKSHOP/tav_chair WORKSHOP/tav_barrel WORKSHOP/tav_candles	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B2	1	1	1	1	0	9	1	0	18.8	WORKSHOP/market_stall	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B3	1	1	1	4	0	10	0	0	6.0	WORKSHOP/cor_floor WORKSHOP/cor_wall WORKSHOP/cor_wall WORKSHOP/cor_ceiling	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B4	1	1	1	4	0	8	0	0	11.3	WORKSHOP/armoury_rack WORKSHOP/rack_sword WORKSHOP/rack_spear WORKSHOP/rack_axe	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B5	1	1	1	2	0	10	0	0	9.4	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1A	B6	1	1	1	3	0	5	0	0	4.1	WORKSHOP/camp_fire WORKSHOP/camp_log WORKSHOP/camp_log	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B1	1	1	1	5	0	4	0	0	0.1	LIB/core/table LIB/core/chair LIB/core/chair LIB/core/barrel LIB/core/candle_cluster	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B2	1	1	1	1	0	9	1	0	12.4	WORKSHOP/my_stall	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B3	1	1	1	4	0	9	1	0	8.2	WORKSHOP/b3_floor WORKSHOP/b3_wall WORKSHOP/b3_wall WORKSHOP/b3_ceiling	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B4	1	1	1	4	0	7	0	0	5.8	WORKSHOP/rack_frame WORKSHOP/rack_spear WORKSHOP/rack_sword WORKSHOP/rack_axe	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B5	1	1	1	2	0	4	0	0	0.2	MESH2MOTION/Walk_Large MESH2MOTION/Insult	model 1	medium	Claude Code subagent asset-bench-author, cloud session	
+S1	S1L	B6	1	1	0	4	1	5	0	0	10.2	WORKSHOP/camp_fire WORKSHOP/camp_log_seat WORKSHOP/camp_log_seat WORKSHOP/camp_log_seat	model 1	medium	Claude Code subagent asset-bench-author, cloud session	WORKSHOP/camp_fire: floating: flame, log1, log2 (1.4 cm from the rest)

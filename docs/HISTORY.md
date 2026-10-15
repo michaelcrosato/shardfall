@@ -5,6 +5,46 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S1: does a library pay? — 2026-10-15
+
+Stage S1 of `docs/AGENT_ASSET_STORE.md` (§13). Six room-scale briefs (`scripts/asset_bench/
+store_briefs.toml`; `tasks.toml` stays frozen) ran once per arm on one binary built from S0's head:
+**S1A** (`PAV_FIND=builtin`: `assets find=` sees only the templates and the workshop, `clips find=`
+nothing, no shelf) and **S1L** (S0's find and shelf, and the shelf line in the run's README).
+- **Harness.** `bench.py store-prepare` gives each run its own `props/` (the two committed packs
+  copied in), `anim/` (the admitted on-disk clip sets, linked) and `store/misses.tsv`; the wrapper
+  sets `PAV_ASSETS`, `PAV_ANIM`, `PAV_STORE`, cwd RUN and the arm's `env` from `run.json`. Both arms
+  read the same docs (`ASSET_STUDIO.md`, plus `MATERIALS.md` for the corridor and stall briefs and
+  `ANIMATION_STUDIO.md` for the clips brief). One higher cap for both: 60 commands, 8 images.
+  `done.json` lists every item placed, forked or made with its role and position; `bench.py
+  store-score` resolves each id, checks made and forked assets, applies each role's size range,
+  and the brief's extras (a fork, patterned materials, light, a looping walk). `bench.py tokens`
+  reads each run's model calls, tokens read and weighted cost (cache reads 0.1, writes 1.25,
+  output 5) from the session's subagent transcripts, matched by the RUN path in the first prompt
+  (`results/agent_tokens.tsv`); `--main` does the same for the session's own transcript.
+  `bench.py store-report` applies the rule.
+- **Round 1** (model 1, the pinned `asset-bench-author` at medium effort, Claude Code subagents in a
+  cloud session): all 12 runs accepted but S1L's campfire (a floating flame, 1.4 cm). Model calls /
+  tokens read / weighted, S1A → S1L:
+
+  | brief | S1A | S1L | L lower |
+  |---|---|---|---|
+  | B1 tavern corner | 8 / 103,553 / 31,121 | 4 / 39,354 / 16,262 | yes |
+  | B6 campfire with seats | 5 / 53,447 / 18,609 | 7 / 82,776 / 22,806 | no |
+  | B4 weapon rack | 6 / 72,547 / 23,054 | 6 / 73,104 / 22,988 | no |
+  | B3 corridor in three materials | 6 / 83,591 / 27,560 | 7 / 101,222 / 28,883 | no |
+  | B2 forked market stall | 8 / 114,527 / 30,033 | 9 / 137,425 / 33,255 | no |
+  | B5 heavy walk and taunt | 7 / 96,543 / 31,829 | 4 / 44,523 / 22,029 | yes |
+
+  L was lower on 2 of 6 briefs with 1 finding against 0: **a fail.** Where S1L's agents searched
+  (B1, B2, B5) the store paid or broke even: B1 placed five library props in 4 calls, B5 found the
+  heavy walk and the taunt at once. In B3, B4 and B6 they never searched and built everything from
+  scratch, though the store held a bonfire, benches, a spear and a sword. The 12 runs read 1.0M
+  tokens (the estimate was 4.8M: the pinned author's fixed prompt is about 5k tokens, not 55k).
+- **The discovery fix** (the one fix round): `docs/ASSET_STUDIO.md`'s loop now starts "Look before you
+  make": `assets shelf=prop` first, then use, copy or make. Arm A's copy of the doc leaves that
+  sentence out (`bench.py` `SHELF_STEP`), as its engine has no shelf.
+
 ## Asset store S0: search that finds common words, Kenney rescaled, the shelf — 2026-10-15
 
 Stage S0 of `docs/AGENT_ASSET_STORE.md` (§13). The nine §14 rulings were posted in chat first;

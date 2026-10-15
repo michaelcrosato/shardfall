@@ -15,6 +15,10 @@ it would normally get, make better assets for fewer tokens?
   bench.py pairs --gate G2 --arm F --vs GA/A       each authoring run above or below the baseline's, for judges
   bench.py judgment IMAGE JUDGE '{"pref":1,...}'   record one judge's answer -> results/judgments.tsv
   bench.py selftest                                two scripted replays: equal tok_x, cap enforced
+  bench.py store-prepare --arm S1A|S1L [--briefs all] the asset store's S1 runs (store_briefs.toml)
+  bench.py store-score [--gate S1]                 each store run's ids, roles, sizes, findings
+  bench.py tokens [--gate S1] [--main]             model calls, tokens read, weighted cost from transcripts
+  bench.py store-report [--gate S1]                S1's rule: arm L cheaper on 5 of 6 briefs
 
 Runs live in .cache/asset_bench/runs/<gate>/<arm>/<task>-r<k>/ (git-ignored). Each author run is
 one fresh `asset-bench-author` agent (.claude/agents/) that reads RUN/brief.md and RUN/docs/ and
@@ -1128,6 +1132,433 @@ def pair_rules_hold():
                    "P05": ("loss", True)}
 
 
+# --- the asset store's S1 (docs/AGENT_ASSET_STORE.md §13): does a library pay? -------------------
+
+STORE_BRIEFS = BENCH / "store_briefs.toml"
+STORE_RUNS = RESULTS / "store_runs.tsv"
+AGENT_TOKENS = RESULTS / "agent_tokens.tsv"
+# The arms: one binary from S0's merged head; S1A hides the library from find (PAV_FIND=builtin).
+STORE_ARMS = {"S1A": {"PAV_FIND": "builtin"}, "S1L": {}}
+# Packs and on-disk clip sets every store run gets (licences the store admits; never local/).
+STORE_PACKS = ["kenney_mini_dungeon", "quaternius_medieval_village"]
+STORE_CLIP_SETS = ["100style", "cmu"]
+# The line AGENTS.md gives agents about the store (S0); S1L's README carries it, S1A's does not.
+SHELF_LINE = ("Asset store: before making a prop or clip, `assets shelf=prop` (or `shelf=clip`) lists the best "
+              "entries and `assets find=words` (`kind=clip` for motion) searches; a miss gives `none` and a route.")
+# S1's discovery fix (round 2) put the shelf first in ASSET_STUDIO.md's loop; arm A's copy of the
+# doc leaves this sentence out, as its engine has no shelf.
+SHELF_STEP = ("Look before you make. `assets shelf=prop` lists the store's best props by category in one\n"
+              "   call; if one fits, use it as it is or copy it (`asset_edit action=copy`) and change the copy,\n"
+              "   which costs far less than making one. Then ")
+# FEEDBACK's price weights (docs/FEEDBACK.md): cache reads 0.1, cache writes 1.25, output 5.
+WEIGHTS = {"input": 1.0, "cache_read": 0.1, "cache_write": 1.25, "output": 5.0}
+
+STORE_README = """# Benchmark run
+
+You are building part of a game: chunky, stylised, low-poly, cel-shaded, seen from a high camera.
+`ASSET_STUDIO.md` in this folder documents the object tools{extra}. Ignore their parts about
+starting the native studio, MCP setup and the human feedback loop: here every tool runs headless
+through the run's wrapper, and RUN is the run folder named in your task:
+
+    scripts/asset_bench/pav RUN <<'EOF'
+    {{"tool":"asset_edit","args":{{"action":"inspect","name":"BUILTIN/bench"}}}}
+    EOF
+
+Each line is one command: a JSON line as above, or `tool key=value ...`. Every wrapper call starts
+a fresh engine session. Saved assets persist; the preview stage and camera do not, so open the
+preview and capture it in the same call. Images are written under RUN/out; look at each one with
+your image-reading tool. `help` lists every tool.
+
+You may use assets that already exist as they are, a copy of one that you change (`asset_edit
+action=copy`), or new ones you make. You do not need to place anything in a scene: RUN/done.json
+records what goes where.{shelf}
+
+Budget: {commands} engine commands and {images} images; the wrapper refuses commands past it.
+"""
+
+
+def store_briefs():
+    with open(STORE_BRIEFS, "rb") as f:
+        table = tomllib.load(f)
+    return table, {b["id"]: b for b in table["brief"]}
+
+
+def store_brief_text(brief, cap):
+    roles = ", ".join(f"{r['role']} ({r.get('count', 1)})" for r in brief["roles"])
+    clips = all(r.get("kind") == "clip" for r in brief["roles"])
+    item = ('{"role": "<role>", "id": "<SET/Clip or WORKSHOP/name>", "how": "placed|made"}' if clips else
+            '{"role": "<role>", "id": "<asset name>", "how": "placed|forked|made", "pos": [x, y, z], '
+            '"yaw": 0, "scale": 1}')
+    lines = [f"# Brief {brief['id']}: {brief['title']}", "", brief["text"].replace("\n", " "), "",
+             f"Roles (at least this many items each): {roles}.", "",
+             "When you are done, write RUN/done.json listing every item:",
+             f'{{"items": [{item}, ...], "notes": "<=20 words"}}']
+    if not clips:
+        lines += ["`placed`: an existing asset as it is; `forked`: your WORKSHOP copy of one, changed; `made`: "
+                  "a new WORKSHOP asset. pos is in metres (y up, the item's origin on the floor unless it rests on "
+                  "another item); scale is a uniform scale (default 1)."]
+    lines += ["", f"Budget: {cap[0]} engine commands and {cap[1]} images. Then reply \"done\".", ""]
+    return "\n".join(lines)
+
+
+def cmd_store_prepare(args):
+    table, briefs = store_briefs()
+    if args.arm not in STORE_ARMS:
+        sys.exit(f"store arms are {', '.join(STORE_ARMS)}")
+    info = load(BIN / f"pav-{args.bin_arm}.json")
+    if not info:
+        sys.exit(f"build the binary first: bench.py build --arm {args.bin_arm}")
+    cap = table.get("cap", DEFAULT_CAP)
+    ids = sorted(briefs, key=lambda i: briefs[i]["order"]) if args.briefs == "all" else args.briefs.split(",")
+    made = []
+    for brief_id in ids:
+        brief = briefs[brief_id]
+        run = RUNS / args.gate / args.arm / f"{brief_id}-r{args.run}"
+        if run.exists():
+            if not args.force:
+                print(f"skip {run.relative_to(REPO)}: exists")
+                continue
+            shutil.rmtree(run)
+        for sub in ("docs", "props/workshop", "props/lib", "out", "store", "anim"):
+            (run / sub).mkdir(parents=True)
+        for pack in STORE_PACKS:
+            shutil.copytree(REPO / "assets/props/lib" / pack, run / "props/lib" / pack)
+        shutil.copy2(REPO / "anim/moves.toml", run / "anim/moves.toml")
+        for clip_set in STORE_CLIP_SETS:
+            (run / "anim" / clip_set).symlink_to(REPO / "anim" / clip_set)
+        (run / "store/misses.tsv").write_text("date\tkind\tquery\tnearest\n")
+        docs = ["ASSET_STUDIO.md"] + brief.get("docs", [])
+        for doc in docs:
+            text = (REPO / "docs" / doc).read_text() if args.docs == "worktree" else git("show", f"{info['sha']}:docs/{doc}")
+            if args.arm == "S1A" and SHELF_STEP in text:
+                text = text.replace(SHELF_STEP, "")
+            (run / "docs" / doc).write_text(text)
+        extra = "".join(f", `{doc}` {'the animation tools' if 'ANIM' in doc else 'the materials'}" for doc in docs[1:])
+        shelf = ("\n\n" + SHELF_LINE) if args.arm == "S1L" else ""
+        (run / "docs/README.md").write_text(STORE_README.format(extra=extra, shelf=shelf, commands=cap[0],
+                                                                images=cap[1]))
+        (run / "brief.md").write_text(store_brief_text(brief, cap))
+        config = {"gate": args.gate, "arm": args.arm, "task": brief_id, "run": args.run, "kind": "store",
+                  "names": [], "bin": str(BIN / f"pav-{args.bin_arm}"), "sha": info["sha"], "cap": cap,
+                  "env": STORE_ARMS[args.arm], "model": args.model, "effort": args.effort,
+                  "harness": args.harness, "prepared": time.strftime("%Y-%m-%d %H:%M")}
+        with open(run / "run.json", "w") as f:
+            json.dump(config, f, indent=1)
+        made.append(run)
+    for run in made:
+        print(run.relative_to(REPO))
+
+
+def run_engine(binary, run, lines):
+    """REPL lines against a store run's own folders (props, anim, store), no arm switch."""
+    env = dict(os.environ, PAV_ASSETS="props", PAV_CREATURES="creatures", PAV_ANIM="anim", PAV_STORE="store")
+    env.pop("PAV_FIND", None)
+    out = subprocess.run([str(binary), "repl"], cwd=run, env=env, input="\n".join(lines) + "\n",
+                         capture_output=True, text=True, timeout=600)
+    replies = []
+    for line in out.stdout.splitlines():
+        try:
+            replies.append(json.loads(line))
+        except ValueError:
+            replies.append({"error": line})
+    return replies
+
+
+def asset_text(inspect):
+    return json.dumps(inspect.get("asset", {}))
+
+
+def patterned_materials(asset):
+    """Patterned materials an asset wears: core MAT/ names and inline materials with layers or a base."""
+    text = json.dumps(asset)
+    found = set(re.findall(r'MAT/[A-Za-z0-9_/]+', text))
+    for key, value in (asset.get("materials") or {}).items():
+        if isinstance(value, dict) and (value.get("layers") or value.get("base")):
+            found.add(f"inline:{json.dumps(value, sort_keys=True)}")
+    return found
+
+
+def copies(run):
+    """Workshop leaves a run made with a successful `asset_edit action=copy`."""
+    made = set()
+    for line in (run / "log.jsonl").read_text().splitlines() if (run / "log.jsonl").exists() else []:
+        row = json.loads(line)
+        if row["refused"] or row["reply"].startswith('{"error"'):
+            continue
+        text = row["line"].strip()
+        try:
+            value = json.loads(text) if text.startswith("{") else None
+        except ValueError:
+            value = None
+        if value:
+            tool, args = value.get("tool"), value.get("args") or {}
+        else:
+            words = text.split()
+            tool, args = (words[0] if words else ""), dict(w.split("=", 1) for w in words[1:] if "=" in w)
+        if tool == "asset_edit" and args.get("action") == "copy" and args.get("name"):
+            made.add(str(args["name"]).split("/")[-1].lower())
+    return made
+
+
+def score_store_run(binary, run, brief):
+    """Acceptance facts for one store run: every id resolves, roles are met, sizes fit, made and
+    forked assets are checked."""
+    done = load(run / "done.json")
+    items = done.get("items", []) if isinstance(done, dict) else []
+    facts = {"done": int(done is not None), "items": len(items), "findings": 0, "problems": [], "ids": []}
+    roles = {r["role"]: r for r in brief["roles"]}
+    clip_brief = all(r.get("kind") == "clip" for r in brief["roles"])
+    if clip_brief:
+        workshop = load(run / "anim/workshop.json", {}) or {}
+        lines = [json.dumps({"tool": "clips", "args": {"name": i.get("id", "")}}) for i in items]
+        replies = run_engine(binary, run, lines) if lines else []
+        for item, reply in zip(items, replies):
+            cid, role = str(item.get("id", "")), roles.get(item.get("role"))
+            facts["ids"].append(cid)
+            clip = None
+            if cid.startswith("WORKSHOP/"):
+                clip = (workshop.get("clips") or {}).get(cid.split("/", 1)[1])
+                looping = bool(clip and clip.get("loop"))
+            elif "name" in reply:
+                clip, looping = reply, bool(reply.get("loop"))
+            if clip is None:
+                facts["problems"].append(f"{cid}: does not resolve")
+            elif role and role.get("loop") and not looping:
+                facts["problems"].append(f"{cid}: {item.get('role')} must loop")
+    else:
+        lines = []
+        for item in items:
+            name = str(item.get("id", ""))
+            lines.append(json.dumps({"tool": "asset_edit", "args": {"action": "inspect", "name": name, "bounds": True}}))
+            lines.append(json.dumps({"tool": "asset_edit", "args": {"action": "check", "name": name, "all": True}}))
+        replies = run_engine(binary, run, lines) if lines else []
+        materials, copied = set(), copies(run)
+        for k, item in enumerate(items):
+            name, role = str(item.get("id", "")), roles.get(item.get("role"))
+            inspect = replies[2 * k] if 2 * k < len(replies) else {"error": "no reply"}
+            check = replies[2 * k + 1] if 2 * k + 1 < len(replies) else {}
+            facts["ids"].append(name)
+            if not inspect.get("asset"):
+                facts["problems"].append(f"{name}: does not resolve ({str(inspect.get('error', ''))[:80]})")
+                continue
+            materials |= patterned_materials(inspect["asset"])
+            lo, hi = inspect["bounds"]
+            scale = float(item.get("scale", 1) or 1)
+            cm = [(hi[i] - lo[i]) * 100 * scale for i in range(3)]
+            if role is None:
+                facts["problems"].append(f"{name}: role {item.get('role')!r} is not in the brief")
+                continue
+            for key, value in (("h", cm[1]), ("l", max(cm))):
+                if key in role and not role[key][0] <= value <= role[key][1]:
+                    facts["problems"].append(f"{name}: {item['role']} {key} {value:.0f} cm, wanted {role[key][0]}-{role[key][1]}")
+            if role.get("light"):
+                lights = re.search(r"(\d+) lights", check.get("cost", ""))
+                if not lights or int(lights.group(1)) == 0:
+                    facts["problems"].append(f"{name}: gives off no light")
+            if name.upper().startswith("WORKSHOP/"):
+                lines_ = check.get("check", [])
+                facts["findings"] += len(lines_)
+                for line in lines_:
+                    if line.split(":")[0] in ("floating", "unit_suspect", "below_floor", "not_grounded"):
+                        facts["problems"].append(f"{name}: {line}")
+            if role.get("forked"):
+                leaf = name.split("/", 1)[-1].lower()
+                if not name.upper().startswith("WORKSHOP/") or leaf not in copied:
+                    facts["problems"].append(f"{name}: {item['role']} must be a WORKSHOP copy of another asset")
+            if role.get("material") and not patterned_materials(inspect["asset"]):
+                facts["problems"].append(f"{name}: wears no patterned material")
+        if brief.get("materials") and len(materials) < brief["materials"]:
+            facts["problems"].append(f"{len(materials)} patterned materials, wanted {brief['materials']}")
+    for role, spec in roles.items():
+        have = sum(1 for i in items if i.get("role") == role)
+        if have < spec.get("count", 1):
+            facts["problems"].append(f"role {role}: {have} of {spec.get('count', 1)}")
+    if not facts["done"]:
+        facts["problems"].append("no done.json")
+    return facts
+
+
+def cmd_store_score(args):
+    _, briefs = store_briefs()
+    columns = ["gate", "arm", "task", "run", "done", "accepted", "items", "findings", "calls", "failed", "refused",
+               "wall_s", "ids", "model", "effort", "harness", "problems"]
+    rows = []
+    for run in run_dirs(args.gate):
+        config = load(run / "run.json")
+        if config.get("kind") != "store":
+            continue
+        binary = Path(args.bin).resolve() if args.bin else Path(config["bin"])
+        facts = score_store_run(binary, run, briefs[config["task"]])
+        logged = [json.loads(line) for line in (run / "log.jsonl").read_text().splitlines()] \
+            if (run / "log.jsonl").exists() else []
+        times = [r["t"] for r in logged]
+        runner = config.get("runner", {})
+        rows.append({
+            "gate": config["gate"], "arm": config["arm"], "task": config["task"], "run": config["run"],
+            "done": facts["done"], "accepted": int(facts["done"] and not facts["problems"]), "items": facts["items"],
+            "findings": facts["findings"], "calls": sum(1 for r in logged if not r["refused"]),
+            "failed": sum(1 for r in logged if not r["refused"] and r["reply"].startswith('{"error"')),
+            "refused": sum(1 for r in logged if r["refused"]),
+            "wall_s": round(max(r["t"] + r["ms"] / 1000 for r in logged) - min(times), 1) if logged else 0,
+            "ids": " ".join(facts["ids"]), "model": runner.get("model", config.get("model", "")),
+            "effort": runner.get("effort", config.get("effort", "")),
+            "harness": runner.get("harness", config.get("harness", "")), "problems": "; ".join(facts["problems"])})
+    write_tsv(STORE_RUNS, columns, rows, args.gate)
+    for r in rows:
+        print(f"{r['arm']} {r['task']}-r{r['run']}: accepted {r['accepted']}, findings {r['findings']}, "
+              f"{r['calls']} engine commands; {r['problems'] or 'no problems'}")
+
+
+def write_tsv(path, columns, rows, gate):
+    """Rows into a results table, keeping other gates' rows (rescoring one gate replaces its own)."""
+    existing = []
+    if path.exists():
+        header, *body = path.read_text().splitlines()
+        existing = [dict(zip(header.split("\t"), line.split("\t"))) for line in body]
+        existing = [r for r in existing if not gate or r.get("gate") != gate]
+    all_rows = existing + [{k: str(v) for k, v in r.items()} for r in rows]
+    all_rows.sort(key=lambda r: (r.get("gate", ""), r.get("arm", ""), r.get("task", ""), int(r.get("run") or 0)))
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        f.write("\t".join(columns) + "\n")
+        for r in all_rows:
+            f.write("\t".join(str(r.get(c, "")).replace("\t", " ") for c in columns) + "\n")
+
+
+def projects_dir():
+    """This repository's Claude Code transcripts: ~/.claude/projects/<path with / as ->."""
+    return Path.home() / ".claude/projects" / str(REPO).replace("/", "-")
+
+
+def transcript_usage(path, since=None, until=None):
+    """Model calls in a transcript, each once (a streamed message repeats its usage per line):
+    tokens read (input, cache writes, cache reads), output, the model, and the first and last
+    context. `since`/`until` (ISO times) keep the calls in a window."""
+    calls, seen = [], set()
+    for line in path.read_text().splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        message = entry.get("message") or {}
+        usage = message.get("usage")
+        if message.get("role") != "assistant" or not usage:
+            continue
+        key = message.get("id") or entry.get("requestId") or entry.get("uuid")
+        if key in seen:
+            continue
+        seen.add(key)
+        stamp = entry.get("timestamp", "")
+        if (since and stamp < since) or (until and stamp > until):
+            continue
+        calls.append({"input": usage.get("input_tokens", 0), "cache_write": usage.get("cache_creation_input_tokens", 0),
+                      "cache_read": usage.get("cache_read_input_tokens", 0), "output": usage.get("output_tokens", 0),
+                      "model": message.get("model", "")})
+    return calls
+
+
+def usage_summary(calls):
+    read = [c["input"] + c["cache_write"] + c["cache_read"] for c in calls]
+    weighted = sum(sum(c[k] * w for k, w in WEIGHTS.items()) for c in calls)
+    models = sorted({c["model"] for c in calls if c["model"]})
+    return {"calls": len(calls), "first_ctx": read[0] if read else 0, "last_ctx": read[-1] if read else 0,
+            "processed": sum(read), "fresh": sum(c["input"] + c["cache_write"] for c in calls),
+            "output": sum(c["output"] for c in calls), "weighted": round(weighted), "model": ",".join(models)}
+
+
+def first_prompt(path):
+    for line in path.read_text().splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        message = entry.get("message") or {}
+        if message.get("role") == "user":
+            content = message.get("content")
+            if isinstance(content, list):
+                content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+            return str(content)
+    return ""
+
+
+def cmd_tokens(args):
+    """Per store run: model calls, tokens read and the weighted cost, from this session's subagent
+    transcripts (matched by the RUN path in the first prompt) -> results/agent_tokens.tsv. With
+    --main, the session's own transcript instead (optionally in a time window)."""
+    folder = projects_dir()
+    sessions = sorted(folder.glob("*.jsonl"), key=lambda p: p.stat().st_mtime)
+    if not sessions:
+        sys.exit(f"no transcripts in {folder}")
+    session = folder / f"{args.session}.jsonl" if args.session else sessions[-1]
+    if args.main:
+        summary = usage_summary(transcript_usage(session, args.since, args.until))
+        subagents = []
+        for path in sorted((folder / session.stem / "subagents").glob("**/agent-*.jsonl")):
+            subagents += transcript_usage(path, args.since, args.until)
+        both = usage_summary(transcript_usage(session, args.since, args.until) + subagents)
+        print(json.dumps({"session": session.stem, "since": args.since, "until": args.until, "main": summary,
+                          "with_subagents": both}, indent=1))
+        return
+    agents = sorted((folder / session.stem / "subagents").glob("**/agent-*.jsonl"))
+    prompts = {path: first_prompt(path) for path in agents}
+    columns = ["gate", "arm", "task", "run", "calls", "first_ctx", "last_ctx", "processed", "fresh", "out_visible",
+               "output", "weighted", "model"]
+    rows = []
+    for run in run_dirs(args.gate):
+        config = load(run / "run.json")
+        matched = [path for path, prompt in prompts.items() if str(run) in prompt]
+        if not matched:
+            continue
+        calls = []
+        for path in matched:
+            calls += transcript_usage(path)
+        summary = usage_summary(calls)
+        rows.append({"gate": config["gate"], "arm": config["arm"], "task": config["task"], "run": config["run"],
+                     **{k: summary[k] for k in ("calls", "first_ctx", "last_ctx", "processed", "fresh", "output",
+                                                "weighted")},
+                     "out_visible": "", "model": summary["model"]})
+        print(f"{config['arm']} {config['task']}-r{config['run']}: {summary['calls']} calls, "
+              f"{summary['processed']:,} read, weighted {summary['weighted']:,} ({summary['model']})")
+    if rows:
+        write_tsv(AGENT_TOKENS, columns, rows, args.gate)
+    total = sum(int(r["processed"]) for r in rows)
+    print(f"{len(rows)} runs, {total:,} tokens read")
+
+
+def cmd_store_report(args):
+    """S1's rule (§13): arm L lower than arm A in model calls and in weighted tokens on at least 5
+    of 6 briefs, with no more check findings."""
+    def table(path):
+        if not path.exists():
+            return []
+        header, *body = path.read_text().splitlines()
+        return [dict(zip(header.split("\t"), line.split("\t"))) for line in body]
+    runs = [r for r in table(STORE_RUNS) if r["gate"] == args.gate and r["run"] == args.run]
+    tokens = {(r["arm"], r["task"]): r for r in table(AGENT_TOKENS) if r["gate"] == args.gate and r["run"] == args.run}
+    _, briefs = store_briefs()
+    lines, wins, findings = [], 0, {"S1A": 0, "S1L": 0}
+    for brief_id in sorted(briefs, key=lambda i: briefs[i]["order"]):
+        a, l_ = tokens.get(("S1A", brief_id)), tokens.get(("S1L", brief_id))
+        ra = next((r for r in runs if r["arm"] == "S1A" and r["task"] == brief_id), None)
+        rl = next((r for r in runs if r["arm"] == "S1L" and r["task"] == brief_id), None)
+        for arm, row in (("S1A", ra), ("S1L", rl)):
+            findings[arm] += int(row["findings"]) if row else 0
+        if not (a and l_):
+            lines.append(f"{brief_id}: incomplete")
+            continue
+        win = int(l_["calls"]) < int(a["calls"]) and int(l_["weighted"]) < int(a["weighted"])
+        wins += win
+        lines.append(f"{brief_id} {briefs[brief_id]['title']}: calls {a['calls']} -> {l_['calls']}, read "
+                     f"{int(a['processed']):,} -> {int(l_['processed']):,}, weighted {int(a['weighted']):,} -> "
+                     f"{int(l_['weighted']):,}, accepted {ra['accepted'] if ra else '?'}/{rl['accepted'] if rl else '?'}, "
+                     f"findings {ra['findings'] if ra else '?'}/{rl['findings'] if rl else '?'}: "
+                     f"{'L lower' if win else 'not lower'}")
+    passed = wins >= 5 and findings["S1L"] <= findings["S1A"]
+    print("\n".join(lines))
+    print(f"L lower in calls and weighted tokens on {wins} of {len(briefs)} briefs; findings A {findings['S1A']}, "
+          f"L {findings['S1L']}: {'PASS' if passed else 'FAIL'}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1179,8 +1610,31 @@ def main():
     p.add_argument("--model", default="opus")
     p.add_argument("--effort", default="medium")
     sub.add_parser("selftest")
+    p = sub.add_parser("store-prepare")
+    p.add_argument("--gate", default="S1")
+    p.add_argument("--arm", required=True, help="S1A (templates only) or S1L (the store)")
+    p.add_argument("--briefs", default="all", help="all (largest first) or B1,B6,...")
+    p.add_argument("--run", type=int, default=1)
+    p.add_argument("--bin-arm", default="S1", help="the binary: bench.py build --arm S1 on S0's merged head")
+    p.add_argument("--model", default="model 1")
+    p.add_argument("--effort", default="medium")
+    p.add_argument("--harness", default="Claude Code subagent asset-bench-author, cloud session")
+    p.add_argument("--docs", default="binary", help="binary (docs at the binary's commit) or worktree")
+    p.add_argument("--force", action="store_true")
+    p = sub.add_parser("store-score")
+    p.add_argument("--gate", default="S1")
+    p.add_argument("--bin")
+    p = sub.add_parser("tokens")
+    p.add_argument("--gate", default="S1")
+    p.add_argument("--session", help="session id (default: the newest transcript)")
+    p.add_argument("--main", action="store_true", help="the session's own transcript and its subagents")
+    p.add_argument("--since", help="ISO time, e.g. 2026-10-15T01:00")
+    p.add_argument("--until")
+    p = sub.add_parser("store-report")
+    p.add_argument("--gate", default="S1")
+    p.add_argument("--run", default="1")
     args = parser.parse_args()
-    globals()[f"cmd_{args.command}"](args)
+    globals()[f"cmd_{args.command.replace('-', '_')}"](args)
 
 
 if __name__ == "__main__":

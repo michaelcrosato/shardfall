@@ -6,10 +6,13 @@ into broken commands.
 
 ## The loop
 
-1. `assets find=words` finds a starting point: templates (BUILTIN/box, crate, bench, lantern),
-   library packs (LIB/pack/name, read-only: copy one; imported packs: docs/ASSET_IMPORT.md) and
-   saved objects (WORKSHOP/name). Rows are name cat size_cm tier mesh tok tags desc, best first
-   (tier: standard, checked or disk; mesh: % read-only mesh); a miss says `none` with a route;
+1. Look before you make. `assets shelf=prop` lists the store's best props by category in one
+   call; if one fits, use it as it is or copy it (`asset_edit action=copy`) and change the copy,
+   which costs far less than making one. Then `assets find=words` finds a starting point:
+   templates (BUILTIN/box, crate, bench, lantern), library packs (LIB/pack/name, read-only: copy
+   one; imported packs: docs/ASSET_IMPORT.md) and saved objects (WORKSHOP/name). Rows are name
+   cat size_cm tier mesh tok tags desc, best first (tier: standard, checked or disk; mesh: %
+   read-only mesh); a miss says `none` with a route;
    filters `category=`, `tags=` (`@sit`: a socket), `tier=standard` (what every build has),
    `similar=NAME`; `next` pages.
 2. Make the object and look at it in one go: a create command like the one below and, on the
