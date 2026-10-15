@@ -5,6 +5,35 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Asset store S4: ten clips a second engine reads from their rows — 2026-10-15
+
+Stage S4 of `docs/AGENT_ASSET_STORE.md` (§13, §15), Shardfall's side. **Exit: met on
+Shardfall's side; the cross-engine match is pending: my-3dge session**
+(`docs/handoffs/S4-my-3dge.md`).
+- **The tolerance, fixed first:** a second engine's decode *matches* when, per clip, the mean
+  distance between its 36 body points and Shardfall's over all samples is at most 1 mm and the
+  worst at most 5 mm. Shardfall's decoder (`mocap/readable.rs`) is a step-for-step port of
+  my-3D2dge's `readable.js`, so an engine that decodes the same rows the same way agrees to float
+  noise; anything larger is a convention bug (axis, sign, degrees, interpolation, rest frame).
+- **Rows to files:** `store/STORE.tsv`'s header gains a `# Clip sets:` line naming each set's
+  file (`MESH2MOTION anim/mesh2motion.json`, ...), so a reader goes id → set file → clip; set
+  files are format 1, angles in degrees.
+- **The ten clips:** MESH2MOTION (new to my-3dge) Idle_A, Jog, Death_A, Greeting, Crouch_Walk,
+  "Climb Ladder" (a name with a space), and QUATERNIUS Walk_Loop, Sword_Attack, Jump_Start,
+  Dance_Loop; all CC0.
+- **The fixture:** `store/fixtures/clip_points.json` (43 KB): per clip its id, file, set, source,
+  duration, loop, its capture fit from the set file (mean/worst mm against the capture: 11/52 to
+  28/137), and 6 evenly spaced samples of the 36 body points in mm on the body the clip was
+  measured on (`sources.<src>.rest`), rounded to 0.1 mm. `pav_tools/tests/clip_fixture.rs` reads
+  each clip through its STORE.tsv row and set file and holds Shardfall's own decode to the
+  fixture (mean 0.1 mm, worst 0.2 mm); `PAV_WRITE_FIXTURE=1` rewrites it.
+- **The hand-off:** `docs/handoffs/S4-my-3dge.md`, a prompt for a session in my-3dge: move
+  `tools/anim/shardfall.ts`'s pin from `fa2dab6` to the S4 merge, fetch only STORE.tsv, the
+  fixture and the two set files, read the ten rows, decode on each clip's rest body, compare
+  under the tolerance, load the clips with their credits, add a test, and report back.
+- **Costs:** tests $0 (limit $5); S4 total $4.58 against the $30 estimate, about 0.2 h of work
+  in two windows (21:10-21:14 UTC, inside S3's, and 23:07-23:10) before its PR's review wait.
+
 ## Asset store S3b: imported characters as rigid figures — 2026-10-15
 
 Stage S3b of `docs/AGENT_ASSET_STORE.md` (§4, §13, §15). **Exit: met; the rigid-or-skinned call

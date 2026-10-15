@@ -54,8 +54,10 @@ materials and search fixes, met/needs reached props 0.29, clips 0.25, materials 
 `bench.py cost` prices stages in US$. **S3b is done:** five CC0 KayKit characters imported as
 rigid figures (16 segments each) that play every embedded clip with no check findings, a
 `character` store kind, in the Catalogue; skinning waits for the user's verdict on its review
-page (pending user). **Next: S4 and S5**, run from the plan's §15 ("Executing S3–S5"): each
-built and merged whatever its exit result, within hard test limits.
+page (pending user). **S4 is done** on Shardfall's side: ten CC0 clips readable from their
+store rows, their body points in mm as a fixture; the cross-engine match is pending a my-3dge
+session (`docs/handoffs/S4-my-3dge.md`). **Next: S5**, run from the plan's §15 ("Executing
+S3–S5"): built and merged whatever its exit result, within its hard test limit.
 Shardfall only (the user, 2026-10-15): assets may come in from sibling repositories when they fit
 Shardfall's formats, but nothing is written there; S4's my-3dge reader and S5's riftlight sprite
 side become hand-off prompts in `docs/handoffs/`.
