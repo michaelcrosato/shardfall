@@ -110,6 +110,8 @@ pub fn level_text(key: &str, built_in: &'static str) -> std::borrow::Cow<'static
     if let Ok(text) = std::fs::read_to_string(format!("crates/pav_core/src/games/{key}.toml")) {
         return text.into();
     }
+    #[cfg(target_arch = "wasm32")]
+    let _ = key; // the browser has no files
     built_in.into()
 }
 
