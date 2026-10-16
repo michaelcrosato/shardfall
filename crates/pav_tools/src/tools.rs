@@ -308,11 +308,11 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "play",
-        help: "A game from pav_core::games (load scene=<key>): HUD, outcome, state. bot=true lets its bot play.",
+        help: "A games/ game's HUD, outcome and status.",
         args: &[
-            arg("bot", "boolean", "the game's bot plays until won, lost or ticks pass"),
-            arg("ticks", "integer", "most ticks per bot run (default 3600 = 60 s)"),
-            arg("seeds", "integer", "with bot: fresh runs on seeds 1..N; the session is untouched"),
+            arg("bot", "boolean", "its bot plays until won or lost"),
+            arg("ticks", "integer", "bot run cap (3600)"),
+            arg("seeds", "integer", "bot runs on seeds 1..N"),
         ],
         run: crate::play_tools::t_play,
     },
@@ -516,7 +516,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clip_import",
-        help: "Translate an animation library into a clip set (anim/<set>.json: key poses with credits). from= .glb (Rigify, Unreal or Mixamo rigs; sources= ids), .fbx (every stack a clip), .bvh (at=FROM-TO, loop=true: best cycle, way=), set files (.js, .json) or a folder. catalog= (anim/catalogs/*.json) tags and credits clips; with \"$pick\" and no from= it cuts moments out of CMU, 100STYLE, Bandai Namco or LaFAN1 (the last two into anim/local). list=true shows a file's rig and clips.",
+        help: "Translate an animation library into a clip set (anim/<set>.json: key poses, credits). from= .glb (Rigify/Unreal/Mixamo rigs; sources= ids), .fbx (each stack a clip), .bvh (at=FROM-TO, loop=true: best cycle, way=), set files or a folder. catalog= (anim/catalogs/*.json) tags and credits; with \"$pick\" and no from= it cuts CMU, 100STYLE, Bandai Namco or LaFAN1 moments (the last two to anim/local). list=true: a file's rig and clips.",
         args: &[
             arg("from", "string", "files (comma separated) or a folder of sets"),
             arg("catalog", "string", "catalog JSON (tags, descriptions, sources, skips, picks)"),
@@ -569,7 +569,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "mocap",
-        help: "Open motion-capture databases, translated on demand. No args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits one moment into a set. survey=ledger measures the CMU takes into anim/cmu/takes.tsv; survey=library translates them into anim/cmu.",
+        help: "Open motion-capture databases, translated on demand; no args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits a moment into a set. survey=ledger measures CMU takes into anim/cmu/takes.tsv; survey=library translates them to anim/cmu.",
         args: &[
             arg("find", "string", "words to search takes for"),
             arg("lib", "string", "cmu, 100style or all (find)"),
@@ -599,7 +599,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "anim_edit",
-        help: "Create, copy, inspect, and edit readable animation clips. Edits are validated, saved to WORKSHOP (or WORKSHOP_LOCAL for local sources), and shown in the live preview. Source clips and credits are preserved. Use inspect first, then pass if_revision from its result to prevent stale edits. key changes only the specified pose channels. Undo and redo retain up to 32 changes. All actions work through the CLI, MCP, and live bridge.",
+        help: "Create, copy, inspect, and edit readable animation clips. Edits are validated, saved to WORKSHOP (WORKSHOP_LOCAL for local sources) and shown in the live preview; sources and credits are kept. Inspect first, then pass its if_revision. key changes only the given pose channels. Undo/redo keep 32 changes.",
         args: &[
             arg("action", "string", "create | copy | inspect | key | delete_key | replace | retime | mirror | undo | redo"),
             arg("name", "string", "clip name, or WORKSHOP/Name (inspect also accepts any SET/Clip)"),
@@ -617,7 +617,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "anim_preview",
-        help: "View an animation in an isolated studio with the game's renderer; the game resumes when it closes. Select clip=SET/Clip or move=NAME. Control play, pause, time, source-frame steps, speed, repeat, mirror, upper body, and travel. Same-name edits update without resetting the clock or camera. No args returns preview state; action=pose returns the sampled pose. capture and filmstrip show the studio through MCP images.",
+        help: "View an animation in an isolated studio with the game's renderer; the game resumes when it closes. clip=SET/Clip or move=NAME; play, pause, time, frame steps, speed, repeat, mirror, upper body, travel. Same-name edits keep the clock and camera. No args: preview state; action=pose: the sampled pose. capture/filmstrip show the studio.",
         args: &[
             arg("clip", "string", "SET/Clip to view"),
             arg("move", "string", "procedural move to view"),
@@ -722,7 +722,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_edit",
-        help: "Create and revise procedural rigged creatures: create (bundled template, blueprint or seeded theme), patch (atomic named-path SpawnForge ops), surface (skin), copy, inspect, replace, undo, redo, rebuild. Pass if_revision from inspect or the last job. Native builds are asynchronous: poll creature_status until published or failed before judging a capture; failed or superseded jobs keep the last good stage. The one-shot CLI waits.",
+        help: "Create and revise procedural rigged creatures: create (bundled template, blueprint or seeded theme), patch (atomic named-path SpawnForge ops), surface (skin), copy, inspect, replace, undo, redo, rebuild. Pass if_revision from inspect or the last job. Builds are asynchronous: poll creature_status until published or failed before judging a capture; a failed or superseded job keeps the last good stage. The CLI waits.",
         args: &[
             arg("action", "string", "create | copy | inspect | patch | surface | replace | undo | redo | rebuild"),
             arg("name", "string", "lowercase leaf or CREATURE/name"),
@@ -867,7 +867,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "look",
-        help: "Looks and filter presets (the game's Look & Filters menu): name= a whole look, section= with preset= / on= (all, objects = characters and objects, environment) / enabled=, reset=true, compare=0.5 (filters only on the right). bench=all or a comma list of looks renders this moment under each, numbered. No args lists sections, presets and looks.",
+        help: "Looks and filter presets (the Look & Filters menu): name= a whole look, section= with preset= / on= (all, objects = characters and objects, environment) / enabled=, reset=true, compare=0.5 (filters on the right only). bench=all or a list of looks renders this moment in each. No args lists them.",
         args: &[
             arg("name", "string", "a whole look (e.g. Pixel heroes, HD-2D, Game Boy world)"),
             arg("section", "string", "pixel, shading, outlines, palette, grading, scanlines, grain, screen, glow"),
