@@ -8,15 +8,16 @@ reads this whole file, then works through §11's stages in order. Paths without 
 `crates/pav_core/src/`. Players get their own page, `docs/COOP.md`, in C5.
 
 ## 1. What the user asked
-- **Up to four players**, online co-op, "essentially the same single player experience". No
-  extra monsters: monster **life and damage scale** with the number of players.
-- **Lag-free feel:** do whatever it takes on every side (host, client, server).
-- **No anti-cheat:** every client is trusted.
-- **Free roaming:** any player goes anywhere they can reach on their own, never tied to another
-  player and never waiting for one. "A super mini-MMO."
-- **No voice or text chat.** Emotes with animations, pings and map pings are in.
-- Implied by `AGENTS.md`: the user's Windows `.exe`, Linux and the browser build all play
-  together.
+| The ask | Where this plan meets it |
+|---|---|
+| **Up to four players**, online co-op, "essentially the same single player experience" | §2 (1-5), §5.1 (the cap), §5.5, §7 |
+| **No extra monsters:** monster **life and damage scale** with the number of players | §6 |
+| **Lag-free feel:** whatever it takes on every side (host, client, server) | §2 (2-4, 8-9), §5.7, §9, with measured targets in §10 |
+| **No anti-cheat:** every client is trusted | §2 (4), §5.6: claims are never re-checked |
+| **Free roaming:** anyone goes anywhere they can reach on their own, never tied to another player, never waiting ("a super mini-MMO") | §2 (1-2), §5.2: one shared instance per place, with travel gated only by the hero's own progress |
+| **No voice or text chat.** Emotes with animations, pings and map pings are in | §8 |
+| A short `/goal` to build it, the effort level, and whether to `/compact` or `/goal` first | §14 |
+| Implied by `AGENTS.md`: the Windows `.exe`, Linux and the browser build play together | §9, §11 (C3) |
 
 ## 2. The design in one page
 1. **One game, one place, as today.** Each player's game simulates only the place its hero is
@@ -537,8 +538,16 @@ which the run applies if no answer has come 15 minutes after it reaches the ques
   exit; fix it there if it does.
 
 ## 14. Running it
-The expected size is about 8,000-12,000 lines over six PRs (C0-C5); C6 waits on E1. This is the
-user's line for the run:
+The expected size is about 8,000-12,000 lines over six PRs (C0-C5); C6 waits on E1.
+1. **Before you start:** answer E1-E3 (§12) if you can, so the run doesn't stop on them.
+2. **Start fresh, don't compact.** Open a new session, or `/clear` this one, then give the
+   `/goal` below. This file carries everything the run needs, and a `/compact` summary of
+   earlier work would add tokens that every later call re-reads. A new cloud session builds
+   `pav` in its start hook.
+3. **Effort: extra (xhigh).** The design decisions are made here; what remains is a long,
+   careful engineering run with tool-checked exits. That suits xhigh. Max would mostly add cost,
+   and medium or high would risk cutting corners on ownership and resync edge cases.
+4. **The goal line:**
 
 ```
 /goal Build co-op as docs/COOP_PLAN.md specifies: stages C0-C5 in order, one PR per stage merged when its checks pass, single player unchanged. Done when §10's targets hold in a four-player bot session and two native games and a browser tab play together over localhost WebRTC.
