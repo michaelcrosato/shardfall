@@ -1,0 +1,253 @@
+# Clip Browser (animation wing): every motion clip in the library, one at a time, played by a cast
+# of six side by side: the stock puppet and the five KayKit figures (rigid per-bone bodies imported
+# by the store, shipped in every build). The `clip_browser` behaviour steps the cast through the
+# library on a pad's signal and lays the clip's name, length, fit and licence on the floor before it.
+#   BACK   the stage: PUPPET, KNIGHT, BARBARIAN, MAGE, ROGUE, HOODED ROGUE, each named on the floor
+#   MIDDLE the clip card on the floor (its name and number, then what it is), BACK, NEXT and AUTO,
+#          and a pad per set (CMU, MESH2MOTION, QUATERNIUS, 100STYLE)
+#   FRONT  SLOW, NORMAL, MIRROR, AS CAPTURED; the figures' credit by the door
+name = "Clip Browser"
+about = "All 437 motion clips in the library, one at a time, performed by six bodies at once: the stock puppet and five imported KayKit figures. NEXT and BACK step through them, a pad per set jumps to that library, AUTO plays them all in turn."
+try = [
+  "Step on NEXT: all six performers start the next clip together, and the card on the floor names it",
+  "Step on QUATERNIUS (or CMU, MESH2MOTION, 100STYLE) to jump to that library's first clip",
+  "Step on AUTO and watch: each clip plays a few seconds, then the next",
+  "Compare bodies: the same clip on a short knight and a tall mage, each at its own proportions",
+  "In the REPL: signal name=clip_next steps without walking; clips find=dance searches the same library",
+]
+wing = "animation"
+order = 10
+primary_device = "keyboard_mouse"
+entrance = { at = [12, 19], facing = "south" }
+
+[camera]
+tilt = 30.0
+distance = 12.5
+fov = 44.0
+
+# Station guide (H in the game).
+[learn]
+what = "Every clip the engine ships, one at a time, on six bodies: the procedural puppet and the five KayKit adventurers (Knight, Barbarian, Mage, Rogue and the hooded Rogue), imported from a CC0 pack as rigid figures, one solid piece per bone. The card on the floor before the stage gives the clip's name and number, its length, whether it loops, how closely it follows the capture it was translated from, what it shows, and its source and licence."
+how = [
+  "A clip is a list of key poses that name directions and bends, not positions, so the same clip plays on any body: each limb takes the clip's direction at its own length and the knees and elbows are solved by two-bone IK.",
+  "The figures are puppets that wear an imported body: the look names the figure, the puppet is re-proportioned to the figure's bones, and each of its sixteen rigid segments is drawn where the puppet's bone is.",
+  "The browser object lists the library set by set and, on a pad's signal, gives every performer whose name starts with 'cast' the same clip on the same tick, so they move together. AUTO steps on after a loop's hold or two plays of a one-shot.",
+  "Which clip is on show, the cast's performances and the signs are simulation state: rewind, snapshots and replays show the same clip at the same moment.",
+  "The figures ship in every build, the browser's and a lone Windows exe's included, beside the embedded core library.",
+]
+uses = [
+  "Animation browsers: Unreal's and Unity's animation preview windows play a clip on a chosen skeleton; Mixamo plays its whole library on one character.",
+  "Retargeting checks: animators play a library on several bodies at once to catch clips that break on a short or long-limbed character.",
+]
+ask = [
+  "show me every animation we have",
+  "play this clip on all the characters",
+  "which clips loop",
+  "compare a clip on a tall and a short character",
+  "put the imported characters in a room",
+]
+cost = "Six characters pose one clip each per frame (a few dozen trig operations and four IK solves each); a figure draws sixteen meshes instead of the puppet's primitives. The five figures add about 650 KB of text to the build. A step changes six performances and two labels."
+knobs = ["anim.tempo", "anim.mirror"]
+terms = ["motion capture", "retargeting", "key pose", "ik", "determinism"]
+
+[[learn.code]]
+title = "A step gives the whole cast the same clip on the same tick"
+file = "crates/pav_core/src/clip_browser.rs"
+lang = "rust"
+src = '''
+let cast: Vec<_> = self
+    .state
+    .entities
+    .iter()
+    .filter(|e| e.region == region && e.ai.is_some() && !def.cast.is_empty() && e.name.starts_with(&def.cast))
+    .map(|e| e.id)
+    .collect();
+for member in cast {
+    if let Some(ai) = self.state.entities.get_mut(member).and_then(|e| e.ai.as_mut()) {
+        ai.perform = Some(crate::ai::Perform::new(vec![id], Vec::new(), 0, def.hold, 1.0));
+    }
+}
+'''
+
+[[learn.code]]
+title = "A figure posed by the puppet: its rigid segments on the puppet's bones"
+file = "crates/pav_view/src/assets.rs"
+lang = "rust"
+src = '''
+let figure = pav_core::figure::get(&def.figure)?;
+let def = figure.fit(def);
+let sk = pav_core::puppet::biped_skel(&def, st);
+let poses = figure.pose(&def, &sk);
+let (q, shift) = pav_core::puppet::body_motion(&def, st);
+let at = Placement::at(feet + shift).rot(q * Quat::from_rotation_y(st.facing)).id(id);
+emit_figure(scene, &def.figure, &poses, at, &Palette::new(), wash)
+'''
+
+[layout]
+origin = [-13.0, 0.0, -8.0]
+
+[[layout.layer]]
+y = 0
+map = '''
+##########################
+#........................#
+#.ssssssssssssssssssssss.#
+#.ssssssssssssssssssssss.#
+#.ssssssssssssssssssssss.#
+#........................#
+#........................#
+#........................#
+#........................#
+#........................#
+#.......bb..nn..aa.......#
+#.......bb..nn..aa.......#
+#........................#
+#....cc..mm..qq..yy......#
+#....cc..mm..qq..yy......#
+#........................#
+#....ll..oo..rr..uu......#
+#....ll..oo..rr..uu......#
+#........................#
+############..############
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }, { y0 = 0, y1 = 3.0, color = "#2c3042" }]
+
+[layout.legend.'s']
+blocks = [{ y0 = -0.5, y1 = 0.25, color = "#5a6078" }]
+
+[layout.legend.'b']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "BACK", color = "#556a8a", signal = "clip_back", note = "The clip before (from the first: the last). The whole cast starts it together." }
+
+[layout.legend.'n']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "NEXT", color = "#3f9e5a", signal = "clip_next", note = "The next clip in the library, on all six bodies at once; the card on the floor names it." }
+
+[layout.legend.'a']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "AUTO", color = "#c08a2a", signal = "clip_auto", note = "Plays the library in turn: a loop for a few seconds, a one-shot twice, then the next. Step on it again to stop." }
+
+[layout.legend.'c']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "CMU", color = "#4f7df3", signal = "clip_set_cmu", note = "The CMU motion capture database's clips: acrobatics, fights, sports and everyday motion, captured in a lab." }
+
+[layout.legend.'m']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "MESH2MOTION", label_size = 0.3, color = "#4f7df3", signal = "clip_set_m2m", note = "Mesh2Motion's clips (CC0): hand-keyed and captured actions, emotes and dances." }
+
+[layout.legend.'q']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "QUATERNIUS", label_size = 0.3, color = "#4f7df3", signal = "clip_set_quaternius", note = "Quaternius' Universal Animation Library (CC0): a game's standard set of idles, walks, attacks and reactions." }
+
+[layout.legend.'y']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "100STYLE", color = "#4f7df3", signal = "clip_set_style100", note = "The 100STYLE dataset (CC BY 4.0): one performer walking in a hundred styles." }
+
+[layout.legend.'l']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "SLOW", color = "#556a8a", params = { "anim.tempo" = 0.35 }, note = "Everyone performs at about a third of the speed: watch how each key pose reaches the next." }
+
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "NORMAL", color = "#556a8a", params = { "anim.tempo" = 1.0 }, note = "Back to the speed the clips were captured or keyed at." }
+
+[layout.legend.'r']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "MIRROR", color = "#3f9e5a", params = { "anim.mirror" = true }, note = "Every clip plays mirrored: left and right swap. One clip gives both handed versions." }
+
+[layout.legend.'u']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3d4256" }]
+zone = { kind = "pad", label = "AS CAPTURED", label_size = 0.3, color = "#2f3441", params = { "anim.mirror" = false }, note = "Back to the clips as they were captured." }
+
+# ---- labels, characters and objects (keep at the end of the file) ----
+
+[[label]]
+text = "PUPPET"
+pos = [3.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "KNIGHT"
+pos = [7.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "BARBARIAN"
+pos = [11.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "MAGE"
+pos = [15.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "ROGUE"
+pos = [19.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "HOODED ROGUE"
+pos = [23.0, 0.03, 5.6]
+size = 0.36
+color = "#f1f4fa"
+
+[[label]]
+text = "FIGURES: KAYKIT CHARACTER PACK ADVENTURERS (CC0, KAY LOUSBERG)"
+pos = [13.0, 0.03, 18.5]
+size = 0.26
+color = "#aeb6c8"
+
+[[npc]]
+name = "cast_puppet"
+pos = [3.0, 0.25, 3.5]
+yaw = 0
+look = { shirt = "#e0a040", pants = "#2a2a3a", skin = "#d8a07a" }
+
+[[npc]]
+name = "cast_knight"
+pos = [7.0, 0.25, 3.5]
+yaw = 0
+look = { figure = "LIB/kaykit_adventurers/knight" }
+
+[[npc]]
+name = "cast_barbarian"
+pos = [11.0, 0.25, 3.5]
+yaw = 0
+look = { figure = "LIB/kaykit_adventurers/barbarian" }
+
+[[npc]]
+name = "cast_mage"
+pos = [15.0, 0.25, 3.5]
+yaw = 0
+look = { figure = "LIB/kaykit_adventurers/mage" }
+
+[[npc]]
+name = "cast_rogue"
+pos = [19.0, 0.25, 3.5]
+yaw = 0
+look = { figure = "LIB/kaykit_adventurers/rogue" }
+
+[[npc]]
+name = "cast_rogue_hooded"
+pos = [23.0, 0.25, 3.5]
+yaw = 0
+look = { figure = "LIB/kaykit_adventurers/rogue_hooded" }
+
+[[object]]
+name = "clip_browser"
+shape = { type = "sphere", radius = 0.05 }
+pos = [13.0, 0.0, 6.6]
+color = "#3d4256"
+body = "none"
+behavior = { type = "clip_browser", next = "clip_next", back = "clip_back", auto = "clip_auto", cast = "cast", hold = 5.0, start = "QUATERNIUS/Idle_Loop", sets = [["clip_set_cmu", "CMU"], ["clip_set_m2m", "MESH2MOTION"], ["clip_set_quaternius", "QUATERNIUS"], ["clip_set_style100", "STYLE100"]] }

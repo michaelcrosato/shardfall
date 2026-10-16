@@ -179,7 +179,8 @@ printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\
   `docs/CREATURE_STUDIO.md`); `scripts/animation-studio.sh`, `asset-studio.sh` and
   `creature-studio.sh` build and open each. Pass the last reply's `revision` as `if_revision`,
   and copy a source clip or asset before changing it.
-- Game data and rooms may name only embedded assets. Game code draws library assets from its own
+- Game data and rooms may name only assets every build carries: embedded (BUILTIN, LIB/core) or a
+  shipped pack's (`props::store::SHIPPED`: the KayKit figures). Game code draws library assets from its own
   state with `pav_view::assets::emit_asset` (`docs/ASSET_STUDIO.md`, "Library assets in game code").
 - `tools/creature-compiler` vendors the exact SpawnForge pin: keep the pin and source hashes
   intact; don't resolve against a moving upstream checkout.

@@ -85,8 +85,10 @@ pub fn check_sets(sets: &BTreeMap<String, PropSet>) -> Result<(), String> {
         for (i, item) in set.items.iter().enumerate() {
             let at = format!("game/props.toml [{key}] items[{i}]");
             let name = props::canonical_placed(&item.asset).map_err(|e| format!("{at}: {e}"))?;
-            if !props::store::embedded(props::split_preset(&name).0) {
-                return Err(format!("{at}: {name} is not embedded (BUILTIN/ or LIB/core/): the browser build lacks it"));
+            if !props::store::shipped(props::split_preset(&name).0) {
+                return Err(format!(
+                    "{at}: {name} is not in every build (BUILTIN/, LIB/core/ or a shipped pack): the browser build lacks it"
+                ));
             }
             props::resolve_placed(&name, &props::Params::new()).map_err(|e| format!("{at}: {e}"))?;
             let [lo, hi] = item.scale;

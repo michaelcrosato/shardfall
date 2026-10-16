@@ -161,7 +161,7 @@ fn generated() -> Result<String> {
     label(&mut out, &format!("ONE CLIP, TWO BODIES\n{SHARED_CLIP}"), Vec3::new(mid + 4.75, 0.03, 2.4), 0.24);
     for (i, row) in rows.iter().enumerate() {
         let (x0, z0) = cell_at(i);
-        label(&mut out, &sign(row), Vec3::new(x0 as f32 + 2.0, 0.03, z0 as f32 + 3.5), 0.2);
+        label(&mut out, &sign(row), Vec3::new(x0 as f32 + 2.0, 0.03, z0 as f32 + 3.55), 0.24);
     }
 
     // Characters: Kestrel on a chair through its `sit` socket; Ysolde holding a staff through

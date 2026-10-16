@@ -99,9 +99,26 @@ pub fn editable(name: &str) -> bool {
     name.starts_with("WORKSHOP/") || name.starts_with("WORKSHOP_LOCAL/")
 }
 
-/// In every build, the browser's included: game data and rooms may name only these.
+/// The embedded tier: the templates and the core pack, in every build.
 pub fn embedded(name: &str) -> bool {
     name.starts_with("BUILTIN/") || pack(name) == Some(CORE)
+}
+
+/// Packs whose files every build carries beside the core (the browser and a lone `.exe` have no
+/// asset files), so rooms and game data can show them. Their rows keep their own tier: shipping
+/// says where the files are, not how far an entry has come. Keep `build.rs`'s list in step.
+pub const SHIPPED: &[&str] = &["kaykit_adventurers"];
+
+/// In every build, the browser's included: game data and rooms may name only these (the
+/// embedded tier and the shipped packs).
+pub fn shipped(name: &str) -> bool {
+    embedded(name) || pack(name).is_some_and(|pack| SHIPPED.contains(&pack))
+}
+
+/// A shipped pack's file by its path inside the pack (`knight.json`, `rigs/knight.json`).
+pub fn shipped_file(name: &str, inner: &str) -> Option<&'static str> {
+    let pack = pack(name).filter(|pack| SHIPPED.contains(pack))?;
+    embedded_file(&format!("lib/{pack}/{inner}"))
 }
 
 /// Native asset files: `$PAV_ASSETS`, else `./assets/props`.
@@ -148,16 +165,22 @@ pub fn disk_file(root: &Path, name: &str) -> Option<PathBuf> {
 }
 
 /// A library asset's text: `LIB/core` from the embedded data, other packs from `root`
-/// (native builds). None: no such asset.
+/// (native builds), a shipped pack's from the build when `root` lacks it. None: no such asset.
 pub(super) fn library_text(root: &Path, name: &str) -> Option<Result<String, String>> {
     if pack(name)? == CORE {
         return embedded_file(&format!("lib/core/{}.json", leaf(name))).map(|text| Ok(text.to_owned()));
     }
+    let shipped = || shipped_file(name, &format!("{}.json", leaf(name))).map(|text| Ok(text.to_owned()));
     if cfg!(target_arch = "wasm32") {
-        return None;
+        return shipped();
     }
-    let path = disk_file(root, name)?;
-    Some(std::fs::read_to_string(&path).map_err(|e| format!("{name}: read {}: {e}", path.display())))
+    match disk_file(root, name).filter(|path| path.is_file()) {
+        Some(path) => Some(std::fs::read_to_string(&path).map_err(|e| format!("{name}: read {}: {e}", path.display()))),
+        None => shipped().or_else(|| {
+            let path = disk_file(root, name)?;
+            Some(std::fs::read_to_string(&path).map_err(|e| format!("{name}: read {}: {e}", path.display())))
+        }),
+    }
 }
 
 #[cfg(test)]

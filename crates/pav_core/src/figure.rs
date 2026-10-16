@@ -596,21 +596,30 @@ pub fn forget(name: &str) {
 }
 
 /// The figure `name` (`LIB/kaykit_adventurers/knight`): installed, else read once from its
-/// rig file on disk (native builds; the browser has none).
+/// rig file on disk (native builds), or from the build for a shipped pack
+/// (`props::store::SHIPPED`; the browser and a lone `.exe` have no asset files).
 pub fn get(name: &str) -> Result<Arc<Figure>, String> {
     let name = props::store::canonical(name)?;
     if let Some(f) = registry().read().unwrap().get(&name) {
         return Ok(f.clone());
     }
-    if cfg!(target_arch = "wasm32") {
-        return Err(format!("{name}: figures are read from disk (desktop builds)"));
-    }
-    let path = rig_file(&props::disk_root(), &name)
-        .ok_or_else(|| format!("{name}: no rig file (rigs/{}.json in its pack)", props::leaf(&name)))?;
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let rig = RigFile::parse(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let inner = format!("rigs/{}.json", props::leaf(&name));
+    let disk = if cfg!(target_arch = "wasm32") { None } else { rig_file(&props::disk_root(), &name) };
+    let (text, from) = match disk {
+        Some(path) => {
+            (std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?, path.display().to_string())
+        }
+        None => match props::store::shipped_file(&name, &inner) {
+            Some(text) => (text.to_owned(), format!("{name} ({inner}, built in)")),
+            None if cfg!(target_arch = "wasm32") => {
+                return Err(format!("{name}: not a shipped pack: the browser reads no asset files"));
+            }
+            None => return Err(format!("{name}: no rig file ({inner} in its pack)")),
+        },
+    };
+    let rig = RigFile::parse(&text).map_err(|e| format!("{from}: {e}"))?;
     if rig.body != name {
-        return Err(format!("{}: its body is {}, not {name}", path.display(), rig.body));
+        return Err(format!("{from}: its body is {}, not {name}", rig.body));
     }
     install(rig)
 }

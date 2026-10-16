@@ -216,15 +216,25 @@ fn embedded(name: &str) -> Option<&'static str> {
     (pack == super::store::CORE).then(|| super::store::embedded_file(&format!("lib/core/meshes/{leaf}.json")))?
 }
 
-/// The mesh `name`: installed, else read once from the embedded core pack or (native) disk.
+/// A shipped pack's mesh (`super::store::SHIPPED`), which the build carries.
+fn shipped(name: &str) -> Option<&'static str> {
+    let (pack, leaf) = check_name(name).ok()?;
+    super::store::SHIPPED.contains(&pack).then(|| super::store::embedded_file(&format!("lib/{pack}/meshes/{leaf}.json")))?
+}
+
+/// The mesh `name`: installed, else read once from the embedded core pack or (native) disk, and
+/// a shipped pack's from the build when the disk lacks it.
 pub fn get(name: &str) -> Option<Arc<LoadedMesh>> {
     if let Some(mesh) = registry().read().unwrap().get(name) {
         return Some(mesh.clone());
     }
     let text = match embedded(name) {
         Some(text) => text.to_string(),
-        None if cfg!(target_arch = "wasm32") => return None,
-        None => files(name).into_iter().find_map(|path| std::fs::read_to_string(path).ok())?,
+        None if cfg!(target_arch = "wasm32") => shipped(name)?.to_string(),
+        None => match files(name).into_iter().find_map(|path| std::fs::read_to_string(path).ok()) {
+            Some(text) => text,
+            None => shipped(name)?.to_string(),
+        },
     };
     let file = MeshFile::parse(&text).ok()?;
     install(name, file).ok()

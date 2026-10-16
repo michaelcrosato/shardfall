@@ -10,6 +10,7 @@ pub mod arpg;
 pub mod behaviors;
 pub mod catalogue;
 pub mod character;
+pub mod clip_browser;
 pub mod clips;
 pub mod color;
 pub mod course;

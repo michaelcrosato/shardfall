@@ -53,7 +53,11 @@ session (`docs/handoffs/S4-my-3dge.md`). **S5 is done** on Shardfall's side: its
 props under the `16-bit` pixel look) renders the 3 briefs; §11's criteria wait for a riftlight
 session (`docs/handoffs/S5-riftlight.md`). The plan's S0-S5 are built; what remains is armed.
 Shardfall only (the user, 2026-10-15): assets may come in from sibling repositories when they fit
-Shardfall's formats, but nothing is written there.
+Shardfall's formats, but nothing is written there. **On show in the world demo** (2026-10-16):
+the **Clip Browser** (animation wing) plays all 437 clips on the puppet and the five KayKit
+figures side by side; the **Store Showcase** (Workshop wing) shows the 18 core materials and the
+S5 scenes; the figures ship in every build (`props::store::SHIPPED`), so the browser and the exe
+show them, and the Catalogue pages there too, starting by its pads.
 **Armed, not run** (`docs/AGENT_ASSET_STORE.md` §13), each with a small plan when it fires:
 - **S6 phase-out, per kind** (test limit $0 until then): fires at each change of the benchmark
   agent; the sprite trial reruns on the same event.

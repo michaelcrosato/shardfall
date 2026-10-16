@@ -15,7 +15,8 @@ find=words` already lists the imported packs.
   the copy. Never edit a `{"mesh":...}` part's file; recolour it (`recolor`) or replace it with
   primitives.
 - Game code draws one with `emit_asset(scene, "LIB/<pack>/<name>", ...)`; rooms and game data may
-  name only embedded assets (BUILTIN, LIB/core).
+  name only assets every build carries (BUILTIN, LIB/core, and the shipped packs in
+  `props::store::SHIPPED`).
 
 ## Import a pack
 

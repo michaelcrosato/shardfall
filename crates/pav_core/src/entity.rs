@@ -61,6 +61,9 @@ pub enum Behavior {
     /// Lays out a page of the store's object rows when a pad sends its signal (the Catalogue
     /// room; `crate::catalogue`).
     Catalogue(crate::catalogue::CatalogueDef),
+    /// Steps a cast of performers through the clip library when pads send its signals (the
+    /// Clip Browser room; `crate::clip_browser`).
+    ClipBrowser(crate::clip_browser::ClipBrowserDef),
 }
 
 /// Spawns props around itself.

@@ -260,6 +260,22 @@ pub fn embedded() -> &'static [Row] {
     })
 }
 
+/// The shipped packs' rows (`store::SHIPPED`), from the build, at their own tier (`disk`): what a
+/// build with no asset files still shows of them.
+pub fn shipped() -> &'static [Row] {
+    static ROWS: OnceLock<Vec<Row>> = OnceLock::new();
+    ROWS.get_or_init(|| {
+        store::SHIPPED
+            .iter()
+            .filter_map(|pack| {
+                let path = format!("lib/{pack}/index.tsv");
+                store::embedded_file(&path).map(|text| (path, text))
+            })
+            .flat_map(|(path, text)| parse(text, Tier::Disk).unwrap_or_else(|e| panic!("shipped {path}: {e}")))
+            .collect()
+    })
+}
+
 /// The folders of the packs on disk under `root`: (pack, folder, tier). `lib/core` is
 /// embedded, and `local/workshop` holds `WORKSHOP_LOCAL`.
 pub fn disk_packs(root: &Path) -> Vec<(String, std::path::PathBuf, Tier)> {

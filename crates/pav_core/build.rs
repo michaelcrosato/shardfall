@@ -90,12 +90,14 @@ fn main() {
     writeln!(f, "];").unwrap();
 
     // Object assets, the embedded tier (docs/ASSET_SYSTEM_PLAN.md §9.1): the templates and the
-    // core library (assets, meshes, index.tsv), keyed by their path under assets/props. Other
-    // packs stay on disk, and local ones on this machine. A pack's licence (PACK.json) and
-    // review ledger (review.tsv) are for tools, not the game.
+    // core library (assets, meshes, index.tsv), keyed by their path under assets/props, plus the
+    // shipped packs (`props::store::SHIPPED`: files every build carries so rooms can show them,
+    // their rows keeping their own tier). Other packs stay on disk, and local ones on this
+    // machine. A pack's licence (PACK.json) and review ledger (review.tsv) are for tools, not the
+    // game.
     let props = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/props");
     let mut files = Vec::new();
-    for folder in ["templates", "lib/core"] {
+    for folder in ["templates", "lib/core", "lib/kaykit_adventurers"] {
         let dir = props.join(folder);
         if dir.is_dir() {
             println!("cargo:rerun-if-changed={}", dir.display());

@@ -143,7 +143,7 @@ pub fn boss_spec(d: &Data, b: &BossDef, level: u32) -> Result<MonsterSpec, Strin
     if !b.look.is_empty() {
         let mut table = toml::Table::try_from(&g.puppet).map_err(|e| e.to_string())?;
         for (k, v) in &b.look {
-            if !table.contains_key(k) {
+            if !crate::puppet::PuppetDef::is_look_setting(&table, k) {
                 return Err(format!("boss '{}': unknown look setting '{k}'", b.key));
             }
             table.insert(k.clone(), v.clone());

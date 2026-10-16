@@ -358,7 +358,7 @@ pub fn puppet_with(plan: BodyPlan, look: &toml::Table, scale: f32) -> Result<Pup
     }
     let mut table = toml::Table::try_from(&preset).map_err(|e| e.to_string())?;
     for (k, v) in look {
-        if !table.contains_key(k) {
+        if !crate::puppet::PuppetDef::is_look_setting(&table, k) {
             return Err(format!("unknown look setting '{k}'"));
         }
         table.insert(k.clone(), v.clone());

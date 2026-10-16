@@ -123,9 +123,10 @@ publish keep it, a patch cannot set it, and a copy of a format-1 template stays 
 
 ## Names and tiers
 
-BUILTIN/name (templates) and LIB/core/name are embedded in every build, the browser's too: game
-data and rooms may name only these. Other packs (assets/props/lib/pack/) load on first use in
-native builds; assets/props/local/ (packs, and WORKSHOP_LOCAL/name copies of their assets) is
+BUILTIN/name (templates) and LIB/core/name are embedded in every build, the browser's too. A
+shipped pack (`props::store::SHIPPED`, today `kaykit_adventurers`) has its files in every build as
+well, while its rows keep their own tier: game data and rooms may name these and the embedded
+ones. Other packs (assets/props/lib/pack/) load on first use in native builds; assets/props/local/ (packs, and WORKSHOP_LOCAL/name copies of their assets) is
 git-ignored, for sources whose licences forbid sharing. Each pack folder has an index.tsv that
 `assets` reads; `assets reindex=pack` (or `=templates`) rewrites it, keeping its note column.
 A pack's PACK.json holds its licence (lib/ takes CC0 and CC-BY, lib/core CC0 only); reindexing a

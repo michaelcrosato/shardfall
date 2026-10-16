@@ -2,8 +2,9 @@
 //! the embedded index, the Hall, Limits and Catalogue pass `room_check`, every id a sign names
 //! resolves (and the library rooms' signs name all they show), every Limits exhibit names the
 //! check that catches it or says "not caught" and that is true, the Catalogue pages through every
-//! store row headless (rewind and snapshots keep a page), and Kenney Mini Dungeon goes through
-//! every step of the store.
+//! store row headless (rewind and snapshots keep a page), the Store Showcase shows every core
+//! material, the Clip Browser plays one clip on its whole cast and steps through the library, and
+//! Kenney Mini Dungeon goes through every step of the store.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -51,7 +52,7 @@ fn props_root() {
     });
 }
 
-const STORE_ROOMS: [&str; 3] = [hall::KEY, "limits", "catalogue"];
+const STORE_ROOMS: [&str; 5] = [hall::KEY, "limits", "catalogue", "store_showcase", "clip_browser"];
 const LIBRARY_ROOMS: [&str; 7] = ["motion_library", "mix_match", "styles", "filters", "drift", "feel_lab", "particles"];
 
 #[test]
@@ -380,4 +381,76 @@ fn kenney_mini_dungeon_through_every_step() {
         rows.len(),
         rows.len() - checked
     );
+}
+
+#[test]
+fn store_showcase_shows_every_core_material() {
+    let def = room("store_showcase");
+    let shown: BTreeSet<String> = def
+        .objects
+        .iter()
+        .flat_map(|o| &o.patch)
+        .filter(|op| op["op"] == "add")
+        .filter_map(|op| op["value"]["base"].as_str().map(str::to_owned))
+        .collect();
+    let library = pav_core::material::Library::core();
+    for id in library.names() {
+        assert!(shown.contains(id), "store_showcase shows no cube of {id}: regenerate the room");
+    }
+    assert!(library.names().count() >= 18);
+    // Each cube binds its material under its own key: copies of one asset that share a key share
+    // a material row, so the last one compiled would draw on all of them.
+    let keys: Vec<&str> = def.objects.iter().flat_map(|o| &o.patch).filter_map(|op| op["material"].as_str()).collect();
+    let unique: BTreeSet<&str> = keys.iter().copied().collect();
+    assert_eq!(unique.len(), keys.len(), "two cubes share a material key");
+}
+
+/// The cast's clips: (performer, its one clip) for every character named cast_*.
+fn cast(s: &Session) -> Vec<(String, u32)> {
+    let mut out: Vec<(String, u32)> = s
+        .sim
+        .state
+        .entities
+        .iter()
+        .filter(|e| e.name.starts_with("cast"))
+        .map(|e| {
+            let clips = e.ai.as_ref().and_then(|ai| ai.perform.as_ref()).map(|p| p.clips.clone()).unwrap_or_default();
+            assert_eq!(clips.len(), 1, "{} performs {clips:?}", e.name);
+            (e.name.clone(), clips[0])
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+#[test]
+fn clip_browser_plays_one_clip_on_its_whole_cast() {
+    let def = room("clip_browser");
+    let figures: Vec<&str> = def.npcs.iter().filter_map(|n| n.look.get("figure").and_then(|f| f.as_str())).collect();
+    assert_eq!(figures.len(), 5, "the five KayKit figures perform");
+    for figure in &figures {
+        assert!(props::store::shipped(figure), "{figure} ships in every build");
+        pav_core::figure::get(figure).unwrap_or_else(|e| panic!("{e}"));
+    }
+    let order = pav_core::clip_browser::ids();
+    let mut s = Session::new("clip_browser", 1).unwrap();
+    s.step(2);
+    let first = cast(&s);
+    assert_eq!(first.len(), 6);
+    let start = pav_core::clips::find("QUATERNIUS/Idle_Loop").unwrap();
+    assert!(first.iter().all(|(_, id)| *id == start), "the cast starts on the authored clip: {first:?}");
+    // NEXT: the whole cast moves on to the next clip in the library's order, together.
+    json_of(&mut s, "signal", json!({"name": "clip_next"}));
+    s.step(2);
+    let at = order.iter().position(|&id| id == start).unwrap();
+    assert!(cast(&s).iter().all(|(_, id)| *id == order[(at + 1) % order.len()]));
+    // A set pad jumps to that set's first clip.
+    json_of(&mut s, "signal", json!({"name": "clip_set_cmu"}));
+    s.step(2);
+    let lib = pav_core::clips::library();
+    assert!(cast(&s).iter().all(|(_, id)| lib.name_of(*id).unwrap() == "CMU/Backflip"), "{:?}", cast(&s));
+    // BACK from the first clip wraps to the last.
+    json_of(&mut s, "signal", json!({"name": "clip_back"}));
+    s.step(2);
+    assert!(cast(&s).iter().all(|(_, id)| *id == order[order.len() - 1]));
 }

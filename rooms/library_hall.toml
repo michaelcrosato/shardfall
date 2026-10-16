@@ -199,8 +199,8 @@ text = """
 BUILTIN/bench
 220x142x98 cm · standard
 CC0-1.0 · 344 tok"""
-pos = [3.0, 0.03, 10.5]
-size = 0.2
+pos = [3.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -208,8 +208,8 @@ text = """
 BUILTIN/box
 100x100x100 cm · standard
 CC0-1.0 · 77 tok"""
-pos = [8.0, 0.03, 10.5]
-size = 0.2
+pos = [8.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -217,8 +217,8 @@ text = """
 BUILTIN/crate
 126x120x130 cm · standard
 CC0-1.0 · 242 tok"""
-pos = [13.0, 0.03, 10.5]
-size = 0.2
+pos = [13.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -226,8 +226,8 @@ text = """
 BUILTIN/lantern
 70x206x70 cm · standard
 CC0-1.0 · 276 tok"""
-pos = [18.0, 0.03, 10.5]
-size = 0.2
+pos = [18.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -235,8 +235,8 @@ text = """
 LIB/core/altar
 150x140x84 cm · standard
 CC0-1.0 · 565 tok"""
-pos = [23.0, 0.03, 10.5]
-size = 0.2
+pos = [23.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -244,8 +244,8 @@ text = """
 LIB/core/anvil
 64x79x48 cm · standard
 CC0-1.0 · 266 tok"""
-pos = [28.0, 0.03, 10.5]
-size = 0.2
+pos = [28.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -253,8 +253,8 @@ text = """
 LIB/core/axe
 29x86x5 cm · standard
 CC0-1.0 · 394 tok"""
-pos = [33.0, 0.03, 10.5]
-size = 0.2
+pos = [33.0, 0.03, 10.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -262,8 +262,8 @@ text = """
 LIB/core/banner
 113x170x9.6 cm · standard
 CC0-1.0 · 512 tok"""
-pos = [3.0, 0.03, 15.5]
-size = 0.2
+pos = [3.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -271,8 +271,8 @@ text = """
 LIB/core/barrel
 60x91x60 cm · standard
 CC0-1.0 · 486 tok"""
-pos = [8.0, 0.03, 15.5]
-size = 0.2
+pos = [8.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -280,8 +280,8 @@ text = """
 LIB/core/basket
 44x43x44 cm · standard
 CC0-1.0 · 498 tok"""
-pos = [13.0, 0.03, 15.5]
-size = 0.2
+pos = [13.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -289,8 +289,8 @@ text = """
 LIB/core/bench
 180x45x40 cm · standard
 CC0-1.0 · 361 tok"""
-pos = [18.0, 0.03, 15.5]
-size = 0.2
+pos = [18.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -298,8 +298,8 @@ text = """
 LIB/core/bone_pile
 108x24x87 cm · standard
 CC0-1.0 · 547 tok"""
-pos = [23.0, 0.03, 15.5]
-size = 0.2
+pos = [23.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -307,8 +307,8 @@ text = """
 LIB/core/brazier
 70x107x72 cm · standard
 CC0-1.0 · 568 tok"""
-pos = [28.0, 0.03, 15.5]
-size = 0.2
+pos = [28.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -316,8 +316,8 @@ text = """
 LIB/core/bucket
 34x39x31 cm · standard
 CC0-1.0 · 598 tok"""
-pos = [33.0, 0.03, 15.5]
-size = 0.2
+pos = [33.0, 0.03, 15.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -325,8 +325,8 @@ text = """
 LIB/core/cage
 150x216x150 cm · standard
 CC0-1.0 · 474 tok"""
-pos = [3.0, 0.03, 20.5]
-size = 0.2
+pos = [3.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -334,8 +334,8 @@ text = """
 LIB/core/campfire
 89x52x93 cm · standard
 CC0-1.0 · 599 tok"""
-pos = [8.0, 0.03, 20.5]
-size = 0.2
+pos = [8.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -343,8 +343,8 @@ text = """
 LIB/core/candle_cluster
 32x26x32 cm · standard
 CC0-1.0 · 529 tok"""
-pos = [13.0, 0.03, 20.5]
-size = 0.2
+pos = [13.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -352,8 +352,8 @@ text = """
 LIB/core/canopy_stall
 220x230x171 cm · standard
 CC0-1.0 · 580 tok"""
-pos = [18.0, 0.03, 20.5]
-size = 0.2
+pos = [18.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -361,8 +361,8 @@ text = """
 LIB/core/cask
 64x73x64 cm · standard
 CC0-1.0 · 523 tok"""
-pos = [23.0, 0.03, 20.5]
-size = 0.2
+pos = [23.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -370,8 +370,8 @@ text = """
 LIB/core/chains
 75x129x17 cm · standard
 CC0-1.0 · 576 tok"""
-pos = [28.0, 0.03, 20.5]
-size = 0.2
+pos = [28.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -379,8 +379,8 @@ text = """
 LIB/core/chair
 44x96x45 cm · standard
 CC0-1.0 · 504 tok"""
-pos = [33.0, 0.03, 20.5]
-size = 0.2
+pos = [33.0, 0.03, 20.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -388,8 +388,8 @@ text = """
 LIB/core/chest
 88x66x55 cm · standard
 CC0-1.0 · 522 tok"""
-pos = [3.0, 0.03, 25.5]
-size = 0.2
+pos = [3.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -397,8 +397,8 @@ text = """
 LIB/core/column
 104x280x104 cm · standard
 CC0-1.0 · 325 tok"""
-pos = [8.0, 0.03, 25.5]
-size = 0.2
+pos = [8.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -406,8 +406,8 @@ text = """
 LIB/core/column_broken
 255x169x167 cm · standard
 CC0-1.0 · 604 tok"""
-pos = [13.0, 0.03, 25.5]
-size = 0.2
+pos = [13.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -415,8 +415,8 @@ text = """
 LIB/core/cooking_pot
 34x42x30 cm · standard
 CC0-1.0 · 590 tok"""
-pos = [18.0, 0.03, 25.5]
-size = 0.2
+pos = [18.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -424,8 +424,8 @@ text = """
 LIB/core/cot
 190x54x77 cm · standard
 CC0-1.0 · 755 tok"""
-pos = [23.0, 0.03, 25.5]
-size = 0.2
+pos = [23.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -433,8 +433,8 @@ text = """
 LIB/core/crate_stack
 122x167x122 cm · standard
 CC0-1.0 · 597 tok"""
-pos = [28.0, 0.03, 25.5]
-size = 0.2
+pos = [28.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -442,8 +442,8 @@ text = """
 LIB/core/crystal_cluster
 98x116x67 cm · standard
 CC0-1.0 · 528 tok"""
-pos = [33.0, 0.03, 25.5]
-size = 0.2
+pos = [33.0, 0.03, 25.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -451,8 +451,8 @@ text = """
 LIB/core/fence
 216x115x16 cm · standard
 CC0-1.0 · 285 tok"""
-pos = [3.0, 0.03, 30.5]
-size = 0.2
+pos = [3.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -460,8 +460,8 @@ text = """
 LIB/core/gable_stall
 260x295x200 cm · standard
 CC0-1.0 · 638 tok"""
-pos = [8.0, 0.03, 30.5]
-size = 0.2
+pos = [8.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -469,8 +469,8 @@ text = """
 LIB/core/gate
 130x222x20 cm · standard
 CC0-1.0 · 799 tok"""
-pos = [13.0, 0.03, 30.5]
-size = 0.2
+pos = [13.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -478,8 +478,8 @@ text = """
 LIB/core/hafted_tool
 60x93x5 cm · standard
 CC0-1.0 · 400 tok"""
-pos = [18.0, 0.03, 30.5]
-size = 0.2
+pos = [18.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -487,8 +487,8 @@ text = """
 LIB/core/hall_table
 200x79x80 cm · standard
 CC0-1.0 · 396 tok"""
-pos = [23.0, 0.03, 30.5]
-size = 0.2
+pos = [23.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -496,8 +496,8 @@ text = """
 LIB/core/hand_lantern
 14x31x14 cm · standard
 CC0-1.0 · 517 tok"""
-pos = [28.0, 0.03, 30.5]
-size = 0.2
+pos = [28.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -505,8 +505,8 @@ text = """
 LIB/core/hay_bale
 100x51x56 cm · standard
 CC0-1.0 · 585 tok"""
-pos = [33.0, 0.03, 30.5]
-size = 0.2
+pos = [33.0, 0.03, 30.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -514,8 +514,8 @@ text = """
 LIB/core/hearth
 176x180x90 cm · standard
 CC0-1.0 · 597 tok"""
-pos = [3.0, 0.03, 35.5]
-size = 0.2
+pos = [3.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -523,8 +523,8 @@ text = """
 LIB/core/lamp_post
 36x188x36 cm · standard
 CC0-1.0 · 588 tok"""
-pos = [8.0, 0.03, 35.5]
-size = 0.2
+pos = [8.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -532,8 +532,8 @@ text = """
 LIB/core/log_seat
 121x31x36 cm · standard
 CC0-1.0 · 483 tok"""
-pos = [13.0, 0.03, 35.5]
-size = 0.2
+pos = [13.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -541,8 +541,8 @@ text = """
 LIB/core/mage_staff
 10x185x10 cm · standard
 CC0-1.0 · 504 tok"""
-pos = [18.0, 0.03, 35.5]
-size = 0.2
+pos = [18.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -550,8 +550,8 @@ text = """
 LIB/core/market_stall
 273x254x192 cm · standard
 CC0-1.0 · 870 tok"""
-pos = [23.0, 0.03, 35.5]
-size = 0.2
+pos = [23.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -559,8 +559,8 @@ text = """
 LIB/core/mushroom_cluster
 120x97x107 cm · standard
 CC0-1.0 · 587 tok"""
-pos = [28.0, 0.03, 35.5]
-size = 0.2
+pos = [28.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -568,8 +568,8 @@ text = """
 LIB/core/park_bench
 193x85x51 cm · standard
 CC0-1.0 · 560 tok"""
-pos = [33.0, 0.03, 35.5]
-size = 0.2
+pos = [33.0, 0.03, 35.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -577,8 +577,8 @@ text = """
 LIB/core/rock_cluster
 158x113x131 cm · standard
 CC0-1.0 · 423 tok"""
-pos = [3.0, 0.03, 40.5]
-size = 0.2
+pos = [3.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -586,8 +586,8 @@ text = """
 LIB/core/round_table
 100x76x100 cm · standard
 CC0-1.0 · 363 tok"""
-pos = [8.0, 0.03, 40.5]
-size = 0.2
+pos = [8.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -595,8 +595,8 @@ text = """
 LIB/core/rowboat
 461x80x300 cm · standard
 CC0-1.0 · 783 tok"""
-pos = [13.0, 0.03, 40.5]
-size = 0.2
+pos = [13.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -604,8 +604,8 @@ text = """
 LIB/core/rubble_pile
 128x56x98 cm · standard
 CC0-1.0 · 443 tok"""
-pos = [18.0, 0.03, 40.5]
-size = 0.2
+pos = [18.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -613,8 +613,8 @@ text = """
 LIB/core/sack
 58x74x58 cm · standard
 CC0-1.0 · 355 tok"""
-pos = [23.0, 0.03, 40.5]
-size = 0.2
+pos = [23.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -622,8 +622,8 @@ text = """
 LIB/core/shelf
 120x180x35 cm · standard
 CC0-1.0 · 618 tok"""
-pos = [28.0, 0.03, 40.5]
-size = 0.2
+pos = [28.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -631,8 +631,8 @@ text = """
 LIB/core/side_table
 50x63x50 cm · standard
 CC0-1.0 · 513 tok"""
-pos = [33.0, 0.03, 40.5]
-size = 0.2
+pos = [33.0, 0.03, 40.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -640,8 +640,8 @@ text = """
 LIB/core/signpost
 133x239x44 cm · standard
 CC0-1.0 · 386 tok"""
-pos = [3.0, 0.03, 45.5]
-size = 0.2
+pos = [3.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -649,8 +649,8 @@ text = """
 LIB/core/slat_crate
 56x31x38 cm · standard
 CC0-1.0 · 447 tok"""
-pos = [8.0, 0.03, 45.5]
-size = 0.2
+pos = [8.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -658,8 +658,8 @@ text = """
 LIB/core/spear
 9x207x4.8 cm · standard
 CC0-1.0 · 453 tok"""
-pos = [13.0, 0.03, 45.5]
-size = 0.2
+pos = [13.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -667,8 +667,8 @@ text = """
 LIB/core/stalagmite
 91x114x72 cm · standard
 CC0-1.0 · 361 tok"""
-pos = [18.0, 0.03, 45.5]
-size = 0.2
+pos = [18.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -676,8 +676,8 @@ text = """
 LIB/core/sword
 20x97x6.4 cm · standard
 CC0-1.0 · 472 tok"""
-pos = [23.0, 0.03, 45.5]
-size = 0.2
+pos = [23.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -685,8 +685,8 @@ text = """
 LIB/core/table
 160x78x80 cm · standard
 CC0-1.0 · 560 tok"""
-pos = [28.0, 0.03, 45.5]
-size = 0.2
+pos = [28.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -694,8 +694,8 @@ text = """
 LIB/core/tap_barrel
 97x70x60 cm · standard
 CC0-1.0 · 368 tok"""
-pos = [33.0, 0.03, 45.5]
-size = 0.2
+pos = [33.0, 0.03, 45.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -703,8 +703,8 @@ text = """
 LIB/core/tent
 226x212x365 cm · standard
 CC0-1.0 · 774 tok"""
-pos = [3.0, 0.03, 50.5]
-size = 0.2
+pos = [3.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -712,8 +712,8 @@ text = """
 LIB/core/tent_stall
 280x294x280 cm · standard
 CC0-1.0 · 647 tok"""
-pos = [8.0, 0.03, 50.5]
-size = 0.2
+pos = [8.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -721,8 +721,8 @@ text = """
 LIB/core/trough
 180x54x64 cm · standard
 CC0-1.0 · 499 tok"""
-pos = [13.0, 0.03, 50.5]
-size = 0.2
+pos = [13.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -730,8 +730,8 @@ text = """
 LIB/core/urn
 54x71x49 cm · standard
 CC0-1.0 · 327 tok"""
-pos = [18.0, 0.03, 50.5]
-size = 0.2
+pos = [18.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -739,8 +739,8 @@ text = """
 LIB/core/wall_torch
 14x61x29 cm · standard
 CC0-1.0 · 544 tok"""
-pos = [23.0, 0.03, 50.5]
-size = 0.2
+pos = [23.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -748,8 +748,8 @@ text = """
 LIB/core/wash_tub
 63x52x63 cm · standard
 CC0-1.0 · 453 tok"""
-pos = [28.0, 0.03, 50.5]
-size = 0.2
+pos = [28.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[label]]
@@ -757,8 +757,8 @@ text = """
 LIB/core/well
 178x252x148 cm · standard
 CC0-1.0 · 718 tok"""
-pos = [33.0, 0.03, 50.5]
-size = 0.2
+pos = [33.0, 0.03, 50.55]
+size = 0.24
 color = "#f1f4fa"
 
 [[npc]]

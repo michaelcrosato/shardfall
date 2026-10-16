@@ -161,9 +161,18 @@ body = "dynamic"                # dynamic | fixed | kinematic | none
 #                clear = "clear", density = 1, friction = 0.5, restitution = 0.1, tumble = true }
 #     (pending = 1 drops one batch on the first tick, so the room starts with its props)
 # The store's catalogue (rooms/catalogue.toml; body = "none"): a pad's signal lays out the next
-# page of the store's object rows (embedded, then the committed packs on disk; desktop builds,
-# the browser shows a sign), each beside a 1.8 m figure with its row; `back` pages back:
+# page of the store's object rows (embedded, then the committed packs on disk, then the shipped
+# packs the disk lacks), each beside a 1.8 m figure with its row; `back` pages back; toward = -1
+# grows the page toward -z with its first line at the object (put it by the pads):
 #   behavior = { type = "catalogue", signal = "next", back = "back", per_page = 20, columns = 5 }
+# The clip browser (rooms/clip_browser.toml; body = "none"): every [[npc]] whose name starts with
+# `cast` plays the same clip; pads step through the library, jump to a set's first clip or toggle
+# auto-play, and the clip's card lies on the floor at the object:
+#   behavior = { type = "clip_browser", next = "clip_next", back = "clip_back", auto = "clip_auto",
+#                cast = "cast", hold = 5, start = "QUATERNIUS/Idle_Loop",
+#                sets = [["clip_set_cmu", "CMU"], ["clip_set_quaternius", "QUATERNIUS"]] }
+# An imported figure (a shipped pack's, e.g. LIB/kaykit_adventurers/knight) can wear any biped
+# [[npc]]: look = { figure = "LIB/kaykit_adventurers/knight" }.
 # More object fields: pitch = 20, roll = 0 (tilt in degrees, e.g. ramps), density = 1 (kg/m³:
 # 1 is very light; 50-100 = pushable crates; 400 = wood; 2000 = stone), friction = 0.5,
 # restitution = 0.0 (bounciness 0..1; rapier averages it with the surface underneath),

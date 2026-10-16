@@ -147,6 +147,14 @@ impl Sim {
                         e.behavior = Behavior::Spawner(sp);
                     }
                 }
+                Behavior::ClipBrowser(mut browser) => {
+                    let region = e.region;
+                    if self.clip_browser_tick(region, epos, erot, &mut browser, &signals, dt) || browser.playing {
+                        if let Some(e) = self.state.entities.get_mut(id) {
+                            e.behavior = Behavior::ClipBrowser(browser);
+                        }
+                    }
+                }
                 Behavior::Catalogue(mut cat) => {
                     let region = e.region;
                     let step = cat.step(&signals);

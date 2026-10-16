@@ -342,8 +342,9 @@ or better; dedupe by fingerprint; a semantic lane only when held-out recall fall
 
 ## 9. Use
 
-- **By reference.** Game data and rooms may name only embedded entries (test
-  `game_asset_refs_are_embedded`; embedded budget 3 MB), which also keeps each build to what it
+- **By reference.** Game data and rooms may name only entries every build carries: embedded, or a
+  shipped pack's (`props::store::SHIPPED`; test `game_asset_refs_are_embedded`; embedded budget
+  3 MB), which also keeps each build to what it
   uses; a per-game lock file waits until a build needs one. In the asset benchmark each author
   call re-reads its whole fixed prompt (about 5k tokens for the pinned `asset-bench-author`, about
   55k for a general-purpose agent, S1), so cost tracks calls, not bytes.

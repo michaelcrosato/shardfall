@@ -1,10 +1,10 @@
 //! The Catalogue room's pages (docs/AGENT_ASSET_STORE.md §10): every object row of the store, a
 //! page at a time, each prop beside a 1.8 m figure and signed with its row. Rooms may name only
-//! embedded assets, so the room names none: a pad's signal makes the `catalogue` behaviour read
+//! assets every build carries, so the room names none: a pad's signal makes the `catalogue` behaviour read
 //! the rows (the embedded indexes, then the committed packs on disk, never `local/`) and place a
 //! page of props as entities. A page is simulation state, so rewind, snapshots and replays keep
-//! it (a snapshot carries each placed definition). The browser has no files: there the pad puts
-//! up a sign that the catalogue needs the desktop build.
+//! it (a snapshot carries each placed definition). A build with no asset files (the browser, a
+//! lone exe) pages through the rows it carries: the embedded tier and the shipped packs.
 
 use glam::{Quat, Vec3};
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,10 @@ pub struct CatalogueDef {
     /// Rows a page shows, and how many stand side by side before the next line.
     pub per_page: u32,
     pub columns: u32,
+    /// Which way a page grows from the object: 1 toward +z (its first line at the object), -1
+    /// toward -z with its first line still at the object (put the object by the pads, and the
+    /// page starts where the player stands). Props face +z either way.
+    pub toward: i32,
     /// The page on show (-1: none yet), what it placed and the signs it put up.
     pub page: i32,
     pub spawned: Vec<EntityId>,
@@ -43,6 +47,7 @@ impl Default for CatalogueDef {
             back: "back".into(),
             per_page: 20,
             columns: 5,
+            toward: 1,
             page: -1,
             spawned: Vec::new(),
             signs: Vec::new(),
@@ -70,12 +75,18 @@ impl CatalogueDef {
 }
 
 /// The store's object rows the catalogue pages through, in order: the embedded indexes (the
-/// templates, then `LIB/core`), then the committed packs under the props root. Native builds
-/// only read packs; `local/` rows are never store entries.
+/// templates, then `LIB/core`), then the committed packs under the props root, then the shipped
+/// packs' rows the disk lacks (a build with no asset files: the browser, a lone exe). Native
+/// builds only read packs; `local/` rows are never store entries.
 pub fn rows() -> Vec<Row> {
     let mut rows = index::embedded().to_vec();
     let (disk, _) = index::disk(&props::disk_root());
     rows.extend(disk.into_iter().filter(|row| row.tier == Tier::Disk && !crate::store::local_path(&row.name)));
+    for row in index::shipped() {
+        if !rows.iter().any(|r| r.name == row.name) {
+            rows.push(row.clone());
+        }
+    }
     rows
 }
 
@@ -102,9 +113,8 @@ pub fn sign(row: &Row, findings: Option<usize>) -> String {
     format!("{leaf}\n{pack}\n{} cm · {} · {}\nmesh {}% · {found}", row.size_cm, row.level, row.licence, mesh_share(row))
 }
 
-/// The text the browser shows in place of a page.
-pub const NEEDS_DESKTOP: &str =
-    "THE CATALOGUE NEEDS THE DESKTOP BUILD\nthe browser has no files: the Hall shows the embedded library";
+/// The text shown in place of a page when the store has no rows at all.
+pub const NO_ROWS: &str = "THE STORE HAS NO OBJECT ROWS";
 
 /// Height and body radius of the scale figure (as on contact sheets).
 const FIGURE_HEIGHT: f32 = 1.8;
@@ -150,6 +160,22 @@ pub fn layout(sizes: &[Vec3], columns: usize) -> Vec<Spot> {
     spots
 }
 
+/// `layout`'s spots for a page that grows toward -z with its first line at z = 0: each line
+/// keeps its own arrangement (props behind, signs toward +z) and moves back past the lines
+/// before it.
+pub fn toward_back(spots: Vec<Spot>, sizes: &[Vec3], columns: usize) -> Vec<Spot> {
+    let mut out = Vec::with_capacity(spots.len());
+    let mut start = 0.0;
+    for (line, sizes) in spots.chunks(columns.max(1)).zip(sizes.chunks(columns.max(1))) {
+        let span = sizes.iter().map(|s| s.z).fold(0.0, f32::max) + SIGN_DEPTH + GAP;
+        // This line occupied [start, start + span]; it moves to [-(start + span), -start].
+        let shift = Vec3::new(0.0, 0.0, -(2.0 * start + span));
+        out.extend(line.iter().map(|s| Spot { prop: s.prop + shift, figure: s.figure + shift, sign: s.sign + shift }));
+        start += span;
+    }
+    out
+}
+
 impl Sim {
     /// Clears the catalogue's page and shows the one `step` away (wrapping round), placing its
     /// props, figures and signs at `origin`, turned by `rot`.
@@ -176,12 +202,12 @@ impl Sim {
             mode: LabelMode::Floor,
             facing: Default::default(),
         };
-        let rows = if cfg!(target_arch = "wasm32") { Vec::new() } else { rows() };
+        let rows = rows();
         let per_page = cat.per_page.max(1) as usize;
         let pages = rows.len().div_ceil(per_page) as i32;
         let mut signs = Vec::new();
         if pages == 0 {
-            signs.push(label(NEEDS_DESKTOP.into(), at(Vec3::new(0.0, 0.03, -1.0)), 0.3));
+            signs.push(label(NO_ROWS.into(), at(Vec3::new(0.0, 0.03, -1.0)), 0.3));
         } else {
             cat.page = if cat.page < 0 && step < 0 { pages - 1 } else { (cat.page + step).rem_euclid(pages) };
             let first = cat.page as usize * per_page;
@@ -191,10 +217,13 @@ impl Sim {
             let sizes: Vec<Vec3> =
                 defs.iter().map(|def| def.as_ref().map_or(Vec3::splat(1.0), |def| def.compiled.bounds.size())).collect();
             let header = format!("PAGE {} / {pages} · ROWS {}-{} OF {}", cat.page + 1, first + 1, first + page.len(), rows.len());
-            signs.push(label(header, at(Vec3::new(0.0, 0.03, -1.0)), 0.3));
-            for ((row, def), spot) in page.iter().zip(&defs).zip(layout(&sizes, cat.columns as usize)) {
+            let toward = if cat.toward < 0 { -1.0 } else { 1.0 };
+            signs.push(label(header, at(Vec3::new(0.0, 0.03, -toward)), 0.36));
+            let spots = layout(&sizes, cat.columns as usize);
+            let spots = if toward < 0.0 { toward_back(spots, &sizes, cat.columns as usize) } else { spots };
+            for ((row, def), spot) in page.iter().zip(&defs).zip(spots) {
                 let found = def.as_ref().ok().map(|def| findings(def));
-                signs.push(label(sign(row, found), at(spot.sign), 0.13));
+                signs.push(label(sign(row, found), at(spot.sign), 0.16));
                 if let Ok(def) = def {
                     let centre = def.compiled.bounds.center();
                     let pos = at(spot.prop - Vec3::new(centre.x, 0.0, centre.z));

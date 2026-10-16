@@ -1269,6 +1269,7 @@ fn fresh_behavior(b: &crate::entity::Behavior) -> crate::entity::Behavior {
             Behavior::Rain { interval: *interval, max: *max, area: *area, height: *height, timer: 0, spawned: Default::default() }
         }
         Behavior::Catalogue(c) => Behavior::Catalogue(c.fresh()),
+        Behavior::ClipBrowser(c) => Behavior::ClipBrowser(c.fresh()),
         other => other.clone(),
     }
 }

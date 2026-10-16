@@ -137,7 +137,8 @@ overrides the root; revisions `mat1-`) and `asset_preview` (a swatch with each l
 at the game camera). Game code draws units and scenery from its own state with library assets,
 one call per thing per frame: `pav_view::assets::emit_asset(scene, "BUILTIN/crate",
 Placement::at(pos).yaw(deg).id(id), seed, &palette)` (no physics needed; `docs/ASSET_STUDIO.md`,
-"Library assets in game code"). Game data and rooms may name only embedded assets.
+"Library assets in game code"). Game data and rooms may name only assets every build carries
+(embedded, or a shipped pack's: `props::store::SHIPPED`).
 
 Creature Studio: `scripts/creature-studio.sh` or `shardfall --creature-studio` opens the
 procedural creature stage. `tools/creature-compiler` vendors the exact SpawnForge core/modules
@@ -322,8 +323,9 @@ with their `PACK.json`, credits, index and catalog tags; unknown licences refuse
 `tests/planted_defects.rs` (the store's five planted defects, each caught: size_band,
 below_floor, socket_missing, a missing texture failing the import), `tests/store_rooms.rs` (the
 Library Hall is current, the store rooms pass room_check, every id a sign names resolves, each
-Limits sign is true, the Catalogue pages through every row with rewind and snapshots, Kenney
-Mini Dungeon through every step), `tests/figures.rs` (S3b: the KayKit adventurers check clean
+Limits sign is true, the Catalogue pages through every row with rewind and snapshots, the Store
+Showcase shows every core material, the Clip Browser moves its whole cast together, Kenney Mini
+Dungeon through every step), `tests/figures.rs` (S3b: the KayKit adventurers check clean
 as props and figures, every embedded clip poses three of them whole, finite and on the floor,
 limbs follow the puppet's side, a planted defect is caught, `assets find=knight`) and
 `tests/import_khronos.rs` (opt-in,
@@ -351,6 +353,7 @@ it with the CPU reference.
 Extend it when you add movement features; it is the cheapest way to catch feel regressions.
 Also, named for what they cover: `pav_core/tests/` `animation.rs`, `animation_preview.rs`,
 `asset_library.rs`, `bench_holdout.rs`, `fx.rs`, `genre.rs`, `prop_families.rs`,
-`prop_format2.rs`, `prop_instances.rs`, `prop_patch.rs`, `vehicles.rs`; `pav_tools/tests/`
+`prop_format2.rs`, `prop_instances.rs`, `prop_patch.rs`, `shipped_pack.rs` (the KayKit figures
+load with no asset files), `vehicles.rs`; `pav_tools/tests/`
 `animation_preview.rs`, `asset_errors.rs`, `asset_format2.rs`, `asset_library.rs`,
 `asset_preview.rs`, `foundations.rs`, `reply_budget.rs`, `store.rs`.

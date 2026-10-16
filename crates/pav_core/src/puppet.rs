@@ -332,6 +332,12 @@ impl Default for PuppetDef {
 }
 
 impl PuppetDef {
+    /// Whether `key` is a look setting: a field of the serialized puppet `table`, or one the
+    /// serialization leaves out while empty (`figure`, so looks without one keep their bytes).
+    pub fn is_look_setting(table: &toml::Table, key: &str) -> bool {
+        table.contains_key(key) || key == "figure"
+    }
+
     /// Sensible proportions and colours for a body plan.
     pub fn preset(plan: BodyPlan) -> Self {
         let d = Self::default();

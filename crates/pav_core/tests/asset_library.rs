@@ -47,8 +47,8 @@ fn embedded_library_is_valid() {
     assert!(rows.iter().filter(|row| row.name.starts_with("BUILTIN/")).all(|row| !row.cat.is_empty() && row.tags.len() >= 2));
 }
 
-/// Every `asset` (or `model`) a room or game data file names is embedded and resolves: the
-/// browser has nothing else.
+/// Every `asset`, `model` or `figure` a room or game data file names is in every build and
+/// resolves: the browser has nothing else.
 #[test]
 fn game_asset_refs_are_embedded() {
     fn walk(value: &toml::Value, at: &str, refs: &mut Vec<(String, String)>) {
@@ -56,7 +56,9 @@ fn game_asset_refs_are_embedded() {
             toml::Value::Table(table) => {
                 for (key, value) in table {
                     match value {
-                        toml::Value::String(name) if key == "asset" || key == "model" => refs.push((at.to_owned(), name.clone())),
+                        toml::Value::String(name) if key == "asset" || key == "model" || key == "figure" => {
+                            refs.push((format!("{at}.{key}"), name.clone()))
+                        }
                         value => walk(value, &format!("{at}.{key}"), refs),
                     }
                 }
@@ -73,9 +75,16 @@ fn game_asset_refs_are_embedded() {
         walk(&value, &file, &mut refs);
     }
     for (at, name) in &refs {
-        // `NAME:preset` names a family's preset: NAME must be embedded.
+        // `NAME:preset` names a family's preset: NAME must be in every build.
         let canonical = props::canonical(props::split_preset(name).0).unwrap_or_else(|e| panic!("{at}: {e}"));
-        assert!(store::embedded(&canonical), "{at}: {name} is not embedded (BUILTIN/ or LIB/core/): the browser build lacks it");
-        props::resolve_placed(name, &props::Params::new()).unwrap_or_else(|e| panic!("{at}: {e}"));
+        assert!(
+            store::shipped(&canonical),
+            "{at}: {name} is not in every build (BUILTIN/, LIB/core/ or a shipped pack): the browser build lacks it"
+        );
+        if at.ends_with(".figure") {
+            pav_core::figure::get(&canonical).unwrap_or_else(|e| panic!("{at}: {e}"));
+        } else {
+            props::resolve_placed(name, &props::Params::new()).unwrap_or_else(|e| panic!("{at}: {e}"));
+        }
     }
 }
