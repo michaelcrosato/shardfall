@@ -82,6 +82,33 @@ engine's users.) Each sibling was read from a shallow read-only clone.
     agents had to read engine source.
   - A standing clean-room agent benchmark (my-3d2dge): the test games are that benchmark; one
     dry run checked this change (below).
+- **Dry run** (the choice it decided: what to fix before the next test game; about $5 by its
+  context and call count): a fresh Sonnet agent, given only the unpacked archive and
+  `START_HERE.md`'s prompt, built "Turret Run" (turrets fire leading three-shot volleys; three
+  batteries open the exit; three hits lose) in about an hour and 74 tool calls: 447 lines of
+  rules and bot, a 24 x 15 level, 9 tests, zero compile errors, its bot 10/10 with no hits.
+  It read engine source the guide didn't cover (projectiles, the tick order, what a hit does,
+  field signatures) and spent about 25 minutes on rebuilds while balancing. Fixed from its
+  report:
+  - **No rebuild for levels and numbers:** `games::level_text` reads `games/<key>.toml` from
+    disk when running from the repository (else the built-in copy), and a level's free-form
+    `[game]` table (`RoomDef::game`) holds the rules' numbers: the starter's `Rules`, unknown
+    keys refused by name. An edit shows at the next `load` or `play seeds=`.
+  - **`Hit { target }`** names the character a shot struck (games counted every hit before).
+  - **`Sim::feet(id)`** and **`NavGrid::for_room(sim)`**, which it had copied from the starter.
+  - **`build.rs` fails loudly** when `rooms/`, `game/` or `anim/` is missing; it embedded empty
+    tables, which surfaced much later as a `moves.toml` panic (here when two checkouts shared
+    one target directory and one was deleted).
+  - **The guide:** the full tick order with shots and what a hit does, every `Projectile`
+    field, the edit loop and rebuild costs, `[game]`, `entrance`, a wrong claim about
+    `camera preset=top` (the camera follows the player: raise `camera.distance`), filming the
+    bot from the REPL, `get_mut` in tests, `cargo fmt`, F5 restarts, the camera's reach and
+    the demo controls card as limits.
+  - Left for a pattern: a per-game camera hook, `filmstrip` driven by the bot, shot-dodging
+    steering in `nav`, a `fire_at` helper.
+- **Checks:** the tool list stays under its 48,000-character cap by trimming six tools' help.
+  `cargo clippy -p pav_app --target wasm32-unknown-unknown` warns about `drop` on a lock in
+  three `pav_tools` files and `asset_watch.rs`, all untouched here (on `main` too).
 
 ## Handoff and setup, compared with the sibling repositories — 2026-10-16
 

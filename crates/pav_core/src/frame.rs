@@ -96,6 +96,9 @@ pub enum SimEvent {
     Hit {
         pos: Vec3,
         strength: f32,
+        /// The character struck, when it is one.
+        #[serde(default)]
+        target: Option<EntityId>,
     },
     Respawn {
         pos: Vec3,

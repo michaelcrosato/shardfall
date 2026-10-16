@@ -23,22 +23,37 @@ use crate::room::RoomDef;
 use crate::shape::{Shape, Visual};
 use crate::sim::Sim;
 
-/// The level: a room file, embedded in the build (the browser has no files).
+/// The level, a room file, built in (the browser has no files). Running from the repository,
+/// `level_text` reads the file on disk instead, so an edit shows at the next `load`.
 const LEVEL: &str = include_str!("starter.toml");
 
-const LIVES: u32 = 3;
-/// Slime speed as a fraction of a walker's top speed (each slime gets ±15%, from the seed).
-const SLIME_SPEED: f32 = 0.5;
-/// Slimes chase a player within this walking distance (m).
-const SLIME_SIGHT: f32 = 9.0;
-/// Feet closer than this (m) catch the player, or pick up a shard.
-const CATCH: f32 = 0.8;
-const PICK: f32 = 0.9;
-/// Seconds the player is safe at the start and after a catch.
-const GRACE: f32 = 2.0;
+/// The rules' numbers: the level's `[game]` table, each with a default, so balancing is an
+/// edit to the level and a `load` (no rebuild).
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Rules {
+    pub lives: u32,
+    /// Slime speed as a fraction of a walker's top speed (each slime gets ±15%, from the seed).
+    pub slime_speed: f32,
+    /// Slimes chase a player within this walking distance (m).
+    pub slime_sight: f32,
+    /// Feet closer than this (m) catch the player.
+    pub catch: f32,
+    /// Feet closer than this (m) to a shard pick it up.
+    pub pick: f32,
+    /// Seconds the player is safe at the start and after a catch.
+    pub grace: f32,
+}
+
+impl Default for Rules {
+    fn default() -> Self {
+        Self { lives: 3, slime_speed: 0.5, slime_sight: 9.0, catch: 0.8, pick: 0.9, grace: 2.0 }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Starter {
+    pub rules: Rules,
     /// Shards still on the floor.
     pub shards: Vec<EntityId>,
     pub total: usize,
@@ -59,7 +74,8 @@ pub struct Starter {
 
 /// Builds the level, places the shards on its `shard` markers and starts the game.
 pub fn build(sim: &mut Sim, _rest: Option<&str>) -> Result<()> {
-    let def = RoomDef::parse(LEVEL).map_err(|e| anyhow!("starter.toml: {e}"))?;
+    let def = RoomDef::parse(&super::level_text(Starter::KEY, LEVEL)).map_err(|e| anyhow!("starter.toml: {e}"))?;
+    let rules: Rules = toml::Value::Table(def.game.clone()).try_into().map_err(|e| anyhow!("starter.toml [game]: {e}"))?;
     crate::scenes::build_standalone_room(sim, Starter::KEY, def);
     let mut shards = Vec::new();
     for at in crate::scenes::markers(sim, "shard") {
@@ -70,17 +86,18 @@ pub fn build(sim: &mut Sim, _rest: Option<&str>) -> Result<()> {
     }
     // Slimes come from the level's [[npc]] entries; the game drives them.
     let slimes: Vec<EntityId> = sim.state.entities.iter().filter(|e| e.name == "slime").map(|e| e.id).collect();
-    let homes = slimes.iter().filter_map(|&id| feet(sim, id)).collect();
+    let homes = slimes.iter().filter_map(|&id| sim.feet(id)).collect();
     // Randomness comes from the sim's seeded generator, so a seed always plays the same.
-    let speeds = slimes.iter().map(|_| SLIME_SPEED * sim.state.rng.range(0.85, 1.15)).collect();
+    let speeds = slimes.iter().map(|_| rules.slime_speed * sim.state.rng.range(0.85, 1.15)).collect();
     let game = Starter {
         total: shards.len(),
         shards,
         slimes,
         homes,
         speeds,
-        lives: LIVES,
-        grace: GRACE,
+        lives: rules.lives,
+        grace: rules.grace,
+        rules,
         time: 0.0,
         outcome: Outcome::Playing,
         nav: None,
@@ -107,13 +124,16 @@ impl Game for Starter {
             }
             return out;
         }
-        let nav = self.nav.get_or_insert_with(|| Arc::new(nav_grid(sim))).clone();
+        if self.nav.is_none() {
+            self.nav = NavGrid::for_room(sim).map(Arc::new);
+        }
+        let Some(nav) = self.nav.clone() else { return out };
         // One flow field toward the player steers every slime round the walls.
-        let player = sim.state.player.and_then(|id| feet(sim, id));
-        let field = player.filter(|_| self.grace <= 0.0).and_then(|p| nav.flow(p, SLIME_SIGHT));
+        let player = sim.state.player.and_then(|id| sim.feet(id));
+        let field = player.filter(|_| self.grace <= 0.0).and_then(|p| nav.flow(p, self.rules.slime_sight));
         for (&id, &speed) in self.slimes.iter().zip(&self.speeds) {
             let mut input = InputFrame::default();
-            if let (Some(field), Some(at)) = (&field, feet(sim, id))
+            if let (Some(field), Some(at)) = (&field, sim.feet(id))
                 && let Some(d) = field.dir(&nav, at)
             {
                 input.move_dir = Vec2::new(d.x, d.z) * speed;
@@ -130,14 +150,14 @@ impl Game for Starter {
         self.time += dt;
         self.grace = (self.grace - dt).max(0.0);
         let Some(pid) = sim.state.player else { return };
-        let Some(p) = feet(sim, pid) else { return };
+        let Some(p) = sim.feet(pid) else { return };
 
         // Shards: walk over one to pick it up.
         let near: Vec<(EntityId, Vec3)> = self
             .shards
             .iter()
             .filter_map(|&id| sim.state.entities.get(id).map(|e| (id, e.pos)))
-            .filter(|(_, at)| flat(*at - p) < PICK)
+            .filter(|(_, at)| flat(*at - p) < self.rules.pick)
             .collect();
         for (id, at) in near {
             self.shards.retain(|&s| s != id);
@@ -153,10 +173,11 @@ impl Game for Starter {
         }
 
         // Slimes: a touch costs a life and sends everyone back to the start.
-        let caught = self.grace <= 0.0 && self.slimes.iter().any(|&id| feet(sim, id).is_some_and(|s| flat(s - p) < CATCH));
+        let catch = self.rules.catch;
+        let caught = self.grace <= 0.0 && self.slimes.iter().any(|&id| sim.feet(id).is_some_and(|s| flat(s - p) < catch));
         if caught {
             self.lives -= 1;
-            events.push(SimEvent::Hit { pos: p + Vec3::Y, strength: 1.0 });
+            events.push(SimEvent::Hit { pos: p + Vec3::Y, strength: 1.0, target: Some(pid) });
             if self.lives == 0 {
                 self.outcome = Outcome::Lost;
                 sim.say("Caught! Game over");
@@ -168,7 +189,7 @@ impl Game for Starter {
             for (&id, &home) in self.slimes.iter().zip(&self.homes) {
                 sim.set_position(id, home);
             }
-            self.grace = GRACE;
+            self.grace = self.rules.grace;
         }
     }
 
@@ -184,7 +205,7 @@ impl Game for Starter {
     }
 
     fn status(&self, sim: &Sim) -> serde_json::Value {
-        let xz = |id: EntityId| feet(sim, id).map(|f| [round(f.x), round(f.z)]);
+        let xz = |id: EntityId| sim.feet(id).map(|f| [round(f.x), round(f.z)]);
         json!({
             "outcome": self.outcome,
             "time": round(self.time),
@@ -206,9 +227,9 @@ impl Game for Starter {
     /// as walls); with every shard cut off, makes for the reachable spot farthest from them.
     fn bot(&self, sim: &Sim) -> InputFrame {
         let mut input = InputFrame::default();
-        let Some(p) = sim.state.player.and_then(|id| feet(sim, id)) else { return input };
-        let mut grid = self.nav.as_deref().cloned().unwrap_or_else(|| nav_grid(sim));
-        let slimes: Vec<Vec3> = self.slimes.iter().filter_map(|&id| feet(sim, id)).collect();
+        let Some(p) = sim.state.player.and_then(|id| sim.feet(id)) else { return input };
+        let Some(mut grid) = self.nav.as_deref().cloned().or_else(|| NavGrid::for_room(sim)) else { return input };
+        let slimes: Vec<Vec3> = self.slimes.iter().filter_map(|&id| sim.feet(id)).collect();
         if self.grace < 0.5 {
             for i in 0..grid.blocked.len() {
                 if slimes.iter().any(|&s| flat(grid.center(i) - s) < 1.8) {
@@ -228,21 +249,6 @@ impl Game for Starter {
         input.move_dir = path.map(|path| flat_dir(path[0] - p)).unwrap_or_default();
         input
     }
-}
-
-/// A character's feet (entity positions are capsule centres).
-fn feet(sim: &Sim, id: EntityId) -> Option<Vec3> {
-    let e = sim.state.entities.get(id)?;
-    Some(e.pos - Vec3::Y * e.character.as_ref()?.height() * 0.5)
-}
-
-fn nav_grid(sim: &Sim) -> NavGrid {
-    let w = &sim.state.world;
-    let room = w.current_room.and_then(|i| w.rooms.get(i as usize));
-    let (min, max) = room
-        .map(|r| (Vec2::new(r.min.x, r.min.z), Vec2::new(r.max.x, r.max.z)))
-        .unwrap_or((Vec2::splat(-20.0), Vec2::splat(20.0)));
-    NavGrid::build(sim, min, max, 0.5, 0.4, &|_| false)
 }
 
 fn flat(v: Vec3) -> f32 {

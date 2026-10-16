@@ -415,6 +415,16 @@ impl Sim {
         id
     }
 
+    /// Where an entity stands: a character's feet (its `pos` is the capsule's centre), else
+    /// its position.
+    pub fn feet(&self, id: EntityId) -> Option<Vec3> {
+        let e = self.state.entities.get(id)?;
+        Some(match &e.character {
+            Some(c) => e.pos - Vec3::Y * c.height() * 0.5,
+            None => e.pos,
+        })
+    }
+
     pub fn player(&self) -> Option<&Entity> {
         self.state.player.and_then(|id| self.state.entities.get(id))
     }

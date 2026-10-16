@@ -36,6 +36,15 @@ const DIRS: [(i32, i32, f32); 8] = [
 ];
 
 impl NavGrid {
+    /// The walkable grid of the room the scene is in (a game's level): 0.5 m cells, walls grown
+    /// by 0.4 m (a little more than a character's radius, so paths keep off them).
+    pub fn for_room(sim: &Sim) -> Option<NavGrid> {
+        let w = &sim.state.world;
+        let r = w.rooms.get(w.current_room? as usize)?;
+        let (min, max) = (Vec2::new(r.min.x, r.min.z), Vec2::new(r.max.x, r.max.z));
+        Some(NavGrid::build(sim, min, max, 0.5, 0.4, &|_| false))
+    }
+
     /// Builds the grid over `min..max` (ground plane): floor is any block whose top is near
     /// height 0; obstacles are solid blocks and fixed props between knee and head height,
     /// grown by `radius`.

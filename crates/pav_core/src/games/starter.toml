@@ -5,7 +5,17 @@
 
 name = "Starter"
 about = "Collect every shard while slimes chase you."
-entrance = { at = [8, 12], facing = "south" }
+entrance = { at = [8, 12], facing = "south" }   # required by the format; the `P` marker is the start
+
+# The rules' numbers (starter.rs `Rules`). Running from the repository, `pav` reads this file at
+# each `load`: edit, then `load scene=starter` or `play bot=true seeds=10`, no rebuild.
+[game]
+lives = 3
+slime_speed = 0.5
+slime_sight = 9.0
+catch = 0.8
+pick = 0.9
+grace = 2.0
 
 [camera]
 tilt = 58.0

@@ -3,6 +3,11 @@
 use std::io::Write;
 
 fn main() {
+    // A folder that can't be read would embed nothing and fail much later, far from the cause.
+    for data in ["rooms", "game", "anim"] {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(data);
+        assert!(path.is_dir(), "{} is missing: pav_core embeds the repository's /{data} folder", path.display());
+    }
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../rooms");
     println!("cargo:rerun-if-changed={}", dir.display());
     let mut entries: Vec<_> = std::fs::read_dir(&dir)

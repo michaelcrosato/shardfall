@@ -329,6 +329,10 @@ pub struct RoomDef {
     /// Space, ShiftLeft, ArrowUp, ...).
     #[serde(default)]
     pub keys: BTreeMap<String, Vec<String>>,
+    /// Free-form settings for a game built on `crate::games` whose level this is (its rules'
+    /// numbers): the game's `build` reads them.
+    #[serde(default, skip_serializing_if = "toml::Table::is_empty")]
+    pub game: toml::Table,
     /// HUD overlays opened while inside: "feel" (feel metrics).
     #[serde(default)]
     pub overlays: Vec<String>,

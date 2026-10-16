@@ -101,6 +101,18 @@ fn load_as<G: Game>(v: ciborium::Value) -> Result<GameBox, String> {
     v.deserialized::<G>().map(GameBox::new).map_err(|e| e.to_string())
 }
 
+/// A game's level text: `crates/pav_core/src/games/<key>.toml` read from disk when the program
+/// runs from the repository's root (`pav`, `cargo run`), so an edit shows at the next `load`
+/// with no rebuild; else `built_in`, the copy embedded with `include_str!` (tests, the browser,
+/// a shipped executable).
+pub fn level_text(key: &str, built_in: &'static str) -> std::borrow::Cow<'static, str> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Ok(text) = std::fs::read_to_string(format!("crates/pav_core/src/games/{key}.toml")) {
+        return text.into();
+    }
+    built_in.into()
+}
+
 /// The game registered under `key`.
 pub fn find(key: &str) -> Option<&'static Entry> {
     GAMES.iter().find(|g| g.key == key)

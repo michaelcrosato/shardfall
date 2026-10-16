@@ -47,6 +47,11 @@ cargo run -p pav_app -- --scene starter                # the window (WASD; needs
 `START_HERE.md` has the Linux packages to install. Look at captures with your image tool;
 small sizes are cheaper. With MCP (`.mcp.json`), the same tools are `mcp__shardfall__*`.
 
+**The edit loop.** Running from the repository's root, `pav` reads your level file at every
+`load` (and `play seeds=`), so changes to the map and to its `[game]` numbers need no rebuild.
+A change to Rust code rebuilds `pav` (about 2 minutes on 4 cores) and a test binary (as long
+again): batch code edits, and put balance numbers in `[game]`.
+
 ## Your game in six steps
 1. **Copy the starter.** `crates/pav_core/src/games/starter.rs` and `starter.toml` to
    `<key>.rs` and `<key>.toml` in the same folder. Rename the struct; set `const KEY` to your
@@ -54,7 +59,8 @@ small sizes are cheaper. With MCP (`.mcp.json`), the same tools are `mcp__shardf
 2. **Register it.** In `games/mod.rs`: `pub mod <key>;` and one line in `GAMES`:
    `entry::<mykey::MyGame>("One sentence about it.", mykey::build)`. Now `load scene=<key>`
    works in the tools, the window (`--scene <key>`) and the browser (`?scene=<key>`).
-3. **Draw the level** in `<key>.toml` (next section). `pav room_check path=<file>` checks it.
+3. **Draw the level** in `<key>.toml` (next section), with your rules' numbers in its `[game]`
+   table (the starter's `Rules`). `pav room_check path=<file>` checks it.
 4. **Write the rules** in your `Game` impl (the hook, below).
 5. **Teach the bot** every rule you add (`Game::bot`): it is how you, the tests and the next
    agent find out whether the game can be won.
@@ -81,8 +87,13 @@ corridor. In a room file:
   filters: `pav params prefix=view` lists them), `[params]` (movement and physics while in
   the level: `pav params`).
 
-The level is embedded with `include_str!` (the browser has no files), so rebuild `pav` after
-an edit. `pav capture` with `camera preset=top` shows the whole map from above.
+- `[game]`: your rules' numbers, free-form; your `build` reads them (`def.game`).
+- `entrance` is required by the format; with a `player` marker a level doesn't use it.
+
+Read the level with `games::level_text(KEY, include_str!(...))`: the file on disk when running
+from the repository, else the copy built in (tests, the browser, an executable). The camera
+follows the player; to see a whole level from above, `camera preset=top` then
+`set path=camera.distance value=30` (raise it for bigger levels) and `capture`.
 
 ## The hook: `pav_core::games::Game`
 ```rust
@@ -103,25 +114,26 @@ pub fn build(sim: &mut Sim, rest: Option<&str>) -> Result<()>; // the scene; set
 ```
 Every method has a default. `build` gets the rest of a scene name `mygame/<rest>` (a level
 number, say). Each tick runs: behaviours, your `pre`, characters move (your inputs replace
-their own), physics, your `post`. While `pre`/`post` run, your game is out of
-`sim.state.play`: use `self` for your state and `sim` for the world. In `post`, `events`
-already holds this tick's events (a shot's `Hit` on a character, `Land`, `Splash`...): read
-them to react, and push your own. From outside, read your game with
-`sim.play()?.get::<MyGame>()` (`get_mut` to change it in a test).
+their own), physics, shots move and hit, your `post`. While `pre`/`post` run, your game is out
+of `sim.state.play`: use `self` for your state and `sim` for the world. In `post`, `events`
+already holds this tick's events: read them to react (`Hit { target, .. }` names the
+character a shot struck: it is stunned, knocked back and safe from shots for 0.6 s), and push
+your own. From outside, `sim.play()?.get::<MyGame>()` reads your game; in a test,
+`sim.state.play.as_mut().unwrap().get_mut::<MyGame>().unwrap()` changes it.
 
 ## Building blocks
 | You need | Use |
 |---|---|
-| The player | `sim.state.player`; it walks by the keys' `InputFrame` (`move_dir`, `buttons::JUMP`, `PRIMARY`...); its feet are `pos - Y * height / 2` (`feet` in the starter) |
+| The player | `sim.state.player`; it walks by the keys' `InputFrame` (`move_dir`, `buttons::JUMP`, `PRIMARY`...); `sim.feet(id)` is where a character stands (`pos` is its centre) |
 | Characters | `[[npc]]` in the level, or `sim.spawn_npc(name, feet, facing, PuppetDef::preset(BodyPlan::Blob), None, None)`; drive them from `pre` |
 | Pickups, hazards, scenery | `sim.spawn(Spawn::new("name", pos).visual(Visual::new(shape, Color::hex("#7fe3ff"))).behavior(Behavior::Spin { speed }))`; `sim.despawn(id)`; `sim.set_position(id, feet)` |
 | Moving platforms, emitters, spinners | `Behavior::Move`, `Rotate`, `Emitter`, `Spawner` (`entity.rs`), or `[[object]]` in the level |
-| Shots | `sim.state.projectiles.spawn(Projectile { .. })`: plain structs with a team and damage, stopped by walls |
-| Pathfinding | `nav::NavGrid::build(sim, min, max, 0.5, 0.4, &|_| false)`; `grid.path(from, to)`; `grid.flow(goal, reach)` steers many chasers at once |
+| Shots | `sim.state.projectiles.spawn(Projectile { pos, vel, radius, life, color, knockback, gravity, owner, team, damage })`: plain structs, stopped by walls; `Team::Enemy` shots hit characters (a `Hit` event), `Team::Player` shots hit things with `health` |
+| Pathfinding | `nav::NavGrid::for_room(sim)` (the level's walkable grid); `grid.path(from, to)`; `grid.flow(goal, reach)` steers many chasers at once; `grid.walkable(p)` |
 | Randomness | `sim.state.rng` only (`range`, `below`, `f32`): seeded, so a seed always plays the same |
 | Messages | `sim.say("text")`: centre top for a few seconds |
 | Sound and effects | push `SimEvent`s from `pre`/`post`: `Coin`, `Pickup`, `Hit`, `Explosion`, `Shot`, `Jump`, `Land`... The renderer and the synth play them |
-| Tuning | `pav params` / `pav set`: movement (`movement.*`), physics, camera, view; a level's `[params]` set them while in it |
+| Tuning | your numbers: the level's `[game]`; the engine's: `pav params`, `pav set path=movement.speed value=4.5` (movement, physics, camera, view), and a level's `[params]` set them while in it |
 | Looks | the level's `[view]`; `pav look` lists looks and filters; `rooms/mix_match.toml` mixes styles per part |
 | Animation | characters animate procedurally; motion clips: `pav assets shelf=clip`, then `clips = ["SET/Clip"]` on an `[[npc]]` |
 
@@ -140,16 +152,17 @@ them to react, and push your own. From outside, read your game with
 | Question | Command (`pav <tool>` or a `pav repl` line) |
 |---|---|
 | Can it be won? Lost? | `play bot=true seeds=10` (wins, seconds, the state of every run not won) |
-| What's on screen? | `capture width=640 height=360 out=out/a.png`; `filmstrip` for motion in one image |
+| What's on screen? | `capture width=640 height=360 out=out/a.png`; `filmstrip` for motion in one image; to watch the bot, repeat `play bot=true ticks=30` and `capture` in a `pav repl` |
 | Does a rule fire? | `input move=[1,0] ticks=30`, then `play` (HUD, outcome, `status`) |
 | Where is everything? | `entities`, `player`, `status` (with the state hash) |
 | Same every time? | `record_save path=out/r.json`, then `replay path=out/r.json` (checks the hash); `rewind`, `snapshot_save`/`snapshot_load` |
 | Is the level valid? | `room_check path=crates/pav_core/src/games/<key>.toml` |
 | Does it run fast? | `bench scene=<key> ticks=1200` |
-| Does it still pass? | `cargo test -p pav_core --test <key>`, `cargo clippy -p pav_core --all-targets -- -D warnings` |
+| Does it still pass? | `cargo test -p pav_core --test <key>`, `cargo clippy -p pav_core --all-targets -- -D warnings`, `cargo fmt --all` |
 
 ## Ship it
 - **Window:** `cargo run -p pav_app -- --scene <key>` (Linux; `xvfb-run -a` without a display).
+  F5 restarts the game (Esc opens the menu).
 - **Windows `.exe`:** `scripts/build-windows.sh` (after `scripts/setup-linux.sh`).
 - **Browser, one file:** `scripts/build-web.sh --single-file --scene <key> --title "My Game"
   --out out/mygame.html`: about 10 MB, runs from `file://` in Chrome or Edge (WebGPU).
@@ -160,7 +173,8 @@ them to react, and push your own. From outside, read your game with
   (`pav_audio`, a closed list) mean code outside `pav_core`.
 - Your game compiles into the engine crate (`pav_core/src/games/`), beside Shardfall.
 - The camera follows the player with the level's `[camera]` settings; there is no
-  per-game camera code.
+  per-game camera code. Keep levels about 20 m across, or raise `[camera] distance`.
+- The window's controls card lists the engine demo's keys (bombs, vehicles), not your game's.
 
 ## Report back
 When you hand the game back, add a short **engine feedback** section, written for an engine
