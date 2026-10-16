@@ -24,9 +24,10 @@ reads this whole file, then works through §11's stages in order. Paths without 
    in (town, a level, the arena, the lab). One `Sim` holds one place, and travel rebuilds it.
 2. **Place owners.** The first player into a place builds it as single player does and **owns**
    it: their game runs its monsters, bosses and shared mechanics. Players who arrive later are
-   **guests** whose games mirror the owner's. When the owner leaves, the next player in the
-   place takes over from an exact snapshot; if the owner drops, a guest promotes its mirror. A
-   player alone in a place is playing single player, with zero lag.
+   **guests** whose games mirror the owner's. One guest is the place's **standby**. When the
+   owner leaves, the standby takes over from an exact snapshot, confirmed before the owner goes;
+   if the owner drops, the standby promotes from a snapshot at most 5 s old. A player alone in a
+   place is playing single player, with zero lag.
 3. **Your hero is yours.** Every game fully simulates its own hero: movement, skills, life,
    mana, potions, items, death. Input never waits on the network.
 4. **The attacker decides it hit; the victim decides it was hit.** Your hits resolve on your
@@ -46,9 +47,10 @@ reads this whole file, then works through §11's stages in order. Paths without 
    stream** (interpolated) plus **action events** (casts, dodges, emotes, deaths), played
    through the engine's own animation and skills.
 9. **Transport:** WebRTC data channels through matchbox, on native and in the browser: a full
-   mesh with one unreliable and one reliable channel. Tests and tools use an in-process
-   simulated network. The session host keeps only the directory of who owns which place, and
-   hands it on if it leaves.
+   mesh with an unreliable channel for streams and reliable channels for control, events and
+   bulk transfers (§5.4). Tests and tools use an in-process simulated network. The session host
+   keeps only the directory of who owns which place, and hands it on under a new term if it
+   leaves (§5.1).
 10. **Online rules:** no pause, rewind or speed control. Hit-stop freezes only your hero and
     what you hit, never the world.
 
@@ -96,10 +98,13 @@ reads this whole file, then works through §11's stages in order. Paths without 
   uses it first.
 - **`pav_core::arpg::coop`** (new; the game): messages, the directory, owner and guest logic,
   the hero and place streams, damage routing, scaling, pings and emotes. Its state is
-  `Game.net: Option<Box<CoopState>>`, inside `SimState`, so snapshots and replays carry it.
+  `Game.net: Option<Box<CoopState>>`, inside `SimState`, so a player's own snapshots and
+  replays carry it. Place snapshots sent to other players leave it out, and adopting one keeps
+  the recipient's own (§5.2).
 - **`pav_net`** (new crate; internals, doctrine 8): the WebRTC transport (matchbox, on native and
-  wasm) and the embedded signaling server (native only). It handles bytes only and knows nothing
-  of the game, so `pav_core` stays free of IO.
+  wasm) and the signaling server with rooms (native only; §9), both embedded in the host's game
+  and as a small `shardfall-signal` binary. It handles bytes only and knows nothing of the game,
+  so `pav_core` stays free of IO.
 - **`pav_app`**: flags and settings, the net pump, the Co-op window, party frames, ping and emote
   input and wheels, and pad and touch bindings.
 - **`pav_view`**: name plates and ping markers, drawn in the 3D scene so captures show them.
@@ -114,21 +119,31 @@ reads this whole file, then works through §11's stages in order. Paths without 
 ## 5. How it works
 ### 5.1 Session and directory
 - A session is a matchbox full-mesh room at `<signal>/<code>`. The code is six characters of
-  Crockford base32. Every player links to every other: at most six links.
-- **Handshake:** a joining player sends `Hello{protocol, build, name, profile}`. The host
+  Crockford base32. Every player links to every other: at most six links. Rooms are kept apart
+  by our signaling server (§9), and `Hello` carries the code as a second check.
+- **Handshake:** a joining player sends `Hello{protocol, build, code, name, profile}`. The host
   answers `Welcome{slot, directory, settings}` or `Reject{reason}`:
   - The reason is a version mismatch (the `.exe` and the Vercel build can differ; bump
-    `PROTOCOL` whenever a message changes) or a full session (a fifth player).
+    `PROTOCOL` whenever a message changes), a wrong code, or a full session (a fifth player).
   - Failures show on screen in plain words: host not found, version mismatch, session full.
 - **The host** is the room's creator. It keeps the **directory**:
   - peers: slot 1-4, colour, name, and a hero profile (character, level, look);
-  - places: `PlaceKey` → owner, members, epoch;
+  - places: `PlaceKey` → owner, standby, members, epoch (the standby is the member who takes
+    over if the owner drops; §5.2);
   - the session settings: the host's difficulty sliders and the `coop.*` params.
 
   It broadcasts every change, and every player keeps a copy.
-- **If the host leaves or drops,** the earliest-joined remaining player becomes host; everyone
-  computes the same answer from their copy. With the embedded signaling server (E1's default),
-  nobody new can join after that, but the session goes on.
+- **If the host leaves or drops,** copies of the directory may differ (a broadcast can stop
+  partway), so the new host rebuilds it rather than trusting its copy:
+  - The earliest-joined connected player (ties by peer id) becomes host under a new **host
+    term**. Every control message carries the term, and messages from older terms are dropped.
+  - The new host asks every player for `Report{place, role, place epoch}` and rebuilds the
+    directory from the answers. If two players claim to own one place, the higher place epoch
+    wins and the other resyncs as a guest.
+  - It publishes the rebuilt directory before accepting any change.
+
+  With the embedded signaling server (E1's default), nobody new can join after the host goes,
+  but the session goes on.
 - **`PlaceKey`** is one of `Town`, `Arena`, `Lab` or `Level(depth)`. There is one instance per
   key per session: whoever goes to depth 7 joins whoever is already there.
 
@@ -139,21 +154,31 @@ reads this whole file, then works through §11's stages in order. Paths without 
 2. **Empty place:** the host answers `Assign{owner: you, epoch}`. The game builds the place as
    single player does, and owns it.
 3. **Occupied place:** the host answers `Assign{owner: O}`. The game asks O to `Join`.
-   - O sends `PlaceSnapshot`: its `SimState` minus its hero side, deflated, in 16 KB chunks on
-     the reliable channel (about 0.1-0.5 s).
-   - The game **adopts** it: it keeps its own hero side, turns O and the other members into
-     remote heroes, and spawns its hero at the place's spawn. It is now a guest.
+   - O sends `PlaceSnapshot`: its `SimState` minus its hero side and its `Game.net`, deflated,
+     in 16 KB chunks on the bulk channel (about 0.1-0.5 s).
+   - The game **adopts** it: it keeps its own hero side and co-op state, turns O and the other
+     members into remote heroes, and spawns its hero at the place's spawn. It is now a guest.
 4. O adds the newcomer's hero, and every member gets `MemberJoined`.
 
 **Leaving** is travelling away or disconnecting:
 - **A guest leaves:** the owner removes its hero, and members get `MemberLeft`.
-- **The owner leaves, others remain:** the host names the next owner, the earliest member.
-  - The old owner sends it `Handoff`, a snapshot as on joining, before travelling.
-  - The new owner adopts it, keeps its own hero and runs the place.
-  - `OwnerChanged{epoch+1}` re-points everyone's streams.
-- **The owner drops:** after `owner_timeout` (2 s) with no packets, the host names the next
-  owner. That game **promotes its mirror**: the mirrors switch to full AI. Brains restart;
-  nothing else that matters is lost.
+- **Every place with guests has a standby:** its earliest-joined guest, named in the directory;
+  if the standby leaves, the next guest takes the role. The owner keeps the standby promotable: it sends the standby the place stream without the
+  interest limit (far actors at 2 Hz) and a full snapshot every 5 s (about 20 KB/s).
+- **The owner leaves, others remain:** the standby takes over in three steps, so no change is
+  lost:
+  1. The old owner sends it `Handoff`, a final snapshot, and keeps running the place.
+  2. The standby adopts it and answers `Ready`.
+  3. The old owner tells the host, which broadcasts `OwnerChanged{epoch+1}` to re-point
+     everyone's streams. Only then does the old owner travel, behind its loading veil, and it
+     forwards any claim that still reaches it.
+
+  If `Ready` hasn't come within 3 s, the old owner travels anyway and the host treats it as a
+  drop.
+- **The owner drops:** after `owner_timeout` (2 s) with no packets, the host makes the standby
+  the owner. The standby **promotes**: it adopts its latest standby snapshot, applies its fresher
+  stream data on top, and switches the mirrors to full AI. Brains restart, and up to 5 s of
+  far-off changes can be lost: acceptable for a crash.
 - **The last player leaves:** the place is gone. The next visitor builds a new one, as in single
   player.
 
@@ -162,11 +187,13 @@ together, the host answers in order and the second waits for the first's snapsho
 
 **Resync** heals any desync. A guest asks for a fresh snapshot and adopts it, keeping its hero,
 when any of these happens:
-- it sees a `NetId` it doesn't know;
+- a streamed `NetId` still has no `Spawned` 2 s after it first appeared. Streams and events
+  travel on different channels, so a stream can beat its spawn; until then the entry is
+  buffered, not treated as a desync;
 - a `PlaceState` hash doesn't match;
 - an epoch has a gap.
 
-One function serves joining, handoff and resync.
+One adopt function serves joining, handoff, promotion and resync.
 
 **IDs:** the owner assigns each actor's `NetId`, and each game maps `NetId`s to its own
 `EntityId`s, because games allocate entities independently after they adopt a snapshot. Remote
@@ -187,23 +214,31 @@ Replays record the inbox per tick in a new `net` track in `Replay`. So `record_s
 exactly as today.
 
 ### 5.4 Streams and events
-Channel 0 is unreliable and unordered, with each message at most 1,200 bytes. Channel 1 is
-reliable and ordered.
+Four channels, so a lost or large message never holds up an unrelated one:
+- **0 streams:** unreliable and unordered, each message at most 1,200 bytes.
+- **1 control:** reliable and ordered: the handshake, the directory, owner changes and the
+  handoff's steps.
+- **2 events:** reliable and unordered. Each event carries a per-sender sequence number, and
+  order is restored only where it matters: a `NetId`'s spawn, death and despawn are kept as
+  tombstones, so a late spawn never revives a dead actor.
+- **3 bulk:** reliable and ordered: snapshots and `PlaceState`.
 
 | Message | Ch. | When | From → to | Carries |
 |---|---|---|---|---|
 | Hero stream | 0 | 30 Hz | each player → others in its place | tick, position, velocity, facing, grounded and posture, life and mana fractions, ailment bits, current action and phase |
-| Place stream | 0 | 20 Hz | owner → each guest | owner tick, then per actor in the guest's interest: `NetId`, position, velocity, yaw, life fraction, state bits (casting, stunned, frozen, burning, dead), target |
-| `Cast`, `Dodge` | 1 | on event | whoever runs the character → its place | actor, skill, aim, target, start tick, seed |
-| `Spawned`, `Despawned` | 1 | on event | owner → guests | `NetId` and the spawn spec (genome, rarity, affixes, level) |
-| `Killed` | 1 | on event | owner → guests | `NetId`, killer, position, level, rarity, rank, boss |
-| `HitClaim` | 1 | per hit | guest → owner | target, damage as rolled, ailments, knockback, skill, crit |
-| `UseClaim` | 1 | per use | guest → owner | a world-changing use: a chest, a well, a keg, a Menagerie creature, an arena wave |
-| `HeroHit`, `HeroDied`, `Respawned` | 1 | on event | a player → its place | others' screens: flash, number, fall |
-| `PlaceState` | 1 | on change, ≤ 5 Hz | owner → guests | the shared mechanics state, deflated and sequence-numbered (latest wins) |
-| `PartyStatus` | 1 | 1 Hz | a player → all | life, level, place, dead (for party frames) |
-| `ProfileChanged` | 1 | on change | a player → all | character, level, look |
-| `Emote`, `Ping` | 1 | on use | a player → its place | §8 |
+| Place stream | 0 | 20 Hz | owner → each guest | owner tick and, per player, the last claim applied (the claim watermark); then per actor in the guest's interest: `NetId`, position, velocity, yaw, life fraction, state bits (casting, stunned, frozen, burning, dead), target |
+| Standby stream, standby snapshot | 0, 3 | far actors 2 Hz; snapshot every 5 s | owner → the standby | the place stream without the interest limit; a full snapshot (§5.2) |
+| `Cast`, `Dodge` | 2 | on event | whoever runs the character → its place | actor, skill, aim, target, start tick, seed |
+| `Spawned`, `Despawned` | 2 | on event | owner → guests | `NetId`, and the new entity and its `Actor` exactly as in the owner's state (CBOR), so summons, waves and brood arrive complete |
+| `Killed` | 2 | on event | owner → guests | `NetId`, owner tick, killer, position, level, rarity, rank, boss |
+| `HitClaim` | 2 | per hit | guest → owner | claim id (rising, per claimant), target, and the result as the attacker's game resolved it: life damage after the target's mitigation, ailments with strength and duration, knockback, crit, execute, power effects |
+| `UseClaim` | 2 | per use | guest → owner | a world-changing use: a chest, a well, a keg, a Menagerie creature, an arena wave |
+| `HeroHit`, `HeroDied`, `Respawned` | 2 | on event | a player → its place | others' screens: flash, number, fall |
+| `PlaceState` | 3 | on change, ≤ 5 Hz | owner → guests | the shared mechanics state, deflated and sequence-numbered (latest wins) |
+| `PartyStatus` | 2 | 1 Hz | a player → all | life, level, place, dead (for party frames) |
+| `ProfileChanged` | 2 | on change | a player → all | character, level, look |
+| `Emote`, `Ping` | 2 | on use | a player → its place | §8 |
+| `Enter`, `Assign`, `Join`, `Handoff`, `Ready`, `OwnerChanged`, `Report` | 1 (`Handoff` on 3) | on change | the players concerned | the host term and place epoch, plus each step's data (§5.1, §5.2) |
 | `Probe`, `Echo` | 0 | 1 Hz per link | both ways | the link clock |
 
 The place stream covers actors in the guest's interest: within 45 m of its hero, every boss,
@@ -240,9 +275,11 @@ One check at the top of `Game::hit` returns `Apply`, `Claim` or `Ignore`:
 | a monster or object, in a place where you're a guest | **Claim**: play it now, send `HitClaim` | **Ignore** | **Ignore** |
 | a remote hero | — | **Ignore**: its player decides | — |
 
-The owner applies a claim through the same `Game::hit` and credits the claimer. Effects on the
-attacker (life and mana on hit, power procs, hit-stop) happen in the attacker's game when the
-hit lands there. Single player is the "a place you own" row.
+The owner applies a claim's result as it stands, through `Game::hit`'s apply step: no re-roll,
+and no reading of the attacker's powers or build, which the owner doesn't have. It credits the
+claimer and advances that player's claim watermark. Effects on the attacker (life and mana on
+hit, power procs, hit-stop) happen in the attacker's game when the hit lands there. Single
+player is the "a place you own" row.
 
 ### 5.7 Lag hiding
 1. **Your own hero has no latency** (§2, point 3).
@@ -251,10 +288,10 @@ hit lands there. Single player is the "a place you own" row.
    extrapolate for up to 150 ms, then hold. Corrections blend over 100 ms; teleports (rift
    gates, respawn) snap.
 3. **Hits are instant on your screen.** The flash, number and sound, your hit-stop and your
-   life on hit all happen at once. The monster's bar shows predicted life: the owner's figure
-   minus your unconfirmed claims. A predicted kill plays the death and drops your loot at once,
-   since loot is personal. If the owner hasn't confirmed within 1 s, the mirror comes back
-   (rare).
+   life on hit all happen at once. The monster's bar shows predicted life: the owner's latest
+   figure minus your claims above the watermark that came with it, so no claim is subtracted
+   twice. A predicted kill plays the death and drops your loot at once, since loot is personal.
+   If the watermark hasn't passed the killing claim within 1 s, the mirror comes back (rare).
 4. **You dodge what you see.** Monster attacks resolve on your machine against your hero, with
    the full windup. It is never shortened, which is fair to the victim.
 5. **Interactions** (rift gate, well, keg, chest) play at once in your game; the owner confirms.
@@ -271,8 +308,10 @@ hit lands there. Single player is the "a place you own" row.
 - **Life** is multiplied by 1 + `coop.life_per_player` × (n−1). The default 0.75 gives ×1,
   ×1.75, ×2.5 and ×3.25.
   - The owner applies it in `spawn_actor` (`arpg/mod.rs` l.598).
-  - When n changes, the owner rescales live monsters, keeping their life fraction
-    (`Actor::recompute`, `arpg/combat.rs` l.295).
+  - When n changes, every game rescales the actors it holds in the same way, keeping each
+    life fraction (`Actor::recompute`, `arpg/combat.rs` l.295): the owner its monsters, guests
+    their mirrors. So predictions, execute thresholds and damage numbers use the owner's
+    maximum.
 - **Damage** is multiplied by 1 + `coop.damage_per_player` × (n−1). The default 0.25 gives ×1,
   ×1.25, ×1.5 and ×1.75.
   - It is applied where monster damage is rolled in the victim's game, using that game's n,
@@ -281,7 +320,8 @@ hit lands there. Single player is the "a place you own" row.
     l.350) and powers (`arpg/powers.rs` l.251, l.348).
 - **Rewards** are per player, as single player gives them. On `Killed`, every player within
   `coop.share_radius` (40 m) of the kill, or who hit the monster, gets the full XP and rolls
-  their own drops.
+  their own drops. Distance is judged at the kill's owner tick: each game keeps its hero's
+  positions for the last 2 s.
 - Ward Totems and kegs keep their own life, as today.
 - The session host's difficulty sliders apply in every game.
 - All four params are a `Tunable` (`coop.*`), so `params`, `set`, presets and the tuning panel
@@ -362,9 +402,15 @@ don't show egui):
   - They are the newest versions at least 12 months old on 2026-10-16 (doctrine 9; 0.14 is
     current). Licence: MIT or Apache-2.0.
   - The same API runs on native and wasm: full-mesh WebRTC data channels with
-    `ChannelConfig::unreliable()` and `reliable()`, ICE servers (`RtcIceServerConfig`, Google
+    `ChannelConfig::unreliable()`, `reliable()` and custom configs (reliable and unordered is
+    `ordered: false` with unlimited retransmits), ICE servers (`RtcIceServerConfig`, Google
     STUN by default), and a pluggable `SignallerBuilder`.
   - Native-to-browser play is a stated matchbox feature, *unverified* here until C3.
+- **Rooms:** the signaling library's built-in full mesh (`full_mesh_builder`) puts every
+  connected peer in one mesh. The standalone `matchbox_server` keeps rooms apart by URL path,
+  using its own topology on the signaling library; its newest qualifying release is 0.11.0, and
+  it has no 0.12. `pav_net` reuses that pattern on `matchbox_signaling` 0.12, so the host's
+  embedded server and the public `shardfall-signal` binary run the same code.
 - **Native:**
   - It uses webrtc-rs 0.13, with `ring` 0.17 and `rustls` and no OpenSSL; matchbox's lockfile
     lists about 300 crates.
@@ -377,16 +423,17 @@ don't show egui):
   `wasm_bindgen_futures::spawn_local`, and the socket is polled in `pump()`
   (`pav_app/src/app.rs` l.990). No threads and no blocking calls.
 - **Signaling (E1):**
-  - By default, the host's native game runs `matchbox_signaling` (full mesh) on port 3536.
+  - By default, the host's native game runs `pav_net`'s signaling server on port 3536.
     Joiners use `CODE@host:3536` on a LAN, through a port forward, or over a VPN such as
     Tailscale.
   - A browser on the Vercel page is served over https, so it can only reach a `wss://` server.
     Internet play from the browser waits on E1.
-  - Recommended: `matchbox_server` 0.12 in a small container with TLS, its URL in
+  - Recommended: `shardfall-signal` in a small container with TLS, its URL in
     `shardfall.toml` and the web build.
 - **NAT:** STUN only by default. TURN comes from settings if a real session fails to connect;
   most home networks connect without it.
-- **Sizes:** unreliable messages are at most 1,200 bytes; snapshots go in 16 KB chunks.
+- **Sizes:** unreliable messages are at most 1,200 bytes; snapshots go in 16 KB chunks on the
+  bulk channel.
 
 ## 10. Tools, tests and targets
 - **`SimNet`:** N players in one process, each with a full `Sim`, over links with seeded latency,
@@ -411,11 +458,15 @@ don't show egui):
   | Mirror error: a guest's mirror vs the owner's actor at the same owner tick | median ≤ 0.15 m, p99 ≤ 0.5 m |
   | Pops: corrections over 0.5 m in one frame | ≤ 1 per minute per player |
   | Bandwidth | ≤ 40 KB/s per player |
-  | Hit confirmation | ≤ RTT + 2 ticks |
+  | Hit confirmation (the watermark passing a claim) | median ≤ RTT + 2 ticks, p99 ≤ 2 × RTT |
   | A guest's tick cost | ≤ the owner's |
 - **Suites** in `crates/pav_core/tests/coop.rs` (new; cargo, no GPU):
   - the handshake: version mismatch, a full session;
   - entering, joining, leaving, handoff, owner drop and host drop;
+  - a graceful handoff loses no change; an owner drop with players far apart promotes the
+    standby without stale actors; a host drop in mid-broadcast converges on one directory;
+  - a place stream that beats its `Spawned` is buffered, not resynced;
+  - the claim watermark: predicted life never subtracts a claim twice;
   - a guest's kill confirmed by the owner, with the guest's own loot;
   - victim-side hits: a dodge on the guest's screen counts;
   - scaling, and the live rescale;
@@ -423,7 +474,7 @@ don't show egui):
   - one player's replay reproducing its hash;
   - every existing suite, unchanged.
 - **`pav_net` tests:** two native peers and the embedded signaling server on 127.0.0.1 exchange
-  messages on both channels.
+  messages on all four channels, and two rooms on one server stay apart.
 - **`scripts/coop-local.sh`** (new), all on localhost, with screenshots from each window into
   `out/coop/`:
   - a native host under Xvfb and lavapipe, with `--bridge 127.0.0.1:7878`;
@@ -463,23 +514,30 @@ exactly as before after every stage.
 
 **C1: a session over the simulated network.**
 - `pav_core::net`: `SimNet`, `InterpBuffer` and the link clock.
-- `arpg::coop`: the handshake, the directory, entering, joining and leaving, snapshot adoption,
-  handoff, promotion and resync, the hero and place streams, spawn and despawn.
+- `arpg::coop`:
+  - the handshake (with the code), and the directory with host terms and reports;
+  - entering, joining and leaving, and snapshot adoption (keeping the recipient's co-op
+    state);
+  - the standby and its stream, the three-step handoff, promotion, and resync (buffering
+    early streams);
+  - the hero and place streams, and spawn and despawn with complete actors.
 - `Sim::step_net`, the replay's `net` track, and the `coop` tool.
 - **Exit:** the session suites in `coop.rs` pass, and a four-player `coop` run meets §10's
   mirror-error, pop and bandwidth targets.
 
 **C2: combat and rewards online.**
-- Hit claims and prediction, victim-side monster hits, `Killed` and personal rewards.
+- Hit claims with ids, resolved results and the watermark; prediction; victim-side monster
+  hits; `Killed` with its tick, and personal rewards.
 - `PlaceState` and the mechanics, checking §5.5's table mechanic by mechanic.
-- Scaling with the live rescale, and the online rules (§7).
+- Scaling with the live rescale in every game, and the online rules (§7).
 - **Exit:**
   - `coop bots=true` with four players clears levels 1-3 and kills the Hollow King on level 4;
   - the scaling check (§6) is done;
   - each class of mechanic has a suite.
 
 **C3: the real network.**
-- `pav_net`: matchbox on native and wasm, and the embedded signaling server.
+- `pav_net`: matchbox on native and wasm, and the signaling server with rooms (embedded, and the
+  `shardfall-signal` binary).
 - App wiring: the net thread, the wasm pump, flags and settings, the Co-op window, and handshake
   errors on screen.
 - `scripts/coop-local.sh`.
@@ -530,8 +588,8 @@ which the run applies if no answer has come 15 minutes after it reaches the ques
   out with `#[serde(skip)]`.
 - **Big snapshots on the browser's main thread:** decoding about 1.5 MB of CBOR may hitch a
   frame. Measure in C3, and spread the work over frames if needed.
-- **Promotion loses AI state:** brains restart. That's acceptable, and graceful leaves hand over
-  exactly.
+- **Promotion after a drop is approximate:** brains restart, and up to 5 s of far-off changes
+  can be lost. That's acceptable for a crash; graceful leaves hand over exactly.
 - **The MCP tool list is full:** keep to one `coop` tool with short help, and trim elsewhere if
   `asset_errors.rs` fails.
 - **The bot's known stall** on level 4's seal (`docs/PROGRESS.md`, "Open issues") may block C2's

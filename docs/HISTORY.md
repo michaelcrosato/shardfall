@@ -5,6 +5,33 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Co-op plan: Codex's review folded in — 2026-10-16
+
+Codex reviewed #70 after it merged and found twelve gaps in the plan's protocol, all real.
+`docs/COOP_PLAN.md` now covers each one:
+- **Adoption:** adopting a snapshot keeps the recipient's co-op state, because place snapshots
+  leave `Game.net` out.
+- **Standby:** every place has a standby, kept promotable with the full place stream (far
+  actors at 2 Hz) and a snapshot every 5 s. Graceful leaves hand over in three steps
+  (`Handoff`, `Ready`, `OwnerChanged`), so nothing is lost.
+- **Host terms:** a new host rebuilds the directory from every player's `Report` under a new
+  term.
+- **Rooms:**
+  - The signaling library's built-in full mesh puts every peer in one mesh.
+  - The standalone `matchbox_server` keeps rooms apart by path, and `pav_net` reuses its
+    topology. Its newest qualifying release is 0.11.0; there is no 0.12, which the plan had
+    named.
+  - `Hello` carries the code.
+- **Channels:** four (streams, control, unordered events with sequence numbers, bulk), so a lost
+  or large message holds up nothing unrelated.
+- **Spawns:** a streamed `NetId` waits up to 2 s for its `Spawned`, which now carries the
+  complete entity and `Actor`.
+- **Claims:** hit claims carry ids and the attacker's resolved result, because the owner doesn't
+  have remote builds. The place stream carries a claim watermark, so predicted life never
+  subtracts a claim twice.
+- **Rescale:** every game rescales the actors it holds when the player count changes.
+- **Kills:** `Killed` carries its owner tick, and reward distance is judged at that tick.
+
 ## A co-op plan: up to four players, one world — 2026-10-16
 
 The user asked for a plan for online co-op: up to four players, the single-player game with
