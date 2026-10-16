@@ -80,13 +80,12 @@ recorded; it never stops, skips or reverts planned work.
 - Assets made through the documented loop (a brief, `check` to zero findings, a 4-view sheet at
   the game camera, at most two fix rounds, `publish` with a review) need no human review: the user
   accepted 28 of 28 (2026-10-12). Show the user only edge cases, or complex ones you are unsure of.
-- Per PR (from 2026-10-13):
+- Per PR (from 2026-10-16):
   - Run the full checks (tests of the touched crates, clippy, fmt, the wasm check when the app
-    builds the change) once, on the head you mark ready.
+    builds the change) once, on the head you merge.
   - After a rebase or a small fix, run only the tests of what changed. A docs-only PR needs none.
-  - Take the one Codex review that marking a PR ready starts. Fix its real findings, answer the
-    rest on their threads, and merge, without asking for another round. No review within 30
-    minutes: say so in one PR comment and merge.
+  - Merge as soon as the checks pass; don't wait for a review (Codex has posted none since #45 on
+    2026-10-12). A review that arrives later: fix its real findings in a follow-up PR.
   - The Vercel status is only the browser preview, and the user pauses deployments while not
     testing: a blocked or paused Vercel status never holds up a PR.
 
@@ -180,8 +179,9 @@ printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\
   `creature-studio.sh` build and open each. Pass the last reply's `revision` as `if_revision`,
   and copy a source clip or asset before changing it.
 - Game data and rooms may name only assets every build carries: embedded (BUILTIN, LIB/core) or a
-  shipped pack's (`props::store::SHIPPED`: the KayKit figures). Game code draws library assets from its own
-  state with `pav_view::assets::emit_asset` (`docs/ASSET_STUDIO.md`, "Library assets in game code").
+  shipped pack's (`props::store::SHIPPED`: the KayKit figures). Game code draws library assets
+  from its own state with `pav_view::assets::emit_asset` (`docs/ASSET_STUDIO.md`, "Library
+  assets in game code").
 - `tools/creature-compiler` vendors the exact SpawnForge pin: keep the pin and source hashes
   intact; don't resolve against a moving upstream checkout.
 - Shardfall content: game data lives in `game/*.toml` (`game_reload` re-reads it live). Check a
@@ -190,7 +190,7 @@ printf 'input move=[1,0] ticks=30\ninput press=jump move=[0,1] ticks=40\nplayer\
   levels and reports each; run it after data changes).
 
 Asset store (`docs/AGENT_ASSET_STORE.md`): before making a prop or clip, `assets shelf=prop` (or `shelf=clip`) lists the best entries and `assets find=words` (`kind=clip` for motion) searches; a miss gives `none` and a route.
-In the Workshop wing, `library_hall` shows every standard object (generated: after publishing to core, rebuild and run `pav assets reindex=store` and `pav assets reindex=hall`), `limits` what the checks catch and miss, `catalogue` pages through every store row (desktop builds).
+In the Workshop wing, `library_hall` shows every standard object (generated: after publishing to core, rebuild and run `pav assets reindex=store` and `pav assets reindex=hall`), `limits` what the checks catch and miss, `catalogue` pages through every store row, `store_showcase` shows the materials; the animation wing's `clip_browser` plays every clip.
 
 Tools: `scenes load step status entities npcs params set camera capture bench gpu player input
 spawn despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
@@ -249,11 +249,11 @@ lavapipe); `pav_tools/tests/import_khronos.rs` is opt-in (`-- --ignored`).
   the PR); don't ask first.
 - The user plays the Windows build; the log file `shardfall.log` and `shardfall.toml` (startup
   settings, e.g. `backend = "dx12"`) sit next to the `.exe`.
-- Keep this file short: under 32 KiB (Codex reads no further) and about 250 lines. Detail goes
-  to `docs/REFERENCE.md` or a topic doc, with a pointer here.
+- Keep this file short: under 32 KiB (Codex reads no further; `docs_limits.rs` checks it) and
+  about 250 lines. Detail goes to `docs/REFERENCE.md` or a topic doc, with a pointer here.
 
 ## Code Review Rules
-For reviewers (Codex reviews each PR). Flag a change that:
+For reviewers (Codex when it runs, or `/code-review`). Flag a change that:
 - breaks one of the "Key rules" under Architecture: a graphics, windowing or audio dependency in
   `pav_core`, play state outside a `Clone` `SimState`, results that can differ between runs on one
   machine (unseeded randomness, the clock, `HashMap`/`HashSet` iteration order);

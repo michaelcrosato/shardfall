@@ -5,6 +5,42 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Handoff and setup, compared with the sibling repositories — 2026-10-16
+
+The user asked for a look at how riftlight, my-3dge and my-3d2dge orient sessions and hand work
+on, and to adopt what fits here, keeping it simple. Each was read from a shallow read-only clone,
+deleted afterwards.
+- **What they do:**
+  - riftlight: a 10-line CLAUDE.md importing a ~120-line AGENTS.md; a Stop hook that runs
+    `check.sh --fast` only when work is unshipped (capped at 3 blocks); merge at once with
+    auto-merge, and an LLM-free workflow that reverts the commit that turned main red; GitHub
+    issues as the queue and escalation log.
+  - my-3dge: a 40-line PROGRESS that a check enforces; a SessionStart hook that prints open
+    escalations and main's CI status; edit guards and a format hook; an escalation CLI; a 572 KB
+    PLAN with a 115 KB ledger.
+  - my-3d2dge: one SessionStart hook; merge as soon as the checks pass and fix forward or
+    revert; temporary HANDOFF-<topic> plans deleted once folded into the decision log; no CI.
+- **Adopted:**
+  - **Merge when the checks pass**, with no review wait. Codex has posted no review since #45
+    (2026-10-12), so the 30-minute wait in AGENTS.md "Per PR" delayed every PR from #50 to #67
+    for nothing. A review that arrives later is handled in a follow-up PR.
+  - **PROGRESS capped at 60 lines** by `pav_tools/tests/docs_limits.rs` (with AGENTS.md's 32 KiB
+    limit). PROGRESS had grown to 98 lines, mostly the asset store's stage story, which HISTORY
+    already holds; it is 48 lines now.
+- **Not adopted, and why:**
+  - Auto-merge, auto-revert and CI workflows: Shardfall's full checks need lavapipe and run for
+    many minutes, so a CI runner adds setup and cost for one user; agents already run them
+    before merging.
+  - A Stop hook running the tests: too slow to run at every stop. The environment's own Stop
+    hook already insists on committed, pushed work.
+  - Edit guards, a format-on-edit hook, an escalation CLI, ADRs, per-merge versions and
+    changelogs, issue queues: no problem here that they would solve. `docs/ESCALATIONS.md` with a
+    15-minute `send_later` check-in already covers escalation.
+- **Kept:** CLAUDE.md importing DOCTRINE, AGENTS and PROGRESS; HISTORY as the journal; the
+  SessionStart hook that builds `pav`; `docs/handoffs/` for work that belongs in another repo.
+- **Cleaned up:** a 107 MB locked worktree and its local branch left by S3b's builder agent
+  (merged as #64).
+
 ## The store's work on show in the world demo — 2026-10-16
 
 The user asked whether the store's models and animations were easy to see in the demo world. They
