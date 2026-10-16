@@ -5,6 +5,38 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A co-op plan: up to four players, one world — 2026-10-16
+
+The user asked for a plan for online co-op: up to four players, the single-player game with
+monster life and damage scaled instead of more monsters, a lag-free feel, no anti-cheat, every
+player free to go anywhere on their own, emotes and pings but no chat. They also asked for a
+`/goal` line to build it. `docs/COOP_PLAN.md` is the plan; nothing is built yet.
+- **Survey:** three read-only passes over the sim core, the game, and the app and tools. The
+  plan's §3 lists the facts with line numbers:
+  - one `Sim` holds one place, and travel rebuilds it;
+  - there is one `state.player`;
+  - monster AI, rewards and the map assume one hero;
+  - hit-stop slows the whole sim;
+  - pause and rewind live in the app;
+  - there is no networking crate.
+- **Measured:**
+  - A full `SimState` snapshot deflates to 41-175 KB (town, and levels 3, 9 and 14), so a
+    joining player can take the owner's exact state.
+  - A level runs at 330-530 ticks/s in the dev build; town runs at 3,200.
+- **Decisions:**
+  - *Place owners:* the first player into a place runs its monsters and the others mirror it,
+    with handoff by snapshot and promotion when an owner drops.
+  - Each hero is simulated by its own player's game.
+  - "The attacker decides it hit, the victim decides it was hit."
+  - Personal rewards in a shared world.
+  - Scaling: life +75% and damage +25% per extra player in the place.
+  - Transport: WebRTC through matchbox 0.12, on native and in the browser.
+  - An in-process simulated network for tests and tools.
+  - Stages C0-C6.
+- **Rejected:** one host simulating every place, lockstep or rollback, and a WebSocket relay.
+- **Asked:** rulings E1-E3 (a public signaling server, the scaling basis, the loot model), each
+  with a default (`docs/ESCALATIONS.md`).
+
 ## A game maker's handoff: the game hook, the starter and one guide — 2026-10-16
 
 The user asked for a review of how this repository hands the engine to an agent who wants to
