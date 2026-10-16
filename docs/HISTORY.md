@@ -5,6 +5,29 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Co-op plan: Codex's second review folded in — 2026-10-16
+
+Codex's review of #72 found ten more gaps, all real. Each is a short change to
+`docs/COOP_PLAN.md`:
+- **Handoff:** the place holds from the snapshot's tick, and the old owner forwards its queued
+  claims to the new owner.
+- **Claims:** the owner applies each player's claims in id order, so the watermark never passes
+  a gap.
+- **Defences:** claims carry damage before mitigation, and the owner applies its own current
+  defences for the target.
+- **Spawns:** spawn payloads carry references to other entities as `NetId`s.
+- **Co-op state:** it splits into a session part, kept on adoption and travel, and a place part,
+  rebuilt each time.
+- **Early events:** an event naming an unknown `NetId` waits for its `Spawned`, as a stream does.
+- **Host terms:** a term is a (number, peer id) pair, and `Report` carries each player's
+  profile and the settings version.
+- **Standby budget:** standby replication has its own 40 KB/s budget, with snapshots every
+  5-10 s.
+- **Late kills:** a kill older than the 2 s position buffer is judged from the oldest kept
+  position.
+
+This was the last review round on the plan; later edge cases belong to the build stages.
+
 ## Co-op plan: Codex's review folded in — 2026-10-16
 
 Codex reviewed #70 after it merged and found twelve gaps in the plan's protocol, all real.
