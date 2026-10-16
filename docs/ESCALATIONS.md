@@ -6,6 +6,22 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-16 — Co-op plan: three rulings
+- **Questions** (asked in chat with `docs/COOP_PLAN.md`, §12):
+  - E1: where does a public signaling server run? An account, and any small cost, are the
+    user's.
+  - E2: do monsters scale by the players in the place or by everyone in the session? The request
+    says "in the game".
+  - E3: personal loot, or shared loot?
+- **Defaults:**
+  - E1: none yet. Hosts run the embedded server, internet play needs a port forward or a VPN,
+    and browser players wait for the answer.
+  - E2: the players in the place.
+  - E3: personal loot.
+- **Decided by:** pending user. The run that builds co-op applies each default if no answer has
+  come 15 minutes after it reaches the question.
+- **PR:** the PR that adds the plan.
+
 ## 2026-10-15 — S3b: rigid figures, or build skinning?
 - **Question** (the user's alone, §15: no default): the five imported KayKit characters play
   every clip as rigid per-bone segments. Do the joints read well enough, or should skinning be
