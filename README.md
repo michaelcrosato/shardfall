@@ -12,11 +12,14 @@ or Edge with WebGPU and hardware acceleration enabled. Phones and tablets play b
 on Android, Safari on iOS 26 or later): drag anywhere to move, attacks are automatic, and the
 buttons in the corner dodge, cast and drink.
 
-- Compact engine for AI agents: [`pavilion-lite/`](pavilion-lite/) (one Cargo package, CPU
-  renderer, agent tools, sample games; `pavilion-lite/package.sh` makes the handoff archive).
-  Frozen: a finished experiment, outside the doctrine because its renderer isn't WebGPU.
-- Linux agent handoff: [`START_HERE.md`](START_HERE.md). Run `scripts/package-agent.sh`
-  to create a standalone source archive and checksum in `out/agent/`.
+- Make a game on the engine: [`docs/MAKE_A_GAME.md`](docs/MAKE_A_GAME.md), an agent's guide
+  that starts from the starter game (`load scene=starter`, `crates/pav_core/src/games/`).
+- Agent handoff: [`START_HERE.md`](START_HERE.md) (routes and prompts). Run
+  `scripts/package-agent.sh` to create a standalone source archive and checksum in
+  `out/agent/`; `scripts/check-handoff.sh` checks it the way a receiving agent uses it.
+- [`pavilion-lite/`](pavilion-lite/): an older compact engine with a CPU renderer. Frozen: a
+  finished experiment, outside the doctrine because its renderer isn't WebGPU, and left out
+  of the handoff archive.
 - Design: [`docs/DESIGN.md`](docs/DESIGN.md). Current state: [`docs/PROGRESS.md`](docs/PROGRESS.md);
   history and decisions: [`docs/HISTORY.md`](docs/HISTORY.md). Principles:
   [`docs/DOCTRINE.md`](docs/DOCTRINE.md). Rules for agents working here: [`AGENTS.md`](AGENTS.md).

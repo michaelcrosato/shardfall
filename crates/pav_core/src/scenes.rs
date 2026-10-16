@@ -24,9 +24,15 @@ pub const SCENES: &[(&str, &str)] = &[
     ("level", "Shardfall: a level of the descent. 'level/<n>' is depth n (1-12 designed, then the endless Depths)."),
 ];
 
+/// The scenes a menu offers: the built-in ones, then the games (`crate::games::GAMES`).
+pub fn menu() -> Vec<(&'static str, &'static str)> {
+    SCENES.iter().copied().chain(crate::games::GAMES.iter().map(|g| (g.key, g.about))).collect()
+}
+
 /// All scene names, including standalone rooms (any room key builds just that room).
 pub fn names() -> Vec<String> {
     let mut v: Vec<String> = SCENES.iter().map(|s| s.0.to_string()).collect();
+    v.extend(crate::games::GAMES.iter().map(|g| g.key.to_string()));
     let (rooms, _) = room::parse_all(&room::load_sources(room::rooms_dir().as_deref()));
     v.extend(rooms.into_iter().map(|(k, _)| k));
     v
@@ -71,18 +77,33 @@ pub fn build_standalone_room(sim: &mut Sim, key: &str, def: RoomDef) {
 }
 
 fn find_marker(def: &RoomDef, place: &Placement, name: &str) -> Option<Vec3> {
+    all_markers(def, place, name).into_iter().next()
+}
+
+fn all_markers(def: &RoomDef, place: &Placement, name: &str) -> Vec<Vec3> {
+    let mut out = Vec::new();
     for l in &def.layout.layers {
         let lines = crate::level::rows(&l.map);
         for (r, row) in lines.iter().enumerate() {
             for (c, ch) in row.chars().enumerate() {
                 if def.layout.legend.get(&ch.to_string()).and_then(|t| t.marker.as_deref()) == Some(name) {
                     let local = Vec3::new(l.at[0] as f32 + c as f32 + 0.5, l.y, l.at[1] as f32 + r as f32 + 0.5);
-                    return Some(place.point(local));
+                    out.push(place.point(local));
                 }
             }
         }
     }
-    None
+    out
+}
+
+/// Every cell of the current room's layout whose legend says `marker = "<name>"`, in map
+/// order (row by row), as world positions on the floor. Games place their pieces this way.
+pub fn markers(sim: &Sim, name: &str) -> Vec<Vec3> {
+    let w = &sim.state.world;
+    match w.current_room.and_then(|i| w.rooms.get(i as usize)) {
+        Some(slot) => all_markers(&slot.def, &slot.place, name),
+        None => Vec::new(),
+    }
 }
 
 pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
@@ -90,6 +111,9 @@ pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
         Some((b, r)) => (b, Some(r)),
         None => (name, None),
     };
+    if let Some(game) = crate::games::find(base) {
+        return (game.build)(sim, start_room);
+    }
     match base {
         "world" => {
             let sources = room::load_sources(room::rooms_dir().as_deref());
@@ -127,7 +151,8 @@ pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
             let sources = room::load_sources(room::rooms_dir().as_deref());
             let Some(src) = sources.iter().find(|s| s.key == key) else {
                 bail!(
-                    "unknown scene or room '{key}' (scenes: world, test, empty; rooms: {})",
+                    "unknown scene or room '{key}' (scenes: world, test, empty; games: {}; rooms: {})",
+                    crate::games::GAMES.iter().map(|g| g.key).collect::<Vec<_>>().join(", "),
                     sources.iter().map(|s| s.key.as_str()).collect::<Vec<_>>().join(", ")
                 );
             };

@@ -35,6 +35,9 @@ crates/
               follow-the-leader spines, verlet tails/antennae), ai.rs (NPC brains: idle,
               wander, patrol, circle, follow; they drive characters through InputFrames),
               nav.rs (walkable grid from blocks and props, A* paths, flow fields),
+              games/ (the hook a new game implements, `Game`, and `GAMES`, the list that
+              makes each one a scene; starter.rs + starter.toml, the template:
+              docs/MAKE_A_GAME.md),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
               vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter: flight only,
               no weapons, damage or fuel), health.rs (shootable rapier objects: hp, score, boss
@@ -169,6 +172,11 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   census only); `check=<asset.json> compare=true` measures a translation again and returns
   source-over-translation views. `up= yaw= scale= place=` bring a model into the engine's frame
   (a translation records them in `source.norm` for `check`).
+- Games on the hook (`pav_core::games`, `docs/MAKE_A_GAME.md`; scene `starter`): `play` gives
+  the running game's HUD lines, outcome and `status`; `play bot=true` lets its bot play on
+  (`ticks=`, default 60 s); `play bot=true seeds=10` plays fresh runs on seeds 1..10 and leaves
+  the session alone: `wins`, one `[seed, outcome, seconds]` row each, and the state of every
+  run not won.
 - Shardfall (scenes `town`, `arena`): `game` is the status, `autoplay seconds=30` lets a bot
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
@@ -333,6 +341,9 @@ limbs follow the puppet's side, a planted defect is caught, `assets find=knight`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,
 one edit that adds and uses a material, snapshots) and `pav_tools/tests/material_preview.rs`
 (a swatch renders headless with its layer lines).
+Games on the hook: `pav_core/tests/games.rs` (the starter's bot wins on ten seeds, standing
+still loses, snapshot files, rewind and replays are exact, every game key names one scene)
+and `pav_tools/tests/play.rs` (the `play` tool reports, drives and sweeps seeds).
 Shardfall: `tests/arpg.rs` (combat) and `tests/loot.rs` (drops, equipping, town trade, travel,
 rewind across travel, unique powers), `tests/skills.rs` (all 16 skills, tweaks, channels, the
 passive tree through commands, keystones, the bot spending points), `tests/monsters.rs`

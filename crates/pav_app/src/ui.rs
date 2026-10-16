@@ -247,12 +247,12 @@ pub fn pause_menu(
             }
             ui.separator();
             ui.label(RichText::new("Load scene").strong());
-            for (name, about) in pav_core::scenes::SCENES {
+            for (name, about) in pav_core::scenes::menu() {
                 ui.horizontal(|ui| {
-                    if ui.button(*name).clicked() {
+                    if ui.button(name).clicked() {
                         action = Some(MenuAction::LoadScene(name.to_string()));
                     }
-                    ui.label(RichText::new(*about).small());
+                    ui.label(RichText::new(about).small());
                 });
             }
             ui.separator();
@@ -459,8 +459,8 @@ fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchM
         });
         ui.label(RichText::new(format!("Load scene (now: {scene})")).strong());
         ui.horizontal_wrapped(|ui| {
-            for (name, about) in pav_core::scenes::SCENES {
-                if ui.button(*name).on_hover_text(*about).clicked() {
+            for (name, about) in pav_core::scenes::menu() {
+                if ui.button(name).on_hover_text(about).clicked() {
                     *action = Some(MenuAction::LoadScene(name.to_string()));
                 }
             }

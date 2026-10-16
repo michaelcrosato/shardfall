@@ -17,6 +17,10 @@ The current state, kept to one page because every session reads it (Claude Code 
   agent searches and places store entries (`assets find=`, `shelf=`); 59 core props, 18
   materials, 437 clips, five KayKit characters as rigid figures. Measured: a library pays only
   where it holds the asset (S1 no; S3 props met 0.29 of needs against 0.8).
+- **Game makers' handoff** (2026-10-16): an agent making a new game reads one page,
+  `docs/MAKE_A_GAME.md`, and copies the starter game (`load scene=starter`): the game hook
+  `pav_core::games` (rules, HUD text, status, a bot), its level a room file, `play bot=true
+  seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
 - **On show in the world demo:** the Workshop wing's Library Hall, Limits, Catalogue and Store
   Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
   The figures ship in every build (`props::store::SHIPPED`).
@@ -28,7 +32,8 @@ The current state, kept to one page because every session reads it (Claude Code 
   characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable`,
   `animsheet`).
 - **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the
-  engine; each goes to `michaelcrosato/ai-hub` as one HTML file. One so far (Capital Strike).
+  engine from `START_HERE.md`'s "Make a game" prompt; each goes to `michaelcrosato/ai-hub` as
+  one HTML file. One so far (Capital Strike, before the hook).
 - **Waiting on the user:** S3b's rigid-or-skinned verdict
   (https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs); S4's and S5's other halves run as
   sessions in my-3dge and riftlight from `docs/handoffs/` when the user starts them.

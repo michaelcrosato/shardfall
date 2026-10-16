@@ -1,0 +1,65 @@
+# The starter game's level: a room file (every field: rooms/_template.toml). Column = x (east),
+# row = z (south), 1 cell = 1 m. `o` cells are shards and `P` is the start (legend markers,
+# read by starter.rs with `scenes::markers`); the slimes are [[npc]] entries the game drives.
+# Check it with `pav room_check path=crates/pav_core/src/games/starter.toml`.
+
+name = "Starter"
+about = "Collect every shard while slimes chase you."
+entrance = { at = [8, 12], facing = "south" }
+
+[camera]
+tilt = 58.0
+distance = 17.0
+
+[layout]
+origin = [-9.0, 0.0, -6.5]
+
+[[layout.layer]]
+y = 0
+map = '''
+##################
+#o......#.......o#
+#.......#........#
+#..##.......##...#
+#..#.........#...#
+#.......o........#
+#....#.....#.....#
+#.......P........#
+#..#.........#...#
+#..##.......##...#
+#.......#........#
+#o......#.......o#
+##################
+'''
+
+[layout.legend.'.']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3b4a5c" }]
+
+[layout.legend.'#']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3b4a5c" }, { y0 = 0, y1 = 1.2, color = "#8a6f9e", rounded = true }]
+
+[layout.legend.'o']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3b4a5c" }]
+marker = "shard"
+
+[layout.legend.'P']
+blocks = [{ y0 = -0.5, y1 = 0, color = "#3b4a5c" }]
+marker = "player"
+
+[[npc]]
+name = "slime"
+kind = "blob"
+pos = [12.5, 0, 2.5]
+look = { skin = "#6cd66c" }
+
+[[npc]]
+name = "slime"
+kind = "blob"
+pos = [5.5, 0, 10.5]
+look = { skin = "#6cd66c" }
+
+[[npc]]
+name = "slime"
+kind = "blob"
+pos = [15.5, 0, 7.5]
+look = { skin = "#6cd66c" }

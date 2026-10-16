@@ -5,6 +5,84 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A game maker's handoff: the game hook, the starter and one guide — 2026-10-16
+
+The user asked for a review of how this repository hands the engine to an agent who wants to
+build a game on it, against riftlight, my-3dge and my-3d2dge, and to adopt or change what fits.
+(The entry below this one compared how sessions here orient and ship; this one is about the
+engine's users.) Each sibling was read from a shallow read-only clone.
+- **What they hand a game maker:**
+  - riftlight: an engine kit apart from the repository ("Making a game? You don't need this
+    repository"): one guide capped at 15k tokens by a test, whose code blocks become the
+    starter and examples that e2e plays; a generated API index; `check.mjs`; a manifest with
+    a read-first list and each file's tokens; a copy-paste prompt; an e2e test that unzips the
+    kit and uses it as an outsider would.
+  - my-3dge: two tiers from one checkout, both tested in CI: lean (one page importing the
+    engine from a CDN, no checks) and a scaffolded game repository (`new-game.mjs` vendors the
+    engine under a SHA-256 lock and writes the game's own agent files and an
+    ENGINE-FEEDBACK.md). Its starter's bot must win on 10 seeds, a pattern it credits to
+    Pavilion Lite's template. Lint fences game code to the public API; docs are generated and
+    drift-checked.
+  - my-3d2dge: `dist/handoff/` (text only: the engine, a 15k-token API card read whole, a
+    40k-token index searched, check tools, a template game with a headless test), budgets held
+    by tests, a lookups test built from what benchmark agents read the source for, a
+    clean-room agent benchmark (best run $3.43 and 13 minutes) and a feedback ledger.
+- **Here, before:** `START_HERE.md` and the archive spoke to an agent working on Shardfall, and
+  `AGENTS.md`, the maintainers' rulebook, was the only rulebook. There was no seam for a second
+  game: Shardfall is wired into `sim.rs`, `frame.rs`, the scenes, `pav_view` and `pav_app`.
+  The one test game (Capital Strike) took 1.65 h and about 4,000 lines in a game layer the
+  engine had no place for, and the hook topped `docs/FEEDBACK.md`'s tally. Pavilion Lite had
+  the shape all three siblings share (one document, a `Game` trait, a template with a bot; a
+  fresh agent's Key Hunt in 25 minutes), but it is frozen.
+- **Adopted, the shared pattern:**
+  - **The game hook, `pav_core::games`.** A game is a `Clone` + serde struct implementing
+    `Game`: `pre` (before movement; returns inputs for the characters it drives, which replace
+    their own), `post` (after physics: the rules), `hud` (text lines), `status` (JSON for tools
+    and tests), `outcome` (playing, won, lost) and `bot`; every method has a default. A `build`
+    function makes the scene, and one line in `GAMES` makes `<key>` (and `<key>/<rest>`) a scene
+    in the tools, the window and the browser. `SimState::play` holds it as a `GameBox`: it
+    clones through the game's `Clone` (rewind), and serializes as its key plus the game's own
+    CBOR (`ciborium::Value`), loaded back through `GAMES` (snapshot files, the replay hash).
+    The engine calls it beside Shardfall's own hooks, which are unchanged.
+  - **The starter game** (`games/starter.rs`, about 260 lines; `starter.toml`): collect five
+    shards while three slimes chase you round the walls on one flow field; three lives; a
+    catch sends everyone back. Its level is a room file (markers place the shards,
+    `scenes::markers` is new; `[[npc]]` the slimes; `[camera]` the view), embedded with
+    `include_str!`. Its bot plans on a copy of the nav grid with the cells near slimes
+    blocked, and makes for the reachable cell farthest from them when every shard is cut off:
+    20/20 seeds, 14-28 s. Two simpler bots lost (heading scores 2/20, fleeing straight away
+    0/20: both pinned the player against walls). `sim.say` is now public.
+  - **`play`**: the running game's HUD, outcome and status; `bot=true` plays on; `seeds=N`
+    sweeps fresh runs in compact rows and leaves the session alone. The window draws the HUD
+    lines top left; the menus list the games (`scenes::menu`).
+  - **One guide read whole:** `docs/MAKE_A_GAME.md` (about 3k tokens): what you get, what to
+    read and skip, six steps from the starter, the level format, the hook, building blocks,
+    rules, checks, shipping, limits, and an engine feedback section that feeds
+    `docs/FEEDBACK.md` (my-3dge's ENGINE-FEEDBACK.md). `docs_limits.rs` caps it at 16 KiB and
+    checks every repository path it names. `AGENTS.md` opens by sending game makers there and
+    lists `games` among the engine's API modules.
+  - **Routes and prompts:** `START_HERE.md` opens with two routes (make a game; work on the
+    engine) and a copy-paste prompt for each, and warns that auto-mode agents may refuse to
+    unpack an archive unless the prompt says to (riftlight's finding).
+  - **The archive, checked as an outsider uses it:** `scripts/check-handoff.sh` packages the
+    checkout, unpacks it in an empty directory, builds `pav` there, plays the starter 3/3,
+    captures a frame and runs the games tests. The archive leaves out `pavilion-lite/`, whose
+    own AGENTS.md calls itself "the only document you need".
+  - Tests: `pav_core/tests/games.rs` (the bot wins on ten seeds; standing still loses; snapshot
+    files, rewind and replays are exact; each key names one scene) and `pav_tools/tests/play.rs`.
+- **Not adopted, and why:**
+  - A kit apart from the repository or a scaffolded game repository (riftlight, my-3dge): a
+    Rust game compiles with the engine, and a vendored copy under a hash lock is machinery for
+    many games tracking engine versions. One checkout or archive with the game in `games/`
+    serves the test games; revisit when games outlive one engine version.
+  - A CDN tier or single-file kits (my-3dge, my-3d2dge): a Rust engine can't be imported by a
+    page; the single-file web build is how a game ships, not how it starts.
+  - Generated API references, token manifests, a lint fence for game code: rustdoc exists, the
+    guide names the calls a game needs and `AGENTS.md` the API modules. Wait for feedback that
+    agents had to read engine source.
+  - A standing clean-room agent benchmark (my-3d2dge): the test games are that benchmark; one
+    dry run checked this change (below).
+
 ## Handoff and setup, compared with the sibling repositories — 2026-10-16
 
 The user asked for a look at how riftlight, my-3dge and my-3d2dge orient sessions and hand work

@@ -129,6 +129,9 @@ pub struct SimState {
     /// Shardfall, when this scene is part of the game.
     #[serde(default)]
     pub game: Option<Box<crate::arpg::Game>>,
+    /// A game from `crate::games` (the starter, or one an agent added), when this scene is one.
+    #[serde(default)]
+    pub play: Option<crate::games::GameBox>,
     /// The animation stage freezes this world and publishes its own render frame.
     #[serde(default)]
     pub animation_preview: Option<crate::animation_preview::PreviewState>,
@@ -197,6 +200,7 @@ impl Sim {
                 signals: Vec::new(),
                 crumbles: Vec::new(),
                 game: None,
+                play: None,
                 animation_preview: None,
                 studio_mode: Some(crate::prop_preview::StudioMode::World),
                 prop_preview: None,
@@ -521,7 +525,8 @@ impl Sim {
 
         // The game decides what the hero and its monsters do this tick.
         let mut events = Vec::new();
-        let game_inputs = self.game_pre(input, dt, &mut events);
+        let mut game_inputs = self.game_pre(input, dt, &mut events);
+        game_inputs.extend(self.play_pre(input, dt, &mut events));
 
         // Characters.
         let ids: Vec<EntityId> = self.state.entities.iter().filter(|e| e.character.is_some()).map(|e| e.id).collect();
@@ -693,6 +698,7 @@ impl Sim {
         }
 
         self.game_post(dt, raw_dt, &mut events);
+        self.play_post(dt, &mut events);
         self.game_travel(&mut events);
 
         if let Some(p) = self.player() {
@@ -967,6 +973,7 @@ impl Sim {
             view_serial: c.view_serial,
             boss: self.boss_bar(),
             pad_note: c.pad_note.clone(),
+            lines: self.play_hud(),
         };
         RenderFrame {
             tick: self.state.tick,
@@ -1086,7 +1093,8 @@ impl Sim {
 
     /// Hash of the gameplay state, for repeatability checks: the tick, the random numbers, every
     /// entity, rigid and soft bodies (pose and velocity), the level's blocks and baked props,
-    /// projectiles, courses, signals, crumbling tiles and the game (hero, items, gold, monsters).
+    /// projectiles, courses, signals, crumbling tiles and the game (hero, items, gold, monsters,
+    /// or a `games` game's own state).
     /// Two runs that hash the same played out the same.
     pub fn state_hash(&self) -> u64 {
         let s = &self.state;
@@ -1113,6 +1121,7 @@ impl Sim {
         h.data(&s.signals);
         h.data(&s.crumbles);
         h.data(&s.game);
+        h.data(&s.play);
         h.0
     }
 }

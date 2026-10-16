@@ -22,6 +22,7 @@ pub mod feel;
 pub mod figure;
 pub mod frame;
 pub mod fxdef;
+pub mod games;
 pub mod guide;
 pub mod health;
 pub mod history;

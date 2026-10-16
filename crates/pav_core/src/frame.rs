@@ -248,6 +248,8 @@ pub struct HudFrame {
     pub boss: Option<(String, f32)>,
     /// The last pad with a note the player stepped on: label, note, tick.
     pub pad_note: Option<(String, String, u64)>,
+    /// A `games` game's HUD lines (`Game::hud`).
+    pub lines: Vec<String>,
 }
 
 /// Physics counters for the stats overlay.

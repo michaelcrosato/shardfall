@@ -1,5 +1,8 @@
 # AGENTS.md — rulebook for coding agents
 
+Making a new game on the engine? Read `docs/MAKE_A_GAME.md`: the "Key rules" below apply to
+your game, the maintainers' workflow (HISTORY, PROGRESS, PRs, escalations) doesn't.
+
 Shardfall is a procedural hack-and-slash game built on the Pavilion engine, written in Rust. The
 principles are in `docs/DOCTRINE.md`, which outranks everything else here. The current state is
 `docs/PROGRESS.md` (one page). Read both before starting; Claude Code loads them, with this file,
@@ -23,7 +26,8 @@ fix a mismatch when it gets in the way.
 - **API and internals (7, 8):** the game (`pav_core/src/arpg/`) still lives inside the engine
   crate, so the compiler doesn't enforce the line. The engine modules the game uses are its API:
   `sim`, `entity`, `frame`, `rng`, `input`, `params`, `statics`, `nav`, `zones`, `character`,
-  `projectile`, `puppet`, `parts`, `moves`, `clips`, `shape`, `color`, `fxdef`. Everything else
+  `projectile`, `puppet`, `parts`, `moves`, `clips`, `shape`, `color`, `fxdef`, and `games` (the
+  hook a new game implements: `docs/MAKE_A_GAME.md`). Everything else
   (renderer, physics wiring, synth, importers) is internals. If game work means reading
   internals, fix the API or the error message.
 - **Versions (9):** current pins stay (Rust 1.98.1, wgpu 30, rapier 0.36, egui 0.36, glam 0.33,
@@ -195,7 +199,7 @@ In the Workshop wing, `library_hall` shows every standard object (generated: aft
 Tools: `scenes load step status entities npcs params set camera capture bench gpu player input
 spawn despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream signal filmstrip camera_bench course feel audio_capture`;
-looks `look`; teaching `guide`; Shardfall `game hero monster autoplay skills game_reload
+looks `look`; teaching `guide`; games on the hook `play`; Shardfall `game hero monster autoplay skills game_reload
 loot_roll give inventory game_cmd tree tree_map genome bestiary boss turntable animsheet level
 levelmap go goto_feature see campaign theme_swatch`; animation `clips clip_import mocap
 anim_reload anim_edit anim_preview`; objects `assets asset_edit asset_preview asset_spawn
@@ -228,6 +232,7 @@ fields); keep rooms as data wherever possible.
 `<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` (the game
 starts here by default; the saved hero is loaded into any game scene), `arena`, `lab` (the
 Menagerie of creatures) and `level/<n>` (depth n: 1-12 designed, then the endless Depths).
+Games built on the hook (`pav_core::games::GAMES`) are scenes by their key: `starter` today.
 Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 
 ## Tests

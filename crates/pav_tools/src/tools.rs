@@ -307,6 +307,16 @@ pub static TOOLS: &[Tool] = &[
         run: crate::game_tools::t_monster,
     },
     Tool {
+        name: "play",
+        help: "A game from pav_core::games (load scene=<key>): HUD, outcome, state. bot=true lets its bot play.",
+        args: &[
+            arg("bot", "boolean", "the game's bot plays until won, lost or ticks pass"),
+            arg("ticks", "integer", "most ticks per bot run (default 3600 = 60 s)"),
+            arg("seeds", "integer", "with bot: fresh runs on seeds 1..N; the session is untouched"),
+        ],
+        run: crate::play_tools::t_play,
+    },
+    Tool {
         name: "autoplay",
         help: "Let a bot play for N seconds (fight, skills, potions, dodge telegraphs); reports kills, deaths, damage taken, xp, gold.",
         args: &[
@@ -1092,7 +1102,11 @@ pub(crate) fn get_bool(a: &Args, k: &str, default: bool) -> Result<bool> {
 fn t_scenes(_: &mut Session, _: &Args) -> Result<Output> {
     Ok(Output::Json(json!({
         "scenes": pav_core::scenes::SCENES.iter().map(|(n, d)| json!({"name": n, "about": d})).collect::<Vec<_>>(),
-        "standalone_rooms": pav_core::scenes::names().into_iter().filter(|n| !pav_core::scenes::SCENES.iter().any(|s| s.0 == n)).collect::<Vec<_>>(),
+        "games": pav_core::games::GAMES.iter().map(|g| json!({"name": g.key, "about": g.about})).collect::<Vec<_>>(),
+        "standalone_rooms": pav_core::scenes::names()
+            .into_iter()
+            .filter(|n| !pav_core::scenes::SCENES.iter().any(|s| s.0 == n) && pav_core::games::find(n).is_none())
+            .collect::<Vec<_>>(),
     })))
 }
 

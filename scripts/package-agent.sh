@@ -17,7 +17,9 @@ mkdir -p "$repo_dir/out/agent" "$(dirname "$output")"
 manifest=$(mktemp "$repo_dir/out/agent/source-files.XXXXXX")
 trap 'rm -f "$manifest"' EXIT
 
-git -C "$repo_dir" ls-files -z >"$manifest"
+# Pavilion Lite is an older engine, frozen (docs/ESCALATIONS.md): it stays out of the handoff
+# so a receiving agent doesn't build on it.
+git -C "$repo_dir" ls-files -z -- . ':!:pavilion-lite' >"$manifest"
 # Include these handoff files even before their first commit.
 for extra in START_HERE.md scripts/package-agent.sh; do
 	if ! git -C "$repo_dir" ls-files --error-unmatch -- "$extra" >/dev/null 2>&1; then

@@ -135,7 +135,8 @@ impl Sim {
         }
     }
 
-    fn say(&mut self, msg: impl Into<String>) {
+    /// Shows a short message at the top centre of the window for a few seconds.
+    pub fn say(&mut self, msg: impl Into<String>) {
         self.state.courses.message = Some((msg.into(), self.state.tick));
     }
 

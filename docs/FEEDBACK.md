@@ -12,7 +12,9 @@ original spiritual successor as one complete, polished level that doubles as a t
 engine, extend it as needed; deliver one self-contained HTML file; then a one-page candid
 evaluation of the engine (used/not used, engine work you wrote ranked by output saved, engine
 changes, bugs and wrong docs, source you had to read, fidelity limits, testing, what helped and
-hurt, missing features by impact, the one change). The questions get adjusted as patterns show.
+hurt, missing features by impact, the one change). The questions get adjusted as patterns show. Since 2026-10-16 the agent starts from
+`START_HERE.md`'s "Make a game" prompt: `docs/MAKE_A_GAME.md` and the starter game, ending with
+the guide's engine feedback section, which feeds this log.
 
 **Asset store lines** (the store's S3, 2026-10-15; the user pastes them into the template). Each
 game's answers count toward the store's critical mass (`docs/AGENT_ASSET_STORE.md` §13): a need
@@ -31,7 +33,7 @@ cost at cache reads 0.1, cache writes 1.25, visible output 5; hidden reasoning i
 ## Tally (1 game)
 | Asked for | Games | Impact | Status |
 |---|---|---|---|
-| A supported second-game path: a `Game` hook for step, frame, view and HUD instead of editing `sim.rs`, `frame.rs`, `build.rs` and `app.rs` | 1 | high | waiting for a pattern |
+| A supported second-game path: a `Game` hook for step, frame, view and HUD instead of editing `sim.rs`, `frame.rs`, `build.rs` and `app.rs` | 1 | high | **done** (2026-10-16): `pav_core::games` (step, HUD text, status, bot), the starter game, `docs/MAKE_A_GAME.md`; drawing and HUD widgets still mean view or app code |
 | Entities, shots, health and AI that don't require rapier (`health.rs`, `projectile.rs`) | 1 | high | waiting |
 | A single-file web build (gzip + inline) | 1 | high | **done**: `scripts/build-web.sh --single-file` |
 | Primitive-part models drawn per frame from game state (props can't be) | 1 | medium | **done**: `pav_view::assets::emit_asset` (plan row 4.1) |
