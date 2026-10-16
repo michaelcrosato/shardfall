@@ -99,8 +99,14 @@ reads this whole file, then works through §11's stages in order. Paths without 
 - **`pav_core::arpg::coop`** (new; the game): messages, the directory, owner and guest logic,
   the hero and place streams, damage routing, scaling, pings and emotes. Its state is
   `Game.net: Option<Box<CoopState>>`, inside `SimState`, so a player's own snapshots and
-  replays carry it. Place snapshots sent to other players leave it out, and adopting one keeps
-  the recipient's own (§5.2).
+  replays carry it. It has two parts:
+  - the **session part** (directory, peers, host term, link clocks) lasts the whole session;
+  - the **place part** (role, place epoch, `NetId` map, interpolation buffers, pending events
+    and claims, watermarks) belongs to one place.
+
+  Place snapshots sent to other players carry neither part. Adopting a snapshot keeps the
+  recipient's session part and builds a fresh place part from the snapshot; so does any travel
+  (§5.2).
 - **`pav_net`** (new crate; internals, doctrine 8): the WebRTC transport (matchbox, on native and
   wasm) and the signaling server with rooms (native only; §9), both embedded in the host's game
   and as a small `shardfall-signal` binary. It handles bytes only and knows nothing of the game,
@@ -136,10 +142,15 @@ reads this whole file, then works through §11's stages in order. Paths without 
 - **If the host leaves or drops,** copies of the directory may differ (a broadcast can stop
   partway), so the new host rebuilds it rather than trusting its copy:
   - The earliest-joined connected player (ties by peer id) becomes host under a new **host
-    term**. Every control message carries the term, and messages from older terms are dropped.
-  - The new host asks every player for `Report{place, role, place epoch}` and rebuilds the
-    directory from the answers. If two players claim to own one place, the higher place epoch
-    wins and the other resyncs as a guest.
+    term**: the pair (number, host's peer id).
+    - Every control message carries the term, and messages from older terms are dropped.
+    - If a split link ever leaves two hosts, the higher pair wins; the other host steps down
+      and reports.
+  - The new host asks every player for `Report{place, role, place epoch, name, profile,
+    settings version}` and rebuilds the directory from the answers:
+    - if two players claim to own one place, the higher place epoch wins and the other resyncs
+      as a guest;
+    - the settings with the highest version win.
   - It publishes the rebuilt directory before accepting any change.
 
   With the embedded signaling server (E1's default), nobody new can join after the host goes,
@@ -163,15 +174,22 @@ reads this whole file, then works through §11's stages in order. Paths without 
 **Leaving** is travelling away or disconnecting:
 - **A guest leaves:** the owner removes its hero, and members get `MemberLeft`.
 - **Every place with guests has a standby:** its earliest-joined guest, named in the directory;
-  if the standby leaves, the next guest takes the role. The owner keeps the standby promotable: it sends the standby the place stream without the
-  interest limit (far actors at 2 Hz) and a full snapshot every 5 s (about 20 KB/s).
+  if the standby leaves, the next guest takes the role. The owner keeps the standby promotable:
+  - it sends the standby the place stream without the interest limit (far actors at 2 Hz);
+  - it sends a full snapshot every 5 s, or every 10 s once snapshots pass 100 KB;
+  - this owner-to-standby link has its own budget of 40 KB/s, on top of §5.4's per-player
+    budget.
 - **The owner leaves, others remain:** the standby takes over in three steps, so no change is
   lost:
-  1. The old owner sends it `Handoff`, a final snapshot, and keeps running the place.
+  1. The old owner takes a final snapshot and sends it as `Handoff`. From that tick it stops
+     advancing the place: monsters hold, and claims and uses queue unapplied. So nothing
+     happens after the snapshot that the snapshot lacks.
   2. The standby adopts it and answers `Ready`.
   3. The old owner tells the host, which broadcasts `OwnerChanged{epoch+1}` to re-point
-     everyone's streams. Only then does the old owner travel, behind its loading veil, and it
-     forwards any claim that still reaches it.
+     everyone's streams. The old owner forwards its queued claims and uses to the new owner,
+     then travels behind its loading veil, and forwards any claim that still reaches it.
+
+  Monsters pause for a fraction of a second at a handoff.
 
   If `Ready` hasn't come within 3 s, the old owner travels anyway and the host treats it as a
   drop.
@@ -187,8 +205,8 @@ together, the host answers in order and the second waits for the first's snapsho
 
 **Resync** heals any desync. A guest asks for a fresh snapshot and adopts it, keeping its hero,
 when any of these happens:
-- a streamed `NetId` still has no `Spawned` 2 s after it first appeared. Streams and events
-  travel on different channels, so a stream can beat its spawn; until then the entry is
+- a `NetId` named by a stream or an event still has no `Spawned` 2 s after it first appeared.
+  A stream, or a `Cast` on the unordered event channel, can beat its spawn; until then it is
   buffered, not treated as a desync;
 - a `PlaceState` hash doesn't match;
 - an epoch has a gap.
@@ -219,19 +237,21 @@ Four channels, so a lost or large message never holds up an unrelated one:
 - **1 control:** reliable and ordered: the handshake, the directory, owner changes and the
   handoff's steps.
 - **2 events:** reliable and unordered. Each event carries a per-sender sequence number, and
-  order is restored only where it matters: a `NetId`'s spawn, death and despawn are kept as
-  tombstones, so a late spawn never revives a dead actor.
+  order is restored only where it matters:
+  - a `NetId`'s spawn, death and despawn are kept as tombstones, so a late spawn never revives
+    a dead actor;
+  - each player's claims apply in id order (§5.6).
 - **3 bulk:** reliable and ordered: snapshots and `PlaceState`.
 
 | Message | Ch. | When | From → to | Carries |
 |---|---|---|---|---|
 | Hero stream | 0 | 30 Hz | each player → others in its place | tick, position, velocity, facing, grounded and posture, life and mana fractions, ailment bits, current action and phase |
 | Place stream | 0 | 20 Hz | owner → each guest | owner tick and, per player, the last claim applied (the claim watermark); then per actor in the guest's interest: `NetId`, position, velocity, yaw, life fraction, state bits (casting, stunned, frozen, burning, dead), target |
-| Standby stream, standby snapshot | 0, 3 | far actors 2 Hz; snapshot every 5 s | owner → the standby | the place stream without the interest limit; a full snapshot (§5.2) |
+| Standby stream, standby snapshot | 0, 3 | far actors 2 Hz; snapshot every 5-10 s | owner → the standby | the place stream without the interest limit; a full snapshot (§5.2; on its own 40 KB/s budget) |
 | `Cast`, `Dodge` | 2 | on event | whoever runs the character → its place | actor, skill, aim, target, start tick, seed |
-| `Spawned`, `Despawned` | 2 | on event | owner → guests | `NetId`, and the new entity and its `Actor` exactly as in the owner's state (CBOR), so summons, waves and brood arrive complete |
+| `Spawned`, `Despawned` | 2 | on event | owner → guests | `NetId`, and the new entity and its `Actor` as in the owner's state (CBOR), so summons, waves and brood arrive complete. Every reference inside them to another entity (`Actor.master`, `last_hit`, hit lists, owners, joints) travels as a `NetId` and is remapped on receipt; an unknown one becomes `None` |
 | `Killed` | 2 | on event | owner → guests | `NetId`, owner tick, killer, position, level, rarity, rank, boss |
-| `HitClaim` | 2 | per hit | guest → owner | claim id (rising, per claimant), target, and the result as the attacker's game resolved it: life damage after the target's mitigation, ailments with strength and duration, knockback, crit, execute, power effects |
+| `HitClaim` | 2 | per hit | guest → owner | claim id (rising, per claimant), target, and the attacker's side as its game resolved it: damage by type before the target's mitigation, crit, ailments with strength and duration, knockback, execute, power effects |
 | `UseClaim` | 2 | per use | guest → owner | a world-changing use: a chest, a well, a keg, a Menagerie creature, an arena wave |
 | `HeroHit`, `HeroDied`, `Respawned` | 2 | on event | a player → its place | others' screens: flash, number, fall |
 | `PlaceState` | 3 | on change, ≤ 5 Hz | owner → guests | the shared mechanics state, deflated and sequence-numbered (latest wins) |
@@ -244,8 +264,9 @@ Four channels, so a lost or large message never holds up an unrelated one:
 The place stream covers actors in the guest's interest: within 45 m of its hero, every boss,
 and anything targeting it. It sends the nearest first and goes round-robin past the size cap.
 
-Budget: at most 40 KB/s per player with four players in one level. Positions start as f32;
-quantize them only if a measurement goes over budget.
+Budget: at most 40 KB/s per player with four players in one level, not counting the standby's
+link, which has its own budget (§5.2). Positions start as f32; quantize them only if a
+measurement goes over budget.
 
 ### 5.5 Who simulates what
 | Thing | Simulated by | Other games |
@@ -275,11 +296,18 @@ One check at the top of `Game::hit` returns `Apply`, `Claim` or `Ignore`:
 | a monster or object, in a place where you're a guest | **Claim**: play it now, send `HitClaim` | **Ignore** | **Ignore** |
 | a remote hero | — | **Ignore**: its player decides | — |
 
-The owner applies a claim's result as it stands, through `Game::hit`'s apply step: no re-roll,
-and no reading of the attacker's powers or build, which the owner doesn't have. It credits the
-claimer and advances that player's claim watermark. Effects on the attacker (life and mana on
-hit, power procs, hit-stop) happen in the attacker's game when the hit lands there. Single
-player is the "a place you own" row.
+The owner applies a claim through `Game::hit`:
+- **The attacker's side is used as sent:** no re-roll, and no reading of the attacker's powers
+  or build, which the owner doesn't have.
+- **The owner applies its own current defences for the target:** armour, resistances, wards
+  and buffs. The guest predicted with its mirror's defences; the watermark corrects any
+  difference.
+- **Order:** it applies each player's claims in id order, holding any that arrive early. The
+  watermark it advertises is the last claim applied, so it never passes a gap.
+- It credits the claimer.
+
+Effects on the attacker (life and mana on hit, power procs, hit-stop) happen in the attacker's
+game when the hit lands there. Single player is the "a place you own" row.
 
 ### 5.7 Lag hiding
 1. **Your own hero has no latency** (§2, point 3).
@@ -321,7 +349,7 @@ player is the "a place you own" row.
 - **Rewards** are per player, as single player gives them. On `Killed`, every player within
   `coop.share_radius` (40 m) of the kill, or who hit the monster, gets the full XP and rolls
   their own drops. Distance is judged at the kill's owner tick: each game keeps its hero's
-  positions for the last 2 s.
+  positions for the last 2 s, and judges an older kill from its oldest kept position.
 - Ward Totems and kegs keep their own life, as today.
 - The session host's difficulty sliders apply in every game.
 - All four params are a `Tunable` (`coop.*`), so `params`, `set`, presets and the tuning panel
@@ -466,7 +494,11 @@ don't show egui):
   - a graceful handoff loses no change; an owner drop with players far apart promotes the
     standby without stale actors; a host drop in mid-broadcast converges on one directory;
   - a place stream that beats its `Spawned` is buffered, not resynced;
-  - the claim watermark: predicted life never subtracts a claim twice;
+  - the claim watermark: predicted life never subtracts a claim twice, and claims that arrive
+    out of order never move the watermark past a gap;
+  - a handoff in mid-fight loses no claim;
+  - a spawned brood's `master` points at the right actor in every game;
+  - travelling between two occupied places leaves no stale `NetId`;
   - a guest's kill confirmed by the owner, with the guest's own loot;
   - victim-side hits: a dodge on the guest's screen counts;
   - scaling, and the live rescale;
