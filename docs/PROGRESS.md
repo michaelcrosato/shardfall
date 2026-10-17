@@ -31,8 +31,9 @@ The current state, kept to one page because every session reads it (Claude Code 
 - **Gameplay and content:** add data (themes, levels, families, affixes, uniques, tree clusters,
   characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable`,
   `animsheet`).
-- **Co-op** (`docs/COOP_PLAN.md`): up to four players roaming one world. Planned in stages
-  C0-C6, not started; rulings E1-E3 asked, each with a default.
+- **On hold (the user's call, 2026-10-17): co-op** (`docs/COOP_PLAN.md`), up to four players
+  roaming one world. Planned in stages C0-C6 and kept for later; don't start it until the user
+  says.
 - **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the
   engine from `START_HERE.md`'s "Make a game" prompt; each goes to `michaelcrosato/ai-hub` as
   one HTML file. One so far (Capital Strike, before the hook).

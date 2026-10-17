@@ -20,6 +20,8 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   - E3: personal loot.
 - **Decided by:** pending user. The run that builds co-op applies each default if no answer has
   come 15 minutes after it reaches the question.
+- **On hold:** the user put co-op on hold on 2026-10-17, so these questions wait with the plan.
+  Nothing runs until the user takes it off hold.
 - **PR:** the PR that adds the plan.
 
 ## 2026-10-15 — S3b: rigid figures, or build skinning?
