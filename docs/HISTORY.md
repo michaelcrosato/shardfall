@@ -5,6 +5,16 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Co-op plan on hold — 2026-10-17
+
+The user put co-op on hold: "don't scrap it, just not something we are going to do right now."
+- `docs/COOP_PLAN.md` stays as it is, with an on-hold status at the top and in §14, which holds
+  the `/goal` line.
+- `docs/PROGRESS.md` lists it under "Next" as on hold.
+- Rulings E1-E3 wait with it (`docs/ESCALATIONS.md`).
+- Nothing was built.
+- When it resumes, re-check §3's facts against `main` before building.
+
 ## Co-op plan: Codex's second review folded in — 2026-10-16
 
 Codex's review of #72 found ten more gaps, all real. Each is a short change to

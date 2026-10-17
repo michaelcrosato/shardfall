@@ -1,11 +1,16 @@
 # Co-op: up to four players, one world
 
 The plan for online co-op in Shardfall: up to four players, each free to go anywhere, playing
-the same game as single player, with monsters made tougher instead of more numerous. Status:
-**planned, not built** (2026-10-16). Facts come from a survey of `main` at `dd5584b`; line
-numbers are as of then, and *unverified* marks what was not checked. The agent who builds it
-reads this whole file, then works through §11's stages in order. Paths without a crate are under
-`crates/pav_core/src/`. Players get their own page, `docs/COOP.md`, in C5.
+the same game as single player, with monsters made tougher instead of more numerous.
+
+**Status: on hold** (the user's call, 2026-10-17). The plan is kept for later, not scrapped;
+nothing is built. Don't start any stage, or run §14's `/goal`, until the user takes it off hold.
+When it resumes, re-check §3's facts against `main` first, since the code will have moved.
+
+Facts come from a survey of `main` at `dd5584b`; line numbers are as of then, and *unverified*
+marks what was not checked. The agent who builds it reads this whole file, then works through
+§11's stages in order. Paths without a crate are under `crates/pav_core/src/`. Players get their
+own page, `docs/COOP.md`, in C5.
 
 ## 1. What the user asked
 | The ask | Where this plan meets it |
@@ -628,6 +633,9 @@ which the run applies if no answer has come 15 minutes after it reaches the ques
   exit; fix it there if it does.
 
 ## 14. Running it
+**On hold:** use this section only once the user takes co-op off hold (see the status at the
+top).
+
 The expected size is about 8,000-12,000 lines over six PRs (C0-C5); C6 waits on E1.
 1. **Before you start:** answer E1-E3 (§12) if you can, so the run doesn't stop on them.
 2. **Start fresh, don't compact.** Open a new session, or `/clear` this one, then give the
