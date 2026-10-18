@@ -5,6 +5,29 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A new session's check: environment, open work, stale docs — 2026-10-18
+
+The user asked a fresh cloud session to confirm the environment, find unfinished or planned
+work, and update the docs.
+- **Environment:** Rust 1.98.1 with the Linux, Windows-gnu and wasm32 targets; lavapipe Vulkan
+  (llvmpipe); Xvfb, mingw, Wine, wasm-bindgen 0.2.129 (Cargo.lock's), Playwright's Chromium
+  for `check-wgsl.sh`. The start hook had built `pav`; `pav gpu`, a capture and `play
+  scene=starter bot=true seeds=3` (3/3 won) work. `cargo test --workspace`: 442 pass, 2
+  ignored; `cargo fmt --check` clean; the wasm clippy check passes (with `-D warnings` it fails
+  on three wasm-only `drop_non_drop` lints in `pav_tools`, existing).
+- **Open work:** no open PRs or issues, and the branch matched `main`. What remains is the
+  user's (co-op on hold, S3b's verdict, the sibling sessions for S4 and S5), armed (S6 and the
+  store's triggers), or PROGRESS's open issues.
+- **Campaign, re-measured** (`campaign scene=town seed=1 from=1 to=12 seconds=3600`): levels
+  1-6 in 24.1 game minutes (level 4: 9.6 min and 30 deaths), then 36 minutes on level 7, the
+  Molten Floor, without opening the exit (47 deaths in all, hero level 13). The level-4 stall
+  PROGRESS listed has been gone since asset plan 4.3 re-rolled the levels; the stall is now
+  level 7's.
+- **Docs:** PROGRESS's open issue now names level 7. The S3b review page no longer opens and
+  isn't in the user's artifact list, so PROGRESS and ESCALATIONS say how to rebuild it.
+  `docs/AGENT_ASSET_STORE.md`'s status line said S3-S5 "come next"; it now says they are
+  built and lists what is pending.
+
 ## Co-op plan on hold — 2026-10-17
 
 The user put co-op on hold: "don't scrap it, just not something we are going to do right now."
