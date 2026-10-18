@@ -31,6 +31,9 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
 - **Asked:** in chat, with the review page https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs
   (one verdict per figure: "reads well" or "joints read badly"; verdicts reach the agent).
 - **Decided by:** pending user. S3b was built around it and merged rigid (#64).
+- **Later (2026-10-18):** the review page no longer opens from a session and isn't in the
+  user's artifact list, so no verdict can arrive through it. The question stands; the page can
+  be rebuilt from `animsheet` sheets with `scripts/review_page.py` when the user wants it.
 
 ## 2026-10-15 — S3, S3b, S4 and S5 built despite S1's "no" (the user's call)
 - **Question:** S1's "no" still stands, and the store design (§13) builds nothing after it. Build

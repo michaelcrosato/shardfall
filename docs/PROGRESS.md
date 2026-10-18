@@ -37,16 +37,17 @@ The current state, kept to one page because every session reads it (Claude Code 
 - **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the
   engine from `START_HERE.md`'s "Make a game" prompt; each goes to `michaelcrosato/ai-hub` as
   one HTML file. One so far (Capital Strike, before the hook).
-- **Waiting on the user:** S3b's rigid-or-skinned verdict
-  (https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs); S4's and S5's other halves run as
-  sessions in my-3dge and riftlight from `docs/handoffs/` when the user starts them.
+- **Waiting on the user:** S3b's rigid-or-skinned verdict (its review page no longer opens,
+  2026-10-18: rebuild it with `animsheet` and `scripts/review_page.py` if asked); S4's and S5's
+  other halves run as sessions in my-3dge and riftlight from `docs/handoffs/`.
 - **Armed, not run** (`docs/AGENT_ASSET_STORE.md` §13): S6 phase-out at each change of the
   benchmark agent, and the triggers listed there, each with a small plan when it fires.
 
 ## Open issues
 - The HUD, inventory, passive tree and touch controls (egui in `pav_app`) are invisible to the
   tools and headless captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
-- The `campaign` bot stalls on level 4, the Rift Gates (seed 1: the boss's seal stays shut).
+- The `campaign` bot stalls on level 7, the Molten Floor (seed 1, 2026-10-18: levels 1-6 in 24
+  game minutes, then 36 more without the exit); level 4 costs it 30 deaths.
 - Copies of one asset patched to different materials under one key draw the same material.
 - Older known issues and limits: "Known issues and limits" in `docs/HISTORY.md`.
 

@@ -1,8 +1,11 @@
 # The agent asset store
 
 A library of game assets that agents search, use as they are, fork and change, or learn from. It
-plays the part Epic's Fab store plays for people, but its customer is an agent. Status: S0 and
-S2 are built; S1 measured no, and the user asked for S2 anyway (2026-10-15, `docs/HISTORY.md`). S3, S3b, S4 and S5 come next, each built and merged whatever its exit result; S6 and the triggers stay armed (§15). Facts come from a read-only survey of Shardfall and its sibling
+plays the part Epic's Fab store plays for people, but its customer is an agent. Status: S0-S5
+are built and merged (2026-10-15, `docs/HISTORY.md`); S1 measured no, and the user asked for
+the rest anyway (§15). Pending: S3b's rigid-or-skinned verdict (the user), S4's cross-engine
+match (a my-3dge session) and S5's criteria (a riftlight session), from `docs/handoffs/`. S6 and
+the triggers stay armed (§13). Facts come from a read-only survey of Shardfall and its sibling
 repositories on 2026-10-14, re-checked where noted; *unverified* marks what was not checked.
 Agents using the store read `store/README.md` and the shelf (built in S0-S2), not this file.
 
@@ -536,7 +539,8 @@ foundations serve better).
 
 ## 15. Executing S3–S5
 
-The run that finishes this plan works from this section, §13 and the files they name, with no chat
+Done 2026-10-15 (#63-#66); kept as the record of the run's rules. The run that finishes this plan
+worked from this section, §13 and the files they name, with no chat
 history. The user's decisions of 2026-10-15 recorded here are binding.
 
 **Priority: completion first** (a finished project nobody uses beats an unfinished one). Build and
