@@ -1341,7 +1341,7 @@ impl App {
         let touch_ui = device == Device::Touch;
         if touch_ui != self.touch_styled {
             self.touch_styled = touch_ui;
-            ui::touch_style(&self.egui_ctx, touch_ui);
+            pav_ui::touch_style(&self.egui_ctx, touch_ui);
         }
         self.game_ui.touch = touch_ui;
         self.game_ui.tree.touch = touch_ui;
@@ -1443,7 +1443,7 @@ impl App {
                 crate::guide_ui::pad_note(&ctx, hud_ctx.hud, hud_ctx.tick, hud_ctx.dt, touch_ui.then_some(&mut touch.swipes));
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
-            crate::hud::game_lines(&ctx, hud_ctx.hud);
+            pav_ui::game_lines(&ctx, hud_ctx.hud);
             if let Some(p) = pad_cursor {
                 // The gamepad's menu cursor, above everything.
                 let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("pad_cursor")));

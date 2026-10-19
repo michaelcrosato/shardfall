@@ -88,10 +88,14 @@ crates/
   pav_app     the game (`shardfall` binary): window, boot diagnostics, input (keyboard/mouse,
               gamepad via gilrs), system keys, tuning panel, pause menu, sim thread
               (simhost.rs; stepped from the frame loop in the browser), live bridge server
-              (bridge.rs), egui input (uiinput.rs), touch screens (touch.rs: finger routing,
-              invisible stick, button fan, auto-attack, swipe-to-dismiss), graphics quality
-              (quality.rs: render scale, dynamic resolution). Builds natively and for wasm32
-              (WebGPU).
+              (bridge.rs), egui input (uiinput.rs), graphics quality (quality.rs: render
+              scale, dynamic resolution). Builds natively and for wasm32 (WebGPU).
+  pav_ui      Shardfall's game UI in egui, drawn by the window and by the tools: the HUD
+              (arpg_ui.rs: orbs, skill bar, banners, minimap), the windows (arpg_items.rs:
+              inventory, shop, stash, character, skills; arpg_tree.rs: the passive tree), touch
+              screens (touch.rs: finger routing, invisible stick, button fan, auto-attack,
+              swipe-to-dismiss), and headless.rs (the same UI on a windowless context: a text
+              reading by window, clicks, and an egui-wgpu overlay painted over captures).
 anim/         animation data, embedded and hot-reloadable (`anim_reload`): moves.toml (the moves table)
               and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, STYLE100: 437 clips with credits).
               anim/cmu/ holds every take of the CMU database (4,770 clips) and anim/100style/ the
@@ -181,7 +185,12 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   fight, `loot_roll level=40 count=5000` summarises loot tables without playing, `give
   unique=skyfall equip=true` hands over gear, `inventory` describes everything worn/carried,
   `game_cmd do=sell id=12` does any menu action exactly as the player would (it rides in the
-  input frame, so replays include it). `tree find=fire`, `tree take=Unbowed` (allocates the
+  input frame, so replays include it). The game UI: `ui` reads what the player sees as text
+  (the HUD, each open window by title, touch controls with their rects); `ui open=inventory,tree`
+  / `close=all`, `device=touch width=844 height=390` (a phone), `hover=[x,y]` (a tooltip),
+  `click=[x,y]` (presses what is there; its commands run) and `image=true` (the game with the UI
+  over it). `capture` draws the UI too when a game runs (`ui=false` leaves it out); the windows
+  `ui` opened stay open for later captures. `tree find=fire`, `tree take=Unbowed` (allocates the
   path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
   (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
   `animsheet` (its attack frame by frame), `bestiary count=500` (generator variety), `boss`
@@ -341,6 +350,8 @@ limbs follow the puppet's side, a planted defect is caught, `assets find=knight`
 (props wear library and inline materials, format 1's colours and revisions hold, unknown names,
 one edit that adds and uses a material, snapshots) and `pav_tools/tests/material_preview.rs`
 (a swatch renders headless with its layer lines).
+The game UI: `pav_tools/tests/game_ui.rs` (`ui` reads the HUD, windows and touch controls and
+clicks a button; captures draw the UI).
 Games on the hook: `pav_core/tests/games.rs` (the starter's bot wins on ten seeds, standing
 still loses, snapshot files, rewind and replays are exact, every game key names one scene)
 and `pav_tools/tests/play.rs` (the `play` tool reports, drives and sweeps seeds).

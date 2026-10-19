@@ -97,7 +97,9 @@ fn the_field_guide_and_tool_list_stay_compact() {
     // 3.3) by trimming help text, and `level rooms=` (row 3.4) by trimming `level`'s help. The
     // store's `shelf=` and `kind=clip` (S0) by trimming `assets`' help; LIB-4's `params=` by
     // trimming creature_status and creature_preview help. `play` (the games hook) by trimming
-    // anim_edit, anim_preview, clip_import, look, creature_edit and mocap help.
+    // anim_edit, anim_preview, clip_import, look, creature_edit and mocap help; `ui` and
+    // `capture ui=` (the game UI) by trimming game_cmd, turntable, look, anim_preview, anim_edit,
+    // clip_import, mocap, creature_edit and animsheet help.
     assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();

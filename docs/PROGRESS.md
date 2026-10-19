@@ -21,6 +21,8 @@ The current state, kept to one page because every session reads it (Claude Code 
   `docs/MAKE_A_GAME.md`, and copies the starter game (`load scene=starter`): the game hook
   `pav_core::games` (rules, HUD text, status, a bot), its level a room file, `play bot=true
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
+- **The game UI through the tools** (2026-10-19): the HUD, windows, passive tree and touch
+  controls live in `pav_ui`; `ui` reads them as text and clicks them, and captures draw them.
 - **On show in the world demo:** the Workshop wing's Library Hall, Limits, Catalogue and Store
   Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
   The figures ship in every build (`props::store::SHIPPED`).
@@ -44,8 +46,6 @@ The current state, kept to one page because every session reads it (Claude Code 
   benchmark agent, and the triggers listed there, each with a small plan when it fires.
 
 ## Open issues
-- The HUD, inventory, passive tree and touch controls (egui in `pav_app`) are invisible to the
-  tools and headless captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
 - The `campaign` bot stalls on level 7, the Molten Floor (seed 1, 2026-10-18: levels 1-6 in 24
   game minutes, then 36 more without the exit); level 4 costs it 30 deaths.
 - Older known issues and limits: "Known issues and limits" in `docs/HISTORY.md`.

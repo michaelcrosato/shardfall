@@ -277,34 +277,6 @@ pub fn toast(ctx: &egui::Context, msg: &str) {
     });
 }
 
-/// Touch screens: bigger targets, a little bigger text, thicker scroll bars, and dragging
-/// scrolls. `on = false` puts the desktop sizes back.
-pub fn touch_style(ctx: &egui::Context, on: bool) {
-    use egui::{FontId, TextStyle};
-    ctx.all_styles_mut(|s| {
-        s.spacing = egui::style::Spacing::default();
-        s.text_styles = egui::style::default_text_styles();
-        if on {
-            let sp = &mut s.spacing;
-            sp.interact_size = egui::vec2(44.0, 34.0);
-            sp.button_padding = egui::vec2(12.0, 7.0);
-            sp.item_spacing = egui::vec2(10.0, 8.0);
-            sp.slider_width = 170.0;
-            sp.icon_width = 20.0;
-            sp.icon_width_inner = 12.0;
-            sp.combo_height = 320.0;
-            sp.scroll = egui::style::ScrollStyle::solid();
-            sp.scroll.bar_width = 8.0;
-            for (style, size) in
-                [(TextStyle::Body, 15.0), (TextStyle::Button, 15.0), (TextStyle::Small, 12.0), (TextStyle::Heading, 20.0)]
-            {
-                s.text_styles.insert(style, FontId::proportional(size));
-            }
-            s.interaction.tooltip_delay = 0.35;
-        }
-    });
-}
-
 /// Touch screens: a message that swipes away (top centre).
 pub fn toast_touch(ctx: &egui::Context, msg: &str, swipes: &mut crate::touch::Swipes) {
     crate::touch::swipe_area(

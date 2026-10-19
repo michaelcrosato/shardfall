@@ -1430,3 +1430,88 @@ fn b_contains(l: &pav_core::arpg::levelgen::Layout, p: Vec3) -> bool {
     let q = glam::Vec2::new(p.x, p.z);
     l.rooms.iter().any(|r| r.rect.contains(q)) || l.corridors.iter().any(|c| c.rect.contains(q))
 }
+
+/// The game UI as the player sees it: the HUD, the open windows and the touch controls, read
+/// as text (every line with where it is, grouped by window) and, with `image=true`, drawn over
+/// a capture. `open=`/`close=` toggle windows, `device=` picks mouse, pad or touch, `hover=`
+/// shows a tooltip, `click=` presses what is there (its game commands run, a tick each).
+pub fn t_ui(s: &mut Session, a: &Args) -> Result<Output> {
+    const ARGS: [&str; 9] = ["open", "close", "device", "hover", "click", "width", "height", "image", "out"];
+    for key in a.keys() {
+        if !ARGS.contains(&key.as_str()) {
+            let fix = pav_core::issue::suggestion(key, ARGS).map(|f| format!(" — {f}")).unwrap_or_default();
+            bail!("ui: unknown argument \"{key}\"{fix} (takes {})", ARGS.join(", "));
+        }
+    }
+    if !crate::session::has_ui(&s.sim.frame()) {
+        bail!("no game UI in this scene (load scene=town, or a games/ game such as starter)");
+    }
+    let names = |key: &str| -> Vec<String> {
+        match a.get(key) {
+            Some(Value::Array(v)) => v.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect(),
+            Some(Value::String(t)) => t.split(',').map(|x| x.trim().to_owned()).filter(|x| !x.is_empty()).collect(),
+            _ => Vec::new(),
+        }
+    };
+    let windows = pav_ui::headless::Headless::WINDOWS;
+    for (key, open) in [("close", false), ("open", true)] {
+        for name in names(key) {
+            if key == "close" && name == "all" {
+                s.ui.game.close_all();
+                s.ui.game.map = false;
+            } else if !s.ui.set_open(&name, open) {
+                let fix = pav_core::issue::suggestion(&name, windows).map(|f| format!(" — {f}")).unwrap_or_default();
+                bail!("{key}: no window \"{name}\"{fix} (windows: {}; close=all)", windows.join(", "));
+            }
+        }
+    }
+    if let Some(d) = get_str(a, "device") {
+        s.ui.device = match d {
+            "mouse" | "keyboard" => pav_ui::Device::KeyboardMouse,
+            "pad" | "gamepad" => pav_ui::Device::Gamepad,
+            "touch" => pav_ui::Device::Touch,
+            o => bail!("device: \"{o}\" is not mouse, pad or touch"),
+        };
+    }
+    let point = |key: &str| -> Result<Option<egui::Pos2>> {
+        match vec_arg(a, key)? {
+            None => Ok(None),
+            Some(v) if v.len() == 2 => Ok(Some(egui::Pos2::new(v[0], v[1]))),
+            Some(_) => bail!("{key} is a screen point [x, y] in pixels"),
+        }
+    };
+    let input = pav_ui::headless::Input { hover: point("hover")?, click: point("click")? };
+    let w = get_u64(a, "width", 1280)? as u32;
+    let h = get_u64(a, "height", 720)? as u32;
+    if w < 64 || h < 64 || w > 4096 || h > 4096 {
+        bail!("width/height must be 64..4096");
+    }
+    let image = get_bool(a, "image", false)?;
+    let (rgba, drawn) = if image {
+        let (rgba, drawn) = s.render_ui(w, h, input)?;
+        (Some(rgba), drawn)
+    } else {
+        (None, s.read_ui(w, h, input))
+    };
+    let drawn = drawn.ok_or_else(|| anyhow!("no game UI to draw"))?;
+    let mut reply = serde_json::to_value(&drawn.reading)?;
+    if input.click.is_some() {
+        let did: Vec<String> = drawn.commands.iter().map(|c| format!("{c:?}")).collect();
+        for cmd in drawn.commands {
+            s.sim.step(&pav_core::InputFrame { cmd: Some(cmd), ..Default::default() });
+        }
+        s.keep_events();
+        s.sync_camera();
+        reply["did"] = json!(did);
+    }
+    let Some(rgba) = rgba else { return Ok(Output::Json(reply)) };
+    let png = pav_render::capture::encode_png(w, h, &rgba)?;
+    let path =
+        std::path::PathBuf::from(get_str(a, "out").map(String::from).unwrap_or(format!("out/ui-{}.png", s.sim.state.tick)));
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&path, &png)?;
+    reply["path"] = json!(path);
+    Ok(Output::Image { png, path: Some(path), meta: reply })
+}

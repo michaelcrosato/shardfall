@@ -8,14 +8,7 @@ use pav_core::input::buttons;
 use winit::event::{ElementState, MouseButton};
 use winit::keyboard::KeyCode;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Device {
-    #[default]
-    KeyboardMouse,
-    Gamepad,
-    /// A phone or tablet (touch.rs).
-    Touch,
-}
+pub use pav_ui::Device;
 
 /// Game-action bindings (defaults; rooms may override in the future).
 pub struct KeyBinds {

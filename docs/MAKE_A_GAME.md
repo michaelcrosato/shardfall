@@ -168,7 +168,8 @@ your own. From outside, `sim.play()?.get::<MyGame>()` reads your game; in a test
   --out out/mygame.html`: about 10 MB, runs from `file://` in Chrome or Edge (WebGPU).
 
 ## Limits today
-- HUD: text lines only. Panels, bars or menus mean egui code in `pav_app` (`hud.rs`).
+- HUD: text lines only (captures draw them; `ui` reads them). Panels, bars or menus mean egui
+  code in `pav_ui` (draw it from `headless.rs` too, so the tools see it).
 - Drawing from game state without an entity (`pav_view::assets::emit_asset`) and new sounds
   (`pav_audio`, a closed list) mean code outside `pav_core`.
 - Your game compiles into the engine crate (`pav_core/src/games/`), beside Shardfall.
