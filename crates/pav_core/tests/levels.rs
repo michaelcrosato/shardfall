@@ -350,6 +350,135 @@ fn the_way_down_opens_when_the_boss_falls_and_waypoints_remember() {
     assert_eq!(game(&sim).place, Place::Level(3));
 }
 
+/// Every monster but the boss gone, so the bot has nothing else to fight.
+fn only_the_boss(sim: &mut Sim) -> pav_core::EntityId {
+    let boss = level(sim).boss.unwrap();
+    for (id, a) in sim.state.game.as_mut().unwrap().actors.iter_mut() {
+        if a.team == Team::Monster && *id != boss {
+            a.life = 0.0;
+            a.dead = true;
+        }
+    }
+    boss
+}
+
+fn feet_of(sim: &Sim, id: pav_core::EntityId) -> Vec3 {
+    let e = sim.state.entities.get(id).unwrap();
+    e.pos - Vec3::Y * e.character.as_ref().unwrap().height() * 0.5
+}
+
+#[test]
+fn the_boss_keeps_to_its_room() {
+    // It gives up a hero who leaves the room by the way down and goes home. One that chased the
+    // hero out stood against a wall wherever it lost them, with the exit sealed (level 7 stalled
+    // the campaign bot that way, waiting by the exit).
+    let mut sim = level_sim(7, 1);
+    let lv = level(&sim);
+    let boss = lv.boss.unwrap();
+    let lair = lv.layout.rooms[lv.layout.exit].rect;
+    let start = lv.layout.rooms[0].rect.center();
+    let near = feet_of(&sim, boss) + Vec3::new(0.0, 0.05, 4.0);
+    put_hero(&mut sim, near);
+    sim.run(60, &InputFrame::default());
+    assert!(game(&sim).actors[&boss].brain.as_ref().unwrap().aggro, "it fights a hero in its room");
+    put_hero(&mut sim, Vec3::new(start.x, 0.05, start.y));
+    sim.run(60 * 8, &InputFrame::default());
+    let at = feet_of(&sim, boss);
+    assert!(!game(&sim).actors[&boss].brain.as_ref().unwrap().aggro, "it let the hero go");
+    assert!(lair.contains(glam::Vec2::new(at.x, at.z)), "it stays in its room: {at}");
+}
+
+#[test]
+fn the_bot_walks_round_rift_gates() {
+    // A gate on the way to the exit folds the hero back toward the start; the bot's walks keep
+    // off them (level 4, seed 3 looped the campaign through them for two hours).
+    let mut sim = level_sim(4, 9);
+    // A tick builds the level's grid (its monsters chase along it).
+    sim.run(1, &InputFrame::default());
+    let boss = only_the_boss(&mut sim);
+    sim.state.game.as_mut().unwrap().actors.get_mut(&boss).unwrap().dead = true;
+    sim.run(2, &InputFrame::default());
+    let lv = level(&sim);
+    assert!(lv.exit_open);
+    let gates: Vec<(Vec3, usize)> = lv
+        .features
+        .iter()
+        .filter_map(|f| match f.kind {
+            FeatureKind::Gate { to, .. } => Some((f.pos, to)),
+            _ => None,
+        })
+        .collect();
+    assert!(!gates.is_empty());
+    // Start 3 m behind a gate, on the line the way to the exit leaves it by: walking that line
+    // goes through the gate.
+    let exit = game(&sim).spots[lv.exit_spot].pos;
+    let nav = lv.nav.clone().unwrap();
+    let (gate, way) = gates.iter().find_map(|(g, _)| Some((*g, nav.path(*g, exit)?))).expect("a gate on a walk to the exit");
+    let next = way.into_iter().find(|w| (*w - gate).length() > 1.5).unwrap();
+    let back = Vec3::new(gate.x - next.x, 0.0, gate.z - next.z).normalize();
+    let at = gate + back * 3.0;
+    assert!(nav.walkable(at) && nav.clear(at, next), "a straight walk from {at} to {next} crosses the gate");
+    put_hero(&mut sim, at + Vec3::Y * 0.05);
+    sim.run(2, &InputFrame::default());
+    let mut bot = pav_core::arpg::bot::Bot::default();
+    let mut last = hero_feet(&sim);
+    for _ in 0..60 * 60 {
+        let f = bot.input(&sim);
+        sim.step(&f);
+        if game(&sim).place != Place::Level(4) {
+            return;
+        }
+        let now = hero_feet(&sim);
+        assert!((now - last).length() < 5.0, "the hero went through a gate: {last} to {now}");
+        last = now;
+    }
+    panic!("the bot did not reach the way down");
+}
+
+#[test]
+fn the_bot_walks_round_powder_kegs() {
+    // Kegs are solid but actors, which the level's grid leaves out: the campaign bot pressed
+    // into three of them on level 4 (campaign seed 3) for the rest of the hour, planning
+    // through them. Here, three on level 2 (seed 24) that held it the same way.
+    let mut sim = level_sim(2, 24);
+    sim.run(1, &InputFrame::default());
+    let kegs: Vec<Vec3> =
+        level(&sim).features.iter().filter(|f| matches!(f.kind, FeatureKind::Keg { .. })).map(|f| f.pos).collect();
+    let mid = kegs
+        .iter()
+        .find_map(|k| {
+            let near: Vec<Vec3> = kegs.iter().filter(|o| (**o - *k).length() < 2.2).copied().collect();
+            (near.len() >= 3).then(|| near.iter().copied().sum::<Vec3>() / near.len() as f32)
+        })
+        .expect("three kegs close together");
+    // Nothing to fight (level 2 has no boss: its way down is open).
+    for a in sim.state.game.as_mut().unwrap().actors.values_mut().filter(|a| a.team == Team::Monster) {
+        a.life = 0.0;
+        a.dead = true;
+    }
+    sim.run(2, &InputFrame::default());
+    let lv = level(&sim);
+    assert!(lv.exit_open);
+    // Start behind the kegs on the grid's way to the exit, which walks straight through them.
+    let exit = game(&sim).spots[lv.exit_spot].pos;
+    let nav = lv.nav.clone().unwrap();
+    let next = nav.path(mid, exit).unwrap().into_iter().find(|w| (*w - mid).length() > 2.5).unwrap();
+    let ahead = Vec3::new(next.x - mid.x, 0.0, next.z - mid.z).normalize();
+    let at = mid - ahead * 2.4;
+    assert!(nav.walkable(at) && nav.clear(at, next), "the grid walks from {at} through the kegs at {mid}");
+    put_hero(&mut sim, at + Vec3::Y * 0.05);
+    sim.run(2, &InputFrame::default());
+    let mut bot = pav_core::arpg::bot::Bot::default();
+    for _ in 0..60 * 20 {
+        let f = bot.input(&sim);
+        sim.step(&f);
+        if (hero_feet(&sim) - mid).dot(ahead) > 3.0 || game(&sim).place != Place::Level(2) {
+            return;
+        }
+    }
+    panic!("the bot stayed behind the kegs at {mid} (hero at {})", hero_feet(&sim));
+}
+
 // ------------------------------------------------- dressing (asset plan SF-1, SF-2)
 
 /// Depths the dressing checks cover: every designed level and three endless ones.

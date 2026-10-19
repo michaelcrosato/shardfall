@@ -2,6 +2,8 @@
 //! potions when low and rolls out of monster telegraphs. Agents use it (the `autoplay` tool)
 //! to balance and speed-test levels; tests use it to prove the loop works.
 
+use std::sync::Arc;
+
 use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +11,7 @@ use super::combat::Team;
 use super::data::{Behavior, data};
 use super::{TeleShape, feet_of, flat};
 use crate::input::{InputFrame, buttons};
+use crate::nav::NavGrid;
 use crate::sim::Sim;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -39,7 +42,16 @@ pub struct Bot {
     /// Loot: the item being walked to (since which tick, the way there) and items given up on.
     loot: Option<(u32, u64, Vec<Vec3>)>,
     loot_skip: Vec<u32>,
+    /// The level's walkable grid with its rift gates and kegs blocked, for the level (seed,
+    /// depth) and the number of kegs still standing it was made for (`walk_grid`).
+    walk: Option<((u64, u32, usize), Arc<NavGrid>)>,
 }
+
+/// Rift gates take whoever comes within a metre of them; the bot's walks keep this far off.
+const GATE_CLEAR: f32 = 1.75;
+/// Powder kegs are solid but actors, so the level's grid leaves them out; a keg's radius and a
+/// hero's.
+const KEG_CLEAR: f32 = 0.9;
 
 const SLOT_BUTTONS: [u32; 6] =
     [buttons::PRIMARY, buttons::SECONDARY, buttons::SKILL3, buttons::SKILL4, buttons::SKILL5, buttons::SKILL6];
@@ -225,7 +237,7 @@ impl Bot {
         if g.hero.bag_full() || g.auto_loot_off {
             return None;
         }
-        let nav = g.level.as_deref().and_then(|l| l.nav.as_deref());
+        let nav = g.level.as_deref().and_then(|l| self.walk_grid(l));
         let clear = |p: Vec3| {
             let from = me + Vec3::Y;
             let d = p + Vec3::Y * 0.3 - from;
@@ -242,7 +254,7 @@ impl Bot {
         if self.loot.as_ref().is_none_or(|l| l.0 != id) {
             // In levels, only what the navigation grid can reach (not inside a ring of
             // pillars, say): a short walk, planned once.
-            let way = match nav.filter(|_| !close) {
+            let way = match nav.as_deref().filter(|_| !close) {
                 Some(n) => match n.path(me, p) {
                     Some(w) if w.windows(2).map(|s| flat(s[1] - s[0]).length()).sum::<f32>() < 18.0 => w,
                     _ => {
@@ -294,12 +306,15 @@ impl Bot {
             }
             self.route = vec![at];
         } else if self.route.is_empty() || self.stats.ticks > self.route_at + 240 {
-            // The navigation grid knows the furniture; the room graph is the fallback.
+            // The navigation grid knows the furniture (and the bot's copy the rift gates and
+            // kegs); the room graph is the fallback.
             let goal = exit.unwrap_or_else(|| {
                 let c = lv.layout.rooms[lv.layout.exit].rect.center();
                 Vec3::new(c.x, 0.0, c.y)
             });
-            self.route = match lv.nav.as_ref().and_then(|n| n.path(me, goal)) {
+            let walk = self.walk_grid(lv);
+            let path = walk.and_then(|w| w.path(me, goal)).or_else(|| lv.nav.as_ref().and_then(|n| n.path(me, goal)));
+            self.route = match path {
                 Some(p) => p.into_iter().map(|q| Vec3::new(q.x, me.y, q.z)).collect(),
                 None => lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
             };
@@ -324,6 +339,53 @@ impl Bot {
         }
         f.move_dir = Vec2::new(dir.x, dir.z);
         f
+    }
+
+    /// The level's grid with its rift gates and standing powder kegs blocked: a walk that
+    /// crosses a gate folds the hero elsewhere, often back toward the start, and the grid
+    /// leaves kegs out (they are actors), so the bot would keep walking into either. `None`
+    /// before the level has a grid.
+    fn walk_grid(&mut self, lv: &super::mechanics::LevelState) -> Option<Arc<NavGrid>> {
+        use super::mechanics::FeatureKind;
+        let nav = lv.nav.as_ref()?;
+        let blocks: Vec<(Vec3, f32)> = lv
+            .features
+            .iter()
+            .filter_map(|f| match f.kind {
+                FeatureKind::Gate { .. } => Some((f.pos, GATE_CLEAR)),
+                FeatureKind::Keg { fuse } if fuse >= 0.0 => Some((f.pos, KEG_CLEAR)),
+                _ => None,
+            })
+            .collect();
+        let kegs = blocks.iter().filter(|(_, r)| *r == KEG_CLEAR).count();
+        let key = (lv.seed, lv.depth, kegs);
+        if let Some((k, grid)) = &self.walk {
+            if *k == key {
+                return Some(grid.clone());
+            }
+        }
+        let grid = if blocks.is_empty() {
+            nav.clone()
+        } else {
+            let mut grid = (**nav).clone();
+            for (p, r) in &blocks {
+                let (Some(a), Some(b)) = (grid.cell_of(*p - Vec3::new(*r, 0.0, *r)), grid.cell_of(*p + Vec3::new(*r, 0.0, *r)))
+                else {
+                    continue;
+                };
+                for y in a / grid.w..=b / grid.w {
+                    for x in a % grid.w..=b % grid.w {
+                        let i = y * grid.w + x;
+                        if flat(grid.center(i) - *p).length() < *r {
+                            grid.blocked[i] = true;
+                        }
+                    }
+                }
+            }
+            Arc::new(grid)
+        };
+        self.walk = Some((key, grid.clone()));
+        Some(grid)
     }
 
     /// The next passive to take: notables and skill upgrades for skills on the bar first, then

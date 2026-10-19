@@ -5,6 +5,37 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The campaign plays through level 12 — 2026-10-19
+
+PROGRESS's open issue: the `campaign` bot stalled on level 7, the Molten Floor (seed 1: 36 game
+minutes without the exit). Three causes, found by tracing the bot level by level:
+- **The boss keeps to its room** (`arpg/mod.rs`): a level's boss drops its aggro when the hero
+  leaves the room the way down is in, and walks home. One that chased the hero out stood
+  against a wall wherever it lost them (beyond the flow field a monster walks straight at the
+  hero), with the way down sealed and the bot waiting by it. A game fix, not a bot one: a
+  player met the same sealed exit and an empty room.
+- **The bot walks round rift gates** (`arpg/bot.rs`): its walks use its own copy of the level's
+  grid with every gate blocked (1.75 m round it). A walk through one folds the hero elsewhere,
+  often back toward the start; level 4 on seed 3 looped that way. The plain grid, then the room
+  graph, stay the fallbacks when the copy has no way.
+- **The bot walks round powder kegs:** kegs are solid but actors, which the level's grid leaves
+  out, so the bot planned through them; on level 4 (seed 3) it pressed into three for the rest
+  of the hour. The copy blocks standing kegs (0.9 m) too and is rebuilt when one goes up.
+- **Checked:** `pav_core/tests/levels.rs`: `the_boss_keeps_to_its_room` (level 7),
+  `the_bot_walks_round_rift_gates` (level 4) and `the_bot_walks_round_powder_kegs` (level 2,
+  seed 24: the one trap a search of 535 keg clusters on depths 2, 4 and 6 found without the
+  fix, and none with it; the test fails without the fix). Campaigns (`campaign scene=town
+  from=1 to=12 seconds=9000`), every seed through level 12:
+
+  | Seed | Levels 1-12 | Level 4 | Level 7 | Level 12 | Deaths |
+  |---|---|---|---|---|---|
+  | 1 | 114 min | 24.1 min, 30 deaths | 18.6 min | 43.3 min, 52 deaths | 116 |
+  | 2 | 94 min | 38.6 min, 56 deaths | 8.6 min | 20.6 min | 97 |
+  | 3 | 63 min | 20.8 min, 24 deaths | 9.3 min | 11.7 min | 43 |
+
+- **Left open:** levels 4 and 12 are the bot's grinds: it dies, walks back from the start and
+  wears the boss down (the boss doesn't heal). Balance, not a stall; PROGRESS lists it.
+
 ## The game UI through the tools — 2026-10-19
 
 PROGRESS's open issue: the HUD, inventory, passive tree and touch controls were egui code in
