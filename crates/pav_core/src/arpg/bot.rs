@@ -42,13 +42,16 @@ pub struct Bot {
     /// Loot: the item being walked to (since which tick, the way there) and items given up on.
     loot: Option<(u32, u64, Vec<Vec3>)>,
     loot_skip: Vec<u32>,
-    /// The level's walkable grid with its rift gates blocked, for the level (seed, depth) it
-    /// was made for (`walk_grid`).
-    walk: Option<((u64, u32), Arc<NavGrid>)>,
+    /// The level's walkable grid with its rift gates and kegs blocked, for the level (seed,
+    /// depth) and the number of kegs still standing it was made for (`walk_grid`).
+    walk: Option<((u64, u32, usize), Arc<NavGrid>)>,
 }
 
 /// Rift gates take whoever comes within a metre of them; the bot's walks keep this far off.
 const GATE_CLEAR: f32 = 1.75;
+/// Powder kegs are solid but actors, so the level's grid leaves them out; a keg's radius and a
+/// hero's.
+const KEG_CLEAR: f32 = 0.9;
 
 const SLOT_BUTTONS: [u32; 6] =
     [buttons::PRIMARY, buttons::SECONDARY, buttons::SKILL3, buttons::SKILL4, buttons::SKILL5, buttons::SKILL6];
@@ -338,27 +341,45 @@ impl Bot {
         f
     }
 
-    /// The level's grid with its rift gates blocked: a walk that crosses one folds the hero
-    /// elsewhere, often back toward the start, and the bot would keep walking into it. `None`
+    /// The level's grid with its rift gates and standing powder kegs blocked: a walk that
+    /// crosses a gate folds the hero elsewhere, often back toward the start, and the grid
+    /// leaves kegs out (they are actors), so the bot would keep walking into either. `None`
     /// before the level has a grid.
     fn walk_grid(&mut self, lv: &super::mechanics::LevelState) -> Option<Arc<NavGrid>> {
+        use super::mechanics::FeatureKind;
         let nav = lv.nav.as_ref()?;
-        let key = (lv.seed, lv.depth);
+        let blocks: Vec<(Vec3, f32)> = lv
+            .features
+            .iter()
+            .filter_map(|f| match f.kind {
+                FeatureKind::Gate { .. } => Some((f.pos, GATE_CLEAR)),
+                FeatureKind::Keg { fuse } if fuse >= 0.0 => Some((f.pos, KEG_CLEAR)),
+                _ => None,
+            })
+            .collect();
+        let kegs = blocks.iter().filter(|(_, r)| *r == KEG_CLEAR).count();
+        let key = (lv.seed, lv.depth, kegs);
         if let Some((k, grid)) = &self.walk {
             if *k == key {
                 return Some(grid.clone());
             }
         }
-        let gates: Vec<Vec3> =
-            lv.features.iter().filter(|f| matches!(f.kind, super::mechanics::FeatureKind::Gate { .. })).map(|f| f.pos).collect();
-        let grid = if gates.is_empty() {
+        let grid = if blocks.is_empty() {
             nav.clone()
         } else {
             let mut grid = (**nav).clone();
-            for i in 0..grid.blocked.len() {
-                let c = grid.center(i);
-                if gates.iter().any(|p| flat(c - *p).length() < GATE_CLEAR) {
-                    grid.blocked[i] = true;
+            for (p, r) in &blocks {
+                let (Some(a), Some(b)) = (grid.cell_of(*p - Vec3::new(*r, 0.0, *r)), grid.cell_of(*p + Vec3::new(*r, 0.0, *r)))
+                else {
+                    continue;
+                };
+                for y in a / grid.w..=b / grid.w {
+                    for x in a % grid.w..=b % grid.w {
+                        let i = y * grid.w + x;
+                        if flat(grid.center(i) - *p).length() < *r {
+                            grid.blocked[i] = true;
+                        }
+                    }
                 }
             }
             Arc::new(grid)

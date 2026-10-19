@@ -435,6 +435,50 @@ fn the_bot_walks_round_rift_gates() {
     panic!("the bot did not reach the way down");
 }
 
+#[test]
+fn the_bot_walks_round_powder_kegs() {
+    // Kegs are solid but actors, which the level's grid leaves out: the campaign bot pressed
+    // into three of them on level 4 (campaign seed 3) for the rest of the hour, planning
+    // through them. Here, three on level 2 (seed 24) that held it the same way.
+    let mut sim = level_sim(2, 24);
+    sim.run(1, &InputFrame::default());
+    let kegs: Vec<Vec3> =
+        level(&sim).features.iter().filter(|f| matches!(f.kind, FeatureKind::Keg { .. })).map(|f| f.pos).collect();
+    let mid = kegs
+        .iter()
+        .find_map(|k| {
+            let near: Vec<Vec3> = kegs.iter().filter(|o| (**o - *k).length() < 2.2).copied().collect();
+            (near.len() >= 3).then(|| near.iter().copied().sum::<Vec3>() / near.len() as f32)
+        })
+        .expect("three kegs close together");
+    // Nothing to fight (level 2 has no boss: its way down is open).
+    for a in sim.state.game.as_mut().unwrap().actors.values_mut().filter(|a| a.team == Team::Monster) {
+        a.life = 0.0;
+        a.dead = true;
+    }
+    sim.run(2, &InputFrame::default());
+    let lv = level(&sim);
+    assert!(lv.exit_open);
+    // Start behind the kegs on the grid's way to the exit, which walks straight through them.
+    let exit = game(&sim).spots[lv.exit_spot].pos;
+    let nav = lv.nav.clone().unwrap();
+    let next = nav.path(mid, exit).unwrap().into_iter().find(|w| (*w - mid).length() > 2.5).unwrap();
+    let ahead = Vec3::new(next.x - mid.x, 0.0, next.z - mid.z).normalize();
+    let at = mid - ahead * 2.4;
+    assert!(nav.walkable(at) && nav.clear(at, next), "the grid walks from {at} through the kegs at {mid}");
+    put_hero(&mut sim, at + Vec3::Y * 0.05);
+    sim.run(2, &InputFrame::default());
+    let mut bot = pav_core::arpg::bot::Bot::default();
+    for _ in 0..60 * 20 {
+        let f = bot.input(&sim);
+        sim.step(&f);
+        if (hero_feet(&sim) - mid).dot(ahead) > 3.0 || game(&sim).place != Place::Level(2) {
+            return;
+        }
+    }
+    panic!("the bot stayed behind the kegs at {mid} (hero at {})", hero_feet(&sim));
+}
+
 // ------------------------------------------------- dressing (asset plan SF-1, SF-2)
 
 /// Depths the dressing checks cover: every designed level and three endless ones.
