@@ -350,6 +350,91 @@ fn the_way_down_opens_when_the_boss_falls_and_waypoints_remember() {
     assert_eq!(game(&sim).place, Place::Level(3));
 }
 
+/// Every monster but the boss gone, so the bot has nothing else to fight.
+fn only_the_boss(sim: &mut Sim) -> pav_core::EntityId {
+    let boss = level(sim).boss.unwrap();
+    for (id, a) in sim.state.game.as_mut().unwrap().actors.iter_mut() {
+        if a.team == Team::Monster && *id != boss {
+            a.life = 0.0;
+            a.dead = true;
+        }
+    }
+    boss
+}
+
+fn feet_of(sim: &Sim, id: pav_core::EntityId) -> Vec3 {
+    let e = sim.state.entities.get(id).unwrap();
+    e.pos - Vec3::Y * e.character.as_ref().unwrap().height() * 0.5
+}
+
+#[test]
+fn the_boss_keeps_to_its_room() {
+    // It gives up a hero who leaves the room by the way down and goes home. One that chased the
+    // hero out stood against a wall wherever it lost them, with the exit sealed (level 7 stalled
+    // the campaign bot that way, waiting by the exit).
+    let mut sim = level_sim(7, 1);
+    let lv = level(&sim);
+    let boss = lv.boss.unwrap();
+    let lair = lv.layout.rooms[lv.layout.exit].rect;
+    let start = lv.layout.rooms[0].rect.center();
+    let near = feet_of(&sim, boss) + Vec3::new(0.0, 0.05, 4.0);
+    put_hero(&mut sim, near);
+    sim.run(60, &InputFrame::default());
+    assert!(game(&sim).actors[&boss].brain.as_ref().unwrap().aggro, "it fights a hero in its room");
+    put_hero(&mut sim, Vec3::new(start.x, 0.05, start.y));
+    sim.run(60 * 8, &InputFrame::default());
+    let at = feet_of(&sim, boss);
+    assert!(!game(&sim).actors[&boss].brain.as_ref().unwrap().aggro, "it let the hero go");
+    assert!(lair.contains(glam::Vec2::new(at.x, at.z)), "it stays in its room: {at}");
+}
+
+#[test]
+fn the_bot_walks_round_rift_gates() {
+    // A gate on the way to the exit folds the hero back toward the start; the bot's walks keep
+    // off them (level 4, seed 3 looped the campaign through them for two hours).
+    let mut sim = level_sim(4, 9);
+    // A tick builds the level's grid (its monsters chase along it).
+    sim.run(1, &InputFrame::default());
+    let boss = only_the_boss(&mut sim);
+    sim.state.game.as_mut().unwrap().actors.get_mut(&boss).unwrap().dead = true;
+    sim.run(2, &InputFrame::default());
+    let lv = level(&sim);
+    assert!(lv.exit_open);
+    let gates: Vec<(Vec3, usize)> = lv
+        .features
+        .iter()
+        .filter_map(|f| match f.kind {
+            FeatureKind::Gate { to, .. } => Some((f.pos, to)),
+            _ => None,
+        })
+        .collect();
+    assert!(!gates.is_empty());
+    // Start 3 m behind a gate, on the line the way to the exit leaves it by: walking that line
+    // goes through the gate.
+    let exit = game(&sim).spots[lv.exit_spot].pos;
+    let nav = lv.nav.clone().unwrap();
+    let (gate, way) = gates.iter().find_map(|(g, _)| Some((*g, nav.path(*g, exit)?))).expect("a gate on a walk to the exit");
+    let next = way.into_iter().find(|w| (*w - gate).length() > 1.5).unwrap();
+    let back = Vec3::new(gate.x - next.x, 0.0, gate.z - next.z).normalize();
+    let at = gate + back * 3.0;
+    assert!(nav.walkable(at) && nav.clear(at, next), "a straight walk from {at} to {next} crosses the gate");
+    put_hero(&mut sim, at + Vec3::Y * 0.05);
+    sim.run(2, &InputFrame::default());
+    let mut bot = pav_core::arpg::bot::Bot::default();
+    let mut last = hero_feet(&sim);
+    for _ in 0..60 * 60 {
+        let f = bot.input(&sim);
+        sim.step(&f);
+        if game(&sim).place != Place::Level(4) {
+            return;
+        }
+        let now = hero_feet(&sim);
+        assert!((now - last).length() < 5.0, "the hero went through a gate: {last} to {now}");
+        last = now;
+    }
+    panic!("the bot did not reach the way down");
+}
+
 // ------------------------------------------------- dressing (asset plan SF-1, SF-2)
 
 /// Depths the dressing checks cover: every designed level and three endless ones.

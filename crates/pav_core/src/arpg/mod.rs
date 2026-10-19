@@ -646,6 +646,12 @@ impl Game {
             Some((feet_of(sim, h)?.0, a.radius))
         });
         let speed_k = sim.config.difficulty.enemy_speed;
+        // A level's boss keeps to its room by the way down: it lets a hero who leaves the room go
+        // and wanders back home. One that gave chase stood against a wall wherever it lost the
+        // hero (beyond the flow field below, a monster walks straight at the hero), with the way
+        // down sealed and nobody looking there for it.
+        let lair = self.level.as_deref().and_then(|lv| Some((lv.boss?, lv.layout.rooms[lv.layout.exit].rect.shrink(-0.6))));
+        let left_lair = lair.filter(|(_, room)| hero.is_some_and(|(hf, _)| !room.contains(Vec2::new(hf.x, hf.z))));
         // Levels: monsters chase the hero around walls along a flow field.
         let flow = match (self.level.as_mut(), hero) {
             (Some(lv), Some((hf, _))) => lv.hero_flow(sim, &self.actors, hf).zip(lv.nav.clone()),
@@ -675,6 +681,9 @@ impl Game {
             let Some((feet, _)) = feet_of(sim, id) else { continue };
             let a = self.actors.get_mut(&id).unwrap();
             let mut inp = InputFrame::default();
+            if left_lair.is_some_and(|(boss, _)| boss == id) {
+                a.brain.as_mut().unwrap().aggro = false;
+            }
             if !a.dead && !a.frozen() && a.cast.is_none() {
                 let options: Vec<SkillOption> =
                     a.skills.iter().map(|s| SkillOption { id: *s, def: d.skill(*s), ready: a.cooldown(*s) <= 0.0 }).collect();

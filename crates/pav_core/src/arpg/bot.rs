@@ -284,9 +284,7 @@ impl Bot {
     }
 
     /// Nothing to fight: head for the exit room along the doors and corridors, take the way
-    /// down when it's open, and shake loose when stuck on furniture. While the way down is
-    /// sealed, head for the boss instead: it starts by the exit, but one that chased the hero
-    /// out stays where it lost them (monsters beyond the hero's flow field stand still).
+    /// down when it's open (the boss waits there), and shake loose when stuck on furniture.
     fn walk_level(
         &mut self,
         sim: &Sim,
@@ -298,12 +296,7 @@ impl Bot {
         let me2 = Vec2::new(me.x, me.z);
         let exit = g.spots.get(lv.exit_spot).map(|s| s.pos);
         let in_exit = lv.layout.place_of(me2) == Some(lv.layout.exit);
-        let boss = lv
-            .boss
-            .filter(|b| !lv.exit_open && g.actors.get(b).is_some_and(|a| !a.dead))
-            .and_then(|b| feet_of(sim, b))
-            .map(|(p, _)| p);
-        if let Some(at) = exit.filter(|_| in_exit && boss.is_none()) {
+        if let Some(at) = exit.filter(|_| in_exit) {
             if lv.exit_open && flat(at - me).length() < 2.5 {
                 f.cmd = Some(super::GameCmd::Use(lv.exit_spot as u32));
                 return f;
@@ -312,16 +305,15 @@ impl Bot {
         } else if self.route.is_empty() || self.stats.ticks > self.route_at + 240 {
             // The navigation grid knows the furniture (and the bot's copy the rift gates); the
             // room graph is the fallback.
-            let room = boss.and_then(|b| lv.layout.place_of(Vec2::new(b.x, b.z))).unwrap_or(lv.layout.exit);
-            let goal = boss.or(exit).unwrap_or_else(|| {
-                let c = lv.layout.rooms[room].rect.center();
+            let goal = exit.unwrap_or_else(|| {
+                let c = lv.layout.rooms[lv.layout.exit].rect.center();
                 Vec3::new(c.x, 0.0, c.y)
             });
             let walk = self.walk_grid(lv);
             let path = walk.and_then(|w| w.path(me, goal)).or_else(|| lv.nav.as_ref().and_then(|n| n.path(me, goal)));
             self.route = match path {
                 Some(p) => p.into_iter().map(|q| Vec3::new(q.x, me.y, q.z)).collect(),
-                None => lv.layout.route(me2, room).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
+                None => lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
             };
             self.route_at = self.stats.ticks;
         }
