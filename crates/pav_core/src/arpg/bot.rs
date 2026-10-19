@@ -2,6 +2,8 @@
 //! potions when low and rolls out of monster telegraphs. Agents use it (the `autoplay` tool)
 //! to balance and speed-test levels; tests use it to prove the loop works.
 
+use std::sync::Arc;
+
 use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +11,7 @@ use super::combat::Team;
 use super::data::{Behavior, data};
 use super::{TeleShape, feet_of, flat};
 use crate::input::{InputFrame, buttons};
+use crate::nav::NavGrid;
 use crate::sim::Sim;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -39,7 +42,13 @@ pub struct Bot {
     /// Loot: the item being walked to (since which tick, the way there) and items given up on.
     loot: Option<(u32, u64, Vec<Vec3>)>,
     loot_skip: Vec<u32>,
+    /// The level's walkable grid with its rift gates blocked, for the level (seed, depth) it
+    /// was made for (`walk_grid`).
+    walk: Option<((u64, u32), Arc<NavGrid>)>,
 }
+
+/// Rift gates take whoever comes within a metre of them; the bot's walks keep this far off.
+const GATE_CLEAR: f32 = 1.75;
 
 const SLOT_BUTTONS: [u32; 6] =
     [buttons::PRIMARY, buttons::SECONDARY, buttons::SKILL3, buttons::SKILL4, buttons::SKILL5, buttons::SKILL6];
@@ -225,7 +234,7 @@ impl Bot {
         if g.hero.bag_full() || g.auto_loot_off {
             return None;
         }
-        let nav = g.level.as_deref().and_then(|l| l.nav.as_deref());
+        let nav = g.level.as_deref().and_then(|l| self.walk_grid(l));
         let clear = |p: Vec3| {
             let from = me + Vec3::Y;
             let d = p + Vec3::Y * 0.3 - from;
@@ -242,7 +251,7 @@ impl Bot {
         if self.loot.as_ref().is_none_or(|l| l.0 != id) {
             // In levels, only what the navigation grid can reach (not inside a ring of
             // pillars, say): a short walk, planned once.
-            let way = match nav.filter(|_| !close) {
+            let way = match nav.as_deref().filter(|_| !close) {
                 Some(n) => match n.path(me, p) {
                     Some(w) if w.windows(2).map(|s| flat(s[1] - s[0]).length()).sum::<f32>() < 18.0 => w,
                     _ => {
@@ -275,7 +284,9 @@ impl Bot {
     }
 
     /// Nothing to fight: head for the exit room along the doors and corridors, take the way
-    /// down when it's open (the boss waits there), and shake loose when stuck on furniture.
+    /// down when it's open, and shake loose when stuck on furniture. While the way down is
+    /// sealed, head for the boss instead: it starts by the exit, but one that chased the hero
+    /// out stays where it lost them (monsters beyond the hero's flow field stand still).
     fn walk_level(
         &mut self,
         sim: &Sim,
@@ -287,21 +298,30 @@ impl Bot {
         let me2 = Vec2::new(me.x, me.z);
         let exit = g.spots.get(lv.exit_spot).map(|s| s.pos);
         let in_exit = lv.layout.place_of(me2) == Some(lv.layout.exit);
-        if let Some(at) = exit.filter(|_| in_exit) {
+        let boss = lv
+            .boss
+            .filter(|b| !lv.exit_open && g.actors.get(b).is_some_and(|a| !a.dead))
+            .and_then(|b| feet_of(sim, b))
+            .map(|(p, _)| p);
+        if let Some(at) = exit.filter(|_| in_exit && boss.is_none()) {
             if lv.exit_open && flat(at - me).length() < 2.5 {
                 f.cmd = Some(super::GameCmd::Use(lv.exit_spot as u32));
                 return f;
             }
             self.route = vec![at];
         } else if self.route.is_empty() || self.stats.ticks > self.route_at + 240 {
-            // The navigation grid knows the furniture; the room graph is the fallback.
-            let goal = exit.unwrap_or_else(|| {
-                let c = lv.layout.rooms[lv.layout.exit].rect.center();
+            // The navigation grid knows the furniture (and the bot's copy the rift gates); the
+            // room graph is the fallback.
+            let room = boss.and_then(|b| lv.layout.place_of(Vec2::new(b.x, b.z))).unwrap_or(lv.layout.exit);
+            let goal = boss.or(exit).unwrap_or_else(|| {
+                let c = lv.layout.rooms[room].rect.center();
                 Vec3::new(c.x, 0.0, c.y)
             });
-            self.route = match lv.nav.as_ref().and_then(|n| n.path(me, goal)) {
+            let walk = self.walk_grid(lv);
+            let path = walk.and_then(|w| w.path(me, goal)).or_else(|| lv.nav.as_ref().and_then(|n| n.path(me, goal)));
+            self.route = match path {
                 Some(p) => p.into_iter().map(|q| Vec3::new(q.x, me.y, q.z)).collect(),
-                None => lv.layout.route(me2, lv.layout.exit).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
+                None => lv.layout.route(me2, room).into_iter().map(|p| Vec3::new(p.x, me.y, p.y)).collect(),
             };
             self.route_at = self.stats.ticks;
         }
@@ -324,6 +344,39 @@ impl Bot {
         }
         f.move_dir = Vec2::new(dir.x, dir.z);
         f
+    }
+
+    /// The level's grid with its rift gates blocked: a walk that crosses one folds the hero
+    /// elsewhere, often back toward the start, and the bot would keep walking into it. `None`
+    /// before the level has a grid.
+    fn walk_grid(&mut self, lv: &super::mechanics::LevelState) -> Option<Arc<NavGrid>> {
+        let nav = lv.nav.as_ref()?;
+        let key = (lv.seed, lv.depth);
+        if let Some((k, grid)) = &self.walk {
+            if *k == key {
+                return Some(grid.clone());
+            }
+        }
+        let gates: Vec<Vec3> = lv
+            .features
+            .iter()
+            .filter(|f| matches!(f.kind, super::mechanics::FeatureKind::Gate { .. }))
+            .map(|f| f.pos)
+            .collect();
+        let grid = if gates.is_empty() {
+            nav.clone()
+        } else {
+            let mut grid = (**nav).clone();
+            for i in 0..grid.blocked.len() {
+                let c = grid.center(i);
+                if gates.iter().any(|p| flat(c - *p).length() < GATE_CLEAR) {
+                    grid.blocked[i] = true;
+                }
+            }
+            Arc::new(grid)
+        };
+        self.walk = Some((key, grid.clone()));
+        Some(grid)
     }
 
     /// The next passive to take: notables and skill upgrades for skills on the bar first, then
