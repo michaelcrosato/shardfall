@@ -349,12 +349,8 @@ impl Bot {
                 return Some(grid.clone());
             }
         }
-        let gates: Vec<Vec3> = lv
-            .features
-            .iter()
-            .filter(|f| matches!(f.kind, super::mechanics::FeatureKind::Gate { .. }))
-            .map(|f| f.pos)
-            .collect();
+        let gates: Vec<Vec3> =
+            lv.features.iter().filter(|f| matches!(f.kind, super::mechanics::FeatureKind::Gate { .. })).map(|f| f.pos).collect();
         let grid = if gates.is_empty() {
             nav.clone()
         } else {
