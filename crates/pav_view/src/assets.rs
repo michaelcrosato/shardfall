@@ -186,9 +186,8 @@ fn draw_parts(
     for (index, part) in parts.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
         let Some(o) = place(index) else { continue };
         let (mut color, material) = match table.as_deref_mut() {
-            Some(table) => {
-                Surfaces { table, library: &library, asset, roles: palette }.part(part, materials::seed(o.id.0, index as u32))
-            }
+            Some(table) => Surfaces { table, library: &library, owner: asset, roles: palette }
+                .part(part, materials::seed(o.id.0, index as u32)),
             None => (part_color(part.surface_color(), part.tint, palette), 0),
         };
         if let Some((tint, k)) = wash {
@@ -272,7 +271,7 @@ mod tests {
             rot: at.rot,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
             prop: Some(PropFrame {
-                asset: name.to_owned(),
+                owner: name.to_owned(),
                 parts: def.compiled.clone(),
                 definition: def,
                 scale: at.scale,

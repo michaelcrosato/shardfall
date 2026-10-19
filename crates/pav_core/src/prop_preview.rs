@@ -258,7 +258,7 @@ impl PropPreviewState {
                 rot: self.rotation(),
                 visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
                 prop: Some(PropFrame {
-                    asset: self.name.clone(),
+                    owner: self.name.clone(),
                     parts: definition.variant_with(&self.params, self.seed),
                     definition,
                     scale: self.scale,

@@ -49,8 +49,10 @@ fn is_zero(seed: &u32) -> bool {
 
 #[derive(Clone, Debug)]
 pub struct PropFrame {
-    /// The library name it was placed as (`WORKSHOP/bench`): the owner of its inline materials.
-    pub asset: String,
+    /// The owner of its inline materials: the library name it was placed as (`WORKSHOP/bench`),
+    /// with its patch's hash for a patched copy (`BUILTIN/box~3f…`), so copies patched to
+    /// different materials under one key draw their own.
+    pub owner: String,
     pub definition: Arc<PropDef>,
     /// The parts of the instance's variant.
     pub parts: Arc<CompiledProp>,
@@ -136,6 +138,16 @@ impl PropInstance {
         self
     }
 
+    /// Who owns its inline materials (`PropFrame::owner`): the asset, or for a patched copy the
+    /// asset and a hash of its patch.
+    pub fn owner(&self) -> String {
+        if self.patch.is_empty() {
+            return self.asset.clone();
+        }
+        let ops = serde_json::to_string(&self.patch).unwrap_or_default();
+        format!("{}~{:016x}", self.asset, props::fnv(ops.as_bytes()))
+    }
+
     /// The parts this copy draws and collides with.
     pub fn parts(&self) -> Arc<CompiledProp> {
         self.definition.variant_with(&self.params, self.seed)
@@ -143,7 +155,7 @@ impl PropInstance {
 
     pub fn frame(&self) -> PropFrame {
         PropFrame {
-            asset: self.asset.clone(),
+            owner: self.owner(),
             definition: self.definition.clone(),
             parts: self.parts(),
             scale: self.scale,
