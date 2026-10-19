@@ -5,6 +5,42 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The game UI through the tools — 2026-10-19
+
+PROGRESS's open issue: the HUD, inventory, passive tree and touch controls were egui code in
+`pav_app`, so the tools could neither read them nor see them in a capture (doctrine 2, 3).
+- **`pav_ui`** (new crate): Shardfall's UI moved out of the app unchanged (`arpg_ui.rs`,
+  `arpg_items.rs`, `arpg_tree.rs`, `touch.rs`, with `Device`, `touch_style` and the hook games'
+  `game_lines`), so the window and the tools draw the same code. `pav_app` imports it.
+- **`headless.rs`:** `Headless` holds what the window holds (`GameUi`, `Touch`, the device) and
+  draws a frame on a fresh windowless egui context: three passes (windows size themselves from
+  the pass before), animation and tooltip delay at zero, one point per pixel. A frame gives a
+  `Reading`: every text with its top-left corner, sorted into reading order; the text on each
+  window's layer (read from egui's graphics before the pass ends, so a HUD line under a window
+  stays HUD), titled by its first line; the rest as HUD (drop shadows merged); and on touch the
+  placed controls with their rects. `Overlay` paints the frame's triangles over a capture with
+  egui-wgpu, on the capture's device and format.
+- **Tools:** `ui` returns the reading; `open=` / `close=` (`all`) toggle the inventory,
+  character, skills, tree and map, `device=mouse|pad|touch`, `width=`/`height=`, `hover=[x,y]`
+  shows a tooltip, `click=[x,y]` presses what is there and runs its game commands (a tick each,
+  as the window sends them), `image=true` draws the UI over the game. `capture` draws the UI
+  whenever a game runs (Shardfall, or a `pav_core::games` game's HUD lines); `ui=false` leaves
+  it out. `Session::render_ui` and `read_ui` do the work; `render` stays without UI (filmstrips,
+  previews, `see`). `pav_render::capture::render_to_rgba_with` takes the overlay.
+- **Decisions:** the UI's state (open windows, device) lives in the `Session`, so windows `ui`
+  opened stay open for later captures; on the live bridge a session lasts one request, so there
+  the tools draw the HUD from the live game, not the player's open windows. A fresh egui context
+  per frame keeps readings independent of earlier calls (a window always opens at its default
+  place). The pavilion's own HUD (course timers, pad notes, room cards) stays in `pav_app`.
+- **Budget:** the MCP tool list stays under its 48,000 characters by trimming help text in
+  `game_cmd`, `turntable`, `look`, `anim_preview`, `anim_edit`, `clip_import`, `mocap`,
+  `creature_edit` and `animsheet` (mostly argument details the help repeated).
+- **Checked:** `pav_tools/tests/game_ui.rs` (the town HUD's orbs, skill keys and townsfolk
+  labels; the inventory and tree windows by title; a click on Sort sorts; touch controls on a
+  phone-sized screen; a hook game's HUD lines; a capture's bottom band carries the HUD while the
+  middle stays the game's). Looked at captures of the town with the inventory open and of a
+  level on a phone with the touch fan.
+
 ## Patched copies draw their own materials — 2026-10-19
 
 PROGRESS's open issue: copies of one asset whose patches bind different materials under the

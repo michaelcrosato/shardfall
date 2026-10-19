@@ -9,6 +9,19 @@ pub const CAPTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormS
 
 /// Renders `scene` at `width` x `height` and returns tightly packed RGBA8 pixels.
 pub fn render_to_rgba(renderer: &mut Renderer, scene: &Scene, width: u32, height: u32) -> Result<Vec<u8>> {
+    render_to_rgba_with(renderer, scene, width, height, |_, _, _, _| {})
+}
+
+/// Like `render_to_rgba`; `overlay` records more drawing over the finished frame (the game UI)
+/// into the encoder before it is read back: device, queue, encoder and the target's view
+/// (`CAPTURE_FORMAT`).
+pub fn render_to_rgba_with(
+    renderer: &mut Renderer,
+    scene: &Scene,
+    width: u32,
+    height: u32,
+    overlay: impl FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+) -> Result<Vec<u8>> {
     let device = renderer.device().clone();
     let queue = renderer.queue().clone();
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -24,6 +37,7 @@ pub fn render_to_rgba(renderer: &mut Renderer, scene: &Scene, width: u32, height
     let view = texture.create_view(&Default::default());
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("capture") });
     renderer.render(&mut encoder, scene, &view, CAPTURE_FORMAT, (width, height));
+    overlay(&device, &queue, &mut encoder, &view);
     read_texture(&device, &queue, encoder, &texture, width, height)
 }
 

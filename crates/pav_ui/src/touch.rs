@@ -250,6 +250,11 @@ impl Touch {
         self.egui_finger == Some(id)
     }
 
+    /// The controls as drawn last frame.
+    pub fn placed(&self) -> &[Placed] {
+        &self.placed
+    }
+
     /// Lets go of everything (the window lost focus).
     pub fn clear(&mut self) {
         self.fingers.clear();

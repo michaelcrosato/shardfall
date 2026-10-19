@@ -104,8 +104,10 @@ Crates (the full map, module by module: `docs/REFERENCE.md`, "Code map"):
 - `pav_audio`: synthesized sound: cpal output, offline .wav rendering.
 - `pav_tools`: the agent layer: the tool registry, the `pav` CLI and REPL, the MCP server, the
   live bridge client, and the motion and asset importers.
-- `pav_app`: the game (`shardfall` binary): window, input, sim thread, live bridge server, egui
-  UI, touch; native and wasm32.
+- `pav_ui`: Shardfall's egui UI (HUD, inventory, passive tree, touch controls), drawn by the
+  window and, headless, by the tools (`ui`, captures).
+- `pav_app`: the game (`shardfall` binary): window, input, sim thread, live bridge server, the
+  pavilion's egui UI; native and wasm32.
 
 Data: `anim/` (moves and motion clips), `rooms/` (room files, embedded in the exe and hot-reloaded;
 `_template.toml` documents every field), `game/` (Shardfall's data), `assets/` (props, materials,
@@ -200,7 +202,7 @@ Tools: `scenes load step status entities npcs params set camera capture bench gp
 spawn despawn teleport rewind snapshot_save snapshot_load record_save replay rooms room goto
 room_reset room_check room_reload stream signal filmstrip camera_bench course feel audio_capture`;
 looks `look`; teaching `guide`; games on the hook `play`; Shardfall `game hero monster autoplay skills game_reload
-loot_roll give inventory game_cmd tree tree_map genome bestiary boss turntable animsheet level
+loot_roll give inventory game_cmd ui tree tree_map genome bestiary boss turntable animsheet level
 levelmap go goto_feature see campaign theme_swatch`; animation `clips clip_import mocap
 anim_reload anim_edit anim_preview`; objects `assets asset_edit asset_preview asset_spawn
 asset_import studio_status`; creatures `creature_catalog creature_edit creature_preview

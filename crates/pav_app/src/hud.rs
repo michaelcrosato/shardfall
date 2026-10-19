@@ -130,20 +130,6 @@ pub struct HudCtx<'a> {
     pub dt: f32,
 }
 
-/// A `pav_core::games` game's HUD lines (`Game::hud`), top left.
-pub fn game_lines(ctx: &egui::Context, h: &HudFrame) {
-    if h.lines.is_empty() {
-        return;
-    }
-    egui::Area::new(egui::Id::new("game_lines")).anchor(egui::Align2::LEFT_TOP, [16.0, 60.0]).show(ctx, |ui| {
-        egui::Frame::popup(ui.style()).show(ui, |ui| {
-            for line in &h.lines {
-                ui.label(RichText::new(line).monospace().size(18.0).strong());
-            }
-        });
-    });
-}
-
 /// Course timer, results and level messages (top centre).
 pub fn course_hud(ctx: &egui::Context, h: &HudCtx) {
     let ago = |tick: u64| h.tick.saturating_sub(tick) as f32 * h.dt;

@@ -4,9 +4,6 @@
 mod animation_ui;
 mod animation_watch;
 mod app;
-mod arpg_items;
-mod arpg_tree;
-mod arpg_ui;
 mod asset_ui;
 mod asset_watch;
 mod boot;
@@ -27,9 +24,10 @@ mod rooms;
 mod save;
 mod settings;
 mod simhost;
-mod touch;
 mod ui;
 mod uiinput;
+
+use pav_ui::{arpg_items, arpg_ui, touch};
 
 fn fatal(msg: &str) -> ! {
     let path = boot::diag().log_path.display().to_string();

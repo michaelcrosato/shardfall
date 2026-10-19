@@ -9,7 +9,7 @@ use pav_core::arpg::data::{Behavior, Element, data};
 use pav_core::arpg::mechanics::{LevelView, MarkKind};
 use pav_core::arpg::{Difficulty, GameFrame, HeroHud};
 
-use crate::input::Device;
+use crate::Device;
 use crate::touch::Swipes;
 
 /// World -> screen (egui points).

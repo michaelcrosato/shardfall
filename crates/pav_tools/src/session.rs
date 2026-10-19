@@ -12,6 +12,8 @@ pub struct Gpu {
     /// The live bridge keeps this device between requests, even when the human UI opens or
     /// closes a stage through a separate session with no GPU.
     studio_mode: pav_core::prop_preview::StudioMode,
+    /// Paints the game UI over captures (made on first use).
+    overlay: Option<pav_ui::headless::Overlay>,
 }
 
 impl Gpu {
@@ -52,6 +54,8 @@ pub struct Session {
     pub feedback: Option<crate::live_feedback::SharedFeedback>,
     /// Live requests share owner 0; independent headless sessions adopt only their own jobs.
     pub(crate) creature_owner: u64,
+    /// The game UI as the tools draw it (`ui`, captures): which windows are open, the device.
+    pub ui: pav_ui::headless::Headless,
 }
 
 /// All tunables reachable by path: `sim.*`, `camera.*`, `view.*`.
@@ -106,6 +110,7 @@ impl Session {
             look: Default::default(),
             feedback: None,
             creature_owner: crate::creature_tools::new_owner(),
+            ui: Default::default(),
         };
         s.sync_camera();
         Ok(s)
@@ -132,6 +137,7 @@ impl Session {
             look: Default::default(),
             feedback: None,
             creature_owner: 0,
+            ui: Default::default(),
         }
     }
 
@@ -157,6 +163,7 @@ impl Session {
                 renderer,
                 builder: ViewBuilder::new(),
                 studio_mode: pav_core::prop_preview::StudioMode::World,
+                overlay: None,
             });
         }
         Ok(self.gpu.as_mut().unwrap())
@@ -333,6 +340,58 @@ impl Session {
         pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)
     }
 
+    /// Renders like `render` with the game UI over it (when a game runs: Shardfall, or a
+    /// `pav_core::games` game's HUD lines): the pixels, and what the UI drew (`None` without a
+    /// game). `input` hovers or clicks.
+    pub fn render_ui(
+        &mut self,
+        width: u32,
+        height: u32,
+        input: pav_ui::headless::Input,
+    ) -> Result<(Vec<u8>, Option<pav_ui::headless::Drawn>)> {
+        let frame = self.sim.frame();
+        let focus = frame.focus;
+        self.camera.snap(focus);
+        let camera = self.camera.clone();
+        let view = self.view_for(&frame);
+        let events = std::mem::take(&mut self.events);
+        let gpu = self.gpu()?;
+        gpu.prepare_frame(&frame);
+        if !frame.studio_active() {
+            gpu.builder.add_events(&events);
+        }
+        let scene = gpu.builder.build(&frame, &frame, 1.0, &camera, width as f32 / height as f32, &view, focus);
+        let vp = scene.camera.proj * scene.camera.view;
+        let drawn = has_ui(&frame).then(|| self.ui.frame(frame.game.as_deref(), &frame.hud, vp, width, height, input));
+        let gpu = self.gpu.as_mut().unwrap();
+        let Some(paint) = drawn.as_ref().map(|d| &d.paint) else {
+            return Ok((pav_render::capture::render_to_rgba(&mut gpu.renderer, &scene, width, height)?, None));
+        };
+        let device = gpu.renderer.device().clone();
+        let overlay =
+            gpu.overlay.get_or_insert_with(|| pav_ui::headless::Overlay::new(&device, pav_render::capture::CAPTURE_FORMAT));
+        let rgba = pav_render::capture::render_to_rgba_with(
+            &mut gpu.renderer,
+            &scene,
+            width,
+            height,
+            |device, queue, encoder, target| overlay.paint(device, queue, encoder, target, (width, height), paint),
+        )?;
+        Ok((rgba, drawn))
+    }
+
+    /// The game UI's reading without rendering (no GPU): what is on screen at `width` x
+    /// `height` from the session's camera. `None` without a game.
+    pub fn read_ui(&mut self, width: u32, height: u32, input: pav_ui::headless::Input) -> Option<pav_ui::headless::Drawn> {
+        let frame = self.sim.frame();
+        if !has_ui(&frame) {
+            return None;
+        }
+        self.camera.snap(frame.focus);
+        let vp = self.camera.view_proj(width as f32 / height.max(1) as f32);
+        Some(self.ui.frame(frame.game.as_deref(), &frame.hud, vp, width, height, input))
+    }
+
     /// Renders `frame`, a stage the simulation does not hold (a material swatch), from the
     /// session's camera as it is.
     pub fn render_frame(&mut self, frame: &RenderFrame, width: u32, height: u32) -> Result<Vec<u8>> {
@@ -369,4 +428,9 @@ impl Session {
     pub fn focus(&self) -> Vec3 {
         self.sim.state.focus
     }
+}
+
+/// A game's UI is on screen: Shardfall's, or a `pav_core::games` game's HUD lines.
+pub fn has_ui(frame: &RenderFrame) -> bool {
+    frame.game.is_some() || !frame.hud.lines.is_empty()
 }

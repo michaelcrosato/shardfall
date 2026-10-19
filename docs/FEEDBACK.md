@@ -40,7 +40,7 @@ cost at cache reads 0.1, cache writes 1.25, visible output 5; hidden reasoning i
 | Stock HUD widgets (bars, radar, off-screen markers, boss bar, banner) | 1 | medium | waiting |
 | Data-driven sound bank (`pav_audio::sounds_for` is a closed match) | 1 | medium | waiting |
 | Per-scene default camera on `load` | 1 | medium | waiting |
-| HUD visible to headless capture | 1 | medium | known gap |
+| HUD visible to headless capture | 1 | medium | **done** (2026-10-19): captures draw the game UI (a hook game's HUD lines too); `ui` reads it as text |
 | Open top-down map data (roads, water, spawns) | 1 | low | waiting |
 | Continuous-play and top-down map captures | 1 | low | waiting |
 
