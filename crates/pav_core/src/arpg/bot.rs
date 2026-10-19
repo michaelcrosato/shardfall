@@ -306,8 +306,8 @@ impl Bot {
             }
             self.route = vec![at];
         } else if self.route.is_empty() || self.stats.ticks > self.route_at + 240 {
-            // The navigation grid knows the furniture (and the bot's copy the rift gates); the
-            // room graph is the fallback.
+            // The navigation grid knows the furniture (and the bot's copy the rift gates and
+            // kegs); the room graph is the fallback.
             let goal = exit.unwrap_or_else(|| {
                 let c = lv.layout.rooms[lv.layout.exit].rect.center();
                 Vec3::new(c.x, 0.0, c.y)

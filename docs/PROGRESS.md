@@ -46,8 +46,8 @@ The current state, kept to one page because every session reads it (Claude Code 
   benchmark agent, and the triggers listed there, each with a small plan when it fires.
 
 ## Open issues
-- The `campaign` bot stalls on level 7, the Molten Floor (seed 1, 2026-10-18: levels 1-6 in 24
-  game minutes, then 36 more without the exit); level 4 costs it 30 deaths.
+- Balance: the `campaign` bot clears levels 1-12 on seeds 1-3 (63-114 game minutes, 2026-10-19),
+  but levels 4 and 12 are grinds where it dies up to 56 times wearing the boss down.
 - Older known issues and limits: "Known issues and limits" in `docs/HISTORY.md`.
 
 ## Keeping this page current
