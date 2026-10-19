@@ -922,7 +922,7 @@ impl ViewBuilder {
         let library = Library::current();
         {
             let mut table = lock(&self.materials);
-            let mut surfaces = Surfaces { table: &mut table, library: &library, asset: &prop.asset, roles: &prop.roles };
+            let mut surfaces = Surfaces { table: &mut table, library: &library, owner: &prop.owner, roles: &prop.roles };
             for (index, part) in compiled.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
                 let (color, material) = surfaces.part(part, materials::seed(o.id.0, index as u32));
                 emit_prim(scene, &mut self.generated, part, o, scale, settings.style, color, material);
@@ -1235,7 +1235,7 @@ impl ViewBuilder {
                         cone: None,
                         scenery: false,
                     };
-                    let mut surfaces = Surfaces { table: &mut table, library: &library, asset: &p.asset, roles: &chunk.palette };
+                    let mut surfaces = Surfaces { table: &mut table, library: &library, owner: &p.asset, roles: &chunk.palette };
                     for (i, part) in parts.parts.iter().enumerate().filter(|(_, part)| !part.hidden) {
                         let (color, material) = surfaces.part(part, materials::seed(id, i as u32));
                         emit_prim(&mut baked, &mut generated, part, &o, p.scale, settings.style, color, material);
@@ -1938,7 +1938,7 @@ fn palette_hash(roles: &[(&str, &str)]) -> u64 {
 pub(crate) struct Surfaces<'a> {
     pub table: &'a mut MaterialTable,
     pub library: &'a Library,
-    pub asset: &'a str,
+    pub owner: &'a str,
     pub roles: &'a BTreeMap<String, String>,
 }
 
@@ -1969,7 +1969,7 @@ impl Surfaces<'_> {
         let qualified;
         let name = match mat.name.strip_prefix('#') {
             Some(key) => {
-                qualified = format!("{}#{key}", self.asset);
+                qualified = format!("{}#{key}", self.owner);
                 &qualified
             }
             None => &mat.name,
@@ -2169,7 +2169,7 @@ mod tests {
             rot,
             visual: Visual::new(Shape::Sphere { radius: 0.0 }, Color::WHITE),
             prop: Some(PropFrame {
-                asset: "WORKSHOP/test".into(),
+                owner: "WORKSHOP/test".into(),
                 parts: definition.compiled.clone(),
                 definition,
                 scale,
@@ -2288,6 +2288,36 @@ mod tests {
         let well = object(Arc::new(PropDef::new(Doc::read(plain).unwrap()).unwrap()), 1.0, Vec3::ZERO, Quat::IDENTITY);
         let scene = draw(&mut ViewBuilder::default(), &well);
         assert!(scene.meshes.iter().all(|m| m.material == 0) && scene.sdfs.iter().all(|s| s.material == 0));
+    }
+
+    #[test]
+    fn copies_patched_under_one_key_draw_their_own_materials() {
+        use pav_core::prop_instance::PropInstance;
+        let stock = props::get("BUILTIN/box").unwrap();
+        let cube = |base: &str| {
+            let ops = vec![
+                serde_json::json!({"op": "add", "material": "skin", "value": {"base": base}}),
+                serde_json::json!({"op": "set", "part": "body", "fields": {"mat": "skin"}}),
+            ];
+            let def = props::patched(&stock, &ops).unwrap();
+            let prop = PropInstance::new("BUILTIN/box", def, 1.0, false).unwrap().with_patch(&ops).frame();
+            RenderObject { prop: Some(prop), ..object(stock.clone(), 1.0, Vec3::ZERO, Quat::IDENTITY) }
+        };
+        let (brick, oak) = (cube("MAT/brick_wall"), cube("MAT/oak_planks"));
+        let mut builder = ViewBuilder::default();
+        let slot = |builder: &mut ViewBuilder, o: &RenderObject| {
+            let mut scene = draw(builder, o);
+            lock(&builder.materials).attach(&mut scene);
+            let slot = (scene.meshes[0].material & 0xfff) as usize;
+            assert_ne!(slot, 0);
+            (slot, scene.materials[slot])
+        };
+        let (brick_slot, brick_row) = slot(&mut builder, &brick);
+        let (oak_slot, oak_row) = slot(&mut builder, &oak);
+        assert_ne!(brick_slot, oak_slot, "each patched copy has its own row");
+        assert_ne!(brick_row, oak_row);
+        // Drawing the oak copy left the brick copy's row as it was.
+        assert_eq!(slot(&mut builder, &brick), (brick_slot, brick_row));
     }
 
     #[test]

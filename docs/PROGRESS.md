@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it (Claude Code 
 `CLAUDE.md`). The full journal (what was built, how it works, every decision) is
 `docs/HISTORY.md`, newest first: search it when you need the background on something.
 
-## Where things stand (2026-10-16)
+## Where things stand (2026-10-19)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -48,7 +48,6 @@ The current state, kept to one page because every session reads it (Claude Code 
   tools and headless captures (doctrine 2, 3); game actions are reachable through `game_cmd`.
 - The `campaign` bot stalls on level 7, the Molten Floor (seed 1, 2026-10-18: levels 1-6 in 24
   game minutes, then 36 more without the exit); level 4 costs it 30 deaths.
-- Copies of one asset patched to different materials under one key draw the same material.
 - Older known issues and limits: "Known issues and limits" in `docs/HISTORY.md`.
 
 ## Keeping this page current

@@ -5,6 +5,24 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Patched copies draw their own materials — 2026-10-19
+
+PROGRESS's open issue: copies of one asset whose patches bind different materials under the
+same key all drew the last-compiled one.
+- **Cause:** the view's material table keys an inline material by its owner and key
+  (`BUILTIN/box#skin`) and re-packs that row in place when its content changes, so a live edit
+  doesn't use up slots. Every patched copy of the stock box named the same owner, so they
+  shared one row and each compile overwrote it.
+- **Fix:** a patched copy owns its inline materials under its asset name and a hash of its
+  patch ops (`PropInstance::owner`: `BUILTIN/box~<fnv of the ops>`), carried to the view as
+  `PropFrame::owner` (was `asset`). Copies with the same patch still share a row, and a live
+  edit of the asset still re-packs each copy's row in place; only a changed patch takes a new
+  row.
+- **Checked:** `copies_patched_under_one_key_draw_their_own_materials` (`pav_view` build
+  tests: two boxes patched to brick and oak under one key get two rows, and drawing the second
+  leaves the first's row as it was). The Store Showcase's distinct-key check, which guarded the
+  workaround, is gone; its cubes keep their own keys.
+
 ## A new session's check: environment, open work, stale docs — 2026-10-18
 
 The user asked a fresh cloud session to confirm the environment, find unfinished or planned

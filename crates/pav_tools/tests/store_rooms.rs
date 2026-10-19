@@ -398,11 +398,6 @@ fn store_showcase_shows_every_core_material() {
         assert!(shown.contains(id), "store_showcase shows no cube of {id}: regenerate the room");
     }
     assert!(library.names().count() >= 18);
-    // Each cube binds its material under its own key: copies of one asset that share a key share
-    // a material row, so the last one compiled would draw on all of them.
-    let keys: Vec<&str> = def.objects.iter().flat_map(|o| &o.patch).filter_map(|op| op["material"].as_str()).collect();
-    let unique: BTreeSet<&str> = keys.iter().copied().collect();
-    assert_eq!(unique.len(), keys.len(), "two cubes share a material key");
 }
 
 /// The cast's clips: (performer, its one clip) for every character named cast_*.
