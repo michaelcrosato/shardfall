@@ -39,9 +39,10 @@ The current state, kept to one page because every session reads it (Claude Code 
 - **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the
   engine from `START_HERE.md`'s "Make a game" prompt; each goes to `michaelcrosato/ai-hub` as
   one HTML file. One so far (Capital Strike, before the hook).
-- **Waiting on the user:** S3b's rigid-or-skinned verdict (its review page no longer opens,
-  2026-10-18: rebuild it with `animsheet` and `scripts/review_page.py` if asked); S4's and S5's
-  other halves run as sessions in my-3dge and riftlight from `docs/handoffs/`.
+- **Waiting on the user:** S3b's rigid-or-skinned verdict (the review page opens again and
+  holds no verdicts yet, 2026-10-21: https://claude.ai/artifact/VjP2RUbwaSJ3ggXkrJJnQs); S4's
+  and S5's other halves run as sessions in my-3dge and riftlight from `docs/handoffs/` (not
+  started: my-3dge still pins Shardfall at `fa2dab6`).
 - **Armed, not run** (`docs/AGENT_ASSET_STORE.md` §13): S6 phase-out at each change of the
   benchmark agent, and the triggers listed there, each with a small plan when it fires.
 

@@ -34,6 +34,8 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
 - **Later (2026-10-18):** the review page no longer opens from a session and isn't in the
   user's artifact list, so no verdict can arrive through it. The question stands; the page can
   be rebuilt from `animsheet` sheets with `scripts/review_page.py` when the user wants it.
+- **Later (2026-10-21):** the page is back in the user's artifact list and opens; its
+  `verdicts` collection is empty. The question stands, still with no default.
 
 ## 2026-10-15 — S3, S3b, S4 and S5 built despite S1's "no" (the user's call)
 - **Question:** S1's "no" still stands, and the store design (§13) builds nothing after it. Build

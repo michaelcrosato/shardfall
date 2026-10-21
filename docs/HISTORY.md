@@ -5,6 +5,29 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A session check: environment, hand-offs, stale docs — 2026-10-21
+
+The user asked a fresh cloud session to check the environment, review unfinished plans and
+hand-offs, update the docs and write a `/goal` prompt for what remains.
+- **Environment:** as on 2026-10-18 (Rust 1.98.1, the Windows-gnu and wasm32 targets,
+  lavapipe, Xvfb, mingw, Wine, wasm-bindgen 0.2.129, Playwright's Chromium). The start hook had
+  built `pav`. `cargo build` and `cargo test --workspace` (462 pass, 2 ignored) are clean, and so
+  is `cargo fmt --check`. `pav gpu` works, a town capture draws the HUD, and `play scene=starter
+  bot=true seeds=3` wins 3 of 3. The wasm clippy check passes; with `-D warnings` it still fails
+  on the three wasm-only `drop_non_drop` lints in `pav_tools`.
+- **Open work:** no open PRs or issues, no other branches, and the branch matched `main`.
+  - S3b's review page opens again and is in the user's artifact list. Its `verdicts` collection
+    is empty, so the question still stands; PROGRESS and ESCALATIONS now say this.
+  - The S4 and S5 hand-offs haven't run: my-3dge still pins Shardfall at `fa2dab6`.
+  - Two test games on the engine were started today in their own repositories
+    (`ac4-cco55-shardfall`, `gtav-cco55-shardfall`). Their evaluations aren't in yet; they
+    feed `docs/FEEDBACK.md`.
+- **Balance, re-measured:** `campaign scene=town seed=2 from=1 to=4` repeats 2026-10-19's level
+  4 exactly (38.6 game minutes, 56 deaths against the Hollow King; levels 1-3 take 4.7
+  minutes). Levels 1-4 take 5 minutes of real time.
+- **Docs:** "Known issues and limits" no longer lists patched copies sharing a material row
+  (fixed 2026-10-19).
+
 ## The campaign plays through level 12 — 2026-10-19
 
 PROGRESS's open issue: the `campaign` bot stalled on level 7, the Molten Floor (seed 1: 36 game
@@ -3499,8 +3522,6 @@ guard alert. Tests: tests/vehicles.rs (5), tests/genre.rs (4).
 - Stealth: a guard that glimpses you stops sweeping (no forgiveness); SPOTTED counts as a fall.
 - Bullet hell: score only counts once you leave START; player shots hit in 3D (targets near 1.1 m).
 - Determinism across machines, Mac, other browsers: out of scope (DESIGN §16).
-- Copies of one asset whose patches bind different materials under the same material key draw
-  the last-compiled one (material rows are keyed by asset and key): give each its own key.
 
 ## Decisions (M10)
 - Bridge requests swap the live `Sim` into a `Session` and back on the sim thread (no copies);
