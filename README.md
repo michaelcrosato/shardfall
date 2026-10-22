@@ -126,12 +126,9 @@ The root `vercel.json` selects the **Other** framework, installs the pinned Rust
 wasm-bindgen tools through `scripts/build-vercel.sh`, and serves `target/web/` as a
 static WebAssembly game. No environment variables or backend services are needed.
 
-With an authenticated Vercel CLI, deploy from the repository root:
-
-```sh
-vercel link --project shardfall --yes
-vercel deploy --prod --yes
-```
+Pushing to GitHub doesn't deploy: `vercel.json` sets `git.deploymentEnabled` to `false`. A
+deployment is made only when the owner asks, through the Vercel connector's
+`create_deployment` (`CLAUDE.md`, "Deploying to Vercel").
 
 To build and try the same output locally:
 

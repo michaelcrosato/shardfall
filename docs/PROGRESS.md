@@ -27,7 +27,8 @@ The current state, kept to one page because every session reads it (Claude Code 
   Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
   The figures ship in every build (`props::store::SHIPPED`).
 - Builds: the Windows `.exe` (cross-compiled here, played by the user) and the browser build on
-  Vercel (https://shardfall-eight.vercel.app). Pavilion Lite (`pavilion-lite/`) is frozen.
+  Vercel (https://shardfall-eight.vercel.app; deployed only when the user asks, from 2026-10-22:
+  `CLAUDE.md`). Pavilion Lite (`pavilion-lite/`) is frozen.
 
 ## Next
 - **Gameplay and content:** add data (themes, levels, families, affixes, uniques, tree clusters,

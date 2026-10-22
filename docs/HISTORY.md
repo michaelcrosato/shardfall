@@ -5,6 +5,23 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Vercel deploys only on request — 2026-10-22
+
+The user turned off Vercel's automatic deployments: every build costs build minutes and every
+deployment is stored and billed daily, and the user looks at very few of them.
+- `vercel.json` sets `"git": { "deploymentEnabled": false }`, so a push to any branch builds
+  nothing; the last deployment stays live.
+- `CLAUDE.md` gained "Deploying to Vercel": the rules (deploy only when asked in the session;
+  never re-enable auto-deploys, change `deploymentEnabled`, or deploy by the pause button, a
+  deploy hook or the Vercel CLI) and the one method, the Vercel connector's `create_deployment`
+  for project `shardfall` (team `michaelcrosato-1122s-projects`) from `michaelcrosato/shardfall`
+  `main` to production.
+- The project name comes from the 2026-10-01 deployment entry below: the Vercel connector was not
+  connected to this session, so it could not be looked up there.
+- README's CLI deploy steps were replaced by a pointer to that section; AGENTS.md's PR rule no
+  longer mentions a paused Vercel status (there is none to wait on).
+- Pushed straight to `main`, as the user asked.
+
 ## A session check: environment, hand-offs, stale docs — 2026-10-21
 
 The user asked a fresh cloud session to check the environment, review unfinished plans and
