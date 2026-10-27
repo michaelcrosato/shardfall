@@ -10,6 +10,9 @@ if ! command -v rustup >/dev/null; then
 fi
 toolchain=$(sed -n 's/^channel = "\([^"]*\)"/\1/p' rust-toolchain.toml)
 rustup toolchain install "$toolchain" --profile minimal --target wasm32-unknown-unknown
+# The same pinned compiler, chosen by name: rust-toolchain.toml would also install clippy,
+# rustfmt and the Windows target (~150 MB) on every Vercel build, and the browser build needs none.
+export RUSTUP_TOOLCHAIN=$toolchain
 
 bindgen_version=$(awk '
   /^name = "wasm-bindgen"$/ { found = 1; next }

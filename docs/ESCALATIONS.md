@@ -6,6 +6,13 @@ unanswered, and every call made without a response. Newest first.
 Each entry: the date, the principle or approval involved, the question, what was decided and by
 whom (the user, or the agent after 15 minutes without a response), and the PR.
 
+## 2026-10-27 — Vercel: deploy on merge again?
+- **Question:** `CLAUDE.md` (2026-10-22) said never re-enable automatic deployments, and the user
+  now said a merge should update the site. Main only with no-op builds skipped, or deploy only
+  on request?
+- **Decided by:** the user, in chat: main only, skipping builds that can't change the game.
+- **PR:** the PR that adds `scripts/vercel-ignore.sh`.
+
 ## 2026-10-16 — Co-op plan: three rulings
 - **Questions** (asked in chat with `docs/COOP_PLAN.md`, §12):
   - E1: where does a public signaling server run? An account, and any small cost, are the

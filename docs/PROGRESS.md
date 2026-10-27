@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it (Claude Code 
 `CLAUDE.md`). The full journal (what was built, how it works, every decision) is
 `docs/HISTORY.md`, newest first: search it when you need the background on something.
 
-## Where things stand (2026-10-19)
+## Where things stand (2026-10-27)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -27,8 +27,9 @@ The current state, kept to one page because every session reads it (Claude Code 
   Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
   The figures ship in every build (`props::store::SHIPPED`).
 - Builds: the Windows `.exe` (cross-compiled here, played by the user) and the browser build on
-  Vercel (https://shardfall-eight.vercel.app; deployed only when the user asks, from 2026-10-22:
-  `CLAUDE.md`). Pavilion Lite (`pavilion-lite/`) is frozen.
+  Vercel (https://shardfall-eight.vercel.app; a merge to `main` deploys unless only docs or
+  tests changed, branches never build, from 2026-10-27: `CLAUDE.md`). Pavilion Lite
+  (`pavilion-lite/`) is frozen.
 
 ## Next
 - **Gameplay and content:** add data (themes, levels, families, affixes, uniques, tree clusters,

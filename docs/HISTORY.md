@@ -5,6 +5,51 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Vercel: a merge to main deploys, and only when the game can change — 2026-10-27
+
+The user unpaused the Vercel project and wanted merges to update the site while keeping Vercel's
+cost down without losing quality or function. Asked in chat (the 2026-10-22 rule below forbade
+re-enabling auto-deploys), the user chose: main deploys on merge, other branches never build,
+and a merge that can't change the game skips its build.
+- **Where the money went** (Vercel billing and deployment lists, read through the connector):
+  Build CPU minutes and Deployment Storage; Fast Data Transfer and CDN requests billed $0 (the
+  wasm is served brotli-compressed, 7.3 MB of 26 MB, and repeat visits get a 304). The project
+  builds on the Basic machine (2 vCPU, $0.0035 a CPU-minute), so a ~6-minute build is about
+  $0.04. From 2026-10-02 to 10-15 it built about 170 times, two thirds of them branch previews
+  nobody opened, 23 on 10-14 alone. 167 builds are retained (~28 MB each, ~4.7 GB, about
+  $0.47 a month; Pro keeps previews 180 days and production a year by default).
+- **`vercel.json`:** `git.deploymentEnabled` is `{ "main": true, "**": false }` (a branch
+  deploys if any matching rule is true, so only `main`), and `ignoreCommand` runs
+  `scripts/vercel-ignore.sh`.
+- **`scripts/vercel-ignore.sh`** (Vercel's Ignored Build Step: exit 0 skips): diffs
+  `VERCEL_GIT_PREVIOUS_SHA` (the last successful deployment on the branch) against `HEAD` and
+  skips only when every changed path is on a short list the browser build never reads: `docs/`,
+  any `*.md`, `.claude/`, `.github/`, `pavilion-lite/`, `scripts/` (but not the build scripts or
+  itself), top-level `crates/*/tests/*.rs` (not fixtures), `.mcp*.json`, `.gitignore`,
+  `rustfmt.toml`. The list was checked against the build's real inputs: cargo's dep-info for
+  the wasm and `pav_core/build.rs`'s rerun-if-changed paths, 465 files, none on the list.
+  No previous deployment, a base missing from the shallow clone (it tries one fetch) or a failed
+  diff all build. Tried on history: #70..#74 (co-op plan docs) skip; #68..#74, #77..#78 and a
+  `vercel.json` change build.
+- **Measured effect:** of the 45 merges to `main` from 2026-10-02 to 10-15, 30 would build:
+  about 30 builds where there were about 170, roughly $1.20 against $7 at $0.04 a build. Since
+  10-01, 24 of 61 merges change only skip-list files.
+- **`scripts/build-vercel.sh`** sets `RUSTUP_TOOLCHAIN` to the pinned version after installing
+  it. Without it, `rust-toolchain.toml` made every Vercel build also download clippy, rustfmt
+  and the Windows standard library (~150 MB unpacked, ~4.4 s here) for a wasm build that uses
+  none. Rebuilt from the same paths, the wasm and JS are byte-identical to before.
+- **Not adopted, measured:** caching the toolchain, crates and `target/` under `.vercel/cache`
+  (Vercel keeps that folder between builds). Locally on 4 cores a cold build took 231 s and a
+  warm one 178 s with every file re-stamped as a fresh clone is: the workspace crates (pav_core
+  first) recompile either way. The cache would be ~1.5 GB, Standard's limit, and restoring and
+  uploading it eats into the 53 s. **Not adopted, reasoned:** `wasm-opt` (more build minutes to
+  shrink transfer that costs $0 now); a bigger machine (CPU-minutes cost the same per core and
+  the build is bound by one crate). **Left to the user:** a shorter Deployment Retention Policy
+  (Project Settings → Security; the connector can't set it) would free most of the ~4.7 GB, a
+  few tens of cents a month.
+- Checks: shellcheck on both scripts, `vercel.json` against Vercel's published schema, the
+  verification build above. Cost: local builds only, no subagents.
+
 ## Vercel deploys only on request — 2026-10-22
 
 The user turned off Vercel's automatic deployments: every build costs build minutes and every
