@@ -49,6 +49,10 @@ and a merge that can't change the game skips its build.
   few tens of cents a month.
 - Checks: shellcheck on both scripts, `vercel.json` against Vercel's published schema, the
   verification build above. Cost: local builds only, no subagents.
+- **On Vercel:** the PR's branch push made no deployment. The merge (`35e587d`) built and went
+  live in 637 s on Basic (about $0.07; the last builds before the pause, on 10-15, took 350 s,
+  before `pav_ui` and the work since). Headless Chromium on the live site: the town boots in
+  1.9 s with no console errors. This entry, a docs-only merge, is the skip step's live test.
 
 ## Vercel deploys only on request — 2026-10-22
 
