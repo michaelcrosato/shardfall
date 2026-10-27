@@ -126,9 +126,10 @@ The root `vercel.json` selects the **Other** framework, installs the pinned Rust
 wasm-bindgen tools through `scripts/build-vercel.sh`, and serves `target/web/` as a
 static WebAssembly game. No environment variables or backend services are needed.
 
-Pushing to GitHub doesn't deploy: `vercel.json` sets `git.deploymentEnabled` to `false`. A
-deployment is made only when the owner asks, through the Vercel connector's
-`create_deployment` (`CLAUDE.md`, "Deploying to Vercel").
+A merge to `main` deploys to production; other branches never build (`git.deploymentEnabled`
+in `vercel.json`). Vercel first runs `scripts/vercel-ignore.sh` (its Ignored Build Step), which
+skips the build when every file changed since the last deployment is docs, notes, tests or
+helper scripts. `CLAUDE.md` ("Deploying to Vercel") has the rules and how to redeploy on request.
 
 To build and try the same output locally:
 
