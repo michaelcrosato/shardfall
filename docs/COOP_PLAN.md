@@ -134,7 +134,7 @@ own page, `docs/COOP.md`, in C5.
   by our signaling server (§9), and `Hello` carries the code as a second check.
 - **Handshake:** a joining player sends `Hello{protocol, build, code, name, profile}`. The host
   answers `Welcome{slot, directory, settings}` or `Reject{reason}`:
-  - The reason is a version mismatch (the `.exe` and the Vercel build can differ; bump
+  - The reason is a version mismatch (the `.exe` and the browser build can differ; bump
     `PROTOCOL` whenever a message changes), a wrong code, or a full session (a fifth player).
   - Failures show on screen in plain words: host not found, version mismatch, session full.
 - **The host** is the room's creator. It keeps the **directory**:
@@ -459,7 +459,7 @@ don't show egui):
   - By default, the host's native game runs `pav_net`'s signaling server on port 3536.
     Joiners use `CODE@host:3536` on a LAN, through a port forward, or over a VPN such as
     Tailscale.
-  - A browser on the Vercel page is served over https, so it can only reach a `wss://` server.
+  - A browser page served over https can only reach a `wss://` server.
     Internet play from the browser waits on E1.
   - Recommended: `shardfall-signal` in a small container with TLS, its URL in
     `shardfall.toml` and the web build.

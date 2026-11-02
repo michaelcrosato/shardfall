@@ -166,8 +166,8 @@ selectively, token efficiency.
 - **Genre Wing:** bullet hell, grid stealth, a drift car and a helicopter.
 
 ## 14. Delivery & workflow
-- **Repo:** `michaelcrosato/shardfall`, stays private. Vercel hosts the browser build;
-  the root `vercel.json` defines the build and static output.
+- **Repo:** `michaelcrosato/shardfall`, stays private. No hosted site (Vercel retired
+  2026-11-02): the browser build ships as one self-contained HTML file (`CLAUDE.md`).
 - **Branch:** work on `main` (the GitHub default). Commit and push often, because cloud containers are temporary.
 - **Windows build:** the `.exe` is cross-compiled in the cloud and sent in chat at the end of each milestone. Local WSL2 agents can build the `.exe` and launch it directly on Windows.
 - **Progress log:** `docs/PROGRESS.md` is one page of current state (where things stand, what's next, open issues), so any agent can resume; `docs/HISTORY.md` is the full journal of what was built and the decisions made.

@@ -12,29 +12,18 @@ two files. -->
   (a benchmark author or judge, a blind brief writer) sets `omitClaudeMd: true` in its
   `.claude/agents/` definition, as the two asset-bench agents do.
 
-## Deploying to Vercel
-A merge to `main` deploys to production by itself; nothing else builds (from 2026-10-27).
-- Other branches never build: `vercel.json` sets `git.deploymentEnabled` to
-  `{ "main": true, "**": false }`, so a PR has no preview to wait on.
-- Before building, Vercel runs `scripts/vercel-ignore.sh`: if every file changed since the last
-  successful deployment is docs, notes (`*.md`), agent settings, top-level test files or helper
-  scripts, it skips the build and the live site stays as it is. Anything else builds.
-Why: every Vercel build costs build minutes, and every deployment is stored and billed daily.
-Before, every push to every branch built: two thirds of builds were previews nobody opened,
-and over a third of the merges to `main` change only docs.
+## Builds for playing and testing (from 2026-11-02)
+There is no hosted site: Vercel is retired. The user plays and tests three builds, each one
+file made here and handed over (`SendUserFile`), never committed:
+- Browser: `scripts/build-web.sh --single-file` -> `target/web/shardfall.html`, one ~10 MB page
+  with the gzipped wasm inside; it runs from `file://` in Chrome or Edge.
+- Windows: `scripts/build-windows.sh` -> `target/x86_64-pc-windows-gnu/dist/shardfall.exe`.
+- Linux: `cargo build --profile dist -p pav_app` -> `target/dist/shardfall`.
 
-Rules:
-- Never turn branch or preview deployments back on, or widen `"deploymentEnabled"`.
-- Never use the pause button, deploy hooks, or the Vercel CLI to deploy.
-- If the browser build starts reading a file the skip list covers, take it off the list in
-  `scripts/vercel-ignore.sh` (the list was checked against the build's inputs on 2026-10-27).
+Keep them current: when a merged change can alter the game (anything beyond docs, notes, tests
+and helper scripts), rebuild the HTML and send it, and the `.exe` or Linux binary when the user
+plays that one or asks.
 
-To redeploy without a merge (only when I ask), call the Vercel connector's `create_deployment` with:
-- team: michaelcrosato-1122's projects (slug `michaelcrosato-1122s-projects`)
-- project: `shardfall`
-- gitSource: type `"github"`, org `"michaelcrosato"`, repo `"shardfall"`, ref `"main"`
-- target: `"production"`
-
-Then wait for the build to finish and report the result and the live URL
-(production: https://shardfall-eight.vercel.app). The skip check runs here too: redeploying the
-commit that is already live, or one that changed only skip-list files, builds nothing.
+`vercel.json` stays only as a guard: `"git": { "deploymentEnabled": false }` stops the Vercel
+project, if it is still connected, from building any push. Don't deploy to Vercel, re-enable
+its builds or add a build config back unless the user asks.

@@ -6,9 +6,11 @@ movement, physics, procedural animation, visual effects, rendering styles, and g
 Everything is generated from code, every parameter can be tuned live, and agents can drive
 the game through the same tools a person uses.
 
-Play [Shardfall](https://shardfall-eight.vercel.app), or open the
-[Pavilion tech demo](https://shardfall-eight.vercel.app/?scene=world). Use recent Chrome
-or Edge with WebGPU and hardware acceleration enabled. Phones and tablets play by touch (Chrome
+Play Shardfall in the browser from one self-contained file: `scripts/build-web.sh
+--single-file` writes `target/web/shardfall.html`, which runs from disk (add `?scene=world` to
+its address for the Pavilion tech demo). Use recent Chrome or Edge with WebGPU and hardware
+acceleration enabled. Native builds: `scripts/build-windows.sh` (Windows `.exe`) and
+`cargo build --profile dist -p pav_app` (Linux, `target/dist/shardfall`). Phones and tablets play by touch (Chrome
 on Android, Safari on iOS 26 or later): drag anywhere to move, attacks are automatic, and the
 buttons in the corner dodge, cast and drink.
 
@@ -119,27 +121,23 @@ scripts/build-web.sh          # browser build -> target/web (WebAssembly + WebGP
 python3 -m http.server -d target/web 8000   # then open http://localhost:8000
 ```
 
-## Deploying to Vercel
+## Browser build
 
-Import [`michaelcrosato/shardfall`](https://github.com/michaelcrosato/shardfall) into Vercel.
-The root `vercel.json` selects the **Other** framework, installs the pinned Rust and
-wasm-bindgen tools through `scripts/build-vercel.sh`, and serves `target/web/` as a
-static WebAssembly game. No environment variables or backend services are needed.
-
-A merge to `main` deploys to production; other branches never build (`git.deploymentEnabled`
-in `vercel.json`). Vercel first runs `scripts/vercel-ignore.sh` (its Ignored Build Step), which
-skips the build when every file changed since the last deployment is docs, notes, tests or
-helper scripts. `CLAUDE.md` ("Deploying to Vercel") has the rules and how to redeploy on request.
-
-To build and try the same output locally:
+There is no hosted site. For playing and testing, build one self-contained page:
 
 ```sh
-scripts/build-vercel.sh
+scripts/build-web.sh --single-file   # -> target/web/shardfall.html, runs from file://
+```
+
+Or build the multi-file version and serve it:
+
+```sh
+scripts/build-web.sh
 python3 -m http.server -d target/web 8000
 ```
 
-Use recent Chrome or Edge with WebGPU and hardware acceleration enabled. Open `/?scene=world`
-for the tech demo or `/?room=drift` for a particular room. Saves stay in each browser's local
+Use recent Chrome or Edge with WebGPU and hardware acceleration enabled. Add `?scene=world` to
+the address for the tech demo or `?room=drift` for a particular room. Saves stay in each browser's local
 storage; visiting a different site address uses a separate save.
 
 ## Agent tools

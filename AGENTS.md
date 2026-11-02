@@ -90,9 +90,8 @@ recorded; it never stops, skips or reverts planned work.
   - After a rebase or a small fix, run only the tests of what changed. A docs-only PR needs none.
   - Merge as soon as the checks pass; don't wait for a review (Codex has posted none since #45 on
     2026-10-12). A review that arrives later: fix its real findings in a follow-up PR.
-  - Only a merge to `main` deploys to Vercel, and not when only docs, notes, tests or scripts
-    changed; branches never build, so a PR has no Vercel status to wait on (`CLAUDE.md`,
-    "Deploying to Vercel").
+  - Nothing deploys: there is no hosted site. After a merge that can change the game, build the
+    single-file HTML and send it to the user (`CLAUDE.md`, "Builds for playing and testing").
 
 ## Architecture
 Crates (the full map, module by module: `docs/REFERENCE.md`, "Code map"):

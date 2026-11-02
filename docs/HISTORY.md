@@ -5,6 +5,24 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Vercel retired: the game ships as one-file builds — 2026-11-02
+
+The user stopped deploying to Vercel. For distribution and testing they use a self-contained
+HTML file kept up to date, and the Windows `.exe` and Linux binary already built here.
+- **`vercel.json`** keeps only `"git": { "deploymentEnabled": false }`: if the Vercel project is
+  still connected to the repository, no push builds, and without the file every push to every
+  branch would. The build config, `scripts/build-vercel.sh`, `scripts/vercel-ignore.sh` and
+  `.vercelignore` are gone. The Vercel project itself was left as it is (pausing or deleting it,
+  and the old site at shardfall-eight.vercel.app, is the user's call).
+- **`CLAUDE.md`**, "Builds for playing and testing", replaces "Deploying to Vercel": the three
+  builds, their commands and paths, and the rule that after a merge that can change the game
+  the agent rebuilds `shardfall.html` (`scripts/build-web.sh --single-file`) and sends it in
+  chat, with the `.exe` or Linux binary when the user plays that one or asks.
+- **Decided:** the builds are not committed. The HTML is ~10 MB of packed wasm that changes on
+  every game change, so committing it would add that much to the repository each time; the
+  file goes to the user through the chat instead.
+- README, AGENTS.md, PROGRESS, DESIGN and the co-op plan no longer point at the site.
+
 ## Vercel: a merge to main deploys, and only when the game can change — 2026-10-27
 
 The user unpaused the Vercel project and wanted merges to update the site while keeping Vercel's

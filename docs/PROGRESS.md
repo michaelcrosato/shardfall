@@ -26,9 +26,9 @@ The current state, kept to one page because every session reads it (Claude Code 
 - **On show in the world demo:** the Workshop wing's Library Hall, Limits, Catalogue and Store
   Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
   The figures ship in every build (`props::store::SHIPPED`).
-- Builds: the Windows `.exe` (cross-compiled here, played by the user) and the browser build on
-  Vercel (https://shardfall-eight.vercel.app; a merge to `main` deploys unless only docs or
-  tests changed, branches never build, from 2026-10-27: `CLAUDE.md`). Pavilion Lite
+- Builds (2026-11-02): no hosted site, Vercel is retired. The user plays and tests one-file
+  builds made here and sent in chat: the self-contained `shardfall.html` (`build-web.sh
+  --single-file`), the Windows `.exe` and the Linux binary (`CLAUDE.md`). Pavilion Lite
   (`pavilion-lite/`) is frozen.
 
 ## Next
