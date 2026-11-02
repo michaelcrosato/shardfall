@@ -12,6 +12,7 @@ whom (the user, or the agent after 15 minutes without a response), and the PR.
   on request?
 - **Decided by:** the user, in chat: main only, skipping builds that can't change the game.
 - **PR:** the PR that adds `scripts/vercel-ignore.sh`.
+- **Superseded** 2026-11-02: the user retired Vercel (`docs/HISTORY.md`).
 
 ## 2026-10-16 — Co-op plan: three rulings
 - **Questions** (asked in chat with `docs/COOP_PLAN.md`, §12):
