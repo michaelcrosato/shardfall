@@ -15,6 +15,7 @@ pub mod hall;
 pub mod hero;
 pub mod items;
 pub mod levelgen;
+pub mod lines;
 pub mod loot;
 pub mod mechanics;
 pub mod powers;
@@ -183,6 +184,10 @@ pub struct Game {
     /// The characters performing on their pedestals (town).
     #[serde(default)]
     pub performers: Vec<hall::Performer>,
+    /// A round on the AI Hub (docs/AI_HUB.md): each depth's layout and monsters come from this
+    /// seed and the depth alone, so every player's copy builds the same levels.
+    #[serde(default)]
+    pub round_seed: Option<u64>,
 }
 
 impl Game {
@@ -226,6 +231,7 @@ impl Game {
             gib_load: 0.0,
             roster: BTreeMap::new(),
             performers: Vec::new(),
+            round_seed: None,
         }
     }
 

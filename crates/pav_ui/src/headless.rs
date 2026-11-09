@@ -23,6 +23,8 @@ pub struct Headless {
     pub game: GameUi,
     pub touch: Touch,
     pub device: Device,
+    /// The title screen, over the game (`ui open=title`), with what it shows.
+    pub title: Option<(crate::title::TitleScreen, crate::title::TitleInfo)>,
 }
 
 /// What a frame drew.
@@ -94,7 +96,7 @@ pub struct Input {
 
 impl Headless {
     /// The window names `open` accepts, and `GameUi`'s flag for each.
-    pub const WINDOWS: [&'static str; 5] = ["inventory", "character", "skills", "tree", "map"];
+    pub const WINDOWS: [&'static str; 6] = ["inventory", "character", "skills", "tree", "map", "title"];
 
     fn flag(&mut self, name: &str) -> Option<&mut bool> {
         Some(match name {
@@ -109,6 +111,19 @@ impl Headless {
 
     /// Opens or closes a window by name; false if there is no such window.
     pub fn set_open(&mut self, name: &str, open: bool) -> bool {
+        if name == "title" {
+            self.title = open.then(|| {
+                let info = crate::title::TitleInfo {
+                    hero: Some(("Wanderer".into(), 7)),
+                    languages: pav_core::lines::available(),
+                    language: pav_core::lines::language(),
+                    fullscreen: true,
+                    quit: false,
+                };
+                (crate::title::TitleScreen::new(false), info)
+            });
+            return true;
+        }
         self.flag(name).map(|f| *f = open).is_some()
     }
 
@@ -124,6 +139,8 @@ impl Headless {
         input: Input,
     ) -> Drawn {
         let ctx = egui::Context::default();
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::fonts::install_embedded(&ctx, &pav_core::lines::language(), &[]);
         let touch = self.device == Device::Touch;
         crate::touch_style(&ctx, touch);
         ctx.all_styles_mut(|s| {
@@ -176,6 +193,9 @@ impl Headless {
                     }
                 }
                 crate::game_lines(&ctx, hud_lines);
+                if let Some((screen, info)) = self.title.as_mut() {
+                    let _ = screen.ui(&ctx, info, 0.0);
+                }
                 if touch && game.is_some() {
                     let map_hidden = self.touch.swipes.is_gone(egui::Id::new("minimap"), 0);
                     let points = game.and_then(|g| g.inv.as_ref()).map(|i| i.points).unwrap_or(0);
@@ -244,6 +264,7 @@ impl Headless {
             "skills" => self.game.skills,
             "tree" => self.game.tree.open,
             "map" => self.game.map,
+            "title" => self.title.is_some(),
             _ => false,
         }
     }

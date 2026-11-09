@@ -1,0 +1,154 @@
+# The words players read, by id (AI Hub Languages v1, docs/LANGUAGES.md). The web page
+# carries these, with the lines made from the other files in game/ (item, skill and monster
+# names...: crates/pav_core/src/arpg/lines.rs), as its game-lines block; `pav lines` prints it.
+#
+# - Ids: lowercase words joined by dots, saying where the line is used. Keep an id once the
+#   game is published: translations are filed under it.
+# - Whole sentences with {blanks}: "{count} potions", never "you have " + n + " potions".
+#   {count} picks a plural form (one, other...); {key:action} is filled with the key or
+#   button for the action on the device in use.
+# - [notes]: who speaks a line, to whom, where it shows. [max]: the width of a tight line.
+# - Developer text that shows in the game goes under ids starting with "dev.".
+
+language = "en"
+names = [
+    "Shardfall", "Pavilion", "Emberwatch", "Hilda", "Odo", "Wren", "Wanderer", "Kestrel", "Ysolde",
+    "Hollow King", "Cinder Wyrm", "Menagerie", "AI Hub",
+]
+brief = """
+Shardfall is a fast hack-and-slash action RPG: the player takes a hero from the town of Emberwatch down through levels of a shattered underworld, the Depths, fighting monsters, picking up loot and growing a passive skill tree. The tone is classic dark fantasy with a light touch: short, punchy lines, a little dry humour from the townsfolk, never grim for its own sake.
+
+The player character is one of three heroes the player chooses: Wanderer (a sellsword, a man), Kestrel (a brawler, a woman) and Ysolde (a stormcaller, a woman). Most lines address the player directly and don't depend on which hero they play; address the player with the familiar form of "you" where a language has one, as games usually do.
+
+Townsfolk: Hilda the smith (gruff, practical), Odo the gambler (a smooth talker), Mother Wren the alchemist (motherly, calls the player "dear"). They speak short barks over their heads.
+
+Shardfall is built on Pavilion, an engine made for AI agents. The title screen and pause menu offer its tools (studios for animation, objects and creatures, a tour of the engine's demo rooms). Those tool names are product names, like app names: translate the descriptive words around them ("Studio", "tour") naturally.
+
+Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (item.name.magic), and affix words (affix.*) are written to sit before or after the base's name; reorder or reword the joining line freely. Modifier lines (stat.*) are game terms ("increased", "more", "Life", "Mana"): keep them consistent across the whole game.
+"""
+
+[lines]
+# The title screen.
+"title.name" = "Shardfall"
+"title.tagline" = "A hack-and-slash descent into a shattered world"
+"title.engine" = "Built on the Pavilion engine"
+"title.skip" = "Press any key"
+"title.continue" = "Continue"
+"title.continue_hero" = "Continue: {name}, level {level}"
+"title.play" = "Play"
+"title.new_hero" = "New hero"
+"title.new_hero_confirm" = "Start a new hero? The saved hero is erased."
+"title.yes" = "Erase and start"
+"title.no" = "Keep my hero"
+"title.language" = "Language"
+"title.fullscreen" = "Full screen"
+"title.quit" = "Quit"
+"title.footer" = "Esc in the game opens the menu, where the engine's tools are too."
+
+# The engine's tools: on the title screen, in the pause menu, at the Pavilion Gate in town.
+"tools.heading" = "Engine & tools"
+"tools.intro" = "Shardfall runs on Pavilion, an engine built for AI agents. Every part of it is here to explore."
+"tools.tour" = "Engine tour"
+"tools.tour.about" = "The Pavilion: rooms of physics, animation, effects, looks and game genres, each one explained."
+"tools.animation" = "Animation Studio"
+"tools.animation.about" = "Every motion clip on a live figure: play, pause, scrub and edit."
+"tools.object" = "Object Studio"
+"tools.object.about" = "Props built from named parts and procedural materials."
+"tools.creature" = "Creature Studio"
+"tools.creature.about" = "Creatures from body plans, parts and palettes."
+"tools.starter" = "Starter game"
+"tools.starter.about" = "The small game a new game copies: collect every shard while slimes give chase."
+"tools.look" = "Look & filters"
+"tools.look.about" = "Pixel art, cel shading, outlines, palettes and grading, on the world or the characters."
+"tools.rooms" = "All rooms"
+"tools.rooms.about" = "Jump to any room of the engine tour."
+"tools.tuning" = "Tuning"
+"tools.tuning.about" = "Every setting of the simulation, camera and view, live."
+"tools.back_to_game" = "Back to Shardfall"
+"tools.gate" = "Pavilion Gate"
+"tools.gate.use" = "explore the engine"
+
+# Places the hero can use in town and in the depths.
+"spot.hint" = "{key:use}: {action}"
+"spot.verb.trade" = "trade"
+"spot.verb.stash" = "open the stash"
+"spot.verb.travel" = "travel"
+"spot.verb.examine" = "examine"
+"spot.verb.descend" = "descend"
+"spot.verb.gamble" = "gamble"
+"spot.verb.brew" = "brew"
+"spot.verb.chest" = "break the seal (keepers will come)"
+"spot.verb.hero" = "meet them"
+"spot.button.trade" = "Trade"
+"spot.button.stash" = "Stash"
+"spot.button.travel" = "Travel"
+"spot.button.examine" = "Examine"
+"spot.button.descend" = "Descend"
+"spot.button.gamble" = "Gamble"
+"spot.button.brew" = "Brew"
+"spot.button.chest" = "Open"
+"spot.button.hero" = "Meet"
+"spot.button.gate" = "Engine"
+
+# The web page, before the game runs.
+"page.loading" = "Loading {name}…"
+"page.unpacking" = "Unpacking…"
+"page.unpacking_percent" = "Unpacking {percent}%"
+"page.starting" = "Starting…"
+"page.webgpu" = "{name} needs WebGPU."
+"page.webgpu_help" = "Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled."
+"page.failed" = "{name} could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled."
+"page.turn" = "Turn your phone sideways for the best view"
+
+# The pause menu.
+"menu.paused" = "Paused"
+"menu.resume" = "Resume"
+"menu.title_screen" = "Title screen"
+"menu.town_portal" = "Town portal"
+"menu.game" = "Game"
+"menu.controls" = "Controls"
+"menu.screenshot" = "Screenshot"
+"menu.quit" = "Quit"
+"menu.new_hero" = "New hero"
+"menu.new_hero.about" = "Erase the saved hero and start again in Emberwatch"
+"menu.saved" = "The hero is saved on every trip and on quit."
+
+# Sessions on the AI Hub.
+"session.goal.descent" = "Descend as deep as you can before time runs out"
+"session.goal.coop" = "Clear the depths together"
+"session.progress" = "Depth {depth}, {kills} kills"
+"session.waiting" = "Waiting for the other players"
+"session.ghost" = "{name}"
+"session.party" = "Party"
+"session.down" = "{name} is down"
+"session.time_left" = "{time} left"
+
+[notes]
+"page.loading" = "On the page while the game loads. {name} is the game's name."
+"page.webgpu" = "When the browser can't run the game. WebGPU is a technology's name: keep it."
+"spot.hint" = "Under a place's name when the hero stands by it: the key to press, then what it does (a spot.verb line)."
+"spot.verb.trade" = "Fills {action} in spot.hint: 'G: trade'. Lowercase, an imperative."
+"spot.button.trade" = "A touch-screen button: one short word."
+"title.name" = "The game's name, the big title on the title screen. A proper name: keep it."
+"title.continue_hero" = "{name} is the saved hero's name (a character name), {level} their level."
+"title.skip" = "Shown under the splash logo; any key or tap skips it."
+"tools.heading" = "Heading of the section that lists the engine's tools, on the title screen and in the pause menu."
+"tools.gate" = "A gate in the town square that leads to the engine's tools. A place name."
+"tools.gate.use" = "Shown as 'G: explore the engine' next to the gate when the player is near it."
+"session.progress" = "On the AI Hub's scoreboard during a round: how deep this player is and how many monsters they slew."
+"session.down" = "{name} is another player's name, from the hub. Shown when their hero falls."
+
+[max]
+"spot.button.trade" = 10
+"spot.button.stash" = 10
+"spot.button.travel" = 10
+"spot.button.examine" = 10
+"spot.button.descend" = 10
+"spot.button.gamble" = 10
+"spot.button.brew" = 10
+"spot.button.chest" = 10
+"spot.button.hero" = 10
+"spot.button.gate" = 10
+"title.play" = 16
+"title.continue" = 16
+"menu.resume" = 16

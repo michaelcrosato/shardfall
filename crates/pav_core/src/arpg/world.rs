@@ -510,7 +510,11 @@ pub fn build_level_with(sim: &mut Sim, depth: u32, game: Option<Game>, dress: bo
     let d = data();
     super::scene::game_movement(sim);
     let plan = plan(&d, depth);
-    let seed = (sim.state.rng.next_u32() as u64) | ((depth as u64) << 32);
+    let seed = match game.as_ref().and_then(|g| g.round_seed) {
+        // A round: the same level on every player's copy.
+        Some(round) => crate::rng::hash3(round, depth as i32, 0x5eed, 0) | ((depth as u64) << 32),
+        None => (sim.state.rng.next_u32() as u64) | ((depth as u64) << 32),
+    };
     let layout = Layout::generate(seed, plan.rooms);
     let mut b = Builder::new(sim, &plan, layout, seed);
     b.choose_floors();

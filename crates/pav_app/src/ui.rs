@@ -33,10 +33,6 @@ pub enum MenuAction {
     Tuning,
     /// The Look & Filters window.
     Look,
-    /// The live animation workspace.
-    AnimationStudio,
-    AssetStudio,
-    CreatureStudio,
     /// How the room you are in works (the station guide; outside rooms the field guide).
     Guide,
     /// Every word and every room's ask-for-it phrases.
@@ -49,6 +45,10 @@ pub enum MenuAction {
     TownPortal,
     /// The browser's full screen.
     Fullscreen,
+    /// One of the engine's tools (the same panel as the title screen's).
+    Tool(pav_ui::title::Tool),
+    /// Back to the title screen.
+    TitleScreen,
 }
 
 pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
@@ -172,43 +172,47 @@ pub fn pause_menu(
 ) -> Option<MenuAction> {
     let mut action = None;
     let game = difficulty.is_some();
-    egui::Window::new("Paused")
+    egui::Window::new(pav_core::t!("menu.paused"))
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .collapsible(false)
         .resizable(false)
+        .max_width(760.0)
         .show(ctx, |ui| {
-            ui.label(format!("Room: {scene}"));
-            ui.horizontal(|ui| {
-                if ui.button("Resume (Esc)").clicked() {
+            ui.horizontal_wrapped(|ui| {
+                let resume = egui::Button::new(RichText::new(pav_core::t!("menu.resume")).size(18.0).strong())
+                    .fill(egui::Color32::from_rgb(240, 198, 112).gamma_multiply(0.85));
+                if ui.add(resume).clicked() {
                     action = Some(MenuAction::Resume);
                 }
-                if ui.button("Rooms (F2)").clicked() {
-                    action = Some(MenuAction::Rooms);
+                if ui.button(RichText::new(pav_core::t!("menu.title_screen")).size(16.0)).clicked() {
+                    action = Some(MenuAction::TitleScreen);
                 }
-                if ui.button("Room info").clicked() {
+                if ui.button(RichText::new(pav_core::t!("menu.screenshot")).size(16.0)).clicked() {
+                    action = Some(MenuAction::Screenshot);
+                }
+                if ui.button(RichText::new(pav_core::t!("menu.quit")).size(16.0)).clicked() {
+                    action = Some(MenuAction::Quit);
+                }
+            });
+            ui.add_space(8.0);
+            // The engine's tools, as prominent here as on the title screen.
+            egui::Frame::new()
+                .fill(egui::Color32::from_rgba_unmultiplied(18, 16, 22, 200))
+                .corner_radius(egui::CornerRadius::same(10))
+                .inner_margin(egui::Margin::same(12))
+                .show(ui, |ui| {
+                    if let Some(tool) = pav_ui::directed(ui, |ui| pav_ui::title::tools_panel(ui, 3)) {
+                        action = Some(MenuAction::Tool(tool));
+                    }
+                });
+            ui.add_space(6.0);
+            ui.label(RichText::new(format!("Room: {scene}")).small().weak());
+            ui.horizontal_wrapped(|ui| {
+                if ui.small_button("Room info").clicked() {
                     action = Some(MenuAction::RoomCard);
                 }
-                if ui.button("Reset scene").clicked() {
+                if ui.small_button("Reset scene").clicked() {
                     action = Some(MenuAction::Reset);
-                }
-                if ui.button("Tuning (F1)").clicked() {
-                    action = Some(MenuAction::Tuning);
-                }
-                if ui
-                    .button("Look & filters")
-                    .on_hover_text("Pixel art, cel shading, outlines, palettes, grading and more, on the whole scene, the characters & objects or the environment")
-                    .clicked()
-                {
-                    action = Some(MenuAction::Look);
-                }
-                if ui.button("Animation Studio").clicked() {
-                    action = Some(MenuAction::AnimationStudio);
-                }
-                if ui.button("Object Studio").clicked() {
-                    action = Some(MenuAction::AssetStudio);
-                }
-                if ui.button("Creature Studio").clicked() {
-                    action = Some(MenuAction::CreatureStudio);
                 }
                 if !game
                     && ui
@@ -221,17 +225,11 @@ pub fn pause_menu(
                 if !game && ui.button("Field guide").on_hover_text("Every word, and what to ask for in every room").clicked() {
                     action = Some(MenuAction::FieldGuide);
                 }
-                if ui.button("Feel metrics").clicked() {
+                if ui.small_button("Feel metrics").clicked() {
                     action = Some(MenuAction::Feel);
                 }
-                if ui.button("Physics stats").clicked() {
+                if ui.small_button("Physics stats").clicked() {
                     action = Some(MenuAction::Physics);
-                }
-                if ui.button("Screenshot (F12)").clicked() {
-                    action = Some(MenuAction::Screenshot);
-                }
-                if ui.button("Quit").clicked() {
-                    action = Some(MenuAction::Quit);
                 }
             });
             let difficulty_shown = difficulty.is_some();
@@ -239,10 +237,10 @@ pub fn pause_menu(
                 ui.separator();
                 crate::arpg_ui::difficulty_ui(ui, d);
                 ui.horizontal(|ui| {
-                    if ui.button("New hero").on_hover_text("Erase the saved hero and start again in Emberwatch").clicked() {
+                    if ui.button(pav_core::t!("menu.new_hero")).on_hover_text(pav_core::t!("menu.new_hero.about")).clicked() {
                         action = Some(MenuAction::NewHero);
                     }
-                    ui.label(RichText::new("The hero is saved on every trip and on quit.").small().weak());
+                    ui.label(RichText::new(pav_core::t!("menu.saved")).small().weak());
                 });
             }
             ui.separator();

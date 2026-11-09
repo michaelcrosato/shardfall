@@ -56,6 +56,16 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool { name: "status", help: "Tick, time, entity/block counts and state hash.", args: &[], run: t_status },
     Tool {
+        name: "lines",
+        help: "The game's lines (AI Hub Languages v1): set the language, show a line, write the game-lines block.",
+        args: &[
+            arg("lang", "string", "language code, or test language en-XA, zh-XC, ar-XB"),
+            arg("id", "string", "show this line in the language"),
+            arg("out", "string", "write the game-lines block (JSON) to this file"),
+        ],
+        run: t_lines,
+    },
+    Tool {
         name: "entities",
         help: "List entities (id, name, position).",
         args: &[arg("name", "string", "only entities whose name contains this")],
@@ -390,7 +400,7 @@ pub static TOOLS: &[Tool] = &[
         name: "ui",
         help: "The game UI as the player sees it: HUD, windows and touch controls as text; image=true draws it over the game.",
         args: &[
-            arg("open", "string", "inventory, character, skills, tree, map"),
+            arg("open", "string", "inventory, character, skills, tree, map, title"),
             arg("close", "string", "windows, or all"),
             arg("device", "string", "mouse | pad | touch"),
             arg("hover", "array", "pointer at [x, y] (tooltips)"),
@@ -1160,6 +1170,27 @@ fn status(s: &Session) -> Value {
 
 fn t_status(s: &mut Session, _: &Args) -> Result<Output> {
     Ok(Output::Json(status(s)))
+}
+
+fn t_lines(_: &mut Session, a: &Args) -> Result<Output> {
+    if let Some(code) = get_str(a, "lang") {
+        pav_core::lines::set_language(code);
+    }
+    let book = pav_core::lines::book();
+    let mut out = json!({
+        "language": pav_core::lines::language(),
+        "own": book.language,
+        "available": pav_core::lines::available(),
+        "lines": book.lines.len(),
+    });
+    if let Some(id) = get_str(a, "id") {
+        out["line"] = json!(pav_core::lines::logical(id, &[]));
+    }
+    if let Some(path) = get_str(a, "out") {
+        std::fs::write(path, book.to_block())?;
+        out["wrote"] = json!(path);
+    }
+    Ok(Output::Json(out))
 }
 
 fn t_entities(s: &mut Session, a: &Args) -> Result<Output> {

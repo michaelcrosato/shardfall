@@ -207,6 +207,12 @@ pub struct App {
     audio_resumed: bool,
     init_started: bool,
     pub fatal: Option<String>,
+    /// The title screen (a splash, then the start menu), over the town until the player picks.
+    title: Option<pav_ui::title::TitleScreen>,
+    /// The game camera, put back when the title screen closes (it orbits the town meanwhile).
+    title_camera: Option<CameraParams>,
+    /// What the title screen shows (the saved hero, the languages), made when it opens.
+    title_info: Option<pav_ui::title::TitleInfo>,
 }
 
 impl App {
@@ -226,7 +232,9 @@ impl App {
             app_settings: AppSettings {
                 vsync: settings.vsync,
                 smoothing: true,
-                show_stats: true,
+                // The frame-time readout is a diagnostic: on by default only natively (F1 turns
+                // it on in the browser); the AI Hub's screenshots never show it.
+                show_stats: cfg!(not(target_arch = "wasm32")),
                 show_guide: true,
                 aim_marker: true,
             },
@@ -289,8 +297,13 @@ impl App {
             audio_resumed: false,
             init_started: false,
             fatal: None,
+            title: settings.title.then(|| pav_ui::title::TitleScreen::new(true)),
+            title_camera: None,
+            title_info: None,
             settings,
         };
+        crate::lang::init(&app.settings.lang, &app.prefs);
+        crate::lang::install_fonts(&app.egui_ctx, &[]);
         if touch_screen {
             // Phones: touch controls from the start, none of the desktop's diagnostics.
             app.input.last_device = Device::Touch;
@@ -305,6 +318,15 @@ impl App {
     fn on_touch(&mut self, t: &winit::event::Touch, event: &WindowEvent) {
         #[cfg(target_arch = "wasm32")]
         self.resume_audio();
+        if let Some(title) = self.title.as_mut() {
+            // The title screen takes touches as egui clicks; the first ends the splash.
+            if title.in_splash() {
+                title.skip_splash();
+            } else if let (Some(st), Some(g)) = (&mut self.egui_state, &self.gfx) {
+                st.on_window_event(&g.window, event);
+            }
+            return;
+        }
         let Some(g) = &self.gfx else { return };
         let ppp = self.egui_ctx.zoom_factor() * g.window.scale_factor() as f32;
         let pos = egui::pos2(t.location.x as f32 / ppp, t.location.y as f32 / ppp);
@@ -996,7 +1018,7 @@ impl App {
             }
         }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
-        let game_input = !self.menu_open && !ui_wants_keys;
+        let game_input = !self.menu_open && !ui_wants_keys && self.title.is_none();
         let rewinding = game_input && self.studio_mode == StudioMode::World && self.input.rewind_held();
         host.set_control(|c| c.rewinding = rewinding);
 
@@ -1213,6 +1235,21 @@ impl App {
             }
         }
 
+        if self.title.is_some() {
+            // Behind the title screen the camera circles the town, low and slow.
+            if self.title_camera.is_none() && self.input.game {
+                self.title_camera = Some(self.rig.params.clone());
+            }
+            let p = &mut self.rig.params;
+            p.tilt = 26.0;
+            p.distance = 17.0;
+            p.height_offset = 1.6;
+            p.ortho = false;
+            p.yaw = (p.yaw + dt * 4.0 + 540.0).rem_euclid(360.0) - 180.0;
+        } else if let Some(cam) = self.title_camera.take() {
+            self.rig.blend_from_current(0.8);
+            self.rig.params = cam;
+        }
         self.rig.update(focus, dt);
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
@@ -1408,10 +1445,21 @@ impl App {
         let guide = &mut self.guide;
         let mut guide_out = Vec::new();
         let mut game_cmds = Vec::new();
+        if self.title.is_some() && self.title_info.is_none() {
+            self.title_info = Some(title_info());
+        }
+        let title = &mut self.title;
+        let title_shown = self.title_info.clone().unwrap_or_default();
+        let mut title_action = None;
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
                 ui::crash_banner(ui, c);
+            }
+            if let Some(screen) = title.as_mut() {
+                // The title screen alone: no HUD, panels or game windows behind it.
+                title_action = screen.ui(&ctx, &title_shown, dt);
+                return;
             }
             panel_actions = panel.ui(ui, &mut root, &mut ctl, &stats);
             let free = ui.available_rect_before_wrap();
@@ -1763,6 +1811,13 @@ impl App {
         if let Some(a) = menu_action {
             self.menu_action(a);
         }
+        if let Some(a) = title_action {
+            self.title_action(a);
+        }
+        if let Some(tool) = self.game_ui.tool.take() {
+            // Picked at the Pavilion Gate in town.
+            self.open_tool(tool);
+        }
         // Touch: the bag, the menu, the map button, and taps on the open game.
         for c in &intent.ui {
             match c {
@@ -1952,6 +2007,54 @@ impl App {
         }
     }
 
+    /// A pick on the title screen.
+    fn title_action(&mut self, action: pav_ui::title::TitleAction) {
+        use pav_ui::title::TitleAction as A;
+        match action {
+            A::Play => self.close_title(),
+            A::NewHero => {
+                self.close_title();
+                self.menu_action(MenuAction::NewHero);
+            }
+            A::Tool(tool) => {
+                self.close_title();
+                self.open_tool(tool);
+            }
+            A::Language(code) => {
+                crate::lang::choose(&self.egui_ctx, &code, &mut self.prefs);
+                self.title_info = None;
+            }
+            A::Fullscreen => self.menu_action(MenuAction::Fullscreen),
+            A::Quit => self.menu_action(MenuAction::Quit),
+        }
+    }
+
+    fn close_title(&mut self) {
+        self.title = None;
+        self.title_info = None;
+    }
+
+    /// Opens one of the engine's tools (the title screen, the pause menu, the Pavilion Gate).
+    fn open_tool(&mut self, tool: pav_ui::title::Tool) {
+        use pav_ui::title::Tool;
+        self.set_menu(false);
+        match tool {
+            Tool::Tour => self.load_scene("world"),
+            Tool::Animation => self.switch_studio(StudioMode::Animation),
+            Tool::Object => self.switch_studio(StudioMode::Prop),
+            Tool::Creature => self.switch_studio(StudioMode::Creature),
+            Tool::Starter => self.load_scene("starter"),
+            Tool::Look => self.look_ui.open = true,
+            Tool::Rooms => {
+                if !self.scene_name.starts_with("world") {
+                    self.load_scene("world");
+                }
+                self.open_teleport();
+            }
+            Tool::Tuning => self.panel.open = true,
+        }
+    }
+
     fn switch_studio(&mut self, mode: StudioMode) {
         self.studio_navigation = true;
         self.set_menu(false);
@@ -2008,9 +2111,6 @@ impl App {
     fn menu_action(&mut self, a: MenuAction) {
         match a {
             MenuAction::Resume => self.set_menu(false),
-            MenuAction::AnimationStudio => self.switch_studio(StudioMode::Animation),
-            MenuAction::AssetStudio => self.switch_studio(StudioMode::Prop),
-            MenuAction::CreatureStudio => self.switch_studio(StudioMode::Creature),
             MenuAction::Reset => {
                 self.set_menu(false);
                 self.reset();
@@ -2091,6 +2191,12 @@ impl App {
                     crate::platform::toggle_fullscreen(&g.window);
                 }
             }
+            MenuAction::Tool(tool) => self.open_tool(tool),
+            MenuAction::TitleScreen => {
+                self.set_menu(false);
+                self.title = Some(pav_ui::title::TitleScreen::new(false));
+                self.title_info = None;
+            }
         }
     }
 }
@@ -2163,6 +2269,18 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
+                if let Some(title) = self.title.as_mut() {
+                    // The title screen: a key ends the splash; then keys move egui's focus
+                    // (Tab, arrows, Enter), and only F11 still does its job.
+                    if event.state == ElementState::Pressed && !event.repeat {
+                        if title.in_splash() {
+                            title.skip_splash();
+                        } else if event.physical_key == PhysicalKey::Code(KeyCode::F11) {
+                            self.menu_action(MenuAction::Fullscreen);
+                        }
+                    }
+                    return;
+                }
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let system = matches!(
                         code,
@@ -2201,6 +2319,12 @@ impl ApplicationHandler for App {
             WindowEvent::MouseInput { state, button, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
+                if let Some(title) = self.title.as_mut() {
+                    if state == ElementState::Pressed && title.in_splash() {
+                        title.skip_splash();
+                    }
+                    return;
+                }
                 if state == ElementState::Pressed && button == MouseButton::Left && !consumed {
                     self.latency.press();
                 }
@@ -2265,4 +2389,16 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
+}
+
+/// What the title screen shows: the saved hero, and the Language menu's choices when the
+/// address doesn't name the language.
+fn title_info() -> pav_ui::title::TitleInfo {
+    pav_ui::title::TitleInfo {
+        hero: crate::save::load().map(|(hero, _)| (hero.name.clone(), hero.level)),
+        languages: if crate::lang::menu_shown() { pav_core::lines::available() } else { Vec::new() },
+        language: pav_core::lines::language(),
+        fullscreen: cfg!(target_arch = "wasm32"),
+        quit: cfg!(not(target_arch = "wasm32")),
+    }
 }

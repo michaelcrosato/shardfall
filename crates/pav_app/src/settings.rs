@@ -30,6 +30,12 @@ pub struct Settings {
     /// A scripted gamepad to play (command line only: --pad-script FILE).
     #[serde(skip)]
     pub pad_script: String,
+    /// The language asked for: the address's `?lang=`, `--lang CODE` or `lang` in
+    /// shardfall.toml ("" = the saved choice, then the system's languages).
+    pub lang: String,
+    /// Start on the title screen: nothing named a scene, a room or a studio to open.
+    #[serde(skip)]
+    pub title: bool,
 }
 
 impl Default for Settings {
@@ -50,6 +56,8 @@ impl Default for Settings {
             creature_studio: false,
             creature_name: String::new(),
             pad_script: String::new(),
+            lang: String::new(),
+            title: false,
         }
     }
 }
@@ -70,6 +78,9 @@ impl Settings {
             if let Some(r) = p.get("scene").filter(|r| !r.is_empty()) {
                 s.scene = r;
             }
+            if let Some(v) = p.get("lang").filter(|v| !v.is_empty()) {
+                s.lang = v;
+            }
             if let Some(v) = p.get("seed").and_then(|v| v.parse().ok()) {
                 s.seed = v;
             }
@@ -84,8 +95,10 @@ impl Settings {
             s.scene = "empty".into();
         }
         if s.scene.is_empty() {
-            // Shardfall's town; the engine's pavilion is the `world` scene (pause menu).
+            // Shardfall's town, behind the title screen; the engine's pavilion is the `world`
+            // scene (the title screen's Engine & tools, the pause menu).
             s.scene = "town".into();
+            s.title = true;
         }
         (s, "page address (?room=NAME&seed=N)".into())
     }
@@ -150,6 +163,7 @@ impl Settings {
                 "--scene" => s.scene = it.next().cloned().unwrap_or(s.scene),
                 "--room" => s.scene = it.next().map(|r| format!("world/{r}")).unwrap_or(s.scene),
                 "--seed" => s.seed = it.next().and_then(|v| v.parse().ok()).unwrap_or(s.seed),
+                "--lang" => s.lang = it.next().cloned().unwrap_or_default(),
                 "--pad-script" => s.pad_script = it.next().cloned().unwrap_or_default(),
                 "--no-vsync" => s.vsync = false,
                 "--vsync" => s.vsync = true,
@@ -170,8 +184,10 @@ impl Settings {
             }
         }
         if s.scene.is_empty() {
-            // Shardfall's town; the engine's pavilion is the `world` scene (pause menu).
+            // Shardfall's town, behind the title screen; the engine's pavilion is the `world`
+            // scene (the title screen's Engine & tools, the pause menu).
             s.scene = "town".into();
+            s.title = true;
         }
         (s, note)
     }
@@ -193,6 +209,7 @@ fn toml_from_str(t: &str) -> Result<Settings, String> {
             "fullscreen" => s.fullscreen = v == "true",
             "start_room" if !v.is_empty() => s.scene = format!("world/{v}"),
             "seed" => s.seed = v.parse().map_err(|_| "bad seed")?,
+            "lang" => s.lang = v.into(),
             "bridge" => s.bridge = v.into(),
             _ => {}
         }

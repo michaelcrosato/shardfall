@@ -10,6 +10,7 @@ use pav_core::arpg::data::{Data, data};
 use pav_core::arpg::items::{EquipSlot, Item, Slot};
 use pav_core::arpg::stats::{Mods, Stat, describe};
 use pav_core::arpg::{GameCmd, GameFrame, InvView, Place, SpotKind};
+use pav_core::t;
 
 use crate::arpg_ui::Projector;
 
@@ -32,6 +33,8 @@ pub struct GameUi {
     pub touch: bool,
     /// Touch: the item picked, and where it is.
     picked: Option<(u32, Picked)>,
+    /// A tool picked at the Pavilion Gate, for the app to open.
+    pub tool: Option<crate::title::Tool>,
 }
 
 /// Where a picked item is.
@@ -443,6 +446,7 @@ impl GameUi {
             Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
             Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
             Some(SpotKind::Hero) => self.hero_window(ctx, &d, &inv, g, &mut out),
+            Some(SpotKind::Gate) => self.gate_window(ctx),
             Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         if self.touch {
@@ -865,6 +869,27 @@ impl GameUi {
         }
     }
 
+    /// The Pavilion Gate: the engine's tools, as on the title screen.
+    fn gate_window(&mut self, ctx: &egui::Context) {
+        let mut open = true;
+        let mut picked = None;
+        fit(egui::Window::new(pav_core::t!("tools.gate")), ctx, self.touch)
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .max_width(720.0)
+            .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
+            .show(ctx, |ui| {
+                picked = crate::directed(ui, |ui| crate::title::tools_panel(ui, 3));
+            });
+        if picked.is_some() || !open {
+            self.panel = None;
+        }
+        if picked.is_some() {
+            self.tool = picked;
+        }
+    }
+
     fn alchemist_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
         fit(egui::Window::new("Mother Wren's Brews"), ctx, self.touch)
@@ -1194,35 +1219,42 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("spot_labels")));
     for (i, s) in g.spots.iter().enumerate() {
         let Some(at) = proj.to_screen(s.pos + Vec3::Y * 2.5) else { continue };
+        let name = spot_name(&s.name);
         let near = g.near == Some(i);
         let c = if near { Color32::from_rgb(255, 225, 150) } else { Color32::from_rgb(200, 190, 170) };
         p.text(
             at + EVec2::new(1.0, 1.0),
             Align2::CENTER_CENTER,
-            &s.name,
+            &name,
             FontId::proportional(15.0),
             Color32::from_black_alpha(200),
         );
-        p.text(at, Align2::CENTER_CENTER, &s.name, FontId::proportional(15.0), c);
+        p.text(at, Align2::CENTER_CENTER, &name, FontId::proportional(15.0), c);
         if near && !touch {
             let what = match s.kind {
-                SpotKind::Vendor => "trade",
-                SpotKind::Stash => "open the stash",
-                SpotKind::Portal => "travel",
-                SpotKind::Exhibit => "examine",
-                SpotKind::Exit => "descend",
-                SpotKind::Gamble => "gamble",
-                SpotKind::Alchemist => "brew",
-                SpotKind::Chest => "break the seal (keepers will come)",
-                SpotKind::Hero => "meet them",
+                SpotKind::Vendor => t!("spot.verb.trade"),
+                SpotKind::Stash => t!("spot.verb.stash"),
+                SpotKind::Portal => t!("spot.verb.travel"),
+                SpotKind::Exhibit => t!("spot.verb.examine"),
+                SpotKind::Exit => t!("spot.verb.descend"),
+                SpotKind::Gamble => t!("spot.verb.gamble"),
+                SpotKind::Alchemist => t!("spot.verb.brew"),
+                SpotKind::Chest => t!("spot.verb.chest"),
+                SpotKind::Hero => t!("spot.verb.hero"),
+                SpotKind::Gate => t!("tools.gate.use"),
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),
                 Align2::CENTER_CENTER,
-                format!("G: {what}"),
+                t!("spot.hint", action = what),
                 FontId::proportional(12.0),
                 Color32::from_white_alpha(220),
             );
         }
     }
+}
+
+/// A spot's name: a line id ("tools.gate") shows the line; older spots carry their name.
+fn spot_name(name: &str) -> String {
+    if pav_core::lines::valid_id(name) { pav_core::lines::text(name, &[]) } else { name.to_string() }
 }

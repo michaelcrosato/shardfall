@@ -6,7 +6,9 @@
 pub mod arpg_items;
 pub mod arpg_tree;
 pub mod arpg_ui;
+pub mod fonts;
 pub mod headless;
+pub mod title;
 pub mod touch;
 
 /// The input device the player is on: hints and the HUD follow it.
@@ -59,4 +61,20 @@ pub fn game_lines(ctx: &egui::Context, h: &pav_core::frame::HudFrame) {
             }
         });
     });
+}
+
+/// Lays `add` out for the language's direction: right-aligned, top to bottom, in a
+/// right-to-left language; as it is otherwise.
+pub fn directed<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    if pav_core::lines::rtl() { ui.with_layout(egui::Layout::top_down(egui::Align::Max), add).inner } else { add(ui) }
+}
+
+/// A wrapped block of text laid out for the language's direction (right-aligned lines in a
+/// right-to-left language).
+pub fn text_job(text: String, font: egui::FontId, color: egui::Color32, wrap: f32) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::simple(text, font, color, wrap);
+    if pav_core::lines::rtl() {
+        job.halign = egui::Align::RIGHT;
+    }
+    job
 }

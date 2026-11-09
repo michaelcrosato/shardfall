@@ -130,6 +130,8 @@ pub enum SpotKind {
     Alchemist,
     /// A playable character on their pedestal in the Hall of Heroes (town).
     Hero,
+    /// The Pavilion Gate (town): the engine's tools (the app opens them).
+    Gate,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

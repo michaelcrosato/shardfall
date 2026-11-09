@@ -566,17 +566,18 @@ impl Touch {
         if let Some(s) = g.near.and_then(|i| g.spots.get(i)) {
             use pav_core::arpg::SpotKind as K;
             let what = match s.kind {
-                K::Vendor => "Trade",
-                K::Stash => "Stash",
-                K::Portal => "Travel",
-                K::Exhibit => "Examine",
-                K::Exit => "Descend",
-                K::Gamble => "Gamble",
-                K::Alchemist => "Brew",
-                K::Chest => "Open",
-                K::Hero => "Meet",
+                K::Vendor => pav_core::t!("spot.button.trade"),
+                K::Stash => pav_core::t!("spot.button.stash"),
+                K::Portal => pav_core::t!("spot.button.travel"),
+                K::Exhibit => pav_core::t!("spot.button.examine"),
+                K::Exit => pav_core::t!("spot.button.descend"),
+                K::Gamble => pav_core::t!("spot.button.gamble"),
+                K::Alchemist => pav_core::t!("spot.button.brew"),
+                K::Chest => pav_core::t!("spot.button.chest"),
+                K::Hero => pav_core::t!("spot.button.hero"),
+                K::Gate => pav_core::t!("spot.button.gate"),
             };
-            let w = (what.len() as f32 * 8.5 + 34.0) * k;
+            let w = (pav_core::lines::width(&what) as f32 * 8.5 + 34.0) * k;
             let rect = Rect::from_center_size(pp + EVec2::new(-34.0 * k - w * 0.5, 0.0), EVec2::new(w, 38.0 * k));
             let alpha = if down(Control::Use).is_some() { 255 } else { 225 };
             p.rect_filled(rect, 19.0 * k, Color32::from_rgba_unmultiplied(255, 214, 140, alpha));

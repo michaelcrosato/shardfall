@@ -31,16 +31,71 @@
 </style>
 </head>
 <body>
-<div id="msg" role="status" aria-live="polite">Loading Shardfall…</div>
-<div id="turn">Turn your phone sideways for the best view</div>
+<div id="msg" role="status" aria-live="polite"></div>
+<div id="turn"></div>
+<script>
+  // The page's own words, before the game runs: lines from the game-lines block (and a
+  // translation's, when the page has one for ?lang= or the browser's language). The game
+  // itself draws every other line (AI Hub Languages v1, docs/LANGUAGES.md).
+  window.pageLine = (() => {
+    const block = (id) => { try { return JSON.parse(document.getElementById(id).textContent); } catch { return null; } };
+    const own = block('game-lines') || { lines: {} }, tr = block('game-translations') || {};
+    const asked = new URLSearchParams(location.search).get('lang');
+    const want = [asked, ...(navigator.languages || [])].filter(Boolean);
+    const code = want.find((w) => tr[w]) || want.map((w) => Object.keys(tr).find((k) => k.split('-')[0] === w.split('-')[0])).find(Boolean);
+    const lines = (code && tr[code] && tr[code].lines) || {};
+    return (id, fallback, values = {}) => {
+      const line = [lines[id], own.lines[id], fallback].find((l) => typeof l === 'string' && l !== '');
+      return line.replace(/\{(\w+)\}/g, (tag, k) => (k in values ? String(values[k]) : tag));
+    };
+  })();
+  document.getElementById('turn').textContent = pageLine('page.turn', 'Turn your phone sideways for the best view');
+
+  // AI Hub sessions (Session Protocol v1, docs/AI_HUB.md). With the session client in the page
+  // (the hub's build) and the hub's frame around it, this joins the round at once, keeps the
+  // hub's events for the game, and hands the game the client's calls. Elsewhere it does nothing.
+  (() => {
+    const hub = window.AIHub;
+    const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [] };
+    const tag = (n) => (document.querySelector(`meta[name="${n}"]`) || {}).content;
+    if (bridge.active) {
+      const seats = (tag('hub:session-players') || '1-4').split('-').map(Number);
+      bridge.waiting = true;
+      hub.connect({ mode: tag('hub:session-mode'), seats: [seats[0], seats[1] || seats[0]] }).then((info) => {
+        bridge.waiting = false;
+        bridge.info = info;
+        if (!info) bridge.active = false;
+      });
+      for (const type of ['start', 'message', 'leave', 'time-up', 'end']) {
+        hub.on(type, (...args) => { bridge.events.push(JSON.stringify({ type, args })); });
+      }
+    }
+    Object.assign(bridge, {
+      isActive: () => bridge.active,
+      isWaiting: () => bridge.waiting,
+      infoJson: () => (bridge.info ? JSON.stringify(bridge.info) : ''),
+      take: () => { const e = bridge.events; bridge.events = []; return '[' + e.join(',') + ']'; },
+      ready: () => hub.ready(),
+      time: () => hub.time(),
+      send: (json, to, reliable) => hub.send(JSON.parse(json), { to: to >= 0 ? to : undefined, reliable }),
+      progress: (score, label) => hub.progress({ score, label }),
+      result: (json) => hub.result(JSON.parse(json)),
+      finish: (json) => hub.finish(JSON.parse(json)),
+      fail: (message) => { if (hub && hub.active) hub.fail(message); },
+    });
+    window.shardfallHub = bridge;
+  })();
+</script>
 <script type="module">
   // Start in a demo room with ?room=NAME, or the pavilion with ?scene=world.
-  // Messages name the game by the page title (a single-file build may retitle it).
-  const name = document.title;
+  // Messages name the game by the page's title (its name, before any tagline).
+  const name = document.title.split(' — ')[0];
   const msg = document.getElementById('msg');
+  msg.textContent = pageLine('page.loading', 'Loading {name}…', { name });
   if (!navigator.gpu) {
-    msg.replaceChildren(`${name} needs WebGPU.`, document.createElement('br'),
-      'Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled.');
+    msg.replaceChildren(pageLine('page.webgpu', '{name} needs WebGPU.', { name }), document.createElement('br'),
+      pageLine('page.webgpu_help', 'Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled.'));
+    shardfallHub.fail('WebGPU is not available in this browser');
   } else {
     // The game hides this message once its canvas exists, and takes keyboard focus.
     new MutationObserver((_, obs) => {
@@ -66,8 +121,9 @@
       else await (await import('./shardfall.js')).default();
     } catch (error) {
       console.error(`${name} failed to load:`, error);
-      msg.textContent = `${name} could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled.`;
+      msg.textContent = pageLine('page.failed', '{name} could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled.', { name });
       document.body.append(msg);
+      shardfallHub.fail(`the game failed to load: ${error}`);
     }
   }
 </script>

@@ -30,6 +30,7 @@ pub mod input;
 pub mod issue;
 pub mod joints;
 pub mod level;
+pub mod lines;
 pub mod material;
 pub mod moves;
 pub mod nav;

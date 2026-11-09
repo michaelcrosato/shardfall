@@ -328,6 +328,44 @@ pub(crate) fn portal(sim: &mut Sim, at: Vec3) -> EntityId {
     sim.spawn(Spawn::new("portal", at + Vec3::Y * 0.04).visual(v))
 }
 
+/// The Pavilion Gate: two stone pillars and a lintel framing a glowing pane, facing south onto
+/// the square. Walking up to it offers the engine's tools.
+fn pavilion_gate(sim: &mut Sim, at: Vec3) {
+    let st = &mut sim.state;
+    let stone = Color::hex("#5a5866");
+    let trim = Color::hex("#c9a54a");
+    for x in [-1.7f32, 1.7] {
+        st.statics.add(
+            &mut st.physics,
+            Block::new(at + Vec3::new(x - 0.35, 0.0, -0.35), at + Vec3::new(x + 0.35, 3.3, 0.35), stone)
+                .with_flags(crate::statics::block_flags::ROUNDED),
+        );
+        st.statics
+            .add(&mut st.physics, Block::new(at + Vec3::new(x - 0.42, 3.3, -0.42), at + Vec3::new(x + 0.42, 3.45, 0.42), trim));
+    }
+    st.statics.add(&mut st.physics, Block::new(at + Vec3::new(-2.3, 3.45, -0.45), at + Vec3::new(2.3, 4.0, 0.45), stone));
+    st.statics.add(&mut st.physics, Block::new(at + Vec3::new(-0.5, 4.0, -0.2), at + Vec3::new(0.5, 4.5, 0.2), trim));
+    let mut pane = Visual::new(Shape::Box { half: Vec3::new(1.3, 1.6, 0.04) }, Color::hex("#4f9fe8"));
+    pane.look = Look::Unlit;
+    pane.emissive = 0.3;
+    pane.light = Some(Box::new(LightDef {
+        color: "#7fd0ff".into(),
+        radius: 7.0,
+        intensity: 1.5,
+        pulse: 0.4,
+        offset: Vec3::new(0.0, 0.2, 0.9),
+        ..Default::default()
+    }));
+    pane.particles = Some(Box::new(EmitterDef {
+        preset: "magic".into(),
+        color: "#b8a8ff".into(),
+        area: Vec3::new(1.2, 1.4, 0.1),
+        size: 0.7,
+        ..Default::default()
+    }));
+    sim.spawn(Spawn::new("pavilion gate", at + Vec3::Y * 1.65).visual(pane));
+}
+
 /// A lamp post with a warm light.
 fn lamp(sim: &mut Sim, at: Vec3) {
     let st = &mut sim.state;
@@ -594,6 +632,8 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
     gamble_table(sim, table);
     let cauldron = Vec3::new(-9.0, 0.0, 8.5);
     cauldron_station(sim, cauldron);
+    let gate = Vec3::new(-7.0, 0.0, -12.0);
+    pavilion_gate(sim, gate);
     // The captain's post by the portal: a banner and a brazier.
     let post = Vec3::new(3.6, 0.0, -13.2);
     let st = &mut sim.state;
@@ -650,6 +690,13 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
         kind: SpotKind::Alchemist,
         name: "Mother Wren".into(),
         pos: cauldron + Vec3::new(1.2, 0.0, -0.6),
+        reach: 3.0,
+        info: Vec::new(),
+    });
+    g.spots.push(Spot {
+        kind: SpotKind::Gate,
+        name: "tools.gate".into(),
+        pos: gate + Vec3::new(0.0, 0.0, 1.4),
         reach: 3.0,
         info: Vec::new(),
     });
