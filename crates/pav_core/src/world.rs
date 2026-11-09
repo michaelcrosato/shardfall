@@ -369,6 +369,73 @@ fn hub_blocks(w: &World) -> (Vec<Block>, Vec<Decor>) {
     (blocks, decor)
 }
 
+/// The signs naming each corridor's wings (nearest first, one per line): a board on the low
+/// plaza wall either side of the opening, facing the plaza and leaning back so the names read
+/// from a high camera as well as a low one. Fixed in place, they never swing through a wall,
+/// and they stay below the view's height cut (2.4 m above the player's feet), so walking up
+/// to one never slices it.
+fn wing_signs(w: &World) -> Vec<(Decor, crate::zones::Label)> {
+    const LEAN: f32 = 35.0;
+    const WIDTH: f32 = 6.4;
+    const DEPTH: f32 = 0.08;
+    const WALL_TOP: f32 = 0.9;
+    let mut out = Vec::new();
+    for f in DIRS {
+        let mut wings: Vec<&str> = Vec::new();
+        for r in &w.rooms {
+            if wing_direction(&r.def.wing) == f && !wings.contains(&r.def.wing.as_str()) {
+                wings.push(&r.def.wing);
+            }
+        }
+        if wings.is_empty() {
+            continue;
+        }
+        let titles: Vec<&str> = wings.iter().map(|w| wing_title(w)).collect();
+        let longest = titles.iter().map(|t| t.chars().count()).max().unwrap_or(1) as f32;
+        let (s, c) = LEAN.to_radians().sin_cos();
+        // About 0.55 em per letter in the text font, a margin either side, and the top at most
+        // 2.2 m up (clear of the height cut).
+        let lines = titles.len() as f32;
+        let size = 0.6f32.min((WIDTH - 0.6) / (0.55 * longest)).min(((2.2 - WALL_TOP) / c - 0.4) / (1.15 * lines));
+        let height = lines * 1.15 * size + 0.4;
+        let d = f.dir();
+        let side = Vec3::new(-d.z, 0.0, d.x);
+        let facing = f.opposite();
+        // The text's frame, as the view lays out a leaning wall label.
+        let right = Vec3::Y.cross(facing.dir()).normalize();
+        let up = Vec3::Y * c - facing.dir() * s;
+        let front = right.cross(up);
+        for k in [-1.0f32, 1.0] {
+            // The board's front bottom edge rests on the wall top, its inner half.
+            let base = d * (PLAZA_HALF - 0.45) + side * k * (CORRIDOR_HALF + 0.5 + WIDTH * 0.5) + Vec3::Y * WALL_TOP;
+            let middle = base + up * (height * 0.5);
+            let board = Decor {
+                shape: Shape::Box { half: Vec3::new(WIDTH * 0.5, height * 0.5, DEPTH * 0.5) },
+                pos: middle - front * (DEPTH * 0.5),
+                rot: Quat::from_mat3(&glam::Mat3::from_cols(right, up, front)),
+                color: Color::hex("#4a3b2c"),
+                look: Look::Cel,
+                emissive: 0.0,
+                solid: false,
+                collider: None,
+                sway: Sway::None,
+                material: None,
+            };
+            let label = crate::zones::Label {
+                text: titles.join("\n"),
+                pos: middle + front * 0.015,
+                size,
+                color: Color::hex("#f3e7cf"),
+                mode: crate::zones::LabelMode::Wall,
+                facing,
+                lean: LEAN,
+            };
+            out.push((board, label));
+        }
+    }
+    out
+}
+
 impl Sim {
     /// Sets up the full world (hub, rooms, wilderness) and spawns the player on the plaza.
     pub fn build_world(&mut self, defs: Vec<(String, RoomDef)>, errors: Vec<(String, String)>) {
@@ -798,29 +865,10 @@ impl Sim {
                 for d in decor {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, d);
                 }
-                // Signs over each corridor mouth naming its wings, and a welcome line.
-                for f in DIRS {
-                    let mut wings: Vec<&str> = Vec::new();
-                    for r in &st.world.rooms {
-                        if wing_direction(&r.def.wing) == f && !wings.contains(&r.def.wing.as_str()) {
-                            wings.push(&r.def.wing);
-                        }
-                    }
-                    if wings.is_empty() {
-                        continue;
-                    }
-                    let text = wings.iter().map(|w| wing_title(w)).collect::<Vec<_>>().join("  ·  ");
-                    st.statics.add_label_to(
-                        RegionKey::Hub,
-                        crate::zones::Label {
-                            text,
-                            pos: f.dir() * (PLAZA_HALF - 1.2) + Vec3::Y * 2.4,
-                            size: 0.95,
-                            color: Color::hex("#3d3226"),
-                            mode: crate::zones::LabelMode::Billboard,
-                            facing: Facing::South,
-                        },
-                    );
+                // Signs beside each corridor mouth naming its wings, and a welcome line.
+                for (board, label) in wing_signs(&st.world) {
+                    st.statics.add_decor(&mut st.physics, RegionKey::Hub, board);
+                    st.statics.add_label_to(RegionKey::Hub, label);
                 }
                 st.statics.add_label_to(
                     RegionKey::Hub,
@@ -831,6 +879,7 @@ impl Sim {
                         color: Color::hex("#6b5a44"),
                         mode: crate::zones::LabelMode::Floor,
                         facing: Facing::South,
+                        lean: 0.0,
                     },
                 );
                 // Room names on the corridor floor in front of each door.
@@ -845,6 +894,7 @@ impl Sim {
                             color: Color::hex("#5a4a36"),
                             mode: crate::zones::LabelMode::Floor,
                             facing: Facing::South,
+                            lean: 0.0,
                         },
                     );
                 }

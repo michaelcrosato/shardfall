@@ -286,7 +286,7 @@ blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
 zone = { kind = "pad", label = "LOW 35°", color = "#e0623a", camera = { set = { tilt = 35, ortho = false, distance = 14 } }, note = "Low and closer (14 m): the gap and the pits look deep and heights read well, but tall things hide what is behind them and you see less of the loop ahead." }
 [layout.legend.'E']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
-zone = { kind = "pad", label = "SIDE 0°", color = "#8a52d6", camera = { set = { tilt = 0, ortho = true, distance = 16, height_offset = 1.5 } }, note = "Side view, orthographic: jump heights and the gap read exactly, depth not at all. Below 30° of tilt the shader cuts away everything between the lens and you." }
+zone = { kind = "pad", label = "SIDE 0°", color = "#8a52d6", camera = { set = { tilt = 0, ortho = true, distance = 16, height_offset = 1.5 } }, note = "Side view, orthographic: jump heights and the gap read exactly, depth not at all. Below 30° of tilt the shader cuts away whatever stands between the lens and you; the ground you stand on stays." }
 [layout.legend.'G']
 blocks = [{ y0 = -3.0, y1 = 0, color = "#d5dae0" }]
 zone = { kind = "pad", label = "ISOMETRIC", color = "#d4891c", camera = { set = { tilt = 35.264, yaw = 45, ortho = true, distance = 24 } }, note = "Tilt 35.264° and yaw 45°, orthographic: the angle where all three axes shrink equally. Your keys follow the camera, so up now runs diagonally across the room." }

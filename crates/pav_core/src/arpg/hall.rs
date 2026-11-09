@@ -145,6 +145,7 @@ pub fn build(sim: &mut Sim, g: &mut Game) {
                 color: Color::hex("#f2e6c9"),
                 mode: LabelMode::Floor,
                 facing: Default::default(),
+                lean: 0.0,
             },
         );
         let look = c.puppet_over(&sim.config.puppet);
