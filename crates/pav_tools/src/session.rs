@@ -328,8 +328,9 @@ impl Session {
         let frame = self.sim.frame();
         let focus = frame.focus;
         self.camera.snap(focus);
-        let camera = self.camera.clone();
         let view = self.view_for(&frame);
+        self.camera.max_reach = view.camera_reach();
+        let camera = self.camera.clone();
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.prepare_frame(&frame);
@@ -352,8 +353,9 @@ impl Session {
         let frame = self.sim.frame();
         let focus = frame.focus;
         self.camera.snap(focus);
-        let camera = self.camera.clone();
         let view = self.view_for(&frame);
+        self.camera.max_reach = view.camera_reach();
+        let camera = self.camera.clone();
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.prepare_frame(&frame);
@@ -388,6 +390,7 @@ impl Session {
             return None;
         }
         self.camera.snap(frame.focus);
+        self.camera.max_reach = self.view_for(&frame).camera_reach();
         let vp = self.camera.view_proj(width as f32 / height.max(1) as f32);
         Some(self.ui.frame(frame.game.as_deref(), &frame.hud, vp, width, height, input))
     }
@@ -395,8 +398,9 @@ impl Session {
     /// Renders `frame`, a stage the simulation does not hold (a material swatch), from the
     /// session's camera as it is.
     pub fn render_frame(&mut self, frame: &RenderFrame, width: u32, height: u32) -> Result<Vec<u8>> {
-        let camera = self.camera.clone();
         let view = self.view_for(frame);
+        self.camera.max_reach = view.camera_reach();
+        let camera = self.camera.clone();
         let gpu = self.gpu()?;
         gpu.prepare_frame(frame);
         let scene = gpu.builder.build(frame, frame, 1.0, &camera, width as f32 / height as f32, &view, frame.focus);
@@ -408,8 +412,9 @@ impl Session {
         let frame = self.sim.frame();
         let focus = frame.focus;
         self.camera.snap(focus);
-        let camera = self.camera.clone();
         let view = self.view_for(&frame);
+        self.camera.max_reach = view.camera_reach();
+        let camera = self.camera.clone();
         let events = std::mem::take(&mut self.events);
         let gpu = self.gpu()?;
         gpu.prepare_frame(&frame);

@@ -1238,6 +1238,8 @@ impl App {
         let mut view = self.view.clone();
         self.look_ui.apply(&mut view);
         self.prefs.quality.trim(self.touch_screen, &mut view);
+        // A low camera zoomed far out comes in to stay inside the fog (and the loaded world).
+        self.rig.max_reach = view.camera_reach();
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
         // Arriving somewhere new: the screen opens with the chosen transition, on the player.
         if let Some(t0) = self.arrival {
