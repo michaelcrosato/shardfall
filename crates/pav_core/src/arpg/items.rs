@@ -444,25 +444,36 @@ impl Item {
 
     /// Lines for a tooltip: header numbers, implicits, then modifiers (and the power).
     pub fn describe(&self, d: &super::data::Data) -> ItemText {
-        let mut t = ItemText { name: self.name.clone(), ..Default::default() };
+        use super::lines as l;
+        let mut t = ItemText { name: l::item_name(d, self), ..Default::default() };
         let Some(b) = self.base_def(d) else {
             t.base = format!("unknown base '{}'", self.base);
             return t;
         };
         let s = self.stats(d);
-        t.base = if self.name != b.name { b.name.clone() } else { String::new() };
-        let hand = if b.slot == Slot::Weapon { if b.two_hand { "Two-Handed " } else { "One-Handed " } } else { "" };
-        let kind = if b.slot == Slot::Weapon || b.slot == Slot::Offhand { cap(&b.kind) } else { b.slot.name().to_string() };
-        t.kind = format!("{} {hand}{kind}", ["Normal", "Magic", "Rare", "Unique"][self.rarity as usize]);
+        t.base = if self.name != b.name { l::base_name(b) } else { String::new() };
+        let kind = if b.slot == Slot::Weapon || b.slot == Slot::Offhand {
+            l::data_line(&format!("item_kind.{}", l::key_id(&b.kind)), &cap(&b.kind))
+        } else {
+            l::slot_name(b.slot)
+        };
+        let id = match (b.slot, b.two_hand) {
+            (Slot::Weapon, true) => "item.kind.two_hand",
+            (Slot::Weapon, false) => "item.kind.one_hand",
+            _ => "item.kind",
+        };
+        t.kind = l::piece(id, &[("rarity", l::rarity_name(self.rarity).into()), ("kind", kind.into())]);
         t.level = self.level;
+        // Numbers as they show: whole, or to one or two places.
+        let places = |v: f32, n: i32| ((v as f64) * 10f64.powi(n)).round() / 10f64.powi(n);
         if b.slot == Slot::Weapon {
-            t.header.push(format!("Physical Damage: {:.0}-{:.0}", s.phys[0], s.phys[1]));
-            t.header.push(format!("Attacks per Second: {:.2}", s.aps));
-            t.header.push(format!("Critical Strike Chance: {:.1}%", s.crit));
-            t.header.push(format!("Damage per Second: {:.1}", (s.phys[0] + s.phys[1]) * 0.5 * s.aps));
+            t.header.push(crate::t!("item.phys", min = s.phys[0].round() as i64, max = s.phys[1].round() as i64));
+            t.header.push(crate::t!("item.aps", value = places(s.aps, 2)));
+            t.header.push(crate::t!("item.crit", value = places(s.crit, 1)));
+            t.header.push(crate::t!("item.dps", value = places((s.phys[0] + s.phys[1]) * 0.5 * s.aps, 1)));
         }
         if s.armor > 0.0 {
-            t.header.push(format!("Armour: {:.0}", s.armor));
+            t.header.push(crate::t!("item.armour", value = s.armor.round() as i64));
         }
         for (st, v) in self.implicits(d) {
             t.implicit.push(describe(st, v));
@@ -474,7 +485,7 @@ impl Item {
             if let Some(p) = &u.power {
                 t.power = p.describe();
             }
-            t.lore = u.lore.clone();
+            t.lore = l::unique_lore(u);
         }
         t
     }
@@ -523,13 +534,15 @@ pub struct ItemText {
 
 // ------------------------------------------------------------------------------- rolling
 
-const RARE_FIRST: &[&str] = &[
+/// First words of rare items' own names (lines `rare_name.first.<word>`).
+pub const RARE_FIRST: &[&str] = &[
     "Doom", "Grim", "Storm", "Blood", "Bone", "Dread", "Rune", "Soul", "Star", "Ash", "Ember", "Frost", "Gloom", "Hate", "Iron",
     "Night", "Raven", "Shadow", "Skull", "Spirit", "Viper", "Wraith", "Dusk", "Corpse", "Glyph", "Havoc", "Pain", "Rage",
     "Sorrow", "Tempest", "Vortex", "Woe", "Kraken", "Dragon", "Eagle", "Gale", "Hollow", "Mind", "Plague",
 ];
 
-fn rare_second(slot: Slot) -> &'static [&'static str] {
+/// Second words of rare items' own names, by slot (lines `rare_name.<slot>.<word>`).
+pub fn rare_second(slot: Slot) -> &'static [&'static str] {
     match slot {
         Slot::Weapon => &["Bite", "Edge", "Fang", "Song", "Thirst", "Reaver", "Gnash", "Scar", "Sever", "Wound", "Hunger"],
         Slot::Offhand => &["Guard", "Ward", "Wall", "Lamp", "Beacon", "Bulwark", "Mirror", "Shelter"],

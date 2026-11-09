@@ -16,6 +16,9 @@ use crate::touch::{Touch, View};
 
 /// Passes per frame: windows size themselves from the pass before.
 const PASSES: usize = 3;
+/// More passes for a hover: the widget under the pointer is hovered once the windows are laid
+/// out, and its tooltip shows the pass after.
+const HOVER_PASSES: usize = 3;
 
 /// The UI's state between frames: which windows are open, the device, the touch controls.
 #[derive(Default)]
@@ -146,6 +149,8 @@ impl Headless {
         ctx.all_styles_mut(|s| {
             s.animation_time = 0.0;
             s.interaction.tooltip_delay = 0.0;
+            // The pointer is placed anew each pass: `hover` shows tooltips all the same.
+            s.interaction.show_tooltips_only_when_still = false;
         });
         self.game.touch = touch;
         self.game.tree.touch = touch;
@@ -156,7 +161,9 @@ impl Headless {
         let mut commands = Vec::new();
         let mut output = None;
         let mut layers = Vec::new();
-        for pass in 0..PASSES + input.click.is_some() as usize {
+        let hover = if input.hover.is_some() && input.click.is_none() { HOVER_PASSES } else { 0 };
+        let passes = PASSES + input.click.is_some() as usize + hover;
+        for pass in 0..passes {
             let mut events = Vec::new();
             if let Some(p) = input.click.or(input.hover) {
                 events.push(egui::Event::PointerMoved(p));
@@ -180,7 +187,7 @@ impl Headless {
                 ..Default::default()
             };
             self.touch.swipes.begin_frame();
-            let last = pass + 1 == PASSES + input.click.is_some() as usize;
+            let last = pass + 1 == passes;
             let out = ctx.run_ui(raw, |ui| {
                 let root = ui.layer_id();
                 let ctx = ui.ctx().clone();

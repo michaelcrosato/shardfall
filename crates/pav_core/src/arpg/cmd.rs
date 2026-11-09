@@ -90,14 +90,15 @@ impl Place {
             _ => None,
         }
     }
+    /// The place's name in the language in use.
     pub fn name(self) -> String {
         match self {
-            Place::Town => "Emberwatch".into(),
-            Place::Arena => "The Proving Grounds".into(),
-            Place::Lab => "The Menagerie".into(),
+            Place::Town => crate::t!("place.town"),
+            Place::Arena => crate::t!("place.arena"),
+            Place::Lab => crate::t!("place.lab"),
             Place::Level(n) => {
                 let p = super::world::plan(&data(), n);
-                format!("{} · {}", p.label(), p.name)
+                crate::t!("level.card", label = p.label(), name = p.name)
             }
         }
     }
@@ -207,7 +208,7 @@ impl Game {
             }
             GameCmd::Sell(id) => {
                 if !self.near_kind(sim, SpotKind::Vendor) {
-                    return Err("Find a vendor to sell".into());
+                    return Err(crate::t!("error.vendor_sell"));
                 }
                 let i = self.hero.inventory.iter().position(|it| it.id == id).ok_or("not in the bag")?;
                 let it = self.hero.inventory.remove(i);
@@ -221,7 +222,7 @@ impl Game {
             }
             GameCmd::SellAll(max) => {
                 if !self.near_kind(sim, SpotKind::Vendor) {
-                    return Err("Find a vendor to sell".into());
+                    return Err(crate::t!("error.vendor_sell"));
                 }
                 let max = [Rarity::Normal, Rarity::Magic, Rarity::Rare, Rarity::Unique][(max as usize).min(3)];
                 let (sell, keep): (Vec<_>, Vec<_>) =
@@ -237,10 +238,10 @@ impl Game {
             }
             GameCmd::Buy(id) => {
                 if !self.near_kind(sim, SpotKind::Vendor) {
-                    return Err("Find a vendor to buy".into());
+                    return Err(crate::t!("error.vendor_buy"));
                 }
                 if self.hero.bag_full() {
-                    return Err("Inventory full".into());
+                    return Err(crate::t!("error.bag_full"));
                 }
                 let (list, i) = match self.vendor.iter().position(|it| it.id == id) {
                     Some(i) => (0, i),
@@ -248,7 +249,7 @@ impl Game {
                 };
                 let price = if list == 0 { buy_price(&self.vendor[i]) } else { self.buyback[i].value() };
                 if self.hero.gold < price {
-                    return Err(format!("Not enough gold ({price})"));
+                    return Err(crate::t!("error.gold", count = price));
                 }
                 self.hero.gold -= price;
                 let it = if list == 0 { self.vendor.remove(i) } else { self.buyback.remove(i) };
@@ -256,10 +257,10 @@ impl Game {
             }
             GameCmd::Stash(id) => {
                 if !self.near_kind(sim, SpotKind::Stash) {
-                    return Err("Find the stash".into());
+                    return Err(crate::t!("error.stash_far"));
                 }
                 if self.hero.stash.len() >= STASH_SIZE {
-                    return Err("Stash full".into());
+                    return Err(crate::t!("error.stash_full"));
                 }
                 let i = self.hero.inventory.iter().position(|it| it.id == id).ok_or("not in the bag")?;
                 let it = self.hero.inventory.remove(i);
@@ -267,10 +268,10 @@ impl Game {
             }
             GameCmd::Take(id) => {
                 if !self.near_kind(sim, SpotKind::Stash) {
-                    return Err("Find the stash".into());
+                    return Err(crate::t!("error.stash_far"));
                 }
                 if self.hero.bag_full() {
-                    return Err("Inventory full".into());
+                    return Err(crate::t!("error.bag_full"));
                 }
                 let i = self.hero.stash.iter().position(|it| it.id == id).ok_or("not in the stash")?;
                 let it = self.hero.stash.remove(i);
@@ -286,7 +287,7 @@ impl Game {
                     return Err(format!("{} is not a hero skill", def.name));
                 }
                 if def.unlock > self.hero.level {
-                    return Err(format!("{} unlocks at level {}", def.name, def.unlock));
+                    return Err(crate::t!("error.skill_locked", skill = super::lines::skill_name(def), level = def.unlock));
                 }
                 // Swapping: if the skill is already on the bar, the slots trade places.
                 if let Some(other) = self.hero.bar.iter().position(|k| *k == def.key) {
@@ -299,22 +300,22 @@ impl Game {
                 let place = Place::from_code(code).ok_or("unknown destination")?;
                 if let Place::Level(n) = place {
                     if n > self.hero.max_depth.max(1) {
-                        return Err(format!("{} is not reached yet", place.name()));
+                        return Err(crate::t!("error.not_reached", place = place.name()));
                     }
                 }
                 self.travel = Some(place.code());
             }
             GameCmd::Gamble(slot) => {
                 if !self.near_kind(sim, SpotKind::Gamble) {
-                    return Err("Odo is not here".into());
+                    return Err(crate::t!("error.odo_far"));
                 }
                 let slot = *Slot::ALL.get(slot as usize).ok_or("no such slot")?;
                 let price = super::scene::gamble_price(self.hero.level, slot);
                 if self.hero.gold < price {
-                    return Err(format!("{price} gold needed"));
+                    return Err(crate::t!("error.gold_needed", count = price));
                 }
                 if self.hero.inventory.len() >= super::hero::INVENTORY_SIZE {
-                    return Err("Your bag is full".into());
+                    return Err(crate::t!("error.bag_full.odo"));
                 }
                 let d = data();
                 let rng = &mut sim.state.rng;
@@ -333,35 +334,42 @@ impl Game {
                 let spec = RollSpec { level, rarity: Some(rarity), slot: Some(slot), rarity_bonus: 0.0 };
                 let item = roll_item(&d, &mut sim.state.rng, spec, id)
                     .or_else(|| roll_item(&d, &mut sim.state.rng, RollSpec { rarity: Some(Rarity::Rare), ..spec }, id))
-                    .ok_or("Odo shrugs: nothing in the box")?;
+                    .ok_or_else(|| crate::t!("error.odo_empty"))?;
                 self.hero.gold -= price;
-                let name = item.name.clone();
+                let name = super::lines::item_name(&d, &item);
                 let r = item.rarity;
                 self.hero.inventory.push(item);
                 self.inv_changed();
-                self.notify(sim, format!("Odo: \"{}{}\"", name, if r >= Rarity::Rare { "! Lucky you." } else { "." }));
+                self.notify(
+                    sim,
+                    if r >= Rarity::Rare {
+                        crate::t!("say.odo.lucky", item = name)
+                    } else {
+                        crate::t!("say.odo.item", item = name)
+                    },
+                );
                 if let Some((f, _)) = self.hero_id.and_then(|h| feet_of(sim, h)) {
                     events.push(SimEvent::Loot { pos: f, rarity: r as u8 });
                 }
             }
             GameCmd::Brew(kind) => {
                 if !self.near_kind(sim, SpotKind::Alchemist) {
-                    return Err("Mother Wren is not here".into());
+                    return Err(crate::t!("error.wren_far"));
                 }
-                let price = super::scene::brew_price(&self.hero, kind).ok_or("That brew is as strong as it gets")?;
+                let price = super::scene::brew_price(&self.hero, kind).ok_or_else(|| crate::t!("error.brew_maxed"))?;
                 if self.hero.gold < price {
-                    return Err(format!("{price} gold needed"));
+                    return Err(crate::t!("error.gold_needed", count = price));
                 }
                 self.hero.gold -= price;
                 match kind {
                     0 => {
                         self.hero.potion_max += 1;
                         self.hero.potions = self.hero.potion_max;
-                        self.notify(sim, format!("Mother Wren: \"{} potions now. Use them.\"", self.hero.potion_max));
+                        self.notify(sim, crate::t!("say.wren.flask", count = self.hero.potion_max));
                     }
                     _ => {
                         self.hero.mods.add(super::stats::Stat::PotionInc, 20.0);
-                        self.notify(sim, "Mother Wren: \"Stronger stuff. Don't drink it all at once.\"");
+                        self.notify(sim, crate::t!("say.wren.brew"));
                     }
                 }
                 refresh_hero(sim, self, false);
@@ -372,7 +380,7 @@ impl Game {
                 let hid = self.hero_id.ok_or("no hero")?;
                 let (feet, _) = feet_of(sim, hid).ok_or("no hero")?;
                 if flat(feet - s.pos).length() > s.reach + 1.0 {
-                    return Err(format!("{} is too far away", s.name));
+                    return Err(crate::t!("error.too_far", name = super::lines::spot_name(&s.name)));
                 }
                 match s.kind {
                     SpotKind::Exit => super::mechanics::use_exit(self)?,
@@ -394,21 +402,21 @@ impl Game {
             GameCmd::Allocate(id) => {
                 let t = &d.tree;
                 if self.hero.points() == 0 {
-                    return Err("No passive points left".into());
+                    return Err(crate::t!("error.no_points"));
                 }
                 if !t.can_allocate(&self.hero.tree, id) {
-                    return Err("Not connected to your tree".into());
+                    return Err(crate::t!("error.not_connected"));
                 }
                 self.hero.tree.insert(id);
                 gear = true;
             }
             GameCmd::Refund(id) => {
                 if !d.tree.can_refund(&self.hero.tree, id) {
-                    return Err("That would cut off other nodes".into());
+                    return Err(crate::t!("error.cut_off"));
                 }
                 let cost = self.hero.refund_cost();
                 if self.hero.gold < cost {
-                    return Err(format!("Refunding costs {cost} gold"));
+                    return Err(crate::t!("error.refund_cost", count = cost));
                 }
                 self.hero.gold -= cost;
                 self.hero.tree.remove(&id);
@@ -418,7 +426,7 @@ impl Game {
             GameCmd::Respec => {
                 let cost = self.hero.respec_cost();
                 if self.hero.gold < cost {
-                    return Err(format!("A full reset costs {cost} gold"));
+                    return Err(crate::t!("error.reset_cost", count = cost));
                 }
                 self.hero.gold -= cost;
                 self.hero.tree.clear();
@@ -429,7 +437,7 @@ impl Game {
                 let t = &d.tree;
                 let n = t.node(id).ok_or("no such node")?;
                 if !self.hero.tree.contains(&id) || n.mastery.is_empty() {
-                    return Err("Allocate the mastery first".into());
+                    return Err(crate::t!("error.mastery_first"));
                 }
                 let m = t.masteries.get(&n.mastery).ok_or("unknown mastery")?;
                 if option as usize >= m.options.len() {
@@ -442,27 +450,30 @@ impl Game {
                     .iter()
                     .any(|(nid, o)| *nid != id && *o == option && t.node(*nid).is_some_and(|x| x.mastery == n.mastery));
                 if taken {
-                    return Err(format!("{} is already chosen elsewhere", m.options[option as usize].0));
+                    return Err(crate::t!(
+                        "error.option_taken",
+                        option = super::lines::mastery_option(&n.mastery, option as usize, &m.options[option as usize].0)
+                    ));
                 }
                 self.hero.masteries.insert(id, option);
                 gear = true;
             }
             GameCmd::Character(i) => {
                 if self.place != Place::Town {
-                    return Err("Heroes wait in the Hall of Heroes, in Emberwatch".into());
+                    return Err(crate::t!("error.heroes_in_town"));
                 }
                 let key = d.characters.get(i as usize).map(|c| c.key.clone()).ok_or("No such hero")?;
                 super::hall::switch(self, sim, &key)?;
             }
             GameCmd::Release(i) => {
                 if self.place != Place::Lab {
-                    return Err("Only in the Menagerie".into());
+                    return Err(crate::t!("error.lab_only"));
                 }
                 super::scene::release_exhibit(self, sim, i as usize)?;
             }
             GameCmd::Reroll => {
                 if self.place != Place::Lab {
-                    return Err("Only in the Menagerie".into());
+                    return Err(crate::t!("error.lab_only"));
                 }
                 super::scene::stock_lab(self, sim, true);
             }

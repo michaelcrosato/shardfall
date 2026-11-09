@@ -192,7 +192,7 @@ impl Game {
                 if self.hero.bag_full() {
                     if self.time - self.full_warned > 3.0 {
                         self.full_warned = self.time;
-                        self.float_text(h + Vec3::Y * 2.3, "Inventory full");
+                        self.float_text(h + Vec3::Y * 2.3, crate::t!("error.bag_full"));
                     }
                     break;
                 }
@@ -222,10 +222,10 @@ impl Game {
         let hero = self.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0).ok_or("no hero")?;
         let g = self.loot.iter().find(|g| g.item.id == id).ok_or("it's gone")?;
         if flat(g.pos - hero).length() > CLICK_REACH {
-            return Err("Too far away".into());
+            return Err(crate::t!("error.pickup_far"));
         }
         if self.hero.bag_full() {
-            return Err("Inventory full".into());
+            return Err(crate::t!("error.bag_full"));
         }
         self.take_ground(sim, id, events);
         Ok(())

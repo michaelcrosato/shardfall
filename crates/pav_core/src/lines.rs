@@ -371,14 +371,27 @@ pub fn logical(id: &str, args: &[(&str, Arg)]) -> String {
 /// else `original` (the data's own text), through the test languages. For names that come
 /// from data whose ids aren't all known when the book is made.
 pub fn or_original(id: &str, original: &str) -> String {
+    let out = or_original_logical(id, original);
+    if rtl() { for_rtl_shaper(&out) } else { out }
+}
+
+/// `or_original` in reading order: for a blank in another line (the whole is laid out once).
+pub fn or_original_logical(id: &str, original: &str) -> String {
     let known = with_state(|s| s.table.contains_key(id) || s.book.lines.contains_key(id));
     if known {
-        return text(id, &[]);
+        return logical(id, &[]);
     }
-    let out = with_state(|s| {
-        if TEST_LANGUAGES.contains(&s.lang.as_str()) { fake_line(&s.lang, original, None) } else { original.to_string() }
-    });
-    if rtl() { for_rtl_shaper(&out) } else { out }
+    with_state(
+        |s| {
+            if TEST_LANGUAGES.contains(&s.lang.as_str()) { fake_line(&s.lang, original, None) } else { original.to_string() }
+        },
+    )
+}
+
+/// Text in reading order (a filled line, a name) laid out to draw: `for_rtl_shaper` in a
+/// right-to-left language, as it is otherwise.
+pub fn display(text: String) -> String {
+    if rtl() { for_rtl_shaper(&text) } else { text }
 }
 
 fn fill(line: &str, args: &[(&str, Arg)], text_lang: &str, rtl: bool, control: fn(&str) -> String) -> String {
@@ -448,7 +461,7 @@ pub fn plural_category(code: &str, n: f64) -> &'static str {
         "fr" | "pt" => {
             if i <= 1 {
                 "one"
-            } else if whole && i != 0 && i % 1_000_000 == 0 {
+            } else if whole && i != 0 && i.is_multiple_of(1_000_000) {
                 "many"
             } else {
                 "other"
@@ -465,7 +478,7 @@ pub fn plural_category(code: &str, n: f64) -> &'static str {
         "es" | "it" => {
             if n == 1.0 {
                 "one"
-            } else if whole && i != 0 && i % 1_000_000 == 0 {
+            } else if whole && i != 0 && i.is_multiple_of(1_000_000) {
                 "many"
             } else {
                 "other"
@@ -507,7 +520,7 @@ pub fn format_int(code: &str, n: i64) -> String {
     for (k, c) in digits.chars().enumerate() {
         let left = len - k;
         if k > 0 && !(spanish && len <= 4) {
-            let cut = if indian { left == 3 || (left > 3 && (left - 3) % 2 == 0) } else { left % 3 == 0 };
+            let cut = if indian { left == 3 || (left > 3 && (left - 3).is_multiple_of(2)) } else { left.is_multiple_of(3) };
             if cut && let Some(g) = group {
                 out.push(g);
             }
@@ -764,10 +777,16 @@ pub fn for_rtl_shaper(line: &str) -> String {
     let digit = |c: char| matches!(c as u32, 0x0660..=0x0669 | 0x06F0..=0x06F9);
     // The Arabic decimal and thousands marks sit inside numbers: neutral, like Latin ones.
     let strong_rtl = |c: char| {
-        matches!(c as u32, 0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFF) && !digit(c) && !matches!(c as u32, 0x066B | 0x066C)
+        matches!(c as u32, 0x0590..=0x08FF | 0xFB1D..=0xFDFF | 0xFE70..=0xFEFF)
+            && !digit(c)
+            && !matches!(c as u32, 0x066B | 0x066C)
     };
     let strong_ltr = |c: char| (c.is_alphanumeric() && !strong_rtl(c)) || digit(c);
-    if !line.chars().find(|c| strong_rtl(*c) || strong_ltr(*c)).is_some_and(strong_rtl) {
+    // harfrust takes the run's direction from its first character with a script of its own:
+    // a letter, or an Arabic-Indic digit (Arabic), never a European digit or punctuation. So a
+    // line such as "12 دينار" is laid out right to left too.
+    let directing = |c: &char| c.is_alphabetic() || digit(*c);
+    if !line.chars().find(directing).is_some_and(|c| strong_rtl(c) || digit(c)) {
         return line.to_string();
     }
     let chars: Vec<char> = line.chars().filter(|c| !matches!(*c, '\u{2066}'..='\u{2069}')).collect();
@@ -857,6 +876,9 @@ mod tests {
         assert_eq!(for_rtl_shaper("اب 12 تث"), "اب 21 تث");
         assert_eq!(for_rtl_shaper("abc 12"), "abc 12");
         assert_eq!(for_rtl_shaper("اب ١٢٬٥ تث"), "اب ٥٬٢١ تث");
+        // A line that starts with a number still runs right to left (its first letter is).
+        assert_eq!(for_rtl_shaper("12% تث"), "21% تث");
+        assert_eq!(for_rtl_shaper("12% abc"), "12% abc");
     }
 
     #[test]
