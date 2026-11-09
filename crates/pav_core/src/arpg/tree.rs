@@ -632,8 +632,7 @@ impl Tree {
             v.push(p.describe());
         }
         for t in &n.tweaks {
-            let name = d.skill_id(&t.skill).map(|i| d.skill(i).name.clone()).unwrap_or_else(|| t.skill.clone());
-            v.push(t.describe(&name));
+            v.push(t.describe(&super::lines::skill_name_of(&d, &t.skill)));
         }
         v
     }

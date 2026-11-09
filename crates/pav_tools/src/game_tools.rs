@@ -1212,7 +1212,7 @@ pub fn t_level(s: &mut Session, a: &Args) -> Result<Output> {
         "boss": if lv.boss_name.is_empty() { None } else { Some(&lv.boss_name) },
         "monsters_alive": g.monsters_alive(),
         "features": by_kind,
-        "spots": g.spots.iter().enumerate().map(|(i, s)| json!({ "i": i, "kind": format!("{:?}", s.kind).to_lowercase(), "name": s.name, "pos": [round3(s.pos.x), round3(s.pos.z)] })).collect::<Vec<_>>(),
+        "spots": g.spots.iter().enumerate().map(|(i, s)| json!({ "i": i, "kind": format!("{:?}", s.kind).to_lowercase(), "name": pav_core::arpg::lines::spot_name(&s.name), "pos": [round3(s.pos.x), round3(s.pos.z)] })).collect::<Vec<_>>(),
         "time": round3(lv.time),
     })))
 }

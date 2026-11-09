@@ -143,13 +143,7 @@ impl TitleScreen {
         let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("title_backdrop")));
         if !self.splash_done {
             // The splash: black, the emblem and the name fading in, then over to the menu.
-            let a = if self.age < SPLASH_IN {
-                1.0
-            } else if self.age < splash_end {
-                1.0
-            } else {
-                1.0 - ((self.age - splash_end) / SPLASH_OUT).clamp(0.0, 1.0)
-            };
+            let a = if self.age < splash_end { 1.0 } else { 1.0 - ((self.age - splash_end) / SPLASH_OUT).clamp(0.0, 1.0) };
             painter.rect_filled(screen, 0.0, Color32::from_black_alpha((255.0 * a) as u8));
             let show = (self.age / SPLASH_IN).clamp(0.0, 1.0) * a;
             let center = screen.center() - Vec2::new(0.0, screen.height() * 0.06);

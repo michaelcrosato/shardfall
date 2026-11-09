@@ -454,7 +454,25 @@ fn table<T: serde::de::DeserializeOwned>(key: &str) -> Result<BTreeMap<String, T
     toml::from_str(&text).map_err(|e| format!("game/{key}.toml: {e}"))
 }
 
+thread_local! {
+    /// Data is being loaded on this thread. The game's line book is made from the data, so
+    /// names made meanwhile (the checks grow creatures) don't look lines up.
+    static LOADING: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// Whether this thread is loading the data (see `LOADING`).
+pub(crate) fn loading() -> bool {
+    LOADING.with(|l| l.get() > 0)
+}
+
 pub fn load() -> Result<Data, String> {
+    LOADING.with(|l| l.set(l.get() + 1));
+    let d = load_files();
+    LOADING.with(|l| l.set(l.get() - 1));
+    d
+}
+
+fn load_files() -> Result<Data, String> {
     let mut skills = Vec::new();
     for (k, mut s) in table::<SkillDef>("skills")? {
         s.key = k;

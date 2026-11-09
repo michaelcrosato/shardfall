@@ -94,7 +94,7 @@ fn marks(s: &Session) -> Vec<Mark> {
             }
             out.push(Mark {
                 kind: "spot",
-                name: sp.name.clone(),
+                name: pav_core::arpg::lines::spot_name(&sp.name),
                 pos: sp.pos + Vec3::Y * 0.3,
                 color: [255, 230, 120],
                 extra: json!({ "spot": i, "use": format!("{:?}", sp.kind).to_lowercase() }),

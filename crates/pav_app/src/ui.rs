@@ -154,9 +154,9 @@ pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
                 .strong(),
             );
             egui::Grid::new("guide_grid").show(ui, |ui| {
-                for (a, k) in if game { crate::input::game_guide(device) } else { guide(device) } {
-                    ui.label(*a);
-                    ui.label(RichText::new(*k).monospace());
+                for (a, k) in if game { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) } {
+                    ui.label(a);
+                    ui.label(RichText::new(k).monospace());
                     ui.end_row();
                 }
             });
@@ -256,9 +256,9 @@ pub fn pause_menu(
             ui.separator();
             ui.label(RichText::new("Controls").strong());
             egui::Grid::new("menu_guide").show(ui, |ui| {
-                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { guide(device) } {
-                    ui.label(*a);
-                    ui.label(RichText::new(*k).monospace());
+                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) } {
+                    ui.label(a);
+                    ui.label(RichText::new(k).monospace());
                     ui.end_row();
                 }
             });
@@ -436,10 +436,10 @@ fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchM
             }
         });
         ui.label(RichText::new("Controls").strong());
-        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { guide(Device::Touch) } {
+        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { crate::input::owned(guide(Device::Touch)) } {
             ui.horizontal_wrapped(|ui| {
-                ui.label(RichText::new(*a).strong());
-                ui.label(*k);
+                ui.label(RichText::new(a).strong());
+                ui.label(k);
             });
         }
     });

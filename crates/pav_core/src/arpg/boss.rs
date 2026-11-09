@@ -93,12 +93,12 @@ pub fn generated(d: &Data, seed: u64, level: u32) -> BossDef {
     let g = Genome::generate(d, seed, level, &opts).ok();
     let big = ["meteor", "earthsplitter", "blizzard", "war_cry", "toxic_rain", "chain_lightning", "leap_slam"];
     let extra = big[rng.below(big.len() as u32) as usize].to_string();
-    let base_name = g.map(|g| g.name).unwrap_or_else(|| "Horror".into());
-    let name = format!("{}, {}", super::genome::rare_name(&mut rng).split(' ').next().unwrap_or("Vor"), base_name);
+    let base_name = g.map(|g| g.name).unwrap_or_else(|| super::lines::piece("boss.generated.kind", &[]));
+    let name = super::genome::generated_boss_name(&mut rng, &base_name);
     BossDef {
         key: format!("gen:{seed}"),
         name,
-        title: "a horror of the depths".into(),
+        title: super::lines::piece("boss.generated.title", &[]),
         lore: String::new(),
         seed,
         archetype: Some(arch),
@@ -108,20 +108,20 @@ pub fn generated(d: &Data, seed: u64, level: u32) -> BossDef {
         phases: vec![
             PhaseDef {
                 at: 0.66,
-                say: "It calls its brood!".into(),
+                say: super::lines::piece("boss.generated.say.brood", &[]),
                 summon: Some(SummonDef { family: "brood".into(), count: 4 }),
                 ..Default::default()
             },
             PhaseDef {
                 at: 0.4,
-                say: "It changes its ways...".into(),
+                say: super::lines::piece("boss.generated.say.change", &[]),
                 skills: vec![extra],
                 mods: BTreeMap::from([("attack_speed".into(), 25.0), ("cast_speed".into(), 25.0)]),
                 ..Default::default()
             },
             PhaseDef {
                 at: 0.15,
-                say: "Enraged!".into(),
+                say: super::lines::piece("boss.generated.say.enraged", &[]),
                 mods: BTreeMap::from([("damage_more".into(), 50.0)]),
                 ..Default::default()
             },
@@ -176,8 +176,8 @@ impl Game {
         let spec = boss_spec(&d, &def, level).ok()?;
         let pack = self.next_pack;
         self.next_pack += 1;
-        let id =
-            super::spawn_actor(sim, self, &spec, &def.name, level, Rarity::Unique, feet, pack, Default::default(), Vec::new())?;
+        let name = super::lines::boss_name(&def);
+        let id = super::spawn_actor(sim, self, &spec, &name, level, Rarity::Unique, feet, pack, Default::default(), Vec::new())?;
         if let Some(a) = self.actors.get_mut(&id) {
             a.boss = Some(BossState { key: def.key.clone(), phase: 0, seed: def.seed, met: false });
             a.immovable = true;
@@ -185,8 +185,11 @@ impl Game {
                 b.aggro = true;
             }
         }
-        let title = if def.title.is_empty() { String::new() } else { format!(", {}", def.title) };
-        self.say(format!("{}{}", def.name, title), 3.5);
+        let title = super::lines::boss_title(&def);
+        self.say(
+            if title.is_empty() { crate::lines::display(name) } else { crate::t!("boss.arrives", name = name, title = title) },
+            3.5,
+        );
         Some(id)
     }
 
@@ -207,7 +210,8 @@ impl Game {
                 if let Some((feet, _)) = feet_of(sim, id) {
                     self.hitstop = self.hitstop.max(0.35);
                     self.shake = (self.shake + 0.9 * sim.config.difficulty.shake).min(1.5);
-                    self.say(if def.title.is_empty() { name } else { format!("{name} · {}", def.title) }, 3.5);
+                    let title = super::lines::boss_title(&def);
+                    self.say(if title.is_empty() { name } else { crate::t!("boss.entrance", name = name, title = title) }, 3.5);
                     self.effects.push(super::combat::Effect {
                         kind: super::combat::EffectKind::Ring,
                         pos: feet,
@@ -251,7 +255,8 @@ impl Game {
             a.recompute();
             let team = a.team;
             if !ph.say.is_empty() {
-                self.say(format!("{}: {}", def.name, ph.say), 3.0);
+                let says = super::lines::boss_say(&def, st.phase as usize, &ph.say);
+                self.say(crate::t!("boss.phase", name = super::lines::boss_name(&def), says = says), 3.0);
             }
             self.effects.push(Effect {
                 kind: EffectKind::Ring,
@@ -390,7 +395,7 @@ impl Game {
                     a.buffs.push(Buff { kind: BuffKind::Fury, name: "Enraged".into(), time: 1.0e6, mods });
                     a.recompute();
                     if let Some((feet, h)) = feet_of(sim, id) {
-                        self.float_text(feet + Vec3::Y * (h + 0.6), "Enraged!");
+                        self.float_text(feet + Vec3::Y * (h + 0.6), crate::t!("float.enraged"));
                     }
                 }
             }

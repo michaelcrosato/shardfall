@@ -199,8 +199,8 @@ impl LevelState {
         Self {
             depth: plan.depth,
             label: plan.label(),
-            name: plan.name.clone(),
-            about: plan.about.clone(),
+            name: super::lines::plan_name(plan),
+            about: super::lines::plan_about(plan),
             endless: plan.endless,
             mechanics: plan.mechanics.clone(),
             mood: plan.mood(),
@@ -405,7 +405,7 @@ pub(crate) fn update_level(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Ve
             }));
             sim.spawn(Spawn::new("~beacon", at + Vec3::Y * 7.0).visual(v));
             events.push(SimEvent::Blast { pos: at, element: 3 });
-            g.say(format!("{} is slain. The way down is open.", lv.boss_name), 3.5);
+            g.say(crate::t!("msg.boss_slain", boss = lv.boss_name.clone()), 3.5);
         }
     }
     g.level = Some(lv);
@@ -426,7 +426,7 @@ fn falls(g: &mut Game, sim: &mut Sim, lv: &mut LevelState, events: &mut Vec<SimE
             let loss = a.sheet.life_max * 0.1;
             a.life = (a.life - loss).max(1.0);
             a.iframes = a.iframes.max(1.0);
-            g.float_text(lv.safe + Vec3::Y * 2.2, "Fell!");
+            g.float_text(lv.safe + Vec3::Y * 2.2, crate::t!("float.fell"));
             events.push(SimEvent::Land { pos: lv.safe, speed: 6.0 });
         } else {
             sim.set_position(id, Vec3::new(f.x, 0.05, f.z));
@@ -436,7 +436,7 @@ fn falls(g: &mut Game, sim: &mut Sim, lv: &mut LevelState, events: &mut Vec<SimE
                     a.last_hit = hero;
                 }
             }
-            g.float_text(Vec3::new(f.x, 1.8, f.z), "Fell!");
+            g.float_text(Vec3::new(f.x, 1.8, f.z), crate::t!("float.fell"));
             g.kill(sim, id, events);
         }
     }
@@ -484,7 +484,7 @@ fn feature(
             let Some((h, _)) = near(1.7) else { return };
             lv.features[i].kind = FeatureKind::Shrine { boon, used: true };
             give_buff(g, sim, h, boon.name(), BuffKind::Custom, 15.0, boon.mods(), 30.0);
-            g.float_text(pos + Vec3::Y * 2.4, format!("Shrine of {}: {}", boon.name(), boon.text()));
+            g.float_text(pos + Vec3::Y * 2.4, crate::t!(&format!("shrine.{}", boon.name().to_lowercase())));
             events.push(SimEvent::Spell { pos, element: 3 });
             g.effects.push(ring(pos, 3.0, Color::hex(boon.color()).0, 0.6));
             if let Some(e) = lv.features[i].entity.and_then(|e| sim.state.entities.get_mut(e)) {
@@ -670,7 +670,7 @@ fn feature(
             give_buff(g, sim, h, "Kindled", BuffKind::Custom, 30.0, kindled, 45.0);
             g.effects.push(ring(pos, 7.5, [1.0, 0.6, 0.25], 0.6));
             events.push(SimEvent::Blast { pos, element: 1 });
-            g.float_text(pos + Vec3::Y * 2.0, "The well blazes: Kindled");
+            g.float_text(pos + Vec3::Y * 2.0, crate::t!("float.well"));
         }
         FeatureKind::Chest { state, wave, keepers, spot, t } => chest(g, sim, lv, i, state, wave, keepers, spot, t, dt, events),
         FeatureKind::Bubble { radius, hands } => {
@@ -837,13 +837,13 @@ fn chest(
                 keepers.extend(super::world::spawn_pack(g, sim, &mut rng, &lv.pack, at, level, *r, true));
                 events.push(SimEvent::Spell { pos: at, element: 4 });
             }
-            g.say(format!("The keepers come: wave {wave} of 3"), 2.0);
+            g.say(crate::t!("msg.keepers", wave = wave, waves = 3), 2.0);
             t = 1.0;
         } else {
             state = ChestState::Open;
             open_chest_loot(g, sim, lv, i, events);
             if let Some(s) = g.spots.get_mut(spot) {
-                s.name = "Opened Chest".into();
+                s.name = "spot.chest_open".into();
                 s.reach = 0.0;
             }
         }
@@ -881,7 +881,7 @@ fn open_chest_loot(g: &mut Game, sim: &mut Sim, lv: &mut LevelState, i: usize, e
         g.drop_loot(sim, at, level, r, events);
     }
     events.push(SimEvent::LevelUp { pos });
-    g.say("The vault opens!", 2.5);
+    g.say(crate::t!("msg.vault_opens"), 2.5);
 }
 
 /// The hero asks to open a cursed chest (interact).
@@ -900,10 +900,10 @@ pub(crate) fn open_chest(g: &mut Game, spot: usize) -> Result<(), String> {
         _ => return Err("already opened".into()),
     }
     if let Some(s) = g.spots.get_mut(spot) {
-        s.name = "Cursed Chest (keepers!)".into();
+        s.name = "spot.chest_awake".into();
         s.reach = 0.0;
     }
-    g.say("The curse wakes...", 1.5);
+    g.say(crate::t!("msg.curse_wakes"), 1.5);
     Ok(())
 }
 
@@ -911,12 +911,12 @@ pub(crate) fn open_chest(g: &mut Game, spot: usize) -> Result<(), String> {
 pub(crate) fn use_exit(g: &mut Game) -> Result<(), String> {
     let lv = g.level.as_ref().ok_or("no way down here")?;
     if !lv.exit_open {
-        return Err(format!("Sealed while {} lives", lv.boss_name));
+        return Err(crate::t!("error.sealed", boss = lv.boss_name.clone()));
     }
     let next = lv.depth + 1;
     if lv.has_boss && next > g.hero.max_depth {
         g.hero.bonus_points += 1;
-        g.say("A boss level conquered: +1 passive point", 3.0);
+        g.say(crate::t!("msg.boss_point"), 3.0);
     }
     g.hero.max_depth = g.hero.max_depth.max(next);
     g.inv_changed();
@@ -998,11 +998,18 @@ impl LevelState {
         }
         LevelView {
             depth: self.depth,
-            label: self.label.clone(),
-            name: self.name.clone(),
-            about: self.about.clone(),
+            label: super::lines::piece(
+                if self.endless { "level.label.endless" } else { "level.label" },
+                &[("depth", self.depth.into())],
+            ),
+            name: if self.endless { self.name.clone() } else { super::lines::level_name(self.depth, &self.name) },
+            about: if self.endless { self.about.clone() } else { super::lines::level_about(self.depth, &self.about) },
             endless: self.endless,
-            mechanics: self.mechanics.iter().map(|m| (m.name().to_string(), m.hint().to_string())).collect(),
+            mechanics: self
+                .mechanics
+                .iter()
+                .map(|m| (super::lines::mechanic_name(*m), super::lines::mechanic_hint(*m)))
+                .collect(),
             mood: self.mood.clone(),
             rooms: self
                 .layout

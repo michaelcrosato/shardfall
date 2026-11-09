@@ -113,13 +113,13 @@ pub fn build_lab(sim: &mut Sim, game: Option<Game>) {
     g.place = Place::Lab;
     g.spots.push(Spot {
         kind: SpotKind::Portal,
-        name: "Portal".into(),
+        name: "spot.portal".into(),
         pos: Vec3::new(0.0, 0.0, 3.5),
         reach: 2.8,
         info: Vec::new(),
     });
     stock_lab(&mut g, sim, false);
-    g.say("The Menagerie: every creature here was grown from a seed", 3.5);
+    g.say(crate::t!("msg.lab"), 3.5);
     sim.state.game = Some(g);
 }
 
@@ -139,25 +139,39 @@ pub fn stock_lab(g: &mut Game, sim: &mut Sim, reroll: bool) {
             Some(k) => {
                 let f = d.family(k).unwrap();
                 let card = vec![
-                    format!("Designed family '{}'", f.key),
-                    format!("{} body · {:?} brain", f.body.name(), f.archetype),
-                    format!("Skills: {}", f.skills.join(", ")),
+                    crate::t!("lab.family", key = f.key.as_str()),
+                    crate::t!("lab.body", body = f.body.name(), brain = format!("{:?}", f.archetype)),
+                    crate::t!("lab.skills", skills = super::lines::list_comma(&f.skills)),
                 ];
                 (format!("family:{k}"), f.spec(), card)
             }
             None => {
                 let seed = g.lab_seed.wrapping_mul(1000).wrapping_add(i as u64);
                 let Ok(gn) = super::genome::Genome::generate(&d, seed, LAB_LEVEL, &Default::default()) else { continue };
-                let parts: Vec<&str> = gn.puppet.parts.iter().map(|p| p.kind.name()).collect();
+                let parts: Vec<String> = gn.puppet.parts.iter().map(|p| p.kind.name().to_string()).collect();
+                let two = |v: f32| ((v as f64) * 100.0).round() / 100.0;
                 let card = vec![
-                    format!("Genome seed {seed}"),
-                    format!("{} body · {} ({:?} brain) · {}", gn.body.name(), gn.archetype, gn.brain, gn.element.name()),
-                    format!(
-                        "Size {:.2} · life x{:.2} · damage x{:.2} · speed x{:.2}",
-                        gn.puppet.scale, gn.life, gn.damage, gn.speed
+                    crate::t!("lab.seed", seed = seed.to_string()),
+                    crate::t!(
+                        "lab.genome",
+                        body = gn.body.name(),
+                        kind = gn.archetype.as_str(),
+                        brain = format!("{:?}", gn.brain),
+                        element = super::lines::element_name(gn.element)
                     ),
-                    format!("Parts: {}", if parts.is_empty() { "none".to_string() } else { parts.join(", ") }),
-                    format!("Skills: {}", gn.skills.join(", ")),
+                    crate::t!(
+                        "lab.size",
+                        size = two(gn.puppet.scale),
+                        life = two(gn.life),
+                        damage = two(gn.damage),
+                        speed = two(gn.speed)
+                    ),
+                    if parts.is_empty() {
+                        crate::t!("lab.parts_none")
+                    } else {
+                        crate::t!("lab.parts", parts = super::lines::list_comma(&parts))
+                    },
+                    crate::t!("lab.skills", skills = super::lines::list_comma(&gn.skills)),
                 ];
                 (format!("genome:{seed}"), gn.spec(&d), card)
             }
@@ -196,7 +210,7 @@ pub fn release_exhibit(g: &mut Game, sim: &mut Sim, spot: usize) -> Result<(), S
     if let Some(b) = g.actors.get_mut(&id).and_then(|a| a.brain.as_mut()) {
         b.aggro = true;
     }
-    g.say(format!("{} is loose!", spec.name), 2.0);
+    g.say(crate::t!("msg.loose", name = spec.name.as_str()), 2.0);
     Ok(())
 }
 
@@ -282,12 +296,12 @@ fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
         g.arena = Some(ArenaState { wave: 0, next_in: 2.0, center: Vec3::ZERO });
         g.spots.push(Spot {
             kind: SpotKind::Portal,
-            name: "Portal to Emberwatch".into(),
+            name: "spot.portal_town".into(),
             pos: Vec3::new(0.0, 0.0, -17.5),
             reach: 2.6,
             info: Vec::new(),
         });
-        g.say("The Proving Grounds: survive the waves", 3.0);
+        g.say(crate::t!("msg.arena"), 3.0);
     }
 }
 
@@ -428,27 +442,15 @@ pub enum NpcRole {
 }
 
 impl NpcRole {
-    /// What they say when the hero comes near.
+    /// What they say when the hero comes near (line ids: game/lines.toml).
     fn lines(self) -> &'static [&'static str] {
         match self {
-            NpcRole::Smith => {
-                &["Need an edge on that blade?", "Fresh steel, still warm.", "Bring me something rare, I pay well."]
-            }
-            NpcRole::Gambler => &[
-                "Feeling lucky? Pick a slot.",
-                "Every box holds something. Sometimes something wonderful.",
-                "The house usually wins. Usually.",
-            ],
-            NpcRole::Alchemist => &["A stronger brew for the depths, dear?", "Drink deep, come back alive.", "Mind the fumes."],
-            NpcRole::Captain => &[
-                "The portal takes you to any depth you've reached.",
-                "Twelve levels down. Past them the Depths never end.",
-                "Watch the gates. Watch the floor. Watch everything.",
-            ],
-            NpcRole::Villager => {
-                &["Good day!", "Did you hear something below?", "Lovely evening for a descent.", "Mind the dog."]
-            }
-            NpcRole::Dog => &["Woof!", "*wags*", "*sniffs your boots*"],
+            NpcRole::Smith => &["npc.smith.0", "npc.smith.1", "npc.smith.2"],
+            NpcRole::Gambler => &["npc.gambler.0", "npc.gambler.1", "npc.gambler.2"],
+            NpcRole::Alchemist => &["npc.alchemist.0", "npc.alchemist.1", "npc.alchemist.2"],
+            NpcRole::Captain => &["npc.captain.0", "npc.captain.1", "npc.captain.2"],
+            NpcRole::Villager => &["npc.villager.0", "npc.villager.1", "npc.villager.2", "npc.villager.3"],
+            NpcRole::Dog => &["npc.dog.0", "npc.dog.1", "npc.dog.2"],
         }
     }
 }
@@ -675,20 +677,20 @@ pub fn build_town(sim: &mut Sim, game: Option<Game>) {
     }
     let mut g = sim.state.game.take().unwrap();
     g.place = Place::Town;
-    g.spots.push(Spot { kind: SpotKind::Vendor, name: "Hilda the Smith".into(), pos: smith_feet, reach: 3.2, info: Vec::new() });
-    g.spots.push(Spot { kind: SpotKind::Stash, name: "Stash".into(), pos: chest, reach: 2.6, info: Vec::new() });
-    g.spots.push(Spot { kind: SpotKind::Portal, name: "Portal".into(), pos: portal_at, reach: 2.8, info: Vec::new() });
+    g.spots.push(Spot { kind: SpotKind::Vendor, name: "spot.smith".into(), pos: smith_feet, reach: 3.2, info: Vec::new() });
+    g.spots.push(Spot { kind: SpotKind::Stash, name: "spot.stash".into(), pos: chest, reach: 2.6, info: Vec::new() });
+    g.spots.push(Spot { kind: SpotKind::Portal, name: "spot.portal".into(), pos: portal_at, reach: 2.8, info: Vec::new() });
     g.npcs.push(Npc::new(smith, NpcRole::Smith, "Hilda", std::f32::consts::FRAC_PI_2, anvil + Vec3::Y * 0.8));
     g.spots.push(Spot {
         kind: SpotKind::Gamble,
-        name: "Odo the Gambler".into(),
+        name: "spot.gambler".into(),
         pos: table + Vec3::new(0.0, 0.0, 1.2),
         reach: 3.0,
         info: Vec::new(),
     });
     g.spots.push(Spot {
         kind: SpotKind::Alchemist,
-        name: "Mother Wren".into(),
+        name: "spot.alchemist".into(),
         pos: cauldron + Vec3::new(1.2, 0.0, -0.6),
         reach: 3.0,
         info: Vec::new(),
@@ -741,9 +743,9 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
                 }
                 let lines = n.role.lines();
                 let i = sim.state.rng.below(lines.len() as u32) as usize;
-                let mut line = lines[i].to_string();
+                let mut line = super::lines::piece(lines[i], &[]);
                 if n.role == NpcRole::Captain && i == 0 && deepest > 0 {
-                    line = format!("You've been as deep as level {deepest}. The portal remembers.");
+                    line = super::lines::piece("npc.captain.deepest", &[("depth", deepest.into())]);
                 }
                 greet.push((feet, n.name.clone(), line));
             }
@@ -813,7 +815,14 @@ pub fn update_npcs(g: &mut Game, sim: &mut Sim, dt: f32, events: &mut Vec<SimEve
         }
     }
     for (at, name, line) in greet {
-        g.float_text(at + Vec3::Y * 2.3, format!("{name}: \"{line}\""));
+        g.float_text(
+            at + Vec3::Y * 2.3,
+            crate::t!(
+                "npc.says",
+                name = super::lines::data_line(&format!("npc.{}", super::lines::key_id(&name)), &name),
+                line = line
+            ),
+        );
     }
 }
 
@@ -1054,7 +1063,7 @@ pub fn update_arena(g: &mut Game, sim: &mut Sim, dt: f32) {
             ar.wave += 1;
             spawn_wave(g, sim, &ar);
             ar.next_in = 3.0;
-            g.say(format!("Wave {}", ar.wave), 2.0);
+            g.say(crate::t!("msg.wave", wave = ar.wave), 2.0);
         }
     }
     g.arena = Some(ar);

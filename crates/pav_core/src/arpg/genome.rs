@@ -397,20 +397,28 @@ impl Genome {
         if skills.is_empty() {
             return Err(format!("genome archetype '{arch_key}' has no skills"));
         }
-        // Name: element word + body word (+ archetype word).
+        // Name: element word + body word (+ archetype word), each a line, joined by a line:
+        // the archetype's word follows the body's ("Frost Ghoul Shaman"), or a lowercase one
+        // ends it ("Bile Ghoulling").
         let names = &gd.names;
-        let w = |rng: &mut Rng, k: &str| names.get(k).and_then(|v| pick(rng, v).cloned()).unwrap_or_default();
-        let e = w(&mut rng, &element.name().to_lowercase());
-        let b = w(&mut rng, body_key(body));
-        let a = w(&mut rng, &arch_key);
-        let mut name = format!("{e} {b}").trim().to_string();
-        if !a.is_empty() {
-            if a.chars().next().is_some_and(|c| c.is_lowercase()) {
-                name.push_str(&a);
-            } else {
-                name = format!("{name} {a}");
+        let w = |rng: &mut Rng, k: &str| match names.get(k).filter(|v| !v.is_empty()) {
+            Some(v) => {
+                let i = rng.below(v.len() as u32) as usize;
+                (v[i].clone(), super::lines::genome_word(k, i, &v[i]))
             }
-        }
+            None => (String::new(), String::new()),
+        };
+        let (_, e) = w(&mut rng, &element.name().to_lowercase());
+        let (_, b) = w(&mut rng, body_key(body));
+        let (a_word, a) = w(&mut rng, &arch_key);
+        let id = if a_word.is_empty() {
+            "monster.name.generated_short"
+        } else if a_word.chars().next().is_some_and(|c| c.is_lowercase()) {
+            "monster.name.generated_suffix"
+        } else {
+            "monster.name.generated"
+        };
+        let name = super::lines::piece(id, &[("element", e.into()), ("body", b.into()), ("kind", a.into())]).trim().to_string();
         // Bigger is tougher and slower.
         let bulk = (size / 1.0).powf(1.5);
         Ok(Genome {
@@ -461,7 +469,7 @@ impl super::data::FamilyDef {
     pub fn spec(&self) -> MonsterSpec {
         MonsterSpec {
             key: self.key.clone(),
-            name: self.name.clone(),
+            name: super::lines::family_name(self),
             puppet: self.puppet.clone(),
             brain: self.archetype,
             skills: self.skill_ids.clone(),
@@ -529,33 +537,52 @@ pub fn apply_affixes(d: &Data, spec: &mut MonsterSpec, keys: &[String]) -> (Mods
         if !a.tint.is_empty() {
             spec.puppet.accent = a.tint.clone();
         }
-        names.push(a.name.clone());
+        names.push(super::lines::monster_affix_name(&a.key, &a.name));
     }
     (mods, names)
 }
 
-/// A rare monster's own name ("Gorefang the Unyielding").
+/// The parts of rare monsters' own names (lines `rare_monster.first|second|epithet.<i>`).
+pub const RARE_FIRST: &[&str] =
+    &["Gore", "Grim", "Rot", "Skull", "Dread", "Blood", "Ash", "Hollow", "Vile", "Iron", "Black", "Wrath"];
+pub const RARE_SECOND: &[&str] =
+    &["fang", "maw", "gut", "claw", "hide", "spine", "eye", "tooth", "heart", "horn", "scale", "bane"];
+pub const RARE_EPITHET: &[&str] = &[
+    "the Unyielding",
+    "the Ravenous",
+    "the Cruel",
+    "the Undying",
+    "the Hungering",
+    "the Vast",
+    "the Swift",
+    "the Wretched",
+    "the Burning",
+    "the Patient",
+];
+
+/// A rare monster's own name ("Gorefang the Unyielding"), in the language in use.
 pub fn rare_name(rng: &mut Rng) -> String {
-    const A: &[&str] = &["Gore", "Grim", "Rot", "Skull", "Dread", "Blood", "Ash", "Hollow", "Vile", "Iron", "Black", "Wrath"];
-    const B: &[&str] = &["fang", "maw", "gut", "claw", "hide", "spine", "eye", "tooth", "heart", "horn", "scale", "bane"];
-    const C: &[&str] = &[
-        "the Unyielding",
-        "the Ravenous",
-        "the Cruel",
-        "the Undying",
-        "the Hungering",
-        "the Vast",
-        "the Swift",
-        "the Wretched",
-        "the Burning",
-        "the Patient",
-    ];
-    format!(
-        "{}{} {}",
-        A[rng.below(A.len() as u32) as usize],
-        B[rng.below(B.len() as u32) as usize],
-        C[rng.below(C.len() as u32) as usize]
-    )
+    let given = rare_given_name(rng);
+    let i = rng.below(RARE_EPITHET.len() as u32) as usize;
+    let epithet = super::lines::data_line(&format!("rare_monster.epithet.{i}"), RARE_EPITHET[i]);
+    super::lines::piece("monster.name.rare", &[("name", given.into()), ("epithet", epithet.into())])
+}
+
+/// A grown boss's name ("Gorefang, Ember Ghoul"): a rare name's first part and what it is. It
+/// draws from `rng` as `rare_name` does.
+pub fn generated_boss_name(rng: &mut Rng, kind: &str) -> String {
+    let given = rare_given_name(rng);
+    rng.below(RARE_EPITHET.len() as u32);
+    super::lines::piece("boss.name.generated", &[("name", given.into()), ("kind", kind.into())])
+}
+
+/// The first part of a rare monster's name ("Gorefang"), in the language in use.
+pub fn rare_given_name(rng: &mut Rng) -> String {
+    let a = rng.below(RARE_FIRST.len() as u32) as usize;
+    let b = rng.below(RARE_SECOND.len() as u32) as usize;
+    let first = super::lines::data_line(&format!("rare_monster.first.{a}"), RARE_FIRST[a]);
+    let second = super::lines::data_line(&format!("rare_monster.second.{b}"), RARE_SECOND[b]);
+    super::lines::piece("monster.name.rare_given", &[("first", first.into()), ("second", second.into())])
 }
 
 #[cfg(test)]

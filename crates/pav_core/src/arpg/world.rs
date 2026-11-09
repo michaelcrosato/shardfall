@@ -274,7 +274,7 @@ impl LevelPlan {
     }
     /// "Level 3" or "Depth 17".
     pub fn label(&self) -> String {
-        if self.endless { format!("Depth {}", self.depth) } else { format!("Level {}", self.depth) }
+        super::lines::piece(if self.endless { "level.label.endless" } else { "level.label" }, &[("depth", self.depth.into())])
     }
 }
 
@@ -550,19 +550,16 @@ pub fn build_level_with(sim: &mut Sim, depth: u32, game: Option<Game>, dress: bo
     g.place = Place::Level(depth);
     g.hero.max_depth = g.hero.max_depth.max(depth);
     g.inv_changed();
-    g.spots.push(Spot {
-        kind: SpotKind::Portal,
-        name: "Portal to Emberwatch".into(),
-        pos: portal_at,
-        reach: 2.8,
-        info: Vec::new(),
-    });
+    g.spots.push(Spot { kind: SpotKind::Portal, name: "spot.portal_town".into(), pos: portal_at, reach: 2.8, info: Vec::new() });
     let exit_spot = g.spots.len();
     g.spots.push(Spot {
         kind: SpotKind::Exit,
-        name: format!(
-            "The way down ({})",
-            if plan.endless || depth >= designed(&d) { format!("Depth {}", depth + 1) } else { format!("Level {}", depth + 1) }
+        name: crate::t!(
+            "spot.exit",
+            place = super::lines::piece(
+                if plan.endless || depth >= designed(&d) { "level.label.endless" } else { "level.label" },
+                &[("depth", (depth + 1).into())]
+            )
         ),
         pos: exit_at,
         reach: 3.0,
@@ -580,7 +577,7 @@ pub fn build_level_with(sim: &mut Sim, depth: u32, game: Option<Game>, dress: bo
         st.seal = Some(b.exit_seal(exit_at));
     }
     let mut g = b.game.take().unwrap();
-    g.say(format!("{} · {}", plan.label(), plan.name), 4.0);
+    g.say(crate::t!("level.card", label = plan.label(), name = super::lines::plan_name(&plan)), 4.0);
     g.level = Some(Box::new(st));
     b.sim.state.game = Some(Box::new(g));
     // Last, so it never moves anything (game/props.toml).
@@ -1519,10 +1516,10 @@ impl<'a> Builder<'a> {
         let spot = g.spots.len();
         g.spots.push(Spot {
             kind: SpotKind::Chest,
-            name: "Cursed Chest".into(),
+            name: "spot.chest".into(),
             pos: at,
             reach: 2.4,
-            info: vec!["Open it and its keepers come, three waves of them.".into(), "Survive them for the treasure.".into()],
+            info: vec![crate::t!("spot.chest.about"), crate::t!("spot.chest.reward")],
         });
         self.feature(
             FeatureKind::Chest { state: ChestState::Closed, wave: 0, keepers: Vec::new(), spot, t: 0.0 },
@@ -1626,7 +1623,7 @@ impl<'a> Builder<'a> {
         let base = super::stats::Base { life: 1.0, mana: 0.0, life_regen: 0.0, mana_regen: 0.0, armor: 0.0, res: 0.0 };
         let mut a = super::combat::Actor::new(
             Team::Neutral,
-            "Powder Keg",
+            &super::lines::piece("feature.keg", &[]),
             level,
             super::stats::Sheet::compute(base, &Default::default()),
         );
@@ -1666,7 +1663,7 @@ impl<'a> Builder<'a> {
         let base = super::stats::Base { life, mana: 0.0, life_regen: 0.0, mana_regen: 0.0, armor: level as f32 * 4.0, res: 20.0 };
         let mut a = super::combat::Actor::new(
             Team::Monster,
-            "Ward Totem",
+            &super::lines::piece("feature.totem", &[]),
             level,
             super::stats::Sheet::compute(base, &Default::default()),
         );

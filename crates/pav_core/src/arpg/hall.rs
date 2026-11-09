@@ -158,7 +158,7 @@ pub fn build(sim: &mut Sim, g: &mut Game) {
         g.performers.push(Performer { id, character: c.key.clone(), reel, index: start, t: f32::MAX });
         g.spots.push(Spot {
             kind: SpotKind::Hero,
-            name: c.full_name(),
+            name: super::lines::hero_full_name(c),
             pos: at + Vec3::new(0.0, 0.0, 1.3),
             reach: 2.2,
             info: Vec::new(),
@@ -177,13 +177,14 @@ pub fn describe(g: &mut Game) {
     let d = data();
     let playing = g.hero.character_key(&d).to_string();
     for (s, c) in g.spots.iter_mut().filter(|s| s.kind == SpotKind::Hero).zip(&d.characters) {
-        let mut info = vec![c.about.clone(), motion_line(c)];
+        let name = super::lines::hero_name(c);
+        let mut info = vec![super::lines::hero_about(c), motion_line(c)];
         info.push(if c.key == playing {
-            format!("You are playing {} (level {}).", c.name, g.hero.level)
+            crate::t!("hall.playing", name = name, level = g.hero.level)
         } else {
             match g.roster.get(&c.key) {
-                Some(h) => format!("{} waits here at level {}, deepest depth {}.", c.name, h.level, h.max_depth),
-                None => format!("A new hero: {} starts at level 1. The stash comes along.", c.name),
+                Some(h) => crate::t!("hall.waiting", name = name, level = h.level, depth = h.max_depth),
+                None => crate::t!("hall.new", name = name),
             }
         });
         s.info = info;
@@ -194,26 +195,24 @@ pub fn describe(g: &mut Game) {
 pub fn motion_line(c: &CharacterDef) -> String {
     let p = &c.puppet;
     let short = |n: &str| n.rsplit('/').next().unwrap_or(n).replace('_', " ");
+    // Each bit a line (the clips' names are the motion libraries' own), the list a line.
+    let piece = super::lines::piece;
     let mut bits = Vec::new();
     if !p.idle_clip.is_empty() {
-        bits.push(format!("idle: {}", short(&p.idle_clip)));
+        bits.push(piece("hall.motion.idle", &[("clip", short(&p.idle_clip).into())]));
     }
     if !p.run_clip.is_empty() {
-        bits.push(format!("run: {}", short(&p.run_clip)));
+        bits.push(piece("hall.motion.run", &[("clip", short(&p.run_clip).into())]));
     }
     let strikes: usize = p.attack_clips.values().map(|s| s.names().len()).sum();
     let moves: usize = p.attack_moves.values().map(|s| s.names().len()).sum();
     if strikes + moves > 0 {
-        bits.push(format!("{strikes} captured strikes, {moves} moves of their own"));
+        bits.push(piece("hall.motion.strikes", &[("strikes", strikes.into()), ("moves", moves.into())]));
     }
     if !p.dodge_clip.is_empty() {
-        bits.push(format!("dodge: {}", short(&p.dodge_clip)));
+        bits.push(piece("hall.motion.dodge", &[("clip", short(&p.dodge_clip).into())]));
     }
-    if bits.is_empty() {
-        "Moves with the engine's procedural animation.".into()
-    } else {
-        format!("Moves: {}.", bits.join(" · "))
-    }
+    if bits.is_empty() { crate::t!("hall.motion.procedural") } else { crate::t!("hall.motion", moves = bits.join(" · ")) }
 }
 
 /// Plays every performer's showreel.
@@ -264,7 +263,7 @@ pub fn switch(g: &mut Game, sim: &mut Sim, key: &str) -> Result<(), String> {
     let c = d.character(key).ok_or_else(|| format!("no hero '{key}'"))?;
     let playing = g.hero.character_key(&d).to_string();
     if c.key == playing {
-        return Err(format!("You are already {}", c.name));
+        return Err(crate::t!("error.already_hero", name = super::lines::hero_name(c)));
     }
     let mut next = g.roster.remove(&c.key).unwrap_or_else(|| Hero::new_character(&d, &c.key));
     // The stash is shared: it comes along, its items numbered for the new hero's bags.
@@ -289,7 +288,7 @@ pub fn switch(g: &mut Game, sim: &mut Sim, key: &str) -> Result<(), String> {
     }
     g.inv_changed();
     describe(g);
-    g.say(format!("{} steps forward", c.full_name()), 2.5);
+    g.say(crate::t!("hall.steps_forward", name = super::lines::hero_full_name(c)), 2.5);
     Ok(())
 }
 

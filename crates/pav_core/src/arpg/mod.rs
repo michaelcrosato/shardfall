@@ -1100,12 +1100,12 @@ impl Game {
         if t.team == Team::Hero && dmg.attack {
             let rng = &mut sim.state.rng;
             if rng.f32() * 100.0 < t.sheet.evasion {
-                self.float_text(head, "Evade");
+                self.float_text(head, crate::t!("float.evade"));
                 return 0.0;
             }
             if rng.f32() * 100.0 < t.sheet.block {
                 let nova = t.power(powers::PowerKind::BlockNova);
-                self.float_text(head, "Block");
+                self.float_text(head, crate::t!("float.block"));
                 events.push(SimEvent::Block { pos: feet });
                 if let Some(p) = nova {
                     self.block_nova(sim, target, feet, p, events);
@@ -1201,7 +1201,7 @@ impl Game {
         let kind = if dmg.crit { FloatKind::Crit(dmg.main_element() as u8) } else { FloatKind::Damage(dmg.main_element() as u8) };
         self.float(head, total, kind);
         if shattered {
-            self.float_text(head + Vec3::Y * 0.4, "Shatter!");
+            self.float_text(head + Vec3::Y * 0.4, crate::t!("float.shatter"));
             events.push(SimEvent::Break { pos: feet + Vec3::Y * 0.6 });
         }
         // Knockback and flinch.
@@ -1268,12 +1268,12 @@ impl Game {
         let bonus = (xp * (0.03 * (n - 5) as f64).min(0.75)).round();
         let ups = self.hero.gain_xp(bonus);
         let name = match n {
-            6..=11 => "Rampage",
-            12..=24 => "Massacre",
-            _ => "Annihilation",
+            6..=11 => "float.streak.rampage",
+            12..=24 => "float.streak.massacre",
+            _ => "float.streak.annihilation",
         };
         if let Some(hf) = self.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0) {
-            self.float_text(hf + Vec3::Y * 2.7, format!("{name}! x{n}  +{bonus} xp"));
+            self.float_text(hf + Vec3::Y * 2.7, crate::t!(name, kills = n, xp = bonus));
             events.push(SimEvent::Coin { pos: hf });
             if ups > 0 {
                 refresh_hero(sim, self, true);
@@ -1343,7 +1343,7 @@ impl Game {
         if team == Team::Hero {
             self.hero.deaths += 1;
             self.respawn = 3.0;
-            self.say("You fell. Rising again...", 3.0);
+            self.say(crate::t!("msg.fell"), 3.0);
             return;
         }
         if team != Team::Monster {
@@ -1371,21 +1371,13 @@ impl Game {
         let rng = &mut sim.state.rng;
         if self.hero.potions < self.hero.potion_max && rng.f32() < [0.06, 0.2, 0.6, 1.0][rarity as usize] {
             self.hero.potions += 1;
-            self.float_text(feet + Vec3::Y * 1.6, "+ Potion");
+            self.float_text(feet + Vec3::Y * 1.6, crate::t!("float.potion"));
         }
         if ups > 0 {
             let hf = feet_of(sim, hid).map(|f| f.0).unwrap_or(feet);
             refresh_hero(sim, self, true);
             self.level_flash = 0.0;
-            self.say(
-                format!(
-                    "Level {}  ·  {} passive point{} (P)",
-                    self.hero.level,
-                    self.hero.points(),
-                    if self.hero.points() == 1 { "" } else { "s" }
-                ),
-                2.5,
-            );
+            self.say(crate::t!("msg.level_up", level = self.hero.level, count = self.hero.points()), 2.5);
             events.push(SimEvent::LevelUp { pos: hf });
             self.hero_gesture(sim, Self::level_up_gesture);
         }
@@ -1619,7 +1611,7 @@ impl Game {
     pub fn frame(&self, sim: &Sim) -> GameFrame {
         let d = data();
         let hero = self.hero_id.and_then(|h| self.actors.get(&h)).map(|a| HeroHud {
-            name: self.hero.name.clone(),
+            name: d.character(self.hero.character_key(&d)).map(lines::hero_name).unwrap_or_else(|| self.hero.name.clone()),
             level: self.hero.level,
             xp: self.hero.xp,
             xp_next: hero::xp_to_next(self.hero.level),
@@ -1640,7 +1632,7 @@ impl Game {
                         let cost = s.cost * a.sheet.mana_cost;
                         SlotHud {
                             key: k.clone(),
-                            name: s.name.clone(),
+                            name: lines::skill_name(s),
                             cooldown: a.cooldown(id),
                             cooldown_max: s.cooldown / a.sheet.cooldown.max(0.1),
                             cost,
@@ -1700,7 +1692,7 @@ impl Game {
                 LootView {
                     id: g.item.id,
                     pos: g.pos,
-                    name: g.item.name.clone(),
+                    name: lines::item_name(&d, &g.item),
                     rarity: g.item.rarity,
                     slot: base.map(|b| b.slot).unwrap_or_default(),
                     color: base.and_then(|b| crate::color::Color::try_hex(&b.color)).map(|c| c.0).unwrap_or([0.8; 3]),
@@ -1719,7 +1711,7 @@ impl Game {
                 let def = boss::boss_def(&d, &st.key, a.level)?;
                 Some(BossView {
                     name: a.name.clone(),
-                    title: def.title.clone(),
+                    title: lines::boss_title(&def),
                     life: (a.life / a.sheet.life_max.max(1.0)).clamp(0.0, 1.0),
                     phase: st.phase,
                     marks: def.phases.iter().map(|p| p.at).collect(),

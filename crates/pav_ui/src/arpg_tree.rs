@@ -7,7 +7,9 @@ use glam::Vec2;
 use pav_core::arpg::GameCmd;
 use pav_core::arpg::InvView;
 use pav_core::arpg::data::data;
+use pav_core::arpg::lines;
 use pav_core::arpg::tree::{Node, NodeKind, Tree, start_id};
+use pav_core::t;
 
 pub struct TreeUi {
     pub open: bool,
@@ -72,37 +74,38 @@ impl TreeUi {
         } else {
             screen.shrink2(EVec2::new(screen.width() * 0.06, screen.height() * 0.06))
         };
-        egui::Window::new("Passive Tree")
+        egui::Window::new(t!("tree.title"))
+            .id(egui::Id::new("passive_tree"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
             .fixed_rect(area)
             .show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
-                    ui.label(RichText::new(format!("{} points to spend", inv.points)).strong().color(if inv.points > 0 {
+                    ui.label(RichText::new(t!("tree.points", count = inv.points)).strong().color(if inv.points > 0 {
                         Color32::from_rgb(255, 215, 120)
                     } else {
                         Color32::from_white_alpha(180)
                     }));
                     ui.separator();
-                    ui.label(format!("{} allocated", inv.tree.len()));
+                    ui.label(t!("tree.allocated", count = inv.tree.len()));
                     ui.separator();
                     if !self.touch {
-                        ui.label("Search:");
+                        ui.label(t!("tree.search"));
                         ui.add(egui::TextEdit::singleline(&mut self.search).desired_width(160.0));
                         ui.separator();
                     }
-                    if ui.button(format!("Reset all ({} gold)", inv.respec_cost)).clicked() {
+                    if ui.button(t!("tree.reset", count = inv.respec_cost)).clicked() {
                         out.push(GameCmd::Respec);
                     }
-                    if ui.button("Centre").clicked() {
+                    if ui.button(t!("tree.centre")).clicked() {
                         self.pan = Vec2::ZERO;
                         self.zoom = 21.0;
                     }
-                    let help = if self.touch {
-                        "tap: show · tap again: take · drag: pan · pinch: zoom".to_string()
-                    } else {
-                        crate::arpg_items::hint(self.pad, "click: take · shift-click: take the path · right-click: refund · drag: pan · wheel: zoom · P to close")
+                    let help = match (self.touch, self.pad) {
+                        (true, _) => t!("tree.help.touch"),
+                        (_, true) => t!("tree.help.pad"),
+                        _ => t!("tree.help"),
                     };
                     ui.label(RichText::new(help).small().color(Color32::from_white_alpha(120)));
                 });
@@ -134,12 +137,13 @@ impl TreeUi {
                 let search = self.search.to_lowercase();
                 let matches = |n: &Node| {
                     !search.is_empty()
-                        && (n.name.to_lowercase().contains(&search)
+                        && (lines::tree_node_name(t, n).to_lowercase().contains(&search)
                             || t.describe(n).iter().any(|l| l.to_lowercase().contains(&search)))
                 };
                 let view = rect.expand(30.0);
                 // Hovered node and the path to it (touch: the node tapped, then the one shown).
-                let hover_pos = if self.touch { resp.clicked().then(|| resp.interact_pointer_pos()).flatten() } else { resp.hover_pos() };
+                let hover_pos =
+                    if self.touch { resp.clicked().then(|| resp.interact_pointer_pos()).flatten() } else { resp.hover_pos() };
                 let tapped = hover_pos.and_then(|hp| {
                     let at = self.to_tree(rect, hp);
                     t.nodes
@@ -155,7 +159,9 @@ impl TreeUi {
                         self.picked = tapped.map(|n| n.id);
                     }
                     // A second tap on a mastery that is taken opens its options.
-                    if take_tap && self.picked.and_then(|id| t.node(id)).is_some_and(|n| reached(n.id) && n.kind == NodeKind::Mastery) {
+                    if take_tap
+                        && self.picked.and_then(|id| t.node(id)).is_some_and(|n| reached(n.id) && n.kind == NodeKind::Mastery)
+                    {
                         self.mastery = self.picked;
                     }
                 }
@@ -164,7 +170,9 @@ impl TreeUi {
                 // Links.
                 for n in &t.nodes {
                     let a = self.to_screen(rect, n.pos);
-                    if !view.contains(a) && n.links.iter().all(|l| t.node(*l).is_none_or(|m| !view.contains(self.to_screen(rect, m.pos)))) {
+                    if !view.contains(a)
+                        && n.links.iter().all(|l| t.node(*l).is_none_or(|m| !view.contains(self.to_screen(rect, m.pos))))
+                    {
                         continue;
                     }
                     for l in &n.links {
@@ -213,8 +221,17 @@ impl TreeUi {
                     };
                     match n.kind {
                         NodeKind::Skill => {
-                            let pts = vec![c + EVec2::new(0.0, -r), c + EVec2::new(r, 0.0), c + EVec2::new(0.0, r), c + EVec2::new(-r, 0.0)];
-                            p.add(Shape::convex_polygon(pts, fill, Stroke::new(1.5, if taken { ring } else { Color32::from_rgb(120, 200, 255) })));
+                            let pts = vec![
+                                c + EVec2::new(0.0, -r),
+                                c + EVec2::new(r, 0.0),
+                                c + EVec2::new(0.0, r),
+                                c + EVec2::new(-r, 0.0),
+                            ];
+                            p.add(Shape::convex_polygon(
+                                pts,
+                                fill,
+                                Stroke::new(1.5, if taken { ring } else { Color32::from_rgb(120, 200, 255) }),
+                            ));
                         }
                         NodeKind::Mastery => {
                             let pts: Vec<Pos2> = (0..6)
@@ -242,51 +259,76 @@ impl TreeUi {
                         p.circle_stroke(c, r + 4.0, Stroke::new(2.0, Color32::from_rgb(255, 240, 80)));
                     }
                     if self.zoom > 45.0 && matches!(n.kind, NodeKind::Notable | NodeKind::Keystone) {
-                        p.text(c + EVec2::new(0.0, r + 8.0), Align2::CENTER_CENTER, &n.name, FontId::proportional(11.0), Color32::from_white_alpha(170));
+                        p.text(
+                            c + EVec2::new(0.0, r + 8.0),
+                            Align2::CENTER_CENTER,
+                            lines::tree_node_name(t, n),
+                            FontId::proportional(11.0),
+                            Color32::from_white_alpha(170),
+                        );
                     }
                 }
                 // Sector names around the tree.
-                for s in &t.sectors {
+                for (i, s) in t.sectors.iter().enumerate() {
                     let a = s.angle.to_radians();
                     let at = self.to_screen(rect, Vec2::new(a.sin(), -a.cos()) * 2.0);
                     if self.zoom > 14.0 {
-                        p.text(at, Align2::CENTER_CENTER, &s.name, FontId::proportional(13.0), col(s.color, 1.0));
+                        p.text(
+                            at,
+                            Align2::CENTER_CENTER,
+                            lines::sector_name(t, i),
+                            FontId::proportional(13.0),
+                            col(s.color, 1.0),
+                        );
                     }
                 }
                 // Touch: the node shown, in a panel at the bottom, with what can be done.
                 if let (true, Some(n)) = (self.touch, hovered) {
                     let taken = reached(n.id);
                     let c = self.to_screen(rect, n.pos);
-                    p.circle_stroke(c, (radius(n) * self.zoom).max(2.0) + 5.0, Stroke::new(2.5, Color32::from_rgb(255, 230, 150)));
+                    p.circle_stroke(
+                        c,
+                        (radius(n) * self.zoom).max(2.0) + 5.0,
+                        Stroke::new(2.5, Color32::from_rgb(255, 230, 150)),
+                    );
                     let panel = Rect::from_min_max(
                         Pos2::new(rect.left() + 8.0, rect.bottom() - (rect.height() * 0.42).min(190.0)),
                         Pos2::new(rect.left() + (rect.width() - 16.0).min(420.0), rect.bottom() - 8.0),
                     );
-                    egui::Area::new(egui::Id::new("tree_pick")).fixed_pos(panel.min).order(egui::Order::Foreground).show(ctx, |ui| {
-                        egui::Frame::popup(ui.style()).show(ui, |ui| {
-                            ui.set_width(panel.width() - 16.0);
-                            egui::ScrollArea::vertical().max_height(panel.height() - 60.0).show(ui, |ui| node_info(ui, t, n, inv, taken, &path, false));
-                            ui.horizontal_wrapped(|ui| {
-                                if !taken && t.can_allocate(alloc, n.id) && (ui.button("Take").clicked() || take_tap) {
-                                    out.push(GameCmd::Allocate(n.id));
-                                }
-                                if !taken && path.len() > 1 && ui.button(format!("Take the path ({} points)", path.len())).clicked() {
-                                    for id in path.iter().take(inv.points as usize) {
-                                        out.push(GameCmd::Allocate(*id));
+                    egui::Area::new(egui::Id::new("tree_pick")).fixed_pos(panel.min).order(egui::Order::Foreground).show(
+                        ctx,
+                        |ui| {
+                            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                                ui.set_width(panel.width() - 16.0);
+                                egui::ScrollArea::vertical()
+                                    .max_height(panel.height() - 60.0)
+                                    .show(ui, |ui| node_info(ui, t, n, inv, taken, &path, false));
+                                ui.horizontal_wrapped(|ui| {
+                                    if !taken && t.can_allocate(alloc, n.id) && (ui.button(t!("tree.take")).clicked() || take_tap)
+                                    {
+                                        out.push(GameCmd::Allocate(n.id));
                                     }
-                                }
-                                if taken && n.kind == NodeKind::Mastery && ui.button("Choose an option").clicked() {
-                                    self.mastery = Some(n.id);
-                                }
-                                if taken && n.kind != NodeKind::Start && ui.button(format!("Refund ({} gold)", inv.refund_cost)).clicked() {
-                                    out.push(GameCmd::Refund(n.id));
-                                }
-                                if ui.button("Close").clicked() {
-                                    self.picked = None;
-                                }
+                                    if !taken && path.len() > 1 && ui.button(t!("tree.take_path", count = path.len())).clicked() {
+                                        for id in path.iter().take(inv.points as usize) {
+                                            out.push(GameCmd::Allocate(*id));
+                                        }
+                                    }
+                                    if taken && n.kind == NodeKind::Mastery && ui.button(t!("tree.choose")).clicked() {
+                                        self.mastery = Some(n.id);
+                                    }
+                                    if taken
+                                        && n.kind != NodeKind::Start
+                                        && ui.button(t!("tree.refund", count = inv.refund_cost)).clicked()
+                                    {
+                                        out.push(GameCmd::Refund(n.id));
+                                    }
+                                    if ui.button(t!("ui.close")).clicked() {
+                                        self.picked = None;
+                                    }
+                                });
                             });
-                        });
-                    });
+                        },
+                    );
                 }
                 // Hover: what it does; clicks.
                 if let Some(n) = hovered.filter(|_| !self.touch) {
@@ -317,29 +359,36 @@ impl TreeUi {
                     let mut keep = true;
                     if let Some(n) = t.node(mid) {
                         if let Some(m) = t.masteries.get(&n.mastery) {
-                            egui::Window::new(&m.name).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, EVec2::ZERO).show(ctx, |ui| {
-                                for (i, (name, stats, power)) in m.options.iter().enumerate() {
-                                    let mut text = name.clone();
-                                    for (s, v) in stats {
-                                        text += &format!("\n   {}", pav_core::arpg::stats::describe(*s, *v));
+                            let title = lines::mastery_name(&n.mastery, &m.name);
+                            egui::Window::new(title)
+                                .id(egui::Id::new("mastery"))
+                                .collapsible(false)
+                                .resizable(false)
+                                .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
+                                .show(ctx, |ui| {
+                                    for (i, (name, stats, power)) in m.options.iter().enumerate() {
+                                        // The option's name, then what it does, a line each.
+                                        let mut text = lines::mastery_option(&n.mastery, i, name);
+                                        for (s, v) in stats {
+                                            text += &format!("\n   {}", pav_core::arpg::stats::describe(*s, *v));
+                                        }
+                                        if let Some(p) = power {
+                                            text += &format!("\n   {}", p.describe());
+                                        }
+                                        let chosen = inv.masteries.get(&mid) == Some(&(i as u8));
+                                        let taken_elsewhere = inv.masteries.iter().any(|(nid, o)| {
+                                            *nid != mid && *o == i as u8 && t.node(*nid).is_some_and(|x| x.mastery == n.mastery)
+                                        });
+                                        let b = ui.add_enabled(!taken_elsewhere, egui::Button::selectable(chosen, text));
+                                        if b.clicked() {
+                                            out.push(GameCmd::Mastery(mid, i as u8));
+                                            keep = false;
+                                        }
                                     }
-                                    if let Some(p) = power {
-                                        text += &format!("\n   {}", p.describe());
-                                    }
-                                    let chosen = inv.masteries.get(&mid) == Some(&(i as u8));
-                                    let taken_elsewhere = inv.masteries.iter().any(|(nid, o)| {
-                                        *nid != mid && *o == i as u8 && t.node(*nid).is_some_and(|x| x.mastery == n.mastery)
-                                    });
-                                    let b = ui.add_enabled(!taken_elsewhere, egui::Button::selectable(chosen, text));
-                                    if b.clicked() {
-                                        out.push(GameCmd::Mastery(mid, i as u8));
+                                    if ui.button(t!("ui.close")).clicked() {
                                         keep = false;
                                     }
-                                }
-                                if ui.button("Close").clicked() {
-                                    keep = false;
-                                }
-                            });
+                                });
                         }
                     }
                     if !keep {
@@ -351,7 +400,7 @@ impl TreeUi {
                 p.text(
                     legend,
                     Align2::LEFT_BOTTOM,
-                    "diamonds: skill upgrades · hexagons: masteries · double rings: keystones · large: notables · outer rings: the endless Astral",
+                    t!("tree.legend"),
                     FontId::proportional(11.0),
                     Color32::from_white_alpha(120),
                 );
@@ -376,20 +425,17 @@ impl TreeUi {
 /// What a node does (its kind, stats, mastery options, lore); `hints` adds the mouse's actions.
 fn node_info(ui: &mut egui::Ui, t: &Tree, n: &Node, inv: &InvView, taken: bool, path: &[u32], hints: bool) {
     let kind = match n.kind {
-        NodeKind::Start => "Start",
-        NodeKind::Minor => "Passive",
-        NodeKind::Notable => "Notable",
-        NodeKind::Keystone => "Keystone",
-        NodeKind::Mastery => "Mastery",
-        NodeKind::Skill => "Skill upgrade",
-        NodeKind::Astral => "Astral (endless ring)",
+        NodeKind::Start => "tree.kind.start",
+        NodeKind::Minor => "tree.kind.minor",
+        NodeKind::Notable => "tree.kind.notable",
+        NodeKind::Keystone => "tree.kind.keystone",
+        NodeKind::Mastery => "tree.kind.mastery",
+        NodeKind::Skill => "tree.kind.skill",
+        NodeKind::Astral => "tree.kind.astral",
     };
-    ui.label(RichText::new(&n.name).strong().size(16.0));
-    ui.label(
-        RichText::new(if n.ring > 0 { format!("{kind} · ring {}", n.ring) } else { kind.to_string() })
-            .small()
-            .color(Color32::from_white_alpha(140)),
-    );
+    ui.label(RichText::new(lines::tree_node_name(t, n)).strong().size(16.0));
+    let kind = if n.ring > 0 { t!("tree.kind.ring", kind = lines::piece(kind, &[]), ring = n.ring) } else { t!(kind) };
+    ui.label(RichText::new(kind).small().color(Color32::from_white_alpha(140)));
     for l in t.describe(n) {
         ui.label(RichText::new(l).color(Color32::from_rgb(150, 180, 255)));
     }
@@ -397,7 +443,8 @@ fn node_info(ui: &mut egui::Ui, t: &Tree, n: &Node, inv: &InvView, taken: bool, 
         if let Some(m) = t.masteries.get(&n.mastery) {
             for (i, (name, stats, power)) in m.options.iter().enumerate() {
                 let chosen = inv.masteries.get(&n.id) == Some(&(i as u8));
-                let mut line = name.clone();
+                // The option's name, then what it does, dash-separated.
+                let mut line = lines::mastery_option(&n.mastery, i, name);
                 for (s, v) in stats {
                     line += &format!(" — {}", pav_core::arpg::stats::describe(*s, *v));
                 }
@@ -412,19 +459,20 @@ fn node_info(ui: &mut egui::Ui, t: &Tree, n: &Node, inv: &InvView, taken: bool, 
             }
         }
     }
-    if !n.lore.is_empty() && n.lore != "star" {
-        ui.label(RichText::new(&n.lore).italics().color(Color32::from_rgb(170, 130, 90)));
+    let lore = lines::tree_node_lore(n);
+    if !lore.is_empty() {
+        ui.label(RichText::new(lore).italics().color(Color32::from_rgb(170, 130, 90)));
     }
     if hints {
         ui.separator();
         if taken && n.kind != NodeKind::Start {
-            ui.label(RichText::new(format!("Right-click: refund ({} gold)", inv.refund_cost)).small());
+            ui.label(RichText::new(t!("tree.refund_hint", count = inv.refund_cost)).small());
             if n.kind == NodeKind::Mastery {
-                ui.label(RichText::new("Click: choose an option").small());
+                ui.label(RichText::new(t!("tree.choose_hint")).small());
             }
         }
     }
     if !taken && !path.is_empty() {
-        ui.label(RichText::new(format!("{} point{} away", path.len(), if path.len() == 1 { "" } else { "s" })).small());
+        ui.label(RichText::new(t!("tree.points_away", count = path.len())).small());
     }
 }
