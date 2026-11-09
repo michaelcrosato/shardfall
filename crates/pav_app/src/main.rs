@@ -7,9 +7,9 @@ mod app;
 mod asset_ui;
 mod asset_watch;
 mod boot;
-mod coop;
 #[cfg(not(target_arch = "wasm32"))]
 mod bridge;
+mod coop;
 mod creature_ui;
 mod creature_watch;
 mod edit;

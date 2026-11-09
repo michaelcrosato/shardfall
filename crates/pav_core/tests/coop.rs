@@ -36,7 +36,10 @@ fn a_party_member_attacks_and_gets_back_up() {
     let id = sim.state.game.as_ref().unwrap().party[0].id.unwrap();
     // Swinging at the air: the member's own cast starts and mana or cooldowns move.
     let aim = sim.feet(id).unwrap() + glam::Vec3::X * 2.0;
-    sim.set_party_input(1, InputFrame { aim: Some(aim), held: buttons::PRIMARY, pressed: buttons::PRIMARY, ..Default::default() });
+    sim.set_party_input(
+        1,
+        InputFrame { aim: Some(aim), held: buttons::PRIMARY, pressed: buttons::PRIMARY, ..Default::default() },
+    );
     sim.step(&InputFrame::default());
     let g = sim.state.game.as_ref().unwrap();
     assert!(g.actors[&id].cast.is_some(), "the member's swing started");
@@ -62,7 +65,11 @@ fn same_inputs_same_world() {
         let mut hashes = Vec::new();
         for t in 0..600u32 {
             let a = (t as f32 * 0.03).sin();
-            let host = InputFrame { move_dir: Vec2::new(a, 0.3), held: if t % 40 < 8 { buttons::PRIMARY } else { 0 }, ..Default::default() };
+            let host = InputFrame {
+                move_dir: Vec2::new(a, 0.3),
+                held: if t % 40 < 8 { buttons::PRIMARY } else { 0 },
+                ..Default::default()
+            };
             sim.set_party_input(1, walk(-a, (t as f32 * 0.05).cos()));
             sim.step(&host);
             if t % 100 == 99 {

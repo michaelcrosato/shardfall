@@ -301,7 +301,7 @@ impl Coop {
                     let mut out = None;
                     for (k, t) in run.iter().enumerate() {
                         apply(sim, primary, t);
-                        if (first + k as u64 + 1) % HASH_EVERY == 0 {
+                        if (first + k as u64 + 1).is_multiple_of(HASH_EVERY) {
                             out = Some((first + k as u64 + 1, sim.world_hash()));
                         }
                     }
@@ -327,12 +327,8 @@ impl Coop {
         let f: Vec<Value> =
             self.out.iter().map(|t| Value::Array(t.inputs.iter().map(|(s, i)| json!([s, encode(i)])).collect())).collect();
         let first = self.out_first;
-        let g: Vec<Value> = self
-            .out
-            .iter()
-            .enumerate()
-            .flat_map(|(k, t)| t.gone.iter().map(move |s| json!([first + k as u64, s])))
-            .collect();
+        let g: Vec<Value> =
+            self.out.iter().enumerate().flat_map(|(k, t)| t.gone.iter().map(move |s| json!([first + k as u64, s]))).collect();
         let mut msg = json!({ "k": "b", "t": self.out_first, "f": f });
         if !g.is_empty() {
             msg["g"] = Value::Array(g);
@@ -465,7 +461,7 @@ mod tests {
     #[test]
     fn inputs_travel_and_come_back_the_same() {
         let i = InputFrame {
-            move_dir: glam::Vec2::new(0.70710678, -0.70710678),
+            move_dir: glam::Vec2::new(std::f32::consts::FRAC_1_SQRT_2, -std::f32::consts::FRAC_1_SQRT_2),
             held: 3,
             pressed: 1,
             aim: Some(glam::Vec3::new(12.345, 0.02, -7.891)),

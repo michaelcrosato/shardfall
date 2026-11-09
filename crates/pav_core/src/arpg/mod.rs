@@ -672,9 +672,8 @@ impl Game {
         // hero (beyond the flow field below, a monster walks straight at the hero), with the way
         // down sealed and nobody looking there for it.
         let lair = self.level.as_deref().and_then(|lv| Some((lv.boss?, lv.layout.rooms[lv.layout.exit].rect.shrink(-0.6))));
-        let left_lair = lair.filter(|(_, room)| {
-            hero.is_some() && heroes.iter().all(|(hf, _)| !room.contains(Vec2::new(hf.x, hf.z)))
-        });
+        let left_lair =
+            lair.filter(|(_, room)| hero.is_some() && heroes.iter().all(|(hf, _)| !room.contains(Vec2::new(hf.x, hf.z))));
         // Levels: monsters chase the hero around walls along a flow field (one per hero).
         let flows: Vec<_> = heroes
             .iter()

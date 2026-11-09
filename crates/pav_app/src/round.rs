@@ -177,7 +177,7 @@ impl Round {
                         p.id,
                         Ghost {
                             name: p.name.clone(),
-                            color: seat_color(p.id),
+                            color: info.color(p.id),
                             def: None,
                             feet_offset: 0.9,
                             place: u32::MAX,
@@ -380,7 +380,13 @@ impl Round {
             }
             let at = egui::pos2((head.x * 0.5 + 0.5) * screen.width(), (0.5 - head.y * 0.5) * screen.height());
             let name = if g.name.is_empty() { "?".to_string() } else { g.name.clone() };
-            p.text(at + egui::vec2(1.0, 1.0), egui::Align2::CENTER_BOTTOM, &name, egui::FontId::proportional(14.0), egui::Color32::from_black_alpha(200));
+            p.text(
+                at + egui::vec2(1.0, 1.0),
+                egui::Align2::CENTER_BOTTOM,
+                &name,
+                egui::FontId::proportional(14.0),
+                egui::Color32::from_black_alpha(200),
+            );
             p.text(at, egui::Align2::CENTER_BOTTOM, &name, egui::FontId::proportional(14.0), g.color);
         }
         // A shared world: the other players' names over their heroes.
@@ -393,8 +399,14 @@ impl Round {
                 }
                 let at = egui::pos2((head.x * 0.5 + 0.5) * screen.width(), (0.5 - head.y * 0.5) * screen.height());
                 let name = info.name(*seat);
-                p.text(at + egui::vec2(1.0, 1.0), egui::Align2::CENTER_BOTTOM, &name, egui::FontId::proportional(14.0), egui::Color32::from_black_alpha(200));
-                p.text(at, egui::Align2::CENTER_BOTTOM, &name, egui::FontId::proportional(14.0), seat_color(*seat));
+                p.text(
+                    at + egui::vec2(1.0, 1.0),
+                    egui::Align2::CENTER_BOTTOM,
+                    &name,
+                    egui::FontId::proportional(14.0),
+                    egui::Color32::from_black_alpha(200),
+                );
+                p.text(at, egui::Align2::CENTER_BOTTOM, &name, egui::FontId::proportional(14.0), info.color(*seat));
             }
         }
         let center = screen.center();

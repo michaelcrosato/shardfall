@@ -5,6 +5,89 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A title screen, the game in any language, and AI Hub rounds and package — 2026-11-09
+
+The user asked for four things: a proper splash screen and start menu with the game first and
+the engine's tools prominent there and elsewhere; the AI Hub's session modes (parallel, ghost and
+"a proper shared world co-op", `lib/hub/README.md` in michaelcrosato/ai-hub); its languages
+(AI Hub Languages v1, `lib/hub/languages.md`); and the game prepared for the hub per AI Hub
+Catalogue v1 (`lib/hub/catalogue.md`), with its package handed in and its checker passed.
+How the game meets the hub is `docs/AI_HUB.md`; its languages, `docs/LANGUAGES.md`.
+
+- **Title screen** (`pav_ui::title`): a splash (the emblem and wordmark over the town, any key
+  or click skips it), then the menu: Play (the saved hero's name and level), New hero, the
+  engine's tools as a grid of tiles (the engine tour, the Animation, Object and Creature
+  Studios, the starter game, Looks, the rooms, tuning), Language, Full screen and Quit. The game
+  opens on it unless the address or `shardfall.toml` names a scene. The tools are also a panel in
+  the pause menu (with a Title screen button) and a place in town: the **Pavilion Gate** north
+  of the square (`SpotKind::Gate`), whose window lists them.
+- **Lines** (`pav_core::lines`, the engine's; the game's book is `arpg::lines`): every word a
+  player reads is a line under an id, in `game/lines.toml` (menus, HUD, help, messages, with
+  notes, widths, names and a brief) or made from the game data (`skill.<key>.name`...), 1,794
+  in all. `t!("id", blank = value)` fills whole sentences: plural forms by CLDR's rules, numbers
+  written for the language, `{key:use}` the key for an action. A subagent converted the whole
+  game UI and the simulation's messages (the HUD, every window and tooltip, nameplates, the
+  townsfolk, shrines, bosses), building item and monster names from their parts at display
+  time; a test checks every id the code names is in the book. The engine's own pause-menu
+  entries are `dev.` lines: translation skips them and the test languages leave them as written.
+- **Choosing and showing a language:** `?lang=` (the hub always adds it), then the title
+  screen's Language menu (saved under `lang:` and the path, as the spec says; shown only when the
+  address names none), then the browser's or system's languages, then English. A translation is
+  the page's `game-translations` block; anything missing shows the English line. Fonts: Noto
+  subsets per script in `assets/fonts` (`scripts/fonts.py`, pinned hashes; Latin with
+  Vietnamese, Cyrillic, Greek, Arabic, Devanagari, Bengali, Ethiopic, Chinese, Japanese,
+  Korean); the page carries them compressed and decodes only what its language and the
+  players' names need. Arabic and Urdu lay out right to left: `lines::for_rtl_shaper` arranges
+  each line for egui's shaper (numbers and Latin names kept in order) and the menus mirror. The
+  test languages `en-XA`, `zh-XC` and `ar-XB` come from the English lines.
+- **Rounds** (`pav_app::round`, `pav_app::hub`, `pav_core::arpg::round`): in a hub session the
+  page skips the title and menus, builds the round's world from the hub's seed (depth 1, a fresh
+  hero per seat, every level from the round's seed and depth: `Game::round_seed`), readies with
+  no key press and holds still until the hub's clock reaches 0. Parallel and ghost report
+  progress (depth x 1000 + kills) and the result; ghost copies send their hero's look once and
+  its place and pose ten times a second, drawn as view-only objects.
+- **Shared world** (`pav_app::coop`, `pav_core::arpg::party`): every player's hero in one world.
+  `Game::party` holds the other heroes; each runs every hero rule by being swapped into the
+  hero's place (`with_member`), so casts, pickups, deaths and respawns need no second code path.
+  Monsters go for the nearest living hero (a flow field per hero), kills count for whoever made
+  them, every hero gains the experience. The host relays inputs in lockstep: players send theirs,
+  the host applies every seat's input each tick (a missing one repeats the last, never waiting)
+  and sends the ticks in bundles; every copy replays them, with a world hash every two seconds to
+  catch a copy that differs. A hub-run server with no player of its own hosts the same way.
+- **What kept a round on time on the hub's test machine.** The harness loads up to four copies
+  in same-origin frames on one software GPU, and they must all ready within 20 s. Three fixes,
+  each measured: (1) the browser build polled the event loop (`ControlFlow::Poll`), and winit's
+  web scheduler kept the page's one thread busy: a CPU profile showed the main thread full with
+  the game idle. It now waits for animation frames once its graphics are up: 90% idle. (2) A
+  copy waiting for the start only clears its frame. (3) Chrome's SwiftShader takes 0.5-1 s a
+  frame whatever is switched off (shadows, effects and a fifth of the pixels changed it from 1 to
+  2-3 fps), and 4-5 s for the first: so the round's logic now runs every frame and every 50 ms
+  between frames (`App::tick_round`), and inputs, ticks, bundles and reports keep time when the
+  drawing can't. With these, all 12 harness runs pass: the three pages at 2 players, at 4 with
+  150 ms latency, 50 ms jitter and 5% loss, and with the host leaving; and the shared world
+  with a server.
+- **The package** (`scripts/hub-package.sh`): one page (`games/shardfall.html`, 16.4 MB: the
+  shared-world mode, whose head the catalogue's tags fill from `web/hub.json` plus the model
+  and effort given on the command line, never written into the repository), the emblem as its
+  icon, and three covers taken by `scripts/hub-covers.js` (the title screen, the Proving Grounds,
+  a descent level: 640 x 480, quality 58). It is handed to the user, not committed.
+- **Decided:**
+  - Co-op had been on hold since 2026-10-17 (the user's call, `docs/COOP_PLAN.md`); the user's
+    request for "a proper shared world co-op" on the hub is this part of it. The plan's own
+    co-op (free roaming, place owners, WebRTC between the user's builds) stays on hold.
+  - Lockstep through the host rather than sending the world: one browser build, a seeded world
+    and no clock make every copy's world the same, and inputs are a few bytes a tick.
+  - Seats play the three characters in turn (Wanderer, Kestrel, Ysolde, Wanderer), so a round's
+    heroes look different.
+  - The passive tree's 5,445 per-node lines held 134 distinct texts: small and astral nodes are
+    named from sector lines now (the book went from 6,493 to 1,753 lines before this entry's last
+    additions).
+  - The pages' fonts are decoded on demand rather than all at start: Chinese alone is 1.4 MB.
+- **Known:** a subagent's git worktree shares `target/`, and pav_core's build script bakes its
+  `CARGO_MANIFEST_DIR` into the embedded data: builds after the worktree's read the worktree's
+  `game/` files until the build script reruns. Remove the worktree and delete
+  `target/*/build/pav_core-*` (and the wasm ones) after merging one.
+
 ## Low cameras keep the ground; the plaza's wing signs stand still — 2026-11-09
 
 The user played the browser build in the world demo and reported two things: the plaza's text

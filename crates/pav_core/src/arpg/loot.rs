@@ -210,8 +210,14 @@ impl Game {
         let mut g = self.loot.remove(i);
         events.push(SimEvent::Pickup { pos: g.pos, rarity: g.item.rarity as u8 });
         let _ = sim;
-        // A number of the picker's own (in a party, the drop's came from another hero's count).
-        g.item.id = self.hero.new_id();
+        // In a party the drop's number may come from another hero's count: it keeps it unless
+        // the picker already holds that number, and the picker's count moves past it.
+        let h = &mut self.hero;
+        let held = h.inventory.iter().chain(h.stash.iter()).chain(h.equipment.iter().flatten()).any(|i| i.id == g.item.id);
+        if held {
+            g.item.id = h.new_id();
+        }
+        h.next_item = h.next_item.max(g.item.id.saturating_add(1));
         self.hero.inventory.push(g.item);
         self.inv_changed();
         true

@@ -213,6 +213,10 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   shows what the AI thinks is walkable and its planned way out. Game data lives in `game/*.toml`
   (`game_reload` re-reads it live; the tree is generated from `game/tree.toml`; levels from
   `themes.toml` and `levels.toml`, dressed with LIB/core props from the sets in `props.toml`).
+- Languages (`docs/LANGUAGES.md`): `lines lang=zh-XC` switches the session's language (the test
+  languages en-XA, zh-XC and ar-XB, or any code a translation has), `lines id=hud.potions`
+  shows one line, `lines out=FILE` writes the game-lines block; then `ui open=title image=true`
+  or a capture shows the UI in it.
 - Looks: `look` lists the Look & Filters sections, presets and whole looks; `look name=HD-2D`,
   `look section=pixel preset=Chunky on=objects` set the session's look layer (applied in every
   capture); `look bench=all` renders this moment under every look in one numbered PNG. Filters
@@ -351,7 +355,10 @@ limbs follow the puppet's side, a planted defect is caught, `assets find=knight`
 one edit that adds and uses a material, snapshots) and `pav_tools/tests/material_preview.rs`
 (a swatch renders headless with its layer lines).
 The game UI: `pav_tools/tests/game_ui.rs` (`ui` reads the HUD, windows and touch controls and
-clicks a button; captures draw the UI).
+clicks a button; captures draw the UI). Lines: `pav_core` `lines` unit tests (plural rules,
+number formats, language matching, the test languages, right-to-left order, every id the code
+names is in the book). AI Hub shared world: `pav_core/tests/coop.rs` (party heroes move by their
+own input, a member casts, dies and gets up, the same inputs give the same world).
 Games on the hook: `pav_core/tests/games.rs` (the starter's bot wins on ten seeds, standing
 still loses, snapshot files, rewind and replays are exact, every game key names one scene)
 and `pav_tools/tests/play.rs` (the `play` tool reports, drives and sweeps seeds).

@@ -330,8 +330,10 @@ pub fn text(id: &str, args: &[(&str, Arg)]) -> String {
 /// the game (the AI Hub's scoreboard labels).
 pub fn logical(id: &str, args: &[(&str, Arg)]) -> String {
     with_state(|s| {
-        let translated = s.table.get(id).filter(|l| l.usable());
-        let fake = TEST_LANGUAGES.contains(&s.lang.as_str());
+        // Developer text (`dev.` lines) stays as written: translation skips it.
+        let dev = id.starts_with("dev.");
+        let translated = s.table.get(id).filter(|l| l.usable() && !dev);
+        let fake = TEST_LANGUAGES.contains(&s.lang.as_str()) && !dev;
         let (line, text_lang) = match translated {
             Some(l) => (l, s.lang.as_str()),
             None => match s.book.lines.get(id) {

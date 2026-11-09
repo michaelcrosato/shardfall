@@ -40,8 +40,15 @@ nothing and the game opens on its title screen.
   plays. Before the start a copy only clears its frame: the card covers it, and the hub's test
   loads up to four copies on one machine, which must all be ready within 20 seconds.
 - **The end.** On `end` the game stops: no input, no sound, nothing sent.
+- **Logic apart from drawing.** The round (the hub's events, the player's input out, the world's
+  ticks, reports) runs every frame and, in the browser, every 50 ms between frames too
+  (`App::tick_round`), so a copy whose drawing falls behind keeps its round and its traffic on
+  time. The browser build waits for animation frames rather than polling once its graphics are
+  up: same-origin frames share one thread, and a polling copy starved the others.
 - **A software GPU.** On a CPU adapter (SwiftShader, lavapipe: the hub's test machines) a round
-  draws at low quality, at a small render scale, with no shadowed lights, so a frame stays cheap.
+  draws at low quality, at a small render scale, with no shadowed lights. Chrome's SwiftShader
+  still takes 0.5-1 s a frame (4-5 s for the first, while it compiles), whatever is switched off:
+  the logic above is what keeps a round right there.
 
 ### Parallel and ghost: "Descend as deep as you can"
 Each copy plays its own round from the same start. Progress about once a second: the score is

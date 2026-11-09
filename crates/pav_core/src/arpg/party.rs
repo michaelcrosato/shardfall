@@ -15,7 +15,7 @@ use super::hero::Hero;
 use super::{Game, feet_of, refresh_hero};
 use crate::entity::EntityId;
 use crate::input::InputFrame;
-use crate::{SimEvent, Sim};
+use crate::{Sim, SimEvent};
 
 /// Another player's hero.
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -617,17 +617,25 @@ mod tests {
             "menu",
             "title",
             "tools",
+            "dev",
         ];
         for dir in dirs {
             for entry in std::fs::read_dir(crates.join(dir)).unwrap() {
                 let path = entry.unwrap().path();
-                if path.extension().is_none_or(|e| e != "rs") || (dir == "pav_app/src" && !path.ends_with("input.rs")) {
+                if path.extension().is_none_or(|e| e != "rs")
+                    || (dir == "pav_app/src" && !path.ends_with("input.rs") && !path.ends_with("ui.rs"))
+                {
                     continue;
                 }
                 let text = std::fs::read_to_string(&path).unwrap();
                 for lit in text.split('"').skip(1).step_by(2) {
                     let group = lit.split('.').next().unwrap_or("");
-                    if lit.contains('.') && !lit.ends_with(".toml") && crate::lines::valid_id(lit) && groups.contains(&group) {
+                    if lit.contains('.')
+                        && !lit.ends_with(".toml")
+                        && !lit.ends_with(".rs")
+                        && crate::lines::valid_id(lit)
+                        && groups.contains(&group)
+                    {
                         ids.push(lit.to_string());
                     }
                 }

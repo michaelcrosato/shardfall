@@ -92,6 +92,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
         let mut file = OpenOptions::new().write(true).create_new(true).open(&temp)?;
         file.write_all(bytes).with_context(|| format!("write {}", temp.display()))?;
         file.sync_all().with_context(|| format!("flush {}", temp.display()))?;
+        #[allow(clippy::drop_non_drop)] // the browser's File is a stub with no Drop
         drop(file);
         std::fs::rename(&temp, path).with_context(|| format!("replace {}", path.display()))?;
         Ok(())

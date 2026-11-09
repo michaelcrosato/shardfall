@@ -10,6 +10,7 @@ pub struct Player {
     pub id: u32,
     #[serde(default)]
     pub name: String,
+    /// The seat's colour, as the hub shows it (`#rrggbb`).
     #[serde(default)]
     pub color: String,
 }
@@ -34,8 +35,6 @@ pub struct Info {
     #[serde(default)]
     pub round: u32,
     #[serde(default)]
-    pub limit_ms: f64,
-    #[serde(default)]
     pub seed: u64,
 }
 
@@ -55,6 +54,14 @@ impl Info {
     }
     pub fn name(&self, id: u32) -> String {
         self.players.iter().find(|p| p.id == id).map(|p| p.name.clone()).unwrap_or_default()
+    }
+    /// The player's colour as the hub shows it, or the usual seat colour.
+    pub fn color(&self, id: u32) -> egui::Color32 {
+        self.players
+            .iter()
+            .find(|p| p.id == id)
+            .and_then(|p| egui::Color32::from_hex(p.color.trim()).ok())
+            .unwrap_or_else(|| crate::round::seat_color(id))
     }
 }
 
@@ -78,7 +85,6 @@ pub enum Event {
     },
     End {
         reason: String,
-        standings: Option<serde_json::Value>,
     },
 }
 
@@ -110,10 +116,9 @@ fn parse(json: &str) -> Vec<Event> {
                     reason: a0.and_then(|v| v.get("reason")).and_then(|x| x.as_str()).unwrap_or("").to_string(),
                 },
                 "time-up" => Event::TimeUp { grace_ms: num(a0, "graceMs") },
-                "end" => Event::End {
-                    reason: a0.and_then(|v| v.get("reason")).and_then(|x| x.as_str()).unwrap_or("").to_string(),
-                    standings: a0.and_then(|v| v.get("standings")).cloned(),
-                },
+                "end" => {
+                    Event::End { reason: a0.and_then(|v| v.get("reason")).and_then(|x| x.as_str()).unwrap_or("").to_string() }
+                }
                 _ => return None,
             })
         })
@@ -174,7 +179,7 @@ pub fn info() -> Option<Info> {
         if text.is_empty() {
             return None;
         }
-        return serde_json::from_str(&text).map_err(|e| log::warn!("hub info: {e}")).ok();
+        serde_json::from_str(&text).map_err(|e| log::warn!("hub info: {e}")).ok()
     }
     #[cfg(not(target_arch = "wasm32"))]
     None

@@ -18,12 +18,13 @@ pub enum Quality {
 impl Quality {
     pub const ALL: [Quality; 4] = [Quality::Auto, Quality::Low, Quality::Medium, Quality::High];
 
-    pub fn name(self) -> &'static str {
+    /// The setting's name in the player's language.
+    pub fn name(self) -> String {
         match self {
-            Quality::Auto => "Auto",
-            Quality::Low => "Low",
-            Quality::Medium => "Medium",
-            Quality::High => "High",
+            Quality::Auto => pav_core::t!("menu.quality.auto"),
+            Quality::Low => pav_core::t!("menu.quality.low"),
+            Quality::Medium => pav_core::t!("menu.quality.medium"),
+            Quality::High => pav_core::t!("menu.quality.high"),
         }
     }
 

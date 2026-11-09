@@ -506,6 +506,11 @@ impl Input {
                 state = Some(PadState { left: st.left, right: st.right, held: st.hold.clone(), lt2: false, rt2: false });
             }
         }
+        // View and Menu held together open the AI Hub's bar: that pair means nothing here.
+        let hub_pair = state.as_ref().is_some_and(|st| st.held.contains(&Button::Select) && st.held.contains(&Button::Start));
+        if hub_pair {
+            taps.retain(|b| !matches!(b, Button::Start | Button::Select));
+        }
         let start = taps.contains(&Button::Start);
         let map = taps.contains(&Button::DPadLeft);
         let mut pad = Pad { start_pressed: start, map_pressed: map, taps, any_activity: activity, ..Default::default() };
@@ -552,7 +557,7 @@ impl Input {
             pad.a_held = is(Button::South);
             pad.x_held = is(Button::West);
             pad.y_held = is(Button::North);
-            pad.back_held = is(Button::Select);
+            pad.back_held = is(Button::Select) && !hub_pair;
             if pad.left.length() > 0.3 || pad.right.length() > 0.3 || held != 0 {
                 pad.any_activity = true;
             }

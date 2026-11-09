@@ -216,6 +216,9 @@ pub struct App {
     title_info: Option<pav_ui::title::TitleInfo>,
     /// A round on the AI Hub (the page was opened for a session): no title screen or menus.
     round: Option<crate::round::Round>,
+    /// When the round last ran (`tick_round`), and whether it lets the player steer.
+    round_at: Option<Instant>,
+    round_input: bool,
 }
 
 impl App {
@@ -311,6 +314,8 @@ impl App {
             title_camera: None,
             title_info: None,
             round: in_round.then(crate::round::Round::new),
+            round_at: None,
+            round_input: true,
             settings,
         };
         if in_round {
@@ -985,6 +990,25 @@ impl App {
         }
     }
 
+    /// The round's logic (`round_frame`): the hub's events, the player's input out, the world's
+    /// ticks, reports. It runs every frame and, in the browser, every 50 ms between frames too
+    /// (`about_to_wait`), so drawing that falls behind (a software GPU: the hub's test machine)
+    /// slows neither the round nor its traffic. Returns whether the player may steer.
+    fn tick_round(&mut self) -> bool {
+        let Some(host) = &self.host else { return true };
+        if self.round.is_none() {
+            return true;
+        }
+        let now = Instant::now();
+        let dt = self.round_at.map_or(0.0, |t| (now - t).as_secs_f32()).min(0.25);
+        self.round_at = Some(now);
+        host.pump();
+        let (_, curr, _, _) = host.frames();
+        self.round_input =
+            round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
+        self.round_input
+    }
+
     fn frame(&mut self) {
         if self.gfx.is_none() || self.host.is_none() {
             return;
@@ -1009,13 +1033,8 @@ impl App {
             // cleared (a browser that sees nothing drawn may stop asking for frames), leaving the
             // machine to copies still loading: the hub's test runs up to four on one. The hub is
             // heard every frame.
-            let now = Instant::now();
-            let dt = (now - self.last).as_secs_f32().min(0.1);
-            self.last = now;
-            if let Some(host) = &self.host {
-                let (_, curr, _, _) = host.frames();
-                round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
-            }
+            self.last = Instant::now();
+            self.tick_round();
             if let Some(g) = &mut self.gfx {
                 g.clear_frame();
             }
@@ -1049,6 +1068,8 @@ impl App {
         self.rig.params.yaw = (self.rig.params.yaw + self.input.pad.rotate * 90.0 * dt + 540.0).rem_euclid(360.0) - 180.0;
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 
+        // The round hears the hub and runs every frame, whether or not the player may steer.
+        let round_input = self.tick_round();
         let host = self.host.as_ref().unwrap();
         host.pump();
         #[cfg(not(target_arch = "wasm32"))]
@@ -1071,9 +1092,6 @@ impl App {
             || prev.studio_mode() != studio_mode
             || prev.live_edit_ticket != curr.live_edit_ticket;
         let game_input = game_input && !studio_active;
-        // Every frame (not only when the player may steer): the round hears the hub and runs.
-        let round_input =
-            round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
         let game_input = game_input && round_input;
         if studio_mode != self.studio_mode {
             let keep_object_redo = studio_mode == StudioMode::World && self.asset_ui.open && self.asset_ui.creation_removed();
@@ -2440,8 +2458,18 @@ impl ApplicationHandler for App {
             // frames, starving anything else on it (other games in the same page: the AI Hub).
             el.set_control_flow(ControlFlow::Wait);
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        let _ = el;
+        // A round runs between frames too (`tick_round`): wake every 50 ms until it has ended.
+        if let (Some(round), Some(_)) = (&self.round, &self.gfx) {
+            if round.ended() {
+                el.set_control_flow(ControlFlow::Wait);
+            } else {
+                let step = std::time::Duration::from_millis(50);
+                if self.round_at.is_none_or(|t| t.elapsed() >= step * 4 / 5) {
+                    self.tick_round();
+                }
+                el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + step));
+            }
+        }
         if let Some(g) = &self.gfx {
             g.window.request_redraw();
         }
