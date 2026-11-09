@@ -165,6 +165,10 @@ pub struct Sim {
     pub history: History,
     /// Inputs since the scene was built (for replays and crash reports).
     pub recording: Replay,
+    /// Whose eyes the frame is seen through, when not the player's: in a shared world each
+    /// player's copy runs the same world and shows its own hero (`arpg::party`). Not part of
+    /// the state, which stays the same on every copy.
+    pub viewer: Option<EntityId>,
     pipeline: PhysicsPipeline,
     pub(crate) events: Vec<SimEvent>,
     /// True while re-simulating (rewind): no events, no recording.
@@ -211,6 +215,7 @@ impl Sim {
             config,
             history: History::default(),
             recording: Replay { seed, ..Default::default() },
+            viewer: None,
             pipeline: PhysicsPipeline::new(),
             events: Vec::new(),
             replaying: false,
@@ -968,7 +973,11 @@ impl Sim {
             .and_then(|i| self.state.world.rooms.get(i as usize))
             .map(|r| crate::frame::RoomInfo { id: r.id, key: r.key.clone(), def: r.def.clone(), quarters: r.place.quarters });
         let c = &self.state.courses;
-        let invuln = self.player().and_then(|p| p.character.as_ref()).map(|c| c.invuln).unwrap_or(0.0);
+        let viewer_pos = self.viewer.and_then(|v| self.state.entities.get(v)).map(|e| e.pos);
+        let invuln = match self.viewer.filter(|_| viewer_pos.is_some()) {
+            Some(v) => self.state.entities.get(v).and_then(|e| e.character.as_ref()).map(|c| c.invuln).unwrap_or(0.0),
+            None => self.player().and_then(|p| p.character.as_ref()).map(|c| c.invuln).unwrap_or(0.0),
+        };
         let hud = crate::frame::HudFrame {
             course: c.hud(self.state.tick, self.dt()),
             last_result: c.last.clone(),
@@ -1053,9 +1062,9 @@ impl Sim {
                 })
                 .collect(),
             statics: self.state.statics.clone(),
-            focus: self.state.focus,
-            focus_is_player: self.state.player.is_some(),
-            player: self.state.player,
+            focus: viewer_pos.unwrap_or(self.state.focus),
+            focus_is_player: self.state.player.is_some() || viewer_pos.is_some(),
+            player: if viewer_pos.is_some() { self.viewer } else { self.state.player },
             puppet_def: self.config.puppet.clone(),
             room,
             config: self.config_arc.clone(),
@@ -1068,7 +1077,7 @@ impl Sim {
                 .map(|p| crate::frame::ProjectileView { pos: p.pos, vel: p.vel, radius: p.radius, color: p.color })
                 .collect(),
             hud,
-            game: self.state.game.as_ref().map(|g| std::sync::Arc::new(g.frame(self))),
+            game: self.state.game.as_ref().map(|g| std::sync::Arc::new(g.frame_for(self, self.viewer))),
             animation_preview: None,
             studio_mode: crate::prop_preview::StudioMode::World,
             prop_preview: None,

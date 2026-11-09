@@ -7,6 +7,7 @@ mod app;
 mod asset_ui;
 mod asset_watch;
 mod boot;
+mod coop;
 #[cfg(not(target_arch = "wasm32"))]
 mod bridge;
 mod creature_ui;
@@ -23,6 +24,7 @@ mod panel;
 mod platform;
 mod quality;
 mod rooms;
+mod round;
 mod save;
 mod settings;
 mod simhost;

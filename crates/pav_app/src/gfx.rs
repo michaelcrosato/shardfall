@@ -215,3 +215,30 @@ fn pollster_block<F: std::future::Future>(f: F) -> F::Output {
         std::thread::yield_now();
     }
 }
+
+impl Gfx {
+    /// A frame of the clear colour only: the cheapest thing to show (a round waiting to start).
+    pub fn clear_frame(&mut self) {
+        let Some(frame) = self.acquire() else { return };
+        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("clear") });
+        {
+            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("clear"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.02, g: 0.02, b: 0.025, a: 1.0 }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                ..Default::default()
+            });
+        }
+        self.queue.submit([encoder.finish()]);
+        self.window.pre_present_notify();
+        self.queue.present(frame);
+    }
+}

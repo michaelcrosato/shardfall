@@ -18,7 +18,9 @@ pub mod levelgen;
 pub mod lines;
 pub mod loot;
 pub mod mechanics;
+pub mod party;
 pub mod powers;
+pub mod round;
 pub mod scene;
 pub mod skills;
 pub mod stats;
@@ -188,6 +190,12 @@ pub struct Game {
     /// seed and the depth alone, so every player's copy builds the same levels.
     #[serde(default)]
     pub round_seed: Option<u64>,
+    /// Shared-world co-op: the other players' heroes (`party.rs`), and the seat of the game's
+    /// own hero.
+    #[serde(default)]
+    pub party: Vec<party::PartyMember>,
+    #[serde(default)]
+    pub seat: u32,
 }
 
 impl Game {
@@ -232,6 +240,8 @@ impl Game {
             roster: BTreeMap::new(),
             performers: Vec::new(),
             round_seed: None,
+            party: Vec::new(),
+            seat: 0,
         }
     }
 
@@ -357,6 +367,9 @@ impl Sim {
         g.actors.insert(pid, a);
         g.hero_id = Some(pid);
         refresh_hero(self, &mut g, true);
+        for i in 0..g.party.len() {
+            party::spawn_member(self, &mut g, i);
+        }
         self.state.game = Some(Box::new(g));
     }
 
@@ -641,33 +654,41 @@ impl Game {
         if let Some(hid) = self.hero_id {
             self.hero_input(sim, hid, input, &mut out, events);
         }
+        if !self.party.is_empty() {
+            party::member_inputs(self, sim, &mut out, events);
+        }
         if !self.npcs.is_empty() {
             scene::npc_inputs(self, sim, dt, &mut out);
         }
-        let hero = self.hero_id.and_then(|h| {
-            let a = self.actors.get(&h)?;
-            if a.dead {
-                return None;
-            }
-            Some((feet_of(sim, h)?.0, a.radius))
-        });
+        // Every living hero (one, or a party's): each monster goes for the nearest.
+        let heroes: Vec<(Vec3, f32)> = self.living_heroes(sim).into_iter().map(|(_, f, r)| (f, r)).collect();
+        let nearest = |feet: Vec3| -> Option<usize> {
+            (0..heroes.len()).min_by(|a, b| flat(heroes[*a].0 - feet).length().total_cmp(&flat(heroes[*b].0 - feet).length()))
+        };
+        let hero = heroes.first().copied();
         let speed_k = sim.config.difficulty.enemy_speed;
         // A level's boss keeps to its room by the way down: it lets a hero who leaves the room go
         // and wanders back home. One that gave chase stood against a wall wherever it lost the
         // hero (beyond the flow field below, a monster walks straight at the hero), with the way
         // down sealed and nobody looking there for it.
         let lair = self.level.as_deref().and_then(|lv| Some((lv.boss?, lv.layout.rooms[lv.layout.exit].rect.shrink(-0.6))));
-        let left_lair = lair.filter(|(_, room)| hero.is_some_and(|(hf, _)| !room.contains(Vec2::new(hf.x, hf.z))));
-        // Levels: monsters chase the hero around walls along a flow field.
-        let flow = match (self.level.as_mut(), hero) {
-            (Some(lv), Some((hf, _))) => lv.hero_flow(sim, &self.actors, hf).zip(lv.nav.clone()),
-            _ => None,
-        };
+        let left_lair = lair.filter(|(_, room)| {
+            hero.is_some() && heroes.iter().all(|(hf, _)| !room.contains(Vec2::new(hf.x, hf.z)))
+        });
+        // Levels: monsters chase the hero around walls along a flow field (one per hero).
+        let flows: Vec<_> = heroes
+            .iter()
+            .map(|(hf, _)| match self.level.as_mut() {
+                Some(lv) => lv.hero_flow(sim, &self.actors, *hf).zip(lv.nav.clone()),
+                None => None,
+            })
+            .collect();
         let ids: Vec<EntityId> = self.actors.iter().filter(|(_, a)| a.brain.is_some()).map(|(id, _)| *id).collect();
         // Waking up: packs aggro together.
         let mut woke = Vec::new();
         for id in &ids {
-            let (Some((feet, _)), Some((hf, _))) = (feet_of(sim, *id), hero) else { continue };
+            let Some((feet, _)) = feet_of(sim, *id) else { continue };
+            let Some((hf, _)) = nearest(feet).map(|k| heroes[k]) else { continue };
             let a = &self.actors[id];
             if !a.dead && !a.brain.as_ref().unwrap().aggro && flat(hf - feet).length() < AGGRO_RANGE {
                 woke.push((a.pack, feet));
@@ -685,6 +706,9 @@ impl Game {
         let mut burst = Vec::new();
         for id in ids {
             let Some((feet, _)) = feet_of(sim, id) else { continue };
+            let target = nearest(feet);
+            let hero = target.map(|k| heroes[k]);
+            let flow = target.and_then(|k| flows[k].clone());
             let a = self.actors.get_mut(&id).unwrap();
             let mut inp = InputFrame::default();
             if left_lair.is_some_and(|(boss, _)| boss == id) {
@@ -865,7 +889,10 @@ impl Game {
         // Casts: land hits, finish, start the buffered one.
         let ids: Vec<EntityId> = self.actors.keys().copied().collect();
         for id in &ids {
-            skills::advance_cast(self, sim, *id, dt, events);
+            match self.member_of(*id) {
+                Some(i) => self.with_member(sim, i, |g, sim| skills::advance_cast(g, sim, *id, dt, events)),
+                None => skills::advance_cast(self, sim, *id, dt, events),
+            }
         }
         skills::update_shots(self, sim, dt, events);
         skills::update_effects(self, sim, dt, events);
@@ -873,9 +900,15 @@ impl Game {
         self.tick_monster_powers(sim, dt);
         self.update_bosses(sim, events);
         self.update_loot(sim, dt, events);
+        for i in 0..self.party.len() {
+            self.with_member(sim, i, |g, sim| g.pickups(sim, dt, events));
+        }
         // Ailments, regeneration, timers.
         for id in &ids {
-            self.tick_actor(sim, *id, dt, events);
+            match self.member_of(*id) {
+                Some(i) => self.with_member(sim, i, |g, sim| g.tick_actor(sim, *id, dt, events)),
+                None => self.tick_actor(sim, *id, dt, events),
+            }
         }
         // Deaths: topple, sink, vanish; the hero gets back up in a moment.
         let mut gone = Vec::new();
@@ -891,21 +924,9 @@ impl Game {
             self.actors.remove(&id);
             sim.despawn(id);
         }
-        if let Some(hid) = self.hero_id {
-            if self.actors.get(&hid).is_some_and(|a| a.dead) {
-                self.respawn -= dt;
-                if self.respawn <= 0.0 {
-                    let spawn = self.spawn;
-                    sim.set_position(hid, spawn);
-                    let a = self.actors.get_mut(&hid).unwrap();
-                    a.dead = false;
-                    a.death_t = 0.0;
-                    a.ailments = Ailments::default();
-                    a.iframes = 2.0;
-                    refresh_hero(sim, self, true);
-                    self.hero.potions = self.hero.potion_max;
-                }
-            }
+        self.respawn_tick(sim, dt);
+        for i in 0..self.party.len() {
+            self.with_member(sim, i, |g, sim| g.respawn_tick(sim, dt));
         }
         // Animation state for every actor.
         for (id, a) in &self.actors {
@@ -1320,6 +1341,25 @@ impl Game {
         }
     }
 
+    /// A fallen hero gets back up at the place's start after a moment.
+    fn respawn_tick(&mut self, sim: &mut Sim, dt: f32) {
+        let Some(hid) = self.hero_id else { return };
+        if self.actors.get(&hid).is_some_and(|a| a.dead) {
+            self.respawn -= dt;
+            if self.respawn <= 0.0 {
+                let spawn = self.spawn;
+                sim.set_position(hid, spawn);
+                let a = self.actors.get_mut(&hid).unwrap();
+                a.dead = false;
+                a.death_t = 0.0;
+                a.ailments = Ailments::default();
+                a.iframes = 2.0;
+                refresh_hero(sim, self, true);
+                self.hero.potions = self.hero.potion_max;
+            }
+        }
+    }
+
     /// Something died: rewards for the hero, or the hero is down.
     pub(crate) fn kill(&mut self, sim: &mut Sim, id: EntityId, events: &mut Vec<SimEvent>) {
         let Some((feet, _)) = feet_of(sim, id) else { return };
@@ -1340,6 +1380,13 @@ impl Game {
         if let Some(p) = burst {
             self.death_burst(sim, team, feet, life_max / rarity.life_mult(), p);
         }
+        if team == Team::Hero
+            && let Some(i) = self.member_of(id)
+        {
+            self.party[i].hero.deaths += 1;
+            self.party[i].respawn = 3.0;
+            return;
+        }
         if team == Team::Hero {
             self.hero.deaths += 1;
             self.respawn = 3.0;
@@ -1349,14 +1396,28 @@ impl Game {
         if team != Team::Monster {
             return;
         }
-        // Rewards.
-        self.hero.kills += 1;
+        // Rewards: the kill counts for whoever made it (a party member's own hero).
+        match killer.and_then(|k| self.member_of(k)) {
+            Some(i) => self.party[i].hero.kills += 1,
+            None => self.hero.kills += 1,
+        }
         if was_boss {
             self.hero_gesture(sim, |c| if c.triumph.is_empty() { HERO_BOSS_DOWN } else { &c.triumph });
         }
         if let Some(k) = killer {
             self.power_on_kill(sim, k, feet, life_max, events);
         }
+        // Every hero gains from it; the drops fall once.
+        for i in 0..self.party.len() {
+            self.with_member(sim, i, |g, sim| g.reward(sim, feet, xp, level, rarity, false, events));
+        }
+        self.reward(sim, feet, xp, level, rarity, true, events);
+    }
+
+    /// A kill's rewards for the hero: experience, life on kill, a potion, a level gained;
+    /// `loot`: the drops too (once per kill, whoever's hero is in the hero's place).
+    #[allow(clippy::too_many_arguments)]
+    fn reward(&mut self, sim: &mut Sim, feet: Vec3, xp: f32, level: u32, rarity: Rarity, loot: bool, events: &mut Vec<SimEvent>) {
         let Some(hid) = self.hero_id else { return };
         let (xp_gain, on_kill) = match self.actors.get(&hid) {
             Some(h) => (h.sheet.xp_gain, h.sheet.life_on_kill),
@@ -1367,7 +1428,9 @@ impl Game {
         if let Some(h) = self.actors.get_mut(&hid) {
             h.life = (h.life + on_kill).min(h.sheet.life_max);
         }
-        self.drop_loot(sim, feet, level, rarity, events);
+        if loot {
+            self.drop_loot(sim, feet, level, rarity, events);
+        }
         let rng = &mut sim.state.rng;
         if self.hero.potions < self.hero.potion_max && rng.f32() < [0.06, 0.2, 0.6, 1.0][rarity as usize] {
             self.hero.potions += 1;
@@ -1565,6 +1628,8 @@ pub struct BossView {
 #[derive(Clone, Debug, Default)]
 pub struct GameFrame {
     pub place: Place,
+    /// Shared-world co-op: each player's seat and their hero's entity.
+    pub heroes: Vec<(u32, EntityId)>,
     /// The level in progress: card, map, marks, mood.
     pub level: Option<mechanics::LevelView>,
     pub boss: Option<BossView>,
@@ -1729,6 +1794,7 @@ impl Game {
             telegraphs.extend(l.telegraphs());
         }
         GameFrame {
+            heroes: self.hero_seats(),
             place: self.place,
             level: self.level.as_ref().map(|l| l.view(self)),
             boss,

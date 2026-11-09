@@ -122,6 +122,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "session.party" = "Party"
 "session.down" = "{name} is down"
 "session.time_left" = "{time} left"
+"session.stat.depth" = "Depth"
+"session.stat.kills" = "Kills"
 
 [notes]
 "page.loading" = "On the page while the game loads. {name} is the game's name."

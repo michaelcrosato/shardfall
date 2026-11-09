@@ -56,7 +56,7 @@
   // hub's events for the game, and hands the game the client's calls. Elsewhere it does nothing.
   (() => {
     const hub = window.AIHub;
-    const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [] };
+    const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [], score: 0, reported: false };
     const tag = (n) => (document.querySelector(`meta[name="${n}"]`) || {}).content;
     if (bridge.active) {
       const seats = (tag('hub:session-players') || '1-4').split('-').map(Number);
@@ -69,6 +69,16 @@
       for (const type of ['start', 'message', 'leave', 'time-up', 'end']) {
         hub.on(type, (...args) => { bridge.events.push(JSON.stringify({ type, args })); });
       }
+      // A safety net for a slow frame: if the game hasn't reported soon after time is up, the
+      // page reports its last known standing (the hub gives graceMs).
+      hub.on('time-up', ({ graceMs }) => setTimeout(() => {
+        if (bridge.reported || !bridge.info) return;
+        if (bridge.info.mode === 'parallel' || bridge.info.mode === 'ghost' || bridge.info.mode === 'race') {
+          bridge.result(JSON.stringify({ score: bridge.score }));
+        } else if (bridge.info.isHost) {
+          bridge.finish(JSON.stringify({ standings: [bridge.info.players.map((p) => p.id)], won: false }));
+        }
+      }, Math.min(2500, (graceMs || 5000) / 2)));
     }
     Object.assign(bridge, {
       isActive: () => bridge.active,
@@ -78,9 +88,9 @@
       ready: () => hub.ready(),
       time: () => hub.time(),
       send: (json, to, reliable) => hub.send(JSON.parse(json), { to: to >= 0 ? to : undefined, reliable }),
-      progress: (score, label) => hub.progress({ score, label }),
-      result: (json) => hub.result(JSON.parse(json)),
-      finish: (json) => hub.finish(JSON.parse(json)),
+      progress: (score, label) => { bridge.score = score; hub.progress({ score, label }); },
+      result: (json) => { bridge.reported = true; hub.result(JSON.parse(json)); },
+      finish: (json) => { bridge.reported = true; hub.finish(JSON.parse(json)); },
       fail: (message) => { if (hub && hub.active) hub.fail(message); },
     });
     window.shardfallHub = bridge;

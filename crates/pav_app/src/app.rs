@@ -43,6 +43,7 @@ pub fn run(settings: Settings) -> Result<()> {
 }
 
 /// In the browser the event loop runs from the page's animation frames; this returns at once.
+/// It polls only until the graphics are set up (`about_to_wait`).
 #[cfg(target_arch = "wasm32")]
 pub fn run(settings: Settings) -> Result<()> {
     use winit::platform::web::EventLoopExtWebSys;
@@ -213,10 +214,19 @@ pub struct App {
     title_camera: Option<CameraParams>,
     /// What the title screen shows (the saved hero, the languages), made when it opens.
     title_info: Option<pav_ui::title::TitleInfo>,
+    /// A round on the AI Hub (the page was opened for a session): no title screen or menus.
+    round: Option<crate::round::Round>,
 }
 
 impl App {
-    fn new(settings: Settings) -> Self {
+    fn new(mut settings: Settings) -> Self {
+        let in_round = crate::hub::active();
+        if in_round {
+            // A session opens straight into the round: the round's world replaces this one
+            // once the hub has said who plays.
+            settings.title = false;
+            settings.scene = "empty".into();
+        }
         let scene_name = settings.scene.clone();
         let touch_screen = crate::platform::touch_screen();
         let mut app = Self {
@@ -300,8 +310,13 @@ impl App {
             title: settings.title.then(|| pav_ui::title::TitleScreen::new(true)),
             title_camera: None,
             title_info: None,
+            round: in_round.then(crate::round::Round::new),
             settings,
         };
+        if in_round {
+            app.show_boot = false;
+            app.app_settings.show_stats = false;
+        }
         crate::lang::init(&app.settings.lang, &app.prefs);
         crate::lang::install_fonts(&app.egui_ctx, &[]);
         if touch_screen {
@@ -785,6 +800,10 @@ impl App {
 
     fn set_menu(&mut self, open: bool) {
         let Some(host) = &self.host else { return };
+        if open && self.round.is_some() {
+            // In a round the hub runs the session: no pause, title screen or quitting.
+            return;
+        }
         if open && !self.menu_open {
             self.paused_before_menu = host.control().paused;
             host.set_control(|c| c.paused = true);
@@ -980,6 +999,28 @@ impl App {
             }
             self.next_draw = if now > self.next_draw + step { now + step } else { self.next_draw + step };
         }
+        if let Some(r) = self.round.as_mut().filter(|r| r.fonts_due) {
+            r.fonts_due = false;
+            let names: Vec<String> = r.info.iter().flat_map(|i| i.players.iter().map(|p| p.name.clone())).collect();
+            crate::lang::install_fonts(&self.egui_ctx, &names);
+        }
+        if self.round.as_ref().is_some_and(|r| r.idle()) {
+            // A round before its start: the hub's card covers the game, so the frame is only
+            // cleared (a browser that sees nothing drawn may stop asking for frames), leaving the
+            // machine to copies still loading: the hub's test runs up to four on one. The hub is
+            // heard every frame.
+            let now = Instant::now();
+            let dt = (now - self.last).as_secs_f32().min(0.1);
+            self.last = now;
+            if let Some(host) = &self.host {
+                let (_, curr, _, _) = host.frames();
+                round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
+            }
+            if let Some(g) = &mut self.gfx {
+                g.clear_frame();
+            }
+            return;
+        }
         let now = Instant::now();
         let dt = (now - self.last).as_secs_f32().min(0.1);
         self.last = now;
@@ -1030,6 +1071,10 @@ impl App {
             || prev.studio_mode() != studio_mode
             || prev.live_edit_ticket != curr.live_edit_ticket;
         let game_input = game_input && !studio_active;
+        // Every frame (not only when the player may steer): the round hears the hub and runs.
+        let round_input =
+            round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
+        let game_input = game_input && round_input;
         if studio_mode != self.studio_mode {
             let keep_object_redo = studio_mode == StudioMode::World && self.asset_ui.open && self.asset_ui.creation_removed();
             let keep_creature_redo =
@@ -1274,9 +1319,25 @@ impl App {
         // The look layer (Look & Filters) over the scene's own settings.
         let mut view = self.view.clone();
         self.look_ui.apply(&mut view);
-        self.prefs.quality.trim(self.touch_screen, &mut view);
+        // A round on a software GPU (the hub's test runs up to four copies on SwiftShader): the
+        // lightest drawing, so every copy keeps up with the round. Real GPUs draw as chosen.
+        let software = self.round.is_some()
+            && self.gfx.as_ref().is_some_and(|g| g.adapter.get_info().device_type == pav_render::wgpu::DeviceType::Cpu);
+        let quality = if software { crate::quality::Quality::Low } else { self.prefs.quality };
+        quality.trim(self.touch_screen, &mut view);
         // A low camera zoomed far out comes in to stay inside the fog (and the loaded world).
         self.rig.max_reach = view.camera_reach();
+        // Ghosts: the other players' heroes, drawn here and nowhere in this world.
+        let ghosts = self.round.as_ref().map(|r| r.ghost_objects(&curr)).unwrap_or_default();
+        let (prev, curr) = if ghosts.is_empty() {
+            (prev, curr)
+        } else {
+            let mut p = (*prev).clone();
+            let mut c = (*curr).clone();
+            p.objects.extend(ghosts.iter().cloned());
+            c.objects.extend(ghosts);
+            (std::sync::Arc::new(p), std::sync::Arc::new(c))
+        };
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
         // Arriving somewhere new: the screen opens with the chosen transition, on the player.
         if let Some(t0) = self.arrival {
@@ -1347,8 +1408,13 @@ impl App {
         let crash = host.shared.crashed.lock().unwrap().clone();
         self.panel.record_timing(dt * 1000.0, stats.tick_ms);
         let gfx = self.gfx.as_mut().unwrap();
-        let (render_scale, lights) =
-            self.scaler.update(self.prefs.quality, self.touch_screen, dt * 1000.0, gfx.size(), gfx.window.scale_factor() as f32);
+        let (mut render_scale, mut lights) =
+            self.scaler.update(quality, self.touch_screen, dt * 1000.0, gfx.size(), gfx.window.scale_factor() as f32);
+        if software {
+            let pixels = (gfx.size().0 as f32 * gfx.size().1 as f32).max(1.0);
+            render_scale = render_scale.min((0.12e6 / pixels).sqrt()).max(0.2);
+            lights = 0;
+        }
         gfx.renderer.render_scale = render_scale;
         gfx.renderer.max_shadow_lights = lights;
         let info = ui::OverlayInfo {
@@ -1450,6 +1516,7 @@ impl App {
         }
         let title = &mut self.title;
         let title_shown = self.title_info.clone().unwrap_or_default();
+        let round = &self.round;
         let mut title_action = None;
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
@@ -1494,6 +1561,9 @@ impl App {
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             pav_ui::game_lines(&ctx, hud_ctx.hud);
+            if let Some(r) = round {
+                r.overlay(&ctx, &curr, view_proj);
+            }
             if let Some(p) = pad_cursor {
                 // The gamepad's menu cursor, above everything.
                 let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("pad_cursor")));
@@ -2216,6 +2286,7 @@ impl App {
     /// A start-up failure: stop, and show why (the browser has no exit to report it).
     fn fail(&mut self, el: &ActiveEventLoop, e: anyhow::Error) {
         let msg = format!("{e:#}");
+        crate::hub::fail(&msg);
         #[cfg(target_arch = "wasm32")]
         crate::platform::error_box("Shardfall could not start", &msg);
         self.fatal = Some(msg);
@@ -2364,6 +2435,10 @@ impl ApplicationHandler for App {
             if let Err(e) = r.and_then(|gfx| self.finish_init(gfx)) {
                 self.fail(el, e);
             }
+            // The graphics are up: from now on the page's animation frames drive the loop (the
+            // redraw asked for below). Polling would keep the page's one thread busy between
+            // frames, starving anything else on it (other games in the same page: the AI Hub).
+            el.set_control_flow(ControlFlow::Wait);
         }
         #[cfg(not(target_arch = "wasm32"))]
         let _ = el;
@@ -2401,4 +2476,56 @@ fn title_info() -> pav_ui::title::TitleInfo {
         fullscreen: cfg!(target_arch = "wasm32"),
         quit: cfg!(not(target_arch = "wasm32")),
     }
+}
+
+/// A round on the AI Hub, each frame: builds the round's world when the hub has said who plays,
+/// holds it until the start, and silences the game at the end. Returns whether the player may
+/// steer.
+fn round_frame(
+    slot: &mut Option<crate::round::Round>,
+    host: &SimHost,
+    audio_settings: &mut AudioSettings,
+    audio: Option<&pav_audio::AudioOut>,
+    scene_name: &mut String,
+    curr: &pav_core::RenderFrame,
+    dt: f32,
+) -> bool {
+    let Some(round) = slot.as_mut() else { return true };
+    if round.info.is_none() && !crate::hub::waiting() && !crate::hub::active() {
+        // No hub answered after all: play on as usual.
+        *slot = None;
+        return true;
+    }
+    let out = round.update(curr, dt);
+    if let Some((seed, character)) = out.build {
+        host.exec(move |sim| {
+            let cfg = sim.config.clone();
+            *sim = pav_core::arpg::round::round_sim(seed, 1, character);
+            sim.config = cfg;
+        });
+        *scene_name = "level/1".into();
+        round.built();
+    }
+    if let (Some(seed), Some(c)) = (out.build_shared, round.coop.as_ref()) {
+        c.build(host, seed);
+        *scene_name = "level/1".into();
+        round.built();
+    }
+    host.set_control(|c| c.paused = out.hold);
+    let playing = round.phase == crate::round::Phase::Playing;
+    let depth = round.standing.0;
+    if let Some(c) = round.coop.as_mut() {
+        c.frame(host, dt, playing);
+        if round.finish_due || (playing && c.goal_reached(depth)) {
+            c.finish(host);
+            round.finish_due = false;
+        }
+    }
+    if out.silent && audio_settings.master > 0.0 {
+        audio_settings.master = 0.0;
+        if let Some(a) = audio {
+            a.set_master(0.0);
+        }
+    }
+    out.input
 }

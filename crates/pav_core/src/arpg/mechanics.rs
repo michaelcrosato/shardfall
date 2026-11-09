@@ -191,6 +191,9 @@ pub struct LevelState {
     pub nav: Option<std::sync::Arc<crate::nav::NavGrid>>,
     #[serde(skip)]
     pub flow: Option<std::sync::Arc<crate::nav::FlowField>>,
+    /// More heroes (a party): the ways to the others, most recent first.
+    #[serde(skip)]
+    pub flows: Vec<std::sync::Arc<crate::nav::FlowField>>,
 }
 
 impl LevelState {
@@ -223,6 +226,7 @@ impl LevelState {
             pulse: 0.0,
             nav: None,
             flow: None,
+            flows: Vec::new(),
         }
     }
 
@@ -256,8 +260,19 @@ impl LevelState {
         if let Some(f) = self.flow.as_ref().filter(|f| f.goal == cell) {
             return Some(f.clone());
         }
+        if let Some(k) = self.flows.iter().position(|f| f.goal == cell) {
+            // Another hero's: the one asked for last is kept first.
+            let f = self.flows.remove(k);
+            if let Some(old) = self.flow.replace(f.clone()) {
+                self.flows.insert(0, old);
+            }
+            return Some(f);
+        }
         let f = std::sync::Arc::new(grid.flow(hero, 40.0)?);
-        self.flow = Some(f.clone());
+        if let Some(old) = self.flow.replace(f.clone()) {
+            self.flows.insert(0, old);
+            self.flows.truncate(4);
+        }
         Some(f)
     }
 
