@@ -476,6 +476,13 @@ impl ViewSettings {
         }
         pav_core::params::apply_map(self, &rest)
     }
+
+    /// How far along the ground the camera may sit from the player (`CameraRig::max_reach`):
+    /// inside the fog, which closes in around the player and hides where the world stops
+    /// streaming. Without fog, no limit.
+    pub fn camera_reach(&self) -> f32 {
+        if self.fog { (self.fog_start - 8.0).max(10.0) } else { f32::INFINITY }
+    }
 }
 
 impl Tunable for ViewSettings {

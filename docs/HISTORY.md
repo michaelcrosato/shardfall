@@ -17,6 +17,14 @@ everything "all blue". Both reproduced headless (`set path=camera.tilt`, capture
   `scene.wgsl`): walls and hills between the lens and the player still go, cut down to a floor
   plan, and the floor stays. The see-through fade follows the same rule; at low tilts it had
   been dithering a dark half-disc out of the floor in front of the player.
+- **Zoomed far out and low, the blue was the fog.** Driving the browser build (right-drag down,
+  then the wheel out to 120 m) still showed blue near the lens: the fog is centred on the player
+  (opaque from 80 m) and hides where the world stops streaming, and a camera 120 m back looks at
+  ground beyond it. `CameraRig::max_reach` now keeps a perspective camera within a set distance
+  of the player along the ground (it comes in as it tilts low; the zoom setting is kept, so
+  tilting back up restores it). The app and the tools set it from the view, 8 m inside the fog
+  (`ViewSettings::camera_reach`: 40 m in the world demo); without fog (Shardfall) there is no
+  limit, and top-down and orthographic cameras are never limited.
 - **The text was the wing signs.** They were billboards up to 19 m wide, 1.2 m inside the plaza
   edge, turning with the camera: turned, they swung into the plaza walls and rooms; low, all
   four faced the lens at once and piled on each other; and any part within 9 m of the player
@@ -30,6 +38,9 @@ everything "all blue". Both reproduced headless (`set path=camera.tilt`, capture
   camera can swing into geometry; a fixed, physically placed sign can't, and it is how a
   player expects a sign to behave. The mouse can still tilt the camera to 0°, which now gives a
   ground-level view.
+- **Decided:** the camera limit lives in the rig, not the renderer, so mouse picking matches
+  what is drawn; and it follows the fog rather than being global, so object previews (which
+  frame big props from far off) and Shardfall's zoom are untouched.
 
 ## Vercel retired: the game ships as one-file builds — 2026-11-02
 

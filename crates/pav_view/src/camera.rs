@@ -81,6 +81,11 @@ pub struct CameraRig {
     initialized: bool,
     /// Blending from earlier parameters: (from, elapsed, duration).
     blend: Option<(CameraParams, f32, f32)>,
+    /// The farthest a perspective camera sits from the focus, measured along the ground: a
+    /// camera tilted low comes in to stay within it. Where fog closes in around the focus, the
+    /// owner sets it inside the fog (`ViewSettings::camera_reach`), so a low camera pulled far
+    /// back never looks at fogged, unloaded ground. Infinite = no limit.
+    pub max_reach: f32,
 }
 
 impl Default for CameraRig {
@@ -91,7 +96,7 @@ impl Default for CameraRig {
 
 impl CameraRig {
     pub fn new(params: CameraParams) -> Self {
-        Self { params, target: Vec3::ZERO, initialized: false, blend: None }
+        Self { params, target: Vec3::ZERO, initialized: false, blend: None, max_reach: f32::INFINITY }
     }
 
     /// Parameters in effect right now (blended while a transition runs).
@@ -157,7 +162,15 @@ impl CameraRig {
     }
 
     pub fn eye(&self) -> Vec3 {
-        self.look_at() - self.forward() * self.current().distance
+        self.look_at() - self.forward() * self.effective_distance()
+    }
+
+    /// The distance in effect: `distance`, brought in so a perspective camera stays within
+    /// `max_reach` of the focus along the ground.
+    pub fn effective_distance(&self) -> f32 {
+        let p = self.current();
+        let along_ground = p.tilt.clamp(0.0, 90.0).to_radians().cos();
+        if p.ortho || along_ground < 1e-3 { p.distance } else { p.distance.min(self.max_reach / along_ground) }
     }
 
     pub fn data(&self, aspect: f32) -> CameraData {
