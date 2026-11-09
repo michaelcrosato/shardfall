@@ -595,6 +595,9 @@ pub struct Cutaway {
     /// Remove everything closer to the camera than this distance in front of the focus
     /// (side views, where walls between camera and player hide everything). 0 = off.
     pub front_cut: f32,
+    /// The front cut and the fade keep everything below this height (the ground the player
+    /// stands on), so a low camera still sees the floor and terrain between it and the player.
+    pub keep_below: f32,
 }
 
 #[derive(Clone, Debug)]

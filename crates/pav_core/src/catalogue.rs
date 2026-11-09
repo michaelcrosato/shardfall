@@ -201,6 +201,7 @@ impl Sim {
             color: Color::hex("#f1f4fa"),
             mode: LabelMode::Floor,
             facing: Default::default(),
+            lean: 0.0,
         };
         let rows = rows();
         let per_page = cat.per_page.max(1) as usize;

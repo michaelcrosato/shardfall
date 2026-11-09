@@ -98,7 +98,7 @@ impl Tunable for CutawaySettings {
         v.float("cut_radius", &mut self.cut_radius, 1.0, 40.0, "Horizontal radius of the cut (m)");
         v.bool("fade", &mut self.fade, "Dither out geometry between camera and player");
         v.float("fade_radius", &mut self.fade_radius, 0.2, 6.0, "Radius of the see-through tunnel (m)");
-        v.bool("front_cut", &mut self.front_cut, "Low cameras: remove everything between the camera and the player");
+        v.bool("front_cut", &mut self.front_cut, "Low cameras: remove what stands between camera and player");
         v.float("front_cut_below", &mut self.front_cut_below, 0.0, 90.0, "Front cut is used below this camera tilt (degrees)");
     }
 }
@@ -1115,6 +1115,9 @@ impl ViewBuilder {
             fade_radius: c.fade_radius,
             // Low cameras look through walls: cut away everything in front of the player.
             front_cut: if c.front_cut && curr.focus_is_player && rig.current().tilt < c.front_cut_below { 0.9 } else { 0.0 },
+            // Kerbs, steps and wall stubs up to this height stay too: walls cut down to a
+            // floor plan, rather than a hole into the sky.
+            keep_below: feet.y + 0.25,
         };
         // The haze lies on the ground the player stands on.
         scene.post.haze_base = feet.y;
@@ -1308,6 +1311,7 @@ impl ViewBuilder {
                     color: if lum > 0.45 { Color::hex("#1d1f24") } else { Color::hex("#f6f3ea") },
                     mode: LabelMode::Floor,
                     facing: Default::default(),
+                    lean: 0.0,
                 };
                 emit_label(&mut scene.texts, &label, rig);
             }
@@ -1647,7 +1651,9 @@ fn emit_label(out: &mut Vec<Text3d>, l: &Label, rig: &CameraRig) {
         LabelMode::Floor => (right, fwd),
         LabelMode::Wall => {
             let n = l.facing.dir();
-            (Vec3::Y.cross(n).normalize_or(Vec3::X), Vec3::Y)
+            let (s, c) = l.lean.to_radians().sin_cos();
+            // Leaning back: the top tips away from the reader.
+            (Vec3::Y.cross(n).normalize_or(Vec3::X), Vec3::Y * c - n * s)
         }
         LabelMode::Billboard => {
             let f = rig.forward();

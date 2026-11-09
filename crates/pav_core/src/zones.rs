@@ -161,6 +161,10 @@ pub struct Label {
     pub mode: LabelMode,
     /// Wall labels: the direction the text faces.
     pub facing: Facing,
+    /// Wall labels: degrees the text leans back from upright, like a sign propped against
+    /// something (it then reads from above as well as from the side). 0 = upright.
+    #[serde(default)]
+    pub lean: f32,
 }
 
 /// Default floor-marking colours per zone kind (None = invisible).

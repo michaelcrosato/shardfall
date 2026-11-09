@@ -1081,7 +1081,7 @@ impl Renderer {
             viewport: [size.0 as f32, size.1 as f32, 1.0 / size.0.max(1) as f32, 1.0 / size.1.max(1) as f32],
             fog: scene.fog.color.extend(if scene.fog.enabled { 1.0 } else { 0.0 }).to_array(),
             fog2: [scene.fog.center.x, scene.fog.center.z, scene.fog.start, scene.fog.end.max(scene.fog.start + 0.01)],
-            cut3: [cut.front_cut, if cut.front_cut > 0.0 { 1.0 } else { 0.0 }, 0.0, 0.0],
+            cut3: [cut.front_cut, if cut.front_cut > 0.0 { 1.0 } else { 0.0 }, cut.keep_below, 0.0],
             wind: {
                 let w = &scene.wind;
                 let d = w.direction.normalize_or(glam::Vec2::X);

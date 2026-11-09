@@ -241,6 +241,7 @@ impl LabelDef {
             color: Color::hex(&self.color),
             mode: self.mode,
             facing: place.facing(self.facing),
+            lean: 0.0,
         }
     }
 }

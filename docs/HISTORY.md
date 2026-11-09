@@ -5,6 +5,32 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Low cameras keep the ground; the plaza's wing signs stand still — 2026-11-09
+
+The user played the browser build in the world demo and reported two things: the plaza's text
+behaved oddly depending on the camera's turn and angle, and a camera turned down low showed
+everything "all blue". Both reproduced headless (`set path=camera.tilt`, captures).
+- **The blue was the front cut.** Below 30° of tilt the shader removed every fragment more than
+  0.9 m in front of the player toward the camera, the ground included, so the sky colour showed
+  through where the floor and terrain should be (creatures and particles hung in it). The cut
+  now spares everything below the player's feet + 0.25 m (`Cutaway::keep_below`, `cut3.z` in
+  `scene.wgsl`): walls and hills between the lens and the player still go, cut down to a floor
+  plan, and the floor stays. The see-through fade follows the same rule; at low tilts it had
+  been dithering a dark half-disc out of the floor in front of the player.
+- **The text was the wing signs.** They were billboards up to 19 m wide, 1.2 m inside the plaza
+  edge, turning with the camera: turned, they swung into the plaza walls and rooms; low, all
+  four faced the lens at once and piled on each other; and any part within 9 m of the player
+  lost its top to the height cut (everything 2.4 m above the feet). They are now fixed signs
+  (`wing_signs` in `world.rs`): a dark board on the low wall either side of each corridor mouth,
+  facing the plaza, one line per wing, leaning back 35° so they read from the default 62°
+  camera and from a low one. Each top stays under 2.2 m, clear of the height cut; the board
+  hides the text from behind.
+- **`Label::lean`** (degrees, serde default 0): a wall label leaning back from upright.
+- **Decided:** fixed signs rather than better billboards. Any sign that turns to face the
+  camera can swing into geometry; a fixed, physically placed sign can't, and it is how a
+  player expects a sign to behave. The mouse can still tilt the camera to 0°, which now gives a
+  ground-level view.
+
 ## Vercel retired: the game ships as one-file builds — 2026-11-02
 
 The user stopped deploying to Vercel. For distribution and testing they use a self-contained

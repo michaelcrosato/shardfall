@@ -19,8 +19,8 @@ struct Globals {
     viewport: vec4<f32>,     // w, h, 1/w, 1/h
     fog: vec4<f32>,          // rgb colour, w = enabled
     fog2: vec4<f32>,         // x,y centre (xz), z start, w end
-    cut3: vec4<f32>,         // x front cut distance, y front cut on
-    wind: vec4<f32>,         // xy direction (world x, z), z strength, w gust speed
+    cut3: vec4<f32>,         // x front cut distance, y front cut on, z the front cut and fade keep what is below this height (the ground)
+    wind: vec4<f32>,        // xy direction (world x, z), z strength, w gust speed
     push: vec4<f32>,         // xyz the pusher's feet (grass bends away), w radius (0 = none)
 };
 
@@ -103,7 +103,9 @@ fn cut_away(p: vec3<f32>, frag: vec2<f32>, flags: u32, height: bool) -> bool {
     if ((flags & FLAG_NO_CUT) != 0u) {
         return false;
     }
-    if (g.cut3.y > 0.5 && dot(p - g.cut.xyz, g.forward.xyz) < -g.cut3.x) {
+    // What stands between the camera and the player goes; the ground they stand on stays.
+    let ground = p.y <= g.cut3.z;
+    if (g.cut3.y > 0.5 && !ground && dot(p - g.cut.xyz, g.forward.xyz) < -g.cut3.x) {
         return true;
     }
     if (height && g.cut2.y > 0.5) {
@@ -111,7 +113,7 @@ fn cut_away(p: vec3<f32>, frag: vec2<f32>, flags: u32, height: bool) -> bool {
             return true;
         }
     }
-    if (g.cut2.w > 0.5) {
+    if (g.cut2.w > 0.5 && !ground) {
         let f = g.cut.xyz;
         var ro: vec3<f32>;
         var rd: vec3<f32>;

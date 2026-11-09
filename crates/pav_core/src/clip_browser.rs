@@ -213,6 +213,7 @@ impl Sim {
             color: Color::hex(color),
             mode: LabelMode::Floor,
             facing: Default::default(),
+            lean: 0.0,
         };
         // On the floor: the view cuts away everything 2.4 m above the player within 9 m of them.
         def.signs = vec![
