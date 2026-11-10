@@ -43,6 +43,7 @@ pub fn run(settings: Settings) -> Result<()> {
 }
 
 /// In the browser the event loop runs from the page's animation frames; this returns at once.
+/// It polls only until the graphics are set up (`about_to_wait`).
 #[cfg(target_arch = "wasm32")]
 pub fn run(settings: Settings) -> Result<()> {
     use winit::platform::web::EventLoopExtWebSys;
@@ -207,10 +208,28 @@ pub struct App {
     audio_resumed: bool,
     init_started: bool,
     pub fatal: Option<String>,
+    /// The title screen (a splash, then the start menu), over the town until the player picks.
+    title: Option<pav_ui::title::TitleScreen>,
+    /// The game camera, put back when the title screen closes (it orbits the town meanwhile).
+    title_camera: Option<CameraParams>,
+    /// What the title screen shows (the saved hero, the languages), made when it opens.
+    title_info: Option<pav_ui::title::TitleInfo>,
+    /// A round on the AI Hub (the page was opened for a session): no title screen or menus.
+    round: Option<crate::round::Round>,
+    /// When the round last ran (`tick_round`), and whether it lets the player steer.
+    round_at: Option<Instant>,
+    round_input: bool,
 }
 
 impl App {
-    fn new(settings: Settings) -> Self {
+    fn new(mut settings: Settings) -> Self {
+        let in_round = crate::hub::active();
+        if in_round {
+            // A session opens straight into the round: the round's world replaces this one
+            // once the hub has said who plays.
+            settings.title = false;
+            settings.scene = "empty".into();
+        }
         let scene_name = settings.scene.clone();
         let touch_screen = crate::platform::touch_screen();
         let mut app = Self {
@@ -226,7 +245,9 @@ impl App {
             app_settings: AppSettings {
                 vsync: settings.vsync,
                 smoothing: true,
-                show_stats: true,
+                // The frame-time readout is a diagnostic: on by default only natively (F1 turns
+                // it on in the browser); the AI Hub's screenshots never show it.
+                show_stats: cfg!(not(target_arch = "wasm32")),
                 show_guide: true,
                 aim_marker: true,
             },
@@ -289,8 +310,20 @@ impl App {
             audio_resumed: false,
             init_started: false,
             fatal: None,
+            title: settings.title.then(|| pav_ui::title::TitleScreen::new(true)),
+            title_camera: None,
+            title_info: None,
+            round: in_round.then(crate::round::Round::new),
+            round_at: None,
+            round_input: true,
             settings,
         };
+        if in_round {
+            app.show_boot = false;
+            app.app_settings.show_stats = false;
+        }
+        crate::lang::init(&app.settings.lang, &app.prefs);
+        crate::lang::install_fonts(&app.egui_ctx, &[]);
         if touch_screen {
             // Phones: touch controls from the start, none of the desktop's diagnostics.
             app.input.last_device = Device::Touch;
@@ -305,6 +338,15 @@ impl App {
     fn on_touch(&mut self, t: &winit::event::Touch, event: &WindowEvent) {
         #[cfg(target_arch = "wasm32")]
         self.resume_audio();
+        if let Some(title) = self.title.as_mut() {
+            // The title screen takes touches as egui clicks; the first ends the splash.
+            if title.in_splash() {
+                title.skip_splash();
+            } else if let (Some(st), Some(g)) = (&mut self.egui_state, &self.gfx) {
+                st.on_window_event(&g.window, event);
+            }
+            return;
+        }
         let Some(g) = &self.gfx else { return };
         let ppp = self.egui_ctx.zoom_factor() * g.window.scale_factor() as f32;
         let pos = egui::pos2(t.location.x as f32 / ppp, t.location.y as f32 / ppp);
@@ -763,6 +805,10 @@ impl App {
 
     fn set_menu(&mut self, open: bool) {
         let Some(host) = &self.host else { return };
+        if open && self.round.is_some() {
+            // In a round the hub runs the session: no pause, title screen or quitting.
+            return;
+        }
         if open && !self.menu_open {
             self.paused_before_menu = host.control().paused;
             host.set_control(|c| c.paused = true);
@@ -944,6 +990,25 @@ impl App {
         }
     }
 
+    /// The round's logic (`round_frame`): the hub's events, the player's input out, the world's
+    /// ticks, reports. It runs every frame and, in the browser, every 50 ms between frames too
+    /// (`about_to_wait`), so drawing that falls behind (a software GPU: the hub's test machine)
+    /// slows neither the round nor its traffic. Returns whether the player may steer.
+    fn tick_round(&mut self) -> bool {
+        let Some(host) = &self.host else { return true };
+        if self.round.is_none() {
+            return true;
+        }
+        let now = Instant::now();
+        let dt = self.round_at.map_or(0.0, |t| (now - t).as_secs_f32()).min(0.25);
+        self.round_at = Some(now);
+        host.pump();
+        let (_, curr, _, _) = host.frames();
+        self.round_input =
+            round_frame(&mut self.round, host, &mut self.audio_settings, self.audio.as_ref(), &mut self.scene_name, &curr, dt);
+        self.round_input
+    }
+
     fn frame(&mut self) {
         if self.gfx.is_none() || self.host.is_none() {
             return;
@@ -957,6 +1022,23 @@ impl App {
                 return;
             }
             self.next_draw = if now > self.next_draw + step { now + step } else { self.next_draw + step };
+        }
+        if let Some(r) = self.round.as_mut().filter(|r| r.fonts_due) {
+            r.fonts_due = false;
+            let names: Vec<String> = r.info.iter().flat_map(|i| i.players.iter().map(|p| p.name.clone())).collect();
+            crate::lang::install_fonts(&self.egui_ctx, &names);
+        }
+        if self.round.as_ref().is_some_and(|r| r.idle()) {
+            // A round before its start: the hub's card covers the game, so the frame is only
+            // cleared (a browser that sees nothing drawn may stop asking for frames), leaving the
+            // machine to copies still loading: the hub's test runs up to four on one. The hub is
+            // heard every frame.
+            self.last = Instant::now();
+            self.tick_round();
+            if let Some(g) = &mut self.gfx {
+                g.clear_frame();
+            }
+            return;
         }
         let now = Instant::now();
         let dt = (now - self.last).as_secs_f32().min(0.1);
@@ -986,6 +1068,8 @@ impl App {
         self.rig.params.yaw = (self.rig.params.yaw + self.input.pad.rotate * 90.0 * dt + 540.0).rem_euclid(360.0) - 180.0;
         self.rig.params.distance = (self.rig.params.distance * (1.0 + self.input.pad.zoom * dt)).clamp(2.0, 120.0);
 
+        // The round hears the hub and runs every frame, whether or not the player may steer.
+        let round_input = self.tick_round();
         let host = self.host.as_ref().unwrap();
         host.pump();
         #[cfg(not(target_arch = "wasm32"))]
@@ -996,7 +1080,7 @@ impl App {
             }
         }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
-        let game_input = !self.menu_open && !ui_wants_keys;
+        let game_input = !self.menu_open && !ui_wants_keys && self.title.is_none();
         let rewinding = game_input && self.studio_mode == StudioMode::World && self.input.rewind_held();
         host.set_control(|c| c.rewinding = rewinding);
 
@@ -1008,6 +1092,7 @@ impl App {
             || prev.studio_mode() != studio_mode
             || prev.live_edit_ticket != curr.live_edit_ticket;
         let game_input = game_input && !studio_active;
+        let game_input = game_input && round_input;
         if studio_mode != self.studio_mode {
             let keep_object_redo = studio_mode == StudioMode::World && self.asset_ui.open && self.asset_ui.creation_removed();
             let keep_creature_redo =
@@ -1213,6 +1298,21 @@ impl App {
             }
         }
 
+        if self.title.is_some() {
+            // Behind the title screen the camera circles the town, low and slow.
+            if self.title_camera.is_none() && self.input.game {
+                self.title_camera = Some(self.rig.params.clone());
+            }
+            let p = &mut self.rig.params;
+            p.tilt = 26.0;
+            p.distance = 17.0;
+            p.height_offset = 1.6;
+            p.ortho = false;
+            p.yaw = (p.yaw + dt * 4.0 + 540.0).rem_euclid(360.0) - 180.0;
+        } else if let Some(cam) = self.title_camera.take() {
+            self.rig.blend_from_current(0.8);
+            self.rig.params = cam;
+        }
         self.rig.update(focus, dt);
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
@@ -1237,9 +1337,25 @@ impl App {
         // The look layer (Look & Filters) over the scene's own settings.
         let mut view = self.view.clone();
         self.look_ui.apply(&mut view);
-        self.prefs.quality.trim(self.touch_screen, &mut view);
+        // A round on a software GPU (the hub's test runs up to four copies on SwiftShader): the
+        // lightest drawing, so every copy keeps up with the round. Real GPUs draw as chosen.
+        let software = self.round.is_some()
+            && self.gfx.as_ref().is_some_and(|g| g.adapter.get_info().device_type == pav_render::wgpu::DeviceType::Cpu);
+        let quality = if software { crate::quality::Quality::Low } else { self.prefs.quality };
+        quality.trim(self.touch_screen, &mut view);
         // A low camera zoomed far out comes in to stay inside the fog (and the loaded world).
         self.rig.max_reach = view.camera_reach();
+        // Ghosts: the other players' heroes, drawn here and nowhere in this world.
+        let ghosts = self.round.as_ref().map(|r| r.ghost_objects(&curr)).unwrap_or_default();
+        let (prev, curr) = if ghosts.is_empty() {
+            (prev, curr)
+        } else {
+            let mut p = (*prev).clone();
+            let mut c = (*curr).clone();
+            p.objects.extend(ghosts.iter().cloned());
+            c.objects.extend(ghosts);
+            (std::sync::Arc::new(p), std::sync::Arc::new(c))
+        };
         let mut scene = self.builder.build(&prev, &curr, alpha, &self.rig, w as f32 / h.max(1) as f32, &view, focus);
         // Arriving somewhere new: the screen opens with the chosen transition, on the player.
         if let Some(t0) = self.arrival {
@@ -1310,8 +1426,13 @@ impl App {
         let crash = host.shared.crashed.lock().unwrap().clone();
         self.panel.record_timing(dt * 1000.0, stats.tick_ms);
         let gfx = self.gfx.as_mut().unwrap();
-        let (render_scale, lights) =
-            self.scaler.update(self.prefs.quality, self.touch_screen, dt * 1000.0, gfx.size(), gfx.window.scale_factor() as f32);
+        let (mut render_scale, mut lights) =
+            self.scaler.update(quality, self.touch_screen, dt * 1000.0, gfx.size(), gfx.window.scale_factor() as f32);
+        if software {
+            let pixels = (gfx.size().0 as f32 * gfx.size().1 as f32).max(1.0);
+            render_scale = render_scale.min((0.12e6 / pixels).sqrt()).max(0.2);
+            lights = 0;
+        }
         gfx.renderer.render_scale = render_scale;
         gfx.renderer.max_shadow_lights = lights;
         let info = ui::OverlayInfo {
@@ -1408,10 +1529,22 @@ impl App {
         let guide = &mut self.guide;
         let mut guide_out = Vec::new();
         let mut game_cmds = Vec::new();
+        if self.title.is_some() && self.title_info.is_none() {
+            self.title_info = Some(title_info());
+        }
+        let title = &mut self.title;
+        let title_shown = self.title_info.clone().unwrap_or_default();
+        let round = &self.round;
+        let mut title_action = None;
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
                 ui::crash_banner(ui, c);
+            }
+            if let Some(screen) = title.as_mut() {
+                // The title screen alone: no HUD, panels or game windows behind it.
+                title_action = screen.ui(&ctx, &title_shown, dt);
+                return;
             }
             panel_actions = panel.ui(ui, &mut root, &mut ctl, &stats);
             let free = ui.available_rect_before_wrap();
@@ -1446,6 +1579,9 @@ impl App {
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             pav_ui::game_lines(&ctx, hud_ctx.hud);
+            if let Some(r) = round {
+                r.overlay(&ctx, &curr, view_proj);
+            }
             if let Some(p) = pad_cursor {
                 // The gamepad's menu cursor, above everything.
                 let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("pad_cursor")));
@@ -1763,6 +1899,13 @@ impl App {
         if let Some(a) = menu_action {
             self.menu_action(a);
         }
+        if let Some(a) = title_action {
+            self.title_action(a);
+        }
+        if let Some(tool) = self.game_ui.tool.take() {
+            // Picked at the Pavilion Gate in town.
+            self.open_tool(tool);
+        }
         // Touch: the bag, the menu, the map button, and taps on the open game.
         for c in &intent.ui {
             match c {
@@ -1952,6 +2095,54 @@ impl App {
         }
     }
 
+    /// A pick on the title screen.
+    fn title_action(&mut self, action: pav_ui::title::TitleAction) {
+        use pav_ui::title::TitleAction as A;
+        match action {
+            A::Play => self.close_title(),
+            A::NewHero => {
+                self.close_title();
+                self.menu_action(MenuAction::NewHero);
+            }
+            A::Tool(tool) => {
+                self.close_title();
+                self.open_tool(tool);
+            }
+            A::Language(code) => {
+                crate::lang::choose(&self.egui_ctx, &code, &mut self.prefs);
+                self.title_info = None;
+            }
+            A::Fullscreen => self.menu_action(MenuAction::Fullscreen),
+            A::Quit => self.menu_action(MenuAction::Quit),
+        }
+    }
+
+    fn close_title(&mut self) {
+        self.title = None;
+        self.title_info = None;
+    }
+
+    /// Opens one of the engine's tools (the title screen, the pause menu, the Pavilion Gate).
+    fn open_tool(&mut self, tool: pav_ui::title::Tool) {
+        use pav_ui::title::Tool;
+        self.set_menu(false);
+        match tool {
+            Tool::Tour => self.load_scene("world"),
+            Tool::Animation => self.switch_studio(StudioMode::Animation),
+            Tool::Object => self.switch_studio(StudioMode::Prop),
+            Tool::Creature => self.switch_studio(StudioMode::Creature),
+            Tool::Starter => self.load_scene("starter"),
+            Tool::Look => self.look_ui.open = true,
+            Tool::Rooms => {
+                if !self.scene_name.starts_with("world") {
+                    self.load_scene("world");
+                }
+                self.open_teleport();
+            }
+            Tool::Tuning => self.panel.open = true,
+        }
+    }
+
     fn switch_studio(&mut self, mode: StudioMode) {
         self.studio_navigation = true;
         self.set_menu(false);
@@ -2008,9 +2199,6 @@ impl App {
     fn menu_action(&mut self, a: MenuAction) {
         match a {
             MenuAction::Resume => self.set_menu(false),
-            MenuAction::AnimationStudio => self.switch_studio(StudioMode::Animation),
-            MenuAction::AssetStudio => self.switch_studio(StudioMode::Prop),
-            MenuAction::CreatureStudio => self.switch_studio(StudioMode::Creature),
             MenuAction::Reset => {
                 self.set_menu(false);
                 self.reset();
@@ -2091,6 +2279,12 @@ impl App {
                     crate::platform::toggle_fullscreen(&g.window);
                 }
             }
+            MenuAction::Tool(tool) => self.open_tool(tool),
+            MenuAction::TitleScreen => {
+                self.set_menu(false);
+                self.title = Some(pav_ui::title::TitleScreen::new(false));
+                self.title_info = None;
+            }
         }
     }
 }
@@ -2110,6 +2304,7 @@ impl App {
     /// A start-up failure: stop, and show why (the browser has no exit to report it).
     fn fail(&mut self, el: &ActiveEventLoop, e: anyhow::Error) {
         let msg = format!("{e:#}");
+        crate::hub::fail(&msg);
         #[cfg(target_arch = "wasm32")]
         crate::platform::error_box("Shardfall could not start", &msg);
         self.fatal = Some(msg);
@@ -2163,6 +2358,18 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
+                if let Some(title) = self.title.as_mut() {
+                    // The title screen: a key ends the splash; then keys move egui's focus
+                    // (Tab, arrows, Enter), and only F11 still does its job.
+                    if event.state == ElementState::Pressed && !event.repeat {
+                        if title.in_splash() {
+                            title.skip_splash();
+                        } else if event.physical_key == PhysicalKey::Code(KeyCode::F11) {
+                            self.menu_action(MenuAction::Fullscreen);
+                        }
+                    }
+                    return;
+                }
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let system = matches!(
                         code,
@@ -2201,6 +2408,12 @@ impl ApplicationHandler for App {
             WindowEvent::MouseInput { state, button, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
+                if let Some(title) = self.title.as_mut() {
+                    if state == ElementState::Pressed && title.in_splash() {
+                        title.skip_splash();
+                    }
+                    return;
+                }
                 if state == ElementState::Pressed && button == MouseButton::Left && !consumed {
                     self.latency.press();
                 }
@@ -2240,9 +2453,23 @@ impl ApplicationHandler for App {
             if let Err(e) = r.and_then(|gfx| self.finish_init(gfx)) {
                 self.fail(el, e);
             }
+            // The graphics are up: from now on the page's animation frames drive the loop (the
+            // redraw asked for below). Polling would keep the page's one thread busy between
+            // frames, starving anything else on it (other games in the same page: the AI Hub).
+            el.set_control_flow(ControlFlow::Wait);
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        let _ = el;
+        // A round runs between frames too (`tick_round`): wake every 50 ms until it has ended.
+        if let (Some(round), Some(_)) = (&self.round, &self.gfx) {
+            if round.ended() {
+                el.set_control_flow(ControlFlow::Wait);
+            } else {
+                let step = std::time::Duration::from_millis(50);
+                if self.round_at.is_none_or(|t| t.elapsed() >= step * 4 / 5) {
+                    self.tick_round();
+                }
+                el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + step));
+            }
+        }
         if let Some(g) = &self.gfx {
             g.window.request_redraw();
         }
@@ -2265,4 +2492,68 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
+}
+
+/// What the title screen shows: the saved hero, and the Language menu's choices when the
+/// address doesn't name the language.
+fn title_info() -> pav_ui::title::TitleInfo {
+    pav_ui::title::TitleInfo {
+        hero: crate::save::load().map(|(hero, _)| (hero.name.clone(), hero.level)),
+        languages: if crate::lang::menu_shown() { pav_core::lines::available() } else { Vec::new() },
+        language: pav_core::lines::language(),
+        fullscreen: cfg!(target_arch = "wasm32"),
+        quit: cfg!(not(target_arch = "wasm32")),
+    }
+}
+
+/// A round on the AI Hub, each frame: builds the round's world when the hub has said who plays,
+/// holds it until the start, and silences the game at the end. Returns whether the player may
+/// steer.
+fn round_frame(
+    slot: &mut Option<crate::round::Round>,
+    host: &SimHost,
+    audio_settings: &mut AudioSettings,
+    audio: Option<&pav_audio::AudioOut>,
+    scene_name: &mut String,
+    curr: &pav_core::RenderFrame,
+    dt: f32,
+) -> bool {
+    let Some(round) = slot.as_mut() else { return true };
+    if round.info.is_none() && !crate::hub::waiting() && !crate::hub::active() {
+        // No hub answered after all: play on as usual.
+        *slot = None;
+        return true;
+    }
+    let out = round.update(curr, dt);
+    if let Some((seed, character)) = out.build {
+        host.exec(move |sim| {
+            let cfg = sim.config.clone();
+            *sim = pav_core::arpg::round::round_sim(seed, 1, character);
+            sim.config = cfg;
+        });
+        *scene_name = "level/1".into();
+        round.built();
+    }
+    if let (Some(seed), Some(c)) = (out.build_shared, round.coop.as_ref()) {
+        c.build(host, seed);
+        *scene_name = "level/1".into();
+        round.built();
+    }
+    host.set_control(|c| c.paused = out.hold);
+    let playing = round.phase == crate::round::Phase::Playing;
+    let depth = round.standing.0;
+    if let Some(c) = round.coop.as_mut() {
+        c.frame(host, dt, playing);
+        if round.finish_due || (playing && c.goal_reached(depth)) {
+            c.finish(host);
+            round.finish_due = false;
+        }
+    }
+    if out.silent && audio_settings.master > 0.0 {
+        audio_settings.master = 0.0;
+        if let Some(a) = audio {
+            a.set_master(0.0);
+        }
+    }
+    out.input
 }

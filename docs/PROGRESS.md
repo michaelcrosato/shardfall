@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it (Claude Code 
 `CLAUDE.md`). The full journal (what was built, how it works, every decision) is
 `docs/HISTORY.md`, newest first: search it when you need the background on something.
 
-## Where things stand (2026-10-27)
+## Where things stand (2026-11-09)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -23,21 +23,21 @@ The current state, kept to one page because every session reads it (Claude Code 
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
 - **The game UI through the tools** (2026-10-19): the HUD, windows, passive tree and touch
   controls live in `pav_ui`; `ui` reads them as text and clicks them, and captures draw them.
-- **On show in the world demo:** the Workshop wing's Library Hall, Limits, Catalogue and Store
-  Showcase, and the animation wing's Clip Browser (every clip on the puppet and the five figures).
-  The figures ship in every build (`props::store::SHIPPED`).
-- Builds (2026-11-02): no hosted site, Vercel is retired. The user plays and tests one-file
-  builds made here and sent in chat: the self-contained `shardfall.html` (`build-web.sh
-  --single-file`), the Windows `.exe` and the Linux binary (`CLAUDE.md`). Pavilion Lite
-  (`pavilion-lite/`) is frozen.
+- **On the AI Hub** (2026-11-09, `docs/AI_HUB.md`): a title screen with the engine's tools (also
+  in the pause menu and at the town's Pavilion Gate); every word a line, in any of the hub's
+  languages (`docs/LANGUAGES.md`); parallel, ghost and shared-world rounds that pass the hub's
+  harness; the catalogue package (`scripts/hub-package.sh`), handed over, not committed.
+- Builds (2026-11-02): no hosted site. The user plays one-file builds sent in chat:
+  `shardfall.html` (`build-web.sh --single-file`), the `.exe` and the Linux binary (`CLAUDE.md`).
+  Pavilion Lite (`pavilion-lite/`) is frozen.
 
 ## Next
 - **Gameplay and content:** add data (themes, levels, families, affixes, uniques, tree clusters,
   characters) and check it with the tools (`levelmap`, `see`, `campaign`, `turntable`,
   `animsheet`).
-- **On hold (the user's call, 2026-10-17): co-op** (`docs/COOP_PLAN.md`), up to four players
-  roaming one world. Planned in stages C0-C6 and kept for later; don't start it until the user
-  says.
+- **On hold (the user's call, 2026-10-17): roaming co-op** (`docs/COOP_PLAN.md`, stages C0-C6),
+  between the user's own builds. The hub's shared-world rounds (2026-11-09) are built; don't
+  start the plan until the user says.
 - **Test games** (`docs/FEEDBACK.md`): fresh agents build a classic's vertical slice on the
   engine from `START_HERE.md`'s "Make a game" prompt; each goes to `michaelcrosato/ai-hub` as
   one HTML file. One so far (Capital Strike, before the hook).

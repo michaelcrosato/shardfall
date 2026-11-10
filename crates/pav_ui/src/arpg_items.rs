@@ -8,8 +8,10 @@ use glam::Vec3;
 use pav_core::arpg::combat::Rarity;
 use pav_core::arpg::data::{Data, data};
 use pav_core::arpg::items::{EquipSlot, Item, Slot};
+use pav_core::arpg::lines;
 use pav_core::arpg::stats::{Mods, Stat, describe};
 use pav_core::arpg::{GameCmd, GameFrame, InvView, Place, SpotKind};
+use pav_core::t;
 
 use crate::arpg_ui::Projector;
 
@@ -32,6 +34,8 @@ pub struct GameUi {
     pub touch: bool,
     /// Touch: the item picked, and where it is.
     picked: Option<(u32, Picked)>,
+    /// A tool picked at the Pavilion Gate, for the app to open.
+    pub tool: Option<crate::title::Tool>,
 }
 
 /// Where a picked item is.
@@ -42,31 +46,6 @@ enum Picked {
     Vendor,
     Buyback,
     Stash,
-}
-
-/// A mouse hint in gamepad words when the player is on a pad (A click, X right-click, hold Y for
-/// shift, B close, stick and right stick for drag and wheel).
-pub fn hint(pad: bool, s: &str) -> String {
-    if !pad {
-        return s.to_string();
-    }
-    let mut t = s.to_string();
-    for (a, b) in [
-        ("Shift-click", "Y+A"),
-        ("shift-click", "Y+A"),
-        ("Right-click", "X"),
-        ("right-click", "X"),
-        ("Click", "A"),
-        ("(click)", "(A)"),
-        ("click", "A"),
-        ("drag: pan", "hold A + stick: pan"),
-        ("wheel: zoom", "right stick: zoom"),
-        ("I to close", "B to close · LB/RB: panels"),
-        ("P to close", "B to close · LB/RB: panels"),
-    ] {
-        t = t.replace(a, b);
-    }
-    t
 }
 
 /// Touch screens: windows fit the screen and scroll (a finger drags the content).
@@ -249,7 +228,7 @@ pub fn item_tooltip(ui: &mut egui::Ui, d: &Data, it: &Item, title: Option<&str>)
     if !t.base.is_empty() {
         ui.label(RichText::new(&t.base).color(rarity_color(it.rarity).gamma_multiply(0.8)));
     }
-    ui.label(RichText::new(format!("{}   ·   item level {}", t.kind, t.level)).small().color(Color32::from_white_alpha(150)));
+    ui.label(RichText::new(t!("item.kind_level", kind = &t.kind, level = t.level)).small().color(Color32::from_white_alpha(150)));
     ui.separator();
     for h in &t.header {
         ui.label(RichText::new(h).color(Color32::from_rgb(235, 228, 210)));
@@ -272,11 +251,8 @@ pub fn item_tooltip(ui: &mut egui::Ui, d: &Data, it: &Item, title: Option<&str>)
             ui.horizontal(|ui| {
                 ui.label(txt);
                 if it.rarity != Rarity::Unique {
-                    ui.label(
-                        RichText::new(format!("T{}{}", tier + 1, if *local { " local" } else { "" }))
-                            .small()
-                            .color(Color32::from_white_alpha(90)),
-                    );
+                    let tier = if *local { t!("item.tier.local", tier = tier + 1) } else { t!("item.tier", tier = tier + 1) };
+                    ui.label(RichText::new(tier).small().color(Color32::from_white_alpha(90)));
                 }
             });
         }
@@ -288,7 +264,7 @@ pub fn item_tooltip(ui: &mut egui::Ui, d: &Data, it: &Item, title: Option<&str>)
     if !t.lore.is_empty() {
         ui.label(RichText::new(&t.lore).italics().color(Color32::from_rgb(170, 130, 90)));
     }
-    ui.label(RichText::new(format!("Sells for {} gold", it.value())).small().color(Color32::from_rgb(220, 180, 80)));
+    ui.label(RichText::new(t!("item.sells_for", count = it.value())).small().color(Color32::from_rgb(220, 180, 80)));
 }
 
 /// What wearing `new` instead of `old` changes (stat by stat, plus weapon damage and armour).
@@ -302,14 +278,15 @@ fn compare(ui: &mut egui::Ui, d: &Data, new: &Item, old: Option<&Item>) {
     }
     ui.separator();
     ui.label(
-        RichText::new(if old.is_some() { "If you wear this instead:" } else { "If you wear this:" })
+        RichText::new(if old.is_some() { t!("compare.instead") } else { t!("compare.wear") })
             .small()
             .color(Color32::from_white_alpha(150)),
     );
     if new.slot(d) == Slot::Weapon {
         let nd = (ns.phys[0] + ns.phys[1]) * 0.5 * ns.aps;
         let od = (os.phys[0] + os.phys[1]) * 0.5 * os.aps;
-        line(ui, nd - od, &format!("{:+.1} weapon damage per second", nd - od));
+        let value = ((nd - od).abs() * 10.0).round() / 10.0;
+        line(ui, nd - od, &if nd >= od { t!("compare.dps_more", value = value) } else { t!("compare.dps_less", value = value) });
     }
     let mut any = false;
     for (s, v) in &diff.0 {
@@ -317,21 +294,22 @@ fn compare(ui: &mut egui::Ui, d: &Data, new: &Item, old: Option<&Item>) {
             continue;
         }
         any = true;
-        let text = describe(*s, v.abs());
-        let text = if *v < 0.0 { format!("lose: {text}") } else { text };
+        let text = if *v < 0.0 {
+            t!("compare.lose", what = pav_core::arpg::stats::describe_piece(*s, v.abs()))
+        } else {
+            describe(*s, v.abs())
+        };
         line(ui, *v, &text);
     }
     if !any && new.slot(d) != Slot::Weapon {
-        ui.label(RichText::new("no stat changes").small());
+        ui.label(RichText::new(t!("compare.none")).small());
     }
-    let np = ns.power.map(|p| p.describe());
-    let op = os.power.map(|p| p.describe());
-    if np != op {
-        if let Some(p) = op {
-            line(ui, -1.0, &format!("lose: {p}"));
+    if ns.power != os.power {
+        if let Some(p) = os.power {
+            line(ui, -1.0, &t!("compare.lose", what = p.describe_piece()));
         }
-        if let Some(p) = np {
-            line(ui, 1.0, &p);
+        if let Some(p) = ns.power {
+            line(ui, 1.0, &p.describe());
         }
     }
 }
@@ -430,7 +408,7 @@ impl GameUi {
             p.text(
                 at,
                 Align2::CENTER_BOTTOM,
-                format!("+{} passive point{}  (P)", inv.points, if inv.points == 1 { "" } else { "s" }),
+                t!("hud.points", count = inv.points),
                 FontId::proportional(14.0),
                 Color32::from_rgb(255, 215, 120),
             );
@@ -443,6 +421,7 @@ impl GameUi {
             Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
             Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
             Some(SpotKind::Hero) => self.hero_window(ctx, &d, &inv, g, &mut out),
+            Some(SpotKind::Gate) => self.gate_window(ctx),
             Some(SpotKind::Exit | SpotKind::Chest) | None => {}
         }
         if self.touch {
@@ -486,12 +465,8 @@ impl GameUi {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().max_height(screen.height() - 40.0).show(ui, |ui| {
                     let worn = worn_for(inv, d, &it);
-                    item_tooltip(
-                        ui,
-                        d,
-                        &it,
-                        if let Picked::Worn(s) = from { EquipSlot::from_index(s).map(|e| e.name()) } else { None },
-                    );
+                    let title = if let Picked::Worn(s) = from { EquipSlot::from_index(s).map(slot_title) } else { None };
+                    item_tooltip(ui, d, &it, title.as_deref());
                     if !matches!(from, Picked::Worn(_)) {
                         compare(ui, d, &it, worn);
                     }
@@ -499,30 +474,33 @@ impl GameUi {
                     ui.horizontal_wrapped(|ui| {
                         match from {
                             Picked::Bag => {
-                                if ui.button("Wear").clicked() {
+                                if ui.button(t!("item.wear")).clicked() {
                                     act(GameCmd::Equip(id), &mut keep);
                                 }
-                                if it.slot(d) == Slot::Ring && ui.button("Wear on the right hand").clicked() {
+                                if it.slot(d) == Slot::Ring && ui.button(t!("item.wear_right")).clicked() {
                                     act(GameCmd::EquipTo(id, EquipSlot::Ring2.index() as u8), &mut keep);
                                 }
-                                if vendor && ui.button(format!("Sell ({} gold)", it.value())).clicked() {
+                                if vendor && ui.button(t!("item.sell_for", count = it.value())).clicked() {
                                     act(GameCmd::Sell(id), &mut keep);
                                 }
-                                if stash && ui.button("Put in the stash").clicked() {
+                                if stash && ui.button(t!("item.stash")).clicked() {
                                     act(GameCmd::Stash(id), &mut keep);
                                 }
-                                if ui.button("Drop").clicked() {
+                                if ui.button(t!("item.drop")).clicked() {
                                     act(GameCmd::Drop(id), &mut keep);
                                 }
                             }
                             Picked::Worn(slot) => {
-                                if ui.button("Take off").clicked() {
+                                if ui.button(t!("item.take_off")).clicked() {
                                     act(GameCmd::Unequip(slot as u8), &mut keep);
                                 }
                             }
                             Picked::Vendor => {
                                 let price = pav_core::arpg::cmd::buy_price(&it);
-                                if ui.add_enabled(inv.gold >= price, egui::Button::new(format!("Buy ({price} gold)"))).clicked() {
+                                if ui
+                                    .add_enabled(inv.gold >= price, egui::Button::new(t!("item.buy_for", count = price)))
+                                    .clicked()
+                                {
                                     act(GameCmd::Buy(id), &mut keep);
                                 }
                             }
@@ -530,7 +508,7 @@ impl GameUi {
                                 if ui
                                     .add_enabled(
                                         inv.gold >= it.value(),
-                                        egui::Button::new(format!("Buy back ({} gold)", it.value())),
+                                        egui::Button::new(t!("item.buy_back_for", count = it.value())),
                                     )
                                     .clicked()
                                 {
@@ -538,18 +516,18 @@ impl GameUi {
                                 }
                             }
                             Picked::Stash => {
-                                if ui.button("Take into the bag").clicked() {
+                                if ui.button(t!("item.take")).clicked() {
                                     act(GameCmd::Take(id), &mut keep);
                                 }
                             }
                         }
-                        if ui.button("Close").clicked() {
+                        if ui.button(t!("ui.close")).clicked() {
                             keep = false;
                         }
                     });
                     if let Some(w) = worn.filter(|_| matches!(from, Picked::Bag | Picked::Vendor | Picked::Stash)) {
                         ui.separator();
-                        item_tooltip(ui, d, w, Some("Wearing"));
+                        item_tooltip(ui, d, w, Some(&t!("item.wearing")));
                     }
                 })
             });
@@ -563,7 +541,7 @@ impl GameUi {
         let vendor = self.panel == Some(SpotKind::Vendor);
         let stash = self.panel == Some(SpotKind::Stash);
         let touch = self.touch;
-        fit(egui::Window::new("Inventory"), ctx, touch)
+        fit(egui::Window::new(t!("inventory.title")).id(egui::Id::new("inventory")), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
@@ -576,11 +554,11 @@ impl GameUi {
                     let r = Rect::from_min_size(area.min + EVec2::new(cx * (size + 8.0), cy * (size + 6.0)), EVec2::splat(size));
                     let item = inv.equipment.get(slot.index()).and_then(|i| i.as_ref());
                     let label = match slot {
-                        EquipSlot::Ring1 | EquipSlot::Ring2 => "ring",
-                        s => s.key(),
+                        EquipSlot::Ring1 | EquipSlot::Ring2 => t!("doll.ring"),
+                        s => t!(&format!("doll.{}", s.key())),
                     };
                     let picked = item.is_some_and(|it| self.picked == Some((it.id, Picked::Worn(slot.index()))));
-                    let resp = ui.put(r, |ui: &mut egui::Ui| cell(ui, d, item, size, label, picked));
+                    let resp = ui.put(r, |ui: &mut egui::Ui| cell(ui, d, item, size, &label, picked));
                     if let Some(it) = item {
                         if touch {
                             if resp.clicked() {
@@ -590,24 +568,24 @@ impl GameUi {
                             out.push(GameCmd::Unequip(slot.index() as u8));
                         }
                         resp.on_hover_ui(|ui| {
-                            item_tooltip(ui, d, it, Some(slot.name()));
-                            ui.label(
-                                RichText::new(hint(self.pad, "Click: take off")).small().color(Color32::from_white_alpha(120)),
-                            );
+                            item_tooltip(ui, d, it, Some(&slot_title(slot)));
+                            let take_off = if self.pad { t!("hint.take_off.pad") } else { t!("hint.take_off") };
+                            ui.label(RichText::new(take_off).small().color(Color32::from_white_alpha(120)));
                         });
                     }
                 }
-                ui.label(RichText::new(format!("{} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+                ui.label(RichText::new(t!("hud.gold", count = inv.gold)).color(Color32::from_rgb(255, 205, 70)));
                 ui.separator();
                 // The bag: 8 x 5.
-                let hint_text = if touch {
-                    "Tap an item: what it is and what to do with it"
-                } else if vendor {
-                    "Click: sell · Right-click: more"
-                } else if stash {
-                    "Click: stash · Right-click: more"
-                } else {
-                    "Click: wear · Right-click: more"
+                let pad = self.pad;
+                let hint_text = match (touch, pad) {
+                    (true, _) => t!("hint.bag.touch"),
+                    (_, true) if vendor => t!("hint.bag.sell.pad"),
+                    (_, true) if stash => t!("hint.bag.stash.pad"),
+                    (_, true) => t!("hint.bag.wear.pad"),
+                    _ if vendor => t!("hint.bag.sell"),
+                    _ if stash => t!("hint.bag.stash"),
+                    _ => t!("hint.bag.wear"),
                 };
                 egui::Grid::new("bag").spacing(EVec2::splat(4.0)).show(ui, |ui| {
                     for i in 0..pav_core::arpg::hero::INVENTORY_SIZE {
@@ -629,23 +607,23 @@ impl GameUi {
                             let id = it.id;
                             let ring = it.slot(d) == Slot::Ring;
                             resp.context_menu(|ui| {
-                                if ui.button("Wear").clicked() {
+                                if ui.button(t!("item.wear")).clicked() {
                                     out.push(GameCmd::Equip(id));
                                     ui.close();
                                 }
-                                if ring && ui.button("Wear on the right hand").clicked() {
+                                if ring && ui.button(t!("item.wear_right")).clicked() {
                                     out.push(GameCmd::EquipTo(id, EquipSlot::Ring2.index() as u8));
                                     ui.close();
                                 }
-                                if vendor && ui.button("Sell").clicked() {
+                                if vendor && ui.button(t!("item.sell")).clicked() {
                                     out.push(GameCmd::Sell(id));
                                     ui.close();
                                 }
-                                if stash && ui.button("Put in the stash").clicked() {
+                                if stash && ui.button(t!("item.stash")).clicked() {
                                     out.push(GameCmd::Stash(id));
                                     ui.close();
                                 }
-                                if ui.button("Drop").clicked() {
+                                if ui.button(t!("item.drop")).clicked() {
                                     out.push(GameCmd::Drop(id));
                                     ui.close();
                                 }
@@ -659,7 +637,7 @@ impl GameUi {
                                         });
                                         if let Some(w) = worn_for(inv, d, it) {
                                             ui.separator();
-                                            ui.vertical(|ui| item_tooltip(ui, d, w, Some("Wearing")));
+                                            ui.vertical(|ui| item_tooltip(ui, d, w, Some(&t!("item.wearing"))));
                                         }
                                     });
                                 });
@@ -671,26 +649,27 @@ impl GameUi {
                     }
                 });
                 ui.horizontal(|ui| {
-                    if ui.button("Sort").clicked() {
+                    if ui.button(t!("inventory.sort")).clicked() {
                         out.push(GameCmd::Sort);
                     }
-                    ui.label("Auto-pickup:");
-                    let names = ["everything", "magic +", "rare +", "unique", "off"];
+                    ui.label(t!("inventory.auto_pickup"));
+                    let names =
+                        ["everything", "magic", "rare", "unique", "off"].map(|n| t!(&format!("inventory.auto_pickup.{n}")));
                     let mut sel = inv.auto_loot.min(4) as usize;
-                    egui::ComboBox::from_id_salt("autoloot").selected_text(names[sel]).show_ui(ui, |ui| {
+                    egui::ComboBox::from_id_salt("autoloot").selected_text(names[sel].as_str()).show_ui(ui, |ui| {
                         for (i, n) in names.iter().enumerate() {
-                            if ui.selectable_value(&mut sel, i, *n).clicked() {
+                            if ui.selectable_value(&mut sel, i, n.as_str()).clicked() {
                                 out.push(GameCmd::AutoLoot(i as u8));
                             }
                         }
                     });
                 });
-                let close = if touch { "" } else { "   ·   I to close" };
-                ui.label(
-                    RichText::new(hint(self.pad, &format!("{hint_text}   ·   green frame: an upgrade{close}")))
-                        .small()
-                        .color(Color32::from_white_alpha(120)),
-                );
+                let footer = match (touch, pad) {
+                    (true, _) => t!("inventory.footer.touch", hint = hint_text),
+                    (_, true) => t!("inventory.footer.pad", hint = hint_text),
+                    _ => t!("inventory.footer", hint = hint_text),
+                };
+                ui.label(RichText::new(footer).small().color(Color32::from_white_alpha(120)));
             });
         if !open {
             self.inventory = false;
@@ -700,17 +679,13 @@ impl GameUi {
     fn vendor_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
         let touch = self.touch;
-        fit(egui::Window::new("Hilda the Smith"), ctx, touch)
+        fit(egui::Window::new(t!("spot.smith")).id(egui::Id::new("vendor")), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
             .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
-                ui.label(
-                    RichText::new("\"Steel for coin. Bring me what you don't need.\"")
-                        .italics()
-                        .color(Color32::from_rgb(200, 170, 130)),
-                );
+                ui.label(RichText::new(t!("vendor.greeting")).italics().color(Color32::from_rgb(200, 170, 130)));
                 ui.separator();
                 egui::Grid::new("wares").spacing(EVec2::splat(6.0)).show(ui, |ui| {
                     for (i, it) in inv.vendor.iter().enumerate() {
@@ -735,10 +710,12 @@ impl GameUi {
                             resp.on_hover_ui(|ui| {
                                 item_tooltip(ui, d, it, None);
                                 compare(ui, d, it, worn_for(inv, d, it));
-                                ui.label(
-                                    RichText::new(hint(self.pad, &format!("Buy for {price} gold (click)")))
-                                        .color(Color32::from_rgb(255, 205, 70)),
-                                );
+                                let buy = if self.pad {
+                                    t!("vendor.buy_hint.pad", count = price)
+                                } else {
+                                    t!("vendor.buy_hint", count = price)
+                                };
+                                ui.label(RichText::new(buy).color(Color32::from_rgb(255, 205, 70)));
                             });
                         });
                         if (i + 1) % 6 == 0 {
@@ -748,7 +725,7 @@ impl GameUi {
                 });
                 if !inv.buyback.is_empty() {
                     ui.separator();
-                    ui.label("Buy back");
+                    ui.label(t!("vendor.buy_back"));
                     ui.horizontal(|ui| {
                         for it in &inv.buyback {
                             let resp = cell(ui, d, Some(it), 40.0, "", false);
@@ -764,7 +741,7 @@ impl GameUi {
                             resp.on_hover_ui(|ui| {
                                 item_tooltip(ui, d, it, None);
                                 ui.label(
-                                    RichText::new(format!("Buy back for {} gold", it.value()))
+                                    RichText::new(t!("vendor.buy_back_for", count = it.value()))
                                         .color(Color32::from_rgb(255, 205, 70)),
                                 );
                             });
@@ -773,10 +750,10 @@ impl GameUi {
                 }
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button("Sell all normal").clicked() {
+                    if ui.button(t!("vendor.sell_normal")).clicked() {
                         out.push(GameCmd::SellAll(0));
                     }
-                    if ui.button("Sell all normal and magic").clicked() {
+                    if ui.button(t!("vendor.sell_magic")).clicked() {
                         out.push(GameCmd::SellAll(1));
                     }
                 });
@@ -789,7 +766,8 @@ impl GameUi {
     fn stash_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
         let touch = self.touch;
-        fit(egui::Window::new(format!("Stash ({}/{})", inv.stash.len(), pav_core::arpg::hero::STASH_SIZE)), ctx, touch)
+        let title = t!("stash.title", stored = inv.stash.len(), size = pav_core::arpg::hero::STASH_SIZE);
+        fit(egui::Window::new(title).id(egui::Id::new("stash")), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
@@ -819,8 +797,12 @@ impl GameUi {
                         }
                     });
                 });
-                let help = if touch { "Tap an item: what it is, and take it" } else { "Click: take into the bag" };
-                ui.label(RichText::new(hint(self.pad, help)).small().color(Color32::from_white_alpha(120)));
+                let help = match (touch, self.pad) {
+                    (true, _) => t!("hint.stash.touch"),
+                    (_, true) => t!("hint.stash.pad"),
+                    _ => t!("hint.stash"),
+                };
+                ui.label(RichText::new(help).small().color(Color32::from_white_alpha(120)));
             });
         if !open {
             self.panel = None;
@@ -829,15 +811,15 @@ impl GameUi {
 
     fn gamble_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        fit(egui::Window::new("Odo the Gambler"), ctx, self.touch)
+        fit(egui::Window::new(t!("spot.gambler")).id(egui::Id::new("gamble")), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
             .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
-                ui.label(RichText::new("A sealed box for every slot. What's inside? Pay and see.").italics());
+                ui.label(RichText::new(t!("gamble.pitch")).italics());
                 ui.label(
-                    RichText::new("Magic 60% · Rare 22% · Unique 3%  ·  item level up to yours + 2")
+                    RichText::new(t!("gamble.odds", magic = 60, rare = 22, unique = 3, levels = 2))
                         .small()
                         .color(Color32::from_white_alpha(150)),
                 );
@@ -848,36 +830,58 @@ impl GameUi {
                         let ok = inv.gold >= price && inv.inventory.len() < pav_core::arpg::hero::INVENTORY_SIZE;
                         let b = ui.add_enabled(
                             ok,
-                            egui::Button::new(RichText::new(slot.name()).size(15.0)).min_size(EVec2::new(130.0, 26.0)),
+                            egui::Button::new(RichText::new(lines::slot_name(*slot)).size(15.0))
+                                .min_size(EVec2::new(130.0, 26.0)),
                         );
                         if b.clicked() {
                             out.push(GameCmd::Gamble(i as u8));
                         }
                         let c = if inv.gold >= price { Color32::from_rgb(255, 205, 70) } else { Color32::from_rgb(170, 90, 80) };
-                        ui.label(RichText::new(format!("{price} gold")).color(c));
+                        ui.label(RichText::new(t!("hud.gold", count = price)).color(c));
                         ui.end_row();
                     }
                 });
-                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+                ui.label(RichText::new(t!("shop.you_have", count = inv.gold)).color(Color32::from_rgb(255, 205, 70)));
             });
         if !open {
             self.panel = None;
         }
     }
 
+    /// The Pavilion Gate: the engine's tools, as on the title screen.
+    fn gate_window(&mut self, ctx: &egui::Context) {
+        let mut open = true;
+        let mut picked = None;
+        fit(egui::Window::new(pav_core::t!("tools.gate")), ctx, self.touch)
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .max_width(720.0)
+            .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
+            .show(ctx, |ui| {
+                picked = crate::directed(ui, |ui| crate::title::tools_panel(ui, 3));
+            });
+        if picked.is_some() || !open {
+            self.panel = None;
+        }
+        if picked.is_some() {
+            self.tool = picked;
+        }
+    }
+
     fn alchemist_window(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         let mut open = true;
-        fit(egui::Window::new("Mother Wren's Brews"), ctx, self.touch)
+        fit(egui::Window::new(t!("alchemist.title")).id(egui::Id::new("alchemist")), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
             .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
             .show(ctx, |ui| {
-                ui.label(RichText::new("Stronger potions for deeper places.").italics());
+                ui.label(RichText::new(t!("alchemist.pitch")).italics());
                 ui.add_space(4.0);
                 let rows = [
-                    ("Another flask", format!("{} potions now (6 at most)", inv.potion_max)),
-                    ("A stronger brew", format!("Potions heal {:.0}% of your life", 45.0 * inv.sheet.potion)),
+                    ("flask", t!("alchemist.flask.now", count = inv.potion_max, most = 6)),
+                    ("brew", t!("alchemist.brew.now", percent = (45.0 * inv.sheet.potion).round() as i64)),
                 ];
                 for (k, (name, now)) in rows.iter().enumerate() {
                     ui.horizontal(|ui| {
@@ -885,8 +889,10 @@ impl GameUi {
                             Some(price) => {
                                 let b = ui.add_enabled(
                                     inv.gold >= price,
-                                    egui::Button::new(RichText::new(format!("{name}  ·  {price} gold")).size(15.0))
-                                        .min_size(EVec2::new(240.0, 28.0)),
+                                    egui::Button::new(
+                                        RichText::new(t!(&format!("alchemist.{name}.buy"), count = price)).size(15.0),
+                                    )
+                                    .min_size(EVec2::new(240.0, 28.0)),
                                 );
                                 if b.clicked() {
                                     out.push(GameCmd::Brew(k as u8));
@@ -895,15 +901,14 @@ impl GameUi {
                             None => {
                                 ui.add_enabled(
                                     false,
-                                    egui::Button::new(format!("{name}  ·  as strong as it gets"))
-                                        .min_size(EVec2::new(240.0, 28.0)),
+                                    egui::Button::new(t!(&format!("alchemist.{name}.maxed"))).min_size(EVec2::new(240.0, 28.0)),
                                 );
                             }
                         }
                         ui.label(RichText::new(now).small().color(Color32::from_white_alpha(170)));
                     });
                 }
-                ui.label(RichText::new(format!("You have {} gold", inv.gold)).color(Color32::from_rgb(255, 205, 70)));
+                ui.label(RichText::new(t!("shop.you_have", count = inv.gold)).color(Color32::from_rgb(255, 205, 70)));
             });
         if !open {
             self.panel = None;
@@ -914,7 +919,7 @@ impl GameUi {
         let Some(i) = self.panel_spot else { return };
         let Some(s) = g.spots.get(i) else { return };
         let mut open = true;
-        fit(egui::Window::new(&s.name), ctx, self.touch)
+        fit(egui::Window::new(lines::spot_name(&s.name)).id(egui::Id::new(("exhibit", i))), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
@@ -925,11 +930,11 @@ impl GameUi {
                 }
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button("Release it (fight)").clicked() {
+                    if ui.button(t!("exhibit.release")).clicked() {
                         out.push(GameCmd::Release(i as u32));
                         self.panel = None;
                     }
-                    if ui.button("New creatures").clicked() {
+                    if ui.button(t!("exhibit.reroll")).clicked() {
                         out.push(GameCmd::Reroll);
                         self.panel = None;
                     }
@@ -948,7 +953,7 @@ impl GameUi {
         let n = g.spots[..i].iter().filter(|s| s.kind == SpotKind::Hero).count();
         let Some(c) = d.characters.get(n) else { return };
         let mut open = true;
-        fit(egui::Window::new(&s.name), ctx, self.touch)
+        fit(egui::Window::new(lines::spot_name(&s.name)).id(egui::Id::new(("hero", i))), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
@@ -960,8 +965,8 @@ impl GameUi {
                 }
                 ui.separator();
                 if inv.character == c.key {
-                    ui.label(RichText::new(format!("You are {}.", c.name)).italics());
-                } else if ui.button(RichText::new(format!("Play as {}", c.name)).size(16.0)).clicked() {
+                    ui.label(RichText::new(t!("hall.you_are", name = lines::hero_name(c))).italics());
+                } else if ui.button(RichText::new(t!("hall.play_as", name = lines::hero_name(c))).size(16.0)).clicked() {
                     out.push(GameCmd::Character(n as u8));
                     self.panel = None;
                 }
@@ -975,13 +980,13 @@ impl GameUi {
         let mut open = true;
         let deepest = g.inv.as_ref().map(|i| i.max_depth).unwrap_or(0).max(1);
         let d = data();
-        fit(egui::Window::new("Portal"), ctx, self.touch)
+        fit(egui::Window::new(t!("spot.portal")).id(egui::Id::new("portal")), ctx, self.touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
             .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
             .show(ctx, |ui| {
-                ui.label(RichText::new("Where to?").strong());
+                ui.label(RichText::new(t!("portal.where")).strong());
                 for p in [Place::Town, Place::Arena, Place::Lab] {
                     let here = p == g.place;
                     let b = ui.add_enabled(
@@ -994,24 +999,26 @@ impl GameUi {
                     }
                 }
                 ui.separator();
-                ui.label(RichText::new("Waypoints: the descent").strong());
+                ui.label(RichText::new(t!("portal.waypoints")).strong());
                 egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
                     for n in (1..=deepest).rev() {
                         let plan = pav_core::arpg::world::plan(&d, n);
                         let p = Place::Level(n);
                         let here = p == g.place;
-                        let mut text = RichText::new(format!("{} · {}", plan.label(), plan.name)).size(15.0);
+                        let mut text =
+                            RichText::new(t!("level.card", label = plan.label(), name = lines::plan_name(&plan))).size(15.0);
                         if plan.endless {
                             text = text.color(Color32::from_rgb(200, 170, 255));
                         }
                         let b = ui.add_enabled(!here, egui::Button::new(text).min_size(EVec2::new(300.0, 26.0)));
                         let b = b.on_hover_ui(|ui| {
-                            ui.label(RichText::new(&plan.about).italics());
-                            let mech: Vec<&str> = plan.mechanics.iter().map(|m| m.name()).collect();
-                            ui.label(format!("Mechanics: {}", mech.join(", ")));
-                            ui.label(format!("Monster level {}", plan.monster_level));
+                            ui.label(RichText::new(lines::plan_about(&plan)).italics());
+                            let mech: Vec<String> = plan.mechanics.iter().map(|m| lines::mechanic_name(*m)).collect();
+                            ui.label(t!("portal.mechanics", mechanics = lines::list_comma(&mech)));
+                            ui.label(t!("portal.monster_level", level = plan.monster_level));
                             if let Some(b) = &plan.boss {
-                                ui.label(RichText::new(format!("Boss: {b}")).color(Color32::from_rgb(255, 150, 80)));
+                                let name = lines::boss_name_of(&d, b, plan.monster_level);
+                                ui.label(RichText::new(t!("portal.boss", name = name)).color(Color32::from_rgb(255, 150, 80)));
                             }
                         });
                         if b.clicked() {
@@ -1038,43 +1045,80 @@ fn is_upgrade(d: &Data, inv: &InvView, it: &Item) -> bool {
 
 fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &GameFrame, touch: bool) {
     let s = &inv.sheet;
-    fit(egui::Window::new("Character"), ctx, touch)
+    let d = data();
+    fit(egui::Window::new(t!("character.title")).id(egui::Id::new("character")), ctx, touch)
         .open(open)
         .resizable(false)
         .collapsible(false)
         .anchor(Align2::LEFT_TOP, if touch { EVec2::new(8.0, TOUCH_TOP) } else { EVec2::new(16.0, 60.0) })
         .show(ctx, |ui| {
             if let Some(h) = &g.hero {
-                ui.label(RichText::new(format!("{}  ·  Level {}", h.name, h.level)).size(17.0).strong());
+                ui.label(RichText::new(t!("character.heading", name = &h.name, level = h.level)).size(17.0).strong());
             }
             // Which playable character (others wait in the Hall of Heroes, in town).
-            if let Some(c) = data().character(&inv.character).filter(|c| !c.title.is_empty()) {
-                ui.label(RichText::new(c.title.clone()).italics().color(Color32::from_rgb(200, 190, 170)));
+            if let Some(c) = d.character(&inv.character).filter(|c| !c.title.is_empty()) {
+                ui.label(RichText::new(lines::hero_title(c)).italics().color(Color32::from_rgb(200, 190, 170)));
             }
             let w = &inv.weapon;
+            // The weapon worn (by its name in the language in use), or bare hands.
+            let weapon = match inv.equipment.get(EquipSlot::Weapon.index()).and_then(|e| e.as_ref()) {
+                Some(it) => lines::item_name(&d, it),
+                None => lines::piece("character.fists", &[]),
+            };
+            // Signed whole percentages ("+12", "-5") and numbers to one or two places.
+            let pct = |v: f32| format!("{:+.0}", v);
+            let places = |v: f32, n: i32| ((v as f64) * 10f64.powi(n)).round() / 10f64.powi(n);
             egui::Grid::new("sheet").num_columns(2).striped(true).show(ui, |ui| {
                 let mut row = |k: &str, v: String| {
-                    ui.label(k);
+                    ui.label(t!(k));
                     ui.label(RichText::new(v).color(Color32::from_rgb(235, 225, 200)));
                     ui.end_row();
                 };
-                row("Life", format!("{:.0}  (+{:.1}/s)", s.life_max, s.life_regen));
-                row("Mana", format!("{:.0}  (+{:.1}/s)", s.mana_max, s.mana_regen));
-                row("Weapon", format!("{}: {:.0}-{:.0} at {:.2}/s", w.name, w.phys[0], w.phys[1], w.aps));
-                row("Attack speed", format!("{:+.0}%", (s.attack_speed - 1.0) * 100.0));
-                row("Cast speed", format!("{:+.0}%", (s.cast_speed - 1.0) * 100.0));
-                row("Critical strike", format!("{:.1}% × {:.0}%", w.crit * s.crit_inc + s.crit_flat, s.crit_multi * 100.0));
-                row("Armour", format!("{:.0}", s.armor));
-                row("Evade / Block", format!("{:.0}% / {:.0}%", s.evasion, s.block));
+                row("character.life", t!("character.regen", value = s.life_max.round() as i64, regen = places(s.life_regen, 1)));
+                row("character.mana", t!("character.regen", value = s.mana_max.round() as i64, regen = places(s.mana_regen, 1)));
                 row(
-                    "Resist fire/cold/light/poison",
-                    format!("{:.0} / {:.0} / {:.0} / {:.0}", s.res[1], s.res[2], s.res[3], s.res[4]),
+                    "character.weapon",
+                    t!(
+                        "character.weapon.value",
+                        name = weapon,
+                        min = w.phys[0].round() as i64,
+                        max = w.phys[1].round() as i64,
+                        speed = places(w.aps, 2)
+                    ),
                 );
-                row("Movement", format!("{:+.0}%", (s.move_speed - 1.0) * 100.0));
-                row("Cooldowns", format!("{:+.0}% faster", (s.cooldown - 1.0) * 100.0));
-                row("Area", format!("{:+.0}%", (s.area - 1.0) * 100.0));
-                row("Item rarity / gold", format!("{:+.0}% / {:+.0}%", s.item_rarity, s.gold_find));
-                row("Experience", format!("{:+.0}%", (s.xp_gain - 1.0) * 100.0));
+                row("character.attack_speed", t!("character.percent", value = pct((s.attack_speed - 1.0) * 100.0)));
+                row("character.cast_speed", t!("character.percent", value = pct((s.cast_speed - 1.0) * 100.0)));
+                row(
+                    "character.crit",
+                    t!(
+                        "character.crit.value",
+                        chance = places(w.crit * s.crit_inc + s.crit_flat, 1),
+                        multiplier = (s.crit_multi * 100.0).round() as i64
+                    ),
+                );
+                row("character.armour", (s.armor.round() as i64).to_string());
+                row(
+                    "character.evade_block",
+                    t!("character.evade_block.value", evade = s.evasion.round() as i64, block = s.block.round() as i64),
+                );
+                row(
+                    "character.resists",
+                    t!(
+                        "character.resists.value",
+                        fire = s.res[1].round() as i64,
+                        cold = s.res[2].round() as i64,
+                        lightning = s.res[3].round() as i64,
+                        poison = s.res[4].round() as i64
+                    ),
+                );
+                row("character.movement", t!("character.percent", value = pct((s.move_speed - 1.0) * 100.0)));
+                row("character.cooldowns", t!("character.faster", value = pct((s.cooldown - 1.0) * 100.0)));
+                row("character.area", t!("character.percent", value = pct((s.area - 1.0) * 100.0)));
+                row(
+                    "character.rarity_gold",
+                    t!("character.rarity_gold.value", rarity = pct(s.item_rarity), gold = pct(s.gold_find)),
+                );
+                row("character.experience", t!("character.percent", value = pct((s.xp_gain - 1.0) * 100.0)));
             });
             let m = &s.mods;
             let incs: Vec<String> = [
@@ -1088,20 +1132,20 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                 (Stat::AttackInc, "attack"),
                 (Stat::SpellInc, "spell"),
                 (Stat::MeleeInc, "melee"),
-                (Stat::DamageMore, "MORE"),
+                (Stat::DamageMore, "more"),
             ]
             .iter()
             .filter(|(st, _)| m.get(*st).abs() > 0.05)
-            .map(|(st, n)| format!("{:+.0}% {n}", m.get(*st)))
+            .map(|(st, n)| t!(&format!("character.damage.{n}"), value = pct(m.get(*st))))
             .collect();
             if !incs.is_empty() {
                 ui.separator();
-                ui.label(RichText::new("Damage").strong());
+                ui.label(RichText::new(t!("character.damage")).strong());
                 ui.label(incs.join("   "));
             }
             if !inv.powers.is_empty() {
                 ui.separator();
-                ui.label(RichText::new("Powers").strong());
+                ui.label(RichText::new(t!("character.powers")).strong());
                 for p in &inv.powers {
                     ui.label(RichText::new(p.describe()).color(Color32::from_rgb(255, 150, 60)));
                 }
@@ -1110,7 +1154,7 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
 }
 
 fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>, touch: bool) {
-    fit(egui::Window::new("Skills"), ctx, touch)
+    fit(egui::Window::new(t!("skills.title")).id(egui::Id::new("skills")), ctx, touch)
         .open(open)
         .resizable(false)
         .collapsible(false)
@@ -1119,28 +1163,31 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
             EVec2::new(0.0, if touch { TOUCH_DROP } else { -140.0 }),
         )
         .show(ctx, |ui| {
-            ui.label("Choose what each button does.");
-            let keys = if touch {
-                ["Auto-attack", "Button 1", "Button 2", "Button 3", "Button 4", "Button 5"]
-            } else {
-                ["Left mouse", "Right mouse", "Q", "E", "R", "F"]
-            };
+            ui.label(t!("skills.choose"));
+            let keys: [String; 6] = std::array::from_fn(|i| match (touch, i) {
+                (true, 0) => t!("skills.key.auto"),
+                (true, i) => t!("skills.key.button", number = i),
+                (false, 0) => t!("skills.key.left"),
+                (false, 1) => t!("skills.key.right"),
+                (false, i) => ["Q", "E", "R", "F"][i - 2].to_string(),
+            });
             let skills = d.hero_skills();
             egui::Grid::new("bar").num_columns(2).show(ui, |ui| {
                 for (slot, key) in keys.iter().enumerate() {
-                    ui.label(*key);
+                    ui.label(key);
                     let cur = inv.bar[slot].clone();
-                    let cur_name = d.skill_id(&cur).map(|i| d.skill(i).name.clone()).unwrap_or_default();
+                    let cur_name = d.skill_id(&cur).map(|i| lines::skill_name(d.skill(i))).unwrap_or_default();
                     egui::ComboBox::from_id_salt(("bar", slot)).selected_text(cur_name).width(200.0).show_ui(ui, |ui| {
                         for id in &skills {
                             let s = d.skill(*id);
                             let locked = s.unlock > inv.level;
-                            let label = if locked { format!("{} (level {})", s.name, s.unlock) } else { s.name.clone() };
+                            let name = lines::skill_name(s);
+                            let label = if locked { t!("skills.locked", skill = name, level = s.unlock) } else { name };
                             let r = ui.add_enabled(!locked, egui::Button::selectable(s.key == cur, label));
                             if r.clicked() {
                                 out.push(GameCmd::Bar(slot as u8, *id));
                             }
-                            r.on_hover_text(&s.about);
+                            r.on_hover_text(lines::skill_about(s));
                         }
                     });
                     ui.end_row();
@@ -1148,10 +1195,11 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
             });
             if !inv.tweaks.is_empty() {
                 ui.separator();
-                ui.label(RichText::new("Upgrades from the passive tree").strong());
-                for t in &inv.tweaks {
-                    let name = d.skill_id(&t.skill).map(|i| d.skill(i).name.clone()).unwrap_or_default();
-                    ui.label(RichText::new(t.describe(&name)).color(Color32::from_rgb(140, 200, 255)));
+                ui.label(RichText::new(t!("skills.upgrades")).strong());
+                for tw in &inv.tweaks {
+                    ui.label(
+                        RichText::new(tw.describe(&lines::skill_name_of(d, &tw.skill))).color(Color32::from_rgb(140, 200, 255)),
+                    );
                 }
             }
         });
@@ -1194,35 +1242,47 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("spot_labels")));
     for (i, s) in g.spots.iter().enumerate() {
         let Some(at) = proj.to_screen(s.pos + Vec3::Y * 2.5) else { continue };
+        let name = spot_name(&s.name);
         let near = g.near == Some(i);
         let c = if near { Color32::from_rgb(255, 225, 150) } else { Color32::from_rgb(200, 190, 170) };
         p.text(
             at + EVec2::new(1.0, 1.0),
             Align2::CENTER_CENTER,
-            &s.name,
+            &name,
             FontId::proportional(15.0),
             Color32::from_black_alpha(200),
         );
-        p.text(at, Align2::CENTER_CENTER, &s.name, FontId::proportional(15.0), c);
+        p.text(at, Align2::CENTER_CENTER, &name, FontId::proportional(15.0), c);
         if near && !touch {
             let what = match s.kind {
-                SpotKind::Vendor => "trade",
-                SpotKind::Stash => "open the stash",
-                SpotKind::Portal => "travel",
-                SpotKind::Exhibit => "examine",
-                SpotKind::Exit => "descend",
-                SpotKind::Gamble => "gamble",
-                SpotKind::Alchemist => "brew",
-                SpotKind::Chest => "break the seal (keepers will come)",
-                SpotKind::Hero => "meet them",
+                SpotKind::Vendor => t!("spot.verb.trade"),
+                SpotKind::Stash => t!("spot.verb.stash"),
+                SpotKind::Portal => t!("spot.verb.travel"),
+                SpotKind::Exhibit => t!("spot.verb.examine"),
+                SpotKind::Exit => t!("spot.verb.descend"),
+                SpotKind::Gamble => t!("spot.verb.gamble"),
+                SpotKind::Alchemist => t!("spot.verb.brew"),
+                SpotKind::Chest => t!("spot.verb.chest"),
+                SpotKind::Hero => t!("spot.verb.hero"),
+                SpotKind::Gate => t!("tools.gate.use"),
             };
             p.text(
                 at + EVec2::new(0.0, 18.0),
                 Align2::CENTER_CENTER,
-                format!("G: {what}"),
+                t!("spot.hint", action = what),
                 FontId::proportional(12.0),
                 Color32::from_white_alpha(220),
             );
         }
     }
+}
+
+/// A spot's name: a line id ("spot.smith") shows the line; others carry their name as made.
+fn spot_name(name: &str) -> String {
+    pav_core::lines::display(lines::spot_name(name))
+}
+
+/// A worn slot's name, over an item's tooltip ("Left Ring").
+fn slot_title(s: EquipSlot) -> String {
+    lines::equip_slot_name(s)
 }

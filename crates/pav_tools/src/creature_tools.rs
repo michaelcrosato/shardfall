@@ -659,6 +659,7 @@ fn poll_ready(session: &mut Session, service: &Service) -> Vec<Value> {
             notes.push(record.info.clone());
         }
         drop(book);
+        #[allow(clippy::drop_non_drop)] // the browser's File is a stub with no Drop
         drop(file_lock);
     }
     notes

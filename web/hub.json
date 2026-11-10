@@ -1,0 +1,22 @@
+{
+  "_about": "The AI Hub's catalogue and session tags for Shardfall (docs/AI_HUB.md). scripts/pack_single_html.py --hub writes them into the page's <head>; hub:model and hub:effort come from its --model and --effort, given when the package is made.",
+  "name": "Shardfall",
+  "tagline": "A hack-and-slash descent into a shattered world",
+  "description": "A fast hack-and-slash action RPG: take a hero down through a shattered underworld, cut through monsters, gather loot and grow a passive tree. Up to four players descend together.",
+  "theme_color": "#e8b45a",
+  "type": "Game",
+  "genre": "RPG",
+  "tags": ["3d", "action-rpg", "loot", "procedural"],
+  "controls": "WASD to move; mouse to aim; click or right click to attack; Q / E / R / F for skills; Space to dodge; 1 to drink a potion; G to use; Esc for the menu",
+  "harness": "Claude Code",
+  "webgpu": "required",
+  "session_mode": "shared-world",
+  "session_players": "1-4",
+  "session_minutes": 8,
+  "goals": {
+    "parallel": "Descend as deep as you can before time runs out",
+    "ghost": "Descend as deep as you can before time runs out",
+    "shared-world": "Clear the depths together before time runs out"
+  },
+  "session_howto": "WASD move · mouse aim · click, Q, E, R, F skills · Space dodge · 1 potion"
+}

@@ -460,15 +460,21 @@ impl Touch {
                 Some(g) => self.game_fan(&p, g, v, &fan, &mut placed),
                 None => {
                     let buttons = [
-                        (Control::Jump, c, 34.0, "JUMP"),
-                        (Control::Bomb, fan.inner(180.0), 25.0, "BOMB"),
-                        (Control::Crouch, fan.inner(225.0), 24.0, "DUCK"),
-                        (Control::Interact, fan.inner(270.0), 24.0, "USE"),
+                        (Control::Jump, c, 34.0, "touch.jump"),
+                        (Control::Bomb, fan.inner(180.0), 25.0, "touch.bomb"),
+                        (Control::Crouch, fan.inner(225.0), 24.0, "touch.duck"),
+                        (Control::Interact, fan.inner(270.0), 24.0, "touch.use"),
                     ];
                     for (ctl, pos, r, label) in buttons {
                         let r = r * k;
                         round_button(&p, pos, r, down(ctl).is_some(), 1.0);
-                        p.text(pos, Align2::CENTER_CENTER, label, FontId::proportional(11.0 * k), Color32::from_white_alpha(220));
+                        p.text(
+                            pos,
+                            Align2::CENTER_CENTER,
+                            pav_core::t!(label),
+                            FontId::proportional(11.0 * k),
+                            Color32::from_white_alpha(220),
+                        );
                         placed.push(Placed {
                             control: ctl,
                             rect: Rect::from_center_size(pos, EVec2::splat(r * 2.0)),
@@ -544,7 +550,7 @@ impl Touch {
                     p.text(
                         pos - EVec2::new(0.0, r + 12.0),
                         Align2::CENTER_CENTER,
-                        "cancel",
+                        pav_core::t!("touch.cancel"),
                         FontId::proportional(11.0),
                         Color32::WHITE,
                     );
@@ -566,17 +572,18 @@ impl Touch {
         if let Some(s) = g.near.and_then(|i| g.spots.get(i)) {
             use pav_core::arpg::SpotKind as K;
             let what = match s.kind {
-                K::Vendor => "Trade",
-                K::Stash => "Stash",
-                K::Portal => "Travel",
-                K::Exhibit => "Examine",
-                K::Exit => "Descend",
-                K::Gamble => "Gamble",
-                K::Alchemist => "Brew",
-                K::Chest => "Open",
-                K::Hero => "Meet",
+                K::Vendor => pav_core::t!("spot.button.trade"),
+                K::Stash => pav_core::t!("spot.button.stash"),
+                K::Portal => pav_core::t!("spot.button.travel"),
+                K::Exhibit => pav_core::t!("spot.button.examine"),
+                K::Exit => pav_core::t!("spot.button.descend"),
+                K::Gamble => pav_core::t!("spot.button.gamble"),
+                K::Alchemist => pav_core::t!("spot.button.brew"),
+                K::Chest => pav_core::t!("spot.button.chest"),
+                K::Hero => pav_core::t!("spot.button.hero"),
+                K::Gate => pav_core::t!("spot.button.gate"),
             };
-            let w = (what.len() as f32 * 8.5 + 34.0) * k;
+            let w = (pav_core::lines::width(&what) as f32 * 8.5 + 34.0) * k;
             let rect = Rect::from_center_size(pp + EVec2::new(-34.0 * k - w * 0.5, 0.0), EVec2::new(w, 38.0 * k));
             let alpha = if down(Control::Use).is_some() { 255 } else { 225 };
             p.rect_filled(rect, 19.0 * k, Color32::from_rgba_unmultiplied(255, 214, 140, alpha));

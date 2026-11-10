@@ -56,6 +56,16 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool { name: "status", help: "Tick, time, entity/block counts and state hash.", args: &[], run: t_status },
     Tool {
+        name: "lines",
+        help: "Game text (AI Hub Languages): set the language, show a line, write the book.",
+        args: &[
+            arg("lang", "string", "code; tests: en-XA zh-XC ar-XB"),
+            arg("id", "string", "a line to show"),
+            arg("out", "string", "write the game-lines JSON here"),
+        ],
+        run: t_lines,
+    },
+    Tool {
         name: "entities",
         help: "List entities (id, name, position).",
         args: &[arg("name", "string", "only entities whose name contains this")],
@@ -390,7 +400,7 @@ pub static TOOLS: &[Tool] = &[
         name: "ui",
         help: "The game UI as the player sees it: HUD, windows and touch controls as text; image=true draws it over the game.",
         args: &[
-            arg("open", "string", "inventory, character, skills, tree, map"),
+            arg("open", "string", "inventory, character, skills, tree, map, title"),
             arg("close", "string", "windows, or all"),
             arg("device", "string", "mouse | pad | touch"),
             arg("hover", "array", "pointer at [x, y] (tooltips)"),
@@ -488,7 +498,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "animsheet",
-        help: "Render a creature (default: the hero) acting, frame by frame, into one PNG: skill= (swing= a combo's later swing), move= (anim/moves.toml) or clip=; def={\"figure\":NAME} draws an imported body.",
+        help: "Render a creature (default: the hero) acting, frame by frame, into one PNG: skill= (swing= a later combo swing), move= or clip=; def={\"figure\":NAME} draws an imported body.",
         args: &[
             arg("character", "string", "a playable character (game/heroes.toml)"),
             arg("seed", "integer", "genome seed"),
@@ -513,7 +523,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clips",
-        help: "The motion clip library (anim/*.json: animation translated from open libraries, as readable key poses): no args lists the sets; find=WORDS searches names, tags and descriptions; name=SET/Clip shows one clip as readable text with its source and license; set=NAME lists a set; load=FOLDER adds an on-disk library (cmu: every CMU take; 100style: its runs and idle loops; local: your translations that may not be shared). Play one with animsheet clip=.",
+        help: "The motion clip library (anim/*.json: animation translated from open libraries, as readable key poses): no args lists the sets; find=WORDS searches names, tags and descriptions; name=SET/Clip shows one clip with its source and license; set=NAME lists a set; load=FOLDER adds an on-disk library (cmu, 100style, local: translations that may not be shared). Play one with animsheet clip=.",
         args: &[
             arg("find", "string", "words to search for"),
             arg("name", "string", "SET/Clip (or Clip) to show"),
@@ -525,16 +535,16 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "clip_import",
-        help: "Translate an animation library into a clip set (anim/<set>.json: key poses, credits). from= .glb (Rigify/Unreal/Mixamo rigs; sources= ids), .fbx (each stack a clip), .bvh (at=, loop=, way=), set files or a folder. catalog= (anim/catalogs/*.json) tags and credits; with \"$pick\" and no from= it cuts CMU, 100STYLE, Bandai Namco or LaFAN1 moments (the last two to anim/local).",
+        help: "Translate an animation library into a clip set (anim/<set>.json). from= .glb (Rigify/Unreal/Mixamo; sources= ids), .fbx, .bvh (at=, loop=, way=), set files or a folder. catalog= (anim/catalogs) adds tags and credits; with \"$pick\" and no from= it cuts CMU, 100STYLE, Bandai Namco or LaFAN1 moments (the last two to anim/local).",
         args: &[
             arg("from", "string", "files (comma separated) or a folder of sets"),
-            arg("catalog", "string", "catalog JSON (tags, descriptions, sources, skips, picks)"),
+            arg("catalog", "string", "catalog JSON (tags, sources, skips, picks)"),
             arg("set", "string", "the set's name (MESH2MOTION, CMU ...)"),
             arg("sources", "string", "each library's source id, comma separated"),
             arg("rest", "string", "each library's rest-pose clip, comma separated"),
-            arg("rm", "string", "each .glb's root-motion twin, comma separated (travelling clips add <clip>_RM)"),
+            arg("rm", "string", "each .glb's root-motion twin, comma separated (adds <clip>_RM)"),
             arg("title", "string", "set title"),
-            arg("credit", "string", "credit line (default: the catalog's sources and licenses)"),
+            arg("credit", "string", "credit line (default: the catalog's)"),
             arg("clips", "string", "only these clips, comma separated"),
             arg("tol", "number", "key-pose budget in mm (default 30)"),
             arg("fps", "number", "sampling rate (default 30)"),
@@ -554,7 +564,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "asset_import",
-        help: "Model libraries (glTF, OBJ) to format-2 props; rigs to figures. No args: libraries. get=lib/pack downloads; from=FILE|DIR|lib/pack translates (list=true: summary); survey= writes a ledger; check=FILE measures.",
+        help: "Model libraries (glTF, OBJ) to format-2 props; rigs to figures. No args: libraries. get=lib/pack downloads; from=FILE|DIR|lib/pack translates (list=true: summary); survey= a ledger; check=FILE measures.",
         args: &[
             arg("get", "string", "lib/pack to download"),
             arg("survey", "string", "lib/pack or folder"),
@@ -574,7 +584,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "mocap",
-        help: "Open motion-capture databases, translated on demand; no args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits a moment into a set. survey= measures or translates CMU takes.",
+        help: "Open motion-capture databases; no args lists them. find=WORDS searches takes; get=IDS downloads (cmu: all); cut=TAKE fits a moment into a set. survey= measures or translates CMU takes.",
         args: &[
             arg("find", "string", "words to search takes for"),
             arg("lib", "string", "cmu, 100style or all (find)"),
@@ -604,7 +614,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "anim_edit",
-        help: "Create, copy, inspect, and edit readable animation clips. Edits are validated, saved to WORKSHOP (WORKSHOP_LOCAL for local sources) and shown in the live preview; sources and credits are kept. Inspect first, then pass its if_revision. Undo/redo keep 32 changes.",
+        help: "Create, copy, inspect, and edit readable animation clips. Edits are validated, saved to WORKSHOP (WORKSHOP_LOCAL for local sources) and shown live; credits are kept. Inspect first, then pass its if_revision. Undo/redo keep 32 changes.",
         args: &[
             arg("action", "string", "create | copy | inspect | key | delete_key | replace | retime | mirror | undo | redo"),
             arg("name", "string", "clip name, or WORKSHOP/Name (inspect also accepts any SET/Clip)"),
@@ -622,7 +632,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "anim_preview",
-        help: "View an animation in an isolated studio with the game's renderer; the game resumes when it closes. clip=SET/Clip or move=NAME. Same-name edits keep the clock and camera. No args: preview state; action=pose: the sampled pose. capture/filmstrip show the studio.",
+        help: "View an animation in an isolated studio; the game resumes when it closes. clip=SET/Clip or move=NAME. Same-name edits keep the clock and camera. No args: preview state; action=pose: the sampled pose. capture/filmstrip show the studio.",
         args: &[
             arg("clip", "string", "SET/Clip to view"),
             arg("move", "string", "procedural move to view"),
@@ -686,7 +696,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "asset_preview",
-        help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. views= returns one framed PNG of several sides.",
+        help: "Show an object on the isolated stage (the world pauses): name selects, fit frames, turntable spins, close returns. views= returns one PNG of several sides.",
         args: &[
             arg("kind", "string", "default prop"),
             arg("action", "string", "default status; pose: kind=creature only"),
@@ -723,7 +733,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_edit",
-        help: "Create and revise procedural rigged creatures: create (bundled template, blueprint or seeded theme), patch (atomic named-path SpawnForge ops), surface (skin), copy, inspect, replace, undo, redo, rebuild. Pass if_revision from inspect or the last job. Builds are asynchronous: poll creature_status until published or failed before judging a capture; a failed or superseded job keeps the last good stage. The CLI waits.",
+        help: "Create and revise procedural rigged creatures: create (bundled template, blueprint or seeded theme), patch (atomic named-path SpawnForge ops), surface (skin), copy, inspect, replace, undo, redo, rebuild. Pass if_revision from inspect or the last job. Builds are asynchronous: poll creature_status until published or failed before a capture; a failed job keeps the last good stage. The CLI waits.",
         args: &[
             arg("action", "string", "create | copy | inspect | patch | surface | replace | undo | redo | rebuild"),
             arg("name", "string", "lowercase leaf or CREATURE/name"),
@@ -743,7 +753,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "creature_preview",
-        help: "View compiled creatures with the game's renderer (other studios are kept). action=open resumes or opens a stage; select name, play/pause, scrub, step, turntable, fit; action=pose returns joints. Uncompiled sources need creature_edit action=rebuild.",
+        help: "View compiled creatures with the game's renderer. action=open resumes or opens a stage; select name, play/pause, scrub, step, turntable, fit; action=pose returns joints. Uncompiled sources need creature_edit action=rebuild.",
         args: &[
             arg("action", "string", "status | open | fit | close | play | pause | restart | pose"),
             arg("name", "string", "CREATURE/name or lowercase leaf"),
@@ -868,7 +878,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "look",
-        help: "Looks and filter presets (the Look & Filters menu): name= a whole look, section= with preset= / on= / enabled=, reset=true, compare=0.5 (filters on the right only). bench=all or a list of looks renders this moment in each. No args lists them.",
+        help: "Looks and filter presets (Look & Filters): name= a whole look, section= with preset= / on= / enabled=, reset=true, compare=0.5 (filters on the right only). bench=all or a list of looks renders each. No args lists them.",
         args: &[
             arg("name", "string", "a whole look (e.g. Pixel heroes, HD-2D, Game Boy world)"),
             arg("section", "string", "pixel, shading, outlines, palette, grading, scanlines, grain, screen, glow"),
@@ -1160,6 +1170,27 @@ fn status(s: &Session) -> Value {
 
 fn t_status(s: &mut Session, _: &Args) -> Result<Output> {
     Ok(Output::Json(status(s)))
+}
+
+fn t_lines(_: &mut Session, a: &Args) -> Result<Output> {
+    if let Some(code) = get_str(a, "lang") {
+        pav_core::lines::set_language(code);
+    }
+    let book = pav_core::lines::book();
+    let mut out = json!({
+        "language": pav_core::lines::language(),
+        "own": book.language,
+        "available": pav_core::lines::available(),
+        "lines": book.lines.len(),
+    });
+    if let Some(id) = get_str(a, "id") {
+        out["line"] = json!(pav_core::lines::logical(id, &[]));
+    }
+    if let Some(path) = get_str(a, "out") {
+        std::fs::write(path, book.to_block())?;
+        out["wrote"] = json!(path);
+    }
+    Ok(Output::Json(out))
 }
 
 fn t_entities(s: &mut Session, a: &Args) -> Result<Output> {

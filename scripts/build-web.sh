@@ -3,7 +3,9 @@
 # Serve that folder over HTTP (e.g. `python3 -m http.server -d target/web`) and open it in Chrome or Edge.
 # --single-file writes only target/web/<title>.html (shardfall.html): one page with the glue and gzipped wasm inside
 #   that runs from file:// or any host (scripts/pack_single_html.py; also --title, --description, --theme-color,
-#   --scene NAME for the start scene when the address names none, --out PATH).
+#   --scene NAME for the start scene when the address names none, --out PATH). The page carries
+#   the game's line book (`pav lines`) and fonts (assets/fonts) for its languages; --hub FILE,
+#   --session-mode MODE, --model NAME and --effort LEVEL make the AI Hub's page (docs/AI_HUB.md).
 # Needs: rustup target add wasm32-unknown-unknown
 #        cargo install wasm-bindgen-cli --version <the wasm-bindgen version in Cargo.lock>
 set -euo pipefail
@@ -14,10 +16,10 @@ pack=()
 while (($#)); do
 	case $1 in
 	--single-file) single=true ;;
-	--title | --description | --theme-color | --scene | --out)
+	--title | --description | --theme-color | --scene | --out | --hub | --session-mode | --model | --effort)
 		(($# > 1)) || { echo "build-web.sh: $1 needs a value" >&2; exit 2; }
 		value=$2
-		[[ $1 == --out && $value != /* ]] && value=$caller/$value
+		[[ ($1 == --out || $1 == --hub) && $value != /* ]] && value=$caller/$value
 		pack+=("$1" "$value")
 		shift
 		;;
@@ -36,7 +38,9 @@ if $single; then
 	bindgen=$(mktemp -d)
 	trap 'rm -rf "$bindgen"' EXIT
 	wasm-bindgen --target web --no-typescript --out-dir "$bindgen" --out-name shardfall "$wasm"
-	python3 -I scripts/pack_single_html.py "$bindgen" "${pack[@]}"
+	# The line book as the page's game-lines block (AI Hub Languages v1).
+	cargo run -q -p pav_tools --bin pav -- lines out="$bindgen/game-lines.json" >/dev/null
+	python3 -I scripts/pack_single_html.py "$bindgen" --lines "$bindgen/game-lines.json" --fonts assets/fonts "${pack[@]}"
 	exit
 fi
 rm -rf "$out"

@@ -101,12 +101,22 @@ impl Game {
 
     /// Lands drops, pulls gold in, auto-loots.
     pub(crate) fn update_loot(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>) {
+        self.update_loot_with(sim, dt, events, true);
+    }
+
+    /// A party member's pickups (in the hero's place): gold flies to them and they walk over
+    /// items; the drops themselves already moved this tick.
+    pub(crate) fn pickups(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>) {
+        self.update_loot_with(sim, dt, events, false);
+    }
+
+    fn update_loot_with(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>, move_drops: bool) {
         let hero =
             self.hero_id.filter(|h| self.actors.get(h).is_some_and(|a| !a.dead)).and_then(|h| feet_of(sim, h)).map(|f| f.0);
         let physics = &sim.state.physics;
         let ignore = self.hero_id.and_then(|h| sim.state.entities.get(h)).and_then(|e| e.body);
         let fly = |pos: &mut Vec3, vel: &mut Vec3, rest: &mut bool| {
-            if *rest {
+            if *rest || !move_drops {
                 return;
             }
             vel.y -= GRAVITY * dt;
@@ -134,14 +144,16 @@ impl Game {
                 }
             }
         };
-        for g in &mut self.loot {
+        for g in self.loot.iter_mut().filter(|_| move_drops) {
             g.age += dt;
             fly(&mut g.pos, &mut g.vel, &mut g.rest);
         }
         let mut got_gold = 0u64;
         let mut gold_at = Vec3::ZERO;
         self.gold.retain_mut(|g| {
-            g.age += dt;
+            if move_drops {
+                g.age += dt;
+            }
             if let Some(h) = hero.filter(|h| g.age > 0.35 && flat(*h - g.pos).length() < GOLD_MAGNET) {
                 // The magnet: fly to the hero's middle, faster as it closes in.
                 let target = h + Vec3::Y * 0.9;
@@ -180,7 +192,7 @@ impl Game {
                 if self.hero.bag_full() {
                     if self.time - self.full_warned > 3.0 {
                         self.full_warned = self.time;
-                        self.float_text(h + Vec3::Y * 2.3, "Inventory full");
+                        self.float_text(h + Vec3::Y * 2.3, crate::t!("error.bag_full"));
                     }
                     break;
                 }
@@ -195,9 +207,17 @@ impl Game {
         if self.hero.bag_full() {
             return false;
         }
-        let g = self.loot.remove(i);
+        let mut g = self.loot.remove(i);
         events.push(SimEvent::Pickup { pos: g.pos, rarity: g.item.rarity as u8 });
         let _ = sim;
+        // In a party the drop's number may come from another hero's count: it keeps it unless
+        // the picker already holds that number, and the picker's count moves past it.
+        let h = &mut self.hero;
+        let held = h.inventory.iter().chain(h.stash.iter()).chain(h.equipment.iter().flatten()).any(|i| i.id == g.item.id);
+        if held {
+            g.item.id = h.new_id();
+        }
+        h.next_item = h.next_item.max(g.item.id.saturating_add(1));
         self.hero.inventory.push(g.item);
         self.inv_changed();
         true
@@ -208,10 +228,10 @@ impl Game {
         let hero = self.hero_id.and_then(|h| feet_of(sim, h)).map(|f| f.0).ok_or("no hero")?;
         let g = self.loot.iter().find(|g| g.item.id == id).ok_or("it's gone")?;
         if flat(g.pos - hero).length() > CLICK_REACH {
-            return Err("Too far away".into());
+            return Err(crate::t!("error.pickup_far"));
         }
         if self.hero.bag_full() {
-            return Err("Inventory full".into());
+            return Err(crate::t!("error.bag_full"));
         }
         self.take_ground(sim, id, events);
         Ok(())

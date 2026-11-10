@@ -100,23 +100,31 @@ impl Tweak {
     /// How it reads ("Fireball: +1 projectile").
     pub fn describe(&self, skill_name: &str) -> String {
         let v = self.value;
-        let n = if (v - v.round()).abs() < 0.05 { format!("{}", v.round() as i64) } else { format!("{v:.1}") };
-        let what = match self.field {
-            TweakField::Damage => format!("{n}% more damage"),
-            TweakField::Count => format!("+{n} projectiles / strikes"),
-            TweakField::Radius => format!("{n}% larger area"),
-            TweakField::Cooldown => format!("{n}% shorter cooldown"),
-            TweakField::Cost => format!("costs {n}% less"),
-            TweakField::Pierce => format!("pierces {n} more enemies"),
-            TweakField::Chain => format!("chains {n} more times"),
-            TweakField::Ailment => format!("+{n}% chance to inflict its ailment"),
-            TweakField::Duration => format!("lasts {n}% longer"),
-            TweakField::Speed => format!("{n}% faster"),
-            TweakField::Range => format!("{n}% more range"),
-            TweakField::Knockback => format!("knocks back {n} more"),
-            TweakField::Element => format!("becomes {}", super::data::Element::ALL[(v.max(0.0) as usize).min(4)].name()),
+        // The `tweak.<field>` line; `count` (the value) picks the plural for counted things.
+        let n = if (v - v.round()).abs() < 0.05 {
+            crate::lines::Arg::Int(v.round() as i64)
+        } else {
+            crate::lines::Arg::Num(((v as f64) * 10.0).round() / 10.0)
         };
-        format!("{skill_name}: {what}")
+        let id = match self.field {
+            TweakField::Damage => "tweak.damage",
+            TweakField::Count => "tweak.count",
+            TweakField::Radius => "tweak.radius",
+            TweakField::Cooldown => "tweak.cooldown",
+            TweakField::Cost => "tweak.cost",
+            TweakField::Pierce => "tweak.pierce",
+            TweakField::Chain => "tweak.chain",
+            TweakField::Ailment => "tweak.ailment",
+            TweakField::Duration => "tweak.duration",
+            TweakField::Speed => "tweak.speed",
+            TweakField::Range => "tweak.range",
+            TweakField::Knockback => "tweak.knockback",
+            TweakField::Element => {
+                let e = super::lines::element_name(super::data::Element::ALL[(v.max(0.0) as usize).min(4)]);
+                return crate::t!("tweak.element", skill = skill_name, element = e);
+            }
+        };
+        crate::t!(id, skill = skill_name, value = n.clone(), count = n)
     }
 }
 
@@ -196,7 +204,7 @@ pub fn try_cast(g: &mut Game, sim: &mut Sim, id: EntityId, skill: u16, target: V
     let pool = if blood { a.life - 1.0 } else { a.mana };
     if pool < cost {
         if is_hero {
-            g.float_text(feet + Vec3::Y * 2.2, if blood { "Not enough life" } else { "Not enough mana" });
+            g.float_text(feet + Vec3::Y * 2.2, if blood { crate::t!("float.no_life") } else { crate::t!("float.no_mana") });
         }
         return false;
     }

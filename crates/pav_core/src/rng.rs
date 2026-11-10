@@ -9,6 +9,11 @@ pub struct Rng {
 }
 
 impl Rng {
+    /// Where the stream is (two copies that agree have equal states).
+    pub fn state(&self) -> u64 {
+        self.state ^ self.inc.rotate_left(17)
+    }
+
     pub fn new(seed: u64) -> Self {
         let mut r = Rng { state: 0, inc: (seed << 1) | 1 };
         r.next_u32();

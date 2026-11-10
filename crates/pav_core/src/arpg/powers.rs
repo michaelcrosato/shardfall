@@ -84,42 +84,51 @@ impl Power {
         Self { kind, a, b }
     }
 
-    /// How the power reads on a tooltip.
+    /// How the power reads on a tooltip (the `power.<kind>` line, in the language in use).
     pub fn describe(&self) -> String {
+        crate::lines::display(self.describe_piece())
+    }
+
+    /// `describe` in reading order, for a blank in another line.
+    pub fn describe_piece(&self) -> String {
         let (a, b) = (num(self.a), num(self.b));
-        match self.kind {
-            PowerKind::CorpseBurst => format!("{a}% chance on kill: the corpse explodes for {b}% of its Life as Fire Damage"),
-            PowerKind::FrostCrits => format!("Critical Strikes Freeze. {a}% more Critical Damage against Frozen enemies"),
-            PowerKind::BloodMagic => format!("Skills cost Life instead of Mana. {a}% of Mana is added to Life"),
-            PowerKind::Execute => format!("Your hits kill enemies below {a}% Life (not bosses)"),
-            PowerKind::FireTrail => {
-                format!("Dodging leaves burning ground for {a}s that burns for {b}% of weapon damage per second")
-            }
-            PowerKind::OrbitBlades => format!("{a} spectral blades orbit you, each hit dealing {b}% of weapon damage"),
-            PowerKind::EchoStrike => format!("Melee skills strike again a moment later for {a}% damage"),
-            PowerKind::DodgeReset => format!("Kills have a {a}% chance to reset your Dodge"),
-            PowerKind::StormCall => {
-                format!("Spells call lightning on {a} enemies near the target for {b}% of the spell's damage")
-            }
-            PowerKind::BlockNova => format!("Blocking releases a frost nova ({a} m) dealing {b}% of weapon damage"),
-            PowerKind::IgniteAura => format!("Enemies within {a} m burn for {b}% of your maximum Life per second"),
-            PowerKind::StandFirm => format!("Cannot be knocked back. {a}% less damage taken while using skills"),
-            PowerKind::MeteorSlam => format!("Slams and leaps call down a meteor for {a}% damage"),
-            PowerKind::Frenzy => format!("Kills grant {a}% Attack and Movement Speed for 4s (up to 3 times)"),
-            PowerKind::ManaShield => format!("{a}% of damage taken is paid from Mana first"),
-            PowerKind::Quickening => format!("Kills take {a}s off all skill cooldowns"),
-            PowerKind::DeathBurst => format!("On death, bursts for {a}% of its Life ({b} m)"),
-            PowerKind::Summon => format!("Calls {a} of its brood every {b}s"),
-            PowerKind::Enrage => format!("Below {a}% Life: {b}% more Damage and faster attacks"),
+        let id = match self.kind {
+            PowerKind::CorpseBurst => "power.corpse_burst",
+            PowerKind::FrostCrits => "power.frost_crits",
+            PowerKind::BloodMagic => "power.blood_magic",
+            PowerKind::Execute => "power.execute",
+            PowerKind::FireTrail => "power.fire_trail",
+            PowerKind::OrbitBlades => "power.orbit_blades",
+            PowerKind::EchoStrike => "power.echo_strike",
+            PowerKind::DodgeReset => "power.dodge_reset",
+            PowerKind::StormCall => "power.storm_call",
+            PowerKind::BlockNova => "power.block_nova",
+            PowerKind::IgniteAura => "power.ignite_aura",
+            PowerKind::StandFirm => "power.stand_firm",
+            PowerKind::MeteorSlam => "power.meteor_slam",
+            PowerKind::Frenzy => "power.frenzy",
+            PowerKind::ManaShield => "power.mana_shield",
+            PowerKind::Quickening => "power.quickening",
+            PowerKind::DeathBurst => "power.death_burst",
+            PowerKind::Summon => "power.summon",
+            PowerKind::Enrage => "power.enrage",
             PowerKind::Convert => {
-                format!("All your damage is converted to {}", super::data::Element::ALL[(self.a.max(0.0) as usize).min(4)].name())
+                let e = super::data::Element::ALL[(self.a.max(0.0) as usize).min(4)];
+                return crate::lines::logical("power.convert", &[("element", super::lines::element_name(e).into())]);
             }
-        }
+        };
+        // `count` is `a` too, for the lines that count things (blades, enemies).
+        crate::lines::logical(id, &[("a", a.clone()), ("b", b), ("count", a)])
     }
 }
 
-fn num(v: f32) -> String {
-    if (v - v.round()).abs() < 0.05 { format!("{}", v.round() as i64) } else { format!("{v:.1}") }
+/// A power's number: whole when it is close to whole, else one decimal place.
+fn num(v: f32) -> crate::lines::Arg {
+    if (v - v.round()).abs() < 0.05 {
+        crate::lines::Arg::Int(v.round() as i64)
+    } else {
+        crate::lines::Arg::Num(((v as f64) * 10.0).round() / 10.0)
+    }
 }
 
 impl Actor {
@@ -258,7 +267,7 @@ impl Game {
                     if let Some(k) = self.actors.get_mut(&killer) {
                         if k.dodge_cd > 0.0 {
                             k.dodge_cd = 0.0;
-                            self.float_text(at + Vec3::Y * 2.0, "Dodge ready");
+                            self.float_text(at + Vec3::Y * 2.0, crate::t!("float.dodge_ready"));
                         }
                     }
                 }

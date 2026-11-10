@@ -287,7 +287,11 @@ impl Hero {
         let i = self.inventory.iter().position(|it| it.id == id).ok_or("no such item in the bag")?;
         let slot = to.unwrap_or_else(|| self.slot_for(d, &self.inventory[i]));
         if slot.slot() != self.inventory[i].slot(d) {
-            return Err(format!("{} can't be worn as {}", self.inventory[i].name, slot.name()));
+            return Err(crate::t!(
+                "error.wrong_slot",
+                item = super::lines::item_name(d, &self.inventory[i]),
+                slot = super::lines::equip_slot_name(slot)
+            ));
         }
         let two_hand = |it: &Item| it.base_def(d).is_some_and(|b| b.two_hand);
         // Two-handed weapons and off-hands exclude each other: the other one goes to the bag.
@@ -301,7 +305,7 @@ impl Hero {
         let freed =
             self.equipment[slot.index()].is_some() as usize + also.is_some_and(|s| self.equipment[s.index()].is_some()) as usize;
         if self.inventory.len() - 1 + freed > INVENTORY_SIZE {
-            return Err("Inventory full".into());
+            return Err(crate::t!("error.bag_full"));
         }
         let item = self.inventory.remove(i);
         if let Some(old) = self.equipment[slot.index()].replace(item) {
@@ -321,7 +325,7 @@ impl Hero {
             return Err("nothing worn there".into());
         }
         if self.bag_full() {
-            return Err("Inventory full".into());
+            return Err(crate::t!("error.bag_full"));
         }
         let it = self.equipment[slot.index()].take().unwrap();
         self.inventory.push(it);

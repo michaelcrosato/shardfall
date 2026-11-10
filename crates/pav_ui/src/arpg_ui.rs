@@ -9,6 +9,8 @@ use pav_core::arpg::data::{Behavior, Element, data};
 use pav_core::arpg::mechanics::{LevelView, MarkKind};
 use pav_core::arpg::{Difficulty, GameFrame, HeroHud};
 
+use pav_core::t;
+
 use crate::Device;
 use crate::touch::Swipes;
 
@@ -204,8 +206,16 @@ pub(crate) fn skill_icon(p: &egui::Painter, rect: Rect, key: &str, color: Color3
     }
 }
 
-const SLOT_KEYS: [&str; 6] = ["LMB", "RMB", "Q", "E", "R", "F"];
 const SLOT_PAD: [&str; 6] = ["X", "Y", "B", "RB", "LB", "RT"];
+
+/// The key for a skill slot on keyboard and mouse: the mouse buttons (lines), then Q E R F.
+fn slot_key(i: usize) -> String {
+    match i {
+        0 => t!("hud.key.lmb"),
+        1 => t!("hud.key.rmb"),
+        i => ["Q", "E", "R", "F"].get(i - 2).copied().unwrap_or_default().to_string(),
+    }
+}
 
 fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device) {
     let size = 50.0;
@@ -246,7 +256,7 @@ fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device
         if !s.affordable {
             p.rect_filled(rect, 5.0, Color32::from_rgba_unmultiplied(60, 0, 0, 90));
         }
-        let key = if device == Device::Gamepad { SLOT_PAD[i] } else { SLOT_KEYS[i] };
+        let key = if device == Device::Gamepad { SLOT_PAD[i].to_string() } else { slot_key(i) };
         p.text(
             rect.left_top() + EVec2::new(4.0, 2.0),
             Align2::LEFT_TOP,
@@ -334,7 +344,7 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         if a.rarity >= Rarity::Magic {
             let mut name = a.name.clone();
             if !a.affixes.is_empty() {
-                name = format!("{} ({})", name, a.affixes.join(", "));
+                name = t!("hud.monster_affixes", name = name, affixes = pav_core::arpg::lines::list_comma(&a.affixes));
             }
             p.text(
                 r.center_top() - EVec2::new(0.0, 3.0),
@@ -364,12 +374,16 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
             FloatKind::Heal => {
                 (format!("+{}", short(f.value)), Color32::from_rgba_unmultiplied(90, 230, 110, (fade * 255.0) as u8), 17.0)
             }
-            FloatKind::Gold => {
-                (format!("+{} gold", short(f.value)), Color32::from_rgba_unmultiplied(255, 205, 70, (fade * 255.0) as u8), 14.0)
-            }
-            FloatKind::Xp => {
-                (format!("+{} xp", short(f.value)), Color32::from_rgba_unmultiplied(170, 140, 255, (fade * 255.0) as u8), 13.0)
-            }
+            FloatKind::Gold => (
+                t!("float.gold", amount = short(f.value), count = f.value.round() as i64),
+                Color32::from_rgba_unmultiplied(255, 205, 70, (fade * 255.0) as u8),
+                14.0,
+            ),
+            FloatKind::Xp => (
+                t!("float.xp", amount = short(f.value), count = f.value.round() as i64),
+                Color32::from_rgba_unmultiplied(170, 140, 255, (fade * 255.0) as u8),
+                13.0,
+            ),
             FloatKind::Text => (f.text.clone(), Color32::from_white_alpha((fade * 235.0) as u8), 15.0),
         };
         let font = FontId::proportional(size * pop);
@@ -412,7 +426,7 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         r,
         h.life / h.life_max.max(1.0),
         Color32::from_rgb(178, 26, 30),
-        &format!("{}/{}", h.life.max(0.0).round(), h.life_max.round()),
+        &t!("hud.orb", value = h.life.max(0.0).round() as i64, max = h.life_max.round() as i64),
     );
     orb(
         &p,
@@ -420,7 +434,7 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         r,
         h.mana / h.mana_max.max(1.0),
         Color32::from_rgb(40, 70, 190),
-        &format!("{}/{}", h.mana.round(), h.mana_max.round()),
+        &t!("hud.orb", value = h.mana.max(0.0).round() as i64, max = h.mana_max.round() as i64),
     );
     skill_bar(&p, h, bottom + EVec2::new(0.0, 0.0), device);
     // Potion charges and dodge.
@@ -432,7 +446,7 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
     p.text(
         pot + EVec2::new(0.0, 10.0),
         Align2::LEFT_TOP,
-        if device == Device::Gamepad { "D-pad up" } else { "1 potion" },
+        if device == Device::Gamepad { t!("hud.potion.pad") } else { t!("hud.potion") },
         FontId::proportional(10.0),
         Color32::from_white_alpha(170),
     );
@@ -440,7 +454,7 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         p.text(
             bottom + EVec2::new(250.0 - r - 12.0, -12.0),
             Align2::RIGHT_CENTER,
-            format!("dodge {:.1}", h.dodge_cd),
+            t!("hud.dodge", seconds = (h.dodge_cd * 10.0).round() / 10.0),
             FontId::proportional(11.0),
             Color32::from_white_alpha(180),
         );
@@ -451,9 +465,13 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
     xf.set_width(600.0 * (h.xp / h.xp_next.max(1.0)).clamp(0.0, 1.0) as f32);
     p.rect_filled(xf, 2.0, Color32::from_rgb(150, 120, 255));
     // Top left: who, level, gold, the arena wave.
-    let mut text = format!("{}   Level {}   {} gold   {} kills", h.name, h.level, h.gold, h.kills);
+    // (Separate items, three spaces apart.)
+    let mut text =
+        [h.name.clone(), t!("hud.level", level = h.level), t!("hud.gold", count = h.gold), t!("hud.kills", count = h.kills)]
+            .join("   ");
     if g.wave > 0 {
-        text += &format!("   Wave {}  ({} left)", g.wave, g.monsters);
+        text += "   ";
+        text += &t!("hud.wave", wave = g.wave, count = g.monsters);
     }
     p.text(Pos2::new(14.0, 12.0), Align2::LEFT_TOP, text, FontId::proportional(15.0), Color32::from_rgb(240, 228, 200));
     banners(&p, g, h, screen, 1.0, None);
@@ -471,7 +489,7 @@ fn banners(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: f32, 
         let size = if swipes.is_some() { 22.0 * k } else { 30.0 };
         // (Touch screens: above a level's intro banner.)
         let c = screen.center_top() + EVec2::new(0.0, if swipes.is_some() { screen.height() * 0.2 } else { 120.0 });
-        let w = (m.len() as f32 * size * 0.55).min(screen.width() - 20.0);
+        let w = (pav_core::lines::width(m) as f32 * size * 0.55).min(screen.width() - 20.0);
         let place = match swipes {
             Some(s) => {
                 s.place(egui::Id::new("banner"), crate::touch::key(m), Rect::from_center_size(c, EVec2::new(w, size * 1.8)))
@@ -489,7 +507,7 @@ fn banners(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: f32, 
         p.text(
             screen.center() - EVec2::new(0.0, 60.0 * k),
             Align2::CENTER_CENTER,
-            "LEVEL UP",
+            t!("hud.level_up"),
             FontId::proportional((44.0 + 10.0 * a) * k),
             Color32::from_rgba_unmultiplied(255, 215, 120, (a * 255.0) as u8),
         );
@@ -498,7 +516,7 @@ fn banners(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: f32, 
         p.text(
             screen.center(),
             Align2::CENTER_CENTER,
-            format!("You fell   {:.0}", h.respawn.ceil().max(0.0)),
+            t!("hud.fell", seconds = h.respawn.ceil().max(0.0) as i64),
             FontId::proportional(36.0 * k),
             Color32::from_rgb(230, 80, 70),
         );
@@ -546,13 +564,13 @@ fn touch_vitals(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: 
         p.text(Pos2::new(screen.left() + m, y), Align2::LEFT_TOP, text, FontId::proportional(11.5 * k), col);
     };
     if let Some(l) = &g.level {
-        line(y, format!("{} · {}", l.label, l.name), Color32::from_rgba_unmultiplied(255, 214, 150, 200));
+        line(y, t!("level.card", label = &l.label, name = &l.name), Color32::from_rgba_unmultiplied(255, 214, 150, 200));
         y += 15.0 * k;
         if !l.exit_open && !l.boss_name.is_empty() {
-            line(y, format!("Sealed: slay {}", l.boss_name), Color32::from_rgb(255, 120, 90));
+            line(y, t!("hud.sealed.short", boss = &l.boss_name), Color32::from_rgb(255, 120, 90));
         }
     } else if g.wave > 0 {
-        line(y, format!("Wave {} · {} left", g.wave, g.monsters), Color32::from_rgba_unmultiplied(255, 214, 150, 210));
+        line(y, t!("hud.wave.touch", wave = g.wave, count = g.monsters), Color32::from_rgba_unmultiplied(255, 214, 150, 210));
     }
 }
 
@@ -576,7 +594,7 @@ fn level_hud(
         p.text(
             Pos2::new(14.0, y),
             Align2::LEFT_TOP,
-            format!("{} · {}", l.label, l.name),
+            t!("level.card", label = &l.label, name = &l.name),
             FontId::proportional(14.0),
             if l.endless { Color32::from_rgb(205, 175, 255) } else { Color32::from_rgb(255, 214, 150) },
         );
@@ -585,7 +603,7 @@ fn level_hud(
             p.text(
                 Pos2::new(16.0, y),
                 Align2::LEFT_TOP,
-                format!("{name}: {hint}"),
+                t!("hud.mechanic", name = name, hint = hint),
                 FontId::proportional(11.5),
                 Color32::from_white_alpha(170),
             );
@@ -595,7 +613,7 @@ fn level_hud(
             p.text(
                 Pos2::new(16.0, y + 2.0),
                 Align2::LEFT_TOP,
-                format!("The way down is sealed: slay {}", l.boss_name),
+                t!("hud.sealed", boss = &l.boss_name),
                 FontId::proportional(11.5),
                 Color32::from_rgb(255, 120, 90),
             );
@@ -629,7 +647,7 @@ fn level_hud(
                     q.text(
                         c + EVec2::new(0.0, title * 0.85 + (i as f32 + 1.2) * 16.0 * k),
                         Align2::CENTER_CENTER,
-                        format!("{name}: {hint}"),
+                        t!("hud.mechanic", name = name, hint = hint),
                         FontId::proportional(11.5 * k),
                         Color32::from_white_alpha(190),
                     );
@@ -729,7 +747,7 @@ fn level_hud(
         p.text(
             area.center_bottom() + EVec2::new(0.0, 4.0),
             Align2::CENTER_TOP,
-            "M: map",
+            t!("hud.map_key"),
             FontId::proportional(10.0),
             Color32::from_white_alpha(130),
         );
@@ -738,10 +756,16 @@ fn level_hud(
 
 /// Difficulty sliders (pause menu).
 pub fn difficulty_ui(ui: &mut egui::Ui, d: &mut Difficulty) {
-    ui.label(RichText::new("Difficulty (play-testing)").strong());
+    ui.label(RichText::new(t!("difficulty.heading")).strong());
     ui.horizontal(|ui| {
-        for (name, k) in [("Story", 0.5f32), ("Normal", 1.0), ("Hard", 1.6), ("Brutal", 2.5), ("Nightmare", 4.0)] {
-            if ui.button(name).clicked() {
+        for (name, k) in [
+            ("difficulty.story", 0.5f32),
+            ("difficulty.normal", 1.0),
+            ("difficulty.hard", 1.6),
+            ("difficulty.brutal", 2.5),
+            ("difficulty.nightmare", 4.0),
+        ] {
+            if ui.button(t!(name)).clicked() {
                 d.enemy_damage = k;
                 d.enemy_life = k;
                 d.enemy_speed = 1.0 + (k - 1.0) * 0.12;
@@ -752,15 +776,15 @@ pub fn difficulty_ui(ui: &mut egui::Ui, d: &mut Difficulty) {
     });
     egui::Grid::new("difficulty").num_columns(2).show(ui, |ui| {
         for (label, v, max) in [
-            ("Hero damage", &mut d.player_damage, 10.0),
-            ("Hero life", &mut d.player_life, 10.0),
-            ("Monster damage", &mut d.enemy_damage, 10.0),
-            ("Monster life", &mut d.enemy_life, 10.0),
-            ("Monster speed", &mut d.enemy_speed, 3.0),
-            ("Hit-stop", &mut d.hitstop, 3.0),
-            ("Screen shake", &mut d.shake, 3.0),
+            ("difficulty.hero_damage", &mut d.player_damage, 10.0),
+            ("difficulty.hero_life", &mut d.player_life, 10.0),
+            ("difficulty.monster_damage", &mut d.enemy_damage, 10.0),
+            ("difficulty.monster_life", &mut d.enemy_life, 10.0),
+            ("difficulty.monster_speed", &mut d.enemy_speed, 3.0),
+            ("difficulty.hitstop", &mut d.hitstop, 3.0),
+            ("difficulty.shake", &mut d.shake, 3.0),
         ] {
-            ui.label(label);
+            ui.label(t!(label));
             ui.add(egui::Slider::new(v, 0.0..=max).step_by(0.05));
             ui.end_row();
         }

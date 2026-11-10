@@ -125,21 +125,28 @@ impl Mods {
     }
 }
 
-/// Formats a stat line ("+12 to maximum Life").
+/// Formats a stat line ("+12 to maximum Life") in the language in use: the `stat.<key>` line,
+/// or `stat.<key>.less` for a negative value ("10% reduced", "20% less", "-15% to").
 pub fn describe(s: Stat, v: f32) -> String {
+    crate::lines::display(describe_piece(s, v))
+}
+
+/// `describe` in reading order, for a blank in another line.
+pub fn describe_piece(s: Stat, v: f32) -> String {
+    use crate::lines::Arg;
     let a = v.abs();
-    let mut n = if (a - a.round()).abs() < 0.05 { format!("{}", a.round() as i64) } else { format!("{a:.1}") };
-    let mut t = s.template().to_string();
-    if v < 0.0 {
-        // Negative values read naturally: "10% reduced", "20% less", "-15% to".
-        let swaps = [("increased", "reduced"), ("reduced", "increased"), ("more", "less"), ("faster", "slower")];
-        match swaps.iter().find(|(from, _)| t.contains(from)) {
-            Some((from, to)) => t = t.replacen(from, to, 1),
-            None if t.starts_with("+{}") => t = t.replacen("+{}", "-{}", 1),
-            None => n = format!("-{n}"),
-        }
-    }
-    t.replace("{}", &n)
+    // Whole when it is close to whole, else one decimal place.
+    let whole = (a - a.round()).abs() < 0.05;
+    let n = |sign: f32| {
+        if whole { Arg::Int((sign * a.round()) as i64) } else { Arg::Num((sign as f64) * ((a as f64) * 10.0).round() / 10.0) }
+    };
+    let k = super::lines::key_id(s.key());
+    let (id, value) = match (v < 0.0, super::lines::less(s.template()).is_some()) {
+        (true, true) => (format!("stat.{k}.less"), n(1.0)),
+        (true, false) => (format!("stat.{k}"), n(-1.0)),
+        _ => (format!("stat.{k}"), n(1.0)),
+    };
+    crate::lines::logical(&id, &[("value", value)])
 }
 
 /// Combat numbers derived from base values and mods.

@@ -12,6 +12,7 @@ egui-wgpu.workspace = true
 wgpu.workspace = true
 serde.workspace = true
 web-time.workspace = true
+log.workspace = true
 
 [lints]
 workspace = true

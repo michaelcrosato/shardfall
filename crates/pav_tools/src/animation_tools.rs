@@ -284,6 +284,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
             OpenOptions::new().write(true).create_new(true).open(&temp).with_context(|| format!("create {}", temp.display()))?;
         file.write_all(bytes).with_context(|| format!("write {}", temp.display()))?;
         file.sync_all().with_context(|| format!("flush {}", temp.display()))?;
+        #[allow(clippy::drop_non_drop)] // the browser's File is a stub with no Drop
         drop(file);
         std::fs::rename(&temp, path).with_context(|| format!("replace {}", path.display()))?;
         Ok(())

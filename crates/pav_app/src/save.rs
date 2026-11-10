@@ -101,11 +101,14 @@ pub struct Prefs {
     pub quality: crate::quality::Quality,
     /// The touch tips were swiped away (they do not come back).
     pub tips_seen: bool,
+    /// The language chosen in the Language menu (native builds; the browser keeps it under
+    /// `lang:` and the page's path, as AI Hub Languages v1 asks).
+    pub lang: Option<String>,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Self { auto_attack: true, quality: Default::default(), tips_seen: false }
+        Self { auto_attack: true, quality: Default::default(), tips_seen: false, lang: None }
     }
 }
 

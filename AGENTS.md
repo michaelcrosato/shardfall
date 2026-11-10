@@ -11,7 +11,8 @@ read them when your work touches the design. `docs/REFERENCE.md` holds the full 
 tool family with examples, the controls and what each test suite covers: open the section you
 need. The journal and past decisions are in `docs/HISTORY.md`, newest first: search it, don't
 read it whole. For a standalone Linux source handoff, `START_HERE.md` covers setup and headless
-CLI examples.
+CLI examples. Words players read are lines (`t!`, `game/lines.toml`): `docs/LANGUAGES.md`. The
+AI Hub's rounds, the hub pages and the package: `docs/AI_HUB.md`.
 
 ## How the doctrine applies here
 Adopted 2026-10-09, partway through development. Code from before then isn't rewritten to fit;
@@ -203,7 +204,7 @@ spawn despawn teleport rewind snapshot_save snapshot_load record_save replay roo
 room_reset room_check room_reload stream signal filmstrip camera_bench course feel audio_capture`;
 looks `look`; teaching `guide`; games on the hook `play`; Shardfall `game hero monster autoplay skills game_reload
 loot_roll give inventory game_cmd ui tree tree_map genome bestiary boss turntable animsheet level
-levelmap go goto_feature see campaign theme_swatch`; animation `clips clip_import mocap
+levelmap go goto_feature see campaign theme_swatch lines`; animation `clips clip_import mocap
 anim_reload anim_edit anim_preview`; objects `assets asset_edit asset_preview asset_spawn
 asset_import studio_status`; creatures `creature_catalog creature_edit creature_preview
 creature_status`.

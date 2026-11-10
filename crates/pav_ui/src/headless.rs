@@ -16,6 +16,9 @@ use crate::touch::{Touch, View};
 
 /// Passes per frame: windows size themselves from the pass before.
 const PASSES: usize = 3;
+/// More passes for a hover: the widget under the pointer is hovered once the windows are laid
+/// out, and its tooltip shows the pass after.
+const HOVER_PASSES: usize = 3;
 
 /// The UI's state between frames: which windows are open, the device, the touch controls.
 #[derive(Default)]
@@ -23,6 +26,8 @@ pub struct Headless {
     pub game: GameUi,
     pub touch: Touch,
     pub device: Device,
+    /// The title screen, over the game (`ui open=title`), with what it shows.
+    pub title: Option<(crate::title::TitleScreen, crate::title::TitleInfo)>,
 }
 
 /// What a frame drew.
@@ -94,7 +99,7 @@ pub struct Input {
 
 impl Headless {
     /// The window names `open` accepts, and `GameUi`'s flag for each.
-    pub const WINDOWS: [&'static str; 5] = ["inventory", "character", "skills", "tree", "map"];
+    pub const WINDOWS: [&'static str; 6] = ["inventory", "character", "skills", "tree", "map", "title"];
 
     fn flag(&mut self, name: &str) -> Option<&mut bool> {
         Some(match name {
@@ -109,6 +114,19 @@ impl Headless {
 
     /// Opens or closes a window by name; false if there is no such window.
     pub fn set_open(&mut self, name: &str, open: bool) -> bool {
+        if name == "title" {
+            self.title = open.then(|| {
+                let info = crate::title::TitleInfo {
+                    hero: Some(("Wanderer".into(), 7)),
+                    languages: pav_core::lines::available(),
+                    language: pav_core::lines::language(),
+                    fullscreen: true,
+                    quit: false,
+                };
+                (crate::title::TitleScreen::new(false), info)
+            });
+            return true;
+        }
         self.flag(name).map(|f| *f = open).is_some()
     }
 
@@ -124,11 +142,15 @@ impl Headless {
         input: Input,
     ) -> Drawn {
         let ctx = egui::Context::default();
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::fonts::install_embedded(&ctx, &pav_core::lines::language(), &[]);
         let touch = self.device == Device::Touch;
         crate::touch_style(&ctx, touch);
         ctx.all_styles_mut(|s| {
             s.animation_time = 0.0;
             s.interaction.tooltip_delay = 0.0;
+            // The pointer is placed anew each pass: `hover` shows tooltips all the same.
+            s.interaction.show_tooltips_only_when_still = false;
         });
         self.game.touch = touch;
         self.game.tree.touch = touch;
@@ -139,7 +161,9 @@ impl Headless {
         let mut commands = Vec::new();
         let mut output = None;
         let mut layers = Vec::new();
-        for pass in 0..PASSES + input.click.is_some() as usize {
+        let hover = if input.hover.is_some() && input.click.is_none() { HOVER_PASSES } else { 0 };
+        let passes = PASSES + input.click.is_some() as usize + hover;
+        for pass in 0..passes {
             let mut events = Vec::new();
             if let Some(p) = input.click.or(input.hover) {
                 events.push(egui::Event::PointerMoved(p));
@@ -163,7 +187,7 @@ impl Headless {
                 ..Default::default()
             };
             self.touch.swipes.begin_frame();
-            let last = pass + 1 == PASSES + input.click.is_some() as usize;
+            let last = pass + 1 == passes;
             let out = ctx.run_ui(raw, |ui| {
                 let root = ui.layer_id();
                 let ctx = ui.ctx().clone();
@@ -176,6 +200,9 @@ impl Headless {
                     }
                 }
                 crate::game_lines(&ctx, hud_lines);
+                if let Some((screen, info)) = self.title.as_mut() {
+                    let _ = screen.ui(&ctx, info, 0.0);
+                }
                 if touch && game.is_some() {
                     let map_hidden = self.touch.swipes.is_gone(egui::Id::new("minimap"), 0);
                     let points = game.and_then(|g| g.inv.as_ref()).map(|i| i.points).unwrap_or(0);
@@ -244,6 +271,7 @@ impl Headless {
             "skills" => self.game.skills,
             "tree" => self.game.tree.open,
             "map" => self.game.map,
+            "title" => self.title.is_some(),
             _ => false,
         }
     }

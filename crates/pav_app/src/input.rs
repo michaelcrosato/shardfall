@@ -154,46 +154,55 @@ impl Bindings {
     }
 }
 
-/// Shardfall's controls.
-pub fn game_guide(device: Device) -> &'static [(&'static str, &'static str)] {
-    match device {
+/// Shardfall's controls, in the language in use: what each does, and the keys, buttons or
+/// gestures for it (game lines `controls.*`; key names that read the same everywhere, such as
+/// "G" or "I · P · C · K · M", are shown as they are).
+pub fn game_guide(device: Device) -> Vec<(String, String)> {
+    let rows: &[(&str, &str)] = match device {
         Device::KeyboardMouse => &[
-            ("Move", "W A S D"),
-            ("Aim", "mouse"),
-            ("Skills", "LMB · RMB · Q · E · R · F (hold to repeat)"),
-            ("Dodge roll", "Space (cancels any attack)"),
-            ("Potion", "1"),
-            ("Attack in place", "hold Shift"),
-            ("Use (trade, portal, way down, chests)", "G"),
-            ("Inventory · passives · character · skills · map", "I · P · C · K · M"),
-            ("Town portal", "T"),
-            ("Pick up", "walk over it, or click its name"),
-            ("Camera", "middle-drag rotate · wheel zoom"),
-            ("Rewind", "hold Backspace"),
-            ("Menu / tuning", "Esc / F1"),
+            ("controls.move", "controls.keys.move"),
+            ("controls.aim", "controls.keys.aim"),
+            ("controls.skills", "controls.keys.skills"),
+            ("controls.dodge", "controls.keys.dodge"),
+            ("controls.potion", "1"),
+            ("controls.attack_in_place", "controls.keys.attack_in_place"),
+            ("controls.use", "G"),
+            ("controls.panels", "I · P · C · K · M"),
+            ("controls.town_portal", "T"),
+            ("controls.pick_up", "controls.keys.pick_up"),
+            ("controls.camera", "controls.keys.camera"),
+            ("controls.rewind", "controls.keys.rewind"),
+            ("controls.menu_tuning", "Esc / F1"),
         ],
         Device::Gamepad => &[
-            ("Move / aim", "left stick / right stick"),
-            ("Skills", "X · Y · B · RB · LB · RT"),
-            ("Dodge roll", "A"),
-            ("Potion", "D-pad up"),
-            ("Use (trade, portal, way down, chests)", "D-pad right"),
-            ("Map", "D-pad left"),
-            ("Inventory, character, skills, passives", "D-pad down, then LB / RB"),
-            ("In menus", "stick: cursor · A click · X right-click · hold Y: shift · right stick scroll · B close"),
-            ("Menu", "Start"),
+            ("controls.move_aim", "controls.pad.move_aim"),
+            ("controls.skills", "X · Y · B · RB · LB · RT"),
+            ("controls.dodge", "A"),
+            ("controls.potion", "controls.pad.potion"),
+            ("controls.use", "controls.pad.use"),
+            ("controls.map", "controls.pad.map"),
+            ("controls.pad_panels", "controls.pad.panels"),
+            ("controls.in_menus", "controls.pad.in_menus"),
+            ("controls.menu", "Start"),
         ],
         Device::Touch => &[
-            ("Move", "put a thumb down anywhere and drag"),
-            ("Attack", "automatic: the nearest foe in reach"),
-            ("Skills", "tap: at the nearest foe · drag: aim, let go to cast · hold: keep casting"),
-            ("Dodge roll · potion", "the big button · the flask"),
-            ("Use (trade, portal, way down, chests)", "the button that appears"),
-            ("Bag, hero, skills, passives", "the bag (top right)"),
-            ("Messages and the minimap", "swipe them away"),
-            ("Close a window", "tap the game outside it"),
+            ("controls.move", "controls.touch.move"),
+            ("controls.attack", "controls.touch.attack"),
+            ("controls.skills", "controls.touch.skills"),
+            ("controls.dodge_potion", "controls.touch.dodge_potion"),
+            ("controls.use", "controls.touch.use"),
+            ("controls.touch_panels", "controls.touch.panels"),
+            ("controls.swipe", "controls.touch.swipe"),
+            ("controls.close", "controls.touch.close"),
         ],
-    }
+    };
+    let line = |s: &str| if s.starts_with("controls.") { pav_core::t!(s) } else { s.to_string() };
+    rows.iter().map(|(what, keys)| (line(what), line(keys))).collect()
+}
+
+/// A guide's rows as owned text (to list it like `game_guide`'s).
+pub fn owned(rows: &[(&str, &str)]) -> Vec<(String, String)> {
+    rows.iter().map(|(a, k)| (a.to_string(), k.to_string())).collect()
 }
 
 /// Human-readable control guide per device.
@@ -497,6 +506,11 @@ impl Input {
                 state = Some(PadState { left: st.left, right: st.right, held: st.hold.clone(), lt2: false, rt2: false });
             }
         }
+        // View and Menu held together open the AI Hub's bar: that pair means nothing here.
+        let hub_pair = state.as_ref().is_some_and(|st| st.held.contains(&Button::Select) && st.held.contains(&Button::Start));
+        if hub_pair {
+            taps.retain(|b| !matches!(b, Button::Start | Button::Select));
+        }
         let start = taps.contains(&Button::Start);
         let map = taps.contains(&Button::DPadLeft);
         let mut pad = Pad { start_pressed: start, map_pressed: map, taps, any_activity: activity, ..Default::default() };
@@ -543,7 +557,7 @@ impl Input {
             pad.a_held = is(Button::South);
             pad.x_held = is(Button::West);
             pad.y_held = is(Button::North);
-            pad.back_held = is(Button::Select);
+            pad.back_held = is(Button::Select) && !hub_pair;
             if pad.left.length() > 0.3 || pad.right.length() > 0.3 || held != 0 {
                 pad.any_activity = true;
             }

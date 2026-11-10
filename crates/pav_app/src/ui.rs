@@ -33,10 +33,6 @@ pub enum MenuAction {
     Tuning,
     /// The Look & Filters window.
     Look,
-    /// The live animation workspace.
-    AnimationStudio,
-    AssetStudio,
-    CreatureStudio,
     /// How the room you are in works (the station guide; outside rooms the field guide).
     Guide,
     /// Every word and every room's ask-for-it phrases.
@@ -49,6 +45,10 @@ pub enum MenuAction {
     TownPortal,
     /// The browser's full screen.
     Fullscreen,
+    /// One of the engine's tools (the same panel as the title screen's).
+    Tool(pav_ui::title::Tool),
+    /// Back to the title screen.
+    TitleScreen,
 }
 
 pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
@@ -147,16 +147,16 @@ pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.label(
                 RichText::new(match device {
-                    Device::KeyboardMouse => "Controls (keyboard + mouse)",
-                    Device::Gamepad => "Controls (gamepad)",
-                    Device::Touch => "Controls (touch)",
+                    Device::KeyboardMouse => pav_core::t!("menu.controls.keyboard"),
+                    Device::Gamepad => pav_core::t!("menu.controls.gamepad"),
+                    Device::Touch => pav_core::t!("menu.controls.touch"),
                 })
                 .strong(),
             );
             egui::Grid::new("guide_grid").show(ui, |ui| {
-                for (a, k) in if game { crate::input::game_guide(device) } else { guide(device) } {
-                    ui.label(*a);
-                    ui.label(RichText::new(*k).monospace());
+                for (a, k) in if game { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) } {
+                    ui.label(a);
+                    ui.label(RichText::new(k).monospace());
                     ui.end_row();
                 }
             });
@@ -172,66 +172,69 @@ pub fn pause_menu(
 ) -> Option<MenuAction> {
     let mut action = None;
     let game = difficulty.is_some();
-    egui::Window::new("Paused")
+    egui::Window::new(pav_core::t!("menu.paused"))
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
         .collapsible(false)
         .resizable(false)
+        .max_width(760.0)
         .show(ctx, |ui| {
-            ui.label(format!("Room: {scene}"));
-            ui.horizontal(|ui| {
-                if ui.button("Resume (Esc)").clicked() {
+            ui.horizontal_wrapped(|ui| {
+                let resume = egui::Button::new(RichText::new(pav_core::t!("menu.resume")).size(18.0).strong())
+                    .fill(egui::Color32::from_rgb(240, 198, 112).gamma_multiply(0.85));
+                if ui.add(resume).clicked() {
                     action = Some(MenuAction::Resume);
                 }
-                if ui.button("Rooms (F2)").clicked() {
-                    action = Some(MenuAction::Rooms);
+                if ui.button(RichText::new(pav_core::t!("menu.title_screen")).size(16.0)).clicked() {
+                    action = Some(MenuAction::TitleScreen);
                 }
-                if ui.button("Room info").clicked() {
+                if ui.button(RichText::new(pav_core::t!("menu.screenshot")).size(16.0)).clicked() {
+                    action = Some(MenuAction::Screenshot);
+                }
+                if ui.button(RichText::new(pav_core::t!("menu.quit")).size(16.0)).clicked() {
+                    action = Some(MenuAction::Quit);
+                }
+            });
+            ui.add_space(8.0);
+            // The engine's tools, as prominent here as on the title screen.
+            egui::Frame::new()
+                .fill(egui::Color32::from_rgba_unmultiplied(18, 16, 22, 200))
+                .corner_radius(egui::CornerRadius::same(10))
+                .inner_margin(egui::Margin::same(12))
+                .show(ui, |ui| {
+                    if let Some(tool) = pav_ui::directed(ui, |ui| pav_ui::title::tools_panel(ui, 3)) {
+                        action = Some(MenuAction::Tool(tool));
+                    }
+                });
+            ui.add_space(6.0);
+            ui.label(RichText::new(pav_core::t!("dev.menu.room", room = scene)).small().weak());
+            ui.horizontal_wrapped(|ui| {
+                if ui.small_button(pav_core::t!("dev.menu.room_info")).clicked() {
                     action = Some(MenuAction::RoomCard);
                 }
-                if ui.button("Reset scene").clicked() {
+                if ui.small_button(pav_core::t!("dev.menu.reset_scene")).clicked() {
                     action = Some(MenuAction::Reset);
-                }
-                if ui.button("Tuning (F1)").clicked() {
-                    action = Some(MenuAction::Tuning);
-                }
-                if ui
-                    .button("Look & filters")
-                    .on_hover_text("Pixel art, cel shading, outlines, palettes, grading and more, on the whole scene, the characters & objects or the environment")
-                    .clicked()
-                {
-                    action = Some(MenuAction::Look);
-                }
-                if ui.button("Animation Studio").clicked() {
-                    action = Some(MenuAction::AnimationStudio);
-                }
-                if ui.button("Object Studio").clicked() {
-                    action = Some(MenuAction::AssetStudio);
-                }
-                if ui.button("Creature Studio").clicked() {
-                    action = Some(MenuAction::CreatureStudio);
                 }
                 if !game
                     && ui
-                        .button("How it works (H)")
-                        .on_hover_text("The station guide of the room you are in: how it works, where games use it, how to ask for it")
+                        .button(pav_core::t!("dev.menu.how_it_works.key"))
+                        .on_hover_text(pav_core::t!("dev.menu.how_it_works.about"))
                         .clicked()
                 {
                     action = Some(MenuAction::Guide);
                 }
-                if !game && ui.button("Field guide").on_hover_text("Every word, and what to ask for in every room").clicked() {
+                if !game
+                    && ui
+                        .button(pav_core::t!("dev.menu.field_guide"))
+                        .on_hover_text(pav_core::t!("dev.menu.field_guide.about"))
+                        .clicked()
+                {
                     action = Some(MenuAction::FieldGuide);
                 }
-                if ui.button("Feel metrics").clicked() {
+                if ui.small_button(pav_core::t!("dev.menu.feel")).clicked() {
                     action = Some(MenuAction::Feel);
                 }
-                if ui.button("Physics stats").clicked() {
+                if ui.small_button(pav_core::t!("dev.menu.physics")).clicked() {
                     action = Some(MenuAction::Physics);
-                }
-                if ui.button("Screenshot (F12)").clicked() {
-                    action = Some(MenuAction::Screenshot);
-                }
-                if ui.button("Quit").clicked() {
-                    action = Some(MenuAction::Quit);
                 }
             });
             let difficulty_shown = difficulty.is_some();
@@ -239,14 +242,14 @@ pub fn pause_menu(
                 ui.separator();
                 crate::arpg_ui::difficulty_ui(ui, d);
                 ui.horizontal(|ui| {
-                    if ui.button("New hero").on_hover_text("Erase the saved hero and start again in Emberwatch").clicked() {
+                    if ui.button(pav_core::t!("menu.new_hero")).on_hover_text(pav_core::t!("menu.new_hero.about")).clicked() {
                         action = Some(MenuAction::NewHero);
                     }
-                    ui.label(RichText::new("The hero is saved on every trip and on quit.").small().weak());
+                    ui.label(RichText::new(pav_core::t!("menu.saved")).small().weak());
                 });
             }
             ui.separator();
-            ui.label(RichText::new("Load scene").strong());
+            ui.label(RichText::new(pav_core::t!("dev.menu.load_scene")).strong());
             for (name, about) in pav_core::scenes::menu() {
                 ui.horizontal(|ui| {
                     if ui.button(name).clicked() {
@@ -256,15 +259,16 @@ pub fn pause_menu(
                 });
             }
             ui.separator();
-            ui.label(RichText::new("Controls").strong());
+            ui.label(RichText::new(pav_core::t!("menu.controls")).strong());
             egui::Grid::new("menu_guide").show(ui, |ui| {
-                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { guide(device) } {
-                    ui.label(*a);
-                    ui.label(RichText::new(*k).monospace());
+                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) }
+                {
+                    ui.label(a);
+                    ui.label(RichText::new(k).monospace());
                     ui.end_row();
                 }
             });
-            ui.label(RichText::new("System keys: F1 tuning · F2 rooms · F3 diagnostics · F4 leave room · F5 reset room · F6 pause · F7 step · F8/F9 speed · F10 edit mode · F11 fullscreen · F12 screenshot · hold Backspace rewind").small().weak());
+            ui.label(RichText::new(pav_core::t!("dev.menu.system_keys")).small().weak());
         });
     action
 }
@@ -308,26 +312,30 @@ pub fn touch_tips(ctx: &egui::Context, game: bool, swipes: &mut crate::touch::Sw
         |ui| {
             egui::Frame::popup(ui.style()).corner_radius(14.0).inner_margin(14.0).show(ui, |ui| {
                 ui.set_max_width(300.0);
-                ui.label(RichText::new("Playing by touch").strong().size(17.0));
+                ui.label(RichText::new(pav_core::t!("touch.tips")).strong().size(17.0));
                 let tips: &[(&str, &str)] = if game {
                     &[
-                        ("Move", "drag anywhere"),
-                        ("Attack", "automatic"),
-                        ("Skills", "tap, or drag to aim"),
-                        ("Messages", "swipe away"),
-                        ("Windows", "tap outside to close"),
+                        ("controls.move", "touch.tips.move"),
+                        ("controls.attack", "touch.tips.attack"),
+                        ("controls.skills", "touch.tips.skills"),
+                        ("touch.tips.messages", "touch.tips.messages.how"),
+                        ("touch.tips.windows", "touch.tips.windows.how"),
                     ]
                 } else {
-                    &[("Move", "drag anywhere"), ("Jump, bomb, duck", "the corner buttons"), ("Messages", "swipe away")]
+                    &[
+                        ("controls.move", "touch.tips.move"),
+                        ("touch.tips.jump", "touch.tips.jump.how"),
+                        ("touch.tips.messages", "touch.tips.messages.how"),
+                    ]
                 };
                 egui::Grid::new("touch_tips_grid").spacing([12.0, 4.0]).show(ui, |ui| {
                     for (a, k) in tips {
-                        ui.label(RichText::new(*a).strong());
-                        ui.label(RichText::new(*k).weak());
+                        ui.label(RichText::new(pav_core::lines::text(a, &[])).strong());
+                        ui.label(RichText::new(pav_core::lines::text(k, &[])).weak());
                         ui.end_row();
                     }
                 });
-                ui.label(RichText::new("Swipe this away to play").small().color(Color32::from_rgb(255, 214, 150)));
+                ui.label(RichText::new(pav_core::t!("touch.tips.dismiss")).small().color(Color32::from_rgb(255, 214, 150)));
             });
         },
     );
@@ -371,22 +379,23 @@ pub fn touch_menu(ctx: &egui::Context, scene: &str, m: TouchMenu) -> Option<Menu
 fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchMenu, action: &mut Option<MenuAction>) {
     ui.set_width(w);
     let big = |ui: &mut egui::Ui, text: &str| ui.add_sized([w, 42.0], egui::Button::new(RichText::new(text).size(16.0)));
-    ui.vertical_centered(|ui| ui.label(RichText::new("Paused").heading()));
-    if big(ui, "Resume").clicked() {
+    ui.vertical_centered(|ui| ui.label(RichText::new(pav_core::t!("menu.paused")).heading()));
+    if big(ui, &pav_core::t!("menu.resume")).clicked() {
         *action = Some(MenuAction::Resume);
     }
-    if m.portal && big(ui, "Town portal").clicked() {
+    if m.portal && big(ui, &pav_core::t!("menu.town_portal")).clicked() {
         *action = Some(MenuAction::TownPortal);
     }
     ui.separator();
     if game {
         let on = m.prefs.auto_attack;
-        let label = if on { "Auto-attack: on" } else { "Auto-attack: off" };
+        let label = if on { pav_core::t!("menu.auto_attack.on") } else { pav_core::t!("menu.auto_attack.off") };
         if ui.add_sized([w, 38.0], egui::Button::new(label).selected(on)).clicked() {
             m.prefs.auto_attack = !on;
         }
     }
-    ui.label(RichText::new(format!("Graphics (drawing {:.0}% of the screen's pixels)", m.scale * m.scale * 100.0)).small());
+    let percent = (m.scale * m.scale * 100.0).round() as i64;
+    ui.label(RichText::new(pav_core::t!("menu.graphics", percent = percent)).small());
     ui.horizontal(|ui| {
         let bw = (w - 3.0 * ui.spacing().item_spacing.x) / 4.0;
         for q in crate::quality::Quality::ALL {
@@ -397,39 +406,39 @@ fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchM
     });
     ui.horizontal(|ui| {
         let bw = (w - ui.spacing().item_spacing.x) / 2.0;
-        if ui.add_sized([bw, 36.0], egui::Button::new("Show FPS").selected(*m.show_fps)).clicked() {
+        if ui.add_sized([bw, 36.0], egui::Button::new(pav_core::t!("menu.show_fps")).selected(*m.show_fps)).clicked() {
             *m.show_fps = !*m.show_fps;
         }
-        if ui.add_sized([bw, 36.0], egui::Button::new("Full screen")).clicked() {
+        if ui.add_sized([bw, 36.0], egui::Button::new(pav_core::t!("title.fullscreen"))).clicked() {
             *action = Some(MenuAction::Fullscreen);
         }
     });
     ui.separator();
-    egui::CollapsingHeader::new("More").show(ui, |ui| {
+    egui::CollapsingHeader::new(pav_core::t!("menu.more")).id_salt("touch_more").show(ui, |ui| {
         if let Some(d) = m.difficulty {
             crate::arpg_ui::difficulty_ui(ui, d);
-            if ui.button("New hero").clicked() {
+            if ui.button(pav_core::t!("menu.new_hero")).clicked() {
                 *action = Some(MenuAction::NewHero);
             }
             ui.separator();
         }
         ui.horizontal_wrapped(|ui| {
             for (label, a) in [
-                ("Look & filters", MenuAction::Look),
-                ("Rooms", MenuAction::Rooms),
-                ("Reset scene", MenuAction::Reset),
-                ("Tuning", MenuAction::Tuning),
-                ("Feel metrics", MenuAction::Feel),
+                ("dev.menu.look", MenuAction::Look),
+                ("dev.menu.rooms", MenuAction::Rooms),
+                ("dev.menu.reset_scene", MenuAction::Reset),
+                ("dev.menu.tuning", MenuAction::Tuning),
+                ("dev.menu.feel", MenuAction::Feel),
             ] {
-                if ui.button(label).clicked() {
+                if ui.button(pav_core::lines::text(label, &[])).clicked() {
                     *action = Some(a);
                 }
             }
-            if !game && ui.button("How it works").clicked() {
+            if !game && ui.button(pav_core::t!("dev.menu.how_it_works")).clicked() {
                 *action = Some(MenuAction::Guide);
             }
         });
-        ui.label(RichText::new(format!("Load scene (now: {scene})")).strong());
+        ui.label(RichText::new(pav_core::t!("dev.menu.load_scene.now", scene = scene)).strong());
         ui.horizontal_wrapped(|ui| {
             for (name, about) in pav_core::scenes::menu() {
                 if ui.button(name).on_hover_text(about).clicked() {
@@ -437,11 +446,11 @@ fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchM
                 }
             }
         });
-        ui.label(RichText::new("Controls").strong());
-        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { guide(Device::Touch) } {
+        ui.label(RichText::new(pav_core::t!("menu.controls")).strong());
+        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { crate::input::owned(guide(Device::Touch)) } {
             ui.horizontal_wrapped(|ui| {
-                ui.label(RichText::new(*a).strong());
-                ui.label(*k);
+                ui.label(RichText::new(a).strong());
+                ui.label(k);
             });
         }
     });
