@@ -22,34 +22,45 @@ The player character is one of three heroes the player chooses: Wanderer (a sell
 
 Townsfolk: Hilda the smith (gruff, practical), Odo the gambler (a smooth talker), Mother Wren the alchemist (motherly, calls the player "dear"). They speak short barks over their heads.
 
-Shardfall is built on Pavilion, an engine made for AI agents. The title screen and pause menu offer its tools (studios for animation, objects and creatures, a tour of the engine's demo rooms). Those tool names are product names, like app names: translate the descriptive words around them ("Studio", "tour") naturally.
+Shardfall is built on Pavilion, an engine made for AI agents. The game opens on the Pavilion's plaza, where Shardfall itself (through a rift) and the engine's tools (studios for animation, objects and creatures, the room list, tuning, looks) are places the player walks up to; the pause menu lists the tools too. Those tool names are product names, like app names: translate the descriptive words around them ("Studio", "guide") naturally.
 
 Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (item.name.magic), and affix words (affix.*) are written to sit before or after the base's name; reorder or reword the joining line freely. Modifier lines (stat.*) are game terms ("increased", "more", "Life", "Mana"): keep them consistent across the whole game.
 """
 
 [lines]
-# The title screen.
+# The splash as the game opens, and the game's name and line (over the plaza's rift).
 "title.name" = "Shardfall"
 "title.tagline" = "A hack-and-slash descent into a shattered world"
 "title.engine" = "Built on the Pavilion engine"
-"title.skip" = "Press any key"
-"title.continue" = "Continue"
-"title.continue_hero" = "Continue: {name}, level {level}"
-"title.play" = "Play"
-"title.new_hero" = "New hero"
-"title.new_hero_confirm" = "Start a new hero? The saved hero is erased."
-"title.yes" = "Erase and start"
-"title.no" = "Keep my hero"
 "title.language" = "Language"
 "title.fullscreen" = "Full screen"
-"title.quit" = "Quit"
-"title.footer" = "Esc in the game opens the menu, where the engine's tools are too."
 
-# The engine's tools: on the title screen, in the pause menu, at the Pavilion Gate in town.
+# The Pavilion's plaza, where the game opens: the stations where the player finds Shardfall
+# and the engine's tools (their names float over them; the card of the one the player stands
+# at says what it is, with a button).
+"plaza.welcome" = "Welcome to the Pavilion"
+"plaza.welcome.about" = "Walk up to anything that glows: the rift into Shardfall, and the engine's studios and tools around the fountain. The corridors lead to its rooms."
+"plaza.hint" = "{key:interact}: {action}"
+"plaza.shardfall.use" = "Begin the descent"
+"plaza.shardfall.continue" = "Continue as {name}, level {level}"
+"plaza.shardfall.arrive" = "Through the rift to Emberwatch"
+"plaza.studio.use" = "Open the studio"
+"plaza.starter.use" = "Play it"
+"plaza.rooms.use" = "List every room"
+"plaza.looks.use" = "Change the look"
+"plaza.tuning.use" = "Open the tuning panel"
+"plaza.guide" = "Field guide"
+"plaza.guide.about" = "The engine's words, and every room with what to ask it for."
+"plaza.guide.use" = "Read the guide"
+"plaza.language.about" = "Shardfall and its menus in another language."
+"plaza.language.use" = "Choose a language"
+"plaza.language.set" = "The page's address sets the language here."
+
+# The engine's tools: in the pause menu, and as stations on the plaza.
 "tools.heading" = "Engine & tools"
 "tools.intro" = "Shardfall runs on Pavilion, an engine built for AI agents. Every part of it is here to explore."
-"tools.tour" = "Engine tour"
-"tools.tour.about" = "The Pavilion: rooms of physics, animation, effects, looks and game genres, each one explained."
+"tools.tour" = "The Pavilion"
+"tools.tour.about" = "Where the game opens: rooms of physics, animation, effects, looks and game genres, each one explained, with every tool on its plaza."
 "tools.animation" = "Animation Studio"
 "tools.animation.about" = "Every motion clip on a live figure: play, pause, scrub and edit."
 "tools.object" = "Object Studio"
@@ -64,9 +75,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "tools.rooms.about" = "Jump to any room of the engine tour."
 "tools.tuning" = "Tuning"
 "tools.tuning.about" = "Every setting of the simulation, camera and view, live."
-"tools.back_to_game" = "Back to Shardfall"
 "tools.gate" = "Pavilion Gate"
-"tools.gate.use" = "explore the engine"
+"tools.gate.use" = "back to the Pavilion"
 
 # Places the hero can use in town and in the depths.
 "spot.hint" = "{key:use}: {action}"
@@ -103,7 +113,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 # The pause menu.
 "menu.paused" = "Paused"
 "menu.resume" = "Resume"
-"menu.title_screen" = "Title screen"
+"menu.pavilion" = "The Pavilion"
 "menu.town_portal" = "Town portal"
 "menu.game" = "Game"
 "menu.controls" = "Controls"
@@ -696,12 +706,15 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "spot.hint" = "Under a place's name when the hero stands by it: the key to press, then what it does (a spot.verb line)."
 "spot.verb.trade" = "Fills {action} in spot.hint: 'G: trade'. Lowercase, an imperative."
 "spot.button.trade" = "A touch-screen button: one short word."
-"title.name" = "The game's name, the big title on the title screen. A proper name: keep it."
-"title.continue_hero" = "{name} is the saved hero's name (a character name), {level} their level."
-"title.skip" = "Shown under the splash logo; any key or tap skips it."
-"tools.heading" = "Heading of the section that lists the engine's tools, on the title screen and in the pause menu."
-"tools.gate" = "A gate in the town square that leads to the engine's tools. A place name."
-"tools.gate.use" = "Shown as 'G: explore the engine' next to the gate when the player is near it."
+"title.name" = "The game's name: the big title on the splash, and the rift's name on the plaza. A proper name: keep it."
+"plaza.hint" = "The button of the station the player stands at: the key to press, then what it does (a plaza.*.use line). Touch screens show the action alone."
+"plaza.shardfall.continue" = "The rift's button when there is a saved hero: {name} is the hero's name (a character name), {level} their level."
+"plaza.shardfall.arrive" = "A short message as the player steps through the rift into the town of Emberwatch."
+"plaza.welcome.about" = "Floats over the plaza's floor near where the player starts. The rift, studios and tools are things standing on the plaza."
+"plaza.language.set" = "In the Language window when the page's address (?lang=) chose the language, so the window offers no other."
+"tools.heading" = "Heading of the section that lists the engine's tools, in the pause menu."
+"tools.gate" = "A gate in the town square that leads back to the Pavilion, where the engine's tools are. A place name."
+"tools.gate.use" = "Shown as 'G: back to the Pavilion' next to the gate when the player is near it."
 "session.progress" = "On the AI Hub's scoreboard during a round: how deep this player is and how many monsters they slew."
 "session.down" = "{name} is another player's name, from the hub. Shown when their hero falls."
 "spot.smith" = "A townsperson's name with her trade, over her head and on her shop window: Hilda, the town's blacksmith."
@@ -802,8 +815,6 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "spot.button.chest" = 10
 "spot.button.hero" = 10
 "spot.button.gate" = 10
-"title.play" = 16
-"title.continue" = 16
 "menu.resume" = 16
 "hud.key.lmb" = 4
 "hud.key.rmb" = 4

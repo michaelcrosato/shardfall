@@ -1444,7 +1444,7 @@ pub fn t_ui(s: &mut Session, a: &Args) -> Result<Output> {
         }
     }
     if !crate::session::has_ui(&s.sim.frame()) {
-        bail!("no game UI in this scene (load scene=town, or a games/ game such as starter)");
+        bail!("no game UI here (load scene=world and stand on its plaza, scene=town, or a games/ game such as starter)");
     }
     let names = |key: &str| -> Vec<String> {
         match a.get(key) {
@@ -1503,6 +1503,10 @@ pub fn t_ui(s: &mut Session, a: &Args) -> Result<Output> {
         s.keep_events();
         s.sync_camera();
         reply["did"] = json!(did);
+        if let Some(key) = drawn.plaza {
+            // A plaza station's button: the window opens what it names (the rift: `load scene=town`).
+            reply["station"] = json!(key);
+        }
     }
     let Some(rgba) = rgba else { return Ok(Output::Json(reply)) };
     let png = pav_render::capture::encode_png(w, h, &rgba)?;

@@ -24,7 +24,7 @@ page per session mode into `target/hub/pages/` (`shardfall-shared-world.html`, `
 the page loads, keeps the hub's events for the game, and passes the game's calls on. As a safety
 net, a copy whose frame is too slow to answer time-up within half the grace period reports its
 last standing from the page. Outside a session (no client, or not in the hub's frame) it does
-nothing and the game opens on its title screen.
+nothing and the game opens on the Pavilion's plaza, as it does anywhere.
 
 ## A round
 `pav_app::round` (the app's side) and `pav_core::arpg::round` (the game's):
@@ -102,7 +102,7 @@ the ghost and parallel pages the same way) in Chromium with WebGPU; it passes wh
 ## The package
 `scripts/hub-package.sh --model NAME --effort LEVEL` builds the pages, puts the shared-world one
 in `target/hub/package/games/shardfall.html`, takes the three screenshots with
-`scripts/hub-covers.js` (`covers/shardfall/0.jpg` the title screen, `1.jpg` the Proving Grounds,
+`scripts/hub-covers.js` (`covers/shardfall/0.jpg` the opening view on the plaza, `1.jpg` the Proving Grounds,
 `2.jpg` a descent level: 640 x 480 baseline JPEG at quality 58, from a 960 x 720 window at scale
 2/3) and runs the hub's checker on the folder. The package is handed over, not committed (it
 holds the build and its images); importing it into the hub is the hub's step (`pnpm ingest`).

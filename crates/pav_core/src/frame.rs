@@ -253,6 +253,18 @@ pub struct HudFrame {
     pub pad_note: Option<(String, String, u64)>,
     /// A `games` game's HUD lines (`Game::hud`).
     pub lines: Vec<String>,
+    /// The pavilion's plaza (`crate::plaza`), while the player is on it.
+    pub plaza: Option<PlazaHud>,
+}
+
+/// The plaza's stations as the window shows them: their names over them, and the prompt of
+/// the one the player stands at.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PlazaHud {
+    /// The station whose spot the player is on: an index into `plaza::STATIONS`.
+    pub near: Option<usize>,
+    /// The player's feet.
+    pub feet: Vec3,
 }
 
 /// Physics counters for the stats overlay.

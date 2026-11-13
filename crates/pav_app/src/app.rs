@@ -208,13 +208,19 @@ pub struct App {
     audio_resumed: bool,
     init_started: bool,
     pub fatal: Option<String>,
-    /// The title screen (a splash, then the start menu), over the town until the player picks.
-    title: Option<pav_ui::title::TitleScreen>,
-    /// The game camera, put back when the title screen closes (it orbits the town meanwhile).
-    title_camera: Option<CameraParams>,
-    /// What the title screen shows (the saved hero, the languages), made when it opens.
-    title_info: Option<pav_ui::title::TitleInfo>,
-    /// A round on the AI Hub (the page was opened for a session): no title screen or menus.
+    /// The splash over the plaza when the game opens (no menu follows: the game and the
+    /// tools are places on the plaza, `pav_core::plaza`).
+    splash: Option<pav_ui::splash::Splash>,
+    /// Opening on the plaza: seconds left of the high view over it, and the play camera to
+    /// come down to.
+    opening: Option<(f32, CameraParams)>,
+    opened: bool,
+    /// The saved Shardfall hero (name, level) the plaza's rift offers, read when the plaza
+    /// shows (None inside: not read yet).
+    plaza_hero: Option<Option<(String, u32)>>,
+    /// The plaza's Language window.
+    language_open: bool,
+    /// A round on the AI Hub (the page was opened for a session): no splash or menus.
     round: Option<crate::round::Round>,
     /// When the round last ran (`tick_round`), and whether it lets the player steer.
     round_at: Option<Instant>,
@@ -227,7 +233,7 @@ impl App {
         if in_round {
             // A session opens straight into the round: the round's world replaces this one
             // once the hub has said who plays.
-            settings.title = false;
+            settings.splash = false;
             settings.scene = "empty".into();
         }
         let scene_name = settings.scene.clone();
@@ -310,9 +316,11 @@ impl App {
             audio_resumed: false,
             init_started: false,
             fatal: None,
-            title: settings.title.then(|| pav_ui::title::TitleScreen::new(true)),
-            title_camera: None,
-            title_info: None,
+            splash: settings.splash.then(pav_ui::splash::Splash::default),
+            opening: None,
+            opened: false,
+            plaza_hero: None,
+            language_open: false,
             round: in_round.then(crate::round::Round::new),
             round_at: None,
             round_input: true,
@@ -321,6 +329,10 @@ impl App {
         if in_round {
             app.show_boot = false;
             app.app_settings.show_stats = false;
+        }
+        if app.splash.is_some() {
+            // The plain start opens on the plaza: the boot stages wait behind F3.
+            app.show_boot = false;
         }
         crate::lang::init(&app.settings.lang, &app.prefs);
         crate::lang::install_fonts(&app.egui_ctx, &[]);
@@ -338,13 +350,9 @@ impl App {
     fn on_touch(&mut self, t: &winit::event::Touch, event: &WindowEvent) {
         #[cfg(target_arch = "wasm32")]
         self.resume_audio();
-        if let Some(title) = self.title.as_mut() {
-            // The title screen takes touches as egui clicks; the first ends the splash.
-            if title.in_splash() {
-                title.skip_splash();
-            } else if let (Some(st), Some(g)) = (&mut self.egui_state, &self.gfx) {
-                st.on_window_event(&g.window, event);
-            }
+        if let Some(splash) = self.splash.as_mut().filter(|s| s.covering()) {
+            // A touch on the splash ends it.
+            splash.skip();
             return;
         }
         let Some(g) = &self.gfx else { return };
@@ -1080,7 +1088,7 @@ impl App {
             }
         }
         let ui_wants_keys = self.egui_ctx.egui_wants_keyboard_input();
-        let game_input = !self.menu_open && !ui_wants_keys && self.title.is_none();
+        let game_input = !self.menu_open && !ui_wants_keys && !self.splash.as_ref().is_some_and(|s| s.covering());
         let rewinding = game_input && self.studio_mode == StudioMode::World && self.input.rewind_held();
         host.set_control(|c| c.rewinding = rewinding);
 
@@ -1245,11 +1253,15 @@ impl App {
             held |= intent.held;
             pressed |= intent.pressed;
         }
+        // A plaza station used this frame (interact here, or its button below).
+        let mut station = None;
         if pressed & pav_core::input::buttons::INTERACT != 0 {
             if let Some(g) = &curr.game {
                 if let Some(c) = self.game_ui.interact(g) {
                     host.shared.command(c);
                 }
+            } else if game_input {
+                station = curr.hud.plaza.and_then(|p| p.near).and_then(|i| pav_core::plaza::STATIONS.get(i)).map(|s| s.key);
             }
         }
         if pressed != 0 && self.input.last_device == Device::Gamepad {
@@ -1298,20 +1310,30 @@ impl App {
             }
         }
 
-        if self.title.is_some() {
-            // Behind the title screen the camera circles the town, low and slow.
-            if self.title_camera.is_none() && self.input.game {
-                self.title_camera = Some(self.rig.params.clone());
-            }
+        if self.splash.is_some() && self.opening.is_none() && curr.hud.plaza.is_some() && !self.opened {
+            // Opening on the plaza: the camera starts high over it (every station in view) and
+            // comes down to the player as the splash fades.
+            self.opened = true;
+            let play = self.rig.params.clone();
             let p = &mut self.rig.params;
-            p.tilt = 26.0;
-            p.distance = 17.0;
-            p.height_offset = 1.6;
+            p.tilt = 70.0;
+            p.distance = 44.0;
             p.ortho = false;
-            p.yaw = (p.yaw + dt * 4.0 + 540.0).rem_euclid(360.0) - 180.0;
-        } else if let Some(cam) = self.title_camera.take() {
-            self.rig.blend_from_current(0.8);
-            self.rig.params = cam;
+            self.rig.snap(focus);
+            self.opening = Some((3.2, play));
+        }
+        if let Some((left, play)) = self.opening.as_mut() {
+            *left -= dt;
+            let moving = game_input && self.input.move_axis() != Vec2::ZERO;
+            if *left <= 0.0 || moving {
+                let play = play.clone();
+                self.opening = None;
+                self.rig.blend_from_current(if moving { 0.8 } else { 2.4 });
+                self.rig.params = play;
+            }
+        }
+        if self.splash.as_ref().is_some_and(|s| s.done()) {
+            self.splash = None;
         }
         self.rig.update(focus, dt);
         self.builder.now = self.started.elapsed().as_secs_f64();
@@ -1529,22 +1551,36 @@ impl App {
         let guide = &mut self.guide;
         let mut guide_out = Vec::new();
         let mut game_cmds = Vec::new();
-        if self.title.is_some() && self.title_info.is_none() {
-            self.title_info = Some(title_info());
+        // The plaza: its names, welcome and the card of the station the player is at; the rift
+        // offers the saved hero (read once a visit).
+        if curr.hud.plaza.is_none() {
+            self.plaza_hero = None;
+        } else if self.plaza_hero.is_none() {
+            self.plaza_hero = Some(crate::save::load().map(|(hero, _)| (hero.name.clone(), hero.level)));
         }
-        let title = &mut self.title;
-        let title_shown = self.title_info.clone().unwrap_or_default();
+        let plaza_covered =
+            menu_open || studio_active || animation_ui.open || asset_ui.open || creature_ui.open || self.language_open;
+        let plaza_view = curr.hud.plaza.map(|hud| pav_ui::plaza::View {
+            hud,
+            device,
+            hero: self.plaza_hero.clone().flatten(),
+            covered: plaza_covered,
+        });
+        let language_open = &mut self.language_open;
+        let languages = pav_ui::plaza::Languages {
+            choices: if *language_open && crate::lang::menu_shown() { pav_core::lines::available() } else { Vec::new() },
+            current: pav_core::lines::language(),
+        };
+        let mut language_pick = None;
+        let splash = &mut self.splash;
         let round = &self.round;
-        let mut title_action = None;
         let out = self.egui_ctx.run_ui(raw, |ui| {
             let ctx = ui.ctx().clone();
             if let Some(c) = &info.crash {
                 ui::crash_banner(ui, c);
             }
-            if let Some(screen) = title.as_mut() {
-                // The title screen alone: no HUD, panels or game windows behind it.
-                title_action = screen.ui(&ctx, &title_shown, dt);
-                return;
+            if let Some(sp) = splash.as_mut() {
+                sp.ui(&ctx, dt);
             }
             panel_actions = panel.ui(ui, &mut root, &mut ctl, &stats);
             let free = ui.available_rect_before_wrap();
@@ -1561,6 +1597,15 @@ impl App {
                 if !menu_open {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
                 }
+            }
+            if let Some(v) = &plaza_view {
+                let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
+                if let Some(key) = pav_ui::plaza::draw(&ctx, v, &proj) {
+                    station = Some(key);
+                }
+            }
+            if *language_open {
+                language_pick = pav_ui::plaza::language_window(&ctx, language_open, &languages);
             }
             if touch_ui {
                 let map_hidden = touch.swipes.is_gone(egui::Id::new("minimap"), 0);
@@ -1899,11 +1944,14 @@ impl App {
         if let Some(a) = menu_action {
             self.menu_action(a);
         }
-        if let Some(a) = title_action {
-            self.title_action(a);
+        if let Some(code) = language_pick {
+            crate::lang::choose(&self.egui_ctx, &code, &mut self.prefs);
+        }
+        if let Some(key) = station {
+            self.use_station(key);
         }
         if let Some(tool) = self.game_ui.tool.take() {
-            // Picked at the Pavilion Gate in town.
+            // Through the Pavilion Gate in town.
             self.open_tool(tool);
         }
         // Touch: the bag, the menu, the map button, and taps on the open game.
@@ -2095,39 +2143,34 @@ impl App {
         }
     }
 
-    /// A pick on the title screen.
-    fn title_action(&mut self, action: pav_ui::title::TitleAction) {
-        use pav_ui::title::TitleAction as A;
-        match action {
-            A::Play => self.close_title(),
-            A::NewHero => {
-                self.close_title();
-                self.menu_action(MenuAction::NewHero);
+    /// Uses a plaza station (`pav_core::plaza`): the rift into Shardfall, a studio, a panel.
+    fn use_station(&mut self, key: &str) {
+        use pav_ui::tools::Tool;
+        match key {
+            "shardfall" => {
+                // Into the game: the saved hero (or a new one) in Emberwatch.
+                self.load_scene("town");
+                self.toast(pav_core::t!("plaza.shardfall.arrive"));
             }
-            A::Tool(tool) => {
-                self.close_title();
-                self.open_tool(tool);
-            }
-            A::Language(code) => {
-                crate::lang::choose(&self.egui_ctx, &code, &mut self.prefs);
-                self.title_info = None;
-            }
-            A::Fullscreen => self.menu_action(MenuAction::Fullscreen),
-            A::Quit => self.menu_action(MenuAction::Quit),
+            "animation" => self.open_tool(Tool::Animation),
+            "object" => self.open_tool(Tool::Object),
+            "creature" => self.open_tool(Tool::Creature),
+            "starter" => self.open_tool(Tool::Starter),
+            "looks" => self.open_tool(Tool::Look),
+            "tuning" => self.open_tool(Tool::Tuning),
+            "rooms" => self.open_tool(Tool::Rooms),
+            "guide" => self.guide.field = true,
+            "language" => self.language_open = true,
+            _ => {}
         }
     }
 
-    fn close_title(&mut self) {
-        self.title = None;
-        self.title_info = None;
-    }
-
-    /// Opens one of the engine's tools (the title screen, the pause menu, the Pavilion Gate).
-    fn open_tool(&mut self, tool: pav_ui::title::Tool) {
-        use pav_ui::title::Tool;
+    /// Opens one of the engine's tools (a plaza station, the pause menu, the Pavilion Gate).
+    fn open_tool(&mut self, tool: pav_ui::tools::Tool) {
+        use pav_ui::tools::Tool;
         self.set_menu(false);
         match tool {
-            Tool::Tour => self.load_scene("world"),
+            Tool::Tour => self.go_to_pavilion(),
             Tool::Animation => self.switch_studio(StudioMode::Animation),
             Tool::Object => self.switch_studio(StudioMode::Prop),
             Tool::Creature => self.switch_studio(StudioMode::Creature),
@@ -2141,6 +2184,23 @@ impl App {
             }
             Tool::Tuning => self.panel.open = true,
         }
+    }
+
+    /// To the pavilion's plaza: from a game, out of the rift into Shardfall; in the pavilion,
+    /// back to the plaza from wherever the player is.
+    fn go_to_pavilion(&mut self) {
+        if !self.scene_name.starts_with("world") {
+            self.load_scene("world");
+        }
+        let Some(host) = &self.host else { return };
+        host.exec(|sim| {
+            if let (Some(pid), Some((feet, facing))) = (sim.state.player, pav_core::plaza::arrival("shardfall")) {
+                sim.state.focus = feet;
+                sim.update_streaming(usize::MAX);
+                sim.set_position(pid, feet);
+                sim.face(pid, facing);
+            }
+        });
     }
 
     fn switch_studio(&mut self, mode: StudioMode) {
@@ -2280,10 +2340,9 @@ impl App {
                 }
             }
             MenuAction::Tool(tool) => self.open_tool(tool),
-            MenuAction::TitleScreen => {
+            MenuAction::Pavilion => {
                 self.set_menu(false);
-                self.title = Some(pav_ui::title::TitleScreen::new(false));
-                self.title_info = None;
+                self.go_to_pavilion();
             }
         }
     }
@@ -2358,15 +2417,10 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
-                if let Some(title) = self.title.as_mut() {
-                    // The title screen: a key ends the splash; then keys move egui's focus
-                    // (Tab, arrows, Enter), and only F11 still does its job.
+                if let Some(splash) = self.splash.as_mut().filter(|s| s.covering()) {
+                    // A key on the splash ends it.
                     if event.state == ElementState::Pressed && !event.repeat {
-                        if title.in_splash() {
-                            title.skip_splash();
-                        } else if event.physical_key == PhysicalKey::Code(KeyCode::F11) {
-                            self.menu_action(MenuAction::Fullscreen);
-                        }
+                        splash.skip();
                     }
                     return;
                 }
@@ -2408,9 +2462,9 @@ impl ApplicationHandler for App {
             WindowEvent::MouseInput { state, button, .. } => {
                 #[cfg(target_arch = "wasm32")]
                 self.resume_audio();
-                if let Some(title) = self.title.as_mut() {
-                    if state == ElementState::Pressed && title.in_splash() {
-                        title.skip_splash();
+                if let Some(splash) = self.splash.as_mut().filter(|s| s.covering()) {
+                    if state == ElementState::Pressed {
+                        splash.skip();
                     }
                     return;
                 }
@@ -2492,18 +2546,6 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
-}
-
-/// What the title screen shows: the saved hero, and the Language menu's choices when the
-/// address doesn't name the language.
-fn title_info() -> pav_ui::title::TitleInfo {
-    pav_ui::title::TitleInfo {
-        hero: crate::save::load().map(|(hero, _)| (hero.name.clone(), hero.level)),
-        languages: if crate::lang::menu_shown() { pav_core::lines::available() } else { Vec::new() },
-        language: pav_core::lines::language(),
-        fullscreen: cfg!(target_arch = "wasm32"),
-        quit: cfg!(not(target_arch = "wasm32")),
-    }
 }
 
 /// A round on the AI Hub, each frame: builds the round's world when the hub has said who plays,

@@ -26,8 +26,8 @@ pub struct Headless {
     pub game: GameUi,
     pub touch: Touch,
     pub device: Device,
-    /// The title screen, over the game (`ui open=title`), with what it shows.
-    pub title: Option<(crate::title::TitleScreen, crate::title::TitleInfo)>,
+    /// The plaza's Language window (`ui open=language`).
+    pub language: bool,
 }
 
 /// What a frame drew.
@@ -37,6 +37,8 @@ pub struct Drawn {
     pub reading: Reading,
     /// What the player gave by clicking (`Input::click`).
     pub commands: Vec<GameCmd>,
+    /// The plaza station whose button was clicked (`pav_core::plaza`), for the caller to open.
+    pub plaza: Option<&'static str>,
 }
 
 /// What is on screen, as text.
@@ -99,7 +101,7 @@ pub struct Input {
 
 impl Headless {
     /// The window names `open` accepts, and `GameUi`'s flag for each.
-    pub const WINDOWS: [&'static str; 6] = ["inventory", "character", "skills", "tree", "map", "title"];
+    pub const WINDOWS: [&'static str; 6] = ["inventory", "character", "skills", "tree", "map", "language"];
 
     fn flag(&mut self, name: &str) -> Option<&mut bool> {
         Some(match name {
@@ -114,17 +116,8 @@ impl Headless {
 
     /// Opens or closes a window by name; false if there is no such window.
     pub fn set_open(&mut self, name: &str, open: bool) -> bool {
-        if name == "title" {
-            self.title = open.then(|| {
-                let info = crate::title::TitleInfo {
-                    hero: Some(("Wanderer".into(), 7)),
-                    languages: pav_core::lines::available(),
-                    language: pav_core::lines::language(),
-                    fullscreen: true,
-                    quit: false,
-                };
-                (crate::title::TitleScreen::new(false), info)
-            });
+        if name == "language" {
+            self.language = open;
             return true;
         }
         self.flag(name).map(|f| *f = open).is_some()
@@ -159,6 +152,7 @@ impl Headless {
         let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(width as f32, height as f32));
         let mut textures = egui::TexturesDelta::default();
         let mut commands = Vec::new();
+        let mut plaza = None;
         let mut output = None;
         let mut layers = Vec::new();
         let hover = if input.hover.is_some() && input.click.is_none() { HOVER_PASSES } else { 0 };
@@ -200,8 +194,18 @@ impl Headless {
                     }
                 }
                 crate::game_lines(&ctx, hud_lines);
-                if let Some((screen, info)) = self.title.as_mut() {
-                    let _ = screen.ui(&ctx, info, 0.0);
+                if let Some(hud) = hud_lines.plaza {
+                    let proj = Projector { vp, size: screen.size() };
+                    let view = crate::plaza::View { hud, device: self.device, hero: None, covered: self.language };
+                    let used = crate::plaza::draw(&ctx, &view, &proj);
+                    if pass == PASSES {
+                        plaza = used;
+                    }
+                }
+                if self.language {
+                    let langs =
+                        crate::plaza::Languages { choices: pav_core::lines::available(), current: pav_core::lines::language() };
+                    let _ = crate::plaza::language_window(&ctx, &mut self.language, &langs);
                 }
                 if touch && game.is_some() {
                     let map_hidden = self.touch.swipes.is_gone(egui::Id::new("minimap"), 0);
@@ -221,7 +225,7 @@ impl Headless {
         let reading = self.read(&output, screen, layers);
         let pixels_per_point = output.pixels_per_point;
         let primitives = ctx.tessellate(output.shapes, pixels_per_point);
-        Drawn { paint: Paint { primitives, textures, pixels_per_point }, reading, commands }
+        Drawn { paint: Paint { primitives, textures, pixels_per_point }, reading, commands, plaza }
     }
 
     /// What `out` shows: the windows' text (`layers`, from `window_layers`), and the rest as HUD.
@@ -271,7 +275,7 @@ impl Headless {
             "skills" => self.game.skills,
             "tree" => self.game.tree.open,
             "map" => self.game.map,
-            "title" => self.title.is_some(),
+            "language" => self.language,
             _ => false,
         }
     }

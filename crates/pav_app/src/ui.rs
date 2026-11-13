@@ -45,10 +45,10 @@ pub enum MenuAction {
     TownPortal,
     /// The browser's full screen.
     Fullscreen,
-    /// One of the engine's tools (the same panel as the title screen's).
-    Tool(pav_ui::title::Tool),
-    /// Back to the title screen.
-    TitleScreen,
+    /// One of the engine's tools (the plaza's stations as a panel).
+    Tool(pav_ui::tools::Tool),
+    /// To the pavilion's plaza, where the game opens and the tools stand.
+    Pavilion,
 }
 
 pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
@@ -184,8 +184,8 @@ pub fn pause_menu(
                 if ui.add(resume).clicked() {
                     action = Some(MenuAction::Resume);
                 }
-                if ui.button(RichText::new(pav_core::t!("menu.title_screen")).size(16.0)).clicked() {
-                    action = Some(MenuAction::TitleScreen);
+                if ui.button(RichText::new(pav_core::t!("menu.pavilion")).size(16.0)).clicked() {
+                    action = Some(MenuAction::Pavilion);
                 }
                 if ui.button(RichText::new(pav_core::t!("menu.screenshot")).size(16.0)).clicked() {
                     action = Some(MenuAction::Screenshot);
@@ -195,13 +195,13 @@ pub fn pause_menu(
                 }
             });
             ui.add_space(8.0);
-            // The engine's tools, as prominent here as on the title screen.
+            // The engine's tools, as prominent here as on the plaza.
             egui::Frame::new()
                 .fill(egui::Color32::from_rgba_unmultiplied(18, 16, 22, 200))
                 .corner_radius(egui::CornerRadius::same(10))
                 .inner_margin(egui::Margin::same(12))
                 .show(ui, |ui| {
-                    if let Some(tool) = pav_ui::directed(ui, |ui| pav_ui::title::tools_panel(ui, 3)) {
+                    if let Some(tool) = pav_ui::directed(ui, |ui| pav_ui::tools::tools_panel(ui, 3)) {
                         action = Some(MenuAction::Tool(tool));
                     }
                 });
@@ -385,6 +385,9 @@ fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchM
     }
     if m.portal && big(ui, &pav_core::t!("menu.town_portal")).clicked() {
         *action = Some(MenuAction::TownPortal);
+    }
+    if big(ui, &pav_core::t!("menu.pavilion")).clicked() {
+        *action = Some(MenuAction::Pavilion);
     }
     ui.separator();
     if game {

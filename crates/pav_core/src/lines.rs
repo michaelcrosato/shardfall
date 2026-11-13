@@ -286,6 +286,8 @@ pub fn set_control_label(f: fn(&str) -> String) {
 pub fn keyboard_label(action: &str) -> String {
     match action {
         "use" => "G",
+        // The pavilion's rooms and plaza (Shardfall's own "use" is G).
+        "interact" => "E",
         "dodge" => "Space",
         "potion" => "1",
         "map" => "M",

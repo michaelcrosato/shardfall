@@ -765,6 +765,11 @@ impl Sim {
         for id in 0..self.state.world.rooms.len() as u16 {
             self.clear_room(id);
         }
+        // The hub is built again with the new layout, its stations' glowing pieces too.
+        let hub: Vec<EntityId> = self.state.entities.iter().filter(|e| e.region == Some(RegionKey::Hub)).map(|e| e.id).collect();
+        for id in hub {
+            self.despawn(id);
+        }
         let st = &mut self.state;
         st.statics.remove_region(&mut st.physics, RegionKey::Hub);
         // Terrain around the old and new footprint is regenerated.
@@ -857,31 +862,26 @@ impl Sim {
         });
         if hub_near && !self.state.statics.is_active(RegionKey::Hub) {
             let st = &mut self.state;
-            if !st.statics.activate(&mut st.physics, RegionKey::Hub) {
-                let (blocks, decor) = hub_blocks(&st.world);
+            if st.statics.activate(&mut st.physics, RegionKey::Hub) {
+                self.wake_entities(RegionKey::Hub);
+            } else {
+                let (mut blocks, mut decor) = hub_blocks(&st.world);
+                // The stations where the player finds the game and the tools (`plaza`); the
+                // welcome line over them is the window's (a line, in the player's language).
+                let (more_blocks, more_decor) = crate::plaza::blocks();
+                blocks.extend(more_blocks);
+                decor.extend(more_decor);
                 for b in blocks {
                     st.statics.add_to(&mut st.physics, RegionKey::Hub, b);
                 }
                 for d in decor {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, d);
                 }
-                // Signs beside each corridor mouth naming its wings, and a welcome line.
+                // Signs beside each corridor mouth naming its wings.
                 for (board, label) in wing_signs(&st.world) {
                     st.statics.add_decor(&mut st.physics, RegionKey::Hub, board);
                     st.statics.add_label_to(RegionKey::Hub, label);
                 }
-                st.statics.add_label_to(
-                    RegionKey::Hub,
-                    crate::zones::Label {
-                        text: "PAVILION  ·  walk down a corridor, or press F2 for any room".into(),
-                        pos: Vec3::new(0.0, 0.03, 4.2),
-                        size: 0.6,
-                        color: Color::hex("#6b5a44"),
-                        mode: crate::zones::LabelMode::Floor,
-                        facing: Facing::South,
-                        lean: 0.0,
-                    },
-                );
                 // Room names on the corridor floor in front of each door.
                 for r in &st.world.rooms {
                     let name = if r.def.name.is_empty() { r.key.clone() } else { r.def.name.clone() };
@@ -898,11 +898,11 @@ impl Sim {
                         },
                     );
                 }
+                crate::plaza::spawn(self);
             }
             self.state.world.hub_built = true;
         } else if !hub_near && self.state.statics.is_active(RegionKey::Hub) {
-            let st = &mut self.state;
-            st.statics.deactivate(&mut st.physics, RegionKey::Hub);
+            self.sleep_region(RegionKey::Hub, None);
         }
 
         // Rooms.

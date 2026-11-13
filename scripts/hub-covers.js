@@ -5,7 +5,8 @@
 //
 //   node scripts/hub-covers.js PAGE.html OUT_DIR
 //
-// 0.jpg: the title screen. 1.jpg, 2.jpg: play (the Proving Grounds' waves, a descent level).
+// 0.jpg: the opening view, the Pavilion's plaza. 1.jpg, 2.jpg: play (the Proving Grounds' waves, a
+// descent level).
 // Software rendering is slow (a frame takes about a second), so each moment is given time.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -41,7 +42,8 @@ const hold = async (p, code, ms) => {
   const browser = await chromium.launch({
     args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--use-angle=swiftshader'],
   });
-  // The title screen: the splash skipped with a click, the menu over the town.
+  // The opening view: the splash skipped with a click, the camera down from over the plaza to
+  // the player, with the welcome and the studios' and tools' names.
   await shot(browser, '', '0.jpg', async (p) => {
     await p.mouse.click(480, 360);
     await p.waitForTimeout(25000);
