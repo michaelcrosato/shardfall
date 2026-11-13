@@ -813,6 +813,20 @@ impl Sim {
         }
     }
 
+    /// Puts the player at `feet` facing `facing`, loading what is there first: streaming
+    /// follows the player, so a far place (the hub seen from the wilderness) is asleep until
+    /// it is named as an interest point.
+    pub fn arrive_at(&mut self, feet: Vec3, facing: Vec3) -> bool {
+        let Some(pid) = self.state.player else { return false };
+        self.state.focus = feet;
+        self.state.world.interest.push(feet);
+        self.update_streaming(usize::MAX);
+        self.state.world.interest.pop();
+        self.set_position(pid, feet);
+        self.face(pid, facing);
+        true
+    }
+
     /// Teleports the player just inside a room's entrance.
     pub fn teleport_to_room(&mut self, key: &str) -> bool {
         let Some(slot) = self.state.world.room(key).cloned() else { return false };

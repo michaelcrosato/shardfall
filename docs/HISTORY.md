@@ -53,6 +53,10 @@ supporting tools and the game is really the icing on top."
   - The splash and the opening view run on the clock, not the game's capped frame time: on a
     software GPU (a second or more a frame) the capped time stretched a 3-second splash past a
     minute. Frames that slow cut the camera down rather than glide.
+- **After the merge,** Codex's review found three things, fixed in a follow-up: going back to the
+  plaza from far out loaded it only after the player landed (`Sim::arrive_at` names it an
+  interest point first; `world::arriving_at_the_plaza_from_far_away_lands_on_it`), going back
+  from inside a studio left the studio open, and a gamepad could not work the Language window.
 - **Checked:** the native game under Xvfb, driven by a scripted gamepad and the live bridge
   (splash, opening view, the rift into `town`, the gate back to the rift); the page in headless
   Chromium at 1600, 2100 and 1200 x 900 and in en-XA, zh-XC and ar-XB (the canvas fills the
