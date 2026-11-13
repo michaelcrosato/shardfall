@@ -50,6 +50,13 @@ supporting tools and the game is really the icing on top."
     Latin only, and the first screen has to read in any of the hub's languages.
   - The hub's first cover (`0.jpg`) is the opening view on the plaza now; rounds skip it all as
     before (a session opens straight into its round).
+  - The splash and the opening view run on the clock, not the game's capped frame time: on a
+    software GPU (a second or more a frame) the capped time stretched a 3-second splash past a
+    minute. Frames that slow cut the camera down rather than glide.
+- **Checked:** the native game under Xvfb, driven by a scripted gamepad and the live bridge
+  (splash, opening view, the rift into `town`, the gate back to the rift); the page in headless
+  Chromium at 1600, 2100 and 1200 x 900 and in en-XA, zh-XC and ar-XB (the canvas fills the
+  window, no console errors); `game_ui::the_plaza_names_its_stations_and_its_cards_open_them`.
 
 ## A title screen, the game in any language, and AI Hub rounds and package — 2026-11-09
 

@@ -35,9 +35,9 @@ impl Splash {
         self.age < IN + HOLD
     }
 
-    /// Draws it; `dt` is the frame's seconds.
+    /// Draws it; `dt` is the clock's seconds since the last frame.
     pub fn ui(&mut self, ctx: &egui::Context, dt: f32) {
-        self.age += dt.clamp(0.0, 0.25);
+        self.age += dt.clamp(0.0, 2.0);
         let screen = ctx.content_rect();
         let a = if self.age < IN + HOLD { 1.0 } else { 1.0 - ((self.age - IN - HOLD) / OUT).clamp(0.0, 1.0) };
         if a <= 0.0 {

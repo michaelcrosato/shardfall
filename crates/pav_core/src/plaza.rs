@@ -152,8 +152,8 @@ pub fn blocks() -> (Vec<Block>, Vec<Decor>) {
             Shape::Cylinder { half_height: 0.012, radius: (s.reach * 0.75).min(1.5) },
             s.stand() + Vec3::Y * 0.014,
             Quat::IDENTITY,
-            glow.lerp(Color::hex("#d8d2c4"), 0.7),
-            Look::Flat,
+            glow.lerp(Color::hex("#d8d2c4"), 0.55),
+            Look::Cel,
             0.0,
             false,
         ));
@@ -350,7 +350,7 @@ pub fn spawn(sim: &mut Sim) {
                 let mut v = Visual::new(shape, glow);
                 v.look = Look::Unlit;
                 v.emissive = 0.9;
-                v.light = light(2.6, 0.4, 0.8);
+                v.light = light(2.4, 0.22, 1.2);
                 let mut spawn = Spawn::new(&format!("plaza: {}", s.key), s.at + Vec3::Y * (1.0 + y)).visual(v).rot(rot);
                 if spin != 0.0 {
                     spawn = spawn.behavior(Behavior::Spin { speed: spin });

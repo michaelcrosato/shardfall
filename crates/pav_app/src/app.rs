@@ -1049,7 +1049,10 @@ impl App {
             return;
         }
         let now = Instant::now();
-        let dt = (now - self.last).as_secs_f32().min(0.1);
+        // The splash and the opening view keep the clock's time, however slow the frames (a
+        // software GPU takes a second or more a frame); the game's own motion is capped.
+        let wall = (now - self.last).as_secs_f32().min(2.0);
+        let dt = wall.min(0.1);
         self.last = now;
         self.fps.frames += 1;
         let since = self.fps.since.elapsed().as_secs_f32();
@@ -1323,12 +1326,15 @@ impl App {
             self.opening = Some((3.2, play));
         }
         if let Some((left, play)) = self.opening.as_mut() {
-            *left -= dt;
+            *left -= wall;
             let moving = game_input && self.input.move_axis() != Vec2::ZERO;
             if *left <= 0.0 || moving {
                 let play = play.clone();
                 self.opening = None;
-                self.rig.blend_from_current(if moving { 0.8 } else { 2.4 });
+                // Frames too slow to show a glide (a software GPU) cut straight down.
+                if wall < 0.2 {
+                    self.rig.blend_from_current(if moving { 0.8 } else { 2.4 });
+                }
                 self.rig.params = play;
             }
         }
@@ -1580,7 +1586,7 @@ impl App {
                 ui::crash_banner(ui, c);
             }
             if let Some(sp) = splash.as_mut() {
-                sp.ui(&ctx, dt);
+                sp.ui(&ctx, wall);
             }
             panel_actions = panel.ui(ui, &mut root, &mut ctl, &stats);
             let free = ui.available_rect_before_wrap();
