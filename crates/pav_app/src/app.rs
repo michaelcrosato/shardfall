@@ -586,7 +586,12 @@ impl App {
     /// Whether the gamepad drives a menu cursor now (a game window or the pause menu is open).
     fn pad_ui_active(&self) -> bool {
         self.input.last_device == Device::Gamepad
-            && (self.menu_open || self.game_ui.any_open() || self.look_ui.open || self.guide.station || self.guide.field)
+            && (self.menu_open
+                || self.game_ui.any_open()
+                || self.look_ui.open
+                || self.guide.station
+                || self.guide.field
+                || self.language_open)
     }
 
     /// Gamepad in menus: D-pad down opens the hero's panels (LB / RB switch them), B closes;
@@ -633,6 +638,8 @@ impl App {
             } else if (self.guide.station || self.guide.field) && !self.menu_open {
                 self.guide.station = false;
                 self.guide.field = false;
+            } else if self.language_open && !self.menu_open {
+                self.language_open = false;
             } else {
                 self.set_menu(false);
             }
@@ -2195,16 +2202,19 @@ impl App {
     /// To the pavilion's plaza: from a game, out of the rift into Shardfall; in the pavilion,
     /// back to the plaza from wherever the player is.
     fn go_to_pavilion(&mut self) {
+        if self.studio_mode != StudioMode::World || self.animation_ui.open || self.asset_ui.open || self.creature_ui.open {
+            // Out of a studio first: the plaza is the world's.
+            self.switch_studio(StudioMode::World);
+        }
         if !self.scene_name.starts_with("world") {
             self.load_scene("world");
         }
         let Some(host) = &self.host else { return };
         host.exec(|sim| {
-            if let (Some(pid), Some((feet, facing))) = (sim.state.player, pav_core::plaza::arrival("shardfall")) {
-                sim.state.focus = feet;
-                sim.update_streaming(usize::MAX);
-                sim.set_position(pid, feet);
-                sim.face(pid, facing);
+            // In front of the rift (from far rooms or the wilderness the hub is asleep:
+            // `arrive_at` loads it first).
+            if let Some((feet, facing)) = pav_core::plaza::arrival("shardfall") {
+                sim.arrive_at(feet, facing);
             }
         });
     }

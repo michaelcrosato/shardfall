@@ -110,3 +110,26 @@ fn saved_objects_roundtrip() {
     assert!((def.objects[0].pos - objs[0].pos).length() < 1e-3);
     assert!(text.contains("map = '''"), "maps are kept as written");
 }
+
+/// Back to the plaza from far out in the wilderness (the pause menu's The Pavilion, the town's
+/// gate): the hub is asleep there, and `arrive_at` wakes it before the player lands, so they
+/// stand in front of the rift with its station in reach rather than falling through the floor.
+#[test]
+fn arriving_at_the_plaza_from_far_away_lands_on_it() {
+    let mut sim = Sim::new("world", 3).unwrap();
+    let pid = sim.state.player.unwrap();
+    sim.set_position(pid, Vec3::new(400.0, 30.0, 0.0));
+    for _ in 0..40 {
+        sim.update_streaming(usize::MAX);
+        sim.step(&InputFrame::default());
+    }
+    assert!(!sim.state.statics.is_active(RegionKey::Hub), "hub sleeps when far away");
+    let (at, facing) = pav_core::plaza::arrival("shardfall").unwrap();
+    assert!(sim.arrive_at(at, facing));
+    assert!(sim.state.statics.is_active(RegionKey::Hub), "the hub wakes for the arrival");
+    sim.run(60, &InputFrame::default());
+    let f = feet(&sim);
+    assert!(f.y.abs() < 0.2 && Vec2::new(f.x - at.x, f.z - at.z).length() < 0.5, "standing at the rift: {f}");
+    let plaza = sim.frame().hud.plaza.expect("on the plaza");
+    assert_eq!(plaza.near, Some(0), "the rift's station is in reach");
+}
