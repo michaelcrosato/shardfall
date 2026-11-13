@@ -106,3 +106,6 @@ in `target/hub/package/games/shardfall.html`, takes the three screenshots with
 `2.jpg` a descent level: 640 x 480 baseline JPEG at quality 58, from a 960 x 720 window at scale
 2/3) and runs the hub's checker on the folder. The package is handed over, not committed (it
 holds the build and its images); importing it into the hub is the hub's step (`pnpm ingest`).
+The wall holds Shardfall since the first package (2026-11-13 the checker found it there), so a
+new package is a new build: `--build v2` (then v3...) names the page `shardfall-v2.html`, which
+the checker files under the same slug, `shardfall`.

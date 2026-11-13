@@ -42,10 +42,9 @@ const hold = async (p, code, ms) => {
   const browser = await chromium.launch({
     args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--use-angle=swiftshader'],
   });
-  // The opening view: the splash skipped with a click, the camera down from over the plaza to
-  // the player, with the welcome and the studios' and tools' names.
+  // The opening view: the splash over, the camera down from over the plaza to the player, with
+  // the welcome and the studios' and tools' names. (No click: on the plaza it throws a bomb.)
   await shot(browser, '', '0.jpg', async (p) => {
-    await p.mouse.click(480, 360);
     await p.waitForTimeout(25000);
   });
   // The Proving Grounds: a wave closes in and the hero swings and casts.
