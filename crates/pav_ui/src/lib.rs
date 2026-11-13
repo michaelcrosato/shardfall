@@ -8,7 +8,9 @@ pub mod arpg_tree;
 pub mod arpg_ui;
 pub mod fonts;
 pub mod headless;
-pub mod title;
+pub mod plaza;
+pub mod splash;
+pub mod tools;
 pub mod touch;
 
 /// The input device the player is on: hints and the HUD follow it.

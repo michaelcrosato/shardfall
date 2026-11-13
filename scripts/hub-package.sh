@@ -5,7 +5,7 @@
 #
 # target/hub/package/
 #   games/shardfall.html        the game in one file, with the hub's head (scripts/build-hub.sh)
-#   covers/shardfall/0..2.jpg   the title screen and two moments of play (scripts/hub-covers.js)
+#   covers/shardfall/0..2.jpg   the opening view (the plaza) and two moments of play (scripts/hub-covers.js)
 # then runs the hub's checker (catalogue-check.mjs, fetched into .cache) on it. Needs Node 18+
 # and Playwright with Chromium (the screenshots run the page with WebGPU on SwiftShader).
 set -euo pipefail

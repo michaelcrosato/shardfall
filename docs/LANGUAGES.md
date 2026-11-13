@@ -24,11 +24,13 @@ the page, without changing the game.
 
 ## Choosing the language
 The first of: the address's `?lang=` (the AI Hub always adds it) or `--lang CODE` (native, or
-`lang = "fr"` in shardfall.toml); the player's choice from the title screen's Language menu
+`lang = "fr"` in shardfall.toml); the player's choice at the plaza's Language station
 (saved under `lang:` and the page's path, or in the native preferences); the browser's or the
 system's languages; English. A code matches in full, then by language and writing system, then
-by language (`zh-TW` takes `zh-Hant`, `es-MX` takes `es-419`). The Language menu lists the
-languages the page has, each in its own name, and shows only when the address names none.
+by language (`zh-TW` takes `zh-Hant`, `es-MX` takes `es-419`). The Language window (the
+station's: the spec puts the menu where a restart costs nothing, and the plaza is where the game
+opens) lists the languages the page has, each in its own name; when the address names the
+language it says so and offers none.
 
 ## Translations
 A translation step adds the page's `game-translations` block (one entry per language code, with
@@ -46,10 +48,12 @@ broken block or line shows the original English line; it never stops the game.
   only the ones its language needs (`pav_ui::fonts`, `pav_app::lang`). Players' names from the
   hub bring the fonts their scripts need.
 - **Right to left.** In Arabic and Urdu `t!` lays a line out for egui's shaper (numbers and Latin
-  names kept reading left to right inside it, `lines::for_rtl_shaper`), and the title screen,
+  names kept reading left to right inside it, `lines::for_rtl_shaper`), and the plaza's cards,
   menus and tool tiles mirror (`pav_ui::directed`, `pav_ui::text_job`).
 - **The world's text.** Labels drawn in the 3D world (the engine tour's signs) use the renderer's
-  own font and stay English: they belong to the engine's demo, not the game.
+  own font and stay English: they belong to the engine's demo, not the game. The plaza's station
+  names, welcome and cards are lines drawn by egui over the world (`pav_ui::plaza`), so the first
+  screen follows the language.
 
 ## Testing
 `?lang=en-XA` (accented, bracketed, 40% longer: plain text on screen is a line missing from the

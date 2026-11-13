@@ -437,5 +437,5 @@ impl Session {
 
 /// A game's UI is on screen: Shardfall's, or a `pav_core::games` game's HUD lines.
 pub fn has_ui(frame: &RenderFrame) -> bool {
-    frame.game.is_some() || !frame.hud.lines.is_empty()
+    frame.game.is_some() || !frame.hud.lines.is_empty() || frame.hud.plaza.is_some()
 }

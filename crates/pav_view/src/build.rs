@@ -1115,7 +1115,9 @@ impl ViewBuilder {
             .unwrap_or(focus);
         scene.cutaway = rs::Cutaway {
             focus: feet + Vec3::Y * 0.9,
-            height_cut: c.height_cut && curr.focus_is_player,
+            // The pavilion's plaza is open sky: nothing over the player to hide, and the rift
+            // into Shardfall stands taller than the cut.
+            height_cut: c.height_cut && curr.focus_is_player && curr.hud.plaza.is_none(),
             cut_height: feet.y + c.cut_above,
             cut_radius: c.cut_radius,
             fade: c.fade && curr.focus_is_player,

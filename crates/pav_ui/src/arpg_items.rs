@@ -34,8 +34,8 @@ pub struct GameUi {
     pub touch: bool,
     /// Touch: the item picked, and where it is.
     picked: Option<(u32, Picked)>,
-    /// A tool picked at the Pavilion Gate, for the app to open.
-    pub tool: Option<crate::title::Tool>,
+    /// A tool for the app to open: the Pavilion Gate leads to the pavilion (`Tool::Tour`).
+    pub tool: Option<crate::tools::Tool>,
 }
 
 /// Where a picked item is.
@@ -366,6 +366,11 @@ impl GameUi {
             if matches!(s.kind, SpotKind::Exit | SpotKind::Chest) {
                 return g.near.map(|i| GameCmd::Use(i as u32));
             }
+            if s.kind == SpotKind::Gate {
+                // Back through the gate to the pavilion's plaza, where the tools are.
+                self.tool = Some(crate::tools::Tool::Tour);
+                return None;
+            }
             let same = self.panel == Some(s.kind) && self.panel_spot == g.near;
             self.panel = if same { None } else { Some(s.kind) };
             self.panel_spot = g.near;
@@ -421,8 +426,7 @@ impl GameUi {
             Some(SpotKind::Gamble) => self.gamble_window(ctx, &inv, &mut out),
             Some(SpotKind::Alchemist) => self.alchemist_window(ctx, &inv, &mut out),
             Some(SpotKind::Hero) => self.hero_window(ctx, &d, &inv, g, &mut out),
-            Some(SpotKind::Gate) => self.gate_window(ctx),
-            Some(SpotKind::Exit | SpotKind::Chest) | None => {}
+            Some(SpotKind::Exit | SpotKind::Chest | SpotKind::Gate) | None => {}
         }
         if self.touch {
             self.picked_card(ctx, &d, &inv, &mut out);
@@ -845,27 +849,6 @@ impl GameUi {
             });
         if !open {
             self.panel = None;
-        }
-    }
-
-    /// The Pavilion Gate: the engine's tools, as on the title screen.
-    fn gate_window(&mut self, ctx: &egui::Context) {
-        let mut open = true;
-        let mut picked = None;
-        fit(egui::Window::new(pav_core::t!("tools.gate")), ctx, self.touch)
-            .open(&mut open)
-            .resizable(false)
-            .collapsible(false)
-            .max_width(720.0)
-            .anchor(Align2::CENTER_CENTER, if self.touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
-            .show(ctx, |ui| {
-                picked = crate::directed(ui, |ui| crate::title::tools_panel(ui, 3));
-            });
-        if picked.is_some() || !open {
-            self.panel = None;
-        }
-        if picked.is_some() {
-            self.tool = picked;
         }
     }
 

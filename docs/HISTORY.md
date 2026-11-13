@@ -5,6 +5,59 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The game opens in the Pavilion; Shardfall and the tools are places on its plaza — 2026-11-13
+
+The user asked for the game to start in the demo world, with no menu: "let the player find the
+actual game and all its functions through that... the big draw is the demo world and the
+supporting tools and the game is really the icing on top."
+- **Where it opens.** A plain start (nothing in the address, the command line or
+  `shardfall.toml` names a scene, room or studio) loads `world`, the pavilion, after a short
+  splash (the emblem and the name over black, any key, click or tap ends it sooner). The camera
+  starts high over the plaza, every station in view, and comes down to the player as the splash
+  fades (moving cuts it short). There is no start menu: the title screen is gone
+  (`pav_ui::title` became `splash.rs` and `tools.rs`).
+- **The plaza's stations** (`pav_core::plaza`, ten of them, each a key the window acts on): the
+  rift into Shardfall (pillars, a lintel, a rippling pane under the emblem's three shards,
+  north-west of the fountain); north-east the starter game, the room list and Language; south-
+  west the Animation, Creature and Object Studios; south-east the field guide, tuning and looks.
+  Each booth is a plinth with a glowing, lit piece (a figure, an egg, a cube on its corner, a
+  turning token or globe...) before a coloured board, with a ring on the floor where the player
+  stands. The simulation reports the station whose spot the player is on
+  (`HudFrame::plaza`, only on the plaza and never in a game); the window draws each station's
+  name over it, a welcome over the plaza's floor, and a card for the station the player is at
+  (its name, what it is, and a button: E, the gamepad's interact, a click or a tap uses it).
+  `pav_ui::plaza` draws all of it, for the window and headless, so `capture` and `ui` show and
+  read it (`Drawn::plaza` names a station whose button was clicked).
+- **What each one does.** The rift loads Emberwatch with the saved hero (its button says
+  "Continue as NAME, level N", or "Begin the descent"); the studios open as from the old menu;
+  starter loads the starter game; looks, tuning and the room list open their panels; the guide
+  opens the field guide; Language opens a window of the page's languages (when the address
+  names one, it says so). The pause menu keeps the tools panel, and its Title screen button is
+  now **The Pavilion** (on touch screens too), which goes back to the plaza in front of the
+  rift; so does Emberwatch's **Pavilion Gate**, which used to list the tools.
+- **Words.** The station names, prompts, welcome and Language window are lines (`plaza.*`,
+  with the tool names and lines the title screen used), so the first screen follows the
+  language and the test languages; the title menu's lines left the book. `{key:interact}` is E.
+  The 3D signs of the engine tour stay English (the earlier decision: the engine's demo).
+- **Decided:**
+  - The town stays the game's hub (smith, stash, portal, Hall of Heroes); the pavilion took over
+    being where the player arrives. Putting the game's town into the plaza would have mixed the
+    hero's controls and rules with the engine's rooms for no gain the user asked for.
+  - A short splash stays (the user had asked for "a proper splash screen"); only the menu went.
+  - The plaza is open sky, so the view's height cut (2.4 m over the player's feet, for roofs
+    and upper floors) is off there: the rift stands taller than it.
+  - Station names and cards are egui text over the world, not 3D labels: the renderer's font is
+    Latin only, and the first screen has to read in any of the hub's languages.
+  - The hub's first cover (`0.jpg`) is the opening view on the plaza now; rounds skip it all as
+    before (a session opens straight into its round).
+  - The splash and the opening view run on the clock, not the game's capped frame time: on a
+    software GPU (a second or more a frame) the capped time stretched a 3-second splash past a
+    minute. Frames that slow cut the camera down rather than glide.
+- **Checked:** the native game under Xvfb, driven by a scripted gamepad and the live bridge
+  (splash, opening view, the rift into `town`, the gate back to the rift); the page in headless
+  Chromium at 1600, 2100 and 1200 x 900 and in en-XA, zh-XC and ar-XB (the canvas fills the
+  window, no console errors); `game_ui::the_plaza_names_its_stations_and_its_cards_open_them`.
+
 ## A title screen, the game in any language, and AI Hub rounds and package — 2026-11-09
 
 The user asked for four things: a proper splash screen and start menu with the game first and

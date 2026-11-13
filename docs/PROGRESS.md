@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it (Claude Code 
 `CLAUDE.md`). The full journal (what was built, how it works, every decision) is
 `docs/HISTORY.md`, newest first: search it when you need the background on something.
 
-## Where things stand (2026-11-09)
+## Where things stand (2026-11-13)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -23,12 +23,13 @@ The current state, kept to one page because every session reads it (Claude Code 
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
 - **The game UI through the tools** (2026-10-19): the HUD, windows, passive tree and touch
   controls live in `pav_ui`; `ui` reads them as text and clicks them, and captures draw them.
-- **On the AI Hub** (2026-11-09, `docs/AI_HUB.md`): a title screen with the engine's tools (also
-  in the pause menu and at the town's Pavilion Gate); every word a line, in any of the hub's
+- **The game opens in the Pavilion** (2026-11-13): no menu; Shardfall (through a rift) and the
+  engine's tools are stations on the plaza (`pav_core::plaza`); the pause menu and the town's
+  Pavilion Gate lead back there.
+- **On the AI Hub** (2026-11-09, `docs/AI_HUB.md`): every word a line, in any of the hub's
   languages (`docs/LANGUAGES.md`); parallel, ghost and shared-world rounds that pass the hub's
   harness; the catalogue package (`scripts/hub-package.sh`), handed over, not committed.
-- Builds (2026-11-02): no hosted site. The user plays one-file builds sent in chat:
-  `shardfall.html` (`build-web.sh --single-file`), the `.exe` and the Linux binary (`CLAUDE.md`).
+- Builds (2026-11-02): no hosted site; the user plays one-file builds sent in chat (`CLAUDE.md`).
   Pavilion Lite (`pavilion-lite/`) is frozen.
 
 ## Next

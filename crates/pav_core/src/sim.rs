@@ -422,6 +422,18 @@ impl Sim {
 
     /// Where an entity stands: a character's feet (its `pos` is the capsule's centre), else
     /// its position.
+    /// The plaza's stations, while the player is on the pavilion's plaza (not in a room or
+    /// out in the wilderness).
+    pub fn plaza_hud(&self) -> Option<crate::frame::PlazaHud> {
+        let w = &self.state.world;
+        if !w.enabled || w.current_room.is_some() || self.state.game.is_some() {
+            return None;
+        }
+        let feet = self.feet(self.state.player?)?;
+        let edge = crate::world::PLAZA_HALF + 4.0;
+        (feet.x.abs() < edge && feet.z.abs() < edge).then(|| crate::frame::PlazaHud { near: crate::plaza::near(feet), feet })
+    }
+
     pub fn feet(&self, id: EntityId) -> Option<Vec3> {
         let e = self.state.entities.get(id)?;
         Some(match &e.character {
@@ -993,6 +1005,7 @@ impl Sim {
             boss: self.boss_bar(),
             pad_note: c.pad_note.clone(),
             lines: self.play_hud(),
+            plaza: self.plaza_hud(),
         };
         RenderFrame {
             tick: self.state.tick,

@@ -16,7 +16,9 @@ crates/
               static regions (statics.rs: terrain chunks, rooms, hub; active or dormant;
               blocks, decor and baked library props: drawn by the view's region cache, one
               collider box each, no entity),
-              world.rs (pavilion layout, streaming, room tracking), room.rs (room files),
+              world.rs (pavilion layout, streaming, room tracking), plaza.rs (the plaza's
+              stations, where the game opens: the rift into Shardfall and the engine's tools,
+              built, with the station the player stands at in `HudFrame::plaza`), room.rs (room files),
               terrain.rs (procedural wilderness), tile levels (level.rs), characters
               (character.rs: movement models instant/momentum/grid/committed, jump,
               crouch/crawl, ladders, ledge grab/mantle, swimming, axis lock, moving platforms,
@@ -94,8 +96,11 @@ crates/
               (arpg_ui.rs: orbs, skill bar, banners, minimap), the windows (arpg_items.rs:
               inventory, shop, stash, character, skills; arpg_tree.rs: the passive tree), touch
               screens (touch.rs: finger routing, invisible stick, button fan, auto-attack,
-              swipe-to-dismiss), and headless.rs (the same UI on a windowless context: a text
-              reading by window, clicks, and an egui-wgpu overlay painted over captures).
+              swipe-to-dismiss), the plaza (plaza.rs: station names, the welcome, the card of
+              the station the player is at, the Language window), the splash (splash.rs), the
+              tools panel (tools.rs: the pause menu's), and headless.rs (the same UI on a
+              windowless context: a text reading by window, clicks, and an egui-wgpu overlay
+              painted over captures).
 anim/         animation data, embedded and hot-reloadable (`anim_reload`): moves.toml (the moves table)
               and clip sets (*.json: QUATERNIUS, MESH2MOTION, CMU, STYLE100: 437 clips with credits).
               anim/cmu/ holds every take of the CMU database (4,770 clips) and anim/100style/ the
@@ -215,8 +220,9 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   `themes.toml` and `levels.toml`, dressed with LIB/core props from the sets in `props.toml`).
 - Languages (`docs/LANGUAGES.md`): `lines lang=zh-XC` switches the session's language (the test
   languages en-XA, zh-XC and ar-XB, or any code a translation has), `lines id=hud.potions`
-  shows one line, `lines out=FILE` writes the game-lines block; then `ui open=title image=true`
-  or a capture shows the UI in it.
+  shows one line, `lines out=FILE` writes the game-lines block; then a capture on the plaza
+  (`load scene=world`: the station names, welcome and cards) or `ui open=language image=true`
+  shows the UI in it.
 - Looks: `look` lists the Look & Filters sections, presets and whole looks; `look name=HD-2D`,
   `look section=pixel preset=Chunky on=objects` set the session's look layer (applied in every
   capture); `look bench=all` renders this moment under every look in one numbered PNG. Filters

@@ -33,9 +33,10 @@ pub struct Settings {
     /// The language asked for: the address's `?lang=`, `--lang CODE` or `lang` in
     /// shardfall.toml ("" = the saved choice, then the system's languages).
     pub lang: String,
-    /// Start on the title screen: nothing named a scene, a room or a studio to open.
+    /// A plain start (nothing named a scene, a room or a studio): the splash, then the
+    /// pavilion's plaza, where the game and the tools are places.
     #[serde(skip)]
-    pub title: bool,
+    pub splash: bool,
 }
 
 impl Default for Settings {
@@ -57,7 +58,7 @@ impl Default for Settings {
             creature_name: String::new(),
             pad_script: String::new(),
             lang: String::new(),
-            title: false,
+            splash: false,
         }
     }
 }
@@ -95,10 +96,9 @@ impl Settings {
             s.scene = "empty".into();
         }
         if s.scene.is_empty() {
-            // Shardfall's town, behind the title screen; the engine's pavilion is the `world`
-            // scene (the title screen's Engine & tools, the pause menu).
-            s.scene = "town".into();
-            s.title = true;
+            // The pavilion's plaza: Shardfall is through its rift, the tools around the fountain.
+            s.scene = "world".into();
+            s.splash = true;
         }
         (s, "page address (?room=NAME&seed=N)".into())
     }
@@ -184,10 +184,9 @@ impl Settings {
             }
         }
         if s.scene.is_empty() {
-            // Shardfall's town, behind the title screen; the engine's pavilion is the `world`
-            // scene (the title screen's Engine & tools, the pause menu).
-            s.scene = "town".into();
-            s.title = true;
+            // The pavilion's plaza: Shardfall is through its rift, the tools around the fountain.
+            s.scene = "world".into();
+            s.splash = true;
         }
         (s, note)
     }

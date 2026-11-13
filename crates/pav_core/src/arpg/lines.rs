@@ -617,13 +617,14 @@ mod tests {
             "menu",
             "title",
             "tools",
+            "plaza",
             "dev",
         ];
         for dir in dirs {
             for entry in std::fs::read_dir(crates.join(dir)).unwrap() {
                 let path = entry.unwrap().path();
                 if path.extension().is_none_or(|e| e != "rs")
-                    || (dir == "pav_app/src" && !path.ends_with("input.rs") && !path.ends_with("ui.rs"))
+                    || (dir == "pav_app/src" && !["input.rs", "ui.rs", "app.rs"].iter().any(|f| path.ends_with(f)))
                 {
                     continue;
                 }

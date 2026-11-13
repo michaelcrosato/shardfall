@@ -83,3 +83,25 @@ fn ui_reads_a_hook_games_hud() {
     let mut s = Session::new("empty", 1).unwrap();
     assert!(call(&mut s, "ui", json!({})).unwrap_err().to_string().contains("no game UI"));
 }
+
+/// The pavilion's plaza, where the game opens: every station's name shows, standing on a spot
+/// brings up its card, and the card's button names the station for the window to open.
+#[test]
+fn the_plaza_names_its_stations_and_its_cards_open_them() {
+    let mut s = Session::new("world", 1).unwrap();
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let hud: Vec<&str> = r["hud"].as_array().unwrap().iter().filter_map(|t| t["text"].as_str()).collect();
+    assert!(hud.iter().any(|t| t.contains("Welcome to the Pavilion")), "{r}");
+    assert!(hud.contains(&"Object Studio") && hud.contains(&"Field guide"), "{r}");
+    let rift = pav_core::plaza::station("shardfall").unwrap();
+    let id = s.sim.state.player.unwrap();
+    s.sim.set_position(id, rift.stand());
+    s.step(1);
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let card = window(&r, "Shardfall");
+    let texts: Vec<&str> = card["text"].as_array().unwrap().iter().filter_map(|t| t["text"].as_str()).collect();
+    let button = card["text"].as_array().unwrap().iter().find(|t| t["text"] == "E: Begin the descent");
+    let at = button.unwrap_or_else(|| panic!("no rift button: {texts:?}"))["at"].clone();
+    let r = call(&mut s, "ui", json!({"click": at})).unwrap();
+    assert_eq!(r["station"], "shardfall", "{r}");
+}
