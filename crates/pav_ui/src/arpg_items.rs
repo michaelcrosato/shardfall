@@ -6,7 +6,7 @@
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Shape, Stroke, StrokeKind, Vec2 as EVec2};
 use glam::Vec3;
 use pav_core::arpg::combat::Rarity;
-use pav_core::arpg::data::{Data, data};
+use pav_core::arpg::data::{Data, SkillDef, data};
 use pav_core::arpg::items::{EquipSlot, Item, Slot};
 use pav_core::arpg::lines;
 use pav_core::arpg::stats::{Mods, Stat, describe};
@@ -34,6 +34,10 @@ pub struct GameUi {
     pub touch: bool,
     /// Touch: the item picked, and where it is.
     picked: Option<(u32, Picked)>,
+    /// The skill bar slot whose chooser is open (`skill_chooser`), and the one opened last (the
+    /// pad comes back to its row).
+    choosing: Option<u8>,
+    chose: Option<u8>,
     /// A tool for the app to open: the Pavilion Gate leads to the pavilion (`Tool::Tour`).
     pub tool: Option<crate::tools::Tool>,
 }
@@ -64,14 +68,19 @@ fn grid_fit(ctx: &egui::Context, touch: bool, cols: usize, size: f32, gap: f32) 
     if !touch {
         return (cols, size);
     }
-    // The window's margins, its scroll bar, and `fit`'s 16 points of screen edge.
-    let room = ctx.content_rect().width() - 16.0 - ctx.global_style().spacing.window_margin.sum().x - 14.0;
+    let room = touch_room(ctx);
     let cell = |n: usize| (room - gap * (n - 1) as f32) / n as f32;
     let mut cols = cols;
     while cols > 5 && cell(cols) < 38.0 {
         cols -= 1;
     }
     (cols, cell(cols).min(size).floor())
+}
+
+/// The width inside a window `fit` on a touch screen: the screen less `fit`'s 16 points of edge,
+/// the window's margins and its scroll bar.
+fn touch_room(ctx: &egui::Context) -> f32 {
+    ctx.content_rect().width() - 16.0 - ctx.global_style().spacing.window_margin.sum().x - 14.0
 }
 
 /// An item's card: at the pointer for a mouse; on a controller, docked beside the window the item
@@ -407,8 +416,17 @@ impl GameUi {
         self.inventory = false;
         self.character = false;
         self.skills = false;
+        self.choosing = None;
         self.panel = None;
         self.tree.open = false;
+    }
+
+    /// Circle or Esc: back out of what is on top (the skill chooser, a mastery's options), or
+    /// close the hero's windows.
+    pub fn back(&mut self) {
+        if self.choosing.take().is_none() && !self.tree.back() {
+            self.close_all();
+        }
     }
 
     /// Interact pressed: open whatever the hero stands at, or use it (the way down, a chest).
@@ -457,7 +475,9 @@ impl GameUi {
             character_window(ctx, &mut self.character, &inv, g, self.touch);
         }
         if self.skills {
-            skills_window(ctx, &mut self.skills, &d, &inv, &mut out, self.touch);
+            self.skills_window(ctx, &d, &inv, &mut out);
+        } else {
+            self.choosing = None;
         }
         self.tree.ui(ctx, &inv, &mut out);
         if inv.points > 0 && !self.tree.open && !self.touch && g.moment.is_none() {
@@ -722,17 +742,17 @@ impl GameUi {
                     if ui.button(t!("inventory.sort")).clicked() {
                         out.push(GameCmd::Sort);
                     }
-                    ui.label(t!("inventory.auto_pickup"));
+                    // Auto-pickup: one button that names the level; a press steps to the next, round
+                    // from "everything" to "off" (right-click, or Square on a pad, steps back).
                     let names =
                         ["everything", "magic", "rare", "unique", "off"].map(|n| t!(&format!("inventory.auto_pickup.{n}")));
-                    let mut sel = inv.auto_loot.min(4) as usize;
-                    egui::ComboBox::from_id_salt("autoloot").selected_text(names[sel].as_str()).show_ui(ui, |ui| {
-                        for (i, n) in names.iter().enumerate() {
-                            if ui.selectable_value(&mut sel, i, n.as_str()).clicked() {
-                                out.push(GameCmd::AutoLoot(i as u8));
-                            }
-                        }
-                    });
+                    let sel = inv.auto_loot.min(4) as usize;
+                    let b = ui.button(t!("inventory.auto_pickup.button", level = &names[sel]));
+                    if b.clicked() {
+                        out.push(GameCmd::AutoLoot(((sel + 1) % names.len()) as u8));
+                    } else if b.secondary_clicked() {
+                        out.push(GameCmd::AutoLoot(((sel + names.len() - 1) % names.len()) as u8));
+                    }
                 });
                 if touch {
                     let footer = t!("inventory.footer.touch", hint = hint_text);
@@ -1282,66 +1302,312 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
         });
 }
 
-fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>, touch: bool) {
-    fit(egui::Window::new(t!("skills.title")).id(egui::Id::new("skills")), ctx, touch)
-        .open(open)
-        .resizable(false)
-        .collapsible(false)
-        .anchor(
-            if touch { Align2::CENTER_CENTER } else { Align2::CENTER_BOTTOM },
-            EVec2::new(0.0, if touch { TOUCH_DROP } else { -140.0 }),
-        )
-        .show(ctx, |ui| {
-            ui.label(t!("skills.choose"));
-            let keys: [String; 6] = std::array::from_fn(|i| match (touch, i) {
-                (true, 0) => t!("skills.key.auto"),
-                (true, i) => t!("skills.key.button", number = i),
-                (false, 0) => t!("skills.key.left"),
-                (false, 1) => t!("skills.key.right"),
-                (false, i) => ["Q", "E", "R", "F"][i - 2].to_string(),
-            });
-            let skills = d.hero_skills();
-            // The slot's button or key, drawn as the device in use shows it (touch: its words).
-            let (device, style) = crate::controls::current();
-            egui::Grid::new("bar").num_columns(2).spacing([16.0, 8.0]).show(ui, |ui| {
-                for (slot, key) in keys.iter().enumerate() {
-                    let glyphs = crate::controls::glyphs(&format!("skill{}", slot + 1), device);
-                    if touch || glyphs.is_empty() {
-                        ui.label(key);
-                    } else {
-                        let h = 24.0;
-                        let w = crate::glyph::width_all(ui.painter(), &glyphs, h, style);
-                        let (rect, _) = ui.allocate_exact_size(EVec2::new(w.max(h), h), Sense::hover());
-                        crate::glyph::draw_all(ui.painter(), rect.left_center(), &glyphs, h, style);
+const GOLD: Color32 = Color32::from_rgb(255, 214, 120);
+
+/// A skill bar slot's button in words: a touch screen's names for its buttons, or (where the
+/// device draws no glyph) the key's.
+fn slot_words(slot: usize, touch: bool) -> String {
+    match (touch, slot) {
+        (true, 0) => t!("skills.key.auto"),
+        (true, i) => t!("skills.key.button", number = i),
+        (false, 0) => t!("skills.key.left"),
+        (false, 1) => t!("skills.key.right"),
+        (false, i) => ["Q", "E", "R", "F"][(i - 2).min(3)].to_string(),
+    }
+}
+
+/// A slot's button, drawn as the device in use shows it, `h` tall, centred in `rect` (touch: its
+/// words, wrapped to the rect's width).
+fn slot_key(p: &egui::Painter, rect: Rect, slot: usize, touch: bool, h: f32) {
+    let (device, style) = crate::controls::current();
+    let glyphs = crate::controls::glyphs(&format!("skill{}", slot + 1), device);
+    if touch || glyphs.is_empty() {
+        let g = p.layout(slot_words(slot, touch), FontId::proportional(13.0), Color32::from_white_alpha(210), rect.width());
+        p.galley(rect.center() - g.size() * 0.5, g, Color32::WHITE);
+    } else {
+        let w = crate::glyph::width_all(p, &glyphs, h, style);
+        crate::glyph::draw_all(p, egui::pos2(rect.center().x - w * 0.5, rect.center().y), &glyphs, h, style);
+    }
+}
+
+/// A small mark naming a slot's button, its top right corner at `at`; returns its width. (On a
+/// card: the button that has the skill now.)
+fn slot_badge(p: &egui::Painter, at: Pos2, slot: usize, touch: bool) -> f32 {
+    let (device, style) = crate::controls::current();
+    let glyphs = crate::controls::glyphs(&format!("skill{}", slot + 1), device);
+    if touch || glyphs.is_empty() {
+        let g = p.layout_no_wrap(slot_words(slot, touch), FontId::proportional(11.5), Color32::from_white_alpha(220));
+        let r = Align2::RIGHT_TOP.anchor_size(at, g.size() + EVec2::new(10.0, 4.0));
+        p.rect_filled(r, 4.0, Color32::from_rgb(60, 54, 66));
+        p.galley(r.min + EVec2::new(5.0, 2.0), g, Color32::WHITE);
+        r.width()
+    } else {
+        let h = 22.0;
+        let w = crate::glyph::width_all(p, &glyphs, h, style);
+        crate::glyph::draw_all(p, egui::pos2(at.x - w, at.y + h * 0.5), &glyphs, h, style);
+        w
+    }
+}
+
+/// A skill's picture on a dark tile, as the skill bar shows it (a spell in its element's colour);
+/// `dim` for one the hero hasn't learned yet.
+fn skill_tile(p: &egui::Painter, rect: Rect, s: &SkillDef, dim: bool) {
+    p.rect_filled(rect, 6.0, Color32::from_rgb(44, 40, 46));
+    p.rect_stroke(rect, 6.0, Stroke::new(1.0, Color32::from_rgb(120, 98, 70)), StrokeKind::Inside);
+    let col = if s.has("spell") { crate::arpg_ui::element_color(s.element as u8, 1.0) } else { Color32::from_rgb(230, 222, 205) };
+    crate::arpg_ui::skill_icon(p, rect, &s.key, if dim { col.gamma_multiply(0.35) } else { col });
+}
+
+/// What a skill costs the hero ("9 mana"), or that it is free.
+fn skill_cost(s: &SkillDef, inv: &InvView) -> String {
+    let cost = (s.cost * inv.sheet.mana_cost).round() as i64;
+    if cost > 0 { t!("skills.cost", count = cost) } else { t!("skills.free") }
+}
+
+/// `text` on one line at most `width` wide, cut short with "…" where it runs over.
+fn one_line(p: &egui::Painter, text: String, size: f32, color: Color32, width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::simple(text, FontId::proportional(size), color, width.max(20.0));
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    p.layout_job(job)
+}
+
+/// A skill across `rect`: its picture on a tile at the left, then its name and mana cost, and
+/// what it does cut to one line. Narrow (under 420 points) the cost takes a line of its own;
+/// `badge` keeps that much room at the top right.
+fn skill_face(p: &egui::Painter, rect: Rect, s: &SkillDef, inv: &InvView, locked: bool, tile: f32, badge: f32) {
+    let t = Rect::from_min_size(egui::pos2(rect.left(), rect.center().y - tile * 0.5), EVec2::splat(tile));
+    skill_tile(p, t, s, locked);
+    let x = t.right() + 12.0;
+    let w = (rect.right() - x).max(40.0);
+    let stacked = rect.width() < 420.0;
+    let name = if locked { t!("skills.locked", skill = lines::skill_name(s), level = s.unlock) } else { lines::skill_name(s) };
+    let name_color = if locked { Color32::from_white_alpha(140) } else { Color32::from_rgb(244, 236, 216) };
+    let cost = p.layout_no_wrap(skill_cost(s, inv), FontId::proportional(15.0), Color32::from_rgb(130, 165, 255));
+    let name_w = if stacked { w - badge } else { w - badge - cost.size().x - 14.0 };
+    let name = one_line(p, name, 18.5, name_color, name_w);
+    let about = one_line(p, lines::skill_about(s), 14.0, Color32::from_white_alpha(160), w);
+    let height = name.size().y + about.size().y + 3.0 + if stacked { cost.size().y + 1.0 } else { 0.0 };
+    let mut y = rect.center().y - height * 0.5;
+    if !stacked {
+        let at = egui::pos2(rect.right() - badge - cost.size().x, y + (name.size().y - cost.size().y) * 0.5);
+        p.galley(at, cost.clone(), Color32::WHITE);
+    }
+    y += name.size().y;
+    p.galley(egui::pos2(x, y - name.size().y), name, Color32::WHITE);
+    if stacked {
+        y += 1.0;
+        p.galley(egui::pos2(x, y), cost.clone(), Color32::WHITE);
+        y += cost.size().y;
+    }
+    p.galley(egui::pos2(x, y + 3.0), about, Color32::WHITE);
+}
+
+/// One button of the skill bar as a big row (a pad rings it, a mouse clicks it, a finger taps
+/// it): the button, then the skill it has. Pressing it opens the chooser.
+fn slot_row(ui: &mut egui::Ui, d: &Data, inv: &InvView, slot: usize, width: f32, touch: bool, open: bool) -> egui::Response {
+    let h = 60.0;
+    let (_, rect) = ui.allocate_space(EVec2::new(width, h));
+    let resp = ui.interact(rect, egui::Id::new(("skill_slot", slot)), Sense::click());
+    let p = ui.painter();
+    p.rect_filled(rect, 7.0, if resp.hovered() { Color32::from_rgb(54, 48, 58) } else { Color32::from_rgb(31, 28, 34) });
+    let edge = if open { Stroke::new(2.5, GOLD) } else { Stroke::new(1.0, Color32::from_rgb(78, 66, 54)) };
+    p.rect_stroke(rect, 7.0, edge, StrokeKind::Inside);
+    let key_w = if touch { 76.0 } else { 80.0 };
+    slot_key(p, Rect::from_min_size(rect.min + EVec2::new(6.0, 0.0), EVec2::new(key_w - 12.0, h)), slot, touch, 30.0);
+    if let Some(id) = inv.bar.get(slot).and_then(|k| d.skill_id(k)) {
+        let face = Rect::from_min_max(rect.min + EVec2::new(key_w, 6.0), rect.max - EVec2::new(14.0, 6.0));
+        skill_face(p, face, d.skill(id), inv, false, 46.0, 0.0);
+    }
+    resp
+}
+
+/// A skill in the chooser as a big card: framed in gold when the button being set has it; the
+/// glyph of another button that has it sits in its corner (choosing it there swaps the two).
+#[allow(clippy::too_many_arguments)]
+fn skill_card(
+    ui: &mut egui::Ui,
+    size: EVec2,
+    s: &SkillDef,
+    inv: &InvView,
+    locked: bool,
+    current: bool,
+    elsewhere: Option<usize>,
+    touch: bool,
+) -> egui::Response {
+    let (_, rect) = ui.allocate_space(size);
+    let resp = ui.interact(rect, egui::Id::new(("skill_card", &s.key)), Sense::click());
+    let p = ui.painter();
+    p.rect_filled(rect, 8.0, if resp.hovered() { Color32::from_rgb(56, 50, 60) } else { Color32::from_rgb(31, 28, 34) });
+    let edge = if current { Stroke::new(2.5, GOLD) } else { Stroke::new(1.0, Color32::from_rgb(78, 66, 54)) };
+    p.rect_stroke(rect, 8.0, edge, StrokeKind::Inside);
+    let badge = elsewhere.map_or(0.0, |o| slot_badge(p, rect.right_top() + EVec2::new(-8.0, 8.0), o, touch) + 8.0);
+    skill_face(p, rect.shrink2(EVec2::new(10.0, 8.0)), s, inv, locked, 52.0, badge);
+    resp
+}
+
+impl GameUi {
+    /// The skill bar as six big rows, one a button: a press opens the chooser for that button.
+    fn skills_window(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let (touch, pad) = (self.touch, self.pad);
+        let mut open = true;
+        let width = if touch { touch_room(ctx) } else { 560.0 };
+        fit(egui::Window::new(t!("skills.title")).id(egui::Id::new("skills")), ctx, touch)
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(
+                if touch { Align2::CENTER_CENTER } else { Align2::CENTER_BOTTOM },
+                EVec2::new(0.0, if touch { TOUCH_DROP } else { -140.0 }),
+            )
+            .show(ctx, |ui| {
+                ui.label(RichText::new(t!("skills.choose")).color(Color32::from_white_alpha(185)));
+                ui.add_space(2.0);
+                for slot in 0..inv.bar.len() {
+                    let resp = slot_row(ui, d, inv, slot, width, touch, self.choosing == Some(slot as u8));
+                    if resp.clicked() {
+                        self.choosing = Some(slot as u8);
+                        self.chose = self.choosing;
                     }
-                    let cur = inv.bar[slot].clone();
-                    let cur_name = d.skill_id(&cur).map(|i| lines::skill_name(d.skill(i))).unwrap_or_default();
-                    egui::ComboBox::from_id_salt(("bar", slot)).selected_text(cur_name).width(200.0).show_ui(ui, |ui| {
-                        for id in &skills {
+                    // A mouse reads the whole of what the skill does over its row.
+                    if let Some(id) = inv.bar.get(slot).and_then(|k| d.skill_id(k)).filter(|_| !touch && !pad) {
+                        resp.on_hover_text(lines::skill_about(d.skill(id)));
+                    }
+                }
+                if !inv.tweaks.is_empty() {
+                    ui.separator();
+                    ui.label(RichText::new(t!("skills.upgrades")).strong());
+                    for tw in &inv.tweaks {
+                        ui.label(
+                            RichText::new(tw.describe(&lines::skill_name_of(d, &tw.skill)))
+                                .color(Color32::from_rgb(140, 200, 255)),
+                        );
+                    }
+                }
+                if pad {
+                    let g = |a: &str| crate::controls::glyphs(a, crate::Device::Gamepad);
+                    let prompts = [
+                        crate::glyph::Prompt { glyphs: g("confirm"), label: t!("skills.change") },
+                        crate::glyph::Prompt { glyphs: g("back"), label: t!("hint.close") },
+                        crate::glyph::Prompt { glyphs: g("tabs"), label: t!("hint.panels") },
+                    ];
+                    ui.add_space(2.0);
+                    crate::glyph::row_ui(ui, &prompts, 20.0, Color32::from_white_alpha(220));
+                }
+            });
+        if !open {
+            self.skills = false;
+            self.choosing = None;
+        }
+        // The pad comes back from the chooser to the row it was opened from.
+        if let Some(slot) = self.chose {
+            ctx.data_mut(|m| m.insert_temp(egui::Id::new(crate::padnav::FOCUS), egui::Id::new(("skill_slot", slot as usize))));
+        }
+        self.skill_chooser(ctx, d, inv, out);
+    }
+
+    /// What can go on a skill bar button: every hero skill as a big card (one not learned yet is
+    /// greyed, with its level), over the Skills window. Choosing one sets the button (a skill on
+    /// another button trades places with it); closing changes nothing.
+    fn skill_chooser(&mut self, ctx: &egui::Context, d: &Data, inv: &InvView, out: &mut Vec<GameCmd>) {
+        let Some(slot) = self.choosing.map(usize::from) else { return };
+        let (touch, pad) = (self.touch, self.pad);
+        let screen = ctx.content_rect();
+        let current = inv.bar.get(slot).and_then(|k| d.skill_id(k));
+        let skills = d.hero_skills();
+        let gap = 10.0;
+        // As many columns as fit (up to four): a phone held upright has one, a TV four.
+        let room = if touch { touch_room(ctx) } else { screen.width() - 90.0 };
+        let card_w = if touch { room.min(300.0) } else { 290.0 };
+        let cols = (((room + gap) / (card_w + gap)).floor() as usize).clamp(1, 4);
+        let card = EVec2::new(if cols == 1 { room } else { card_w }, if touch { 76.0 } else { 80.0 });
+        let grid_w = cols as f32 * card.x + (cols - 1) as f32 * gap;
+        let mut open = true;
+        let mut done = false;
+        let mut focus = None;
+        fit(egui::Window::new(t!("skills.chooser.title")).id(egui::Id::new("skill_chooser")), ctx, touch)
+            .open(&mut open)
+            .order(egui::Order::Foreground)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::CENTER_CENTER, if touch { EVec2::new(0.0, TOUCH_DROP) } else { EVec2::ZERO })
+            .show(ctx, |ui| {
+                // The button being set, and what choosing does.
+                ui.horizontal(|ui| {
+                    let (r, _) = ui.allocate_exact_size(EVec2::new(if touch { 76.0 } else { 52.0 }, 34.0), Sense::hover());
+                    slot_key(ui.painter(), r, slot, touch, 30.0);
+                    ui.add(
+                        egui::Label::new(RichText::new(t!("skills.chooser.pick")).color(Color32::from_white_alpha(200))).wrap(),
+                    );
+                });
+                ui.add_space(4.0);
+                let mut shown = current;
+                let mut cards = |ui: &mut egui::Ui| {
+                    egui::Grid::new("skill_cards").spacing([gap, gap]).show(ui, |ui| {
+                        for (i, id) in skills.iter().enumerate() {
                             let s = d.skill(*id);
                             let locked = s.unlock > inv.level;
-                            let name = lines::skill_name(s);
-                            let label = if locked { t!("skills.locked", skill = name, level = s.unlock) } else { name };
-                            let r = ui.add_enabled(!locked, egui::Button::selectable(s.key == cur, label));
-                            if r.clicked() {
-                                out.push(GameCmd::Bar(slot as u8, *id));
+                            let here = Some(*id) == current;
+                            let elsewhere = inv.bar.iter().position(|k| *k == s.key).filter(|o| *o != slot);
+                            let resp = ui.add_enabled(!locked, |ui: &mut egui::Ui| {
+                                skill_card(ui, card, s, inv, locked, here, elsewhere, touch)
+                            });
+                            if here {
+                                focus = Some(resp.id);
                             }
-                            r.on_hover_text(lines::skill_about(s));
+                            if resp.hovered() && !locked {
+                                shown = Some(*id);
+                            }
+                            if resp.clicked() {
+                                out.push(GameCmd::Bar(slot as u8, *id));
+                                done = true;
+                            }
+                            // A mouse reads the whole of what it does at the pointer.
+                            if !touch && !pad {
+                                resp.on_hover_text(lines::skill_about(s));
+                            }
+                            if (i + 1) % cols == 0 {
+                                ui.end_row();
+                            }
                         }
                     });
-                    ui.end_row();
+                };
+                if touch {
+                    // (The window itself scrolls on a touch screen.)
+                    cards(ui);
+                } else {
+                    egui::ScrollArea::vertical().max_height((screen.height() - 230.0).max(160.0)).show(ui, cards);
+                }
+                if pad {
+                    // The ringed skill in full, docked under the cards (a pad has no pointer to
+                    // hang a tooltip on), two lines high so the window holds still.
+                    let text = shown.map(|id| lines::skill_about(d.skill(id))).unwrap_or_default();
+                    let (r, _) = ui.allocate_exact_size(EVec2::new(grid_w, 44.0), Sense::hover());
+                    let g = ui.painter().layout(text, FontId::proportional(15.5), Color32::from_white_alpha(215), grid_w);
+                    ui.painter().galley(r.min + EVec2::new(0.0, 4.0), g, Color32::WHITE);
+                    let g = |a: &str| crate::controls::glyphs(a, crate::Device::Gamepad);
+                    let prompts = [
+                        crate::glyph::Prompt { glyphs: g("confirm"), label: t!("skills.chooser.choose") },
+                        crate::glyph::Prompt { glyphs: g("back"), label: t!("skills.chooser.back") },
+                    ];
+                    crate::glyph::row_ui(ui, &prompts, 20.0, Color32::from_white_alpha(220));
+                } else {
+                    ui.add_space(2.0);
+                    let back = egui::Button::new(RichText::new(t!("skills.chooser.back")).size(16.0))
+                        .min_size(EVec2::new(140.0, if touch { 40.0 } else { 30.0 }));
+                    if ui.add(back).clicked() {
+                        done = true;
+                    }
                 }
             });
-            if !inv.tweaks.is_empty() {
-                ui.separator();
-                ui.label(RichText::new(t!("skills.upgrades")).strong());
-                for tw in &inv.tweaks {
-                    ui.label(
-                        RichText::new(tw.describe(&lines::skill_name_of(d, &tw.skill))).color(Color32::from_rgb(140, 200, 255)),
-                    );
-                }
-            }
-        });
+        if !open || done {
+            self.choosing = None;
+        }
+        // The pad starts on the skill the button has.
+        if let Some(id) = focus.filter(|_| self.choosing.is_some()) {
+            ctx.data_mut(|m| m.insert_temp(egui::Id::new(crate::padnav::FOCUS), id));
+        }
+    }
 }
 
 /// Names over items on the ground (click to pick up) and over usable spots.

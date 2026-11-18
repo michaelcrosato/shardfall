@@ -317,12 +317,24 @@ moves between the items (a gold ring shows which), Cross takes and Square is the
 action (right click), each on the press however long it is held, Triangle is Shift, the right stick scrolls, Circle goes back; a slider
 takes the D-pad's left and right (scroll bars are no stops); on the passive tree the stick moves a pointer and the D-pad
 hops to the nearest node that way (`padnav::SNAP_POINTS`), whose card docks at the tree's right
-edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus). PS and Create + Options together are 52in1's: unused. The pause
+edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus); a screen can name where it lands when a window it opened appears or the item it was on goes (`padnav::FOCUS`: the skill chooser starts on the button's skill and gives the pad back to that button's row). Circle (or Esc) backs out of what is on top first (the skill chooser, a mastery's options), then closes the hero's windows (`GameUi::back`). PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
 sound effects, menu and HUD size, graphics, language; auto-attack on touch; with a DualSense
 in 52in1, Motion aim, its sensitivity and Controller speaker), Controls (the device's glyphs),
 Difficulty, Engine tools, Developer. `cargo test -p pav_app settings_page_capture -- --ignored`
 draws the Settings page at 1080p to PNGs (`MENU_CAPTURE_DIR`, lavapipe will do).
+
+The hero's screens read at ten feet, the same on every device. The passive tree opens on its core
+(the start and the sectors' first levels fill the canvas; the Astral rings wait past its edges
+until the player zooms out; Centre brings the fitted view back), with the points to spend big
+and framed in gold; its search field and the shapes' legend are the mouse's (a pad's docked card
+and a finger's panel name a node's kind). The Skills window is six big rows (the button's glyph,
+the skill's picture, name, mana and what it does on one line); pressing a row opens a chooser of
+every hero skill as cards (one not learned yet greyed with its level, another button's skill
+marked with that button's glyph, since choosing it swaps the two; a pad reads the ringed card in
+full under them), and Circle or Back leaves it unchanged. The bag's auto-pickup is one button
+naming the level ("Auto-pickup: magic +"): a press steps to the next, a right-click (Square)
+steps back.
 
 The controller's extras (pad_fx.rs): short rumbles on any pad that has them (hurt, crits, slams
 and blasts close by, a level-up, a unique, death, a car's gear shift); a DualSense in 52in1

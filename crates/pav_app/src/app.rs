@@ -697,7 +697,8 @@ impl App {
         if self.menu_open && self.menu_page != crate::menu::Page::Main {
             self.menu_page = crate::menu::Page::Main;
         } else if ui.any_open() && !self.menu_open {
-            ui.close_all();
+            // (What is on top first: the skill chooser, a mastery's options.)
+            ui.back();
         } else if self.look_ui.open && !self.menu_open {
             self.look_ui.open = false;
             self.look_ui.save_if_dirty(true);
@@ -946,7 +947,7 @@ impl App {
                     return;
                 }
                 KeyCode::Escape if ui.any_open() => {
-                    ui.close_all();
+                    ui.back();
                     return;
                 }
                 _ => {}
