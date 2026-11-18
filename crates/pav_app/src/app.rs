@@ -192,6 +192,8 @@ pub struct App {
     ui_zoom: f32,
     /// The controller's extras: rumble, the light bar, the adaptive triggers (`pad_fx`).
     pad_fx: crate::pad_fx::PadFx,
+    /// A DualSense's motion aim in 52in1 (`motion`).
+    motion_aim: crate::motion::MotionAim,
     /// Same-screen co-op: local players on controllers of their own (`couch`).
     couch: crate::couch::Couch,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
@@ -312,6 +314,7 @@ impl App {
             menu_page: Default::default(),
             ui_zoom: 1.0,
             pad_fx: Default::default(),
+            motion_aim: Default::default(),
             couch: Default::default(),
             game_frame: None,
             game_place: None,
@@ -694,7 +697,8 @@ impl App {
         if self.menu_open && self.menu_page != crate::menu::Page::Main {
             self.menu_page = crate::menu::Page::Main;
         } else if ui.any_open() && !self.menu_open {
-            ui.close_all();
+            // (What is on top first: the skill chooser, a mastery's options.)
+            ui.back();
         } else if self.look_ui.open && !self.menu_open {
             self.look_ui.open = false;
             self.look_ui.save_if_dirty(true);
@@ -943,7 +947,7 @@ impl App {
                     return;
                 }
                 KeyCode::Escape if ui.any_open() => {
-                    ui.close_all();
+                    ui.back();
                     return;
                 }
                 _ => {}
@@ -1335,25 +1339,56 @@ impl App {
             held &= !pav_core::input::buttons::PRIMARY;
             pressed &= !pav_core::input::buttons::PRIMARY;
         }
+        // A DualSense in 52in1 with Motion aim on: the gyro is read every frame (while the game
+        // reads it the hub leaves the right stick alone), and its turns add to the pad's aim.
+        let motion = crate::motion::on(self.hub_settings.as_ref(), self.prefs.motion_aim);
+        let gyro = if motion { crate::motion::read_gyro_y() } else { 0.0 };
         let aim = match self.input.last_device {
             Device::KeyboardMouse => self.rig.ground_point(self.input.cursor, size, feet.y),
             Device::Gamepad => {
                 let r = self.input.pad.right;
-                if r.length() > 0.2 {
+                let mut aim = if r.length() > 0.2 {
                     let d = self.rig.relative_move(r);
-                    Some(feet + Vec3::new(d.x, 0.0, d.y) * self.sim_config.bombs.throw_range * r.length().min(1.0))
+                    feet + Vec3::new(d.x, 0.0, d.y) * self.sim_config.bombs.throw_range * r.length().min(1.0)
                 } else {
-                    Some(feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0)
+                    feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0
+                };
+                if !motion {
+                    self.motion_aim.reset();
+                } else if game_input {
+                    let stick = (r.length() > 0.2).then(|| {
+                        let d = self.rig.relative_move(r);
+                        d.x.atan2(d.y)
+                    });
+                    use pav_core::input::buttons as b;
+                    let skills = b::PRIMARY | b::SECONDARY | b::SKILL3 | b::SKILL4 | b::SKILL5 | b::SKILL6 | b::USE;
+                    let f = crate::motion::Frame {
+                        stick,
+                        facing,
+                        turn: crate::motion::turn(gyro, wall, self.prefs.motion_sensitivity.factor()),
+                        turning: gyro.abs() >= crate::motion::STILL,
+                        busy: held & skills != 0,
+                        secs: wall,
+                    };
+                    if let Some(yaw) = self.motion_aim.step(f) {
+                        // Motion turns the aim; it reaches as far as it would have.
+                        let reach = Vec3::new(aim.x - feet.x, 0.0, aim.z - feet.z).length();
+                        aim = feet + Vec3::new(yaw.sin(), 0.0, yaw.cos()) * reach;
+                    }
                 }
+                Some(aim)
             }
             Device::Touch => intent.aim.or(Some(feet + Vec3::new(facing.sin(), 0.0, facing.cos()) * 4.0)),
         };
+        if self.input.last_device != Device::Gamepad {
+            self.motion_aim.reset();
+        }
         {
             let mut i = host.shared.input.lock().unwrap();
             if game_input {
                 let mut axis = (self.input.move_axis() + intent.move_axis).clamp_length_max(1.0);
                 // A touch screen's assist at the wheel: steering is enough, the car keeps its
-                // throttle full (it has one gear, so there is nothing to shift).
+                // throttle full (and its gearbox shifts by itself, as on every device).
                 if self.input.last_device == Device::Touch && driving_car(&curr) && axis.length() > 0.15 {
                     axis = axis.normalize();
                 }
@@ -1449,6 +1484,12 @@ impl App {
         // The controller's extras: rumble, the light bar, R2's feel.
         {
             let menus = self.menu_open || self.pad_ui_active();
+            let hub = self.hub_settings.as_ref();
+            let speaker = if crate::pad_fx::speaker_on(hub, self.prefs.pad_speaker) {
+                self.prefs.effects * hub.map_or(1.0, |h| h.effects.clamp(0.0, 1.0))
+            } else {
+                0.0
+            };
             let now = crate::pad_fx::Now {
                 game: curr.game.as_deref(),
                 events: &events,
@@ -1457,7 +1498,9 @@ impl App {
                 vibration: self.prefs.vibration,
                 hub: self.hub_settings.as_ref(),
                 menus,
+                gear: curr.hud.drive.map(|d| d.gear),
                 dt,
+                speaker,
             };
             self.pad_fx.update(now, self.input.gilrs.as_mut());
             if self.round.as_ref().is_some_and(|r| r.ended()) {
@@ -1629,6 +1672,7 @@ impl App {
         let pad_style = self.prefs.pad_style;
         let mut menu_page = self.menu_page;
         let in_hub = self.hub_settings.is_some();
+        let hub_settings = self.hub_settings.as_ref();
         let mut show_boot = self.show_boot;
         let menu_open = self.menu_open;
         let scene_name = self.scene_name.clone();
@@ -1754,6 +1798,9 @@ impl App {
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             pav_ui::game_lines(&ctx, hud_ctx.hud);
+            if let Some(d) = hud_ctx.hud.drive.as_ref().filter(|_| !menu_open) {
+                pav_ui::drive::gear(&ctx, d, touch_ui);
+            }
             if let Some(r) = round {
                 r.overlay(&ctx, &curr, view_proj);
             }
@@ -1831,6 +1878,7 @@ impl App {
                     device,
                     scene: &scene_name,
                     in_hub,
+                    hub: hub_settings,
                 };
                 menu_action = crate::menu::menu(&ctx, m);
             }

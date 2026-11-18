@@ -1,9 +1,10 @@
 //! A controller's extras, where they make sense for the game (52in1 catalogue v1, "The
 //! DualSense"): short rumbles that say something (the hero hurt, a crit, a slam or a blast close
-//! by, a level-up, a unique picked up, death), the DualSense's light bar showing the hero's life,
-//! R2's adaptive trigger telling by feel whether its skill is ready, and the touchpad (its press
-//! opens the map, a swipe turns the hero's panels). Each one adds to a control that works on its
-//! own: the game plays the same on any pad, and on keys, without them.
+//! by, a level-up, a unique picked up, death, a car's gearbox shifting), the DualSense's light
+//! bar showing the hero's life, R2's adaptive trigger telling by feel whether its skill is ready,
+//! and the touchpad (its press opens the map, a swipe turns the hero's panels). Each one adds to
+//! a control that works on its own: the game plays the same on any pad, and on keys, without
+//! them.
 //!
 //! - Rumble: any pad that rumbles. In the browser the page plays `vibrationActuator`'s
 //!   dual-rumble; natively gilrs's force feedback. Settings' vibration turns it off, and in 52in1
@@ -11,6 +12,11 @@
 //! - Light bar, adaptive triggers, touchpad swipes: a DualSense in 52in1, through the hub
 //!   (`window.AIHubSettings.dualsense`), each only while the player allows it. The game never
 //!   opens the controller itself. The touchpad's press is the standard mapping's button 17.
+//! - The controller's speaker: a DualSense in 52in1 whose speaker the player allows
+//!   (`dualsense.speaker`), with the game's Controller speaker setting on. Three short cues play
+//!   from it on top of the game's own sounds (`speaker_cue`): a potion drunk, a rare or unique
+//!   item picked up, a level-up. The page synthesizes them into the node the hub's
+//!   `openSpeaker()` gives; without one nothing more plays.
 
 use glam::Vec3;
 use pav_core::arpg::GameFrame;
@@ -30,7 +36,48 @@ pub struct Now<'a> {
     pub hub: Option<&'a crate::hub::Settings>,
     /// A menu or window has the pad (the trigger lets go).
     pub menus: bool,
+    /// The gear of the car the player drives (`pav_core::vehicle::Gearbox`).
+    pub gear: Option<i8>,
     pub dt: f32,
+    /// The controller speaker's volume (the game's effects times 52in1's), 0 while it is off
+    /// (`speaker_on`).
+    pub speaker: f32,
+}
+
+/// The player's 52in1 settings let the game play from the DualSense's speaker (a DualSense on a
+/// cable, the microphone allowed under Sound).
+pub fn speaker_allowed(hub: Option<&crate::hub::Settings>) -> bool {
+    hub.is_some_and(|h| h.dualsense.connected && h.dualsense.speaker)
+}
+
+/// The speaker plays the game's cues: allowed, and the game's Controller speaker setting on.
+pub fn speaker_on(hub: Option<&crate::hub::Settings>, pref: bool) -> bool {
+    speaker_allowed(hub) && pref
+}
+
+/// The cue this frame plays from the controller's speaker (`shardfallHub.speaker` names them),
+/// the rarest of what happened to the player's own hero: a unique or rare picked up (`pickup`,
+/// its rarity), a level gained, a potion drunk. A party's others play none on this controller.
+pub fn speaker_cue(drank: bool, levelled: bool, pickup: Option<u8>) -> Option<&'static str> {
+    match pickup {
+        Some(r) if r >= 3 => Some("unique"),
+        _ if levelled => Some("level"),
+        Some(2) => Some("rare"),
+        _ => drank.then_some("potion"),
+    }
+}
+
+/// An item picked up at `at` was the player's hero's: it is the nearest hero to it, within a
+/// label click's reach (loot's `CLICK_REACH`, and a little).
+fn picked_by_hero(g: &GameFrame, hero: Option<Vec3>, at: Vec3) -> bool {
+    let Some(h) = hero else { return false };
+    let flat = |v: Vec3| Vec3::new(v.x, 0.0, v.z).length();
+    let d = flat(at - h);
+    d <= pav_core::arpg::loot::CLICK_REACH + 0.5
+        && !g
+            .actors
+            .iter()
+            .any(|a| a.team == pav_core::arpg::combat::Team::Hero && flat(a.feet - h) > 0.3 && flat(at - a.feet) < d)
 }
 
 #[derive(Default)]
@@ -38,6 +85,10 @@ pub struct PadFx {
     clock: f64,
     last_life: Option<f32>,
     dead: bool,
+    last_gear: Option<i8>,
+    /// The hero's potions and level last frame (a drink, a level gained: the player's own).
+    last_potions: Option<u32>,
+    last_level: Option<u32>,
     /// What the light bar and R2 were last told ("" = given back to the hub, let go).
     light: String,
     trigger: String,
@@ -64,8 +115,13 @@ impl PadFx {
             });
         };
         let hero = now.game.and_then(|g| g.hero.as_ref());
+        let (mut drank, mut levelled) = (false, false);
         match hero {
             Some(h) => {
+                drank = self.last_potions.is_some_and(|p| h.potions < p);
+                levelled = self.last_level.is_some_and(|l| h.level > l);
+                self.last_potions = Some(h.potions);
+                self.last_level = Some(h.level);
                 let life = (h.life / h.life_max.max(1.0)).clamp(0.0, 1.0);
                 if let Some(last) = self.last_life {
                     let lost = last - life;
@@ -83,7 +139,31 @@ impl PadFx {
             None => {
                 self.last_life = None;
                 self.dead = false;
+                self.last_potions = None;
+                self.last_level = None;
             }
+        }
+        // The rarest item the hero itself picked up this frame.
+        let pickup = now
+            .game
+            .map(|g| {
+                now.events
+                    .iter()
+                    .filter_map(|e| match e {
+                        SimEvent::Pickup { pos, rarity } if picked_by_hero(g, now.hero, *pos) => Some(*rarity),
+                        _ => None,
+                    })
+                    .max()
+            })
+            .unwrap_or_default();
+        if levelled {
+            add(0.3, 0.7, 220);
+        }
+        if pickup.is_some_and(|r| r >= 3) {
+            add(0.25, 0.8, 140);
+        }
+        if drank {
+            add(0.0, 0.25, 60);
         }
         if hero.is_some() {
             for e in now.events {
@@ -92,11 +172,19 @@ impl PadFx {
                     SimEvent::Slam { pos, radius } if near(now.hero, *pos, radius + 6.0) => add(0.8, 0.5, 160),
                     SimEvent::Blast { pos, .. } if near(now.hero, *pos, 10.0) => add(0.55, 0.55, 120),
                     SimEvent::Explosion { pos, radius } if near(now.hero, *pos, radius + 8.0) => add(0.7, 0.6, 150),
-                    SimEvent::LevelUp { .. } => add(0.3, 0.7, 220),
-                    SimEvent::Pickup { rarity, .. } if *rarity >= 3 => add(0.25, 0.8, 140),
-                    SimEvent::Potion { .. } => add(0.0, 0.25, 60),
                     _ => {}
                 }
+            }
+        }
+        // At a car's wheel: a short kick each time the automatic gearbox shifts.
+        if now.gear.is_some() && self.last_gear.is_some() && now.gear != self.last_gear {
+            add(0.2, 0.5, 40);
+        }
+        self.last_gear = now.gear;
+        if now.speaker > 0.0 && hero.is_some() {
+            // One cue a frame: the rarest thing that happened.
+            if let Some(c) = speaker_cue(drank, levelled, pickup) {
+                play_speaker(c, now.speaker);
             }
         }
         if let Some((strong, weak, ms)) = want.filter(|_| now.pad && now.vibration) {
@@ -201,6 +289,13 @@ fn set_light(color: &str) {
     let _ = color;
 }
 
+fn play_speaker(cue: &str, volume: f32) {
+    #[cfg(target_arch = "wasm32")]
+    js::speaker(cue, volume as f64);
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (cue, volume);
+}
+
 fn set_trigger(which: &str, effect: &str) {
     #[cfg(target_arch = "wasm32")]
     js::trigger(which, effect);
@@ -241,5 +336,34 @@ mod js {
         pub fn trigger(which: &str, effect: &str);
         #[wasm_bindgen(js_namespace = shardfallHub, js_name = padExtra)]
         pub fn pad_extra() -> u32;
+        #[wasm_bindgen(js_namespace = shardfallHub)]
+        pub fn speaker(cue: &str, volume: f64);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn speaker_gating_and_cues() {
+        let mut h = crate::hub::Settings::default();
+        assert!(!speaker_on(None, true));
+        assert!(!speaker_on(Some(&h), true));
+        h.dualsense.speaker = true;
+        assert!(!speaker_on(Some(&h), true), "no DualSense connected");
+        h.dualsense.connected = true;
+        assert!(speaker_on(Some(&h), true) && !speaker_on(Some(&h), false));
+        h.dualsense.speaker = false;
+        assert!(!speaker_on(Some(&h), true) && !speaker_allowed(Some(&h)));
+
+        // The rarest of what happened to the hero itself.
+        assert_eq!(speaker_cue(true, false, None), Some("potion"));
+        assert_eq!(speaker_cue(true, true, None), Some("level"));
+        assert_eq!(speaker_cue(true, true, Some(2)), Some("level"));
+        assert_eq!(speaker_cue(true, false, Some(2)), Some("rare"));
+        assert_eq!(speaker_cue(true, true, Some(3)), Some("unique"));
+        assert_eq!(speaker_cue(false, false, Some(1)), None);
+        assert_eq!(speaker_cue(false, false, None), None);
     }
 }

@@ -152,6 +152,18 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "settings.auto_attack" = "Auto-attack"
 "settings.hub" = "52in1's own settings (volume, vibration, the controller's extras) apply on top of these: open them from 52in1's bar."
 
+# Settings: a DualSense's extras in 52in1 (motion aim, the controller's speaker), shown while
+# one is connected there.
+"settings.motion" = "Motion aim"
+"settings.motion.sensitivity" = "Motion sensitivity"
+"settings.motion.low" = "Low"
+"settings.motion.medium" = "Medium"
+"settings.motion.high" = "High"
+"settings.motion.hub_off" = "Turning the controller to aim needs its motion allowed in 52in1's Settings."
+"settings.motion.hub_aim" = "While this is off, 52in1's own Motion aim turns the right stick: 52in1's Settings turn it off."
+"settings.speaker" = "Controller speaker"
+"settings.speaker.hub_off" = "The controller's speaker plays once 52in1's Settings allow it: a DualSense on a cable, with the microphone allowed under Sound."
+
 # First-time tips on a touch screen: what to do, then how.
 "touch.tips" = "Playing by touch"
 "touch.tips.move" = "drag anywhere"
@@ -164,6 +176,10 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "touch.tips.jump" = "Jump, bomb, duck"
 "touch.tips.jump.how" = "the corner buttons"
 "touch.tips.dismiss" = "Swipe this away to play"
+
+# At the wheel of a pavilion car: its automatic gearbox's gear, big in a corner dial.
+"drive.gear" = "gear"
+"drive.reverse" = "R"
 
 # The engine's own entries in the pause menu (developer text: translation skips dev. lines).
 "dev.menu.room" = "Room: {room}"
@@ -467,7 +483,6 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 # The hero's windows: inventory, character, skills, the passive tree.
 "inventory.title" = "Inventory"
 "inventory.sort" = "Sort"
-"inventory.auto_pickup" = "Auto-pickup:"
 "inventory.auto_pickup.everything" = "everything"
 "inventory.auto_pickup.magic" = "magic +"
 "inventory.auto_pickup.rare" = "rare +"
@@ -554,6 +569,17 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "tree.name.astral" = "Astral {sector}"
 "tree.name.astral_star" = "Astral {sector} Star"
 "tree.name.bridge" = "{first} & {second}"
+
+# The hero's windows at ten feet: the bag's auto-pickup button, the skill bar's rows and the
+# chooser of skills that opens from one.
+"inventory.auto_pickup.button" = "Auto-pickup: {level}"
+"skills.cost" = { one = "{count} mana", other = "{count} mana" }
+"skills.free" = "No mana cost"
+"skills.change" = "Change"
+"skills.chooser.title" = "Choose a skill"
+"skills.chooser.pick" = "What should this button do? A skill on another button swaps places with it."
+"skills.chooser.choose" = "Choose"
+"skills.chooser.back" = "Back"
 
 # The town's windows: the smith, the stash, the gambler, the alchemist, the portal, the Hall
 # of Heroes and the Menagerie.
@@ -733,6 +759,12 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "settings.prompts.xbox" = "A console's name: keep it."
 "settings.hub" = "Under the game's settings when the game runs inside 52in1 (the game hub; keep its name as it is)."
 "settings.ui_size" = "Settings: how big the menus and on-screen displays are (for a TV across the room, or a desk)."
+"settings.motion" = "Settings, with a DualSense controller: aiming by turning the controller (its gyro). On/Off buttons follow."
+"settings.motion.low" = "A motion sensitivity button: how far the aim turns when the controller turns. One short word."
+"settings.motion.hub_off" = "Under the Motion aim setting when 52in1 (the game hub; keep its name as it is) doesn't let games read the controller's motion."
+"settings.motion.hub_aim" = "Under the Motion aim setting, turned off, when the hub's own motion aim (a 52in1 setting with the same name) is on and takes over the right stick."
+"settings.speaker" = "Settings, with a DualSense controller: short sounds played from the speaker in the controller itself."
+"settings.speaker.hub_off" = "Under the Controller speaker setting when 52in1 (the game hub; keep its name as it is) doesn't allow it. 'Sound' is the name of a section of 52in1's settings."
 "controls.menu_take" = "On a controller, what Cross (A) does in a menu: picks the item (wears it, buys it, takes it)."
 "menu.quality.auto" = "A graphics quality button: chosen by the device. One short word."
 "touch.tips.move" = "Beside the line 'Move' in a two-column list of touch tips: how to do it."
@@ -810,13 +842,16 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "compare.lose" = "In an item's comparison: something the hero loses by wearing it. {what} is a modifier (stat.*) or a power (power.*)."
 "hint.bag.wear.pad" = "On a gamepad: {key:...} is drawn as the button (Cross or A, Square or X)."
 "inventory.footer" = "Small, under the bag: {hint} is a hint.bag line, then the key that closes the window."
-"inventory.auto_pickup" = "Which items the hero picks up by walking over them."
+"inventory.auto_pickup.button" = "A button under the bag: which items the hero picks up by walking over them; {level} is one of the inventory.auto_pickup.* words. Pressing it steps to the next."
 "inventory.auto_pickup.magic" = "Magic items and better ones."
 "character.regen" = "Life or mana on the character sheet: the most, then how much comes back per second."
 "character.percent" = "A bonus on the character sheet: {value} is a signed number ('+12', '-5')."
 "character.damage.all" = "A damage bonus on the character sheet: {value} is a signed number, then which damage."
 "character.damage.more" = "'More' damage multiplies (where 'increased' adds); capitals for emphasis."
 "skills.key.button" = "Touch screens: one of the skill buttons, numbered."
+"skills.cost" = "On a skill's card: the mana it costs each use."
+"skills.change" = "Next to the pad's confirm button under the skill bar's rows: open the chooser for the row."
+"skills.chooser.pick" = "Top of the chooser that opens from a skill bar button (drawn beside it): the player picks the skill it fires."
 "tree.points" = "Passive points the hero can spend on the passive skill tree."
 "tree.legend" = "Bottom of the passive tree: what the node shapes mean."
 "tree.name.astral" = "A node of the endless rings round the passive tree: {sector} is a sector's name (tree.sector.*)."
@@ -837,6 +872,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "power.orbit_blades" = "A unique item's power. {count} is a number of blades, {b} a percentage."
 "tweak.count" = "A passive tree upgrade to one skill: the skill's name, then what changes."
 "difficulty.heading" = "In the pause menu: sliders for play-testers to make the game easier or harder."
+"drive.gear" = "A small label under the gear number on a car's dial (the HUD while driving), like a car's dashboard."
+"drive.reverse" = "The reverse gear on a car's dial, where the gear number shows: a letter or the sign a dashboard uses."
 "touch.jump" = "A round touch-screen button in the engine's rooms: one short word, in capitals where the language has them."
 "touch.cancel" = "Over a skill button while aiming by hand, when letting go there cancels the skill."
 
@@ -858,6 +895,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "touch.bomb" = 6
 "touch.duck" = 6
 "touch.use" = 6
+"drive.gear" = 8
+"drive.reverse" = 2
 "doll.weapon" = 8
 "doll.offhand" = 8
 "doll.helmet" = 8

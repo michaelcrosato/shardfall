@@ -42,6 +42,7 @@ how = [
   "The car is one dynamic rigid body, a box of about 900 kg that is only allowed to turn about its up axis, so it can slide and spin but never roll over.",
   "Rapier's raycast vehicle casts one ray down from each of the four wheel spots every tick. Where a ray hits, a spring (stiffness 40, 0.3 m of travel) holds the body up against gravity and the tyre pushes back against sideways sliding as hard as its grip allows; the wheels you see are drawn where the rays say.",
   "You push the way you want to go: the car turns its front wheels by the difference from its heading, up to its steering lock (40 degrees on GRIPPY, 44 on DRIFTY), and only the rear wheels push (2600 N each, cut above 22 m/s). Pointing more than about 110 degrees behind it below 3 m/s reverses.",
+  "An automatic gearbox shifts for you: five gears, each covering a band of the top speed (to 25, 45, 65, 85 and 100%), pull hardest in first (1.6 times the engine's push) and least in fifth (1.0). It shifts up near the top of a band and down only well below it, so it never hunts, and each shift cuts the push for 0.13 s; reverse goes in when you back up from a stop. The dial in the corner shows the gear, its rim how far through the band the car is.",
   "The handbrake (Space) swaps the rear tyres' side grip for the drift grip and adds a light rear brake, so the back loses its hold and swings out: GRIPPY keeps 30% of its grip, DRIFTY only 16%. C brakes all four wheels hard.",
   "The car's sideways speed is measured every tick and smoothed; above 2.5 m/s the rear wheels puff out GPU smoke particles, more the faster it slides.",
   "The time trial is zones on the floor tested against your feet, which are the car's bottom while you sit in it. Leaving START starts the clock, gates count only in order (each skipped one adds 2 s at the end), and gravel is a kill zone that puts the car down, stopped, at the last checkpoint.",
@@ -56,6 +57,7 @@ ask = [
   "raycast vehicle with spring suspension",
   "handbrake drift that cuts the rear tyre grip",
   "arcade car that steers toward the stick direction",
+  "automatic gearbox with a torque cut on each shift",
   "time trial with ordered gates and a missed-gate penalty",
   "gravel traps that respawn the car at the last checkpoint",
   "tyre smoke while the car slides sideways",
@@ -97,12 +99,13 @@ src = """
 let handbrake = inp.down(buttons::JUMP);
 let brake = inp.down(buttons::CROUCH);
 let lock = v.def.steer.to_radians();
+let pull = v.gearbox.update(speed, v.def.max_speed, v.throttle, dt);
 if let Some(c) = &mut v.car {
     let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
     for (i, w) in c.wheels_mut().iter_mut().enumerate() {
         let front = i < 2;
         w.steering = if front { (v.steer * lock) as Real } else { 0.0 };
-        w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power) as Real };
+        w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power * pull) as Real };
         w.brake = if brake {
             40.0
         } else if handbrake && !front {

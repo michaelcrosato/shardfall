@@ -82,6 +82,11 @@ pub struct PadNav {
 /// the passive tree's nodes in view.
 pub const SNAP_POINTS: &str = "padnav_snap_points";
 
+/// Where a screen wants the pad to land when it needs a new place to start (a window just
+/// opened, or the item it was on went): a widget's `Id`, in egui temp data under this id. The
+/// skill chooser starts on the skill the button has, and its button's row takes the pad back.
+pub const FOCUS: &str = "padnav_focus";
+
 /// Stick past this is a push.
 const PUSH: f32 = 0.55;
 const FIRST_REPEAT: f32 = 0.38;
@@ -121,6 +126,8 @@ impl PadNav {
             }
         }
         let opened = layers.iter().any(|l| !self.layers.contains(l));
+        // The pad's first frame on these menus (picked up, or they just came up).
+        let fresh = self.layers.is_empty();
         self.layers = layers;
         let mut current = self.snapped.and_then(|s| items.iter().find(|i| i.id == s.id).copied()).filter(|_| !opened);
         // The item went (a menu turned a page): start again at the top, not wherever it was.
@@ -131,8 +138,17 @@ impl PadNav {
         let mouse = mouse.filter(|_| !lost);
         if current.is_none() {
             let from = self.pointer.or(mouse);
-            current = from
-                .and_then(|p| items.iter().filter(|i| i.rect.contains(p)).min_by(|a, b| area(a).total_cmp(&area(b))).copied())
+            // Where the screen asks, for a window the pad opened or an item it lost (picking
+            // the pad up starts from the item under the mouse instead).
+            let wanted: Option<Id> = ctx.data(|d| d.get_temp(Id::new(FOCUS)));
+            current = wanted
+                .filter(|_| (opened || lost) && !fresh)
+                .and_then(|id| items.iter().find(|i| i.id == id).copied())
+                .or_else(|| {
+                    from.and_then(|p| {
+                        items.iter().filter(|i| i.rect.contains(p)).min_by(|a, b| area(a).total_cmp(&area(b))).copied()
+                    })
+                })
                 .or_else(|| first(&items));
             if let Some(c) = current {
                 if !c.canvas || self.pointer.is_none() {
@@ -386,10 +402,16 @@ fn first(items: &[Item]) -> Option<Item> {
 
 /// The next item from `from` in direction `d`: the nearest one ahead, favouring those in line.
 fn step(items: &[Item], current: Option<Id>, from: Rect, d: Dir) -> Option<Item> {
+    // Ordinary items first; a canvas (the passive tree) only when nothing else lies that way, so
+    // the D-pad can always get from a header's buttons back onto it.
+    nearest(items, current, from, d, false).or_else(|| nearest(items, current, from, d, current.is_some()))
+}
+
+fn nearest(items: &[Item], current: Option<Id>, from: Rect, d: Dir, canvases: bool) -> Option<Item> {
     let dir = d.vec();
     let mut best: Option<(f32, Item)> = None;
     for i in items {
-        if Some(i.id) == current || i.canvas && current.is_some() {
+        if Some(i.id) == current || (current.is_some() && i.canvas != canvases) {
             continue;
         }
         // How far ahead (between facing edges) and how far off the line.
@@ -471,6 +493,19 @@ mod tests {
         with_button.push(Item { rect: Rect::from_min_size(pos2(0.0, 110.0), vec2(140.0, 30.0)), ..item(9, 0.0, 0.0) });
         assert_eq!(step(&with_button, Some(items[5].id), at(5), Dir::Down).unwrap().id, Id::new(9u32));
         assert_eq!(first(&with_button).unwrap().id, items[0].id);
+    }
+
+    #[test]
+    fn a_header_button_steps_down_into_its_canvas() {
+        // "Reset all" over the tree's canvas: down goes onto the canvas (nothing else is there),
+        // while a button beside it still wins sideways.
+        let reset = item(1, 0.0, 0.0);
+        let centre = item(2, 50.0, 0.0);
+        let canvas = Item { rect: Rect::from_min_size(pos2(0.0, 60.0), vec2(600.0, 400.0)), canvas: true, ..item(3, 0.0, 0.0) };
+        let items = [reset, centre, canvas];
+        assert_eq!(step(&items, Some(reset.id), reset.rect, Dir::Down).unwrap().id, canvas.id);
+        assert_eq!(step(&items, Some(reset.id), reset.rect, Dir::Right).unwrap().id, centre.id);
+        assert!(step(&items, Some(reset.id), reset.rect, Dir::Up).is_none());
     }
 
     #[test]
@@ -657,6 +692,78 @@ mod opening_tests {
         }
         let top = nav.focused().expect("an item");
         assert!(top.top() < 215.0, "starts on the first button, not the middle one: {top:?}");
+    }
+}
+
+#[cfg(test)]
+mod focus_tests {
+    use super::*;
+
+    /// A window of rows; while `popup`, a chooser over it (on top) that wants the pad on its third
+    /// card. Each names where the pad should land (`FOCUS`), as the Skills window does.
+    fn run(ctx: &Context, events: Vec<Event>, popup: bool) {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 700.0))),
+            events,
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(raw, |ui| {
+            let ctx = ui.ctx().clone();
+            egui::Window::new("rows").title_bar(false).fixed_pos([50.0, 50.0]).show(&ctx, |ui| {
+                for i in 0..5 {
+                    let (_, r) = ui.allocate_space(vec2(240.0, 44.0));
+                    let _ = ui.interact(r, Id::new(("row", i)), egui::Sense::click());
+                }
+            });
+            ctx.data_mut(|d| d.insert_temp(Id::new(FOCUS), Id::new(("row", 3))));
+            if popup {
+                egui::Window::new("chooser").title_bar(false).order(Order::Foreground).fixed_pos([400.0, 80.0]).show(
+                    &ctx,
+                    |ui| {
+                        for i in 0..6 {
+                            let (_, r) = ui.allocate_space(vec2(240.0, 44.0));
+                            let _ = ui.interact(r, Id::new(("card", i)), egui::Sense::click());
+                        }
+                    },
+                );
+                ctx.data_mut(|d| d.insert_temp(Id::new(FOCUS), Id::new(("card", 2))));
+            }
+        });
+        out.textures_delta.clear();
+    }
+
+    fn rect_of(ctx: &Context, id: Id) -> Rect {
+        ctx.viewport(|v| v.prev_pass.widgets.get(id).map(|w| w.rect)).expect("drawn")
+    }
+
+    #[test]
+    fn a_screen_names_where_the_pad_lands_and_comes_back() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        let step = |nav: &mut PadNav, popup: bool, mouse: Option<Pos2>| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, mouse);
+            run(&ctx, ev, popup);
+        };
+        for _ in 0..3 {
+            step(&mut nav, false, None);
+        }
+        // Picked up, the pad starts at the top (or under the mouse), whatever the screen asks.
+        assert_eq!(nav.focused(), Some(rect_of(&ctx, Id::new(("row", 0)))));
+        // The chooser opens over it: the pad lands on the card it names, not its first.
+        for _ in 0..3 {
+            step(&mut nav, true, None);
+        }
+        assert_eq!(nav.focused(), Some(rect_of(&ctx, Id::new(("card", 2)))));
+        // Closed: back on the row it was opened from.
+        for _ in 0..3 {
+            step(&mut nav, false, None);
+        }
+        assert_eq!(nav.focused(), Some(rect_of(&ctx, Id::new(("row", 3)))));
+        // Put down and picked up again with the mouse on the second row: it starts there.
+        nav.reset();
+        let second = rect_of(&ctx, Id::new(("row", 1)));
+        step(&mut nav, false, Some(second.center()));
+        assert_eq!(nav.focused(), Some(second));
     }
 }
 

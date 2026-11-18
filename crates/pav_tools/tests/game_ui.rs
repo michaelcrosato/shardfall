@@ -55,6 +55,68 @@ fn ui_reads_the_hud_windows_and_touch_controls() {
     assert!(err.contains("inventory"), "{err}");
 }
 
+/// Where to click a text in a window (a little inside its top-left corner).
+fn at(r: &Value, title: &str, text: &str) -> [f64; 2] {
+    let found = window(r, title)["text"].as_array().unwrap().iter().find(|t| t["text"] == text);
+    let t = found.unwrap_or_else(|| panic!("no \"{text}\" in {title}: {r}"));
+    [t["at"][0].as_f64().unwrap() + 6.0, t["at"][1].as_f64().unwrap() + 6.0]
+}
+
+/// The screens at ten feet: the Skills window's rows open a chooser of cards whose click sets
+/// the button (Back changes nothing); the bag's auto-pickup is one button that steps; the tree
+/// keeps the search field and the legend for a mouse. (On the mouse only: the device whose
+/// glyphs are drawn is the process's, and the other tests read the keyboard's. The pad's tree:
+/// `pav_ui::arpg_tree`'s tests.)
+#[test]
+fn skill_rows_open_a_chooser_and_the_bag_steps_auto_pickup() {
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    let r = call(&mut s, "ui", json!({"open": "skills", "width": 1920, "height": 1080})).unwrap();
+    let rows = texts(&window(&r, "Skills")["text"]);
+    // (Not the buttons' glyphs: another test switches the process's device to touch.)
+    for line in ["Fireball", "9 mana", "No mana cost"] {
+        assert!(rows.iter().any(|t| t == line), "the Skills window shows {line}: {rows:?}");
+    }
+    // A row opens the chooser (no command yet); Back closes it, changing nothing.
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Skills", "Fireball")})).unwrap();
+    assert_eq!(r["did"], json!([]), "{r}");
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let cards = texts(&window(&r, "Choose a skill")["text"]);
+    assert!(cards.iter().any(|t| t.starts_with("Blizzard (level")), "a skill not learned yet shows its level: {cards:?}");
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Choose a skill", "Back")})).unwrap();
+    assert_eq!(r["did"], json!([]), "{r}");
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    assert!(!r["windows"].as_array().unwrap().iter().any(|w| w["title"] == "Choose a skill"), "{r}");
+    // Again, and a card sets the button: Cleave onto the second (it swaps with the third).
+    call(&mut s, "ui", json!({"click": at(&r, "Skills", "Fireball")})).unwrap();
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Choose a skill", "Cleave")})).unwrap();
+    let cleave = pav_core::arpg::data::data().skill_id("cleave").unwrap();
+    assert_eq!(r["did"], json!([format!("Bar(1, {cleave})")]), "{r}");
+    let bar = &s.sim.state.game.as_ref().unwrap().hero.bar;
+    assert_eq!((bar[1].as_str(), bar[2].as_str()), ("cleave", "fireball"));
+    // Circle (or Esc) backs out of the chooser before it closes the window.
+    s.ui.game.skills = true;
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    call(&mut s, "ui", json!({"click": at(&r, "Skills", "Slash")})).unwrap();
+    s.ui.game.back();
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    assert_eq!(r["open"], json!(["skills"]), "{r}");
+    assert!(!r["windows"].as_array().unwrap().iter().any(|w| w["title"] == "Choose a skill"), "{r}");
+
+    // Auto-pickup: one button naming the level; a click steps to the next.
+    let r = call(&mut s, "ui", json!({"close": "all", "open": "inventory"})).unwrap();
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Inventory", "Auto-pickup: magic +")})).unwrap();
+    assert_eq!(r["did"], json!(["AutoLoot(2)"]), "{r}");
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    assert!(texts(&window(&r, "Inventory")["text"]).iter().any(|t| t == "Auto-pickup: rare +"), "{r}");
+
+    // The tree: a mouse has the search field and the shapes' legend.
+    let r = call(&mut s, "ui", json!({"close": "all", "open": "tree"})).unwrap();
+    let mouse = texts(&window(&r, "Passive Tree")["text"]);
+    assert!(mouse.iter().any(|t| t == "Search:") && mouse.iter().any(|t| t.starts_with("diamonds:")), "{mouse:?}");
+}
+
 #[test]
 fn captures_draw_the_game_ui() {
     let mut s = Session::new("town", 1).unwrap();

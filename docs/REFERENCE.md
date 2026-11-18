@@ -41,9 +41,9 @@ crates/
               makes each one a scene; starter.rs + starter.toml, the template:
               docs/MAKE_A_GAME.md),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
-              vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter: flight only,
-              no weapons, damage or fuel), health.rs (shootable rapier objects: hp, score, boss
-              phases/bar, finish),
+              vehicle.rs (drift car on rapier's raycast vehicle with an automatic five-speed
+              gearbox, arcade helicopter: flight only, no weapons, damage or fuel),
+              health.rs (shootable rapier objects: hp, score, boss phases/bar, finish),
               stealth.rs (guard sight cones with line of sight and an alert meter),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
@@ -317,15 +317,31 @@ moves between the items (a gold ring shows which), Cross takes and Square is the
 action (right click), each on the press however long it is held, Triangle is Shift, the right stick scrolls, Circle goes back; a slider
 takes the D-pad's left and right (scroll bars are no stops); on the passive tree the stick moves a pointer and the D-pad
 hops to the nearest node that way (`padnav::SNAP_POINTS`), whose card docks at the tree's right
-edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus). PS and Create + Options together are 52in1's: unused. The pause
+edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus); a screen can name where it lands when a window it opened appears or the item it was on goes (`padnav::FOCUS`: the skill chooser starts on the button's skill and gives the pad back to that button's row). Circle (or Esc) backs out of what is on top first (the skill chooser, a mastery's options), then closes the hero's windows (`GameUi::back`). PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
-sound effects, menu and HUD size, graphics, language; auto-attack on touch), Controls (the
-device's glyphs), Difficulty, Engine tools, Developer.
+sound effects, menu and HUD size, graphics, language; auto-attack on touch; with a DualSense
+in 52in1, Motion aim, its sensitivity and Controller speaker), Controls (the device's glyphs),
+Difficulty, Engine tools, Developer. `cargo test -p pav_app settings_page_capture -- --ignored`
+draws the Settings page at 1080p to PNGs (`MENU_CAPTURE_DIR`, lavapipe will do).
+
+The hero's screens read at ten feet, the same on every device. The passive tree opens on its core
+(the start and the sectors' first levels fill the canvas; the Astral rings wait past its edges
+until the player zooms out; Centre brings the fitted view back), with the points to spend big
+and framed in gold; its search field and the shapes' legend are the mouse's (a pad's docked card
+and a finger's panel name a node's kind). The Skills window is six big rows (the button's glyph,
+the skill's picture, name, mana and what it does on one line); pressing a row opens a chooser of
+every hero skill as cards (one not learned yet greyed with its level, another button's skill
+marked with that button's glyph, since choosing it swaps the two; a pad reads the ringed card in
+full under them), and Circle or Back leaves it unchanged. The bag's auto-pickup is one button
+naming the level ("Auto-pickup: magic +"): a press steps to the next, a right-click (Square)
+steps back.
 
 The controller's extras (pad_fx.rs): short rumbles on any pad that has them (hurt, crits, slams
-and blasts close by, a level-up, a unique, death); a DualSense in 52in1 (`hub:dualsense`) also
-shows the hero's life on its light bar, makes R2 stiff while its skill can't be cast, and turns
-panels with a touchpad swipe. Controller flows can be scripted and screenshotted: `shardfall
+and blasts close by, a level-up, a unique, death, a car's gear shift); a DualSense in 52in1
+(`hub:dualsense`) also shows the hero's life on its light bar, makes R2 stiff while its skill
+can't be cast, turns panels with a touchpad swipe, adds the controller's turns to the pad's aim
+(motion.rs) and plays short cues from the controller's speaker (a potion, a rare or unique
+pickup, a level-up); `docs/AI_HUB.md`, "The DualSense". Controller flows can be scripted and screenshotted: `shardfall
 --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]`,
 see `PadScript` in input.rs).
 
@@ -344,11 +360,11 @@ window sideways, to close it. Upright or sideways: the camera keeps its field of
 tall screen; item grids (bag, stash, the smith's wares) size their cells to a phone's width. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
 it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself; at
 the wheel of a car the throttle stays full while steering (a pad drives with R2 as an analog
-throttle and L2 as the brake; the car has one gear, so there is no shifting to automate). Mouse: a place's use prompt (the
+throttle and L2 as the brake; on every device the car's gearbox shifts by itself). Mouse: a place's use prompt (the
 smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays
 the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
 doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the
-touchpad, no microphone); `scripts/touch_check.py` drives it with real touch events on an
+touchpad, motion aim (gyro reads), the speaker's cues, no microphone); `scripts/touch_check.py` drives it with real touch events on an
 emulated phone, upright and sideways (two thumbs at once, the bag, a flick that closes it).
 Graphics quality and auto-attack are in the pause menu's Settings.
 

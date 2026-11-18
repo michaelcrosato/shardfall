@@ -1349,11 +1349,13 @@ pub fn player_json(s: &Session) -> Value {
     let Some(p) = s.sim.player() else { return json!(null) };
     let ch = p.character.as_ref().unwrap();
     let feet = p.pos - glam::Vec3::Y * ch.height() * 0.5;
-    // The vehicle being driven: its name, speed and heading (0 = +Z/south, 90 = +X/east).
+    // The vehicle being driven: its name, speed and heading (0 = +Z/south, 90 = +X/east), and a
+    // car's gear (-1 reverse, 1-5) with how far through the gear's band of speeds it is (0-1).
     let riding = ch.riding.and_then(|id| s.sim.state.entities.get(id)).map(|v| {
         let body = v.body.and_then(|b| s.sim.state.physics.bodies.get(b));
         let vel = body.map(|b| b.linvel()).unwrap_or_default();
         let fwd = body.map(|b| *b.rotation() * glam::Vec3::Z).unwrap_or(glam::Vec3::Z);
+        let gearbox = v.vehicle.as_ref().filter(|x| x.def.kind == pav_core::vehicle::VehicleKind::Car).map(|x| x.gearbox);
         json!({
             "id": v.id.0,
             "name": v.name,
@@ -1361,6 +1363,8 @@ pub fn player_json(s: &Session) -> Value {
             "vel": [round3(vel.x), round3(vel.y), round3(vel.z)],
             "speed": round3(vel.length()),
             "heading_deg": round3(fwd.x.atan2(fwd.z).to_degrees()),
+            "gear": gearbox.map(|g| g.gear),
+            "rpm": gearbox.map(|g| round3(g.rpm)),
         })
     });
     json!({

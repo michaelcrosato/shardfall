@@ -7,6 +7,7 @@ pub mod arpg_items;
 pub mod arpg_tree;
 pub mod arpg_ui;
 pub mod controls;
+pub mod drive;
 pub mod fonts;
 pub mod glyph;
 pub mod headless;

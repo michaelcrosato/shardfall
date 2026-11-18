@@ -5,6 +5,61 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Gears, the DualSense's motion and speaker, screens for the sofa, and 52in1's own hub — 2026-11-17
+
+The controls standard's last named items, built by a workflow (three implementers in their own
+worktrees, two reviewers each: 9 agents, about 1.8M subagent tokens), then integrated, fixed
+and checked live here:
+- **An automatic gearbox** (`pav_core::vehicle::Gearbox`, in `Vehicle`, serde default): five
+  gears over 25/45/65/85/100% of the car's top speed, pulling 1.6/1.4/1.25/1.1/1.0 of its power,
+  up at 97% of a band, down below 80% of the one beneath, a 0.13 s cut on each upshift, reverse
+  from (nearly) stopped. Automatic on every device (the "Racing: auto gear changes" assist; pad
+  and keys play the same in kind). Top speed and time to it unchanged (22.1 m/s; 95% in 2.8 s
+  both ways); off the line it is quicker (25% in 0.35 s, not 0.58 s). A dial at the wheel shows
+  the gear (`pav_ui::drive`, rim = revs through the band; on touch at the right edge 40% down,
+  label never under 12 points); a short rumble on each shift. No engine sound exists: none added.
+  Review fixes: a downshift drops straight to the gear the speed needs, without a cut (a car
+  stopped by a wall went 5-4-3-2-1 with half a second of no drive); the brake held with the
+  throttle, and a throttle pushing against the roll, get the old one-gear pull (first's 1.6
+  out-pulled the brake).
+- **Motion** (`pav_app::motion`): in 52in1, with a DualSense whose motion is allowed and the
+  game's Motion aim on (default: as the player's 52in1 Motion aim), Shardfall reads `gyro` once
+  a frame and turns the pad's aim (gyro x seconds x Low 1 / Medium 2 / High 3), on top of the
+  stick; at rest the turn is an offset on the hero's facing that eases back once the controller
+  is still for 0.4 s and no skill is held (review fix: the first version held an absolute aim
+  that almost never let go). Turns under 2 degrees a second add nothing.
+- **The controller's speaker** (`pad_fx`, the page's `shardfallHub.speaker`): with `speaker`
+  allowed and the game's setting on, three synthesized cues (a potion drunk, a rare or unique
+  picked up, a level-up) from the controller; for the player's own hero only (review fix: a
+  partner's potions and pickups played too), a pickup counting from a label click's reach, and a
+  speaker that comes back asked for a fresh node.
+- **The microphone: never.** No voice feature; the game never calls `openMicrophone` or
+  `getUserMedia`. `hub:dualsense` now names `light bar, adaptive triggers, haptics, motion,
+  touchpad, speaker`. Settings shows Motion aim, its sensitivity and Controller speaker while a
+  DualSense is connected in 52in1, greyed with a line saying where 52in1 allows what it doesn't.
+- **Screens for the sofa:** the passive tree opens on its core (no Astral rings at first; zoom
+  out for them), "points to spend" big and gold, the Search field and the legend only with keys
+  and mouse; the Skills window is six big rows (glyph, icon, name, mana, a line) and a chooser of
+  skill cards, no dropdowns; the bag's Auto-pickup is one button that steps through the levels.
+  `padnav::FOCUS` lets a screen say where the pad lands. Review fixes: Circle no longer spends
+  itself on a mastery window left from a closed tree, and the D-pad steps into a canvas (the
+  tree) when nothing else lies that way, so a header can't trap the ring.
+- **52in1's own hub, live** (`scripts/hub_live.mjs`, `docs/AI_HUB.md` "Testing"): the hub's Wall,
+  Settings, frame host and companion from its repository, a stand-in DualSense for WebHID.
+  Shardfall's light bar (#20c060, #ffb020) and R2's weapon effect (mode 0x25) reach the
+  controller as reports; leaving gives the light back (the cabinet's #ffb43d) and the trigger
+  lets go. The frame gets no microphone until 52in1 allows it, then `microphone` and
+  `speaker-selection`; Shardfall never asks for the microphone, and asks for the speaker once a
+  cue plays. With Motion aim on, the hub turned the previous build's right stick (to -0.50);
+  the new build reads the gyro itself and the hub leaves the stick alone.
+- Also checked: `pad_check.py --dualsense` (217 gyro reads, the potion cue into the speaker's
+  node, no microphone), tests of pav_core, pav_ui, pav_app and pav_tools (482 passed), clippy
+  native and wasm32.
+- Worth knowing: `/tmp` here is a 9.8 GB tmpfs (RAM); it filled during this work (another
+  project's tools leave 27 MB folders there). Builds and browser checks now run with `TMPDIR`
+  on disk (`target/tmp`). Copying `target/debug` into a worktree makes pav_core embed the main
+  checkout's `game/` and `rooms/` until `build.rs` is touched.
+
 ## Review of #95: sliders on a pad, the tree card, quick taps, the throttle — 2026-11-17
 
 An adversarial review of #95 (a workflow: four reviewers by area, three skeptics per finding
