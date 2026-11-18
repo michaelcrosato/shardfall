@@ -161,14 +161,25 @@ fn card(ctx: &egui::Context, s: &'static Station, view: &View) -> Option<&'stati
                         ui.label(RichText::new(about(s)).size(14.0).color(DIM));
                         ui.add_space(8.0);
                         let what = action(s, view.hero.as_ref());
-                        let label =
-                            if view.device == Device::KeyboardMouse { t!("plaza.hint", action = what.as_str()) } else { what };
                         let button =
-                            egui::Button::new(RichText::new(label).size(17.0).color(Color32::from_rgb(30, 22, 12)).strong())
+                            egui::Button::new(RichText::new(what).size(18.0).color(Color32::from_rgb(30, 22, 12)).strong())
                                 .fill(color(s).lerp_to_gamma(GOLD, 0.5))
                                 .corner_radius(CornerRadius::same(8));
-                        if ui.add_sized(Vec2::new(ui.available_width(), if touch { 48.0 } else { 36.0 }), button).clicked() {
+                        let resp = ui.add_sized(Vec2::new(ui.available_width(), if touch { 48.0 } else { 40.0 }), button);
+                        if resp.clicked() {
                             used = true;
+                        }
+                        // The key or button that uses it, on the button's left (a tap needs none).
+                        let glyphs = crate::controls::glyphs("interact", view.device);
+                        if !glyphs.is_empty() {
+                            let style = crate::controls::current().1;
+                            crate::glyph::draw_all(
+                                ui.painter(),
+                                resp.rect.left_center() + Vec2::new(8.0, 0.0),
+                                &glyphs,
+                                26.0,
+                                style,
+                            );
                         }
                     });
                 });

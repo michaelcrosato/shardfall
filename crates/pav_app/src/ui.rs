@@ -3,7 +3,7 @@
 use egui::{Color32, RichText};
 
 use crate::boot::{StageStatus, diag};
-use crate::input::{Device, guide};
+use crate::input::Device;
 
 pub struct OverlayInfo<'a> {
     pub fps: f32,
@@ -22,6 +22,7 @@ pub struct OverlayInfo<'a> {
     pub render_scale: f32,
 }
 
+#[derive(Clone, Debug)]
 pub enum MenuAction {
     Resume,
     Reset,
@@ -49,6 +50,10 @@ pub enum MenuAction {
     Tool(pav_ui::tools::Tool),
     /// To the pavilion's plaza, where the game opens and the tools stand.
     Pavilion,
+    /// Another page of the pause menu.
+    Page(crate::menu::Page),
+    /// The Language window.
+    Language,
 }
 
 pub fn boot_panel(ctx: &egui::Context, open: &mut bool) {
@@ -134,16 +139,28 @@ pub fn crash_banner(root: &mut egui::Ui, msg: &str) {
     });
 }
 
-pub fn hint_bar(ctx: &egui::Context, text: &str) {
-    egui::Area::new(egui::Id::new("hints")).anchor(egui::Align2::CENTER_BOTTOM, [0.0, -8.0]).show(ctx, |ui| {
-        ui.label(
-            RichText::new(text).small().color(Color32::from_white_alpha(200)).background_color(Color32::from_black_alpha(110)),
-        );
-    });
+/// Prompts along the bottom of the screen ("Options Menu   ↓ Inventory..."), drawn as the device's
+/// glyphs.
+pub fn hint_bar(ctx: &egui::Context, prompts: &[pav_ui::glyph::Prompt], style: pav_ui::glyph::PadStyle) {
+    if prompts.is_empty() {
+        return;
+    }
+    let screen = ctx.content_rect();
+    let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("hints")));
+    pav_ui::glyph::row(
+        &p,
+        screen.center_bottom() - egui::vec2(0.0, 14.0),
+        egui::Align2::CENTER_BOTTOM,
+        prompts,
+        18.0,
+        style,
+        Color32::from_white_alpha(215),
+    );
 }
 
-pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
-    egui::Area::new(egui::Id::new("guide")).anchor(egui::Align2::LEFT_BOTTOM, [10.0, -30.0]).show(ctx, |ui| {
+/// The controls, bottom left, for the first seconds: the device's own glyphs.
+pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool, style: pav_ui::glyph::PadStyle) {
+    egui::Area::new(egui::Id::new("guide")).anchor(egui::Align2::LEFT_BOTTOM, [10.0, -40.0]).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.label(
                 RichText::new(match device {
@@ -153,124 +170,16 @@ pub fn guide_panel(ctx: &egui::Context, device: Device, game: bool) {
                 })
                 .strong(),
             );
-            egui::Grid::new("guide_grid").show(ui, |ui| {
-                for (a, k) in if game { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) } {
-                    ui.label(a);
-                    ui.label(RichText::new(k).monospace());
+            let rows = if game { crate::input::game_rows(device) } else { crate::input::room_rows(device) };
+            egui::Grid::new("guide_grid").spacing([12.0, 6.0]).show(ui, |ui| {
+                for (glyphs, what) in rows {
+                    crate::menu::glyph_cell(ui, &glyphs, 20.0, style);
+                    ui.label(what);
                     ui.end_row();
                 }
             });
         });
     });
-}
-
-pub fn pause_menu(
-    ctx: &egui::Context,
-    device: Device,
-    scene: &str,
-    difficulty: Option<&mut pav_core::arpg::Difficulty>,
-) -> Option<MenuAction> {
-    let mut action = None;
-    let game = difficulty.is_some();
-    egui::Window::new(pav_core::t!("menu.paused"))
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .collapsible(false)
-        .resizable(false)
-        .max_width(760.0)
-        .show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                let resume = egui::Button::new(RichText::new(pav_core::t!("menu.resume")).size(18.0).strong())
-                    .fill(egui::Color32::from_rgb(240, 198, 112).gamma_multiply(0.85));
-                if ui.add(resume).clicked() {
-                    action = Some(MenuAction::Resume);
-                }
-                if ui.button(RichText::new(pav_core::t!("menu.pavilion")).size(16.0)).clicked() {
-                    action = Some(MenuAction::Pavilion);
-                }
-                if ui.button(RichText::new(pav_core::t!("menu.screenshot")).size(16.0)).clicked() {
-                    action = Some(MenuAction::Screenshot);
-                }
-                if ui.button(RichText::new(pav_core::t!("menu.quit")).size(16.0)).clicked() {
-                    action = Some(MenuAction::Quit);
-                }
-            });
-            ui.add_space(8.0);
-            // The engine's tools, as prominent here as on the plaza.
-            egui::Frame::new()
-                .fill(egui::Color32::from_rgba_unmultiplied(18, 16, 22, 200))
-                .corner_radius(egui::CornerRadius::same(10))
-                .inner_margin(egui::Margin::same(12))
-                .show(ui, |ui| {
-                    if let Some(tool) = pav_ui::directed(ui, |ui| pav_ui::tools::tools_panel(ui, 3)) {
-                        action = Some(MenuAction::Tool(tool));
-                    }
-                });
-            ui.add_space(6.0);
-            ui.label(RichText::new(pav_core::t!("dev.menu.room", room = scene)).small().weak());
-            ui.horizontal_wrapped(|ui| {
-                if ui.small_button(pav_core::t!("dev.menu.room_info")).clicked() {
-                    action = Some(MenuAction::RoomCard);
-                }
-                if ui.small_button(pav_core::t!("dev.menu.reset_scene")).clicked() {
-                    action = Some(MenuAction::Reset);
-                }
-                if !game
-                    && ui
-                        .button(pav_core::t!("dev.menu.how_it_works.key"))
-                        .on_hover_text(pav_core::t!("dev.menu.how_it_works.about"))
-                        .clicked()
-                {
-                    action = Some(MenuAction::Guide);
-                }
-                if !game
-                    && ui
-                        .button(pav_core::t!("dev.menu.field_guide"))
-                        .on_hover_text(pav_core::t!("dev.menu.field_guide.about"))
-                        .clicked()
-                {
-                    action = Some(MenuAction::FieldGuide);
-                }
-                if ui.small_button(pav_core::t!("dev.menu.feel")).clicked() {
-                    action = Some(MenuAction::Feel);
-                }
-                if ui.small_button(pav_core::t!("dev.menu.physics")).clicked() {
-                    action = Some(MenuAction::Physics);
-                }
-            });
-            let difficulty_shown = difficulty.is_some();
-            if let Some(d) = difficulty {
-                ui.separator();
-                crate::arpg_ui::difficulty_ui(ui, d);
-                ui.horizontal(|ui| {
-                    if ui.button(pav_core::t!("menu.new_hero")).on_hover_text(pav_core::t!("menu.new_hero.about")).clicked() {
-                        action = Some(MenuAction::NewHero);
-                    }
-                    ui.label(RichText::new(pav_core::t!("menu.saved")).small().weak());
-                });
-            }
-            ui.separator();
-            ui.label(RichText::new(pav_core::t!("dev.menu.load_scene")).strong());
-            for (name, about) in pav_core::scenes::menu() {
-                ui.horizontal(|ui| {
-                    if ui.button(name).clicked() {
-                        action = Some(MenuAction::LoadScene(name.to_string()));
-                    }
-                    ui.label(RichText::new(about).small());
-                });
-            }
-            ui.separator();
-            ui.label(RichText::new(pav_core::t!("menu.controls")).strong());
-            egui::Grid::new("menu_guide").show(ui, |ui| {
-                for (a, k) in if difficulty_shown { crate::input::game_guide(device) } else { crate::input::owned(guide(device)) }
-                {
-                    ui.label(a);
-                    ui.label(RichText::new(k).monospace());
-                    ui.end_row();
-                }
-            });
-            ui.label(RichText::new(pav_core::t!("dev.menu.system_keys")).small().weak());
-        });
-    action
 }
 
 pub fn toast(ctx: &egui::Context, msg: &str) {
@@ -339,122 +248,4 @@ pub fn touch_tips(ctx: &egui::Context, game: bool, swipes: &mut crate::touch::Sw
             });
         },
     );
-}
-
-/// Settings the touch menu changes in place.
-pub struct TouchMenu<'a> {
-    pub prefs: &'a mut crate::save::Prefs,
-    pub show_fps: &'a mut bool,
-    /// Shardfall's difficulty (None outside the game).
-    pub difficulty: Option<&'a mut pav_core::arpg::Difficulty>,
-    /// Somewhere a town portal can leave from.
-    pub portal: bool,
-    /// The scene's resolution now (percent of the screen's).
-    pub scale: f32,
-}
-
-/// The pause menu on touch screens: a column of big buttons, the settings that matter on a
-/// phone, and the rest folded away.
-pub fn touch_menu(ctx: &egui::Context, scene: &str, m: TouchMenu) -> Option<MenuAction> {
-    let mut action = None;
-    let screen = ctx.content_rect();
-    let w = (screen.width() - 32.0).min(380.0);
-    let game = m.difficulty.is_some();
-    egui::Window::new("Paused")
-        .title_bar(false)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .collapsible(false)
-        .resizable(false)
-        .min_width(w)
-        .max_width(w)
-        .show(ctx, |ui| {
-            // (A scroll area that shrinks to fit: the window's own would keep its full height.)
-            egui::ScrollArea::vertical()
-                .max_height(screen.height() - 40.0)
-                .show(ui, |ui| touch_menu_body(ui, w, scene, game, m, &mut action));
-        });
-    action
-}
-
-fn touch_menu_body(ui: &mut egui::Ui, w: f32, scene: &str, game: bool, m: TouchMenu, action: &mut Option<MenuAction>) {
-    ui.set_width(w);
-    let big = |ui: &mut egui::Ui, text: &str| ui.add_sized([w, 42.0], egui::Button::new(RichText::new(text).size(16.0)));
-    ui.vertical_centered(|ui| ui.label(RichText::new(pav_core::t!("menu.paused")).heading()));
-    if big(ui, &pav_core::t!("menu.resume")).clicked() {
-        *action = Some(MenuAction::Resume);
-    }
-    if m.portal && big(ui, &pav_core::t!("menu.town_portal")).clicked() {
-        *action = Some(MenuAction::TownPortal);
-    }
-    if big(ui, &pav_core::t!("menu.pavilion")).clicked() {
-        *action = Some(MenuAction::Pavilion);
-    }
-    ui.separator();
-    if game {
-        let on = m.prefs.auto_attack;
-        let label = if on { pav_core::t!("menu.auto_attack.on") } else { pav_core::t!("menu.auto_attack.off") };
-        if ui.add_sized([w, 38.0], egui::Button::new(label).selected(on)).clicked() {
-            m.prefs.auto_attack = !on;
-        }
-    }
-    let percent = (m.scale * m.scale * 100.0).round() as i64;
-    ui.label(RichText::new(pav_core::t!("menu.graphics", percent = percent)).small());
-    ui.horizontal(|ui| {
-        let bw = (w - 3.0 * ui.spacing().item_spacing.x) / 4.0;
-        for q in crate::quality::Quality::ALL {
-            if ui.add_sized([bw, 36.0], egui::Button::new(q.name()).selected(m.prefs.quality == q)).clicked() {
-                m.prefs.quality = q;
-            }
-        }
-    });
-    ui.horizontal(|ui| {
-        let bw = (w - ui.spacing().item_spacing.x) / 2.0;
-        if ui.add_sized([bw, 36.0], egui::Button::new(pav_core::t!("menu.show_fps")).selected(*m.show_fps)).clicked() {
-            *m.show_fps = !*m.show_fps;
-        }
-        if ui.add_sized([bw, 36.0], egui::Button::new(pav_core::t!("title.fullscreen"))).clicked() {
-            *action = Some(MenuAction::Fullscreen);
-        }
-    });
-    ui.separator();
-    egui::CollapsingHeader::new(pav_core::t!("menu.more")).id_salt("touch_more").show(ui, |ui| {
-        if let Some(d) = m.difficulty {
-            crate::arpg_ui::difficulty_ui(ui, d);
-            if ui.button(pav_core::t!("menu.new_hero")).clicked() {
-                *action = Some(MenuAction::NewHero);
-            }
-            ui.separator();
-        }
-        ui.horizontal_wrapped(|ui| {
-            for (label, a) in [
-                ("dev.menu.look", MenuAction::Look),
-                ("dev.menu.rooms", MenuAction::Rooms),
-                ("dev.menu.reset_scene", MenuAction::Reset),
-                ("dev.menu.tuning", MenuAction::Tuning),
-                ("dev.menu.feel", MenuAction::Feel),
-            ] {
-                if ui.button(pav_core::lines::text(label, &[])).clicked() {
-                    *action = Some(a);
-                }
-            }
-            if !game && ui.button(pav_core::t!("dev.menu.how_it_works")).clicked() {
-                *action = Some(MenuAction::Guide);
-            }
-        });
-        ui.label(RichText::new(pav_core::t!("dev.menu.load_scene.now", scene = scene)).strong());
-        ui.horizontal_wrapped(|ui| {
-            for (name, about) in pav_core::scenes::menu() {
-                if ui.button(name).on_hover_text(about).clicked() {
-                    *action = Some(MenuAction::LoadScene(name.to_string()));
-                }
-            }
-        });
-        ui.label(RichText::new(pav_core::t!("menu.controls")).strong());
-        for (a, k) in if game { crate::input::game_guide(Device::Touch) } else { crate::input::owned(guide(Device::Touch)) } {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(RichText::new(a).strong());
-                ui.label(k);
-            });
-        }
-    });
 }

@@ -409,12 +409,14 @@ impl GameUi {
             // A nudge above the experience bar.
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("points_hint")));
-            let at = Pos2::new(screen.center().x, screen.bottom() - 28.0);
-            p.text(
+            // Over the skill bar (its slots span 84 to 34 above the screen's bottom).
+            let at = Pos2::new(screen.center().x, screen.bottom() - 90.0);
+            crate::arpg_ui::rich(
+                &p,
                 at,
                 Align2::CENTER_BOTTOM,
-                t!("hud.points", count = inv.points),
-                FontId::proportional(14.0),
+                &pav_core::t_rich!("hud.points", count = inv.points),
+                15.0,
                 Color32::from_rgb(255, 215, 120),
             );
         }
@@ -573,8 +575,16 @@ impl GameUi {
                         }
                         resp.on_hover_ui(|ui| {
                             item_tooltip(ui, d, it, Some(&slot_title(slot)));
-                            let take_off = if self.pad { t!("hint.take_off.pad") } else { t!("hint.take_off") };
-                            ui.label(RichText::new(take_off).small().color(Color32::from_white_alpha(120)));
+                            if self.pad {
+                                crate::glyph::rich_label(
+                                    ui,
+                                    &pav_core::t_rich!("hint.take_off.pad"),
+                                    15.0,
+                                    Color32::from_white_alpha(200),
+                                );
+                            } else {
+                                ui.label(RichText::new(t!("hint.take_off")).small().color(Color32::from_white_alpha(120)));
+                            }
                         });
                     }
                 }
@@ -668,12 +678,32 @@ impl GameUi {
                         }
                     });
                 });
-                let footer = match (touch, pad) {
-                    (true, _) => t!("inventory.footer.touch", hint = hint_text),
-                    (_, true) => t!("inventory.footer.pad", hint = hint_text),
-                    _ => t!("inventory.footer", hint = hint_text),
-                };
-                ui.label(RichText::new(footer).small().color(Color32::from_white_alpha(120)));
+                if touch {
+                    let footer = t!("inventory.footer.touch", hint = hint_text);
+                    ui.label(RichText::new(footer).small().color(Color32::from_white_alpha(120)));
+                } else {
+                    // What the buttons do, drawn as the device's own: a row that reads from the sofa.
+                    let device = if pad { crate::Device::Gamepad } else { crate::Device::KeyboardMouse };
+                    let verb = if vendor {
+                        t!("item.sell")
+                    } else if stash {
+                        t!("item.stash")
+                    } else {
+                        t!("item.wear")
+                    };
+                    let g = |a: &str| crate::controls::glyphs(a, device);
+                    let mut prompts = vec![
+                        crate::glyph::Prompt { glyphs: g("confirm"), label: verb },
+                        crate::glyph::Prompt { glyphs: g("more"), label: t!("hint.more") },
+                        crate::glyph::Prompt { glyphs: g(if pad { "back" } else { "inventory" }), label: t!("hint.close") },
+                    ];
+                    if pad {
+                        prompts.push(crate::glyph::Prompt { glyphs: g("tabs"), label: t!("hint.panels") });
+                    }
+                    ui.add_space(2.0);
+                    crate::glyph::row_ui(ui, &prompts, 20.0, Color32::from_white_alpha(220));
+                    ui.label(RichText::new(t!("hint.upgrade")).color(Color32::from_rgb(120, 200, 120)));
+                }
             });
         if !open {
             self.inventory = false;
@@ -714,12 +744,15 @@ impl GameUi {
                             resp.on_hover_ui(|ui| {
                                 item_tooltip(ui, d, it, None);
                                 compare(ui, d, it, worn_for(inv, d, it));
-                                let buy = if self.pad {
-                                    t!("vendor.buy_hint.pad", count = price)
+                                if self.pad {
+                                    let buy = pav_core::t_rich!("vendor.buy_hint.pad", count = price);
+                                    crate::glyph::rich_label(ui, &buy, 15.0, Color32::from_rgb(255, 205, 70));
                                 } else {
-                                    t!("vendor.buy_hint", count = price)
-                                };
-                                ui.label(RichText::new(buy).color(Color32::from_rgb(255, 205, 70)));
+                                    ui.label(
+                                        RichText::new(t!("vendor.buy_hint", count = price))
+                                            .color(Color32::from_rgb(255, 205, 70)),
+                                    );
+                                }
                             });
                         });
                         if (i + 1) % 6 == 0 {
@@ -801,12 +834,17 @@ impl GameUi {
                         }
                     });
                 });
-                let help = match (touch, self.pad) {
-                    (true, _) => t!("hint.stash.touch"),
-                    (_, true) => t!("hint.stash.pad"),
-                    _ => t!("hint.stash"),
-                };
-                ui.label(RichText::new(help).small().color(Color32::from_white_alpha(120)));
+                match (touch, self.pad) {
+                    (true, _) => {
+                        ui.label(RichText::new(t!("hint.stash.touch")).small().color(Color32::from_white_alpha(120)));
+                    }
+                    (_, true) => {
+                        crate::glyph::rich_label(ui, &pav_core::t_rich!("hint.stash.pad"), 15.0, Color32::from_white_alpha(200));
+                    }
+                    _ => {
+                        ui.label(RichText::new(t!("hint.stash")).small().color(Color32::from_white_alpha(120)));
+                    }
+                }
             });
         if !open {
             self.panel = None;
@@ -1051,10 +1089,13 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
             // Signed whole percentages ("+12", "-5") and numbers to one or two places.
             let pct = |v: f32| format!("{:+.0}", v);
             let places = |v: f32, n: i32| ((v as f64) * 10f64.powi(n)).round() / 10f64.powi(n);
-            egui::Grid::new("sheet").num_columns(2).striped(true).show(ui, |ui| {
+            // One stat to a row, big enough to read across a room; a modifier still at its base
+            // ("+0%") stays off the sheet until something changes it.
+            let some = |v: f32| v.abs() > 0.5;
+            egui::Grid::new("sheet").num_columns(2).striped(true).spacing([24.0, 7.0]).show(ui, |ui| {
                 let mut row = |k: &str, v: String| {
-                    ui.label(t!(k));
-                    ui.label(RichText::new(v).color(Color32::from_rgb(235, 225, 200)));
+                    ui.label(RichText::new(t!(k)).size(16.0));
+                    ui.label(RichText::new(v).size(16.0).color(Color32::from_rgb(235, 225, 200)));
                     ui.end_row();
                 };
                 row("character.life", t!("character.regen", value = s.life_max.round() as i64, regen = places(s.life_regen, 1)));
@@ -1069,8 +1110,12 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                         speed = places(w.aps, 2)
                     ),
                 );
-                row("character.attack_speed", t!("character.percent", value = pct((s.attack_speed - 1.0) * 100.0)));
-                row("character.cast_speed", t!("character.percent", value = pct((s.cast_speed - 1.0) * 100.0)));
+                if some((s.attack_speed - 1.0) * 100.0) {
+                    row("character.attack_speed", t!("character.percent", value = pct((s.attack_speed - 1.0) * 100.0)));
+                }
+                if some((s.cast_speed - 1.0) * 100.0) {
+                    row("character.cast_speed", t!("character.percent", value = pct((s.cast_speed - 1.0) * 100.0)));
+                }
                 row(
                     "character.crit",
                     t!(
@@ -1080,10 +1125,12 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                     ),
                 );
                 row("character.armour", (s.armor.round() as i64).to_string());
-                row(
-                    "character.evade_block",
-                    t!("character.evade_block.value", evade = s.evasion.round() as i64, block = s.block.round() as i64),
-                );
+                if some(s.evasion) || some(s.block) {
+                    row(
+                        "character.evade_block",
+                        t!("character.evade_block.value", evade = s.evasion.round() as i64, block = s.block.round() as i64),
+                    );
+                }
                 row(
                     "character.resists",
                     t!(
@@ -1094,14 +1141,24 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                         poison = s.res[4].round() as i64
                     ),
                 );
-                row("character.movement", t!("character.percent", value = pct((s.move_speed - 1.0) * 100.0)));
-                row("character.cooldowns", t!("character.faster", value = pct((s.cooldown - 1.0) * 100.0)));
-                row("character.area", t!("character.percent", value = pct((s.area - 1.0) * 100.0)));
-                row(
-                    "character.rarity_gold",
-                    t!("character.rarity_gold.value", rarity = pct(s.item_rarity), gold = pct(s.gold_find)),
-                );
-                row("character.experience", t!("character.percent", value = pct((s.xp_gain - 1.0) * 100.0)));
+                if some((s.move_speed - 1.0) * 100.0) {
+                    row("character.movement", t!("character.percent", value = pct((s.move_speed - 1.0) * 100.0)));
+                }
+                if some((s.cooldown - 1.0) * 100.0) {
+                    row("character.cooldowns", t!("character.faster", value = pct((s.cooldown - 1.0) * 100.0)));
+                }
+                if some((s.area - 1.0) * 100.0) {
+                    row("character.area", t!("character.percent", value = pct((s.area - 1.0) * 100.0)));
+                }
+                if some(s.item_rarity) || some(s.gold_find) {
+                    row(
+                        "character.rarity_gold",
+                        t!("character.rarity_gold.value", rarity = pct(s.item_rarity), gold = pct(s.gold_find)),
+                    );
+                }
+                if some((s.xp_gain - 1.0) * 100.0) {
+                    row("character.experience", t!("character.percent", value = pct((s.xp_gain - 1.0) * 100.0)));
+                }
             });
             let m = &s.mods;
             let incs: Vec<String> = [
@@ -1249,12 +1306,13 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Hero => t!("spot.verb.hero"),
                 SpotKind::Gate => t!("tools.gate.use"),
             };
-            p.text(
-                at + EVec2::new(0.0, 18.0),
+            crate::arpg_ui::rich(
+                &p,
+                at + EVec2::new(0.0, 20.0),
                 Align2::CENTER_CENTER,
-                t!("spot.hint", action = what),
-                FontId::proportional(12.0),
-                Color32::from_white_alpha(220),
+                &pav_core::t_rich!("spot.hint", action = what),
+                15.0,
+                Color32::from_white_alpha(230),
             );
         }
     }

@@ -5,6 +5,78 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Controller first: drawn prompts, D-pad menus, a TV's scale, the DualSense, touch upright — 2026-11-17
+
+The second part of the user's controls pass: "Design the game around a PS5 DualSense (or any pad
+the browser reports in its standard mapping) played on a TV at 10 feet. With keyboard and mouse,
+it's the same game on the same screens... On-screen prompts follow the input used last:
+PlayStation glyphs for the controller (with a Settings option to show Xbox glyphs)... Do not use
+overly dense, web-style data screens. Tertiary: touch-only devices... portrait and landscape."
+Not a redesign: the game's own controls stay; how they are shown, reached and felt changed.
+- **One table** (`pav_ui::controls`): which pad button, key and mouse button does what, in play
+  (`GAME_PAD`), in the pavilion (`ROOM_PAD`) and in menus. The input maps the pad with it
+  (`input.rs` now names buttons as the standard mapping and a DualSense do, `PadButton`), and
+  every prompt draws from it, so the two cannot disagree. Hook games get it too:
+  `Game::prompts` returns `(action, what)` and the engine draws the glyphs (the starter's).
+- **Prompts** (`pav_ui::glyph`): drawn shapes, not font symbols (the game's fonts have no ✕ ○ □
+  △): PlayStation's coloured symbols by default, Xbox's lettered buttons in Settings, keycaps and
+  mouse buttons on a keyboard, a D-pad with its arm lit. They follow the device used last. Lines
+  write `{key:action}` and `t_rich!` draws it with glyphs inline (`lines::rich`; a right-to-left
+  language keeps plain names). The skill bar, potion, map, world prompts, the plaza's buttons,
+  window footers ("✕ Wear  □ More  ○ Close  L1 R1 Panels"), the hint bar and the guide panel use
+  them; a glyph with no letters still says its name to the tools' text reading.
+- **Menus on a controller** (`pav_ui::padnav`), for every egui window as it is: the D-pad or the
+  stick moves to the nearest clickable item in that direction (read from the last frame's widget
+  rects, the open windows only, a popup alone when one is open), a gold ring shows it, egui's
+  pointer sits on it so hover, tooltips and clicks work as with a mouse; Cross and Square click,
+  Triangle is Shift, the right stick scrolls, Circle goes back, a slider takes left and right as
+  its keys, a canvas (the passive tree) gets a free pointer. The pad starts where the mouse was.
+- **The pause menu** (`menu.rs`) replaced both the dense desktop menu (buttons, tools, dev
+  switches, the scene list and the controls table in one window) and the touch menu: one column
+  of big buttons, the same on every device, with pages: Settings (button prompts, vibration,
+  sound effects, menu and HUD size, graphics, show FPS, language, full screen; auto-attack on
+  touch; inside 52in1 a line that its own settings apply on top), Controls (the device's glyphs),
+  Difficulty (and New hero), Engine tools, Developer (looks, tuning, rooms, feel, physics,
+  reset, screenshot, every scene). Circle or Esc goes back a page.
+- **Ten feet** (`pav_ui::ten_foot_zoom`): the UI is laid out for 720 and grows with the screen
+  (1080p half as big again, up to three times), times Settings' size (0.85, 1, 1.2); the studios
+  keep a desk's size, touch keeps its own scale. The character sheet shows a modifier only when
+  it is not at its base (a new hero: seven rows, not fourteen with "+0%").
+- **The controller's extras** (`pad_fx.rs`): short rumbles that say something on any pad that
+  has them (the browser's dual-rumble, gilrs's force feedback natively; Settings turns it off,
+  52in1 scales it); a DualSense in 52in1 (`window.AIHubSettings.dualsense`, each while allowed)
+  shows the hero's life on the light bar (green, amber, red, a red pulse near death; the hub's
+  glow outside the game), makes R2 stiff while the sixth skill can't be cast and a light click
+  when it can, and turns panels with a touchpad swipe; the touchpad's press (button 17) opens
+  the map on any DualSense. `hub:dualsense` names light bar, adaptive triggers, haptics and
+  touchpad. Motion aim needs nothing: 52in1 adds the gyro to the right stick, which aims.
+- **Touch**: both ways up. The page no longer asks to turn the phone or locks landscape (the
+  camera already keeps its field of view across a tall screen); a quick sideways flick across a
+  window closes it, as a tap on the game does (the passive tree, which pans, keeps it).
+- **Decided:**
+  - Prompts are drawn, not printed: a font with ✕ ○ □ △ for every language would be a binary
+    asset to approve, and shapes read better at ten feet.
+  - Menus snap a pointer to widgets rather than use egui's keyboard focus: egui's directional
+    focus searches every window at once (the D-pad could jump from the bag to a loot label),
+    and snapping keeps hover tooltips and right clicks working as they do with a mouse.
+  - The game's own button layout stays (dodge on Cross, use on D-pad right): the user asked for
+    standardization, not a redesign; menus and prompts follow the console conventions.
+  - The trigger and light bar speak only through 52in1 (the game never opens the controller,
+    as the catalogue requires); outside it a DualSense still rumbles and its touchpad opens the
+    map.
+- **Found on the way:** egui labels are selectable by default, so every label was a click
+  target (and a stop for the pad): the game's style turns that off. `scripts/smoke-linux.sh`
+  opened the game on WSLg's Wayland desktop instead of its Xvfb (winit prefers Wayland when
+  `WAYLAND_DISPLAY` is set) and needed `xwd`, which this machine lacks: it unsets it and falls
+  back to ffmpeg's screen grab. The passive-points nudge sat under the skill bar: it is above it.
+- **Checked:** `controls`, `glyph` and `padnav` tests (one pad button per game bit and prompts
+  that match it, labels by device and style, markers read as names, D-pad steps to the nearest
+  item in line, a real egui window walked and clicked, a menu drawn a frame late starting on its
+  first item); `pav_tools/tests/game_ui.rs` reads the glyph prompts; the native game under Xvfb
+  driven by a pad script (Options, Down, Cross, Down, Down: the pause menu into Settings, the
+  ring on the fourth row); captures at 1080p on pad and keyboard, and touch upright and
+  sideways.
+
 ## 52in1: one page for every mode, moments, versus and the player's settings — 2026-11-17
 
 The user asked for a pass making the engine and game compliant with every 52in1 protocol and

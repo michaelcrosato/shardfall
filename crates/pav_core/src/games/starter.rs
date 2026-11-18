@@ -204,6 +204,10 @@ impl Game for Starter {
         lines
     }
 
+    fn prompts(&self, _sim: &Sim) -> Vec<(&'static str, String)> {
+        vec![("move", "Collect the shards, keep clear of the slimes".to_string())]
+    }
+
     fn status(&self, sim: &Sim) -> serde_json::Value {
         let xz = |id: EntityId| sim.feet(id).map(|f| [round(f.x), round(f.z)]);
         json!({

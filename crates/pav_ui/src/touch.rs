@@ -8,7 +8,8 @@
 //! - Attacks are automatic: the first skill strikes the nearest foe in reach, and while the
 //!   stick is still the hero steps in to one that is fighting it ([`pick_target`]).
 //! - Temporary things on screen (messages, banners, notes, the minimap) are swiped away
-//!   ([`Swipes`]); a tap on the open game closes windows.
+//!   ([`Swipes`]); a tap on the open game closes windows, and so does a flick across a window
+//!   (sideways, quick: the passive tree, which pans by dragging, keeps it).
 //! - A touch that lands on a window goes to egui as its pointer.
 //!
 //! Positions are egui points (CSS pixels in the browser).
@@ -53,6 +54,9 @@ const HOLD: f32 = 0.32;
 const STICK_R: f32 = 56.0;
 /// How far a skill drag goes for a ground skill's full range.
 const AIM_DRAG: f32 = 110.0;
+/// A flick that sends a window away: this far sideways (points), within `FLICK_TIME` seconds.
+const FLICK: f32 = 110.0;
+const FLICK_TIME: f32 = 0.45;
 /// A tap: shorter than this and moving less than `TAP_SLOP`.
 const TAP_TIME: f32 = 0.3;
 const TAP_SLOP: f32 = 14.0;
@@ -78,6 +82,8 @@ struct Finger {
     frames: u32,
     /// Furthest it has been from where it started.
     travel: f32,
+    /// The window it landed on (egui's layer), if any.
+    layer: Option<egui::LayerId>,
 }
 
 impl Finger {
@@ -135,6 +141,8 @@ pub struct Intent {
     pub ui: Vec<Control>,
     /// A tap on the open game (closes windows).
     pub world_tap: bool,
+    /// A window flicked away sideways: the layer it was on.
+    pub flicked: Option<egui::LayerId>,
 }
 
 /// What the controls show this frame.
@@ -161,13 +169,15 @@ pub struct Touch {
     /// Skills let go after aiming by hand: the slot and the drag (points, screen axes).
     flicks: Vec<(u8, EVec2)>,
     world_tap: bool,
+    flicked: Option<egui::LayerId>,
     pub swipes: Swipes,
 }
 
 impl Touch {
-    /// A new finger. `ui` is the order of the egui layer under it, if any. Returns true when
-    /// egui should get this touch.
-    pub fn down(&mut self, id: u64, pos: Pos2, ui: Option<egui::Order>) -> bool {
+    /// A new finger. `layer` is the egui layer under it, if any. Returns true when egui should
+    /// get this touch.
+    pub fn down(&mut self, id: u64, pos: Pos2, layer: Option<egui::LayerId>) -> bool {
+        let ui = layer.map(|l| l.order);
         let stick_free = !self.fingers.values().any(|f| f.owner == Owner::Stick);
         let owner = if let Some(p) = self.placed.iter().find(|p| p.top && p.hit(pos)) {
             self.downs.push(p.control);
@@ -187,7 +197,8 @@ impl Touch {
         } else {
             Owner::World
         };
-        self.fingers.insert(id, Finger { owner, start: pos, pos, anchor: pos, t0: Instant::now(), frames: 0, travel: 0.0 });
+        self.fingers
+            .insert(id, Finger { owner, start: pos, pos, anchor: pos, t0: Instant::now(), frames: 0, travel: 0.0, layer });
         if owner == Owner::Egui && self.egui_finger.is_none() {
             self.egui_finger = Some(id);
         }
@@ -239,6 +250,13 @@ impl Touch {
             }
             Owner::Swipe(s) => self.swipes.release(s, pos - f.start, f.quick(), f.tap() && !cancelled),
             Owner::Stick | Owner::World if f.tap() && !cancelled => self.world_tap = true,
+            Owner::Egui if !cancelled && f.age() < FLICK_TIME => {
+                // A quick sideways flick across a window sends it away.
+                let d = pos - f.start;
+                if d.x.abs() > FLICK && d.x.abs() > 2.0 * d.y.abs() {
+                    self.flicked = f.layer;
+                }
+            }
             _ => {}
         }
         f.owner == Owner::Egui
@@ -292,8 +310,12 @@ impl Touch {
         for f in self.fingers.values_mut() {
             f.frames += 1;
         }
-        let mut it =
-            Intent { move_axis: self.stick_axis(), world_tap: std::mem::take(&mut self.world_tap), ..Default::default() };
+        let mut it = Intent {
+            move_axis: self.stick_axis(),
+            world_tap: std::mem::take(&mut self.world_tap),
+            flicked: self.flicked.take(),
+            ..Default::default()
+        };
         let downs = std::mem::take(&mut self.downs);
         let taps = std::mem::take(&mut self.taps);
         let flicks = std::mem::take(&mut self.flicks);
@@ -923,7 +945,7 @@ mod tests {
         let it = t.intent(None, |v| v, true);
         assert!(it.pressed & buttons::DODGE != 0);
         // A window under a finger: egui gets it.
-        assert!(t.down(3, Pos2::new(400.0, 200.0), Some(egui::Order::Middle)));
+        assert!(t.down(3, Pos2::new(400.0, 200.0), Some(egui::LayerId::new(egui::Order::Middle, egui::Id::new("w")))));
         assert!(t.is_egui_pointer(3));
         assert!(t.up(3, Pos2::new(400.0, 200.0), false));
         // A quick tap on the open game (the stick lifted at once) closes windows.

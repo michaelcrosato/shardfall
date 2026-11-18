@@ -106,6 +106,7 @@ impl Game for MyGame {
         -> BTreeMap<EntityId, InputFrame>;          // before movement: inputs for characters you drive
     fn post(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>); // after physics: rules
     fn hud(&self, sim: &Sim) -> Vec<String>;        // text lines, top left; `play` returns them
+    fn prompts(&self, sim: &Sim) -> Vec<(&'static str, String)>; // ("move", "Collect the shards"): drawn as the pad's or keys' glyphs
     fn status(&self, sim: &Sim) -> serde_json::Value; // your state for tools and tests
     fn outcome(&self) -> Outcome;                   // Playing | Won | Lost
     fn bot(&self, sim: &Sim) -> InputFrame;         // what a good player would press now
@@ -136,6 +137,23 @@ your own. From outside, `sim.play()?.get::<MyGame>()` reads your game; in a test
 | Tuning | your numbers: the level's `[game]`; the engine's: `pav params`, `pav set path=movement.speed value=4.5` (movement, physics, camera, view), and a level's `[params]` set them while in it |
 | Looks | the level's `[view]`; `pav look` lists looks and filters; `rooms/mix_match.toml` mixes styles per part |
 | Animation | characters animate procedurally; motion clips: `pav assets shelf=clip`, then `clips = ["SET/Clip"]` on an `[[npc]]` |
+
+## Controls: controller first, the same game on every device
+Design for a controller on a TV across the room (a DualSense, or any pad the browser maps in
+the standard layout); keyboard and mouse play the same game on the same screens with the keys PC
+players expect; touch is an add-on. The engine does the plumbing (`pav_ui::controls` is the
+one table of which button, key or mouse button does what):
+- **Play** reads `InputFrame` bits: `buttons::JUMP` is Cross / Space, `USE` Square / F, `CROUCH`
+  Circle / C, `CRAWL` Triangle / Z, `INTERACT` D-pad right / E, `FOCUS` L2 / Shift; `move_dir`
+  is the left stick / WASD, `aim` the right stick / mouse (52in1's motion aim adds gyro to it).
+- **Prompts** follow the device used last, drawn, never typed: return them from `prompts`, or
+  write `{key:action}` in a line and draw it with `t_rich!` (PlayStation symbols by default,
+  Xbox letters in Settings, keycaps and mouse buttons on a keyboard).
+- **Menus** are egui windows: the D-pad moves between their items, Cross takes, Square is the
+  item's other action, Circle goes back, Options pauses (`pav_ui::padnav`). Keep them big and
+  sparse: one thing to a row. PS and Create + Options together are 52in1's: never use them.
+- **Touch** gets its own on-screen controls; automate what is low skill there (attack the
+  nearest foe, fire when not aiming) without changing play on a pad or keys.
 
 ## Rules that keep it working
 - **Same inputs and seed, same game.** Random numbers come from `sim.state.rng`; never read the

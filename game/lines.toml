@@ -13,7 +13,7 @@
 language = "en"
 names = [
     "Shardfall", "Pavilion", "Emberwatch", "Hilda", "Odo", "Wren", "Wanderer", "Kestrel", "Ysolde",
-    "Hollow King", "Cinder Wyrm", "Menagerie", "AI Hub",
+    "Hollow King", "Cinder Wyrm", "Menagerie", "52in1",
 ]
 brief = """
 Shardfall is a fast hack-and-slash action RPG: the player takes a hero from the town of Emberwatch down through levels of a shattered underworld, the Depths, fighting monsters, picking up loot and growing a passive skill tree. The tone is classic dark fantasy with a light touch: short, punchy lines, a little dry humour from the townsfolk, never grim for its own sake.
@@ -108,7 +108,6 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "page.webgpu" = "{name} needs WebGPU."
 "page.webgpu_help" = "Use a recent Chrome, Edge or Safari (iOS 26 or later) with hardware acceleration enabled."
 "page.failed" = "{name} could not load. Please reload the page. If it still fails, check that WebGPU and hardware acceleration are enabled."
-"page.turn" = "Turn your phone sideways for the best view"
 
 # The pause menu.
 "menu.paused" = "Paused"
@@ -134,6 +133,24 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "menu.quality.high" = "High"
 "menu.show_fps" = "Show FPS"
 "menu.more" = "More"
+"menu.settings" = "Settings"
+"menu.difficulty" = "Difficulty"
+"menu.tools" = "Engine tools"
+"menu.developer" = "Developer"
+"menu.back" = "Back"
+"settings.on" = "On"
+"settings.off" = "Off"
+"settings.prompts" = "Button prompts"
+"settings.prompts.playstation" = "PlayStation"
+"settings.prompts.xbox" = "Xbox"
+"settings.vibration" = "Vibration"
+"settings.effects" = "Sound effects"
+"settings.ui_size" = "Menu and HUD size"
+"settings.ui_size.small" = "Small"
+"settings.ui_size.medium" = "Medium"
+"settings.ui_size.large" = "Large"
+"settings.auto_attack" = "Auto-attack"
+"settings.hub" = "52in1's own settings (volume, vibration, the controller's extras) apply on top of these: open them from 52in1's bar."
 
 # First-time tips on a touch screen: what to do, then how.
 "touch.tips" = "Playing by touch"
@@ -434,16 +451,16 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "compare.lose" = "lose: {what}"
 "compare.none" = "no stat changes"
 "hint.take_off" = "Click: take off"
-"hint.take_off.pad" = "A: take off"
+"hint.take_off.pad" = "{key:confirm}: take off"
 "hint.bag.touch" = "Tap an item: what it is and what to do with it"
 "hint.bag.wear" = "Click: wear · Right-click: more"
-"hint.bag.wear.pad" = "A: wear · X: more"
+"hint.bag.wear.pad" = "{key:confirm}: wear · {key:more}: more"
 "hint.bag.sell" = "Click: sell · Right-click: more"
-"hint.bag.sell.pad" = "A: sell · X: more"
+"hint.bag.sell.pad" = "{key:confirm}: sell · {key:more}: more"
 "hint.bag.stash" = "Click: stash · Right-click: more"
-"hint.bag.stash.pad" = "A: stash · X: more"
+"hint.bag.stash.pad" = "{key:confirm}: stash · {key:more}: more"
 "hint.stash" = "Click: take into the bag"
-"hint.stash.pad" = "A: take into the bag"
+"hint.stash.pad" = "{key:confirm}: take into the bag"
 "hint.stash.touch" = "Tap an item: what it is, and take it"
 "ui.close" = "Close"
 
@@ -457,7 +474,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "inventory.auto_pickup.unique" = "unique"
 "inventory.auto_pickup.off" = "off"
 "inventory.footer" = "{hint}   ·   green frame: an upgrade   ·   {key:inventory} to close"
-"inventory.footer.pad" = "{hint}   ·   green frame: an upgrade   ·   B to close · LB/RB: panels"
+"inventory.footer.pad" = "{hint}   ·   green frame: an upgrade   ·   {key:back}: close · {key:tabs}: panels"
 "inventory.footer.touch" = "{hint}   ·   green frame: an upgrade"
 "character.title" = "Character"
 "character.heading" = "{name}  ·  Level {level}"
@@ -512,8 +529,12 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "tree.reset" = { one = "Reset all ({count} gold)", other = "Reset all ({count} gold)" }
 "tree.centre" = "Centre"
 "tree.help" = "click: take · shift-click: take the path · right-click: refund · drag: pan · wheel: zoom · {key:tree} to close"
-"tree.help.pad" = "A: take · Y+A: take the path · X: refund · hold A + stick: pan · right stick: zoom · B to close · LB/RB: panels"
+"tree.help.pad" = "{key:confirm}: take · {key:alt} + {key:confirm}: take the path · {key:more}: refund · hold {key:confirm} + stick: pan · {key:scroll}: zoom · {key:back}: close · {key:tabs}: panels"
 "tree.help.touch" = "tap: show · tap again: take · drag: pan · pinch: zoom"
+"tree.pad.take" = "Take"
+"tree.pad.path" = "Take the path"
+"tree.pad.refund" = "Refund"
+"tree.pad.zoom" = "Zoom"
 "tree.take" = "Take"
 "tree.take_path" = { one = "Take the path ({count} point)", other = "Take the path ({count} points)" }
 "tree.choose" = "Choose an option"
@@ -538,7 +559,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 # of Heroes and the Menagerie.
 "vendor.greeting" = "\"Steel for coin. Bring me what you don't need.\""
 "vendor.buy_hint" = { one = "Buy for {count} gold (click)", other = "Buy for {count} gold (click)" }
-"vendor.buy_hint.pad" = { one = "Buy for {count} gold (A)", other = "Buy for {count} gold (A)" }
+"vendor.buy_hint.pad" = { one = "Buy for {count} gold ({key:confirm})", other = "Buy for {count} gold ({key:confirm})" }
 "vendor.buy_back" = "Buy back"
 "vendor.buy_back_for" = { one = "Buy back for {count} gold", other = "Buy back for {count} gold" }
 "vendor.sell_normal" = "Sell all normal"
@@ -690,6 +711,18 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "controls.in_menus" = "In menus"
 "controls.pad.in_menus" = "stick: cursor · A click · X right-click · hold Y: shift · right stick scroll · B close"
 "controls.menu" = "Menu"
+"controls.menu_move" = "Move between items"
+"controls.menu_take" = "Choose: wear, buy, take"
+"controls.menu_more" = "The item's other actions"
+"controls.menu_back" = "Back, close"
+"controls.menu_tabs" = "Switch panels"
+"hint.inventory" = "Inventory"
+"hint.passives" = "Passives"
+"hint.hero" = "Hero"
+"hint.more" = "More"
+"hint.close" = "Close"
+"hint.panels" = "Panels"
+"hint.upgrade" = "Green frame: an upgrade"
 "controls.attack" = "Attack"
 "controls.touch.move" = "put a thumb down anywhere and drag"
 "controls.touch.attack" = "automatic: the nearest foe in reach"
@@ -705,7 +738,13 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "controls.touch.close" = "tap the game outside it"
 
 [notes]
-"menu.graphics" = "Over the quality buttons in the touch pause menu; {percent} is a whole number."
+"menu.graphics" = "Over the graphics quality buttons in the pause menu's settings; {percent} is a whole number."
+"settings.prompts" = "Settings: which controller's button names the game shows. The choices are the consoles' names: keep them as they are."
+"settings.prompts.playstation" = "A console's name: keep it."
+"settings.prompts.xbox" = "A console's name: keep it."
+"settings.hub" = "Under the game's settings when the game runs inside 52in1 (the game hub; keep its name as it is)."
+"settings.ui_size" = "Settings: how big the menus and on-screen displays are (for a TV across the room, or a desk)."
+"controls.menu_take" = "On a controller, what Cross (A) does in a menu: picks the item (wears it, buys it, takes it)."
 "menu.quality.auto" = "A graphics quality button: chosen by the device. One short word."
 "touch.tips.move" = "Beside the line 'Move' in a two-column list of touch tips: how to do it."
 "page.loading" = "On the page while the game loads. {name} is the game's name."
@@ -780,7 +819,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "slot.offhand" = "The slot for a shield or a focus, held in the other hand."
 "doll.weapon" = "Faint, inside an empty slot of the paper doll: what goes there. Lowercase, one short word."
 "compare.lose" = "In an item's comparison: something the hero loses by wearing it. {what} is a modifier (stat.*) or a power (power.*)."
-"hint.bag.wear.pad" = "On a gamepad: A and X are its buttons."
+"hint.bag.wear.pad" = "On a gamepad: {key:...} is drawn as the button (Cross or A, Square or X)."
 "inventory.footer" = "Small, under the bag: {hint} is a hint.bag line, then the key that closes the window."
 "inventory.auto_pickup" = "Which items the hero picks up by walking over them."
 "inventory.auto_pickup.magic" = "Magic items and better ones."

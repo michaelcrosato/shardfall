@@ -22,17 +22,10 @@
            outline: none; touch-action: none; }
   #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
          font: 18px system-ui, sans-serif; color: #c9ccd4; text-align: center; padding: 24px; pointer-events: none; }
-  /* Phones held upright: a hint to turn sideways that fades by itself. */
-  #turn { display: none; position: fixed; left: 50%; top: 12px; transform: translateX(-50%); padding: 8px 14px;
-          border-radius: 18px; background: rgba(0, 0, 0, 0.6); color: #ffd690; font: 14px system-ui, sans-serif;
-          pointer-events: none; animation: fade 1s 5s forwards; }
-  @media (orientation: portrait) and (pointer: coarse) { #turn { display: block; } }
-  @keyframes fade { to { opacity: 0; } }
 </style>
 </head>
 <body>
 <div id="msg" role="status" aria-live="polite"></div>
-<div id="turn"></div>
 <script>
   // The page's own words, before the game runs: lines from the game-lines block (and a
   // translation's, when the page has one for ?lang= or the browser's language). The game
@@ -49,7 +42,6 @@
       return line.replace(/\{(\w+)\}/g, (tag, k) => (k in values ? String(values[k]) : tag));
     };
   })();
-  document.getElementById('turn').textContent = pageLine('page.turn', 'Turn your phone sideways for the best view');
 
   // 52in1 sessions (AI Hub Session Protocol v1, docs/AI_HUB.md). With the session client in the
   // page (the hub's build) and the hub's frame around it, this joins the round at once, keeps
@@ -117,6 +109,46 @@
         });
       },
       takeSettingsChanged: () => { const c = bridge.settingsChanged; bridge.settingsChanged = false; return c; },
+      // The controller's extras (pad_fx.rs). Rumble on every pad that has it (52in1 scales it
+      // by the player's vibration); the light bar and the triggers through 52in1 only, while the
+      // player allows them; the game never opens the controller itself.
+      rumble: (strong, weak, ms) => {
+        for (const p of navigator.getGamepads ? navigator.getGamepads() : []) {
+          if (p && p.connected && p.vibrationActuator && p.vibrationActuator.playEffect) {
+            p.vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: ms, strongMagnitude: strong, weakMagnitude: weak })
+              .catch(() => {});
+          }
+        }
+      },
+      light: (color) => {
+        const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
+        if (ds && ds.light) ds.light(color || null);
+      },
+      trigger: (which, effect) => {
+        const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
+        if (ds && ds.trigger) ds.trigger(which, effect ? JSON.parse(effect) : null);
+      },
+      // Bit 0: the touchpad pressed since the last call (the standard mapping's button 17);
+      // bits 1-2: a swipe across it, left (1) or right (2), from 52in1's DualSense touches.
+      padExtra: () => {
+        let out = 0;
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const down = [...pads].some((p) => p && p.connected && p.mapping === 'standard' && p.buttons[17] && p.buttons[17].pressed);
+        if (down && !bridge.touchpadDown) out |= 1;
+        bridge.touchpadDown = down;
+        const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
+        if (ds && ds.connected && ds.touchpad) {
+          const t = (ds.touches || [])[0];
+          if (t && !bridge.swipe) bridge.swipe = { x0: t.x, x: t.x };
+          else if (t) bridge.swipe.x = t.x;
+          else if (bridge.swipe) {
+            const dx = bridge.swipe.x - bridge.swipe.x0;
+            if (Math.abs(dx) > 0.3) out |= dx < 0 ? 2 : 4;
+            bridge.swipe = null;
+          }
+        }
+        return out;
+      },
     });
     if (window.AIHubSettings && window.AIHubSettings.addEventListener) {
       window.AIHubSettings.addEventListener('change', () => { bridge.settingsChanged = true; });
@@ -140,15 +172,14 @@
       const c = document.querySelector('canvas');
       if (c) { c.setAttribute('aria-label', `${name} game`); msg.remove(); c.focus(); obs.disconnect(); }
     }).observe(document.body, { childList: true });
-    // Phones and tablets: the first tap goes full screen and turns sideways, where the browser
-    // allows it (Android; an iPhone keeps its bars, or plays full screen from the home screen).
+    // Phones and tablets: the first tap goes full screen, where the browser allows it (Android;
+    // an iPhone keeps its bars, or plays full screen from the home screen). Upright or sideways
+    // both play: the HUD and the camera follow the screen's shape.
     if (matchMedia('(pointer: coarse)').matches) {
       addEventListener('pointerup', () => {
         const el = document.documentElement;
         if (!document.fullscreenElement && el.requestFullscreen) {
-          el.requestFullscreen({ navigationUI: 'hide' })
-            .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'))
-            .catch(() => {});
+          el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
         }
       }, { once: true, capture: true });
     }

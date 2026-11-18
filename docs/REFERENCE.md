@@ -288,29 +288,53 @@ end back to back.
 From WSL2 you can launch the Windows build directly: `./target/x86_64-pc-windows-gnu/dist/shardfall.exe`.
 
 ## Controls
+Controller first (a DualSense, or any pad the browser or gilrs maps in the standard layout, on a
+TV at ten feet); keyboard and mouse play the same game on the same screens; touch is an add-on.
+`pav_ui::controls` is the one table of what each pad button, key and mouse button does: the
+input reads it and every prompt draws from it. Prompts follow the device used last and are
+drawn, not typed (`pav_ui::glyph`): PlayStation's ✕ ○ □ △ by default, Xbox's A B X Y in
+Settings, keycaps and mouse buttons on a keyboard. Lines write `{key:action}` and draw it with
+`t_rich!`; hook games return `Game::prompts`. The UI grows with the screen
+(`pav_ui::ten_foot_zoom`: 1080p is half as big again as 720p) times Settings' size.
+
 Keyboard+mouse: WASD move, Space jump (hold = higher), C/Ctrl crouch, Z crawl toggle, F or left
 click throw bomb at the cursor, Shift walk slowly, walk into ladders to climb, jump at a ledge
 and keep pushing toward it to grab it (push again/Space = pull up, C = drop), Space/C swim up/down,
 committed model: C while running = dodge roll; right-drag rotate camera, wheel zoom, 1–8 camera
-presets. Gamepad: left stick move, right stick aim, A jump,
-B crouch, Y crawl, X/RT bomb, LT slow, LB/RB rotate camera, D-pad zoom, Start menu, Back rewind.
+presets. Controller: left stick move, right stick aim, Cross jump, Circle crouch, Triangle crawl,
+Square/R2 bomb, L2 slow, L1/R1 rotate camera, D-pad zoom, Options menu, hold Create rewind.
 
 Shardfall: WASD move, LMB/RMB/Q/E/R/F skills, Space dodge, 1 potion, Shift attack in place,
 G use (vendor, stash, portal, gambler, alchemist, the way down, cursed chests), I/Tab
-inventory, P passive tree, C character, K skills, M map, T town portal; gamepad
-X/Y/B/RB/LB/RT skills, A dodge, D-pad up potion, D-pad right use, D-pad left map, D-pad down
-panels (LB/RB switch); in any window or the menu the stick drives a cursor (A click, X
-right-click, hold Y shift, right stick scroll, B close). Controller flows can be scripted and
-screenshotted: `shardfall --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y]
-[hold=A,Y] [tap=DPadDown]`, see `PadScript` in input.rs).
+inventory, P passive tree, C character, K skills, M map, T town portal. Controller: Square,
+Triangle, Circle, R1, L1, R2 skills, Cross dodge, L2 attack in place, D-pad up potion, D-pad
+right use, D-pad left or the touchpad's press map, D-pad down the hero's panels (L1/R1 or a
+touchpad swipe turn them), Options the menu.
+
+Menus on a controller (`pav_ui::padnav`, every egui window as it is): the D-pad or the left stick
+moves between the items (a gold ring shows which), Cross takes, Square is the item's other
+action (right click), Triangle is Shift, the right stick scrolls, Circle goes back; a slider
+takes the D-pad's left and right; on the passive tree the stick moves a pointer. The pad starts
+from the item the mouse was on. PS and Create + Options together are 52in1's: unused. The pause
+menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
+sound effects, menu and HUD size, graphics, language; auto-attack on touch), Controls (the
+device's glyphs), Difficulty, Engine tools, Developer.
+
+The controller's extras (pad_fx.rs): short rumbles on any pad that has them (hurt, crits, slams
+and blasts close by, a level-up, a unique, death); a DualSense in 52in1 (`hub:dualsense`) also
+shows the hero's life on its light bar, makes R2 stiff while its skill can't be cast, and turns
+panels with a touchpad swipe. Controller flows can be scripted and screenshotted: `shardfall
+--pad-script FILE` (lines `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]`,
+see `PadScript` in input.rs).
 
 Touch (phones, tablets; the browser build): put a thumb down anywhere and drag to move (an
 invisible stick); attacks are automatic (the nearest foe in reach; a menu setting); the fan in
 the bottom right: dodge (big button), skills (tap: at the nearest foe · drag: aim, let go to
 cast, back onto the button to cancel · hold: keep casting), potion, and a "use" button that
 appears when something is in reach; top right: menu and bag. Swipe messages, banners and the
-minimap away; tap the minimap for the big map; tap the game outside a window to close it.
-Graphics quality (Auto/Low/Medium/High) and auto-attack are in the touch pause menu.
+minimap away; tap the minimap for the big map; tap the game outside a window, or flick a
+window sideways, to close it. Upright or sideways: the camera keeps its field of view across a
+tall screen. Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,
 uses, ask-for-it phrases, cost, the engine's code, words); outside rooms the field guide

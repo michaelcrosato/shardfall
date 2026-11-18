@@ -26,7 +26,8 @@ fn ui_reads_the_hud_windows_and_touch_controls() {
     s.step(30);
     let r = call(&mut s, "ui", json!({})).unwrap();
     let hud = texts(&r["hud"]);
-    for line in ["70/70", "50/50", "LMB", "1 potion", "Hilda the Smith"] {
+    // The skill bar's and potion's keys are glyphs: a keycap's letter, a mouse button by name.
+    for line in ["70/70", "50/50", "LMB", "RMB", "Q", "1", "potion", "Hilda the Smith"] {
         assert!(hud.iter().any(|t| t == line), "the HUD shows {line}: {hud:?}");
     }
     assert_eq!(r["windows"], json!([]));
@@ -100,7 +101,9 @@ fn the_plaza_names_its_stations_and_its_cards_open_them() {
     let r = call(&mut s, "ui", json!({})).unwrap();
     let card = window(&r, "Shardfall");
     let texts: Vec<&str> = card["text"].as_array().unwrap().iter().filter_map(|t| t["text"].as_str()).collect();
-    let button = card["text"].as_array().unwrap().iter().find(|t| t["text"] == "E: Begin the descent");
+    // The button names what it does; its key (E) is a glyph on it.
+    assert!(texts.contains(&"E"), "{texts:?}");
+    let button = card["text"].as_array().unwrap().iter().find(|t| t["text"] == "Begin the descent");
     let at = button.unwrap_or_else(|| panic!("no rift button: {texts:?}"))["at"].clone();
     let r = call(&mut s, "ui", json!({"click": at})).unwrap();
     assert_eq!(r["station"], "shardfall", "{r}");

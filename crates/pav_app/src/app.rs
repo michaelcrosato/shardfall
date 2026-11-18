@@ -183,10 +183,15 @@ pub struct App {
     game_ui: crate::arpg_items::GameUi,
     /// When the hero was last saved.
     last_save: Instant,
-    /// The gamepad's menu cursor (egui points) and the pointer events it makes this frame.
-    pad_cursor: Option<Vec2>,
+    /// Menus on the gamepad (`pav_ui::padnav`) and the pointer events it makes this frame.
+    padnav: pav_ui::padnav::PadNav,
     pad_events: Vec<egui::Event>,
-    pad_buttons: (bool, bool, bool),
+    /// The pause menu's page.
+    menu_page: crate::menu::Page,
+    /// The UI's zoom: the screen's own scale for a TV across the room, times the player's size.
+    ui_zoom: f32,
+    /// The controller's extras: rumble, the light bar, the adaptive triggers (`pad_fx`).
+    pad_fx: crate::pad_fx::PadFx,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
     game_place: Option<pav_core::arpg::Place>,
     /// Phones and tablets: fingers, the on-screen controls and swipes (touch.rs).
@@ -300,9 +305,11 @@ impl App {
             arrival: None,
             game_ui: Default::default(),
             last_save: Instant::now(),
-            pad_cursor: None,
+            padnav: Default::default(),
             pad_events: Vec::new(),
-            pad_buttons: (false, false, false),
+            menu_page: Default::default(),
+            ui_zoom: 1.0,
+            pad_fx: Default::default(),
             game_frame: None,
             game_place: None,
             touch: Default::default(),
@@ -340,6 +347,8 @@ impl App {
         }
         crate::lang::init(&app.settings.lang, &app.prefs);
         crate::lang::install_fonts(&app.egui_ctx, &[]);
+        // The game's base style (no selectable labels); touch screens switch to theirs below.
+        pav_ui::touch_style(&app.egui_ctx, false);
         if touch_screen {
             // Phones: touch controls from the start, none of the desktop's diagnostics.
             app.input.last_device = Device::Touch;
@@ -368,7 +377,7 @@ impl App {
         let to_egui = match t.phase {
             P::Started => {
                 // (The root layer is everywhere; only windows and labels over the game count.)
-                let under = self.egui_ctx.layer_id_at(pos).filter(|l| *l != egui::LayerId::background()).map(|l| l.order);
+                let under = self.egui_ctx.layer_id_at(pos).filter(|l| *l != egui::LayerId::background());
                 self.touch.down(t.id, pos, under)
             }
             P::Moved => self.touch.moved(t.id, pos),
@@ -598,33 +607,32 @@ impl App {
                 || self.language_open)
     }
 
-    /// Gamepad in menus: D-pad down opens the hero's panels (LB / RB switch them), B closes;
-    /// while a window is open the left stick (or D-pad) moves a cursor, A and X click left and
-    /// right, the right stick scrolls, and the game gets no pad input.
+    /// Gamepad in menus: D-pad down opens the hero's panels (L1 / R1 turn them), Circle goes
+    /// back; while a window is open the D-pad or the left stick moves between its items, Cross
+    /// and Square click them, Triangle is Shift, the right stick scrolls (`pav_ui::padnav`), and
+    /// the game gets no pad input.
     fn pad_menus(&mut self, dt: f32) {
-        use gilrs::Button as B;
+        use crate::input::PadButton as B;
         let taps = std::mem::take(&mut self.input.pad.taps);
         let game = self.game_frame.is_some();
         if self.input.last_device != Device::Gamepad {
-            self.pad_cursor = None;
+            self.pad_events.extend(self.padnav.release());
+            self.padnav.reset();
             return;
         }
         let ui = &mut self.game_ui;
-        if game && !self.menu_open && taps.contains(&B::DPadDown) && !ui.any_open() {
+        if game && !self.menu_open && taps.contains(&B::Down) && !ui.any_open() {
             ui.inventory = true;
             return;
         }
         if !self.pad_ui_active() {
-            self.pad_cursor = None;
-            if self.pad_buttons.2 {
-                self.pad_events.push(egui::Event::ModifiersChanged(Default::default()));
-            }
-            self.pad_buttons = (false, false, false);
+            self.pad_events.extend(self.padnav.release());
+            self.padnav.reset();
             return;
         }
         let ui = &mut self.game_ui;
-        // Switch between the hero's panels.
-        let cycle = taps.contains(&B::RightTrigger) as i32 - taps.contains(&B::LeftTrigger) as i32;
+        // Turn between the hero's panels.
+        let cycle = taps.contains(&B::R1) as i32 - taps.contains(&B::L1) as i32;
         if cycle != 0 && game && !self.menu_open {
             let now = [ui.inventory, ui.character, ui.skills, ui.tree.open].iter().position(|x| *x).unwrap_or(0) as i32;
             let next = (now + cycle).rem_euclid(4);
@@ -633,58 +641,34 @@ impl App {
             ui.skills = next == 2;
             ui.tree.open = next == 3;
         }
-        if taps.contains(&B::East) {
-            if ui.any_open() {
-                ui.close_all();
-            } else if self.look_ui.open && !self.menu_open {
-                self.look_ui.open = false;
-                self.look_ui.save_if_dirty(true);
-            } else if (self.guide.station || self.guide.field) && !self.menu_open {
-                self.guide.station = false;
-                self.guide.field = false;
-            } else if self.language_open && !self.menu_open {
-                self.language_open = false;
-            } else {
-                self.set_menu(false);
-            }
+        if taps.contains(&B::Circle) {
+            self.back();
         }
-        // The cursor.
-        let screen = self.egui_ctx.content_rect();
-        let mut p = self.pad_cursor.unwrap_or(Vec2::new(screen.center().x, screen.center().y));
-        let stick = self.input.pad.left;
-        let speed = 260.0 + 900.0 * stick.length().powi(2);
-        p += Vec2::new(stick.x, -stick.y) * speed * dt;
-        for (b, d) in [(B::DPadLeft, Vec2::NEG_X), (B::DPadRight, Vec2::X), (B::DPadUp, Vec2::NEG_Y), (B::DPadDown, Vec2::Y)] {
-            if taps.contains(&b) {
-                p += d * 40.0;
-            }
-        }
-        p = p.clamp(Vec2::new(screen.min.x, screen.min.y), Vec2::new(screen.max.x - 2.0, screen.max.y - 2.0));
-        let pos = egui::pos2(p.x, p.y);
-        self.pad_events.push(egui::Event::PointerMoved(pos));
-        let (a, x) = (self.input.pad.a_held, self.input.pad.x_held);
-        let modifiers = egui::Modifiers { shift: self.input.pad.y_held, ..Default::default() };
-        if self.input.pad.y_held != self.pad_buttons.2 {
-            self.pad_events.push(egui::Event::ModifiersChanged(modifiers));
-        }
-        for (now, was, button) in
-            [(a, self.pad_buttons.0, egui::PointerButton::Primary), (x, self.pad_buttons.1, egui::PointerButton::Secondary)]
-        {
-            if now != was {
-                self.pad_events.push(egui::Event::PointerButton { pos, button, pressed: now, modifiers });
-            }
-        }
-        self.pad_buttons = (a, x, self.input.pad.y_held);
-        let scroll = self.input.pad.right.y;
-        if scroll.abs() > 0.1 {
-            self.pad_events.push(egui::Event::MouseWheel {
-                unit: egui::MouseWheelUnit::Point,
-                phase: egui::TouchPhase::Move,
-                delta: egui::vec2(0.0, scroll * 900.0 * dt),
-                modifiers: Default::default(),
-            });
-        }
-        self.pad_cursor = Some(p);
+        let dirs: Vec<pav_ui::padnav::Dir> = taps
+            .iter()
+            .filter_map(|b| match b {
+                B::Up => Some(pav_ui::padnav::Dir::Up),
+                B::Down => Some(pav_ui::padnav::Dir::Down),
+                B::Left => Some(pav_ui::padnav::Dir::Left),
+                B::Right => Some(pav_ui::padnav::Dir::Right),
+                _ => None,
+            })
+            .collect();
+        let pad = &self.input.pad;
+        let input = pav_ui::padnav::PadIn {
+            taps: dirs,
+            stick: pad.left,
+            scroll: pad.right.y,
+            cross: pad.cross_held,
+            square: pad.square_held,
+            triangle: pad.triangle_held,
+            dt,
+        };
+        // The pad starts from the item the mouse was on (hover moves the focus).
+        let ppp = self.egui_ctx.zoom_factor() * self.gfx.as_ref().map_or(1.0, |g| g.window.scale_factor() as f32);
+        let mouse = self.input.mouse_active.then(|| egui::pos2(self.input.cursor.x / ppp, self.input.cursor.y / ppp));
+        let events = self.padnav.frame(&self.egui_ctx, &input, mouse);
+        self.pad_events.extend(events);
         // Menus have the pad: nothing reaches the game.
         let pad = &mut self.input.pad;
         pad.left = Vec2::ZERO;
@@ -692,6 +676,26 @@ impl App {
         pad.held = 0;
         pad.zoom = 0.0;
         pad.rotate = 0.0;
+    }
+
+    /// Circle or Esc: back a page in the pause menu, or close what is open.
+    fn back(&mut self) {
+        let ui = &mut self.game_ui;
+        if self.menu_open && self.menu_page != crate::menu::Page::Main {
+            self.menu_page = crate::menu::Page::Main;
+        } else if ui.any_open() && !self.menu_open {
+            ui.close_all();
+        } else if self.look_ui.open && !self.menu_open {
+            self.look_ui.open = false;
+            self.look_ui.save_if_dirty(true);
+        } else if (self.guide.station || self.guide.field) && !self.menu_open {
+            self.guide.station = false;
+            self.guide.field = false;
+        } else if self.language_open && !self.menu_open {
+            self.language_open = false;
+        } else {
+            self.set_menu(false);
+        }
     }
 
     fn toast(&mut self, msg: impl Into<String>) {
@@ -829,6 +833,7 @@ impl App {
             return;
         }
         if open && !self.menu_open {
+            self.menu_page = crate::menu::Page::Main;
             self.paused_before_menu = host.control().paused;
             host.set_control(|c| c.paused = true);
         } else if !open && self.menu_open {
@@ -935,10 +940,8 @@ impl App {
             }
         }
         match code {
-            KeyCode::Escape => {
-                let open = !self.menu_open;
-                self.set_menu(open);
-            }
+            KeyCode::Escape if self.menu_open => self.back(),
+            KeyCode::Escape => self.set_menu(true),
             KeyCode::F1 => self.panel.open = !self.panel.open,
             // How the room you are in works (outside the rooms: the field guide).
             KeyCode::KeyH if !self.input.game => {
@@ -1078,13 +1081,25 @@ impl App {
             self.hub_settings = crate::hub::settings();
         }
         // Devices.
-        self.input.poll_gamepad();
+        let extra = crate::pad_fx::read_extra();
+        self.input.poll_gamepad(&extra);
         if self.input.pad.start_pressed {
             let open = !self.menu_open;
             self.set_menu(open);
         }
-        if self.input.pad.map_pressed {
+        // The map: D-pad left or the touchpad's press (in a menu the D-pad moves between items).
+        if self.input.pad.map_pressed && !self.pad_ui_active() {
             self.game_ui.map = !self.game_ui.map;
+        }
+        // A swipe on the touchpad turns the hero's panels, as L1 / R1 do.
+        if extra.swipe != 0 && self.game_ui.any_open() && !self.menu_open {
+            let ui = &mut self.game_ui;
+            let now = [ui.inventory, ui.character, ui.skills, ui.tree.open].iter().position(|x| *x).unwrap_or(0) as i32;
+            let next = (now + extra.swipe).rem_euclid(4);
+            ui.inventory = next == 0;
+            ui.character = next == 1;
+            ui.skills = next == 2;
+            ui.tree.open = next == 3;
         }
         self.pad_menus(dt);
         let pad = self.input.last_device == Device::Gamepad;
@@ -1374,8 +1389,27 @@ impl App {
                     continue;
                 }
                 // The player's 52in1 effects volume multiplies the game's own.
-                let effects = self.hub_settings.as_ref().map_or(1.0, |h| h.effects.clamp(0.0, 1.0));
+                let effects = self.prefs.effects * self.hub_settings.as_ref().map_or(1.0, |h| h.effects.clamp(0.0, 1.0));
                 a.play_event(e, &l, self.audio_settings.sfx * effects);
+            }
+        }
+        // The controller's extras: rumble, the light bar, R2's feel.
+        {
+            let menus = self.menu_open || self.pad_ui_active();
+            let now = crate::pad_fx::Now {
+                game: curr.game.as_deref(),
+                events: &events,
+                hero: curr.game.is_some().then_some(feet),
+                pad: self.input.last_device == Device::Gamepad,
+                vibration: self.prefs.vibration,
+                hub: self.hub_settings.as_ref(),
+                menus,
+                dt,
+            };
+            self.pad_fx.update(now, self.input.gilrs.as_mut());
+            if self.round.as_ref().is_some_and(|r| r.ended()) {
+                // The round is over: the light bar and the trigger go back to the hub.
+                self.pad_fx.release();
             }
         }
         // The look layer (Look & Filters) over the scene's own settings.
@@ -1506,6 +1540,15 @@ impl App {
             !studio_active && self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
         let device = self.input.last_device;
         let touch_ui = device == Device::Touch;
+        pav_ui::controls::set_current(device, self.prefs.pad_style);
+        // Ten feet from a TV: the UI grows with the screen (the studios keep a desk's size).
+        let studio_open = studio_active || self.animation_ui.open || self.asset_ui.open || self.creature_ui.open;
+        let logical_h = h as f32 / gfx.window.scale_factor() as f32;
+        let zoom = if studio_open { 1.0 } else { pav_ui::ten_foot_zoom(logical_h, self.prefs.ui_size, touch_ui) };
+        if (zoom - self.ui_zoom).abs() > 0.005 {
+            self.ui_zoom = zoom;
+            self.egui_ctx.set_zoom_factor(zoom);
+        }
         if touch_ui != self.touch_styled {
             self.touch_styled = touch_ui;
             pav_ui::touch_style(&self.egui_ctx, touch_ui);
@@ -1521,7 +1564,10 @@ impl App {
         let state = self.egui_state.as_mut().unwrap();
         let mut raw = state.take(&gfx.window);
         raw.events.append(&mut self.pad_events);
-        let pad_cursor = self.pad_cursor;
+        let padnav = &self.padnav;
+        let pad_style = self.prefs.pad_style;
+        let mut menu_page = self.menu_page;
+        let in_hub = self.hub_settings.is_some();
         let mut show_boot = self.show_boot;
         let menu_open = self.menu_open;
         let scene_name = self.scene_name.clone();
@@ -1611,7 +1657,7 @@ impl App {
                 ui::stats_panel(&ctx, &info, free, touch_ui);
             }
             if guide_visible && !menu_open && !touch_ui {
-                ui::guide_panel(&ctx, device, game_frame.is_some());
+                ui::guide_panel(&ctx, device, game_frame.is_some(), pad_style);
             }
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
@@ -1649,17 +1695,8 @@ impl App {
             if let Some(r) = round {
                 r.overlay(&ctx, &curr, view_proj);
             }
-            if let Some(p) = pad_cursor {
-                // The gamepad's menu cursor, above everything.
-                let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("pad_cursor")));
-                let tip = egui::Pos2::new(p.x, p.y);
-                let pts = vec![tip, tip + egui::vec2(0.0, 22.0), tip + egui::vec2(6.0, 16.5), tip + egui::vec2(15.0, 16.0)];
-                painter.add(egui::Shape::convex_polygon(
-                    pts,
-                    egui::Color32::from_rgb(255, 225, 150),
-                    egui::Stroke::new(1.5, egui::Color32::BLACK),
-                ));
-            }
+            // The pad's place in a menu: a ring round the item, over everything.
+            padnav.draw(&ctx, ctx.input(|i| i.time));
             physics.ui(&ctx, &hud_ctx, stats.tps, stats.tick_ms);
             crate::hud::hit_flash(&ctx, hud_ctx.hud.invuln);
             feel.ui(
@@ -1722,13 +1759,18 @@ impl App {
             guide_out.extend(guide.field_guide(&ctx, &hud.entries));
             if menu_open {
                 let difficulty = game_frame.is_some().then_some(&mut root.sim.difficulty);
-                menu_action = if touch_ui {
-                    let show_fps = &mut root.app.show_stats;
-                    let m = ui::TouchMenu { prefs: &mut prefs, show_fps, difficulty, portal, scale: render_scale };
-                    ui::touch_menu(&ctx, &scene_name, m)
-                } else {
-                    ui::pause_menu(&ctx, device, &scene_name, difficulty)
+                let m = crate::menu::Menu {
+                    page: &mut menu_page,
+                    prefs: &mut prefs,
+                    show_fps: &mut root.app.show_stats,
+                    difficulty,
+                    portal,
+                    scale: render_scale,
+                    device,
+                    scene: &scene_name,
+                    in_hub,
                 };
+                menu_action = crate::menu::menu(&ctx, m);
             }
             if let Some(t) = &toast {
                 if touch_ui {
@@ -1737,19 +1779,11 @@ impl App {
                     ui::toast(&ctx, t);
                 }
             }
-            if !touch_ui {
-                const GAME_KEYS: &str =
-                    "Esc menu · I inventory · P passives · C character · K skills · T town · G use · Space dodge · 1 potion";
-                ui::hint_bar(
-                    &ctx,
-                    match (device, game_frame.is_some()) {
-                        (Device::Gamepad, _) => "Start: menu",
-                        (_, true) => GAME_KEYS,
-                        _ => "Esc menu · F1 tuning · F2 rooms · F12 screenshot",
-                    },
-                );
+            if !touch_ui && !menu_open {
+                ui::hint_bar(&ctx, &hint_prompts(device, game_frame.is_some()), pad_style);
             }
         });
+        self.menu_page = menu_page;
         if prefs != self.prefs {
             self.prefs = prefs;
             crate::save::save_prefs(&self.prefs);
@@ -1996,6 +2030,10 @@ impl App {
             }
         }
         if intent.world_tap {
+            self.close_on_tap();
+        }
+        // A window flicked sideways goes away too (the passive tree pans by dragging: it stays).
+        if intent.flicked.is_some_and(|l| l.id != egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW)) {
             self.close_on_tap();
         }
     }
@@ -2365,6 +2403,11 @@ impl App {
                 }
             }
             MenuAction::Tool(tool) => self.open_tool(tool),
+            MenuAction::Page(page) => self.menu_page = page,
+            MenuAction::Language => {
+                self.set_menu(false);
+                self.language_open = true;
+            }
             MenuAction::Pavilion => {
                 self.set_menu(false);
                 self.go_to_pavilion();
@@ -2571,6 +2614,31 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
+}
+
+/// The prompts along the bottom of the screen: the few things worth a reminder, as the device's
+/// glyphs (the HUD shows the skills', the potion's and anything in reach's).
+fn hint_prompts(device: Device, game: bool) -> Vec<pav_ui::glyph::Prompt> {
+    use pav_ui::glyph::Prompt;
+    let p = |action: &str, label: String| Prompt { glyphs: pav_ui::controls::glyphs(action, device), label };
+    let mut out = vec![p("menu", pav_core::t!("controls.menu"))];
+    if game {
+        out.push(p(
+            "inventory",
+            if device == Device::Gamepad { pav_core::t!("hint.hero") } else { pav_core::t!("hint.inventory") },
+        ));
+        if device != Device::Gamepad {
+            out.push(p("tree", pav_core::t!("hint.passives")));
+            out.push(p("town", pav_core::t!("controls.town_portal")));
+        }
+        out.push(p("map", pav_core::t!("controls.map")));
+    } else if device == Device::KeyboardMouse {
+        out.push(p("tuning", "Tuning".into()));
+        out.push(p("rooms", "Rooms".into()));
+        out.push(Prompt { glyphs: vec![pav_ui::glyph::Glyph::key("F12")], label: "Screenshot".into() });
+    }
+    out.retain(|p| !p.glyphs.is_empty());
+    out
 }
 
 /// A round on the AI Hub, each frame: builds the round's world when the hub has said who plays,

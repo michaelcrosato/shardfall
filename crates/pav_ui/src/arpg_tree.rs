@@ -42,6 +42,9 @@ impl Default for TreeUi {
     }
 }
 
+/// The passive tree window's id (its layer's): a flick across it pans, never closes it.
+pub const TREE_WINDOW: &str = "passive_tree";
+
 fn col(c: [f32; 3], k: f32) -> Color32 {
     let to = |x: f32| ((x * k).clamp(0.0, 1.0).powf(1.0 / 2.2) * 255.0) as u8;
     Color32::from_rgb(to(c[0]), to(c[1]), to(c[2]))
@@ -75,7 +78,7 @@ impl TreeUi {
             screen.shrink2(EVec2::new(screen.width() * 0.06, screen.height() * 0.06))
         };
         egui::Window::new(t!("tree.title"))
-            .id(egui::Id::new("passive_tree"))
+            .id(egui::Id::new(TREE_WINDOW))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -102,12 +105,23 @@ impl TreeUi {
                         self.pan = Vec2::ZERO;
                         self.zoom = 21.0;
                     }
-                    let help = match (self.touch, self.pad) {
-                        (true, _) => t!("tree.help.touch"),
-                        (_, true) => t!("tree.help.pad"),
-                        _ => t!("tree.help"),
-                    };
-                    ui.label(RichText::new(help).small().color(Color32::from_white_alpha(120)));
+                    if self.pad {
+                        // What the pad's buttons do here, drawn as its own buttons.
+                        let g = |a: &str| crate::controls::glyphs(a, crate::Device::Gamepad);
+                        let both = |a: &str, b: &str| [g(a), g(b)].concat();
+                        let prompts = [
+                            (g("confirm"), t!("tree.pad.take")),
+                            (both("alt", "confirm"), t!("tree.pad.path")),
+                            (g("more"), t!("tree.pad.refund")),
+                            (g("scroll"), t!("tree.pad.zoom")),
+                            (g("back"), t!("hint.close")),
+                        ]
+                        .map(|(glyphs, label)| crate::glyph::Prompt { glyphs, label });
+                        crate::glyph::row_ui(ui, &prompts, 18.0, Color32::from_white_alpha(210));
+                    } else {
+                        let help = if self.touch { t!("tree.help.touch") } else { pav_core::t_rich!("tree.help") };
+                        crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
+                    }
                 });
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
                 let p = ui.painter_at(rect);

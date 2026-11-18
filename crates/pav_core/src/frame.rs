@@ -253,6 +253,9 @@ pub struct HudFrame {
     pub pad_note: Option<(String, String, u64)>,
     /// A `games` game's HUD lines (`Game::hud`).
     pub lines: Vec<String>,
+    /// A `games` game's prompts (`Game::prompts`): an action (`pav_ui::controls`) and what it
+    /// does; the window draws the device's own glyphs for each.
+    pub prompts: Vec<(String, String)>,
     /// The pavilion's plaza (`crate::plaza`), while the player is on it.
     pub plaza: Option<PlazaHud>,
 }
