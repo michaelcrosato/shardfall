@@ -10,6 +10,7 @@ mod boot;
 #[cfg(not(target_arch = "wasm32"))]
 mod bridge;
 mod coop;
+mod couch;
 mod creature_ui;
 mod creature_watch;
 mod edit;

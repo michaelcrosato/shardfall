@@ -65,7 +65,8 @@ layout works, and Settings switches the prompts to Xbox's letters): Square, Tria
 R1, L1, R2 skills, Cross dodge, D-pad up potion, D-pad right use, D-pad left or the touchpad map,
 D-pad down the hero's panels (L1 / R1 turn them), Options the menu. In menus the D-pad moves
 between items, Cross takes, Square is the item's other action, Circle goes back. Prompts on
-screen follow what you used last: the pad's buttons, or keys and mouse buttons.
+screen follow what you used last: the pad's buttons, or keys and mouse buttons. **Couch co-op:**
+up to three friends join on controllers of their own (Cross), and leave by holding Options.
 
 ## Playing
 Windows: run `shardfall.exe`. It writes `shardfall.toml` next to itself on first start (Vulkan by

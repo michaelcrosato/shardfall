@@ -13,7 +13,7 @@
     "gamepad",
     "touch"
   ],
-  "controls": "WASD to move; mouse to aim; click or right click to attack; Q / E / R / F for skills; Space to dodge; 1 for a potion; G to use; Esc for menu; gamepad to play",
+  "controls": "WASD to move; mouse to aim; click or right click to attack; Q / E / R / F skills; Space to dodge; 1 potion; G to use; Esc for menu; gamepads to play and join",
   "harness": "Claude Code",
   "webgpu": "required",
   "players": "1-4",
@@ -22,7 +22,8 @@
     "ghost 1-4",
     "shared-world co-op 1-4",
     "shared-world versus 2-4",
-    "moments 1-4"
+    "moments 1-4",
+    "same-screen co-op 2-4"
   ],
   "dualsense": [
     "light bar",

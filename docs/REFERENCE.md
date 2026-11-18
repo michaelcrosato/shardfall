@@ -327,6 +327,11 @@ panels with a touchpad swipe. Controller flows can be scripted and screenshotted
 --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]`,
 see `PadScript` in input.rs).
 
+Same-screen co-op (couch.rs): up to three more controllers join with Cross or Options ("✕
+Join" in the bottom right), each playing a party hero (`Sim::add_party_hero`) with the game's
+pad layout (no trading); hold Options to leave. The camera frames the party; stragglers come
+back beside the hero. Pad scripts drive extra controllers with `pad=2`..`pad=4`.
+
 Touch (phones, tablets; the browser build): put a thumb down anywhere and drag to move (an
 invisible stick); attacks are automatic (the nearest foe in reach; a menu setting); the fan in
 the bottom right: dodge (big button), skills (tap: at the nearest foe · drag: aim, let go to
