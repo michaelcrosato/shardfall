@@ -1007,6 +1007,7 @@ impl Sim {
             lines: self.play_hud(),
             prompts: self.play_prompts(),
             plaza: self.plaza_hud(),
+            drive: self.drive_hud(),
         };
         RenderFrame {
             tick: self.state.tick,

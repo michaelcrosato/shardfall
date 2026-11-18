@@ -258,6 +258,17 @@ pub struct HudFrame {
     pub prompts: Vec<(String, String)>,
     /// The pavilion's plaza (`crate::plaza`), while the player is on it.
     pub plaza: Option<PlazaHud>,
+    /// The car the player drives (`crate::vehicle`): its gear for the HUD.
+    pub drive: Option<DriveHud>,
+}
+
+/// The car at the player's wheel, as the HUD shows it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DriveHud {
+    /// The automatic gearbox's gear: -1 reverse, 1-5 forward.
+    pub gear: i8,
+    /// How far through the gear's band of speeds the car is, 0..1 (1: where it shifts up).
+    pub rpm: f32,
 }
 
 /// The plaza's stations as the window shows them: their names over them, and the prompt of

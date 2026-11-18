@@ -1,9 +1,10 @@
 //! A controller's extras, where they make sense for the game (52in1 catalogue v1, "The
 //! DualSense"): short rumbles that say something (the hero hurt, a crit, a slam or a blast close
-//! by, a level-up, a unique picked up, death), the DualSense's light bar showing the hero's life,
-//! R2's adaptive trigger telling by feel whether its skill is ready, and the touchpad (its press
-//! opens the map, a swipe turns the hero's panels). Each one adds to a control that works on its
-//! own: the game plays the same on any pad, and on keys, without them.
+//! by, a level-up, a unique picked up, death, a car's gearbox shifting), the DualSense's light
+//! bar showing the hero's life, R2's adaptive trigger telling by feel whether its skill is ready,
+//! and the touchpad (its press opens the map, a swipe turns the hero's panels). Each one adds to
+//! a control that works on its own: the game plays the same on any pad, and on keys, without
+//! them.
 //!
 //! - Rumble: any pad that rumbles. In the browser the page plays `vibrationActuator`'s
 //!   dual-rumble; natively gilrs's force feedback. Settings' vibration turns it off, and in 52in1
@@ -30,6 +31,8 @@ pub struct Now<'a> {
     pub hub: Option<&'a crate::hub::Settings>,
     /// A menu or window has the pad (the trigger lets go).
     pub menus: bool,
+    /// The gear of the car the player drives (`pav_core::vehicle::Gearbox`).
+    pub gear: Option<i8>,
     pub dt: f32,
 }
 
@@ -38,6 +41,7 @@ pub struct PadFx {
     clock: f64,
     last_life: Option<f32>,
     dead: bool,
+    last_gear: Option<i8>,
     /// What the light bar and R2 were last told ("" = given back to the hub, let go).
     light: String,
     trigger: String,
@@ -99,6 +103,11 @@ impl PadFx {
                 }
             }
         }
+        // At a car's wheel: a short kick each time the automatic gearbox shifts.
+        if now.gear.is_some() && self.last_gear.is_some() && now.gear != self.last_gear {
+            add(0.2, 0.5, 40);
+        }
+        self.last_gear = now.gear;
         if let Some((strong, weak, ms)) = want.filter(|_| now.pad && now.vibration) {
             // A rumble already running and as strong wins: short, distinct pulses say more.
             let s = strong.max(weak);

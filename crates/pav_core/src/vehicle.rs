@@ -130,6 +130,90 @@ impl Tunable for VehicleDef {
     }
 }
 
+/// Where each forward gear tops out, as a share of the car's top speed.
+pub const GEAR_TOPS: [f32; 5] = [0.25, 0.45, 0.65, 0.85, 1.0];
+/// Each forward gear's pull, times the car's power: strong in first, weaker in fifth. Tuned so
+/// the car reaches its top speed about as soon as it did with one gear (tests/vehicles.rs).
+pub const GEAR_PULL: [f32; 5] = [1.6, 1.4, 1.25, 1.1, 1.0];
+/// Up a gear at this share of the gear's top; down once below this share of the top of the
+/// gear beneath (the gap between them keeps it from hunting).
+const UPSHIFT: f32 = 0.97;
+const DOWNSHIFT: f32 = 0.8;
+/// A shift cuts the engine's pull this long (s), and no other shift starts meanwhile.
+pub const SHIFT_TIME: f32 = 0.13;
+/// Rolling this fast (m/s) the other way, the box follows the car into (or out of) reverse.
+const ROLLING: f32 = 0.8;
+
+/// A car's automatic gearbox: five forward gears and a reverse, picked from the car's speed and
+/// which way the throttle pushes. The player never shifts, so every device drives the same.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Gearbox {
+    /// -1 reverse, 1-5 forward.
+    pub gear: i8,
+    /// Seconds left of a shift's torque cut.
+    pub shifting: f32,
+    /// How far through its gear's band the car is, 0..1 (1: the top, where it shifts up), as an
+    /// engine's revs would show it.
+    pub rpm: f32,
+}
+
+impl Default for Gearbox {
+    fn default() -> Self {
+        Self { gear: 1, shifting: 0.0, rpm: 0.0 }
+    }
+}
+
+impl Gearbox {
+    /// One tick: picks the gear for forward speed `speed` (m/s, negative backing up) of a car
+    /// whose top speed is `max`, with the smoothed `throttle` (-1..1). Returns the share of the
+    /// car's power its wheels get now.
+    pub fn update(&mut self, speed: f32, max: f32, throttle: f32, dt: f32) -> f32 {
+        self.shifting = (self.shifting - dt).max(0.0);
+        let frac = speed / max.max(0.1);
+        let want = if self.gear < 0 {
+            // Out of reverse when asked forward, or once rolling forward.
+            if throttle > 0.05 || speed > ROLLING { 1 } else { -1 }
+        } else if (throttle < -0.05 && speed < ROLLING) || (throttle <= 0.05 && speed < -ROLLING) {
+            // Into reverse when asked back from (nearly) stopped, or rolling back off the throttle.
+            -1
+        } else {
+            let g = self.gear.clamp(1, 5) as usize;
+            if g < 5 && frac > GEAR_TOPS[g - 1] * UPSHIFT {
+                g as i8 + 1
+            } else if g > 1 && frac < GEAR_TOPS[g - 2] * DOWNSHIFT {
+                g as i8 - 1
+            } else {
+                g as i8
+            }
+        };
+        if want != self.gear {
+            if want < 0 || self.gear < 0 {
+                // Into or out of reverse (from about stopped): at once, without a cut.
+                self.gear = want;
+            } else if self.shifting <= 0.0 {
+                self.gear = want;
+                self.shifting = SHIFT_TIME;
+            }
+        }
+        // How far through its gear's band the car is (reverse: as if from rest in second).
+        let g = if self.gear < 0 { 2 } else { self.gear.clamp(1, 5) as usize };
+        let low = if g > 1 && self.gear > 0 { GEAR_TOPS[g - 2] } else { 0.0 };
+        self.rpm = ((frac.abs() - low) / (GEAR_TOPS[g - 1] - low)).clamp(0.0, 1.0);
+        if self.gear < 0 || (throttle > 0.0) != (self.gear > 0) {
+            // Reverse, or pushing against the gear (pulling back to slow down): the engine
+            // pulls and brakes as hard as it always did.
+            1.0
+        } else if self.shifting > 0.0 && throttle.abs() > 0.05 {
+            // (Cut only while it pulls: a wheel with no engine force brakes, so a cut with the
+            // throttle let go would brake the car harder than it does in gear.)
+            0.0
+        } else {
+            GEAR_PULL[g - 1]
+        }
+    }
+}
+
 /// A drivable vehicle (an entity component).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Vehicle {
@@ -150,6 +234,9 @@ pub struct Vehicle {
     /// Helicopter: smoothed tilt (pitch, roll) and heading.
     pub tilt: Vec2,
     pub yaw: f32,
+    /// Car: the automatic gearbox.
+    #[serde(default)]
+    pub gearbox: Gearbox,
 }
 
 /// What the view needs to draw a vehicle.
@@ -258,9 +345,17 @@ impl Sim {
                 rotor_speed: 0.0,
                 tilt: Vec2::ZERO,
                 yaw,
+                gearbox: Gearbox::default(),
             }));
         }
         id
+    }
+
+    /// The car the player drives, for the HUD: its gear.
+    pub fn drive_hud(&self) -> Option<crate::frame::DriveHud> {
+        let ch = self.player()?.character.as_ref()?;
+        let v = self.state.entities.get(ch.riding?)?.vehicle.as_ref().filter(|v| v.def.kind == VehicleKind::Car)?;
+        Some(crate::frame::DriveHud { gear: v.gearbox.gear, rpm: v.gearbox.rpm })
     }
 
     /// Puts a vehicle down at `feet` facing `yaw`, stopped (respawns while driving).
@@ -269,6 +364,7 @@ impl Sim {
         let Some(v) = e.vehicle.as_mut() else { return };
         v.yaw = yaw;
         v.tilt = Vec2::ZERO;
+        v.gearbox = Gearbox::default();
         let center = feet + Vec3::Y * v.base;
         let rot = Quat::from_rotation_y(yaw);
         e.pos = center;
@@ -417,12 +513,13 @@ impl Sim {
                     let handbrake = inp.down(buttons::JUMP);
                     let brake = inp.down(buttons::CROUCH);
                     let lock = v.def.steer.to_radians();
+                    let pull = v.gearbox.update(speed, v.def.max_speed, v.throttle, dt);
                     if let Some(c) = &mut v.car {
                         let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
                         for (i, w) in c.wheels_mut().iter_mut().enumerate() {
                             let front = i < 2;
                             w.steering = if front { (v.steer * lock) as Real } else { 0.0 };
-                            w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power) as Real };
+                            w.engine_force = if front || over { 0.0 } else { (v.throttle * v.def.power * pull) as Real };
                             w.brake = if brake {
                                 40.0
                             } else if handbrake && !front {

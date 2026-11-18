@@ -200,6 +200,9 @@ impl Headless {
                     }
                 }
                 crate::game_lines(&ctx, hud_lines);
+                if let Some(d) = &hud_lines.drive {
+                    crate::drive::gear(&ctx, d, touch);
+                }
                 if let Some(hud) = hud_lines.plaza {
                     let proj = Projector { vp, size: screen.size() };
                     let view = crate::plaza::View { hud, device: self.device, hero: None, covered: self.language };

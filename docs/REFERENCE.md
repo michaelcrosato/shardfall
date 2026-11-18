@@ -41,9 +41,9 @@ crates/
               makes each one a scene; starter.rs + starter.toml, the template:
               docs/MAKE_A_GAME.md),
               fxdef.rs (object lights / particle emitters / distortion, view-only),
-              vehicle.rs (drift car on rapier's raycast vehicle, arcade helicopter: flight only,
-              no weapons, damage or fuel), health.rs (shootable rapier objects: hp, score, boss
-              phases/bar, finish),
+              vehicle.rs (drift car on rapier's raycast vehicle with an automatic five-speed
+              gearbox, arcade helicopter: flight only, no weapons, damage or fuel),
+              health.rs (shootable rapier objects: hp, score, boss phases/bar, finish),
               stealth.rs (guard sight cones with line of sight and an alert meter),
               zones.rs (trigger zones + labels), course.rs (timers, gates, checkpoints, pits,
               pads, camera cues, hits/respawn), behaviors.rs (movers, rotators, emitters,
@@ -323,8 +323,8 @@ sound effects, menu and HUD size, graphics, language; auto-attack on touch), Con
 device's glyphs), Difficulty, Engine tools, Developer.
 
 The controller's extras (pad_fx.rs): short rumbles on any pad that has them (hurt, crits, slams
-and blasts close by, a level-up, a unique, death); a DualSense in 52in1 (`hub:dualsense`) also
-shows the hero's life on its light bar, makes R2 stiff while its skill can't be cast, and turns
+and blasts close by, a level-up, a unique, death, a car's gear shift); a DualSense in 52in1
+(`hub:dualsense`) also shows the hero's life on its light bar, makes R2 stiff while its skill can't be cast, and turns
 panels with a touchpad swipe. Controller flows can be scripted and screenshotted: `shardfall
 --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]`,
 see `PadScript` in input.rs).
@@ -344,7 +344,7 @@ window sideways, to close it. Upright or sideways: the camera keeps its field of
 tall screen; item grids (bag, stash, the smith's wares) size their cells to a phone's width. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
 it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself; at
 the wheel of a car the throttle stays full while steering (a pad drives with R2 as an analog
-throttle and L2 as the brake; the car has one gear, so there is no shifting to automate). Mouse: a place's use prompt (the
+throttle and L2 as the brake; on every device the car's gearbox shifts by itself). Mouse: a place's use prompt (the
 smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays
 the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
 doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the

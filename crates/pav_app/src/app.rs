@@ -1353,7 +1353,7 @@ impl App {
             if game_input {
                 let mut axis = (self.input.move_axis() + intent.move_axis).clamp_length_max(1.0);
                 // A touch screen's assist at the wheel: steering is enough, the car keeps its
-                // throttle full (it has one gear, so there is nothing to shift).
+                // throttle full (and its gearbox shifts by itself, as on every device).
                 if self.input.last_device == Device::Touch && driving_car(&curr) && axis.length() > 0.15 {
                     axis = axis.normalize();
                 }
@@ -1457,6 +1457,7 @@ impl App {
                 vibration: self.prefs.vibration,
                 hub: self.hub_settings.as_ref(),
                 menus,
+                gear: curr.hud.drive.map(|d| d.gear),
                 dt,
             };
             self.pad_fx.update(now, self.input.gilrs.as_mut());
@@ -1754,6 +1755,9 @@ impl App {
             }
             crate::hud::course_hud(&ctx, &hud_ctx);
             pav_ui::game_lines(&ctx, hud_ctx.hud);
+            if let Some(d) = hud_ctx.hud.drive.as_ref().filter(|_| !menu_open) {
+                pav_ui::drive::gear(&ctx, d, touch_ui);
+            }
             if let Some(r) = round {
                 r.overlay(&ctx, &curr, view_proj);
             }
