@@ -209,11 +209,15 @@ impl TreeUi {
                         p.line_segment([a, b], Stroke::new(w, c));
                     }
                 }
-                // Nodes.
+                // Nodes (the ones in view are where a controller's D-pad snaps: `padnav`).
+                let mut snaps = Vec::new();
                 for n in &t.nodes {
                     let c = self.to_screen(rect, n.pos);
                     if !view.contains(c) {
                         continue;
+                    }
+                    if rect.contains(c) {
+                        snaps.push(c);
                     }
                     let r = (radius(n) * self.zoom).max(2.0);
                     let sector = t.sectors.get(n.sector as usize).map(|s| s.color).unwrap_or([0.7; 3]);
@@ -344,14 +348,33 @@ impl TreeUi {
                         },
                     );
                 }
-                // Hover: what it does; clicks.
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::SNAP_POINTS), snaps));
+                // Hover: what it does; clicks. On a controller the node's card is docked at the
+                // tree's right edge, big enough to read from the sofa; a mouse gets it at the
+                // pointer.
                 if let Some(n) = hovered.filter(|_| !self.touch) {
                     let taken = reached(n.id);
                     let mut r2 = resp.clone();
-                    r2 = r2.on_hover_ui_at_pointer(|ui| {
-                        ui.set_max_width(320.0);
-                        node_info(ui, t, n, inv, taken, &path, true);
-                    });
+                    if self.pad {
+                        egui::Area::new(egui::Id::new("tree_card"))
+                            .order(egui::Order::Foreground)
+                            .anchor(
+                                Align2::RIGHT_TOP,
+                                EVec2::new(-(ui.ctx().content_rect().right() - rect.right()) - 12.0, rect.top() + 12.0),
+                            )
+                            .show(ui.ctx(), |ui| {
+                                egui::Frame::popup(ui.style()).inner_margin(egui::Margin::same(14)).show(ui, |ui| {
+                                    ui.set_max_width(380.0);
+                                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                                    node_info(ui, t, n, inv, taken, &path, false);
+                                });
+                            });
+                    } else {
+                        r2 = r2.on_hover_ui_at_pointer(|ui| {
+                            ui.set_max_width(320.0);
+                            node_info(ui, t, n, inv, taken, &path, true);
+                        });
+                    }
                     let shift = ui.input(|i| i.modifiers.shift);
                     if r2.clicked() {
                         if taken && n.kind == NodeKind::Mastery {

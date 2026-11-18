@@ -608,7 +608,10 @@ impl Input {
         }
         if let Some(script) = &mut self.pad_script {
             if let Some((st, first)) = script.next() {
-                activity = true;
+                // An idle step is an idle pad: only a press, a held button or a pushed stick of
+                // the player's own pad makes it the device in use (a mouse can be in use meanwhile).
+                activity |= st.pad <= 1
+                    && (!st.hold.is_empty() || st.left != Vec2::ZERO || st.right != Vec2::ZERO || (first && !st.tap.is_empty()));
                 let trig = |b| if st.hold.contains(&b) { 1.0 } else { 0.0 };
                 let (l2, r2) = (trig(PadButton::L2), trig(PadButton::R2));
                 let pad = PadState { left: st.left, right: st.right, held: st.hold.clone(), l2, r2 };

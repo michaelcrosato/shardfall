@@ -288,8 +288,9 @@ end back to back.
 From WSL2 you can launch the Windows build directly: `./target/x86_64-pc-windows-gnu/dist/shardfall.exe`.
 
 ## Controls
-Controller first (a DualSense, or any pad the browser or gilrs maps in the standard layout, on a
-TV at ten feet); keyboard and mouse play the same game on the same screens; touch is an add-on.
+Controller first (a DualSense, or any pad: gilrs maps pads natively through SDL's controller
+database, and in the browser the page reads a pad Chrome leaves unmapped in the standard layout:
+buttons in order, the D-pad from its hat switch; on a TV at ten feet); keyboard and mouse play the same game on the same screens; touch is an add-on.
 `pav_ui::controls` is the one table of what each pad button, key and mouse button does: the
 input reads it and every prompt draws from it. Prompts follow the device used last and are
 drawn, not typed (`pav_ui::glyph`): PlayStation's ✕ ○ □ △ by default, Xbox's A B X Y in
@@ -314,8 +315,9 @@ touchpad swipe turn them), Options the menu.
 Menus on a controller (`pav_ui::padnav`, every egui window as it is): the D-pad or the left stick
 moves between the items (a gold ring shows which), Cross takes and Square is the item's other
 action (right click), each on the press however long it is held, Triangle is Shift, the right stick scrolls, Circle goes back; a slider
-takes the D-pad's left and right; on the passive tree the stick moves a pointer. The pad starts
-from the item the mouse was on. PS and Create + Options together are 52in1's: unused. The pause
+takes the D-pad's left and right; on the passive tree the stick moves a pointer and the D-pad
+hops to the nearest node that way (`padnav::SNAP_POINTS`), whose card docks at the tree's right
+edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus). PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
 sound effects, menu and HUD size, graphics, language; auto-attack on touch), Controls (the
 device's glyphs), Difficulty, Engine tools, Developer.
@@ -339,11 +341,15 @@ cast, back onto the button to cancel · hold: keep casting), potion, and a "use"
 appears when something is in reach; top right: menu and bag. Swipe messages, banners and the
 minimap away; tap the minimap for the big map; tap the game outside a window, or flick a
 window sideways, to close it. Upright or sideways: the camera keeps its field of view across a
-tall screen. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
+tall screen; item grids (bag, stash, the smith's wares) size their cells to a phone's width. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
 it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself; at
-the wheel of a car the throttle stays full while steering. Mouse: a place's use prompt (the
+the wheel of a car the throttle stays full while steering (a pad drives with R2 as an analog
+throttle and L2 as the brake; the car has one gear, so there is no shifting to automate). Mouse: a place's use prompt (the
 smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays
-the browser build with a virtual standard-mapping pad.
+the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
+doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the
+touchpad, no microphone); `scripts/touch_check.py` drives it with real touch events on an
+emulated phone, upright and sideways (two thumbs at once, the bag, a flick that closes it).
 Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,

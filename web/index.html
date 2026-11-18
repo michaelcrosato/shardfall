@@ -43,6 +43,42 @@
     };
   })();
 
+  // Any controller: a pad the browser leaves unmapped (mapping '', a generic DirectInput pad) is
+  // read in the standard mapping's order (face, shoulders, triggers, select and start, sticks),
+  // its hat switch (an axis: 9 in Chrome) as the D-pad, so it plays as a mapped pad does; a
+  // mapped pad passes as it is. (In 52in1 this wraps the hub's own reading, which stays.)
+  (() => {
+    const raw = navigator.getGamepads && navigator.getGamepads.bind(navigator);
+    if (!raw) return;
+    const hats = {};
+    const off = { pressed: false, touched: false, value: 0 };
+    const asStandard = (p) => {
+      const buttons = Array.from({ length: 17 }, (_, i) => p.buttons[i] || off);
+      let hat = p.axes.length >= 10 ? 9 : hats[p.id];
+      if (hat === undefined) {
+        // A hat rests outside -1..1: the first axis seen there is it.
+        const at = p.axes.findIndex((v, i) => i >= 4 && Math.abs(v) > 1.05);
+        if (at >= 0) hat = hats[p.id] = at;
+      }
+      if (hat !== undefined && hat < p.axes.length) {
+        const v = p.axes[hat];
+        // Eight directions from -1 (up) clockwise in steps of 2/7; past 1, centred.
+        const dir = Math.abs(v) > 1.05 ? -1 : Math.round((v + 1) * 3.5) % 8;
+        const on = (set) => (set.includes(dir) ? { pressed: true, touched: true, value: 1 } : off);
+        buttons[12] = on([7, 0, 1]);
+        buttons[13] = on([3, 4, 5]);
+        buttons[14] = on([5, 6, 7]);
+        buttons[15] = on([1, 2, 3]);
+      }
+      return { id: p.id, index: p.index, connected: p.connected, timestamp: p.timestamp, mapping: 'standard',
+               axes: Array.from(p.axes).slice(0, 4), buttons, vibrationActuator: p.vibrationActuator };
+    };
+    Object.defineProperty(navigator, 'getGamepads', {
+      configurable: true,
+      value: () => Array.from(raw(), (p) => (p && p.mapping !== 'standard' ? asStandard(p) : p)),
+    });
+  })();
+
   // 52in1 sessions (AI Hub Session Protocol v1, docs/AI_HUB.md). With the session client in the
   // page (the hub's build) and the hub's frame around it, this joins the round at once, keeps
   // the hub's events for the game, and hands the game the client's calls. Elsewhere it does
