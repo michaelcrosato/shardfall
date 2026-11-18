@@ -5,6 +5,56 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## 52in1: one page for every mode, moments, versus and the player's settings — 2026-11-17
+
+The user asked for a pass making the engine and game compliant with every 52in1 protocol and
+multiplayer mode (https://52in1.com/lib/hub/README.md and catalogue.md), alongside a controller,
+prompt and touch standard (the next entries). The hub had grown since the last package
+(2026-11-13): several online modes on one page (`hub:multiplayer`, `info.play`), moments
+(2026-11-16), the player's settings and the DualSense (`window.AIHubSettings`, `hub:dualsense`).
+- **One page.** `scripts/build-hub.sh` packs `target/hub/pages/shardfall.html` (no longer three
+  pages, one per mode). Its head names `hub:multiplayer` `parallel 1-4, ghost 1-4, shared-world
+  co-op 1-4, shared-world versus 2-4, moments 1-4`, `hub:players` 1-4, a goal per mode
+  (`hub:session-goal-parallel`, `-ghost`, `-co-op`, `-versus`, `-moments`) and one `hub:moment`
+  tag per moment; `hub:tags` gained `gamepad` and `touch` (dropping `3d`, the tag that said
+  least) and `hub:controls` the pad. The page's bridge connects with every online mode the page
+  names and the game builds what the hub dealt (`hub::Info::{moments, shared, versus}`).
+- **Moments** (`pav_core::arpg::moments`, scenes `moment/<id>`): four short goals in the Proving
+  Grounds with a fixed hero, the same on every copy (built from the round's seed and the
+  moment's name): `pack` (defeat, 25 s), `champion` (defeat, 30 s), `swarm` (survive, 20 s),
+  `gold` (collect, 20 s). The simulation decides the outcome (all down or all picked up clears
+  it, a fallen hero fails it with no respawn, time running out clears only `swarm`); a moment
+  drops no loot and has no portal. The copy reports `result({ won, time })` once and holds the
+  world still; the HUD shows the goal, a draining time bar, what is left and the outcome, and in
+  `gold` rings each pile and points to the ones off screen.
+- **Co-op and versus.** The shared world plays as the hub says (`info.play`): co-op puts every
+  player in one place in the standings with `won` (the party reached depth 4), as the protocol
+  now asks (it used to rank co-op players by kills); versus ranks by kills, most first.
+- **The player's settings.** The bridge hands the game `window.AIHubSettings` as JSON
+  (`hub::settings`), again on its `change` event: the effects volume multiplies the game's own
+  (Shardfall has no music); the hub applies master volume and vibration itself. No feature
+  needs a permission (no microphone), so nothing waits on `mic`.
+- **Tools.** `scripts/hub_check.py` plays 52in1's harness headless (any case, or the hub's own
+  set for every mode the page names); `scripts/hub_covers.py` takes the covers (both Python:
+  Node has no Playwright on this machine, Python has it). The checker and harness now come from
+  `52in1.com/lib/hub/` (the old raw GitHub address of `ai-hub` answers 404).
+- **Decided:**
+  - Moments are the arena with one goal rather than stretches of the designed levels: every one
+    opens straight into play, reads at a glance, and its set-up is a few seeded spawns. Tuned
+    with `autoplay` on seeds 1-5: the bot clears pack 5/5, champion 3/5 (a champion two levels
+    below the hero, guards at its level), survives the swarm 5/5 at 40-100% life (packs of six
+    at the hero's level + 4 every 2 s); a greedy walk takes the gold in under 80% of its time.
+  - Versus is the shared world's kill race (no player-versus-player damage): it costs nothing to
+    build on the co-op world and gives the hub a competitive deal for 2-4.
+  - No on-device mode yet: same-screen co-op is the next stage of this pass.
+- **Checked:** `pav_core/tests/moments.rs` (the same moment on every copy, a fall fails it and
+  stays down, survival clears only `swarm`, the gold in time, `web/hub.json`'s moment tags match
+  the game's), `coop::tests` (co-op one place, versus by kills), `hub::tests` (the welcome's new
+  fields and the settings). 52in1's harness passes all ten of the hub's own cases (parallel 1
+  and 2, ghost 2 and 3 with the host leaving, co-op and versus 2 with a poor network and with a
+  server, moments 1 and 2 with a poor network); the catalogue checker passes the package (116
+  checks, build 2 of `shardfall` against the 2,915 games on the wall).
+
 ## The game opens in the Pavilion; Shardfall and the tools are places on its plaza — 2026-11-13
 
 The user asked for the game to start in the demo world, with no menu: "let the player find the

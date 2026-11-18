@@ -22,6 +22,7 @@ pub const SCENES: &[(&str, &str)] = &[
     ("town", "Shardfall: Emberwatch, the town (smith, stash, portal)."),
     ("lab", "Shardfall: the Menagerie, a gallery of designed and generated creatures."),
     ("level", "Shardfall: a level of the descent. 'level/<n>' is depth n (1-12 designed, then the endless Depths)."),
+    ("moment", "Shardfall: a moment for the 52in1 hub, one goal in seconds. 'moment/<id>': pack, champion, swarm, gold."),
 ];
 
 /// The scenes a menu offers: the built-in ones, then the games (`crate::games::GAMES`).
@@ -135,6 +136,10 @@ pub fn build(sim: &mut Sim, name: &str) -> Result<()> {
         "arena" => crate::arpg::scene::build_arena(sim),
         "town" => crate::arpg::scene::build_town(sim, None),
         "lab" => crate::arpg::scene::build_lab(sim, None),
+        "moment" => {
+            let id = start_room.unwrap_or("pack");
+            crate::arpg::moments::build_moment(sim, id).map_err(|e| anyhow!(e))?;
+        }
         "level" => {
             let n: u32 = match start_room {
                 Some(r) => r.parse().map_err(|_| anyhow!("level/<n>: '{r}' is not a depth"))?,

@@ -284,6 +284,12 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
     if let Some(l) = &g.level {
         level_hud(&p, g, l, proj, screen, big_map, touch.then_some(&mut *swipes));
     }
+    if let Some(mo) = &g.moment {
+        moment_hud(&p, mo, screen, if touch { k } else { 1.0 });
+        if mo.outcome.is_none() && mo.goal == pav_core::arpg::moments::Goal::Collect {
+            pile_marks(&p, &g.gold, proj, screen, mo.seconds - mo.left);
+        }
+    }
     // The boss bar.
     if let Some(b) = &g.boss {
         let (w, y) = if !touch {
@@ -571,6 +577,63 @@ fn touch_vitals(p: &egui::Painter, g: &GameFrame, h: &HeroHud, screen: Rect, k: 
         }
     } else if g.wave > 0 {
         line(y, t!("hud.wave.touch", wave = g.wave, count = g.monsters), Color32::from_rgba_unmultiplied(255, 214, 150, 210));
+    }
+}
+
+/// A moment on the 52in1 hub: its goal across the top, the time left as a draining bar, and
+/// how many monsters or piles are left. The outcome shows as the game's banner.
+fn moment_hud(p: &egui::Painter, m: &pav_core::arpg::moments::MomentView, screen: Rect, k: f32) {
+    use pav_core::arpg::moments::Goal;
+    let top = screen.center_top() + EVec2::new(0.0, 40.0 * k);
+    shadowed(p, top, &t!(&format!("moment.goal.{}", m.id)), 24.0 * k, Color32::from_rgb(255, 222, 160));
+    let w = (screen.width() * 0.5).min(420.0 * k);
+    let bar = Rect::from_center_size(top + EVec2::new(0.0, 26.0 * k), EVec2::new(w, 8.0 * k));
+    p.rect_filled(bar.expand(2.0), 4.0, Color32::from_black_alpha(200));
+    let mut fill = bar;
+    fill.set_width(w * (m.left / m.seconds.max(0.1)).clamp(0.0, 1.0));
+    let urgent = m.left < 5.0 && m.outcome.is_none();
+    p.rect_filled(fill, 3.0, if urgent { Color32::from_rgb(230, 90, 60) } else { Color32::from_rgb(240, 198, 112) });
+    let count = match m.goal {
+        Goal::Defeat | Goal::Collect if m.outcome.is_none() => Some(m.remaining as i64),
+        _ => None,
+    };
+    if let Some(n) = count {
+        p.text(
+            bar.center_bottom() + EVec2::new(0.0, 6.0 * k),
+            Align2::CENTER_TOP,
+            t!("moment.remaining", count = n),
+            FontId::proportional(16.0 * k),
+            Color32::from_white_alpha(220),
+        );
+    }
+}
+
+/// A collect moment: a pulsing ring on each pile of gold in view, and an arrow at the screen's
+/// edge toward each one out of it.
+fn pile_marks(p: &egui::Painter, piles: &[Vec3], proj: &Projector, screen: Rect, time: f32) {
+    let gold = Color32::from_rgb(255, 210, 90);
+    let pulse = 1.0 + 0.15 * (time * 6.0).sin();
+    let inner = screen.shrink(28.0);
+    for &at in piles {
+        match proj.to_screen(at).filter(|s| inner.contains(*s)) {
+            Some(s) => {
+                p.circle_stroke(s, 16.0 * pulse, Stroke::new(3.0, gold));
+                p.circle_stroke(s, 16.0 * pulse, Stroke::new(6.0, Color32::from_rgba_unmultiplied(255, 210, 90, 50)));
+            }
+            None => {
+                // Off screen: an arrow on the edge, pointing the way.
+                let c = proj.vp * at.extend(1.0);
+                let n = if c.w.abs() > 1e-3 { c.truncate() / c.w.abs() } else { c.truncate() };
+                let dir = EVec2::new(n.x, -n.y);
+                let Some(dir) = (dir.length() > 1e-4).then(|| dir.normalized()) else { continue };
+                let half = inner.size() * 0.5;
+                let t = (half.x / dir.x.abs().max(1e-4)).min(half.y / dir.y.abs().max(1e-4));
+                let tip = inner.center() + dir * t;
+                let side = EVec2::new(-dir.y, dir.x);
+                let pts = vec![tip, tip - dir * 18.0 + side * 9.0, tip - dir * 18.0 - side * 9.0];
+                p.add(egui::Shape::convex_polygon(pts, gold, Stroke::new(1.5, Color32::from_black_alpha(200))));
+            }
+        }
     }
 }
 

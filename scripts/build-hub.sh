@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Builds Shardfall's AI Hub pages (docs/AI_HUB.md): the browser build once, then one page per
-# session mode with the hub's head (catalogue and session tags, the session client), the line
-# book and the fonts.
+# Builds Shardfall's page for 52in1 (docs/AI_HUB.md): the browser build, with the hub's head
+# (catalogue and session tags for every way to play together, the session client), the line
+# book and the fonts. The hub picks the online mode each round from the page's hub:multiplayer.
 #
 #   scripts/build-hub.sh --model "NAME" [--effort LEVEL]
 #
-# Out: target/hub/pages/shardfall-{shared-world,ghost,parallel}.html. The package itself
-# (games/ and covers/) is scripts/hub_package.py's.
+# Out: target/hub/pages/shardfall.html. The package itself (games/ and covers/) is
+# scripts/hub-package.sh's.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 model=""
@@ -29,7 +29,5 @@ wasm-bindgen --target web --no-typescript --out-dir "$bindgen" --out-name shardf
 cargo run -q -p pav_tools --bin pav -- lines out="$bindgen/game-lines.json" >/dev/null
 extra=()
 [[ -n $effort ]] && extra+=(--effort "$effort")
-for mode in shared-world ghost parallel; do
-	python3 -I scripts/pack_single_html.py "$bindgen" --lines "$bindgen/game-lines.json" --fonts assets/fonts \
-		--hub web/hub.json --session-mode "$mode" --model "$model" "${extra[@]}" --out "target/hub/pages/shardfall-$mode.html"
-done
+python3 -I scripts/pack_single_html.py "$bindgen" --lines "$bindgen/game-lines.json" --fonts assets/fonts \
+	--hub web/hub.json --model "$model" "${extra[@]}" --out "target/hub/pages/shardfall.html"

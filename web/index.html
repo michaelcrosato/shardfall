@@ -51,17 +51,26 @@
   })();
   document.getElementById('turn').textContent = pageLine('page.turn', 'Turn your phone sideways for the best view');
 
-  // AI Hub sessions (Session Protocol v1, docs/AI_HUB.md). With the session client in the page
-  // (the hub's build) and the hub's frame around it, this joins the round at once, keeps the
-  // hub's events for the game, and hands the game the client's calls. Elsewhere it does nothing.
+  // 52in1 sessions (AI Hub Session Protocol v1, docs/AI_HUB.md). With the session client in the
+  // page (the hub's build) and the hub's frame around it, this joins the round at once, keeps
+  // the hub's events for the game, and hands the game the client's calls. Elsewhere it does
+  // nothing. It also hands the game the player's 52in1 settings (window.AIHubSettings), which
+  // the hub gives every game it opens, in a session or not.
   (() => {
     const hub = window.AIHub;
-    const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [], score: 0, reported: false };
+    const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [], score: 0, won: false,
+                     reported: false, settingsChanged: false };
     const tag = (n) => (document.querySelector(`meta[name="${n}"]`) || {}).content;
     if (bridge.active) {
       const seats = (tag('hub:session-players') || '1-4').split('-').map(Number);
+      // Every online mode the page names in hub:multiplayer (the hub picks one each round), else
+      // its one session mode.
+      const online = ['parallel', 'ghost', 'shared-world', 'moments'];
+      const named = (tag('hub:multiplayer') || '').split(',').map((w) => w.trim().split(/\s+/)[0]);
+      const modes = online.filter((m) => named.includes(m));
+      const mode = modes.length > 1 ? modes : modes[0] || tag('hub:session-mode');
       bridge.waiting = true;
-      hub.connect({ mode: tag('hub:session-mode'), seats: [seats[0], seats[1] || seats[0]] }).then((info) => {
+      hub.connect({ mode, seats: [seats[0], seats[1] || seats[0]] }).then((info) => {
         bridge.waiting = false;
         bridge.info = info;
         if (!info) bridge.active = false;
@@ -75,6 +84,8 @@
         if (bridge.reported || !bridge.info) return;
         if (bridge.info.mode === 'parallel' || bridge.info.mode === 'ghost' || bridge.info.mode === 'race') {
           bridge.result(JSON.stringify({ score: bridge.score }));
+        } else if (bridge.info.mode === 'moments') {
+          bridge.result(JSON.stringify({ won: bridge.won, time: Math.max(0, hub.time()) }));
         } else if (bridge.info.isHost) {
           bridge.finish(JSON.stringify({ standings: [bridge.info.players.map((p) => p.id)], won: false }));
         }
@@ -92,7 +103,24 @@
       result: (json) => { bridge.reported = true; hub.result(JSON.parse(json)); },
       finish: (json) => { bridge.reported = true; hub.finish(JSON.parse(json)); },
       fail: (message) => { if (hub && hub.active) hub.fail(message); },
+      momentStanding: (won) => { bridge.won = won; },
+      // The player's 52in1 settings as JSON ('' outside 52in1), and whether they changed.
+      settingsJson: () => {
+        const s = window.AIHubSettings;
+        if (!s) return '';
+        const ds = s.dualsense || {};
+        const flags = ['connected', 'lightbar', 'triggers', 'motion', 'touchpad', 'speaker', 'aim'];
+        return JSON.stringify({
+          music: s.music ?? 1, effects: s.effects ?? 1, vibration: s.vibration ?? 1,
+          mic: !!s.mic, micLater: !!s.micLater, muted: !!s.muted,
+          dualsense: Object.fromEntries(flags.map((f) => [f, !!ds[f]])),
+        });
+      },
+      takeSettingsChanged: () => { const c = bridge.settingsChanged; bridge.settingsChanged = false; return c; },
     });
+    if (window.AIHubSettings && window.AIHubSettings.addEventListener) {
+      window.AIHubSettings.addEventListener('change', () => { bridge.settingsChanged = true; });
+    }
     window.shardfallHub = bridge;
   })();
 </script>

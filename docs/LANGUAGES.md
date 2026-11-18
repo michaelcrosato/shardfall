@@ -1,7 +1,7 @@
 # Languages
 
 Shardfall follows AI Hub Languages v1
-(https://raw.githubusercontent.com/michaelcrosato/ai-hub/main/lib/hub/languages.md): it is built
+(https://52in1.com/lib/hub/languages.md): it is built
 in English and can be shown in any of the AI Hub's 21 languages once a translation is added to
 the page, without changing the game.
 

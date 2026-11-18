@@ -6,7 +6,9 @@
 //! - Ghost: the same, and each copy sends its hero (where it is, its pose) about ten times a
 //!   second; the others' heroes are drawn where they are when they're on the same depth. They
 //!   are view objects only, so they never touch this copy's world.
-//! - Shared world: `crate::coop` (several heroes in one world, kept in lockstep).
+//! - Shared world: `crate::coop` (several heroes in one world, kept in lockstep), co-op or versus.
+//! - Moments: each load plays one short moment (`pav_core::arpg::moments`), the same on every
+//!   copy; the copy reports whether its player cleared it, then holds still.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -86,6 +88,8 @@ pub struct RoundOut {
     pub build: Option<(u64, &'static str)>,
     /// Build the shared world (every player's hero) from this seed (`Round::coop`).
     pub build_shared: Option<u64>,
+    /// Build this moment from the seed.
+    pub build_moment: Option<(String, u64)>,
     /// Hold the world still.
     pub hold: bool,
     /// Let the player steer.
@@ -115,6 +119,9 @@ pub struct Round {
     pub finish_due: bool,
     /// The players' names arrived: the app loads the fonts their scripts need.
     pub fonts_due: bool,
+    /// Moments: the moment as last seen, and whether the hero was down.
+    moment: Option<pav_core::arpg::moments::MomentView>,
+    hero_down: bool,
 }
 
 impl Round {
@@ -135,6 +142,8 @@ impl Round {
             coop: None,
             finish_due: false,
             fonts_due: false,
+            moment: None,
+            hero_down: false,
         }
     }
 
@@ -169,10 +178,13 @@ impl Round {
                 if info.shared() {
                     self.coop = Some(crate::coop::Coop::new(&info));
                     out.build_shared = Some(info.seed);
+                } else if info.moments() {
+                    let id = info.moment.clone().unwrap_or_else(|| pav_core::arpg::moments::MOMENTS[0].id.to_string());
+                    out.build_moment = Some((id, info.seed));
                 } else {
                     out.build = Some((info.seed, pav_core::arpg::round::SEAT_CHARACTERS[seat % 4]));
                 }
-                for p in info.players.iter().filter(|p| p.id != info.me && !info.shared()) {
+                for p in info.players.iter().filter(|p| p.id != info.me && info.ghost()) {
                     self.ghosts.insert(
                         p.id,
                         Ghost {
@@ -202,6 +214,10 @@ impl Round {
                 _ => 0,
             };
             self.standing = (depth, g.hero.as_ref().map(|h| h.kills).unwrap_or(0));
+            if g.moment.is_some() {
+                self.moment = g.moment.clone();
+                self.hero_down = g.hero.as_ref().is_none_or(|h| h.dead);
+            }
         }
         for e in hub::events() {
             self.event(e);
@@ -213,7 +229,7 @@ impl Round {
         let info = self.info.clone().unwrap_or_default();
         // Progress from the moment this copy is ready: the hub shows it on the scoreboard.
         let live = matches!(self.phase, Phase::Waiting | Phase::Countdown | Phase::Playing);
-        if live && !info.shared() && self.clock - self.last_progress >= 1.0 {
+        if live && (info.parallel() || info.ghost()) && self.clock - self.last_progress >= 1.0 {
             self.last_progress = self.clock;
             let (depth, kills) = self.standing;
             let label = pav_core::lines::logical("session.progress", &[("depth", depth.into()), ("kills", kills.into())]);
@@ -223,9 +239,19 @@ impl Round {
             self.send_ghost(frame);
         }
         self.smooth_ghosts(dt);
+        // Moments: the outcome is reported once, when the game decides it; then the world
+        // holds still (no game-over screen, no next moment: the hub deals that).
+        let mut decided = false;
+        if info.moments() {
+            hub::moment_standing(self.moment_won());
+            decided = self.moment.as_ref().is_some_and(|m| m.outcome.is_some());
+            if decided && self.phase == Phase::Playing {
+                self.report();
+            }
+        }
         // A shared world steps by the host's ticks (`coop`), never by the clock.
-        out.hold = !matches!(self.phase, Phase::Playing) || self.coop.is_some();
-        out.input = self.phase == Phase::Playing;
+        out.hold = !matches!(self.phase, Phase::Playing) || self.coop.is_some() || decided;
+        out.input = self.phase == Phase::Playing && !decided;
         out.silent = self.phase == Phase::Ended;
         out
     }
@@ -262,12 +288,27 @@ impl Round {
         }
     }
 
-    /// Parallel and ghost: this player's result, once (the depth reached, then kills).
+    /// Moments: whether the player has cleared the moment, or would if it ended now (a moment
+    /// to survive is cleared at time-up by a hero still standing).
+    fn moment_won(&self) -> bool {
+        use pav_core::arpg::moments::Goal;
+        match &self.moment {
+            Some(m) => m.outcome.unwrap_or(m.goal == Goal::Survive && !self.hero_down),
+            None => false,
+        }
+    }
+
+    /// This player's result, once. Parallel and ghost: the depth reached, then kills. Moments:
+    /// cleared or not, and when.
     fn report(&mut self) {
         if self.reported || self.info.as_ref().is_none_or(|i| i.shared()) {
             return;
         }
         self.reported = true;
+        if self.info.as_ref().is_some_and(|i| i.moments()) {
+            hub::result(&serde_json::json!({ "won": self.moment_won(), "time": hub::time().max(0.0) }));
+            return;
+        }
         let (depth, kills) = self.standing;
         let depth_label = pav_core::lines::logical("session.stat.depth", &[]);
         let kills_label = pav_core::lines::logical("session.stat.kills", &[]);

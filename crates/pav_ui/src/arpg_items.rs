@@ -405,7 +405,7 @@ impl GameUi {
             skills_window(ctx, &mut self.skills, &d, &inv, &mut out, self.touch);
         }
         self.tree.ui(ctx, &inv, &mut out);
-        if inv.points > 0 && !self.tree.open && !self.touch {
+        if inv.points > 0 && !self.tree.open && !self.touch && g.moment.is_none() {
             // A nudge above the experience bar.
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("points_hint")));

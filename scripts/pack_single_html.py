@@ -15,11 +15,11 @@ URLs are needed. Out: target/web/<title>.html.
 
 --lines puts the game's line book (`pav lines out=`) in <head> as the game-lines block (AI Hub
 Languages v1); --fonts DIR adds each .ttf there as a font-NAME block (zlib, base64) that the
-game decodes only when its language needs it. --hub web/hub.json writes the AI Hub Catalogue v1
-and Session Protocol v1 tags into <head> after pasting the session client (web/hub/session.js)
-as the page's first script; --session-mode picks parallel, ghost or shared-world (default: the
-file's), --model and --effort fill hub:model and hub:effort (docs/AI_HUB.md). Every page gets
-the emblem as its icon.
+game decodes only when its language needs it. --hub web/hub.json writes 52in1's tags (AI Hub
+Catalogue v1 and Session Protocol v1) into <head> after pasting the session client
+(web/hub/session.js) as the page's first script: one page for every way to play together
+(hub:multiplayer), its moments (hub:moment) and its DualSense extras (hub:dualsense); --model and
+--effort fill hub:model and hub:effort (docs/AI_HUB.md). Every page gets the emblem as its icon.
 """
 import argparse
 import base64
@@ -104,20 +104,57 @@ HUB_LIMITS = {"name": 40, "tagline": 60, "description": 200, "controls": 160, "g
 EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
 
 
-def hub_head(cfg, mode, model, effort):
-    """The catalogue's and the session protocol's tags, in the catalogue's order."""
-    if mode not in ("parallel", "ghost", "shared-world"):
-        fail(f"--session-mode {mode}: parallel, ghost or shared-world")
-    tags = [t for t in cfg["tags"] if t not in ("co-op", "versus", "race")]
-    together = {"ghost": "race", "shared-world": "co-op"}.get(mode)
-    if together:
-        tags.append(together)
-    goal = cfg["goals"][mode]
+ONLINE = ("parallel", "ghost", "shared-world", "moments")
+LOCAL = ("same-screen", "split-screen", "hot-seat")
+HOWS = ("co-op", "versus", "other")
+VERBS = set("aim balance block build catch climb collect defeat defend destroy dodge drift escape find fly hide hit jump "
+            "land park race reach score shoot sneak solve steer stop survive throw".split())
+DUALSENSE = ("light bar", "adaptive triggers", "haptics", "motion", "touchpad", "speaker", "microphone")
+
+
+def hub_head(cfg, model, effort):
+    """The catalogue's and the session protocol's tags, in the catalogue's order: one page that
+    plays every way the game plays together (the hub picks the online mode each round)."""
+    together = cfg.get("multiplayer", [])
+    words = set()
+    for entry in together:
+        parts = entry.split()
+        where = parts[0]
+        if where not in ONLINE + LOCAL:
+            fail(f"hub multiplayer '{entry}': WHERE is one of {', '.join(ONLINE + LOCAL)}")
+        if where in ("parallel", "ghost", "moments"):
+            if len(parts) != 2:
+                fail(f"hub multiplayer '{entry}': {where} PLAYERS")
+        elif len(parts) != 3 or parts[1] not in HOWS:
+            fail(f"hub multiplayer '{entry}': {where} HOW PLAYERS, HOW one of {', '.join(HOWS)}")
+        words.add(where if where in ("parallel", "ghost", "moments") else parts[1])
+    mode = cfg["session_mode"]
+    if mode not in ONLINE:
+        fail(f"hub session_mode {mode}: one of {', '.join(ONLINE)}")
+    moments = cfg.get("moments", [])
+    if "moments" in words and len(moments) < 3:
+        fail("hub multiplayer names moments: give at least three moments")
+    for m in moments:
+        parts = m.split(" ", 3)
+        if len(parts) != 4 or not re.fullmatch(r"[a-z0-9-]{1,24}", parts[0]) or parts[1] not in VERBS \
+                or not parts[2].isdigit() or not 3 <= int(parts[2]) <= 30 or len(parts[3]) > 60:
+            fail(f"hub moment '{m}': ID VERB SECONDS GOAL (id a-z0-9-, a protocol verb, 3-30 s, goal <= 60)")
+    extras = cfg.get("dualsense", [])
+    for e in extras:
+        if e not in DUALSENSE:
+            fail(f"hub dualsense '{e}': one of {', '.join(DUALSENSE)}")
+    if extras and "gamepad" not in cfg["tags"]:
+        fail("hub dualsense extras need the gamepad tag")
+    tags = cfg["tags"]
+    goals = cfg["goals"]
     checks = {"name": cfg["name"], "tagline": cfg["tagline"], "description": cfg["description"], "controls": cfg["controls"],
-              "goal": goal, "howto": cfg["session_howto"], "model": model or "", "harness": cfg["harness"]}
+              "howto": cfg["session_howto"], "model": model or "", "harness": cfg["harness"]}
     for key, value in checks.items():
         if len(value) > HUB_LIMITS[key]:
             fail(f"hub {key} is {len(value)} characters: at most {HUB_LIMITS[key]}")
+    for g in goals.values():
+        if len(g) > HUB_LIMITS["goal"]:
+            fail(f"hub goal '{g}' is {len(g)} characters: at most {HUB_LIMITS['goal']}")
     if not model:
         fail("--hub needs --model: the model that wrote this build, as its maker names it")
     if effort and effort not in EFFORTS:
@@ -136,17 +173,25 @@ def hub_head(cfg, mode, model, effort):
     if effort:
         lines.append(meta("hub:effort", effort))
     lines += [meta("hub:harness", cfg["harness"]), meta("hub:session", 1)]
+    if cfg.get("players"):
+        lines.append(meta("hub:players", cfg["players"]))
     if together:
-        lines.append(meta("hub:players", cfg["session_players"]))
+        lines.append(meta("hub:multiplayer", ", ".join(together)))
     if cfg.get("webgpu"):
         lines.append(meta("hub:webgpu", cfg["webgpu"]))
+    if extras:
+        lines.append(meta("hub:dualsense", ", ".join(extras)))
     lines += [
         meta("hub:session-players", cfg["session_players"]),
         meta("hub:session-mode", mode),
-        meta("hub:session-goal", goal),
+        meta("hub:session-goal", goals["default"]),
         meta("hub:session-howto", cfg["session_howto"]),
         meta("hub:session-minutes", cfg["session_minutes"]),
     ]
+    for word in sorted(words):
+        if word in goals:
+            lines.append(meta(f"hub:session-goal-{word}", goals[word]))
+    lines += [meta("hub:moment", m) for m in moments]
     return "\n".join(lines) + "\n"
 
 
@@ -173,7 +218,6 @@ def main():
     ap.add_argument("--lines", type=pathlib.Path, help="the game's line book (JSON, `pav lines out=`): the game-lines block")
     ap.add_argument("--fonts", type=pathlib.Path, help="folder of .ttf fonts to carry (assets/fonts)")
     ap.add_argument("--hub", type=pathlib.Path, help="the AI Hub's tags (web/hub.json): catalogue, session client and session tags")
-    ap.add_argument("--session-mode", help="parallel, ghost or shared-world (default: --hub file's)")
     ap.add_argument("--model", help="hub:model: the model that wrote this build, as its maker names it")
     ap.add_argument("--effort", help="hub:effort: the effort it ran at")
     a = ap.parse_args()
@@ -210,7 +254,6 @@ def main():
     after_icon = ""
     if a.hub:
         cfg = json.loads(a.hub.read_text(encoding="utf-8"))
-        mode = a.session_mode or cfg["session_mode"]
         page = replace_one(page, r"<title>[^<]*</title>", lambda m: f"<title>{html.escape(cfg['name'] + ' — ' + cfg['tagline'])}</title>", "<title>")
         for name, value in (("description", cfg["description"]), ("theme-color", cfg["theme_color"])):
             page = replace_one(
@@ -219,7 +262,7 @@ def main():
                 lambda m, name=name, value=value: f'<meta name="{name}" content="{html.escape(value)}">',
                 f"<meta name={name}>",
             )
-        after_icon += hub_head(cfg, mode, a.model, a.effort)
+        after_icon += hub_head(cfg, a.model, a.effort)
         client = (ROOT / "web" / "hub" / "session.js").read_text(encoding="utf-8")
         if "</script" in client.lower():
             fail("web/hub/session.js contains </script")

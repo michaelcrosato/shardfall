@@ -45,6 +45,11 @@ fn hero_json(s: &Session) -> Result<Value> {
         "stash": g.hero.stash.len(),
         // The other playable characters' heroes, waiting in the Hall of Heroes.
         "hall": g.roster.iter().map(|(k, h)| json!({ "character": k, "level": h.level, "max_depth": h.max_depth })).collect::<Vec<_>>(),
+        // A moment for the 52in1 hub (scene moment/<id>): its clock, what is left and the outcome.
+        "moment": g.moment.as_ref().map(|m| {
+            let v = m.view(g);
+            json!({ "id": v.id, "left": round3(v.left), "remaining": v.remaining, "outcome": v.outcome })
+        }),
     }))
 }
 

@@ -225,6 +225,9 @@ pub struct App {
     /// When the round last ran (`tick_round`), and whether it lets the player steer.
     round_at: Option<Instant>,
     round_input: bool,
+    /// The player's 52in1 settings (volumes, vibration, the DualSense's extras), when the hub
+    /// runs the game: they apply on top of the game's own.
+    hub_settings: Option<crate::hub::Settings>,
 }
 
 impl App {
@@ -324,6 +327,7 @@ impl App {
             round: in_round.then(crate::round::Round::new),
             round_at: None,
             round_input: true,
+            hub_settings: crate::hub::settings(),
             settings,
         };
         if in_round {
@@ -1070,6 +1074,9 @@ impl App {
             self.fps.since = now;
         }
 
+        if crate::hub::settings_changed() {
+            self.hub_settings = crate::hub::settings();
+        }
         // Devices.
         self.input.poll_gamepad();
         if self.input.pad.start_pressed {
@@ -1366,7 +1373,9 @@ impl App {
                 if matches!(e, pav_core::SimEvent::Step { .. }) && !self.audio_settings.footsteps {
                     continue;
                 }
-                a.play_event(e, &l, self.audio_settings.sfx);
+                // The player's 52in1 effects volume multiplies the game's own.
+                let effects = self.hub_settings.as_ref().map_or(1.0, |h| h.effects.clamp(0.0, 1.0));
+                a.play_event(e, &l, self.audio_settings.sfx * effects);
             }
         }
         // The look layer (Look & Filters) over the scene's own settings.
@@ -2590,6 +2599,19 @@ fn round_frame(
             sim.config = cfg;
         });
         *scene_name = "level/1".into();
+        round.built();
+    }
+    if let Some((id, seed)) = out.build_moment {
+        let scene = format!("moment/{id}");
+        host.exec(move |sim| {
+            let cfg = sim.config.clone();
+            match pav_core::arpg::moments::moment_sim(&id, seed) {
+                Ok(m) => *sim = m,
+                Err(e) => log::error!("{e}"),
+            }
+            sim.config = cfg;
+        });
+        *scene_name = scene;
         round.built();
     }
     if let (Some(seed), Some(c)) = (out.build_shared, round.coop.as_ref()) {

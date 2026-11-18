@@ -115,6 +115,9 @@ pub struct Coop {
     /// A player's copy disagreed with the host's world.
     pub desync: bool,
     pub finished: bool,
+    /// Played versus (`info.play`): the most kills wins. Otherwise co-op: one side, and `won`
+    /// says whether the party got deep enough.
+    pub versus: bool,
 }
 
 impl Coop {
@@ -143,6 +146,7 @@ impl Coop {
             own_due: 0.0,
             desync: false,
             finished: false,
+            versus: info.versus(),
         }
     }
 
@@ -422,8 +426,8 @@ impl Coop {
         self.hashes = self.hashes.split_off(&(self.tick + 1));
     }
 
-    /// The host's report of the round: each player's kills, best first; won when the party
-    /// reached the goal depth.
+    /// The host's report of the round. Co-op: everyone in one place, won when the party reached
+    /// the goal depth. Versus: by kills, best first. The kills are the scores either way.
     pub fn finish(&mut self, host: &SimHost) {
         if !self.is_host || self.finished {
             return;
@@ -439,13 +443,8 @@ impl Coop {
             })
             .flatten()
             .unwrap_or_default();
-        let mut by: BTreeMap<std::cmp::Reverse<u64>, Vec<u32>> = BTreeMap::new();
-        for (seat, k) in &kills {
-            by.entry(std::cmp::Reverse(*k)).or_default().push(*seat);
-        }
-        let standings: Vec<Vec<u32>> = by.into_values().collect();
         let scores: serde_json::Map<String, Value> = kills.iter().map(|(s, k)| (s.to_string(), json!(k))).collect();
-        hub::finish(&json!({ "standings": standings, "scores": scores, "won": depth >= GOAL_DEPTH }));
+        hub::finish(&outcome(&kills, depth, self.versus, scores));
     }
 
     /// The host: the party is deep enough to win.
@@ -454,9 +453,36 @@ impl Coop {
     }
 }
 
+/// The round's report: co-op puts everyone in one place with the team's result; versus ranks
+/// the players by kills.
+fn outcome(kills: &[(u32, u64)], depth: u32, versus: bool, scores: serde_json::Map<String, Value>) -> Value {
+    if versus {
+        let mut by: BTreeMap<std::cmp::Reverse<u64>, Vec<u32>> = BTreeMap::new();
+        for (seat, k) in kills {
+            by.entry(std::cmp::Reverse(*k)).or_default().push(*seat);
+        }
+        let standings: Vec<Vec<u32>> = by.into_values().collect();
+        json!({ "standings": standings, "scores": scores })
+    } else {
+        let all: Vec<u32> = kills.iter().map(|(seat, _)| *seat).collect();
+        json!({ "standings": [all], "scores": scores, "won": depth >= GOAL_DEPTH })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn co_op_is_one_place_and_versus_ranks_by_kills() {
+        let kills = [(0, 5), (1, 9), (2, 5)];
+        let c = outcome(&kills, GOAL_DEPTH, false, Default::default());
+        assert_eq!(c["standings"], json!([[0, 1, 2]]));
+        assert_eq!(c["won"], json!(true));
+        let v = outcome(&kills, 2, true, Default::default());
+        assert_eq!(v["standings"], json!([[1], [0, 2]]));
+        assert!(v.get("won").is_none());
+    }
 
     #[test]
     fn inputs_travel_and_come_back_the_same() {
