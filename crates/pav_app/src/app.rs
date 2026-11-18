@@ -1297,6 +1297,12 @@ impl App {
         if game_input {
             held |= intent.held;
             pressed |= intent.pressed;
+            // A touch screen's assist in a shooter (the blaster rooms): it fires by itself while
+            // the thumb steers, as auto-attack does in Shardfall (Settings' auto-attack).
+            let blaster = self.sim_config.bombs.weapon == pav_core::character::Weapon::Blaster;
+            if self.input.last_device == Device::Touch && blaster && curr.game.is_none() && self.prefs.auto_attack {
+                held |= pav_core::input::buttons::USE;
+            }
         }
         // A plaza station used this frame (interact here, or its button below).
         let mut station = None;
