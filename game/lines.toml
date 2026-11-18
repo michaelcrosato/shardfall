@@ -164,6 +164,14 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "settings.speaker" = "Controller speaker"
 "settings.speaker.hub_off" = "The controller's speaker plays once 52in1's Settings allow it: a DualSense on a cable, with the microphone allowed under Sound."
 
+# Settings in 52in1: Shout to roar, the game's voice feature (any controller, or keys: the
+# microphone is the DualSense's or the device's own).
+"settings.roar" = "Shout to roar"
+"settings.roar.about" = "A loud shout into the microphone casts {skill}, while it is on your skill bar and ready."
+"settings.roar.hub_off" = "To shout to roar, allow games the microphone in 52in1's Settings, under Sound."
+"settings.roar.hub_later" = "Allowed after Shardfall opened: open it again to use the microphone."
+"settings.roar.muted" = "The microphone is muted: the controller's mute button turns it back on."
+
 # First-time tips on a touch screen: what to do, then how.
 "touch.tips" = "Playing by touch"
 "touch.tips.move" = "drag anywhere"
@@ -297,6 +305,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "hud.wave" = { one = "Wave {wave}  ({count} left)", other = "Wave {wave}  ({count} left)" }
 "hud.wave.touch" = { one = "Wave {wave} · {count} left", other = "Wave {wave} · {count} left" }
 "hud.orb" = "{value}/{max}"
+"hud.roar" = "Roar!"
 "hud.key.lmb" = "LMB"
 "hud.key.rmb" = "RMB"
 "hud.potion" = "{key:potion} potion"
@@ -765,6 +774,11 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "settings.motion.hub_aim" = "Under the Motion aim setting, turned off, when the hub's own motion aim (a 52in1 setting with the same name) is on and takes over the right stick."
 "settings.speaker" = "Settings, with a DualSense controller: short sounds played from the speaker in the controller itself."
 "settings.speaker.hub_off" = "Under the Controller speaker setting when 52in1 (the game hub; keep its name as it is) doesn't allow it. 'Sound' is the name of a section of 52in1's settings."
+"settings.roar" = "Settings in 52in1: the player shouts into the microphone to cast the War Cry skill (a battle roar). On/Off buttons follow. A short name."
+"settings.roar.about" = "Under the Shout to roar setting while it can be used. {skill} is the War Cry skill's name."
+"settings.roar.hub_off" = "Under the Shout to roar setting when 52in1 (the game hub; keep its name as it is) doesn't allow games the microphone. 'Sound' is the name of a section of 52in1's settings."
+"settings.roar.hub_later" = "Under the Shout to roar setting when the player allowed the microphone in 52in1 after the game was opened: it works once the game is opened again. Shardfall is the game's name."
+"settings.roar.muted" = "Under the Shout to roar setting while the DualSense controller's mute button has its microphone off."
 "controls.menu_take" = "On a controller, what Cross (A) does in a menu: picks the item (wears it, buys it, takes it)."
 "menu.quality.auto" = "A graphics quality button: chosen by the device. One short word."
 "touch.tips.move" = "Beside the line 'Move' in a two-column list of touch tips: how to do it."
@@ -806,6 +820,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "hud.level" = "Top left of the HUD, after the hero's name: their level."
 "hud.gold" = "An amount of gold (the game's money). In the HUD, shops and windows."
 "hud.orb" = "Life or mana in its orb: what is left, then the most there can be."
+"hud.roar" = "A short message at the top of the screen when the player's shout into the microphone cast War Cry (a battle roar). One or two words."
 "hud.key.lmb" = "Short for the left mouse button, over its skill on the skill bar."
 "hud.key.rmb" = "Short for the right mouse button, over its skill on the skill bar."
 "hud.potion" = "Under the potion charges: the key that drinks one."

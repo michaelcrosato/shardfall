@@ -39,7 +39,8 @@ pub struct Menu<'a> {
     pub scene: &'a str,
     /// The page runs inside 52in1 (its own settings apply on top of these).
     pub in_hub: bool,
-    /// The player's 52in1 settings (a DualSense's extras: motion aim, its speaker).
+    /// The player's 52in1 settings (a DualSense's extras: motion aim, its speaker; the
+    /// microphone, for Shout to roar).
     pub hub: Option<&'a crate::hub::Settings>,
 }
 
@@ -183,6 +184,7 @@ fn settings_page(
     );
     choice(ui, w, &t!("settings.vibration"), &mut prefs.vibration, &on_off());
     dualsense_rows(ui, w, prefs, hub);
+    voice_row(ui, w, prefs, hub);
     ui.label(RichText::new(t!("settings.effects")).size(18.0));
     let mut percent = (prefs.effects * 100.0).round();
     ui.spacing_mut().slider_width = w - 80.0;
@@ -230,10 +232,6 @@ fn dualsense_rows(ui: &mut egui::Ui, w: f32, prefs: &mut crate::save::Prefs, hub
         return;
     }
     let on_off = [(true, t!("settings.on")), (false, t!("settings.off"))];
-    let note = |ui: &mut egui::Ui, text: String| {
-        ui.label(RichText::new(text).size(16.0).weak());
-        ui.add_space(6.0);
-    };
     // Motion aim.
     let allowed = crate::motion::allowed(hub);
     let mut motion = allowed && crate::motion::chosen(hub, prefs.motion_aim);
@@ -262,6 +260,37 @@ fn dualsense_rows(ui: &mut egui::Ui, w: f32, prefs: &mut crate::save::Prefs, hub
     if !allowed {
         note(ui, t!("settings.speaker.hub_off"));
     }
+}
+
+/// A line under a row: why it is off, or what it does.
+fn note(ui: &mut egui::Ui, text: String) {
+    ui.label(RichText::new(text).size(16.0).weak());
+    ui.add_space(6.0);
+}
+
+/// In 52in1: Shout to roar (`voice`), on by default once 52in1 allows games the microphone.
+/// Until then it shows off, greyed, with a line saying where 52in1 allows it (or, allowed after
+/// the game opened, to open the game again). Any controller or the keys: no DualSense needed.
+fn voice_row(ui: &mut egui::Ui, w: f32, prefs: &mut crate::save::Prefs, hub: Option<&crate::hub::Settings>) {
+    use crate::voice::Mic;
+    let Some(h) = hub else { return };
+    let on_off = [(true, t!("settings.on")), (false, t!("settings.off"))];
+    let mic = crate::voice::mic(hub);
+    let mut on = crate::voice::on(hub, prefs.shout_roar);
+    let changed = ui.add_enabled_ui(mic == Mic::Allowed, |ui| choice(ui, w, &t!("settings.roar"), &mut on, &on_off)).inner;
+    if changed {
+        prefs.shout_roar = Some(on);
+    }
+    let skill = || pav_core::arpg::lines::skill_name_of(&pav_core::arpg::data::data(), crate::voice::SKILL);
+    note(
+        ui,
+        match mic {
+            Mic::Allowed if on && h.muted => t!("settings.roar.muted"),
+            Mic::Allowed => t!("settings.roar.about", skill = skill()),
+            Mic::Later => t!("settings.roar.hub_later"),
+            Mic::Off => t!("settings.roar.hub_off"),
+        },
+    );
 }
 
 /// The controls for the device in use, one action to a row, its glyphs drawn.
@@ -439,6 +468,48 @@ mod tests {
         assert!(has(&t, "settings.motion.hub_aim"));
         // Drawing the page changes no preference.
         assert_eq!(prefs, crate::save::Prefs { motion_aim: Some(false), ..Default::default() });
+    }
+
+    #[test]
+    fn the_roar_row_follows_52in1s_microphone() {
+        let has = |t: &[String], id: &str| t.iter().any(|x| *x == pav_core::t!(id));
+        let about = pav_core::t!(
+            "settings.roar.about",
+            skill = pav_core::arpg::lines::skill_name_of(&pav_core::arpg::data::data(), crate::voice::SKILL)
+        );
+        let lines = ["settings.roar.hub_off", "settings.roar.hub_later", "settings.roar.muted"];
+        let only = |t: &[String], want: Option<&str>| {
+            for id in lines {
+                assert_eq!(has(t, id), want == Some(id), "{id}: {t:?}");
+            }
+            assert_eq!(t.contains(&about), want.is_none(), "about: {t:?}");
+        };
+        let mut prefs = crate::save::Prefs::default();
+        // Natively (no hub): no row.
+        let t = texts(None, &mut prefs);
+        assert!(!has(&t, "settings.roar"));
+        // In 52in1, with no DualSense: the row, off, and where 52in1 allows the microphone.
+        let mut h = crate::hub::Settings { effects: 1.0, vibration: 1.0, ..Default::default() };
+        let t = texts(Some(&h), &mut prefs);
+        assert!(has(&t, "settings.roar") && !has(&t, "settings.motion"));
+        only(&t, Some("settings.roar.hub_off"));
+        // Allowed after the game opened: open it again.
+        h.mic_later = true;
+        only(&texts(Some(&h), &mut prefs), Some("settings.roar.hub_later"));
+        // Allowed: what it does.
+        h.mic_later = false;
+        h.mic = true;
+        let t = texts(Some(&h), &mut prefs);
+        assert!(has(&t, "settings.roar"));
+        only(&t, None);
+        // Muted (the DualSense's mute button): says so.
+        h.muted = true;
+        only(&texts(Some(&h), &mut prefs), Some("settings.roar.muted"));
+        // Turned off by the player: what it does again, muted or not.
+        prefs.shout_roar = Some(false);
+        only(&texts(Some(&h), &mut prefs), None);
+        // Drawing the page changes no preference.
+        assert_eq!(prefs, crate::save::Prefs { shout_roar: Some(false), ..Default::default() });
     }
 
     /// The Settings page on a 1080p TV, as PNGs (lavapipe will do): the rows with everything

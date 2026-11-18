@@ -118,6 +118,9 @@ pub struct Prefs {
     pub motion_sensitivity: crate::motion::Sensitivity,
     /// A DualSense in 52in1: short cues from the controller's speaker, where 52in1 allows it.
     pub pad_speaker: bool,
+    /// In 52in1: Shout to roar (a shout into the microphone casts War Cry). None until the
+    /// player picks: on once 52in1 allows games the microphone (`voice::on`).
+    pub shout_roar: Option<bool>,
 }
 
 impl Default for Prefs {
@@ -134,6 +137,7 @@ impl Default for Prefs {
             motion_aim: None,
             motion_sensitivity: Default::default(),
             pad_speaker: true,
+            shout_roar: None,
         }
     }
 }

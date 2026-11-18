@@ -194,6 +194,8 @@ pub struct App {
     pad_fx: crate::pad_fx::PadFx,
     /// A DualSense's motion aim in 52in1 (`motion`).
     motion_aim: crate::motion::MotionAim,
+    /// Shout to roar in 52in1: a shout's press of War Cry's button (`voice`).
+    roar: crate::voice::Roar,
     /// Same-screen co-op: local players on controllers of their own (`couch`).
     couch: crate::couch::Couch,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
@@ -315,6 +317,7 @@ impl App {
             ui_zoom: 1.0,
             pad_fx: Default::default(),
             motion_aim: Default::default(),
+            roar: Default::default(),
             couch: Default::default(),
             game_frame: None,
             game_place: None,
@@ -1094,6 +1097,12 @@ impl App {
         if crate::hub::settings_changed() {
             self.hub_settings = crate::hub::settings();
         }
+        // Shout to roar (voice.rs): the page listens while it is on, and what it heard is taken
+        // every frame (a shout while the player can't play goes unused).
+        let shouted = {
+            let (hub, pref) = (self.hub_settings.as_ref(), self.prefs.shout_roar);
+            crate::voice::take_shout(crate::voice::on(hub, pref)) && crate::voice::listening(hub, pref)
+        };
         // Devices.
         let extra = crate::pad_fx::read_extra();
         self.input.poll_gamepad(&extra);
@@ -1338,6 +1347,15 @@ impl App {
         if !studio_active && self.editor.update(host, &self.rig, self.input.cursor, size, left, left_tap, room_id) {
             held &= !pav_core::input::buttons::PRIMARY;
             pressed &= !pav_core::input::buttons::PRIMARY;
+        }
+        // A shout presses War Cry's button for a frame, when it is on the bar and ready; "Roar!"
+        // once it goes off.
+        let hero = curr.game.as_ref().and_then(|g| g.hero.as_ref());
+        let (roar, roared) = self.roar.step(shouted && game_input, hero, dt);
+        pressed |= roar;
+        if roared {
+            crate::voice::roared();
+            self.toast = Some((pav_core::t!("hud.roar"), Instant::now()));
         }
         // A DualSense in 52in1 with Motion aim on: the gyro is read every frame (while the game
         // reads it the hub leaves the right stick alone), and its turns add to the pad's aim.

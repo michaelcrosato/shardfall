@@ -320,7 +320,7 @@ hops to the nearest node that way (`padnav::SNAP_POINTS`), whose card docks at t
 edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus); a screen can name where it lands when a window it opened appears or the item it was on goes (`padnav::FOCUS`: the skill chooser starts on the button's skill and gives the pad back to that button's row). Circle (or Esc) backs out of what is on top first (the skill chooser, a mastery's options), then closes the hero's windows (`GameUi::back`). PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
 sound effects, menu and HUD size, graphics, language; auto-attack on touch; with a DualSense
-in 52in1, Motion aim, its sensitivity and Controller speaker), Controls (the device's glyphs),
+in 52in1, Motion aim, its sensitivity and Controller speaker; in 52in1, Shout to roar), Controls (the device's glyphs),
 Difficulty, Engine tools, Developer. `cargo test -p pav_app settings_page_capture -- --ignored`
 draws the Settings page at 1080p to PNGs (`MENU_CAPTURE_DIR`, lavapipe will do).
 
@@ -341,7 +341,10 @@ and blasts close by, a level-up, a unique, death, a car's gear shift); a DualSen
 (`hub:dualsense`) also shows the hero's life on its light bar, makes R2 stiff while its skill
 can't be cast, turns panels with a touchpad swipe, adds the controller's turns to the pad's aim
 (motion.rs) and plays short cues from the controller's speaker (a potion, a rare or unique
-pickup, a level-up); `docs/AI_HUB.md`, "The DualSense". Controller flows can be scripted and screenshotted: `shardfall
+pickup, a level-up). In 52in1, once the player allows games the microphone there, Shout to roar
+(voice.rs; any controller or the keys: the DualSense's microphone or the device's own): a loud
+shout casts War Cry, as its bar button does, when it is on the bar and ready, and "Roar!"
+shows; `docs/AI_HUB.md`, "The DualSense". Controller flows can be scripted and screenshotted: `shardfall
 --pad-script FILE` (lines `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]`,
 see `PadScript` in input.rs).
 
@@ -364,7 +367,8 @@ throttle and L2 as the brake; on every device the car's gearbox shifts by itself
 smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays
 the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
 doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the
-touchpad, motion aim (gyro reads), the speaker's cues, no microphone); `scripts/touch_check.py` drives it with real touch events on an
+touchpad, motion aim (gyro reads), the speaker's cues, Shout to roar as Kestrel with a stand-in
+microphone: openMicrophone asks, shouts heard, War Cries cast, getUserMedia never); `scripts/touch_check.py` drives it with real touch events on an
 emulated phone, upright and sideways (two thumbs at once, the bag, a flick that closes it).
 Graphics quality and auto-attack are in the pause menu's Settings.
 
