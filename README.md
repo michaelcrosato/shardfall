@@ -60,11 +60,12 @@ still there: Esc menu → Load scene → `world` (or `shardfall.exe --scene worl
 | Esc | menu (difficulty sliders for play-testing, new hero, Look & filters) |
 
 Items drop as you fight (walk over magic+ items or click their names); hover an item to compare
-it with what you wear. Gamepad: X Y B RB LB RT skills, A dodge, D-pad up potion, D-pad right use,
-D-pad left map, D-pad down the hero's panels (LB / RB switch between inventory, character,
-skills and passive tree). With a window open, the stick moves a cursor: A clicks, X
-right-clicks, hold Y for shift (take a whole path in the tree), the right stick scrolls and
-zooms, B closes. Start opens the menu, which works the same way.
+it with what you wear. **Controller** (made for a DualSense on a TV; any pad in the standard
+layout works, and Settings switches the prompts to Xbox's letters): Square, Triangle, Circle,
+R1, L1, R2 skills, Cross dodge, D-pad up potion, D-pad right use, D-pad left or the touchpad map,
+D-pad down the hero's panels (L1 / R1 turn them), Options the menu. In menus the D-pad moves
+between items, Cross takes, Square is the item's other action, Circle goes back. Prompts on
+screen follow what you used last: the pad's buttons, or keys and mouse buttons.
 
 ## Playing
 Windows: run `shardfall.exe`. It writes `shardfall.toml` next to itself on first start (Vulkan by

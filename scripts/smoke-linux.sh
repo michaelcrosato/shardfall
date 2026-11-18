@@ -9,12 +9,19 @@ out=out/smoke
 mkdir -p "$out"
 cargo build -q -p pav_app
 export DISPLAY=:98
+# On WSLg winit would pick Wayland (the desktop), not Xvfb.
+unset WAYLAND_DISPLAY
 Xvfb :98 -screen 0 1600x900x24 >/dev/null 2>&1 &
 xvfb=$!
 trap 'kill $xvfb 2>/dev/null || true' EXIT
 sleep 1
 (timeout $((secs + 5)) ./target/debug/shardfall "$@" >"$out/linux.log" 2>&1 &)
 sleep "$secs"
-xwd -root -silent | convert xwd:- "$out/linux.png"
+# xwd where it is installed, else ffmpeg's screen grab.
+if command -v xwd >/dev/null; then
+	xwd -root -silent | convert xwd:- "$out/linux.png"
+else
+	ffmpeg -loglevel error -f x11grab -video_size 1600x900 -i "$DISPLAY" -frames:v 1 -y "$out/linux.png"
+fi
 echo "screenshot: $out/linux.png"
 grep -E "boot|ERROR|CRASH" "$out/linux.log" | head -40

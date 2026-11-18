@@ -60,7 +60,7 @@ pub struct Reading {
 #[derive(Clone, Debug, Serialize)]
 pub struct Text {
     pub text: String,
-    /// Top-left corner, in points (pixels: the tools draw at one point per pixel).
+    /// Top-left corner, in pixels of the view (the UI's zoom undone).
     pub at: [f32; 2],
 }
 
@@ -139,6 +139,12 @@ impl Headless {
         crate::fonts::install_embedded(&ctx, &pav_core::lines::language(), &[]);
         let touch = self.device == Device::Touch;
         crate::touch_style(&ctx, touch);
+        // As the window does: the device's prompts, and the UI grown with the screen (a TV's
+        // 1080p half as big again as 720p). Pixels in (clicks) and out (the reading) stay pixels.
+        crate::controls::set_current(self.device, crate::controls::current().1);
+        let zoom = crate::ten_foot_zoom(height as f32, 1.0, touch);
+        ctx.set_zoom_factor(zoom);
+        let input = Input { hover: input.hover.map(|p| p / zoom), click: input.click.map(|p| p / zoom) };
         ctx.all_styles_mut(|s| {
             s.animation_time = 0.0;
             s.interaction.tooltip_delay = 0.0;
@@ -149,7 +155,7 @@ impl Headless {
         self.game.tree.touch = touch;
         self.game.pad = self.device == Device::Gamepad;
         self.game.tree.pad = self.game.pad;
-        let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(width as f32, height as f32));
+        let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(width as f32, height as f32) / zoom);
         let mut textures = egui::TexturesDelta::default();
         let mut commands = Vec::new();
         let mut plaza = None;
@@ -222,7 +228,7 @@ impl Headless {
             output = Some(out);
         }
         let output = output.unwrap();
-        let reading = self.read(&output, screen, layers);
+        let reading = scaled(self.read(&output, screen, layers), zoom);
         let pixels_per_point = output.pixels_per_point;
         let primitives = ctx.tessellate(output.shapes, pixels_per_point);
         Drawn { paint: Paint { primitives, textures, pixels_per_point }, reading, commands, plaza }
@@ -279,6 +285,25 @@ impl Headless {
             _ => false,
         }
     }
+}
+
+/// A reading in pixels: its points times the UI's zoom.
+fn scaled(mut r: Reading, zoom: f32) -> Reading {
+    let px = |v: f32| (v * zoom).round();
+    r.screen = r.screen.map(px);
+    for t in r.hud.iter_mut() {
+        t.at = t.at.map(px);
+    }
+    for w in r.windows.iter_mut() {
+        w.rect = w.rect.map(px);
+        for t in w.text.iter_mut() {
+            t.at = t.at.map(px);
+        }
+    }
+    for c in r.controls.iter_mut() {
+        c.rect = c.rect.map(px);
+    }
+    r
 }
 
 /// Each window (an egui area other than the screen-wide `root`) on screen this pass: its rect

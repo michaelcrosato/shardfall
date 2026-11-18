@@ -6,8 +6,11 @@
 pub mod arpg_items;
 pub mod arpg_tree;
 pub mod arpg_ui;
+pub mod controls;
 pub mod fonts;
+pub mod glyph;
 pub mod headless;
+pub mod padnav;
 pub mod plaza;
 pub mod splash;
 pub mod tools;
@@ -23,6 +26,15 @@ pub enum Device {
     Touch,
 }
 
+/// The UI's zoom (egui's `zoom_factor`) for a screen `height` logical pixels tall: the game is
+/// laid out for 720 and grows with the screen, so a 1080p TV across the room shows it half as
+/// big again and a 4K one more (up to three times). `size` is the player's setting (Settings:
+/// menu and HUD size); a touch screen keeps its own layout's scale (`touch_scale`).
+pub fn ten_foot_zoom(height: f32, size: f32, touch: bool) -> f32 {
+    let screen = if touch { 1.0 } else { (height / 720.0).clamp(1.0, 3.0) };
+    (screen * size.clamp(0.7, 1.5) * 100.0).round() / 100.0
+}
+
 /// Touch screens: bigger targets, a little bigger text, thicker scroll bars, and dragging
 /// scrolls. `on = false` puts the desktop sizes back.
 pub fn touch_style(ctx: &egui::Context, on: bool) {
@@ -30,6 +42,9 @@ pub fn touch_style(ctx: &egui::Context, on: bool) {
     ctx.all_styles_mut(|s| {
         s.spacing = egui::style::Spacing::default();
         s.text_styles = egui::style::default_text_styles();
+        // A game's labels are read, not selected: no label is a click target (nor a stop for a
+        // controller moving through a menu, `padnav`).
+        s.interaction.selectable_labels = false;
         if on {
             let sp = &mut s.spacing;
             sp.interact_size = egui::vec2(44.0, 34.0);
@@ -51,8 +66,29 @@ pub fn touch_style(ctx: &egui::Context, on: bool) {
     });
 }
 
-/// A `pav_core::games` game's HUD lines (`Game::hud`), top left.
+/// A `pav_core::games` game's HUD lines (`Game::hud`), top left, and its prompts
+/// (`Game::prompts`) along the bottom in the device's own glyphs.
 pub fn game_lines(ctx: &egui::Context, h: &pav_core::frame::HudFrame) {
+    let (device, style) = controls::current();
+    let prompts: Vec<glyph::Prompt> = h
+        .prompts
+        .iter()
+        .map(|(action, what)| glyph::Prompt { glyphs: controls::glyphs(action, device), label: what.clone() })
+        .filter(|p| !p.glyphs.is_empty())
+        .collect();
+    if !prompts.is_empty() {
+        let screen = ctx.content_rect();
+        let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("game_prompts")));
+        glyph::row(
+            &p,
+            screen.center_bottom() - egui::vec2(0.0, 44.0),
+            egui::Align2::CENTER_BOTTOM,
+            &prompts,
+            24.0,
+            style,
+            egui::Color32::WHITE,
+        );
+    }
     if h.lines.is_empty() {
         return;
     }

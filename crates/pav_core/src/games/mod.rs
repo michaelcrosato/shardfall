@@ -66,6 +66,14 @@ pub trait Game: Clone + Serialize + DeserializeOwned + Send + Sync + 'static {
         Vec::new()
     }
 
+    /// Prompts along the bottom of the screen: `(action, what it does)`. The engine draws each
+    /// action as the device the player used last shows it (a DualSense's ✕, Xbox's A, a key, a
+    /// mouse button; nothing on a touch screen, whose controls are on screen). Actions are
+    /// `pav_ui::controls`'s words: `move`, `jump`, `interact`, `confirm`, `back`, `menu`...
+    fn prompts(&self, _sim: &Sim) -> Vec<(&'static str, String)> {
+        Vec::new()
+    }
+
     /// The game's state for tools and tests (`play`), as JSON.
     fn status(&self, _sim: &Sim) -> serde_json::Value {
         serde_json::Value::Null
@@ -145,6 +153,9 @@ impl GameBox {
     pub fn hud(&self, sim: &Sim) -> Vec<String> {
         self.0.hud(sim)
     }
+    pub fn prompts(&self, sim: &Sim) -> Vec<(&'static str, String)> {
+        self.0.prompts(sim)
+    }
 
     pub fn status(&self, sim: &Sim) -> serde_json::Value {
         self.0.status(sim)
@@ -197,6 +208,7 @@ trait DynGame: Send + Sync {
     fn pre(&mut self, sim: &mut Sim, input: &InputFrame, dt: f32, events: &mut Vec<SimEvent>) -> BTreeMap<EntityId, InputFrame>;
     fn post(&mut self, sim: &mut Sim, dt: f32, events: &mut Vec<SimEvent>);
     fn hud(&self, sim: &Sim) -> Vec<String>;
+    fn prompts(&self, sim: &Sim) -> Vec<(&'static str, String)>;
     fn status(&self, sim: &Sim) -> serde_json::Value;
     fn outcome(&self) -> Outcome;
     fn bot(&self, sim: &Sim) -> InputFrame;
@@ -222,6 +234,9 @@ impl<G: Game> DynGame for G {
     }
     fn hud(&self, sim: &Sim) -> Vec<String> {
         Game::hud(self, sim)
+    }
+    fn prompts(&self, sim: &Sim) -> Vec<(&'static str, String)> {
+        Game::prompts(self, sim)
     }
     fn status(&self, sim: &Sim) -> serde_json::Value {
         Game::status(self, sim)
@@ -271,6 +286,10 @@ impl Sim {
 
     pub(crate) fn play_hud(&self) -> Vec<String> {
         self.play().map(|g| g.hud(self)).unwrap_or_default()
+    }
+
+    pub(crate) fn play_prompts(&self) -> Vec<(String, String)> {
+        self.play().map(|g| g.prompts(self).into_iter().map(|(a, w)| (a.to_string(), w)).collect()).unwrap_or_default()
     }
 
     /// Plays the running game with its bot until it is won or lost, or `ticks` pass.

@@ -1005,6 +1005,7 @@ impl Sim {
             boss: self.boss_bar(),
             pad_note: c.pad_note.clone(),
             lines: self.play_hud(),
+            prompts: self.play_prompts(),
             plaza: self.plaza_hud(),
         };
         RenderFrame {

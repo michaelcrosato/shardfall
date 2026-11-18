@@ -4,7 +4,7 @@ The current state, kept to one page because every session reads it (Claude Code 
 `CLAUDE.md`). The full journal (what was built, how it works, every decision) is
 `docs/HISTORY.md`, newest first: search it when you need the background on something.
 
-## Where things stand (2026-11-13)
+## Where things stand (2026-11-17)
 - All engine milestones (M1–M10) and Shardfall milestones (G1–G6) are done. Shardfall is the
   hack-and-slash showcase built on the engine (`docs/GAME.md`); the pavilion is the engine's
   tech demo (`docs/DESIGN.md`).
@@ -21,11 +21,11 @@ The current state, kept to one page because every session reads it (Claude Code 
   `docs/MAKE_A_GAME.md`, and copies the starter game (`load scene=starter`): the game hook
   `pav_core::games` (rules, HUD text, status, a bot), its level a room file, `play bot=true
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
-- **The game UI through the tools** (2026-10-19): the HUD, windows, passive tree and touch
-  controls live in `pav_ui`; `ui` reads them as text and clicks them, and captures draw them.
-- **The game opens in the Pavilion** (2026-11-13): no menu; Shardfall (through a rift) and the
-  engine's tools are stations on the plaza (`pav_core::plaza`); the pause menu and the town's
-  Pavilion Gate lead back there.
+- **Controller first** (2026-11-17): one controls table (`pav_ui::controls`), drawn prompts that
+  follow the device (PlayStation or Xbox glyphs, keys), D-pad menus (`padnav`), a TV's scale,
+  the DualSense's extras in 52in1, touch upright or sideways; `ui` reads and clicks it all.
+- **The game opens in the Pavilion** (2026-11-13): Shardfall (through a rift) and the engine's
+  tools are stations on the plaza (`pav_core::plaza`); the pause menu leads back there.
 - **On 52in1** (2026-11-17, `docs/AI_HUB.md`): one page plays every online mode (parallel, ghost,
   shared-world co-op and versus, four moments) and follows the player's 52in1 settings; every
   word a line in any language; `scripts/hub_check.py` plays the hub's harness, headless.

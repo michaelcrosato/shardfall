@@ -20,6 +20,8 @@ mod hud;
 mod input;
 mod lang;
 mod look_ui;
+mod menu;
+mod pad_fx;
 mod panel;
 mod platform;
 mod quality;

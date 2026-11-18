@@ -206,15 +206,10 @@ pub(crate) fn skill_icon(p: &egui::Painter, rect: Rect, key: &str, color: Color3
     }
 }
 
-const SLOT_PAD: [&str; 6] = ["X", "Y", "B", "RB", "LB", "RT"];
-
-/// The key for a skill slot on keyboard and mouse: the mouse buttons (lines), then Q E R F.
-fn slot_key(i: usize) -> String {
-    match i {
-        0 => t!("hud.key.lmb"),
-        1 => t!("hud.key.rmb"),
-        i => ["Q", "E", "R", "F"].get(i - 2).copied().unwrap_or_default().to_string(),
-    }
+/// Draws a line with its `{key:action}` glyphs (`t_rich!`) for the device in use.
+pub(crate) fn rich(p: &egui::Painter, at: Pos2, align: Align2, text: &str, size: f32, color: Color32) -> Rect {
+    let style = crate::controls::current().1;
+    crate::glyph::rich(p, at, align, text, size, color, &crate::controls::current_glyphs, style)
 }
 
 fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device) {
@@ -256,15 +251,11 @@ fn skill_bar(p: &egui::Painter, h: &HeroHud, center_bottom: Pos2, device: Device
         if !s.affordable {
             p.rect_filled(rect, 5.0, Color32::from_rgba_unmultiplied(60, 0, 0, 90));
         }
-        let key = if device == Device::Gamepad { SLOT_PAD[i].to_string() } else { slot_key(i) };
-        p.text(
-            rect.left_top() + EVec2::new(4.0, 2.0),
-            Align2::LEFT_TOP,
-            key,
-            FontId::proportional(10.0),
-            Color32::from_white_alpha(200),
-        );
         p.rect_stroke(rect, 5.0, Stroke::new(1.0, Color32::from_rgb(120, 98, 70)), egui::StrokeKind::Outside);
+        // The slot's button or key, a badge on its corner.
+        let glyphs = crate::controls::glyphs(&format!("skill{}", i + 1), device);
+        let style = crate::controls::current().1;
+        crate::glyph::draw_all(p, rect.left_top() + EVec2::new(-4.0, 2.0), &glyphs, 20.0, style);
     }
 }
 
@@ -449,12 +440,13 @@ pub fn hud(ctx: &egui::Context, g: &GameFrame, proj: &Projector, device: Device,
         let c = pot + EVec2::new(i as f32 * 14.0, 0.0);
         p.circle_filled(c, 5.5, if i < h.potions { Color32::from_rgb(210, 40, 50) } else { Color32::from_rgb(55, 40, 40) });
     }
-    p.text(
-        pot + EVec2::new(0.0, 10.0),
+    rich(
+        &p,
+        pot + EVec2::new(-6.0, 12.0),
         Align2::LEFT_TOP,
-        if device == Device::Gamepad { t!("hud.potion.pad") } else { t!("hud.potion") },
-        FontId::proportional(10.0),
-        Color32::from_white_alpha(170),
+        &pav_core::t_rich!("hud.potion"),
+        13.0,
+        Color32::from_white_alpha(190),
     );
     if h.dodge_cd > 0.0 {
         p.text(
@@ -807,12 +799,13 @@ fn level_hud(
     clip.circle(h, 4.0, Color32::WHITE, Stroke::new(1.5, Color32::BLACK));
     p.rect_stroke(area, 8.0, Stroke::new(1.0, Color32::from_white_alpha(60)), egui::StrokeKind::Inside);
     if !big && !touch {
-        p.text(
+        rich(
+            p,
             area.center_bottom() + EVec2::new(0.0, 4.0),
             Align2::CENTER_TOP,
-            t!("hud.map_key"),
-            FontId::proportional(10.0),
-            Color32::from_white_alpha(130),
+            &pav_core::t_rich!("hud.map_key"),
+            12.0,
+            Color32::from_white_alpha(170),
         );
     }
 }

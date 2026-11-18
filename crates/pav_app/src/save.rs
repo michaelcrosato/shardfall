@@ -104,11 +104,28 @@ pub struct Prefs {
     /// The language chosen in the Language menu (native builds; the browser keeps it under
     /// `lang:` and the page's path, as AI Hub Languages v1 asks).
     pub lang: Option<String>,
+    /// Controller prompts: PlayStation's symbols (the default) or Xbox's letters.
+    pub pad_style: pav_ui::glyph::PadStyle,
+    /// The controller rumbles (52in1 scales it by the player's own vibration setting too).
+    pub vibration: bool,
+    /// The game's own sound effects volume, 0 to 1 (52in1's effects volume multiplies it).
+    pub effects: f32,
+    /// How big menus and the HUD are, on top of the screen's own scale: 0.85, 1 or 1.2.
+    pub ui_size: f32,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Self { auto_attack: true, quality: Default::default(), tips_seen: false, lang: None }
+        Self {
+            auto_attack: true,
+            quality: Default::default(),
+            tips_seen: false,
+            lang: None,
+            pad_style: Default::default(),
+            vibration: true,
+            effects: 1.0,
+            ui_size: 1.0,
+        }
     }
 }
 

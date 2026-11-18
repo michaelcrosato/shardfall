@@ -161,6 +161,18 @@ macro_rules! t {
     };
 }
 
+/// A line with its keys and buttons drawn as glyphs: `t_rich!("hud.points", count = n)`
+/// (`rich`).
+#[macro_export]
+macro_rules! t_rich {
+    ($id:expr) => {
+        $crate::lines::rich($id, &[])
+    };
+    ($id:expr, $($name:ident = $val:expr),+ $(,)?) => {
+        $crate::lines::rich($id, &[$((stringify!($name), $crate::lines::Arg::from($val))),+])
+    };
+}
+
 struct State {
     book: Arc<Book>,
     lang: String,
@@ -331,6 +343,26 @@ pub fn text(id: &str, args: &[(&str, Arg)]) -> String {
 /// A line in the language in use, its blanks filled, in reading order: for text that leaves
 /// the game (the AI Hub's scoreboard labels).
 pub fn logical(id: &str, args: &[(&str, Arg)]) -> String {
+    logical_with(id, args, None)
+}
+
+/// The marker `rich` writes for `{key:action}`: the action between two private-use characters
+/// (`pav_ui::glyph::MARK_OPEN` and `MARK_CLOSE`).
+pub fn key_marker(action: &str) -> String {
+    format!("\u{F8F0}{action}\u{F8F1}")
+}
+
+/// A line to draw with its keys and buttons as glyphs: `{key:action}` becomes a marker that
+/// `pav_ui::glyph::rich` draws as the action's glyphs on the device in use (a keycap, a mouse
+/// button, ✕). A right-to-left language gets the plain names (its shaping reorders runs).
+pub fn rich(id: &str, args: &[(&str, Arg)]) -> String {
+    if rtl() {
+        return text(id, args);
+    }
+    logical_with(id, args, Some(key_marker))
+}
+
+fn logical_with(id: &str, args: &[(&str, Arg)], control: Option<fn(&str) -> String>) -> String {
     with_state(|s| {
         // Developer text (`dev.` lines) stays as written: translation skips it.
         let dev = id.starts_with("dev.");
@@ -367,7 +399,7 @@ pub fn logical(id: &str, args: &[(&str, Arg)]) -> String {
             out = fake_line(&s.lang, &out, s.book.max.get(id).copied());
         }
         let rtl = is_rtl(&s.lang);
-        fill(&out, args, text_lang, rtl, s.control)
+        fill(&out, args, text_lang, rtl, control.unwrap_or(s.control))
     })
 }
 

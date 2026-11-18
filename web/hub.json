@@ -24,7 +24,12 @@
     "shared-world versus 2-4",
     "moments 1-4"
   ],
-  "dualsense": [],
+  "dualsense": [
+    "light bar",
+    "adaptive triggers",
+    "haptics",
+    "touchpad"
+  ],
   "session_mode": "shared-world",
   "session_players": "1-4",
   "session_minutes": 8,
