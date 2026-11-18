@@ -143,6 +143,8 @@ def hub_head(cfg, model, effort):
     for e in extras:
         if e not in DUALSENSE:
             fail(f"hub dualsense '{e}': one of {', '.join(DUALSENSE)}")
+    if len(set(extras)) != len(extras):
+        fail("hub dualsense: name each extra once")
     if extras and "gamepad" not in cfg["tags"]:
         fail("hub dualsense extras need the gamepad tag")
     tags = cfg["tags"]

@@ -112,6 +112,12 @@ pub struct Prefs {
     pub effects: f32,
     /// How big menus and the HUD are, on top of the screen's own scale: 0.85, 1 or 1.2.
     pub ui_size: f32,
+    /// A DualSense in 52in1: the game's own Motion aim (turning the controller turns the aim).
+    /// None until the player picks: on when their 52in1 Motion aim is (`motion::chosen`).
+    pub motion_aim: Option<bool>,
+    pub motion_sensitivity: crate::motion::Sensitivity,
+    /// A DualSense in 52in1: short cues from the controller's speaker, where 52in1 allows it.
+    pub pad_speaker: bool,
 }
 
 impl Default for Prefs {
@@ -125,6 +131,9 @@ impl Default for Prefs {
             vibration: true,
             effects: 1.0,
             ui_size: 1.0,
+            motion_aim: None,
+            motion_sensitivity: Default::default(),
+            pad_speaker: true,
         }
     }
 }

@@ -12,6 +12,11 @@
 //! - Light bar, adaptive triggers, touchpad swipes: a DualSense in 52in1, through the hub
 //!   (`window.AIHubSettings.dualsense`), each only while the player allows it. The game never
 //!   opens the controller itself. The touchpad's press is the standard mapping's button 17.
+//! - The controller's speaker: a DualSense in 52in1 whose speaker the player allows
+//!   (`dualsense.speaker`), with the game's Controller speaker setting on. Three short cues play
+//!   from it on top of the game's own sounds (`speaker_cue`): a potion drunk, a rare or unique
+//!   item picked up, a level-up. The page synthesizes them into the node the hub's
+//!   `openSpeaker()` gives; without one nothing more plays.
 
 use glam::Vec3;
 use pav_core::arpg::GameFrame;
@@ -34,6 +39,33 @@ pub struct Now<'a> {
     /// The gear of the car the player drives (`pav_core::vehicle::Gearbox`).
     pub gear: Option<i8>,
     pub dt: f32,
+    /// The controller speaker's volume (the game's effects times 52in1's), 0 while it is off
+    /// (`speaker_on`).
+    pub speaker: f32,
+}
+
+/// The player's 52in1 settings let the game play from the DualSense's speaker (a DualSense on a
+/// cable, the microphone allowed under Sound).
+pub fn speaker_allowed(hub: Option<&crate::hub::Settings>) -> bool {
+    hub.is_some_and(|h| h.dualsense.connected && h.dualsense.speaker)
+}
+
+/// The speaker plays the game's cues: allowed, and the game's Controller speaker setting on.
+pub fn speaker_on(hub: Option<&crate::hub::Settings>, pref: bool) -> bool {
+    speaker_allowed(hub) && pref
+}
+
+/// The cue an event plays from the controller's speaker (`shardfallHub.speaker` names them):
+/// the hero's own potion, rare or unique pickup and level-up, close to the hero (a party's
+/// others play none on this controller).
+pub fn speaker_cue(e: &SimEvent, hero: Option<Vec3>) -> Option<&'static str> {
+    match e {
+        SimEvent::Potion { pos } if near(hero, *pos, 4.0) => Some("potion"),
+        SimEvent::Pickup { pos, rarity } if *rarity >= 3 && near(hero, *pos, 4.0) => Some("unique"),
+        SimEvent::Pickup { pos, rarity: 2 } if near(hero, *pos, 4.0) => Some("rare"),
+        SimEvent::LevelUp { pos } if near(hero, *pos, 4.0) => Some("level"),
+        _ => None,
+    }
 }
 
 #[derive(Default)]
@@ -108,6 +140,15 @@ impl PadFx {
             add(0.2, 0.5, 40);
         }
         self.last_gear = now.gear;
+        if now.speaker > 0.0 && hero.is_some() {
+            // One cue a frame: the rarest thing that happened.
+            let order = ["potion", "rare", "level", "unique"];
+            let cue =
+                now.events.iter().filter_map(|e| speaker_cue(e, now.hero)).max_by_key(|c| order.iter().position(|o| o == c));
+            if let Some(c) = cue {
+                play_speaker(c, now.speaker);
+            }
+        }
         if let Some((strong, weak, ms)) = want.filter(|_| now.pad && now.vibration) {
             // A rumble already running and as strong wins: short, distinct pulses say more.
             let s = strong.max(weak);
@@ -210,6 +251,13 @@ fn set_light(color: &str) {
     let _ = color;
 }
 
+fn play_speaker(cue: &str, volume: f32) {
+    #[cfg(target_arch = "wasm32")]
+    js::speaker(cue, volume as f64);
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (cue, volume);
+}
+
 fn set_trigger(which: &str, effect: &str) {
     #[cfg(target_arch = "wasm32")]
     js::trigger(which, effect);
@@ -250,5 +298,37 @@ mod js {
         pub fn trigger(which: &str, effect: &str);
         #[wasm_bindgen(js_namespace = shardfallHub, js_name = padExtra)]
         pub fn pad_extra() -> u32;
+        #[wasm_bindgen(js_namespace = shardfallHub)]
+        pub fn speaker(cue: &str, volume: f64);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn speaker_gating_and_cues() {
+        let mut h = crate::hub::Settings::default();
+        assert!(!speaker_on(None, true));
+        assert!(!speaker_on(Some(&h), true));
+        h.dualsense.speaker = true;
+        assert!(!speaker_on(Some(&h), true), "no DualSense connected");
+        h.dualsense.connected = true;
+        assert!(speaker_on(Some(&h), true) && !speaker_on(Some(&h), false));
+        h.dualsense.speaker = false;
+        assert!(!speaker_on(Some(&h), true) && !speaker_allowed(Some(&h)));
+
+        let at = Some(Vec3::new(3.0, 0.0, 4.0));
+        let here = Vec3::new(3.5, 0.0, 4.0);
+        let far = Vec3::new(30.0, 0.0, 4.0);
+        assert_eq!(speaker_cue(&SimEvent::Potion { pos: here }, at), Some("potion"));
+        assert_eq!(speaker_cue(&SimEvent::Potion { pos: far }, at), None);
+        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 3 }, at), Some("unique"));
+        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 2 }, at), Some("rare"));
+        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 1 }, at), None);
+        assert_eq!(speaker_cue(&SimEvent::LevelUp { pos: here }, at), Some("level"));
+        assert_eq!(speaker_cue(&SimEvent::LevelUp { pos: here }, None), None);
+        assert_eq!(speaker_cue(&SimEvent::Coin { pos: here }, at), None);
     }
 }

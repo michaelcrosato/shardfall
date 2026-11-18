@@ -13,9 +13,15 @@ usage: python3 -P scripts/pad_check.py PAGE.html OUT_DIR [--unmapped] [--dualsen
 - --unmapped: a generic pad the browser does not map (mapping '', 12 buttons, the D-pad a hat
   switch on axis 9), the same steps: the page reads it in the standard layout.
 - --dualsense: a DualSense, with 52in1's player settings (window.AIHubSettings, its DualSense's
-  extras allowed) put in the page as the hub's companion would: in the Proving Grounds the hero
-  is hit, and the light bar's colours, the triggers' effects, the rumbles and any request for
-  the microphone are recorded (OUT_DIR/dualsense.json); the touchpad's press opens the map.
+  extras allowed, Motion aim on, the microphone not) put in the page as the hub's companion
+  would: in the Proving Grounds the hero is hit, and the light bar's colours, the triggers'
+  effects, the rumbles and any request for the microphone are recorded (OUT_DIR/dualsense.json);
+  the touchpad's press opens the map. Then motion: the controller turns left at a steady 22.5
+  degrees a second for 4 seconds (90 degrees) while Square attacks, so the hero's attacks swing
+  round (counter-clockwise on screen: 180 degrees at the Medium sensitivity), screenshotted
+  before and after; reads of the gyro are counted. After the fight D-pad up drinks a potion: the
+  speaker's cue. openSpeaker() is a spy giving a silent node: its calls, the cues the game asked
+  for and the nodes connected into it are counted.
 """
 import argparse
 import json
@@ -31,7 +37,16 @@ PAD = """
   const state = { id: __ID__, buttons: new Array(unmapped ? 12 : 18).fill(0),
                   axes: unmapped ? [0, 0, 0, 0, 0, 0, 0, 0, 0, 1.2857] : [0, 0, 0, 0] };
   window.__pad = state;
-  window.__calls = { rumble: [], light: [], trigger: [], mic: 0 };
+  window.__calls = { rumble: [], light: [], trigger: [], mic: 0, gyroReads: 0, speakerOpens: 0, speakerConnects: 0, cues: [] };
+  state.gyro = { x: 0, y: 0, z: 0 };
+  // What the game connects into the speaker's node (one gain per cue).
+  if (window.AudioNode) {
+    const connect = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (to, ...rest) {
+      if (to && to === window.__speakerNode) window.__calls.speakerConnects++;
+      return connect.call(this, to, ...rest);
+    };
+  }
   const pad = () => ({
     id: state.id, index: 0, connected: true, mapping: unmapped ? '' : 'standard', timestamp: performance.now(),
     axes: state.axes.slice(),
@@ -44,15 +59,25 @@ PAD = """
   }
   if (__DUALSENSE__) {
     // 52in1's player settings, as its companion script gives every game page: a DualSense with
-    // its extras allowed, the microphone not.
+    // its extras allowed and the player's Motion aim on, the microphone not.
     window.AIHubSettings = {
       music: 1, effects: 1, vibration: 1, mic: false, micLater: false, muted: false,
       dualsense: {
-        connected: true, lightbar: true, triggers: true, motion: true, touchpad: true, speaker: false, aim: false,
-        gyro: { x: 0, y: 0, z: 0 }, accel: { x: 0, y: 1, z: 0 }, touches: [],
+        connected: true, lightbar: true, triggers: true, motion: true, touchpad: true, speaker: true, aim: true,
+        get gyro() { window.__calls.gyroReads++; return { ...state.gyro }; },
+        accel: { x: 0, y: 1, z: 0 }, touches: [],
         light: (c) => window.__calls.light.push(c),
         trigger: (w, e) => window.__calls.trigger.push([w, e]),
+        // The speaker: a silent node in the game's context.
+        openSpeaker: async (ctx) => {
+          window.__calls.speakerOpens++;
+          const node = ctx.createGain();
+          node.gain.value = 0;
+          window.__speakerNode = node;
+          return node;
+        },
       },
+      openMicrophone: async () => { window.__calls.mic++; return null; },
       addEventListener: () => {},
     };
   }
@@ -104,6 +129,11 @@ def main():
         p.on("pageerror", lambda e: errors.append(str(e)))
         p.goto(pathlib.Path(a.page).resolve().as_uri() + query)
         if a.dualsense:
+            # The cues the game asks the page's speaker for.
+            p.evaluate(
+                "() => { const f = shardfallHub.speaker;"
+                " shardfallHub.speaker = (cue, volume) => { window.__calls.cues.push(cue); return f(cue, volume); }; }"
+            )
             # The pad in use from the start (a nudge of the stick every few seconds), while the
             # first waves walk in and hit.
             for _ in range(10):
@@ -123,14 +153,34 @@ def main():
             # Stand in the arena while a wave comes in and hits.
             p.wait_for_timeout(30000)
             p.screenshot(path=str(out / "2-fight.png"))
+            press(p, 12)  # D-pad up: a potion while the hero is hurt, the speaker's cue.
             press(p, 17)  # The touchpad's press: the map.
             p.screenshot(path=str(out / "3-touchpad-map.png"))
+            press(p, 17)  # And again: the map closes.
+            # Motion aim: Square attacks while the controller turns left, 90 degrees in 4 s.
+            reads_before = p.evaluate("window.__calls.gyroReads")
+            p.evaluate("window.__pad.buttons[2] = 1")
+            p.wait_for_timeout(2500)
+            p.screenshot(path=str(out / "4-motion-before.png"))
+            p.evaluate("window.__pad.gyro.y = 22.5")
+            p.wait_for_timeout(4000)
+            p.evaluate("window.__pad.gyro.y = 0")
+            p.wait_for_timeout(1500)
+            p.screenshot(path=str(out / "5-motion-turned.png"))
+            p.evaluate("window.__pad.buttons[2] = 0")
+            p.wait_for_timeout(1500)
             calls = p.evaluate("window.__calls")
             summary = {
                 "light_colours": sorted(set(c for c in calls["light"] if c)),
                 "light_calls": len(calls["light"]),
                 "trigger_effects": sorted(set(json.dumps(t[1]) for t in calls["trigger"])),
                 "rumbles": len(calls["rumble"]),
+                "gyro_reads": calls["gyroReads"],
+                "gyro_reads_while_turning": calls["gyroReads"] - reads_before,
+                "motion_turn_degrees": 90,
+                "speaker_opens": calls["speakerOpens"],
+                "speaker_cues": calls["cues"],
+                "speaker_nodes_connected": calls["speakerConnects"],
                 "microphone_requests": calls["mic"],
             }
             (out / "dualsense.json").write_text(json.dumps(summary, indent=2))

@@ -29,7 +29,9 @@
     "light bar",
     "adaptive triggers",
     "haptics",
-    "touchpad"
+    "motion",
+    "touchpad",
+    "speaker"
   ],
   "session_mode": "shared-world",
   "session_players": "1-4",

@@ -185,9 +185,97 @@
         }
         return out;
       },
+      // Motion aim (motion.rs): the DualSense's turn left (+) in degrees a second. The game
+      // reads it every frame while its Motion aim is on, and only then: while it reads it, 52in1
+      // leaves the right stick alone.
+      gyroY: () => {
+        const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
+        const g = ds && ds.connected && ds.motion ? ds.gyro : null;
+        return g && Number.isFinite(g.y) ? g.y : 0;
+      },
+      // The controller's speaker (pad_fx.rs): a short cue synthesized into the node 52in1's
+      // openSpeaker() gives in the page's own audio context, made on the first cue. With no
+      // node (no DualSense on a cable, the microphone not allowed) nothing more plays: the
+      // game's own sounds already do. The game calls it only while its Controller speaker
+      // setting is on. Never the microphone: Shardfall has no voice feature.
+      speaker: (cue, volume) => {
+        const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
+        if (!ds || !ds.connected || !ds.speaker || typeof ds.openSpeaker !== 'function' || !(volume > 0)) return;
+        const sp = bridge.speakerOut || (bridge.speakerOut = { ctx: null, opening: null });
+        if (!sp.ctx) {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) return;
+          try { sp.ctx = new Ctx(); } catch { return; }
+          // The browser lets a context start after a click or key press.
+          const wake = () => { if (sp.ctx.state === 'suspended') sp.ctx.resume().catch(() => {}); };
+          for (const type of ['pointerdown', 'keydown']) addEventListener(type, wake, { capture: true, passive: true });
+        }
+        if (!sp.opening) {
+          sp.opening = Promise.resolve().then(() => ds.openSpeaker(sp.ctx)).then((node) => node || null, () => null);
+        }
+        sp.opening.then((node) => {
+          if (!node) return;
+          if (sp.ctx.state === 'suspended') sp.ctx.resume().catch(() => {});
+          speakerCue(sp.ctx, node, cue, Math.min(1, volume));
+        });
+      },
     });
+    // The speaker's cues, made of tones and a little noise (no files): short and distinct, in
+    // the range a controller's small speaker plays well.
+    const speakerCue = (ctx, out, cue, volume) => {
+      const t0 = ctx.currentTime + 0.01;
+      const master = ctx.createGain();
+      master.gain.value = 0.55 * volume;
+      master.connect(out);
+      const tone = (type, f0, f1, at, len, peak) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(f0, t0 + at);
+        if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t0 + at + len);
+        g.gain.setValueAtTime(0.0001, t0 + at);
+        g.gain.exponentialRampToValueAtTime(peak, t0 + at + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+        o.connect(g).connect(master);
+        o.start(t0 + at);
+        o.stop(t0 + at + len + 0.02);
+      };
+      const hiss = (at, len, peak) => {
+        const n = Math.ceil(ctx.sampleRate * len), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const src = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+        src.buffer = buf;
+        hp.type = 'highpass';
+        hp.frequency.value = 3000;
+        g.gain.value = peak;
+        src.connect(hp).connect(g).connect(master);
+        src.start(t0 + at);
+      };
+      if (cue === 'potion') {
+        // Three gulps, each a bubble rising.
+        for (let i = 0; i < 3; i++) tone('sine', 380 + i * 40, 760 + i * 60, i * 0.09, 0.07, 0.9);
+      } else if (cue === 'rare') {
+        // A bright two-note chime.
+        tone('triangle', 1319, 1319, 0, 0.16, 0.7);
+        tone('triangle', 1976, 1976, 0.08, 0.22, 0.6);
+      } else if (cue === 'unique') {
+        // A rising arpeggio with a shimmer.
+        [1047, 1319, 1568, 2093].forEach((f, i) => tone('triangle', f, f, i * 0.07, 0.24, 0.6));
+        hiss(0.05, 0.35, 0.12);
+      } else if (cue === 'level') {
+        // A short fanfare that climbs and holds.
+        [784, 1047, 1319].forEach((f, i) => tone('square', f, f, i * 0.09, 0.1, 0.22));
+        tone('square', 1568, 1568, 0.27, 0.32, 0.26);
+      }
+      setTimeout(() => master.disconnect(), 1200);
+    };
     if (window.AIHubSettings && window.AIHubSettings.addEventListener) {
-      window.AIHubSettings.addEventListener('change', () => { bridge.settingsChanged = true; });
+      window.AIHubSettings.addEventListener('change', () => {
+        bridge.settingsChanged = true;
+        // A speaker that wasn't there (no cable, no microphone yet) is asked for again.
+        if (bridge.speakerOut && bridge.speakerOut.opening) {
+          bridge.speakerOut.opening.then((node) => { if (!node) bridge.speakerOut.opening = null; });
+        }
+      });
     }
     window.shardfallHub = bridge;
   })();
