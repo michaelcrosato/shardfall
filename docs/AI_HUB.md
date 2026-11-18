@@ -50,8 +50,43 @@ script puts it there on every game page, in a session or not); the bridge hands 
 game as JSON (`hub::settings`), and again whenever the player changes them over the game.
 Shardfall has no music, so `effects` multiplies the game's own effects volume and `music` has
 nothing to scale; the hub applies the master volume and scales every rumble by `vibration`
-itself. The game uses no feature that needs a permission (no microphone, no voice), so nothing
-waits on `mic`. Outside 52in1 there are no settings and the game plays as it is.
+itself. Outside 52in1 there are no settings and the game plays as it is.
+
+## The DualSense
+The hub holds the controller; the game reads what the player allows through
+`window.AIHubSettings.dualsense` (the page's bridge, `window.shardfallHub`) and never opens it
+itself. Each extra adds to a control that works on any pad and on keys; the page's
+`hub:dualsense` names them, each once, in the catalogue's order: `light bar, adaptive triggers,
+haptics, motion, touchpad, speaker` (`web/hub.json`; the packer refuses a name twice).
+
+- **Light bar, adaptive triggers, haptics, touchpad** (`pav_app::pad_fx`): the hero's life on
+  the light bar, R2 stiff while its skill can't be cast, short rumbles that say something, the
+  touchpad's press opens the map and a swipe turns the hero's panels.
+- **Motion** (`pav_app::motion`): Shardfall does its own motion aim, so while its Motion aim is
+  on it reads `gyro` once a frame (`shardfallHub.gyroY`) and the hub leaves the right stick
+  alone. Turning the controller left (`gyro.y` +) turns the pad's aim left on screen, by gyro x
+  the frame's seconds x the sensitivity (Low 1, Medium 2, High 3), on top of the stick: a pushed
+  stick gets the turn added from the push on; at rest the aim leaves the hero's facing and
+  holds where it was turned (a turned push that is let go holds too), until the hero has walked
+  2 s with the controller still and no skill held. Settings shows Motion aim (on by default
+  when the player's 52in1 Motion aim is) and its sensitivity while a DualSense is connected;
+  without `motion` the row shows off with a line saying 52in1's Settings allow it. With the
+  game's Motion aim off it never reads the gyro, so the hub's own Motion aim (if the player has
+  it on) turns the right stick again half a second later; a line under the row says so.
+- **Speaker** (`pad_fx::speaker_cue`, the page's `shardfallHub.speaker`): with `speaker`
+  allowed and the game's Controller speaker setting on (its default), the page makes its own
+  AudioContext on the first cue and asks `openSpeaker(ctx)` once; into the node it gives it
+  synthesizes three short cues, on top of the game's own sounds: a potion drunk (three rising
+  gulps), a rare or unique item picked up (a two-note chime, a four-note arpeggio with a
+  shimmer) and a level-up (a short fanfare), at the game's effects volume x 52in1's. A `null`
+  node plays nothing more (asked again when the player's settings change). Without `speaker`
+  (it needs a DualSense on a cable and the microphone allowed) the row shows off with a line
+  saying where 52in1 allows it.
+- **Microphone: never.** Shardfall has no voice feature: it never calls `openMicrophone()` or
+  `getUserMedia()`, so `mic`, `micLater` and `muted` change nothing and Settings shows no voice
+  row (the catalogue asks for its line only for voice features a game has). `pad_check.py
+  --dualsense` counts any request and expects none.
+- Natively there is no hub: no motion aim, no speaker, no rows.
 
 ## A round
 `pav_app::round` (the app's side) and `pav_core::arpg::round` (the game's):

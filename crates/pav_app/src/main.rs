@@ -22,6 +22,7 @@ mod input;
 mod lang;
 mod look_ui;
 mod menu;
+mod motion;
 mod pad_fx;
 mod panel;
 mod platform;
