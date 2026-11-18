@@ -26,6 +26,157 @@
 </head>
 <body>
 <div id="msg" role="status" aria-live="polite"></div>
+<script id="shout-detector">
+  // Shout to roar's ear: arithmetic on samples, no audio and no page (the bridge below feeds it
+  // what the microphone hears; scripts/shout_check.mjs runs it in Node on made-up voices). A
+  // shout is a sound well over the background, what the microphone hears while nobody shouts
+  // (the room, the game's own sound through the speakers, talk): so a quiet microphone, or one
+  // the browser's gain control evens out, still hears a shout over its own background, and talk
+  // or a steady game sound, however loud, doesn't count.
+  // - Loudness: the power (RMS squared, of 1) of BLOCK-second blocks. A block is loud at RATIO
+  //   times the background's RMS and at least MIN. A shout is HOLD seconds of loud blocks in a
+  //   row: held, as a shout is, where a clap, a click of the controller's buttons or a syllable
+  //   of talk, even a stressed one, is shorter (talk's loudest moments reach about 3 times its
+  //   RMS, a shout 4 times). One counts per loud stretch, and after one REST seconds pass
+  //   before the next can. The first WARM seconds only listen.
+  // - The background: the RANK quantile of the last WINDOW seconds' blocks that weren't loud.
+  //   A loud stretch stays out of it while it may be a shout (a shout doesn't raise the bar for
+  //   the next one), unless the loudness goes on. One stretch LONG seconds long (music
+  //   starting, a fan) starts the background again from the last RECENT seconds. With RUNS
+  //   stretches in the last RECENT seconds (talk), each joins it as it ends without being a
+  //   shout, and once those seconds are loud as a whole (talk after a quiet spell) the
+  //   background starts again from where the stretches began (but for a shout heard there).
+  //   Until WINDOW seconds are in it, it is their quantile; then it rises towards that with a
+  //   time constant of RISE seconds and falls with one of FORGET, so talk after a pause, or
+  //   after a shout, isn't a shout either.
+  // - Muted (the DualSense's mute button): nothing counts and nothing is learned.
+  //   (`tune` overrides any of these, for checks.)
+  window.shoutDetector = (rate, tune = {}) => {
+    const { BLOCK = 0.02, HOLD = 0.25, REST = 1.5, WARM = 1.5, RATIO = 2.6, MIN = 0.01 } = tune;
+    const { WINDOW = 8, RANK = 0.75, LONG = 4, RECENT = 2.5, RUNS = 3, RISE = 1, FORGET = 60 } = tune;
+    const size = Math.max(1, Math.round(BLOCK * rate)), dt = size / rate;
+    const blocks = (seconds) => Math.max(1, Math.round(seconds / dt));
+    const hold = blocks(HOLD), warm = blocks(WARM), long = blocks(LONG);
+    const rise = 1 - Math.exp(-dt / RISE), fall = 1 - Math.exp(-dt / FORGET);
+    // Rings of block powers: the background's (WINDOW long), and all (RECENT long) with where a
+    // loud stretch began and which were a shout's.
+    const W = blocks(WINDOW), R = blocks(RECENT);
+    const quiet = new Float64Array(W), sorting = new Float64Array(W), recent = new Float64Array(R);
+    const began = new Uint8Array(R), shouted = new Uint8Array(R), wasLoud = new Uint8Array(R);
+    const s = { acc: 0, n: 0, seen: 0, qAt: 0, qLen: 0, rAt: 0, rLen: 0, starts: 0, going: false, restarted: false,
+                bg: 0, run: 0, counted: false, until: -Infinity };
+    const keep = (p) => {
+      quiet[s.qAt] = p;
+      s.qAt = (s.qAt + 1) % W;
+      s.qLen = Math.min(s.qLen + 1, W);
+    };
+    const rank = (n) => {
+      if (!n) return 0;
+      const v = sorting.subarray(0, n).sort();
+      return v[Math.min(n - 1, Math.floor(RANK * n))];
+    };
+    const quantile = () => {
+      sorting.set(quiet.subarray(0, s.qLen));
+      return rank(s.qLen);
+    };
+    // The k-th recent block, oldest first.
+    const nth = (k) => (s.rAt - s.rLen + k + R) % R;
+    // The background starts again from recent blocks k0..k1-1 (but for shouts', unless `all`).
+    const restart = (k0, k1, all) => {
+      let n = 0;
+      for (let k = k0; k < k1; k++) if (all || !shouted[nth(k)]) n++;
+      if (!n) return;
+      s.qAt = s.qLen = 0;
+      for (let k = k0; k < k1; k++) if (all || !shouted[nth(k)]) keep(recent[nth(k)]);
+    };
+    const threshold = () => Math.max(MIN * MIN, RATIO * RATIO * s.bg);
+    // One block's power p, ending at time t: whether a shout counts with it.
+    const step = (p, t, muted) => {
+      if (muted) {
+        s.run = 0;
+        s.counted = false;
+        return false;
+      }
+      const loud = s.seen++ >= warm && p >= threshold();
+      // A loud stretch that ends here (its length, and in the recent ring), and whether it was a
+      // shout.
+      const endedRun = loud ? 0 : s.run, ended = Math.min(endedRun, R - 1), endedShout = s.counted;
+      const at = s.rAt;
+      if (s.rLen === R) s.starts -= began[at];
+      else s.rLen++;
+      recent[at] = p;
+      wasLoud[at] = loud ? 1 : 0;
+      began[at] = loud && !s.run ? 1 : 0;
+      shouted[at] = loud && s.counted ? 1 : 0;
+      s.starts += began[at];
+      s.rAt = (at + 1) % R;
+      s.run = loud ? s.run + 1 : 0;
+      if (!loud) s.counted = false;
+      let heard = false;
+      if (s.run >= hold && !s.counted && t >= s.until) {
+        heard = s.counted = true;
+        s.until = t + REST;
+        for (let k = 0; k < Math.min(s.run, R); k++) shouted[(at - k + R) % R] = 1;
+      }
+      // The background. A stretch going on stays out (it may be a shout) unless it lasts (then
+      // it is kept block by block). Stretches in RUNS join it as they end (but for shouts), and
+      // once the last RECENT seconds are loud as a whole start it again from where they began.
+      const lasting = s.run >= long, runs = s.starts >= RUNS;
+      if (s.run === long) {
+        restart(0, s.rLen, true);
+      } else if (lasting) {
+        keep(p);
+      } else if (runs) {
+        let k0 = 0;
+        while (k0 < s.rLen - 1 && !began[nth(k0)]) k0++;
+        const k1 = s.rLen - Math.max(1, s.run);
+        if (!s.going) {
+          for (let k = k0; k < k1; k++) if (wasLoud[nth(k)] && !shouted[nth(k)]) keep(recent[nth(k)]);
+        } else if (!endedShout && endedRun < long) {
+          for (let k = ended; k >= 1; k--) keep(recent[(at - k + R) % R]);
+        }
+        if (!s.restarted) {
+          let n = 0;
+          for (let k = 0; k < k1; k++) if (!shouted[nth(k)]) sorting[n++] = recent[nth(k)];
+          if (rank(n) >= threshold()) {
+            restart(k0, k1, false);
+            s.restarted = true;
+          }
+        }
+        if (!loud) keep(p);
+      } else if (!loud) {
+        keep(p);
+      }
+      s.going = lasting || runs;
+      if (!s.going) s.restarted = false;
+      const q = quantile();
+      if (s.qLen < W) s.bg = q;
+      else s.bg += (q - s.bg) * (q > s.bg ? rise : fall);
+      return heard;
+    };
+    return {
+      // Samples buf[from..to), the last of them at time `end` (seconds): the time of a shout
+      // among them, or null. A block may span calls.
+      feed(buf, from, to, end, muted) {
+        let heard = null;
+        for (let i = from; i < to; i++) {
+          s.acc += buf[i] * buf[i];
+          if (++s.n < size) continue;
+          const p = s.acc / s.n, t = end - (to - 1 - i) / rate;
+          s.acc = s.n = 0;
+          if (step(p, t, muted)) heard = t;
+        }
+        return heard;
+      },
+      // Samples were lost (a look longer than the analyser holds): the block and the stretch
+      // start over.
+      gap() { s.acc = s.n = s.run = 0; },
+      // For checks: the background's and the threshold's RMS now.
+      get background() { return Math.sqrt(s.bg); },
+      get threshold() { return Math.sqrt(threshold()); },
+    };
+  };
+</script>
 <script>
   // The page's own words, before the game runs: lines from the game-lines block (and a
   // translation's, when the page has one for ?lang= or the browser's language). The game
@@ -230,6 +381,11 @@
       },
       // A shout cast War Cry (the game says so once it went off): counted for checks.
       roared: () => { bridge.roars++; },
+      // For checks: the shouts the page heard, taken by the game or not (seconds since it began
+      // listening, the last 50), and what its ear makes of the microphone now (RMS, of 1).
+      shoutsHeard: [],
+      hearing: () => (mic.ear ? { listening: mic.an.context.currentTime - mic.t0, background: mic.ear.background,
+                                  threshold: mic.ear.threshold } : null),
     });
     // The page's own audio context (the speaker's cues, the microphone's listening), made the
     // first time one needs it. The browser lets it start after a click or key press.
@@ -243,14 +399,12 @@
       for (const type of ['pointerdown', 'keydown']) addEventListener(type, wake, { capture: true, passive: true });
       return audio;
     };
-    // Shout to roar's listening: the hub's stream into an analyser, and the loudness (RMS, of
-    // 1) of what came in since the last look, in BLOCK-second blocks (a look every 30 ms and
-    // every frame; the analyser holds the last 0.7 s, so slow frames lose nothing). A shout is
-    // LOUD for HOLD seconds (a clap, a button's click on the controller is shorter); after one,
-    // REST seconds pass before the next counts.
-    const LOUD = 0.15, HOLD = 0.12, REST = 1.5, BLOCK = 0.02;
+    // Shout to roar's listening: the hub's stream into an analyser, and what came in since the
+    // last look (a look every 30 ms and every frame; the analyser holds the last 0.7 s, so slow
+    // frames lose nothing) into the ear (window.shoutDetector, above), which learns this
+    // microphone's background and hears a shout well over it.
     const mic = { want: false, asking: false, gen: 0, stream: null, src: null, an: null, sink: null, buf: null,
-                  timer: 0, at: 0, acc: 0, n: 0, run: 0, until: 0, heard: null };
+                  timer: 0, at: 0, t0: 0, ear: null, heard: null };
     const micOpen = (s) => {
       mic.want = true;
       mic.asking = true;
@@ -294,7 +448,8 @@
           return;
         }
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        mic.at = ctx.currentTime;
+        mic.at = mic.t0 = ctx.currentTime;
+        mic.ear = window.shoutDetector(ctx.sampleRate);
         mic.timer = setInterval(micListen, 30);
       });
     };
@@ -305,35 +460,28 @@
       clearInterval(mic.timer);
       for (const node of [mic.src, mic.an, mic.sink]) if (node) try { node.disconnect(); } catch { /* gone */ }
       if (mic.stream) mic.stream.getTracks().forEach((tr) => tr.stop());
-      Object.assign(mic, { stream: null, src: null, an: null, sink: null, timer: 0, acc: 0, n: 0, run: 0, heard: null });
+      Object.assign(mic, { stream: null, src: null, an: null, sink: null, timer: 0, ear: null, heard: null });
     };
     const micListen = () => {
       const an = mic.an;
-      if (!an) return;
-      const ctx = an.context, now = ctx.currentTime, rate = ctx.sampleRate, size = an.fftSize;
-      let fresh = Math.round((now - mic.at) * rate);
+      if (!an || !mic.ear) return;
+      const ctx = an.context, now = ctx.currentTime, size = an.fftSize;
+      let fresh = Math.round((now - mic.at) * ctx.sampleRate);
       if (fresh <= 0) return;
       mic.at = now;
       if (fresh > size) {
         // Longer than the analyser holds: start over from what it has.
         fresh = size;
-        mic.acc = mic.n = mic.run = 0;
+        mic.ear.gap();
       }
       if (!mic.buf || mic.buf.length !== size) mic.buf = new Float32Array(size);
       an.getFloatTimeDomainData(mic.buf);
       const muted = !!(window.AIHubSettings && window.AIHubSettings.muted);
-      const block = Math.max(1, Math.round(BLOCK * rate));
-      for (let i = size - fresh; i < size; i++) {
-        mic.acc += mic.buf[i] * mic.buf[i];
-        if (++mic.n < block) continue;
-        const loud = !muted && Math.sqrt(mic.acc / mic.n) >= LOUD;
-        mic.acc = mic.n = 0;
-        mic.run = loud ? mic.run + block / rate : 0;
-        if (mic.run >= HOLD && now >= mic.until) {
-          mic.heard = now;
-          mic.until = now + REST;
-          mic.run = 0;
-        }
+      const at = mic.ear.feed(mic.buf, size - fresh, size, now, muted);
+      if (at !== null) {
+        mic.heard = now;
+        bridge.shoutsHeard.push(Math.round((at - mic.t0) * 100) / 100);
+        if (bridge.shoutsHeard.length > 50) bridge.shoutsHeard.shift();
       }
     };
     // The speaker's cues, made of tones and a little noise (no files): short and distinct, in

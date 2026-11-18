@@ -102,18 +102,31 @@ twice).
   (`shout(on)`); the page asks 52in1's `openMicrophone()` once (never `getUserMedia()`; a
   `null` stream is asked for again only when the player's settings change), feeds the stream
   through an AnalyserNode (into the speakers at no volume; the track is asked to turn the
-  browser's gain control off, so a shout stays louder than talk) and reads what came in since its
-  last look, every 30 ms and every frame, in 20 ms blocks: a shout is RMS 0.15 or more for
-  0.12 s (a clap, a click of the controller's buttons is shorter), then 1.5 s pass before the
-  next counts, and none counts while `muted`. The analyser holds 0.7 s, so frames a second
-  apart lose no shout. The game takes the shout (`shout()` returns it and clears it, and drops
-  one older than a second) and, while the player can play (no menu, a game scene with a hero),
-  presses War Cry's slot's button (the same input bit as the pad, the keys or the mouse) for
-  one frame; once War Cry's cooldown starts it shows "Roar!" (`hud.roar`) and tells the page
-  (`shardfallHub.roars` counts them). The row turned off, or `mic` taken back (the page listens
-  to the hub's `change`): the page stops the stream's tracks and disconnects. `pad_check.py
-  --dualsense` plays Kestrel with a stand-in microphone (a tone, loud 0.5 s every 4 s) and
-  counts the asks, the shouts and the War Cries.
+  browser's gain control off, so a shout stays louder than talk) and hands what came in since
+  its last look, every 30 ms and every frame, to its ear (`window.shoutDetector`, a script
+  block of its own). The ear weighs 20 ms blocks against the background it learns from this
+  microphone (the room, the game's sound through the speakers, talk: the 75th percentile of the
+  last 8 s of blocks that weren't loud, held through pauses): a shout is 2.6 times the
+  background's RMS or more, and at least RMS 0.01, held for 0.25 s (a clap, a click of the
+  controller's buttons or a syllable of talk is shorter); one counts per loud stretch, then
+  1.5 s pass before the next, and none counts while `muted`. So a quiet microphone, or gain
+  control left on, still hears a shout over its own background, and talk or a steady game sound
+  doesn't count. Loudness that goes on (one stretch of 4 s, or three in 2.5 s) becomes the
+  background: music starting, or talk straight out of silence, can count once first. The
+  analyser holds 0.7 s, so slow frames lose no shout. `node scripts/shout_check.mjs` runs the
+  ear in Node over made-up sounds (silence then a shout; talk at RMS 0.02, 0.05 and 0.1, with
+  pauses; shouts 4x over each; a quiet microphone; a music bed; claps; muting; slow frames;
+  `--sweep=N` many voices, a rate: talk's drawn-out, stressed syllables come close to a shout,
+  and about one per 10 minutes of talk counts). The game takes the shout (`shout()` returns it
+  and clears it, and drops one older than a second) and, while the player can play (no menu, a
+  game scene with a hero), presses War Cry's slot's button (the same input bit as the pad, the
+  keys or the mouse) for one frame; once War Cry's cooldown starts it shows "Roar!"
+  (`hud.roar`) and tells the page (`shardfallHub.roars` counts them; `shoutsHeard` lists the
+  shouts the page heard, taken or not, and `hearing()` its background and threshold). The row
+  turned off, or `mic` taken back (the page listens to the hub's `change`): the page stops the
+  stream's tracks and disconnects. `pad_check.py --dualsense` plays Kestrel with a stand-in
+  microphone (a tone, loud 0.5 s every 4 s) and counts the asks, the shouts and the War Cries;
+  `hub_live.mjs --voice=` plays a made-up voice through Chrome's real capture ("Testing").
 - Natively there is no hub: no motion aim, no speaker, no microphone, no rows.
 
 ## A round
@@ -234,6 +247,27 @@ then write `data/games.json` with Shardfall's entry from `https://52in1.com/data
 (`path` and its build's `path` set to `/games/shardfall-v3.html`), copy the page there, install
 Node's Playwright 1.63 in a folder of its own, and from that folder run `node
 .../scripts/hub_live.mjs target/hubtest/52in1 OUT_DIR` (OUT_DIR/hub_live.json).
+
+Shout to roar through Chrome's real microphone path: give hub_live a voice to hear.
+
+```bash
+python3 -I scripts/make_voice_wav.py target/hubtest/voice.wav   # 40 s: talk, five shouts 4x louder, quiet spells
+node scripts/shout_check.mjs --wav=target/hubtest/voice.wav      # the page's ear on it, without a browser
+# then from Playwright's folder, as above (the WAV by its full path):
+node .../scripts/hub_live.mjs .../target/hubtest/52in1 OUT_DIR --voice=.../target/hubtest/voice.wav
+```
+
+The WAV maker prints the shouts' times and writes them to `voice.json` beside the WAV. With
+`--voice`, Chromium's fake microphone plays the file in a loop (`--use-file-for-fake-audio-capture`,
+beside `--use-fake-device-for-media-stream`), so 52in1's `openMicrophone()` hands the game that
+voice through Chrome's capture and audio processing. Step 6 plays on until the stream has run the
+recording through, and `voice` in hub_live.json holds the shouts the game took
+(`shouts_detected`, their times since the stream came), the ones the page heard
+(`page_heard_s`, since it began listening: frames are slow headless, and a shout the game takes
+more than a second late is dropped), its background and threshold (`hearing`), and how they
+line up with the recording's (`match`: due, matched, missed, stray; `match_best_offset` if the
+file didn't start with the stream). The hero is the Wanderer, without War Cry: the test measures
+hearing, not roaring.
 
 Real sessions: `scripts/hub_session.mjs` (same checkout and folder) plays one round of each mode
 the page declares through the hub's own session page, lobby, card, round coordinator, bridge and
