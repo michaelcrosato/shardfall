@@ -6,7 +6,10 @@
 //! endless Astral rings wait past the edges until the player zooms out), the points to spend
 //! are the biggest thing in the header, and what only a mouse uses (the search field, the
 //! shapes' legend) shows only with a mouse. Zoomed out, it keeps its shape and the player's
-//! choices and lets the ordinary nodes fade (`detail`): an overview, not a field of dots.
+//! choices and lets the ordinary nodes fade (`detail`): an overview, not a field of dots. The
+//! Astral rings past the hero's reach fade to faint outlines (`near`, `ring_outline`), and a pad
+//! or a finger zooms out only as far as frames the main tree and the rings near the hero
+//! (`floor_zoom`).
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Shape, Stroke, Vec2 as EVec2};
 use glam::Vec2;
@@ -99,28 +102,91 @@ fn radius(n: &Node) -> f32 {
 // Level of detail. Zoomed out past the opening view, hundreds of same-sized dots would hide the
 // tree's shape, so the view keeps what shapes it and what the player can do at full strength
 // (`kept`) and lets the ordinary minor nodes and their links fade (`detail`): the main tree's to
-// tiny dots on faint roads, the Astral rings' to nothing, leaving the rings' stars as their
-// outline. At the opening zoom and closer every node is drawn as it always was.
+// tiny dots on faint roads, the Astral rings' to nothing. The rings near the hero (`near`) keep
+// their stars; the endless rings beyond fade to faint outlines in their sectors' colours, fainter
+// ring by ring (`ring_outline`): their stars, hundreds of them in radial rows, are nothing a
+// player reads from a sofa. At the opening zoom and closer every node is drawn as it always was.
+//
+// A pad or a finger zooms out only as far as frames the main tree and the near rings
+// (`floor_zoom`), which hold all there is to do; a mouse keeps the whole range, and its search
+// finds a node on any ring (a hit keeps full strength wherever it is).
 
-/// The share of the opening zoom (`core_zoom`) at which the ordinary detail has faded out.
+/// The share of the opening zoom (`core_zoom`) at which the ordinary detail has faded out (or the
+/// device's farthest zoom, `floor_zoom`, if that is closer in: `detail`).
 const FADED: f32 = 0.25;
+/// Astral rings drawn in full past the outermost one the hero has a node on or can take one on.
+const AHEAD: u32 = 1;
+/// Tree units past the farthest near ring that a pad or a finger frames all the way out.
+const MARGIN: f32 = 1.0;
+/// A near ring's outline all the way out; a far one's, the first ring past the near ones; and the
+/// share of it each ring after that keeps.
+const NEAR_RING: f32 = 0.5;
+const FAR_RING: f32 = 0.35;
+const FALLOFF: f32 = 0.7;
 /// The radius (points) a main-tree minor node shrinks to, faded out.
 const DOT: f32 = 1.0;
 /// The least radius (points) a node is drawn at for the D-pad to snap to it (`Look::selectable`).
 const SNAP_MIN: f32 = 2.0;
 
 /// How much of the ordinary detail the view draws at `zoom`: 1 at the opening zoom `core` and
-/// closer, easing down to 0 at `FADED` times it (no step anywhere, so nothing pops).
-fn detail(zoom: f32, core: f32) -> f32 {
-    let x = ((zoom / core - FADED) / (1.0 - FADED)).clamp(0.0, 1.0);
+/// closer, easing down to 0 at `FADED` times it, or at the device's farthest zoom `floor` if that
+/// is closer in (the farthest view is the whole overview), with no step anywhere: nothing pops.
+fn detail(zoom: f32, core: f32, floor: f32) -> f32 {
+    let gone = (floor / core).clamp(FADED, 0.75);
+    let x = ((zoom / core - gone) / (1.0 - gone)).clamp(0.0, 1.0);
     1.0 - (1.0 - x) * (1.0 - x)
 }
 
+/// The outermost Astral ring the hero has a node on or can take one on now (`own`, by node
+/// index); 0 while all of that is in the main tree.
+fn reach_ring(t: &Tree, own: &[bool]) -> u32 {
+    t.nodes.iter().zip(own).filter(|(_, o)| **o).map(|(n, _)| n.ring).max().unwrap_or(0)
+}
+
+/// Whether ring `ring` (0: the main tree) is near the hero: out to `AHEAD` rings past their
+/// `reach`. Zoomed out, its stars keep full strength; a farther ring is a faint outline.
+fn near(ring: u32, reach: u32) -> bool {
+    ring <= reach + AHEAD
+}
+
+/// How far from the start (tree units) the main tree and the near rings reach.
+fn near_radius(t: &Tree, reach: u32) -> f32 {
+    t.nodes.iter().filter(|n| near(n.ring, reach)).map(|n| n.pos.length()).fold(CORE, f32::max)
+}
+
+/// The farthest a pad or a finger zooms out, in pixels per tree unit: the main tree and the near
+/// rings (out to `radius`) fill the canvas's shorter side. Never past the opening zoom `core`.
+fn floor_zoom(rect: Rect, radius: f32, core: f32) -> f32 {
+    (rect.size().min_elem() * 0.5 / (radius + MARGIN)).clamp(MIN_ZOOM, core)
+}
+
+/// How far from the start (tree units) a pad or a finger may pan the view's centre at `zoom`: as
+/// far as keeps the canvas's shorter side within the main tree and the near rings (out to
+/// `radius`). None at `floor_zoom`, where the view frames them.
+fn room(rect: Rect, radius: f32, zoom: f32) -> f32 {
+    (radius + MARGIN - rect.size().min_elem() * 0.5 / zoom).max(0.0)
+}
+
+/// How strongly an Astral ring's outline (its own links, in its sectors' colours) is drawn as the
+/// detail goes: a near ring's clearly, the far ones fainter ring by ring into the dark. None at
+/// the opening zoom and closer, where the ring's nodes are drawn.
+fn ring_outline(ring: u32, reach: u32, detail: f32) -> f32 {
+    let strength = if ring == 0 {
+        0.0
+    } else if near(ring, reach) {
+        NEAR_RING
+    } else {
+        FAR_RING * FALLOFF.powi((ring - reach - AHEAD - 1) as i32)
+    };
+    strength * (1.0 - detail)
+}
+
 /// Whether a node keeps full strength however far out the view goes: what gives the tree its shape
-/// (the start, notables, keystones, masteries, skill upgrades, the Astral stars) and anything
-/// `marked` for the player (taken, takeable now, on the path shown, a search hit, under the pointer).
-fn kept(n: &Node, marked: bool) -> bool {
-    marked || !matches!(n.kind, NodeKind::Minor | NodeKind::Astral) || n.lore == "star"
+/// (the start, notables, keystones, masteries, skill upgrades, and the stars of the Astral rings
+/// `near` the hero) and anything `marked` for the player (taken, takeable now, on the path shown,
+/// a search hit, under the pointer).
+fn kept(n: &Node, marked: bool, near: bool) -> bool {
+    marked || near && (!matches!(n.kind, NodeKind::Minor | NodeKind::Astral) || n.lore == "star")
 }
 
 /// The radius (points) a kept node grows to as the ordinary detail fades, to stand out from it,
@@ -157,16 +223,18 @@ impl Look {
     }
 }
 
-/// How `n` is drawn at `zoom` and `detail` (`marked`: it is the player's now, see `kept`).
-fn look(n: &Node, marked: bool, zoom: f32, detail: f32) -> Look {
+/// How `n` is drawn at `zoom` and `detail` (`marked`: it is the player's now; `near`: its ring is
+/// near the hero's; see `kept`).
+fn look(n: &Node, marked: bool, near: bool, zoom: f32, detail: f32) -> Look {
     let r = (radius(n) * zoom).max(2.0);
     let fade = 1.0 - detail;
-    if kept(n, marked) {
+    if kept(n, marked, near) {
         // (An Astral star sheds its grey ring: the rings' outline is their sectors' colours.)
         let outline = if n.ring > 0 && !marked { detail } else { 1.0 };
         Look { r: r.max(2.0 + (least(n, zoom) - 2.0) * fade), strength: 1.0, outline }
     } else if n.ring > 0 {
-        // The Astral rings' ordinary nodes go: their stars outline the rings.
+        // The Astral rings' ordinary nodes go, and the far rings' stars (`ring_outline` draws
+        // those rings).
         Look { r: r * detail, strength: detail, outline: detail }
     } else {
         // The main tree's shrink to dots, without their outlines, that keep its roads' shape.
@@ -249,9 +317,22 @@ impl TreeUi {
                 p.rect_filled(rect, 4.0, Color32::from_rgb(14, 13, 18));
                 let astral = astral_start(t);
                 let core = core_zoom(rect, astral);
+                let alloc = &inv.tree;
+                let reached = |id: u32| id == start_id() || alloc.contains(&id);
+                // The hero's nodes: taken or takeable now. The Astral rings out to one past the
+                // farthest of them are near (`near`).
+                let own: Vec<bool> = t.nodes.iter().map(|n| reached(n.id) || t.can_allocate(alloc, n.id)).collect();
+                let reach = reach_ring(t, &own);
+                // A pad or a finger zooms out only as far as frames the main tree and the near
+                // rings: the endless rest is nothing to read from a sofa or on a phone. A mouse
+                // keeps the whole range (its search finds nodes on any ring).
+                let frame = near_radius(t, reach);
+                let floor = if mouse { MIN_ZOOM } else { floor_zoom(rect, frame, core) };
                 if let Some(k) = self.fit {
-                    self.zoom = (core * k).clamp(MIN_ZOOM, MAX_ZOOM);
+                    self.zoom = core * k;
                 }
+                // (Also when a mouse's zoom passes to a pad.)
+                self.zoom = self.zoom.clamp(floor, MAX_ZOOM);
                 // Pan and zoom (zooming lets go of the fitted view).
                 if resp.dragged() {
                     let dlt = resp.drag_delta();
@@ -263,7 +344,7 @@ impl TreeUi {
                     if (mt.zoom_delta - 1.0).abs() > 1e-3 {
                         self.fit = None;
                     }
-                    self.zoom = (self.zoom * mt.zoom_delta).clamp(MIN_ZOOM, MAX_ZOOM);
+                    self.zoom = (self.zoom * mt.zoom_delta).clamp(floor, MAX_ZOOM);
                     self.pan += before - self.to_tree(rect, mt.center_pos);
                 }
                 if resp.hovered() {
@@ -271,13 +352,16 @@ impl TreeUi {
                     if scroll != 0.0 {
                         self.fit = None;
                         let before = self.to_tree(rect, ui.input(|i| i.pointer.hover_pos()).unwrap_or(rect.center()));
-                        self.zoom = (self.zoom * (1.0 + scroll * 0.0015)).clamp(MIN_ZOOM, MAX_ZOOM);
+                        self.zoom = (self.zoom * (1.0 + scroll * 0.0015)).clamp(floor, MAX_ZOOM);
                         let after = self.to_tree(rect, ui.input(|i| i.pointer.hover_pos()).unwrap_or(rect.center()));
                         self.pan += before - after;
                     }
                 }
-                let alloc = &inv.tree;
-                let reached = |id: u32| id == start_id() || alloc.contains(&id);
+                if !mouse {
+                    // And pans only as far as keeps the view on them (`room`): all the way out it
+                    // is centred on the tree.
+                    self.pan = self.pan.clamp_length_max(room(rect, frame, self.zoom));
+                }
                 // (The search lights nodes up only where its field shows: with a mouse.) Its hits, by
                 // node index, are kept while the search stays the same.
                 let search = if mouse { self.search.to_lowercase() } else { String::new() };
@@ -301,9 +385,8 @@ impl TreeUi {
                 // The level of detail, and the nodes that are the player's now (taken, takeable, a
                 // search hit), which keep full strength.
                 let zoom = self.zoom;
-                let detail = detail(zoom, core);
-                let marked: Vec<bool> =
-                    t.nodes.iter().enumerate().map(|(i, n)| reached(n.id) || t.can_allocate(alloc, n.id) || hit(i)).collect();
+                let detail = detail(zoom, core, floor);
+                let marked: Vec<bool> = own.iter().enumerate().map(|(i, o)| *o || hit(i)).collect();
                 let view = rect.expand(30.0);
                 // Hovered node and the path to it (touch: the node tapped, then the one shown).
                 let hover_pos =
@@ -316,7 +399,7 @@ impl TreeUi {
                         .iter()
                         .enumerate()
                         .map(|(i, n)| (i, n, (n.pos - at).length() * zoom))
-                        .filter(|&(i, n, away)| away <= look(n, marked[i], zoom, detail).r + 6.0)
+                        .filter(|&(i, n, away)| away <= look(n, marked[i], near(n.ring, reach), zoom, detail).r + 6.0)
                         .min_by(|a, b| a.2.total_cmp(&b.2))
                         .map(|(_, n, _)| n)
                 });
@@ -343,7 +426,7 @@ impl TreeUi {
                     .enumerate()
                     .map(|(i, n)| {
                         let mark = marked[i] || path.contains(&n.id) || hovered.is_some_and(|h| h.id == n.id);
-                        look(n, mark, zoom, detail)
+                        look(n, mark, near(n.ring, reach), zoom, detail)
                     })
                     .collect();
                 // Links.
@@ -361,6 +444,15 @@ impl TreeUi {
                             continue;
                         }
                         let b = self.to_screen(rect, m.pos);
+                        // An Astral ring's own link (not a spoke between rings) draws its outline
+                        // as its nodes fade, in its sector's colour.
+                        if n.ring > 0 && n.ring == m.ring {
+                            let o = ring_outline(n.ring, reach, detail);
+                            if o >= 0.02 {
+                                let sector = t.sectors.get(n.sector as usize).map(|s| s.color).unwrap_or([0.7; 3]);
+                                p.line_segment([a, b], Stroke::new(1.5, col(sector, 0.5).gamma_multiply(o)));
+                            }
+                        }
                         let both = reached(n.id) && reached(m.id);
                         let on_path = (path.contains(&n.id) || reached(n.id)) && (path.contains(&m.id) || reached(m.id)) && !both;
                         let (w, c) = if both {
@@ -645,8 +737,9 @@ impl TreeUi {
         }
     }
 
-    /// Zooms to `scale` times the opening view (1 is the core, 0 the farthest out), kept as the
-    /// canvas changes until the player zooms: for the tools and tests.
+    /// Zooms to `scale` times the opening view (1 is the core, 0 the farthest out: for a pad or a
+    /// finger, the view that frames the main tree and the near rings), kept as the canvas changes
+    /// until the player zooms: for the tools and tests.
     pub fn set_zoom(&mut self, scale: f32) {
         self.fit = Some(scale.max(0.0));
     }
@@ -742,6 +835,7 @@ mod tests {
     struct Frame {
         texts: Vec<String>,
         zoom: f32,
+        pan: Vec2,
         canvas: Rect,
         /// Where the D-pad snaps.
         snaps: Vec<Pos2>,
@@ -768,7 +862,7 @@ mod tests {
             full.shapes.iter().for_each(|s| collect(&s.shape, &mut texts, &mut canvas));
         }
         let snaps = ctx.data(|d| d.get_temp(egui::Id::new(crate::padnav::SNAP_POINTS))).unwrap_or_default();
-        Frame { texts, zoom: tree.zoom, canvas, snaps }
+        Frame { texts, zoom: tree.zoom, pan: tree.pan, canvas, snaps }
     }
 
     /// The texts the open tree draws on a 720p screen, and its zoom then.
@@ -783,9 +877,25 @@ mod tests {
         t.path_to(&BTreeSet::new(), ks.id).expect("a path to it").into_iter().collect()
     }
 
+    /// A hero who went into the Astral rings: the path to a star on the fifth ring taken.
+    fn deep(t: &Tree) -> BTreeSet<u32> {
+        let star = t.nodes.iter().find(|n| n.ring == 5 && n.lore == "star").expect("a star on the fifth ring");
+        t.path_to(&BTreeSet::new(), star.id).expect("a path to it").into_iter().collect()
+    }
+
     /// The nodes that are the player's with `alloc` taken: taken or takeable now.
     fn marked(t: &Tree, alloc: &BTreeSet<u32>, n: &Node) -> bool {
         n.id == start_id() || alloc.contains(&n.id) || t.can_allocate(alloc, n.id)
+    }
+
+    /// The outermost Astral ring the hero with `alloc` has a node on or can take one on.
+    fn reach_of(t: &Tree, alloc: &BTreeSet<u32>) -> u32 {
+        reach_ring(t, &t.nodes.iter().map(|n| marked(t, alloc, n)).collect::<Vec<_>>())
+    }
+
+    /// The canvas the tree draws on a 720p screen with a pad (a 1080p TV's, in points).
+    fn tv() -> Rect {
+        Rect::from_min_size(Pos2::ZERO, EVec2::new(1110.0, 518.0))
     }
 
     #[test]
@@ -798,22 +908,30 @@ mod tests {
                 sample.push(n);
             }
         }
-        for core in [20.0, 30.0, 41.4, 90.0] {
-            assert_eq!(detail(core, core), 1.0);
-            assert_eq!(detail(core * 2.0, core), 1.0);
-            assert_eq!(detail(core * FADED, core), 0.0);
+        // (On a near ring and on a far one.)
+        let sample: Vec<(&Node, bool)> = sample.into_iter().flat_map(|n| [(n, true), (n, false)]).collect();
+        // A mouse's farthest zoom, and a pad's that frames the near rings.
+        for (core, floor) in [20.0, 30.0, 41.4, 90.0].into_iter().flat_map(|c| [(c, MIN_ZOOM), (c, c * 0.4)]) {
+            assert_eq!(detail(core, core, floor), 1.0);
+            assert_eq!(detail(core * 2.0, core, floor), 1.0);
+            // Gone at a quarter of the opening zoom, or at the device's farthest if closer in.
+            assert_eq!(detail(core * FADED.max(floor / core), core, floor), 0.0);
             // Zooming out a step at a time: the detail only falls, and every node's size and
-            // strength change a little each step (nothing pops at a threshold).
+            // strength and every ring's outline change a little each step (nothing pops).
             let mut z = core * 1.5;
-            let mut last = (1.0, sample.iter().map(|n| look(n, false, z, 1.0)).collect::<Vec<_>>());
-            while z > MIN_ZOOM {
+            let mut last = (1.0, sample.iter().map(|(n, near)| look(n, false, *near, z, 1.0)).collect::<Vec<_>>());
+            while z > floor {
                 z -= 0.02;
-                let d = detail(z, core);
+                let d = detail(z, core, floor);
                 assert!(d <= last.0 && last.0 - d < 0.01, "a step at zoom {z} of {core}: {} -> {d}", last.0);
-                let looks: Vec<Look> = sample.iter().map(|n| look(n, false, z, d)).collect();
-                for ((n, a), b) in sample.iter().zip(&last.1).zip(&looks) {
+                let looks: Vec<Look> = sample.iter().map(|(n, near)| look(n, false, *near, z, d)).collect();
+                for (((n, _), a), b) in sample.iter().zip(&last.1).zip(&looks) {
                     let step = (a.r - b.r).abs().max((a.strength - b.strength).abs()).max((a.outline - b.outline).abs());
                     assert!(step < 0.05, "{:?} pops at zoom {z} of {core}: {a:?} -> {b:?}", n.kind);
+                }
+                for ring in [1, 2, 3, 10] {
+                    let step = ring_outline(ring, 0, last.0) - ring_outline(ring, 0, d);
+                    assert!((-0.01..=0.0).contains(&step), "ring {ring}'s outline pops at zoom {z}: {step}");
                 }
                 last = (d, looks);
             }
@@ -824,13 +942,17 @@ mod tests {
     fn at_the_opening_zoom_and_closer_every_node_is_drawn_as_before() {
         let t = &data().tree;
         for zoom in [20.0, 41.4, 90.0] {
-            let d = detail(zoom, 20.0);
-            for n in &t.nodes {
-                for mark in [false, true] {
-                    let lk = look(n, mark, zoom, d);
-                    assert_eq!(lk, Look { r: (radius(n) * zoom).max(2.0), strength: 1.0, outline: 1.0 }, "{}", n.key);
-                    assert!(lk.selectable());
+            for floor in [MIN_ZOOM, 8.0] {
+                let d = detail(zoom, 20.0, floor);
+                for n in &t.nodes {
+                    for (mark, near) in [(false, false), (false, true), (true, false), (true, true)] {
+                        let lk = look(n, mark, near, zoom, d);
+                        assert_eq!(lk, Look { r: (radius(n) * zoom).max(2.0), strength: 1.0, outline: 1.0 }, "{}", n.key);
+                        assert!(lk.selectable());
+                    }
                 }
+                // And no ring is drawn as an outline: its nodes are there.
+                assert!((0..=30).all(|ring| ring_outline(ring, 0, d) == 0.0));
             }
         }
     }
@@ -839,22 +961,27 @@ mod tests {
     fn zoomed_out_the_shape_and_the_choices_keep_full_strength_and_the_rest_fades() {
         let t = &data().tree;
         let alloc = taken(t);
+        let reach = reach_of(t, &alloc);
+        // (A mouse's farthest zoom: the whole field.)
         let zoom = MIN_ZOOM;
-        let d = detail(zoom, core_zoom(Rect::from_min_size(Pos2::ZERO, EVec2::new(1110.0, 518.0)), astral_start(t)));
+        let d = detail(zoom, core_zoom(tv(), astral_start(t)), MIN_ZOOM);
         assert_eq!(d, 0.0, "all the way out the ordinary detail is gone");
-        let (mut choices, mut dots, mut gone) = (0, 0, 0);
+        let (mut choices, mut stars, mut dots, mut gone) = (0, 0, 0, 0);
         for n in &t.nodes {
             let mark = marked(t, &alloc, n);
-            let lk = look(n, mark, zoom, d);
+            let lk = look(n, mark, near(n.ring, reach), zoom, d);
             let shape = !matches!(n.kind, NodeKind::Minor | NodeKind::Astral) || n.lore == "star";
-            if shape || mark {
-                // The start, notables, keystones, masteries, skill upgrades, the Astral stars,
-                // the path taken and what can be taken now: as strong, no smaller, selectable.
+            if shape && near(n.ring, reach) || mark {
+                // The start, notables, keystones, masteries, skill upgrades, the stars of the
+                // rings near the hero, the path taken and what can be taken now: as strong, no
+                // smaller, selectable.
                 assert_eq!(lk.strength, 1.0, "{}", n.key);
                 assert!(lk.r >= (radius(n) * zoom).max(2.0) && lk.selectable(), "{}: {lk:?}", n.key);
                 choices += mark as usize;
+                stars += (n.ring > 0) as usize;
             } else if n.ring > 0 {
-                // An Astral ring's ordinary node: gone (its stars outline the ring).
+                // An Astral ring's ordinary node, and a far ring's star: gone (`ring_outline`
+                // draws the ring).
                 assert!(lk.strength == 0.0 && !lk.selectable(), "{}: {lk:?}", n.key);
                 gone += 1;
             } else {
@@ -864,15 +991,80 @@ mod tests {
             }
         }
         assert!(choices > alloc.len() && dots > 100 && gone > 1000, "{choices} {dots} {gone}");
-        // A search hit, the path shown and the node under the pointer are marked: full strength.
+        // Of the Astral rings' hundreds of stars, those of a ring or two.
+        assert!(stars > 10 && stars < 40, "{stars} stars kept");
+        // A search hit, the path shown and the node under the pointer are marked: full strength,
+        // on a far ring too.
         let minor = t.nodes.iter().find(|n| n.kind == NodeKind::Minor && !marked(t, &alloc, n)).unwrap();
-        assert_eq!(look(minor, true, zoom, d).strength, 1.0);
+        assert_eq!(look(minor, true, true, zoom, d).strength, 1.0);
+        let far = t.nodes.iter().find(|n| n.ring == 20).unwrap();
+        assert!(!near(far.ring, reach) && look(far, true, false, zoom, d).selectable());
         // Where the detail has just gone, the kept nodes stand well clear of the dots.
         let zoom = 41.4 * FADED;
-        let dot = look(minor, false, zoom, 0.0).r;
+        let dot = look(minor, false, true, zoom, 0.0).r;
         for kind in [NodeKind::Notable, NodeKind::Keystone, NodeKind::Mastery, NodeKind::Skill] {
             let n = t.nodes.iter().find(|n| n.kind == kind).unwrap();
-            assert!(look(n, false, zoom, 0.0).r >= 3.5 * dot, "{kind:?}");
+            assert!(look(n, false, true, zoom, 0.0).r >= 3.5 * dot, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn far_astral_rings_are_faint_outlines_fainter_ring_by_ring() {
+        let t = &data().tree;
+        let rings = t.nodes.iter().map(|n| n.ring).max().unwrap();
+        assert!(rings >= 20, "{rings} Astral rings");
+        for reach in [0, 3] {
+            // All the way out: the main tree has no outline; the near rings' are clear...
+            assert_eq!(ring_outline(0, reach, 0.0), 0.0);
+            for ring in 1..=reach + AHEAD {
+                assert!(near(ring, reach));
+                assert_eq!(ring_outline(ring, reach, 0.0), NEAR_RING);
+            }
+            // ...and the far rings' fainter ring by ring, into nothing drawn (under 0.02).
+            let far: Vec<f32> = (reach + AHEAD + 1..=rings).map(|ring| ring_outline(ring, reach, 0.0)).collect();
+            assert!(!near(reach + AHEAD + 1, reach) && far[0] < NEAR_RING);
+            assert!(far.windows(2).all(|w| w[1] < w[0]), "{far:?}");
+            assert!(far[9] < 0.02, "ten rings past the near ones: {far:?}");
+            // A far ring's star is not kept: it goes with the ordinary nodes, unless it is marked.
+            let star = t.nodes.iter().find(|n| n.ring == reach + AHEAD + 1 && n.lore == "star").unwrap();
+            assert!(!kept(star, false, false) && kept(star, true, false) && kept(star, false, true));
+        }
+        // The farther the hero reaches, the more rings are near.
+        let (start, deep) = (reach_of(t, &taken(t)), reach_of(t, &deep(t)));
+        assert!(start <= 1 && deep >= 5, "{start} {deep}");
+        assert!(near_radius(t, deep) > near_radius(t, start) + 4.0);
+    }
+
+    #[test]
+    fn the_heros_nodes_and_search_hits_stay_drawn_and_selectable_at_every_zoom() {
+        let t = &data().tree;
+        // (A mouse searches for the Astral rings' Might stars: one on every ring.)
+        let search = "astral might star";
+        let hits: BTreeSet<u32> =
+            t.nodes.iter().filter(|n| lines::tree_node_name(t, n).to_lowercase().contains(search)).map(|n| n.id).collect();
+        assert!(hits.len() >= 30, "{} hits", hits.len());
+        for (pad, touch) in [(false, false), (true, false), (false, true)] {
+            let mouse = !pad && !touch;
+            for alloc in [taken(t), deep(t)] {
+                let inv = InvView { points: 3, tree: alloc.clone(), ..Default::default() };
+                let mut tree = TreeUi { open: true, pad, touch, ..Default::default() };
+                tree.search = search.into();
+                for k in [0.0, 0.15, 0.3, 0.5, 1.0, 2.0] {
+                    tree.set_zoom(k);
+                    let f = frame(&mut tree, &inv, None);
+                    let ours = t.nodes.iter().filter(|n| marked(t, &alloc, n) || mouse && hits.contains(&n.id));
+                    for n in ours {
+                        let at = tree.to_screen(f.canvas, n.pos);
+                        if f.canvas.contains(at) {
+                            // On the canvas: drawn in full, so the D-pad snaps to it.
+                            assert!(f.snaps.iter().any(|q| q.distance(at) < 0.01), "{} at {k} (pad {pad}, touch {touch})", n.key);
+                        } else {
+                            // A pad's or a finger's farthest view frames all of the hero's.
+                            assert!(mouse || k >= 0.5, "{} off the canvas at {k}", n.key);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -888,24 +1080,84 @@ mod tests {
         // As it opens, the D-pad snaps to every node on the canvas, as it always did.
         let f = frame(&mut tree, &inv, None);
         assert_eq!(f.snaps.len(), on_canvas(&f, &tree).len());
-        // All the way out: to every node of the tree's shape and the player's choices on it, and
-        // to no faded one.
+        // All the way out (and halfway): to every node of the tree's shape, the near rings' stars
+        // and the player's choices on it, and to no faded one.
+        let reach = reach_of(t, &alloc);
+        let kept_here = |n: &Node| kept(n, marked(t, &alloc, n), near(n.ring, reach));
+        for k in [0.0, 0.5] {
+            tree.set_zoom(k);
+            let f = frame(&mut tree, &inv, None);
+            let nodes = on_canvas(&f, &tree);
+            let snapped = |p: Pos2| f.snaps.iter().any(|q| q.distance(p) < 0.01);
+            for (n, p) in &nodes {
+                let lk = look(n, marked(t, &alloc, n), near(n.ring, reach), f.zoom, 0.0);
+                if k == 0.0 {
+                    assert_eq!(snapped(*p), kept_here(n), "{}: {lk:?}", n.key);
+                } else if kept_here(n) {
+                    assert!(snapped(*p), "{}", n.key);
+                }
+            }
+            if k == 0.0 {
+                assert!(f.snaps.len() * 3 < nodes.len(), "{} of {} nodes", f.snaps.len(), nodes.len());
+            }
+        }
+        // The pointer on a faded minor node (the stick moves it freely): the card names it.
         tree.set_zoom(0.0);
         let f = frame(&mut tree, &inv, None);
-        assert_eq!(f.zoom, MIN_ZOOM);
-        let nodes = on_canvas(&f, &tree);
-        assert_eq!(nodes.len(), t.nodes.len(), "the whole tree is on the canvas");
-        let snapped = |p: Pos2| f.snaps.iter().any(|q| q.distance(p) < 0.01);
-        for (n, p) in &nodes {
-            assert_eq!(snapped(*p), kept(n, marked(t, &alloc, n)), "{}", n.key);
-        }
-        assert!(f.snaps.len() * 4 < nodes.len(), "{} of {} nodes", f.snaps.len(), nodes.len());
-        // The pointer on a faded minor node (the stick moves it freely): the card names it.
         let card = t!("tree.kind.minor");
         assert!(!f.texts.contains(&card));
-        let (minor, at) = nodes.iter().find(|(n, _)| n.kind == NodeKind::Minor && !kept(n, marked(t, &alloc, n))).unwrap();
+        let nodes = on_canvas(&f, &tree);
+        let (minor, at) = nodes.iter().find(|(n, _)| n.kind == NodeKind::Minor && !kept_here(n)).unwrap();
         let f = frame(&mut tree, &inv, Some(*at));
         assert!(f.texts.contains(&card) && f.texts.contains(&lines::tree_node_name(t, minor)), "{:?}", f.texts);
+    }
+
+    #[test]
+    fn a_pad_or_a_finger_zooms_out_only_as_far_as_frames_the_tree_and_the_rings_near_the_hero() {
+        let t = &data().tree;
+        let core = core_zoom(tv(), astral_start(t));
+        for alloc in [BTreeSet::new(), taken(t), deep(t)] {
+            let inv = InvView { points: 3, tree: alloc.clone(), ..Default::default() };
+            let reach = reach_of(t, &alloc);
+            for (pad, touch) in [(true, false), (false, true)] {
+                let mut tree = TreeUi { open: true, pad, touch, ..Default::default() };
+                tree.set_zoom(0.0);
+                let f = frame(&mut tree, &inv, None);
+                let core = core_zoom(f.canvas, astral_start(t));
+                let floor = floor_zoom(f.canvas, near_radius(t, reach), core);
+                assert_eq!(f.zoom, floor);
+                assert!(floor > MIN_ZOOM * 1.5 && floor < core * 0.6, "{floor} of {core}");
+                // Framed: the main tree and the near rings all on the canvas, centred.
+                assert_eq!(f.pan, Vec2::ZERO);
+                for n in t.nodes.iter().filter(|n| near(n.ring, reach)) {
+                    assert!(f.canvas.contains(tree.to_screen(f.canvas, n.pos)), "{} off the canvas", n.key);
+                }
+                // A mouse's zoom and pan, handed to a pad or a finger, come back to that view.
+                tree.fit = None;
+                tree.zoom = MIN_ZOOM;
+                tree.pan = Vec2::new(40.0, -25.0);
+                let f = frame(&mut tree, &inv, None);
+                assert_eq!((f.zoom, f.pan), (floor, Vec2::ZERO));
+                // Zoomed in, the view pans as far as brings the near rings' edge to the canvas's.
+                for zoom in [core, MAX_ZOOM] {
+                    let room = room(f.canvas, near_radius(t, reach), zoom);
+                    let edge = room + f.canvas.size().min_elem() * 0.5 / zoom;
+                    assert!(room > 0.0 && (edge - near_radius(t, reach) - MARGIN).abs() < 1e-3, "{room} {edge}");
+                    tree.zoom = zoom;
+                    tree.pan = Vec2::new(0.0, -60.0);
+                    let f = frame(&mut tree, &inv, None);
+                    assert!((f.pan.length() - room).abs() < 1e-3, "{:?} {room}", f.pan);
+                }
+            }
+            // A mouse keeps the whole range: the endless field, all the way out.
+            let mut tree = TreeUi { open: true, ..Default::default() };
+            tree.set_zoom(0.0);
+            assert_eq!(frame(&mut tree, &inv, None).zoom, MIN_ZOOM);
+        }
+        // The farther the hero reaches into the Astral rings, the farther out the view goes.
+        let floors: Vec<f32> =
+            [taken(t), deep(t)].iter().map(|a| floor_zoom(tv(), near_radius(t, reach_of(t, a)), core)).collect();
+        assert!(floors[1] < floors[0] * 0.9, "{floors:?}");
     }
 
     #[test]

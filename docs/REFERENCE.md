@@ -194,7 +194,8 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   (the HUD, each open window by title, touch controls with their rects); `ui open=inventory,tree`
   / `close=all`, `device=touch width=844 height=390` (a phone), `hover=[x,y]` (a tooltip),
   `click=[x,y]` (presses what is there; its commands run), `tree_zoom=0.5` (the passive tree at
-  half its opening zoom; 0 all the way out) and `image=true` (the game with the UI over it). `capture` draws the UI too when a game runs (`ui=false` leaves it out); the windows
+  half its opening zoom; 0 all the way out: with a pad or touch, the view that frames the main
+  tree and the Astral rings near the hero) and `image=true` (the game with the UI over it). `capture` draws the UI too when a game runs (`ui=false` leaves it out); the windows
   `ui` opened stay open for later captures. `tree find=fire`, `tree take=Unbowed` (allocates the
   path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
   (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
@@ -330,10 +331,14 @@ until the player zooms out; Centre brings the fitted view back), with the points
 and framed in gold; its search field and the shapes' legend are the mouse's (a pad's docked card
 and a finger's panel name a node's kind). Zoomed out past the opening view it has a level of
 detail (`arpg_tree::detail`): the start, notables, keystones, masteries, skill upgrades, the
-Astral stars, the path taken, what can be taken now, search hits and the node under the pointer
-keep full strength; ordinary minor nodes and their links fade smoothly (main-tree minors to faint
-dots, the Astral rings' to nothing, their stars outlining them) and the sector names move out
-over their sectors. The D-pad snaps only to nodes drawn at least 2 points in radius and at half
+stars of the Astral rings near the hero (out to one ring past the farthest they have a node on
+or can take one on: `near`), the path taken, what can be taken now, search hits and the node
+under the pointer keep full strength; ordinary minor nodes and their links fade smoothly
+(main-tree minors to faint dots, the Astral rings' to nothing), the rings beyond the near ones
+fade to faint outlines in their sectors' colours, fainter ring by ring (`ring_outline`), and the
+sector names move out over their sectors. A pad or a finger zooms out only as far as frames the
+main tree and the near rings on the canvas's shorter side, centred (`floor_zoom`, `room`; the
+detail is all gone there); a mouse keeps the whole endless field. The D-pad snaps only to nodes drawn at least 2 points in radius and at half
 strength or more (`Look::selectable`); the pointer still names any node under it. The Skills window is six big rows (the button's glyph,
 the skill's picture, name, mana and what it does on one line); pressing a row opens a chooser of
 every hero skill as cards (one not learned yet greyed with its level, another button's skill
