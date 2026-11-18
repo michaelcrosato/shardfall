@@ -339,7 +339,9 @@ cast, back onto the button to cancel · hold: keep casting), potion, and a "use"
 appears when something is in reach; top right: menu and bag. Swipe messages, banners and the
 minimap away; tap the minimap for the big map; tap the game outside a window, or flick a
 window sideways, to close it. Upright or sideways: the camera keeps its field of view across a
-tall screen. Graphics quality and auto-attack are in the pause menu's Settings.
+tall screen. Assists for a thumb: auto-attack in Shardfall, and in the blaster rooms (Bullet
+Hell) the blaster fires by itself; the drift car's throttle is how far the stick is pushed.
+Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,
 uses, ask-for-it phrases, cost, the engine's code, words); outside rooms the field guide

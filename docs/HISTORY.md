@@ -5,6 +5,14 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Touch: the blaster fires by itself — 2026-11-17
+
+A follow-up to the controls pass's touch assists ("automate common, low-skill actions...
+Dual-stick shooter: auto-fire"). The pavilion's shooter rooms (the blaster: Bullet Hell) fire
+by themselves on a touch screen while the thumb steers, under the same Settings switch as
+Shardfall's auto-attack. Racing needed nothing: the drift car's throttle is how far the stick
+is pushed, so the touch stick already drives it. Keys and pads are unchanged.
+
 ## Same-screen co-op: friends join on controllers of their own — 2026-11-17
 
 The last part of the user's controls and 52in1 pass ("supporting all the multiplayer modes"):
