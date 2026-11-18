@@ -1212,9 +1212,19 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
                 (false, i) => ["Q", "E", "R", "F"][i - 2].to_string(),
             });
             let skills = d.hero_skills();
-            egui::Grid::new("bar").num_columns(2).show(ui, |ui| {
+            // The slot's button or key, drawn as the device in use shows it (touch: its words).
+            let (device, style) = crate::controls::current();
+            egui::Grid::new("bar").num_columns(2).spacing([16.0, 8.0]).show(ui, |ui| {
                 for (slot, key) in keys.iter().enumerate() {
-                    ui.label(key);
+                    let glyphs = crate::controls::glyphs(&format!("skill{}", slot + 1), device);
+                    if touch || glyphs.is_empty() {
+                        ui.label(key);
+                    } else {
+                        let h = 24.0;
+                        let w = crate::glyph::width_all(ui.painter(), &glyphs, h, style);
+                        let (rect, _) = ui.allocate_exact_size(EVec2::new(w.max(h), h), Sense::hover());
+                        crate::glyph::draw_all(ui.painter(), rect.left_center(), &glyphs, h, style);
+                    }
                     let cur = inv.bar[slot].clone();
                     let cur_name = d.skill_id(&cur).map(|i| lines::skill_name(d.skill(i))).unwrap_or_default();
                     egui::ComboBox::from_id_salt(("bar", slot)).selected_text(cur_name).width(200.0).show_ui(ui, |ui| {

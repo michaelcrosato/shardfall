@@ -154,50 +154,20 @@ impl Bindings {
     }
 }
 
-/// Shardfall's controls, in the language in use: what each does, and the keys, buttons or
-/// gestures for it (game lines `controls.*`; key names that read the same everywhere, such as
-/// "G" or "I · P · C · K · M", are shown as they are).
-pub fn game_guide(device: Device) -> Vec<(String, String)> {
-    let rows: &[(&str, &str)] = match device {
-        Device::KeyboardMouse => &[
-            ("controls.move", "controls.keys.move"),
-            ("controls.aim", "controls.keys.aim"),
-            ("controls.skills", "controls.keys.skills"),
-            ("controls.dodge", "controls.keys.dodge"),
-            ("controls.potion", "1"),
-            ("controls.attack_in_place", "controls.keys.attack_in_place"),
-            ("controls.use", "G"),
-            ("controls.panels", "I · P · C · K · M"),
-            ("controls.town_portal", "T"),
-            ("controls.pick_up", "controls.keys.pick_up"),
-            ("controls.camera", "controls.keys.camera"),
-            ("controls.rewind", "controls.keys.rewind"),
-            ("controls.menu_tuning", "Esc / F1"),
-        ],
-        Device::Gamepad => &[
-            ("controls.move_aim", "controls.pad.move_aim"),
-            ("controls.skills", "X · Y · B · RB · LB · RT"),
-            ("controls.dodge", "A"),
-            ("controls.potion", "controls.pad.potion"),
-            ("controls.use", "controls.pad.use"),
-            ("controls.map", "controls.pad.map"),
-            ("controls.pad_panels", "controls.pad.panels"),
-            ("controls.in_menus", "controls.pad.in_menus"),
-            ("controls.menu", "Start"),
-        ],
-        Device::Touch => &[
-            ("controls.move", "controls.touch.move"),
-            ("controls.attack", "controls.touch.attack"),
-            ("controls.skills", "controls.touch.skills"),
-            ("controls.dodge_potion", "controls.touch.dodge_potion"),
-            ("controls.use", "controls.touch.use"),
-            ("controls.touch_panels", "controls.touch.panels"),
-            ("controls.swipe", "controls.touch.swipe"),
-            ("controls.close", "controls.touch.close"),
-        ],
-    };
-    let line = |s: &str| if s.starts_with("controls.") { pav_core::t!(s) } else { s.to_string() };
-    rows.iter().map(|(what, keys)| (line(what), line(keys))).collect()
+/// Shardfall's touch controls, in the language in use: what each does, and the gesture or
+/// on-screen control for it (game lines `controls.*`). Keys and pads: `game_rows`.
+pub fn touch_guide() -> Vec<(String, String)> {
+    let rows: &[(&str, &str)] = &[
+        ("controls.move", "controls.touch.move"),
+        ("controls.attack", "controls.touch.attack"),
+        ("controls.skills", "controls.touch.skills"),
+        ("controls.dodge_potion", "controls.touch.dodge_potion"),
+        ("controls.use", "controls.touch.use"),
+        ("controls.touch_panels", "controls.touch.panels"),
+        ("controls.swipe", "controls.touch.swipe"),
+        ("controls.close", "controls.touch.close"),
+    ];
+    rows.iter().map(|(what, how)| (pav_core::t!(what), pav_core::t!(how))).collect()
 }
 
 /// Shardfall's controls on a keyboard and mouse or a controller, one action to a row: what to
@@ -268,52 +238,6 @@ pub fn room_rows(device: Device) -> Vec<(Vec<pav_ui::glyph::Glyph>, String)> {
     rows
 }
 
-/// Human-readable control guide per device.
-pub fn guide(device: Device) -> &'static [(&'static str, &'static str)] {
-    match device {
-        Device::KeyboardMouse => &[
-            ("Move", "W A S D"),
-            ("Jump", "Space (hold = higher)"),
-            ("Crouch", "C / Ctrl (hold)"),
-            ("Crawl", "Z (toggle)"),
-            ("Throw bomb", "F or left click (at the cursor)"),
-            ("Walk slowly", "Shift (instant model)"),
-            ("Climb ladder", "walk into it"),
-            ("Grab a ledge", "jump at it, keep pushing toward it"),
-            ("Swim", "Space up · C down"),
-            ("Dodge roll", "C while running (committed model)"),
-            ("Camera", "right-drag rotate · wheel zoom · 1–8 presets"),
-            ("Use", "E: a plaza station · get in / out of a vehicle"),
-            ("Rewind", "hold Backspace"),
-            ("Rooms", "F2 any room · F4 leave · F5 reset"),
-            ("Menu / tuning", "Esc / F1"),
-        ],
-        Device::Gamepad => &[
-            ("Move", "left stick"),
-            ("Aim", "right stick"),
-            ("Jump", "A (hold = higher)"),
-            ("Crouch", "B (hold)"),
-            ("Crawl", "Y (toggle)"),
-            ("Throw bomb", "X or right trigger"),
-            ("Walk slowly", "left trigger (instant model)"),
-            ("Grab a ledge", "jump at it, keep pushing toward it"),
-            ("Swim", "A up · B down"),
-            ("Dodge roll", "B while running (committed model)"),
-            ("Camera", "LB / RB rotate · D-pad zoom"),
-            ("Use", "D-pad right: a plaza station · a vehicle"),
-            ("Rewind", "hold Back/View"),
-            ("Menu", "Start"),
-        ],
-        Device::Touch => &[
-            ("Move", "put a thumb down anywhere and drag"),
-            ("Jump · bomb · crouch · use", "the buttons in the corner"),
-            ("Menu", "top right"),
-        ],
-    }
-}
-
-/// The controller this frame, named as on a DualSense (`pav_ui::glyph::Pad`: Cross is the
-/// standard mapping's button 0, Xbox's A).
 #[derive(Default)]
 pub struct Pad {
     pub left: Vec2,
