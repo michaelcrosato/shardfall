@@ -23,8 +23,8 @@ The current state, kept to one page because every session reads it (Claude Code 
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
 - **Controller first** (2026-11-17): one controls table (`pav_ui::controls`), drawn prompts that
   follow the device (PlayStation or Xbox glyphs, keys), D-pad menus (`padnav`), any pad, a TV's
-  scale, the DualSense's extras in 52in1, touch upright or sideways; `ui`, `pad_check.py` and
-  `touch_check.py` check it.
+  scale, the DualSense's extras (motion, speaker) in 52in1, touch, a car's automatic gears;
+  `ui`, `pad_check.py`, `touch_check.py` and `hub_live.mjs` (52in1's own hub) check it.
 - **The game opens in the Pavilion** (2026-11-13): Shardfall (through a rift) and the engine's
   tools are stations on the plaza (`pav_core::plaza`); the pause menu leads back there.
 - **On 52in1** (2026-11-17, `docs/AI_HUB.md`): one page plays every online mode (parallel, ghost,

@@ -1368,7 +1368,6 @@ impl App {
                         turn: crate::motion::turn(gyro, wall, self.prefs.motion_sensitivity.factor()),
                         turning: gyro.abs() >= crate::motion::STILL,
                         busy: held & skills != 0,
-                        walking: self.input.move_axis().length() > 0.2,
                         secs: wall,
                     };
                     if let Some(yaw) = self.motion_aim.step(f) {

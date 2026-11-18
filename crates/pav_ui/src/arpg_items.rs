@@ -424,7 +424,9 @@ impl GameUi {
     /// Circle or Esc: back out of what is on top (the skill chooser, a mastery's options), or
     /// close the hero's windows.
     pub fn back(&mut self) {
-        if self.choosing.take().is_none() && !self.tree.back() {
+        // (A mastery's options count only while the tree is open: one left from a tree closed
+        // by a panel turn or a key must not swallow the press.)
+        if self.choosing.take().is_none() && !(self.tree.open && self.tree.back()) {
             self.close_all();
         }
     }

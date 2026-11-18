@@ -402,10 +402,16 @@ fn first(items: &[Item]) -> Option<Item> {
 
 /// The next item from `from` in direction `d`: the nearest one ahead, favouring those in line.
 fn step(items: &[Item], current: Option<Id>, from: Rect, d: Dir) -> Option<Item> {
+    // Ordinary items first; a canvas (the passive tree) only when nothing else lies that way, so
+    // the D-pad can always get from a header's buttons back onto it.
+    nearest(items, current, from, d, false).or_else(|| nearest(items, current, from, d, current.is_some()))
+}
+
+fn nearest(items: &[Item], current: Option<Id>, from: Rect, d: Dir, canvases: bool) -> Option<Item> {
     let dir = d.vec();
     let mut best: Option<(f32, Item)> = None;
     for i in items {
-        if Some(i.id) == current || i.canvas && current.is_some() {
+        if Some(i.id) == current || (current.is_some() && i.canvas != canvases) {
             continue;
         }
         // How far ahead (between facing edges) and how far off the line.
@@ -487,6 +493,19 @@ mod tests {
         with_button.push(Item { rect: Rect::from_min_size(pos2(0.0, 110.0), vec2(140.0, 30.0)), ..item(9, 0.0, 0.0) });
         assert_eq!(step(&with_button, Some(items[5].id), at(5), Dir::Down).unwrap().id, Id::new(9u32));
         assert_eq!(first(&with_button).unwrap().id, items[0].id);
+    }
+
+    #[test]
+    fn a_header_button_steps_down_into_its_canvas() {
+        // "Reset all" over the tree's canvas: down goes onto the canvas (nothing else is there),
+        // while a button beside it still wins sideways.
+        let reset = item(1, 0.0, 0.0);
+        let centre = item(2, 50.0, 0.0);
+        let canvas = Item { rect: Rect::from_min_size(pos2(0.0, 60.0), vec2(600.0, 400.0)), canvas: true, ..item(3, 0.0, 0.0) };
+        let items = [reset, centre, canvas];
+        assert_eq!(step(&items, Some(reset.id), reset.rect, Dir::Down).unwrap().id, canvas.id);
+        assert_eq!(step(&items, Some(reset.id), reset.rect, Dir::Right).unwrap().id, centre.id);
+        assert!(step(&items, Some(reset.id), reset.rect, Dir::Up).is_none());
     }
 
     #[test]

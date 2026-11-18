@@ -55,17 +55,29 @@ pub fn speaker_on(hub: Option<&crate::hub::Settings>, pref: bool) -> bool {
     speaker_allowed(hub) && pref
 }
 
-/// The cue an event plays from the controller's speaker (`shardfallHub.speaker` names them):
-/// the hero's own potion, rare or unique pickup and level-up, close to the hero (a party's
-/// others play none on this controller).
-pub fn speaker_cue(e: &SimEvent, hero: Option<Vec3>) -> Option<&'static str> {
-    match e {
-        SimEvent::Potion { pos } if near(hero, *pos, 4.0) => Some("potion"),
-        SimEvent::Pickup { pos, rarity } if *rarity >= 3 && near(hero, *pos, 4.0) => Some("unique"),
-        SimEvent::Pickup { pos, rarity: 2 } if near(hero, *pos, 4.0) => Some("rare"),
-        SimEvent::LevelUp { pos } if near(hero, *pos, 4.0) => Some("level"),
-        _ => None,
+/// The cue this frame plays from the controller's speaker (`shardfallHub.speaker` names them),
+/// the rarest of what happened to the player's own hero: a unique or rare picked up (`pickup`,
+/// its rarity), a level gained, a potion drunk. A party's others play none on this controller.
+pub fn speaker_cue(drank: bool, levelled: bool, pickup: Option<u8>) -> Option<&'static str> {
+    match pickup {
+        Some(r) if r >= 3 => Some("unique"),
+        _ if levelled => Some("level"),
+        Some(2) => Some("rare"),
+        _ => drank.then_some("potion"),
     }
+}
+
+/// An item picked up at `at` was the player's hero's: it is the nearest hero to it, within a
+/// label click's reach (loot's `CLICK_REACH`, and a little).
+fn picked_by_hero(g: &GameFrame, hero: Option<Vec3>, at: Vec3) -> bool {
+    let Some(h) = hero else { return false };
+    let flat = |v: Vec3| Vec3::new(v.x, 0.0, v.z).length();
+    let d = flat(at - h);
+    d <= pav_core::arpg::loot::CLICK_REACH + 0.5
+        && !g
+            .actors
+            .iter()
+            .any(|a| a.team == pav_core::arpg::combat::Team::Hero && flat(a.feet - h) > 0.3 && flat(at - a.feet) < d)
 }
 
 #[derive(Default)]
@@ -74,6 +86,9 @@ pub struct PadFx {
     last_life: Option<f32>,
     dead: bool,
     last_gear: Option<i8>,
+    /// The hero's potions and level last frame (a drink, a level gained: the player's own).
+    last_potions: Option<u32>,
+    last_level: Option<u32>,
     /// What the light bar and R2 were last told ("" = given back to the hub, let go).
     light: String,
     trigger: String,
@@ -100,8 +115,13 @@ impl PadFx {
             });
         };
         let hero = now.game.and_then(|g| g.hero.as_ref());
+        let (mut drank, mut levelled) = (false, false);
         match hero {
             Some(h) => {
+                drank = self.last_potions.is_some_and(|p| h.potions < p);
+                levelled = self.last_level.is_some_and(|l| h.level > l);
+                self.last_potions = Some(h.potions);
+                self.last_level = Some(h.level);
                 let life = (h.life / h.life_max.max(1.0)).clamp(0.0, 1.0);
                 if let Some(last) = self.last_life {
                     let lost = last - life;
@@ -119,7 +139,31 @@ impl PadFx {
             None => {
                 self.last_life = None;
                 self.dead = false;
+                self.last_potions = None;
+                self.last_level = None;
             }
+        }
+        // The rarest item the hero itself picked up this frame.
+        let pickup = now
+            .game
+            .map(|g| {
+                now.events
+                    .iter()
+                    .filter_map(|e| match e {
+                        SimEvent::Pickup { pos, rarity } if picked_by_hero(g, now.hero, *pos) => Some(*rarity),
+                        _ => None,
+                    })
+                    .max()
+            })
+            .unwrap_or_default();
+        if levelled {
+            add(0.3, 0.7, 220);
+        }
+        if pickup.is_some_and(|r| r >= 3) {
+            add(0.25, 0.8, 140);
+        }
+        if drank {
+            add(0.0, 0.25, 60);
         }
         if hero.is_some() {
             for e in now.events {
@@ -128,9 +172,6 @@ impl PadFx {
                     SimEvent::Slam { pos, radius } if near(now.hero, *pos, radius + 6.0) => add(0.8, 0.5, 160),
                     SimEvent::Blast { pos, .. } if near(now.hero, *pos, 10.0) => add(0.55, 0.55, 120),
                     SimEvent::Explosion { pos, radius } if near(now.hero, *pos, radius + 8.0) => add(0.7, 0.6, 150),
-                    SimEvent::LevelUp { .. } => add(0.3, 0.7, 220),
-                    SimEvent::Pickup { rarity, .. } if *rarity >= 3 => add(0.25, 0.8, 140),
-                    SimEvent::Potion { .. } => add(0.0, 0.25, 60),
                     _ => {}
                 }
             }
@@ -142,10 +183,7 @@ impl PadFx {
         self.last_gear = now.gear;
         if now.speaker > 0.0 && hero.is_some() {
             // One cue a frame: the rarest thing that happened.
-            let order = ["potion", "rare", "level", "unique"];
-            let cue =
-                now.events.iter().filter_map(|e| speaker_cue(e, now.hero)).max_by_key(|c| order.iter().position(|o| o == c));
-            if let Some(c) = cue {
+            if let Some(c) = speaker_cue(drank, levelled, pickup) {
                 play_speaker(c, now.speaker);
             }
         }
@@ -319,16 +357,13 @@ mod tests {
         h.dualsense.speaker = false;
         assert!(!speaker_on(Some(&h), true) && !speaker_allowed(Some(&h)));
 
-        let at = Some(Vec3::new(3.0, 0.0, 4.0));
-        let here = Vec3::new(3.5, 0.0, 4.0);
-        let far = Vec3::new(30.0, 0.0, 4.0);
-        assert_eq!(speaker_cue(&SimEvent::Potion { pos: here }, at), Some("potion"));
-        assert_eq!(speaker_cue(&SimEvent::Potion { pos: far }, at), None);
-        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 3 }, at), Some("unique"));
-        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 2 }, at), Some("rare"));
-        assert_eq!(speaker_cue(&SimEvent::Pickup { pos: here, rarity: 1 }, at), None);
-        assert_eq!(speaker_cue(&SimEvent::LevelUp { pos: here }, at), Some("level"));
-        assert_eq!(speaker_cue(&SimEvent::LevelUp { pos: here }, None), None);
-        assert_eq!(speaker_cue(&SimEvent::Coin { pos: here }, at), None);
+        // The rarest of what happened to the hero itself.
+        assert_eq!(speaker_cue(true, false, None), Some("potion"));
+        assert_eq!(speaker_cue(true, true, None), Some("level"));
+        assert_eq!(speaker_cue(true, true, Some(2)), Some("level"));
+        assert_eq!(speaker_cue(true, false, Some(2)), Some("rare"));
+        assert_eq!(speaker_cue(true, true, Some(3)), Some("unique"));
+        assert_eq!(speaker_cue(false, false, Some(1)), None);
+        assert_eq!(speaker_cue(false, false, None), None);
     }
 }

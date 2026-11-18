@@ -166,9 +166,9 @@ impl Default for Gearbox {
 
 impl Gearbox {
     /// One tick: picks the gear for forward speed `speed` (m/s, negative backing up) of a car
-    /// whose top speed is `max`, with the smoothed `throttle` (-1..1). Returns the share of the
-    /// car's power its wheels get now.
-    pub fn update(&mut self, speed: f32, max: f32, throttle: f32, dt: f32) -> f32 {
+    /// whose top speed is `max`, with the smoothed `throttle` (-1..1) and the brake held or not.
+    /// Returns the share of the car's power its wheels get now.
+    pub fn update(&mut self, speed: f32, max: f32, throttle: f32, braking: bool, dt: f32) -> f32 {
         self.shifting = (self.shifting - dt).max(0.0);
         let frac = speed / max.max(0.1);
         let want = if self.gear < 0 {
@@ -178,19 +178,27 @@ impl Gearbox {
             // Into reverse when asked back from (nearly) stopped, or rolling back off the throttle.
             -1
         } else {
-            let g = self.gear.clamp(1, 5) as usize;
+            let mut g = self.gear.clamp(1, 5) as usize;
             if g < 5 && frac > GEAR_TOPS[g - 1] * UPSHIFT {
-                g as i8 + 1
-            } else if g > 1 && frac < GEAR_TOPS[g - 2] * DOWNSHIFT {
-                g as i8 - 1
+                g += 1;
             } else {
-                g as i8
+                // Down as far as the speed asks, in one go (a car stopped by a wall from fifth
+                // goes straight to first, not through every gear on the way).
+                while g > 1 && frac < GEAR_TOPS[g - 2] * DOWNSHIFT {
+                    g -= 1;
+                }
             }
+            g as i8
         };
         if want != self.gear {
             if want < 0 || self.gear < 0 {
                 // Into or out of reverse (from about stopped): at once, without a cut.
                 self.gear = want;
+            } else if want < self.gear {
+                // Down: at once and without a cut (the engine is wanted now: pulling out of a
+                // corner or off a wall), even in the middle of an upshift's cut.
+                self.gear = want;
+                self.shifting = 0.0;
             } else if self.shifting <= 0.0 {
                 self.gear = want;
                 self.shifting = SHIFT_TIME;
@@ -200,9 +208,11 @@ impl Gearbox {
         let g = if self.gear < 0 { 2 } else { self.gear.clamp(1, 5) as usize };
         let low = if g > 1 && self.gear > 0 { GEAR_TOPS[g - 2] } else { 0.0 };
         self.rpm = ((frac.abs() - low) / (GEAR_TOPS[g - 1] - low)).clamp(0.0, 1.0);
-        if self.gear < 0 || (throttle > 0.0) != (self.gear > 0) {
-            // Reverse, or pushing against the gear (pulling back to slow down): the engine
-            // pulls and brakes as hard as it always did.
+        let against_the_roll = speed.abs() > ROLLING && (throttle > 0.0) != (speed > 0.0);
+        if self.gear < 0 || (throttle > 0.0) != (self.gear > 0) || braking || against_the_roll {
+            // Reverse, pushing against the gear or the way the car rolls (slowing it down), or
+            // the brake held with the throttle: the engine pulls and brakes as hard as it always
+            // did (the gears' extra pull is for driving off, not for out-pulling the brake).
             1.0
         } else if self.shifting > 0.0 && throttle.abs() > 0.05 {
             // (Cut only while it pulls: a wheel with no engine force brakes, so a cut with the
@@ -513,7 +523,7 @@ impl Sim {
                     let handbrake = inp.down(buttons::JUMP);
                     let brake = inp.down(buttons::CROUCH);
                     let lock = v.def.steer.to_radians();
-                    let pull = v.gearbox.update(speed, v.def.max_speed, v.throttle, dt);
+                    let pull = v.gearbox.update(speed, v.def.max_speed, v.throttle, brake || handbrake, dt);
                     if let Some(c) = &mut v.car {
                         let over = speed.abs() > v.def.max_speed && speed.signum() == v.throttle.signum();
                         for (i, w) in c.wheels_mut().iter_mut().enumerate() {

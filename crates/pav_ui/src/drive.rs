@@ -12,15 +12,15 @@ const AMBER: Color32 = Color32::from_rgb(255, 190, 70);
 const RED: Color32 = Color32::from_rgb(255, 90, 70);
 
 /// The gear dial: in the bottom right corner, clear of the prompts along the bottom; on a touch
-/// screen under the menu button (the bottom right is the thumb's buttons).
+/// screen at the right edge, 40% down (the bottom right is the thumb's buttons, the top middle
+/// a pad's notes and a lap's results), upright or sideways.
 pub fn gear(ctx: &egui::Context, d: &DriveHud, touch: bool) {
     let screen = ctx.content_rect();
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("drive_gear")));
     let (r, c) = if touch {
         let (k, m) = crate::arpg_ui::touch_scale(screen);
         let r = 34.0 * k;
-        // (The menu button: 19 points round at the corner's margin.)
-        (r, Pos2::new(screen.right() - m - r, screen.top() + m + 50.0 * k + r))
+        (r, Pos2::new(screen.right() - m - r, screen.top() + screen.height() * 0.4))
     } else {
         let r = 50.0;
         (r, Pos2::new(screen.right() - 30.0 - r, screen.bottom() - 30.0 - r))
@@ -43,7 +43,8 @@ pub fn gear(ctx: &egui::Context, d: &DriveHud, touch: bool) {
         c + vec2(0.0, r * 0.58),
         Align2::CENTER_CENTER,
         pav_core::t!("drive.gear"),
-        FontId::proportional(r * 0.27),
+        // (Never under the game's smallest touch print, 12 points.)
+        FontId::proportional((r * 0.27).max(12.0)),
         Color32::from_white_alpha(200),
     );
 }

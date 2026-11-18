@@ -231,18 +231,30 @@ fn the_gearbox_does_not_hunt() {
     for t in 0..240 {
         let speed = 0.24 * 22.0 + 0.6 * (t as f32 * 0.4).sin();
         let g = gb.gear;
-        gb.update(speed, 22.0, 1.0, 1.0 / 60.0);
+        gb.update(speed, 22.0, 1.0, false, 1.0 / 60.0);
         changes += (gb.gear != g) as u32;
     }
     assert_eq!((gb.gear, changes), (2, 1));
     // A shift cuts the pull for a moment, then the new gear pulls.
     let mut gb = Gearbox::default();
-    assert_eq!(gb.update(5.8, 22.0, 1.0, 1.0 / 60.0), 0.0, "cut while shifting into second");
+    assert_eq!(gb.update(5.8, 22.0, 1.0, false, 1.0 / 60.0), 0.0, "cut while shifting into second");
     assert!(gb.shifting > 0.0 && gb.gear == 2);
     for _ in 0..8 {
-        gb.update(5.8, 22.0, 1.0, 1.0 / 60.0);
+        gb.update(5.8, 22.0, 1.0, false, 1.0 / 60.0);
     }
-    assert_eq!(gb.update(5.8, 22.0, 1.0, 1.0 / 60.0), pav_core::vehicle::GEAR_PULL[1], "pulls again after the cut");
+    assert_eq!(gb.update(5.8, 22.0, 1.0, false, 1.0 / 60.0), pav_core::vehicle::GEAR_PULL[1], "pulls again after the cut");
+    // Stopped dead by a wall in fifth with the throttle held: straight to first, pulling at once.
+    let mut gb = Gearbox { gear: 5, ..Default::default() };
+    let pull = gb.update(1.0, 22.0, 1.0, false, 1.0 / 60.0);
+    assert_eq!((gb.gear, gb.shifting), (1, 0.0), "one step down to first, no cut");
+    assert_eq!(pull, pav_core::vehicle::GEAR_PULL[0]);
+    // The brake held with the throttle, or the throttle against the roll: the old one-gear pull.
+    let mut gb = Gearbox::default();
+    assert_eq!(gb.update(0.0, 22.0, 1.0, true, 1.0 / 60.0), 1.0, "braking: first's extra pull is off");
+    let mut gb = Gearbox { gear: -1, ..Default::default() };
+    gb.update(-3.0, 22.0, 1.0, false, 1.0 / 60.0);
+    assert_eq!(gb.gear, 1);
+    assert_eq!(gb.update(-3.0, 22.0, 1.0, false, 1.0 / 60.0), 1.0, "pushing ahead to stop a car rolling back");
 }
 
 #[test]

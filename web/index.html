@@ -269,12 +269,23 @@
       setTimeout(() => master.disconnect(), 1200);
     };
     if (window.AIHubSettings && window.AIHubSettings.addEventListener) {
+      let speakerWas = !!(window.AIHubSettings.dualsense && window.AIHubSettings.dualsense.connected && window.AIHubSettings.dualsense.speaker);
       window.AIHubSettings.addEventListener('change', () => {
         bridge.settingsChanged = true;
-        // A speaker that wasn't there (no cable, no microphone yet) is asked for again.
-        if (bridge.speakerOut && bridge.speakerOut.opening) {
-          bridge.speakerOut.opening.then((node) => { if (!node) bridge.speakerOut.opening = null; });
+        const ds = window.AIHubSettings.dualsense;
+        const speakerNow = !!(ds && ds.connected && ds.speaker);
+        const out = bridge.speakerOut;
+        if (out && out.opening) {
+          if (speakerNow && !speakerWas) {
+            // The speaker came back (a cable plugged in again, allowed again): ask for a fresh
+            // node, the old one may lead nowhere now.
+            out.opening = null;
+          } else {
+            // A speaker that wasn't there (no cable, no microphone yet) is asked for again.
+            out.opening.then((node) => { if (!node) out.opening = null; });
+          }
         }
+        speakerWas = speakerNow;
       });
     }
     window.shardfallHub = bridge;

@@ -2,12 +2,13 @@
 //! catalogue v1, "The DualSense", Motion). It adds to the right stick, never takes its place:
 //!
 //! - The stick pushed: the aim is where the stick points, plus what the controller has turned
-//!   since the push began (a fresh push starts from the stick again).
+//!   since the push began (a fresh push starts from the stick again; letting go drops it).
 //! - The stick at rest: without motion the aim follows the hero (its facing). A turn of the
-//!   controller takes the aim from there and holds it where it was turned: letting go of the
-//!   stick after a push the controller turned keeps that aim too. The held aim lets go (the aim
-//!   follows the hero again) once the hero has walked for `LET_GO` seconds with the controller
-//!   still and no skill held.
+//!   controller turns the aim away from the facing by as much, and the aim keeps following the
+//!   hero with that offset. Once the controller has been still for `SETTLE` seconds and no
+//!   skill is held, the offset eases back to nothing: a turn is a nudge for the next attacks,
+//!   never an aim left behind in an old direction.
+//! - Turns slower than `STILL` (a hand's tremor, a sensor's drift) add nothing.
 //! - The amount: the catalogue's rule, gyro (degrees a second) times the frame's seconds times
 //!   the sensitivity. Its `y` turns the controller left (+), which turns the aim left on screen:
 //!   a larger yaw (`dir = (sin yaw, cos yaw)`) whatever the camera's yaw.
@@ -20,10 +21,12 @@
 use serde::{Deserialize, Serialize};
 
 /// Below this many degrees a second the controller counts as held still (a hand's tremor, a
-/// sensor's drift): it doesn't start holding an aim, and the held aim may let go.
+/// sensor's drift): it adds no turn, and the offset may settle.
 pub const STILL: f32 = 2.0;
-/// Seconds of walking with the controller still and no skill held before a held aim lets go.
-pub const LET_GO: f32 = 2.0;
+/// Seconds of the controller still, with no skill held, before the offset eases back.
+pub const SETTLE: f32 = 0.4;
+/// How fast it eases back then (seconds for it to fall to about a third).
+pub const EASE: f32 = 0.3;
 
 /// Settings: how far the aim turns for a turn of the controller.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,8 +99,6 @@ pub struct Frame {
     pub turning: bool,
     /// A skill or attack is held.
     pub busy: bool,
-    /// The left stick walks the hero.
-    pub walking: bool,
     /// The frame's seconds.
     pub secs: f32,
 }
@@ -105,16 +106,18 @@ pub struct Frame {
 /// The aim's state between frames.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MotionAim {
-    /// The yaw motion holds while the stick rests (None: the aim follows the hero).
-    held: Option<f32>,
-    /// While the stick is pushed: what the controller has turned since the push began (None
-    /// until it turns).
-    offset: Option<f32>,
-    /// While the stick is pushed: the aim's yaw last frame.
-    pushed: Option<f32>,
-    /// Seconds the hero has walked with the controller still and no skill held.
-    idle: f32,
+    /// While the stick rests: the turn added to the hero's facing.
+    rest: f32,
+    /// While the stick is pushed: the turn added to the stick since the push began.
+    push: f32,
+    /// The stick was pushed last frame.
+    pushed: bool,
+    /// Seconds the controller has been still with no skill held.
+    still: f32,
 }
+
+/// Offsets smaller than this (radians, about a quarter of a degree) are none.
+const NONE: f32 = 0.004;
 
 /// An angle in (-pi, pi].
 fn wrap(a: f32) -> f32 {
@@ -127,45 +130,33 @@ impl MotionAim {
     /// One frame: the aim's yaw with motion, or None where the aim is as it would be without
     /// motion (the stick's, or the hero's facing).
     pub fn step(&mut self, f: Frame) -> Option<f32> {
-        if let Some(s) = f.stick {
-            if self.pushed.is_none() {
-                // A fresh push: the stick says where, motion adds from here.
-                self.offset = None;
-                self.held = None;
-            }
-            if f.turning && self.offset.is_none() {
-                self.offset = Some(0.0);
-            }
-            if let Some(o) = &mut self.offset {
-                *o = wrap(*o + f.turn);
-            }
-            let yaw = wrap(s + self.offset.unwrap_or(0.0));
-            self.pushed = Some(yaw);
-            self.idle = 0.0;
-            return self.offset.map(|_| yaw);
-        }
-        if let Some(last) = self.pushed.take() {
-            // Let go: a push the controller turned leaves the aim where it pointed.
-            if self.offset.take().is_some() {
-                self.held = Some(last);
-            }
-        }
-        if f.turning && self.held.is_none() {
-            self.held = Some(f.facing);
-        }
-        if let Some(h) = &mut self.held {
-            *h = wrap(*h + f.turn);
-        }
-        if f.turning || f.busy || !f.walking {
-            self.idle = 0.0;
+        let turn = if f.turning { f.turn } else { 0.0 };
+        if f.turning || f.busy {
+            self.still = 0.0;
         } else {
-            self.idle += f.secs;
-            if self.idle >= LET_GO {
-                self.held = None;
-                self.idle = 0.0;
-            }
+            self.still += f.secs;
         }
-        self.held
+        if let Some(s) = f.stick {
+            if !self.pushed {
+                // A fresh push: the stick says where, motion adds from here.
+                self.push = 0.0;
+                self.pushed = true;
+            }
+            self.push = wrap(self.push + turn);
+            return (self.push.abs() > NONE).then(|| wrap(s + self.push));
+        }
+        // The stick let go: the push's turn goes with it.
+        self.pushed = false;
+        self.push = 0.0;
+        self.rest = wrap(self.rest + turn);
+        if self.still >= SETTLE {
+            self.rest *= (-f.secs / EASE).exp();
+        }
+        if self.rest.abs() <= NONE {
+            self.rest = 0.0;
+            return None;
+        }
+        Some(wrap(f.facing + self.rest))
     }
 
     /// Motion is off, or the pad isn't in use: the aim is the stick's and the hero's again.
@@ -263,36 +254,35 @@ mod tests {
         }
     }
 
-    fn rest(turn: f32, walking: bool) -> Frame {
-        Frame { facing: 1.0, turn, turning: turn.abs() > 0.0, walking, secs: 0.25, ..Default::default() }
+    fn rest(turn: f32) -> Frame {
+        Frame { facing: 1.0, turn, turning: turn.abs() > 0.0, secs: 0.1, ..Default::default() }
     }
 
     #[test]
-    fn at_rest_motion_takes_the_aim_from_the_hero_and_holds_it() {
+    fn at_rest_motion_nudges_the_hero_aim_and_settles_back() {
         let mut m = MotionAim::default();
         // The controller still: the aim is the hero's, as without motion.
-        assert_eq!(m.step(rest(0.0, true)), None);
-        // Turned: from the hero's facing, by the turn.
-        let a = m.step(rest(0.2, false)).unwrap();
-        assert!((a - 1.2).abs() < 1e-5);
-        // Held still: it keeps the turned aim, whatever the hero faces now.
-        for _ in 0..50 {
-            let f = Frame { facing: -2.0, ..rest(0.0, false) };
+        assert_eq!(m.step(rest(0.0)), None);
+        // Turned: the hero's facing plus the turn.
+        assert!((m.step(rest(0.2)).unwrap() - 1.2).abs() < 1e-5);
+        // The hero turns: the aim follows with the offset (not left in an old direction).
+        let f = Frame { facing: -2.0, ..rest(0.0) };
+        assert!((m.step(f).unwrap() - (-1.8)).abs() < 1e-5);
+        // A turn below STILL adds nothing.
+        let f = Frame { turn: 0.01, turning: false, ..rest(0.0) };
+        assert!((m.step(f).unwrap() - 1.2).abs() < 1e-5);
+        // A skill held keeps the offset however long (the player is aiming it).
+        for _ in 0..100 {
+            let f = Frame { busy: true, ..rest(0.0) };
             assert!((m.step(f).unwrap() - 1.2).abs() < 1e-5);
         }
-        // A turn below STILL still moves it (the rule's amount), but doesn't count as turning.
-        let f = Frame { turn: 0.01, turning: false, ..rest(0.0, false) };
-        assert!((m.step(f).unwrap() - 1.21).abs() < 1e-5);
-        // Walking with a skill held keeps it; walking idle lets go after LET_GO seconds.
-        for _ in 0..40 {
-            let f = Frame { busy: true, ..rest(0.0, true) };
-            assert!(m.step(f).is_some());
+        // Still and idle: after SETTLE it eases back to the hero's aim within a second or so.
+        let mut frames = 0;
+        while m.step(rest(0.0)).is_some() {
+            frames += 1;
+            assert!(frames < 30, "settles back");
         }
-        let frames = (LET_GO / 0.25).round() as usize;
-        for _ in 0..frames - 1 {
-            assert!(m.step(rest(0.0, true)).is_some());
-        }
-        assert_eq!(m.step(rest(0.0, true)), None);
+        assert!(frames as f32 * 0.1 >= SETTLE, "not before SETTLE: {frames}");
     }
 
     #[test]
@@ -302,15 +292,13 @@ mod tests {
         let mut m = MotionAim::default();
         // The stick alone: its own aim (None = as without motion).
         assert_eq!(m.step(push(0.5, 0.0)), None);
-        // Turned while pushed: the stick plus the turn, and it stays added.
+        // Turned while pushed: the stick plus the turn, and it stays added while pushed.
         assert!((m.step(push(0.5, 0.3)).unwrap() - 0.8).abs() < 1e-5);
         assert!((m.step(push(0.6, 0.0)).unwrap() - 0.9).abs() < 1e-5);
-        // Let go: the aim stays where it pointed.
-        assert!((m.step(rest(0.0, false)).unwrap() - 0.9).abs() < 1e-5);
+        // Let go: the hero's aim again (the push's turn goes with the push).
+        assert_eq!(m.step(rest(0.0)), None);
         // A fresh push starts from the stick again.
         assert_eq!(m.step(push(-1.0, 0.0)), None);
-        // And let go untouched: back to the hero, as without motion.
-        assert_eq!(m.step(rest(0.0, false)), None);
     }
 
     #[test]
@@ -318,7 +306,7 @@ mod tests {
         let mut m = MotionAim::default();
         let mut last = 0.0;
         for _ in 0..200 {
-            last = m.step(rest(0.5, false)).unwrap();
+            last = m.step(Frame { busy: true, ..rest(0.5) }).unwrap();
             assert!(last > -std::f32::consts::PI - 1e-5 && last <= std::f32::consts::PI + 1e-5);
         }
         assert!((wrap(last - (1.0 + 200.0 * 0.5))).abs() < 1e-3);
