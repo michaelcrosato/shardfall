@@ -192,6 +192,8 @@ pub struct App {
     ui_zoom: f32,
     /// The controller's extras: rumble, the light bar, the adaptive triggers (`pad_fx`).
     pad_fx: crate::pad_fx::PadFx,
+    /// Same-screen co-op: local players on controllers of their own (`couch`).
+    couch: crate::couch::Couch,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
     game_place: Option<pav_core::arpg::Place>,
     /// Phones and tablets: fingers, the on-screen controls and swipes (touch.rs).
@@ -310,6 +312,7 @@ impl App {
             menu_page: Default::default(),
             ui_zoom: 1.0,
             pad_fx: Default::default(),
+            couch: Default::default(),
             game_frame: None,
             game_place: None,
             touch: Default::default(),
@@ -1268,6 +1271,16 @@ impl App {
         let feet = player.and_then(|p| p.puppet.as_ref().map(|pp| p.pos - Vec3::Y * pp.feet_offset)).unwrap_or(focus);
         let facing = player.and_then(|p| p.puppet.as_ref().map(|pp| pp.state.facing)).unwrap_or(0.0);
 
+        // Same-screen co-op: other controllers join, play and leave (never in a 52in1 round,
+        // whose modes are the hub's).
+        if self.round.is_none() {
+            let allowed = game_input && curr.game.as_ref().is_some_and(|g| g.moment.is_none());
+            let said = self.couch.frame(&self.input.extra_pads, curr.game.as_deref(), host, &self.rig, dt, allowed);
+            self.input.couch_pads = self.couch.players.iter().map(|p| p.pad).collect();
+            if let Some(m) = said.into_iter().last() {
+                self.toast = Some((m, Instant::now()));
+            }
+        }
         // Game input -> the simulation thread.
         let (w, h) = self.gfx.as_ref().unwrap().size();
         let size = Vec2::new(w as f32, h as f32);
@@ -1370,6 +1383,11 @@ impl App {
         if self.splash.as_ref().is_some_and(|s| s.done()) {
             self.splash = None;
         }
+        // Same-screen co-op keeps the whole party in view.
+        let focus = match &curr.game {
+            Some(g) if self.round.is_none() => self.couch.camera(g, focus, &mut self.rig),
+            _ => focus,
+        };
         self.rig.update(focus, dt);
         self.builder.now = self.started.elapsed().as_secs_f64();
         let events: Vec<_> = std::mem::take(&mut *host.shared.events.lock().unwrap());
@@ -1565,6 +1583,8 @@ impl App {
         let mut raw = state.take(&gfx.window);
         raw.events.append(&mut self.pad_events);
         let padnav = &self.padnav;
+        let couch = &self.couch;
+        let couch_allowed = self.round.is_none() && !self.menu_open;
         let pad_style = self.prefs.pad_style;
         let mut menu_page = self.menu_page;
         let in_hub = self.hub_settings.is_some();
@@ -1662,6 +1682,7 @@ impl App {
             if let Some(g) = &game_frame {
                 let proj = crate::arpg_ui::Projector { vp: view_proj, size: ctx.content_rect().size() };
                 crate::arpg_ui::hud(&ctx, g, &proj, device, game_ui.map, &mut touch.swipes);
+                couch.hud(&ctx, g, &proj, pad_style, couch_allowed && g.moment.is_none());
                 if !menu_open {
                     game_cmds = game_ui.ui(&ctx, g, &proj);
                 }

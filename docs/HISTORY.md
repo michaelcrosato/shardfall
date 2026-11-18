@@ -5,6 +5,37 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Same-screen co-op: friends join on controllers of their own — 2026-11-17
+
+The last part of the user's controls and 52in1 pass ("supporting all the multiplayer modes"):
+52in1's catalogue lists ways to play on one device (`same-screen`, `split-screen`, `hot-seat`)
+beside the online ones, offered from the game's own menu, each player on a controller of their
+own. Shardfall now has `same-screen co-op 2-4`.
+- **Joining** (`pav_app::couch`): every controller but the player's own is told apart now
+  (`Input::extra_pads`; the player's own is the first not taken by a local player, and only it
+  drives menus). One that has not joined shows "✕ Join" in the bottom right; Cross or Options
+  there adds a party hero for it (`Sim::add_party_hero`, then `set_party_level` to the hero's
+  level: Kestrel, Ysolde, then the Wanderer). Holding Options for a moment, unplugging the
+  controller, or leaving Shardfall takes the hero out. Never in a 52in1 round or a moment.
+- **Playing:** each local player's pad drives their hero with the game's layout
+  (`controls::GAME_PAD`) through `Sim::set_party_input`, once a frame; the party's rules are the
+  shared world's (monsters go for the nearest hero, kills count for whoever made them, travel
+  takes everyone). A member's press now acts on one tick only (`member_inputs` clears it: a
+  frame can span two ticks; online it changes nothing, the host sets inputs every tick). Use
+  (trading, the portal) and the hero's windows stay the hero's.
+- **One screen:** the camera centres on the living party and draws back as it spreads (up to
+  1.7 times its distance); a player more than 15 m from the hero comes back beside them. A card
+  per local player sits under the hero's line (their seat colour, level, life) and their name
+  floats over their hero.
+- **Decided:** same-screen rather than split-screen (a hack-and-slash's couch co-op, one camera
+  on one fight) and no hot-seat (real time). Local heroes start fresh at the hero's level and are
+  not saved; keyboard-only second players are left out (the hero's keys are WASD and the
+  arrows).
+- **Checked:** `pav_core/tests/coop.rs` (a member's press acts once, joining at the hero's
+  level), `couch::tests` (a local pad plays the game's layout, never trades), pad scripts that
+  drive more controllers (`pad=2`), and the native game under Xvfb with a second pad joining:
+  Player 2's card, name and hero on screen with the hero's.
+
 ## Controller first: drawn prompts, D-pad menus, a TV's scale, the DualSense, touch upright — 2026-11-17
 
 The second part of the user's controls pass: "Design the game around a PS5 DualSense (or any pad

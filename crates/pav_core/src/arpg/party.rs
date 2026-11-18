@@ -145,6 +145,17 @@ impl Sim {
         self.state.game = Some(g);
     }
 
+    /// A party member at `level` (a local player joining a hero of that level), healed.
+    pub fn set_party_level(&mut self, seat: u32, level: u32) {
+        let Some(mut g) = self.state.game.take() else { return };
+        if let Some(i) = g.party.iter().position(|m| m.seat == seat) {
+            g.party[i].hero.level = level.max(1);
+            g.party[i].hero.xp = 0.0;
+            g.with_member(self, i, |g, sim| refresh_hero(sim, g, true));
+        }
+        self.state.game = Some(g);
+    }
+
     /// Sets a party member's input for the next tick.
     pub fn set_party_input(&mut self, seat: u32, input: InputFrame) {
         if let Some(m) = self.state.game.as_mut().and_then(|g| g.party.iter_mut().find(|m| m.seat == seat)) {
@@ -162,6 +173,10 @@ pub(crate) fn member_inputs(
 ) {
     for i in 0..g.party.len() {
         let input = g.party[i].input;
+        // A press or a command acts once: the next tick hears only what is still held (a local
+        // player's input is set once a frame, and a frame can span two ticks).
+        g.party[i].input.pressed = 0;
+        g.party[i].input.cmd = None;
         g.with_member(sim, i, |g, sim| {
             if let Some(c) = input.cmd {
                 g.command(sim, c, events);

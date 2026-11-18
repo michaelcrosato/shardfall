@@ -374,6 +374,10 @@ pub struct Input {
     pub gilrs: Option<gilrs::Gilrs>,
     /// A scripted gamepad (`--pad-script FILE`): tests and agents drive controller flows.
     pub pad_script: Option<PadScript>,
+    /// The other controllers this frame (`ExtraPad`), and the ones local players hold
+    /// (`crate::couch` sets it: the player's own pad is the first one not among them).
+    pub extra_pads: Vec<ExtraPad>,
+    pub couch_pads: Vec<usize>,
     pub pad: Pad,
     pub last_device: Device,
     prev_held: u32,
@@ -386,18 +390,73 @@ pub struct Input {
 }
 
 /// A pad's raw state for one frame.
-struct PadState {
-    left: Vec2,
-    right: Vec2,
-    held: Vec<PadButton>,
-    l2: f32,
-    r2: f32,
+#[derive(Clone, Debug, Default)]
+pub struct PadState {
+    pub left: Vec2,
+    pub right: Vec2,
+    pub held: Vec<PadButton>,
+    pub l2: f32,
+    pub r2: f32,
+}
+
+/// Another controller than the player's own: a local player's in same-screen co-op
+/// (`crate::couch`), or one waiting to join. Sticks with their dead zones.
+#[derive(Clone, Debug, Default)]
+pub struct ExtraPad {
+    /// gilrs's id for it (stable while it stays connected).
+    pub id: usize,
+    pub state: PadState,
+    /// Buttons pressed since the last poll.
+    pub taps: Vec<PadButton>,
+}
+
+/// One connected pad's state (gilrs).
+fn read_state(gp: &gilrs::Gamepad) -> PadState {
+    use gilrs::{Axis, Button as B};
+    const ALL: [B; 16] = [
+        B::South,
+        B::East,
+        B::North,
+        B::West,
+        B::LeftTrigger,
+        B::RightTrigger,
+        B::Select,
+        B::Start,
+        B::DPadUp,
+        B::DPadDown,
+        B::DPadLeft,
+        B::DPadRight,
+        B::LeftThumb,
+        B::RightThumb,
+        B::LeftTrigger2,
+        B::RightTrigger2,
+    ];
+    let value = |b: B| gp.button_data(b).map(|d| d.value()).unwrap_or(0.0);
+    let (l2, r2) = (value(B::LeftTrigger2), value(B::RightTrigger2));
+    PadState {
+        left: Vec2::new(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY)),
+        right: Vec2::new(gp.value(Axis::RightStickX), gp.value(Axis::RightStickY)),
+        held: ALL
+            .into_iter()
+            .filter(|b| match b {
+                // The triggers count as held once pulled past a third.
+                B::LeftTrigger2 => l2 > TRIGGER,
+                B::RightTrigger2 => r2 > TRIGGER,
+                b => gp.is_pressed(*b),
+            })
+            .filter_map(pad_button)
+            .collect(),
+        l2,
+        r2,
+    }
 }
 
 /// One line of a pad script: hold this for so many frames.
 #[derive(Clone, Debug, Default)]
 pub struct PadStep {
     pub frames: u32,
+    /// Which controller: 1 the player's own, 2-4 more (local players in same-screen co-op).
+    pub pad: u8,
     pub left: Vec2,
     pub right: Vec2,
     pub hold: Vec<PadButton>,
@@ -405,7 +464,9 @@ pub struct PadStep {
 }
 
 /// A scripted gamepad, one step per line:
-/// `<frames> [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]` (`#` comments).
+/// `<frames> [pad=N] [left=x,y] [right=x,y] [hold=Cross,Triangle] [tap=Down]` (`#` comments).
+/// `pad=2` to `pad=4` drive more controllers (they stay connected, as last set, for the rest
+/// of the script); without it a step is the player's own pad.
 /// Buttons by the DualSense's names (Cross, Circle, Square, Triangle, L1, R1, L2, R2, Create,
 /// Options, L3, R3, Up, Down, Left, Right, Touchpad) or the older gilrs ones (South or A, East
 /// or B, West or X, North or Y, LeftTrigger or LB, RightTrigger or RB, Start, Select,
@@ -415,6 +476,9 @@ pub struct PadScript {
     pub steps: Vec<PadStep>,
     at: usize,
     frame: u32,
+    /// The other controllers' states (by pad number), and their presses this frame.
+    others: std::collections::BTreeMap<u8, PadState>,
+    taps: Vec<(u8, Vec<PadButton>)>,
 }
 
 impl PadScript {
@@ -455,10 +519,13 @@ impl PadScript {
             }
             let mut words = line.split_whitespace();
             let frames = words.next().and_then(|w| w.parse().ok()).ok_or(format!("line {}: starts with a frame count", n + 1))?;
-            let mut st = PadStep { frames, ..Default::default() };
+            let mut st = PadStep { frames, pad: 1, ..Default::default() };
             for w in words {
                 let (k, v) = w.split_once('=').ok_or(format!("line {}: '{w}'", n + 1))?;
                 match k {
+                    "pad" => {
+                        st.pad = v.parse().ok().filter(|n| (1..=4).contains(n)).ok_or(format!("line {}: pad is 1 to 4", n + 1))?
+                    }
                     "left" => st.left = vec(v)?,
                     "right" => st.right = vec(v)?,
                     "hold" => st.hold = v.split(',').map(button).collect::<Result<_, _>>()?,
@@ -468,7 +535,7 @@ impl PadScript {
             }
             steps.push(st);
         }
-        Ok(PadScript { steps, at: 0, frame: 0 })
+        Ok(PadScript { steps, ..Default::default() })
     }
 
     /// This frame's step (and whether it's the step's first frame); None when done.
@@ -522,6 +589,8 @@ impl Input {
             mouse_active: false,
             gilrs,
             pad_script: None,
+            extra_pads: Vec::new(),
+            couch_pads: Vec::new(),
             pad: Pad::default(),
             last_device: Device::KeyboardMouse,
             prev_held: 0,
@@ -567,64 +636,46 @@ impl Input {
     /// Reads gamepad events and state (the first connected pad). `extra` is what the page reads
     /// that gilrs doesn't: the DualSense's touchpad press (button 17).
     pub fn poll_gamepad(&mut self, extra: &PadExtra) {
-        use gilrs::Axis;
         let mut activity = false;
         let mut taps = Vec::new();
         // One pad state from the first connected pad, or from the pad script while it runs.
         let mut state: Option<PadState> = None;
+        self.extra_pads.clear();
         if let Some(g) = &mut self.gilrs {
+            // Presses and pushes by pad: the player's own pad drives them and the menus; the
+            // others are local players' (same-screen co-op), or waiting to join.
+            let mut pad_taps: std::collections::BTreeMap<usize, Vec<PadButton>> = Default::default();
+            let mut moved = std::collections::BTreeSet::new();
             while let Some(ev) = g.next_event() {
+                let pid = usize::from(ev.id);
                 match ev.event {
                     gilrs::EventType::ButtonPressed(b, _) => {
                         if let Some(p) = pad_button(b) {
-                            taps.push(p);
-                            activity = true;
+                            pad_taps.entry(pid).or_default().push(p);
                         }
                     }
-                    gilrs::EventType::AxisChanged(_, v, _) if v.abs() > 0.4 => activity = true,
+                    gilrs::EventType::AxisChanged(_, v, _) if v.abs() > 0.4 => {
+                        moved.insert(pid);
+                    }
                     gilrs::EventType::Connected => log::info!("gamepad connected"),
                     gilrs::EventType::Disconnected => log::info!("gamepad disconnected"),
                     _ => {}
                 }
             }
-            if let Some((_, gp)) = g.gamepads().next() {
-                use gilrs::Button as B;
-                const ALL: [B; 16] = [
-                    B::South,
-                    B::East,
-                    B::North,
-                    B::West,
-                    B::LeftTrigger,
-                    B::RightTrigger,
-                    B::Select,
-                    B::Start,
-                    B::DPadUp,
-                    B::DPadDown,
-                    B::DPadLeft,
-                    B::DPadRight,
-                    B::LeftThumb,
-                    B::RightThumb,
-                    B::LeftTrigger2,
-                    B::RightTrigger2,
-                ];
-                let value = |b: B| gp.button_data(b).map(|d| d.value()).unwrap_or(0.0);
-                let (l2, r2) = (value(B::LeftTrigger2), value(B::RightTrigger2));
-                state = Some(PadState {
-                    left: Vec2::new(gp.value(Axis::LeftStickX), gp.value(Axis::LeftStickY)),
-                    right: Vec2::new(gp.value(Axis::RightStickX), gp.value(Axis::RightStickY)),
-                    held: ALL
-                        .into_iter()
-                        .filter(|b| match b {
-                            // The triggers count as held once pulled past a third.
-                            B::LeftTrigger2 => l2 > TRIGGER,
-                            B::RightTrigger2 => r2 > TRIGGER,
-                            b => gp.is_pressed(*b),
-                        })
-                        .filter_map(pad_button)
-                        .collect(),
-                    l2,
-                    r2,
-                });
+            let primary = g.gamepads().map(|(id, _)| usize::from(id)).find(|id| !self.couch_pads.contains(id));
+            for (id, gp) in g.gamepads() {
+                let pid = usize::from(id);
+                let mine = pad_taps.remove(&pid).unwrap_or_default();
+                if Some(pid) == primary {
+                    activity |= !mine.is_empty() || moved.contains(&pid);
+                    taps.extend(mine);
+                    state = Some(read_state(&gp));
+                } else {
+                    let mut st = read_state(&gp);
+                    st.left = deadzone(st.left, 0.15);
+                    st.right = deadzone(st.right, 0.2);
+                    self.extra_pads.push(ExtraPad { id: pid, state: st, taps: mine });
+                }
             }
         }
         if extra.touchpad_pressed {
@@ -633,13 +684,28 @@ impl Input {
         }
         if let Some(script) = &mut self.pad_script {
             if let Some((st, first)) = script.next() {
-                if first {
-                    taps.extend(st.tap.iter().copied());
-                }
                 activity = true;
                 let trig = |b| if st.hold.contains(&b) { 1.0 } else { 0.0 };
                 let (l2, r2) = (trig(PadButton::L2), trig(PadButton::R2));
-                state = Some(PadState { left: st.left, right: st.right, held: st.hold.clone(), l2, r2 });
+                let pad = PadState { left: st.left, right: st.right, held: st.hold.clone(), l2, r2 };
+                if st.pad <= 1 {
+                    if first {
+                        taps.extend(st.tap.iter().copied());
+                    }
+                    state = Some(pad);
+                } else {
+                    // Another controller: it keeps this state until its next step.
+                    script.others.insert(st.pad, pad);
+                    if first {
+                        script.taps.push((st.pad, st.tap.clone()));
+                    }
+                    state = Some(PadState::default());
+                }
+            }
+            let taps_now = std::mem::take(&mut script.taps);
+            for (n, st) in &script.others {
+                let taps: Vec<PadButton> = taps_now.iter().filter(|(k, _)| k == n).flat_map(|(_, t)| t.clone()).collect();
+                self.extra_pads.push(ExtraPad { id: 1000 + *n as usize, state: st.clone(), taps });
             }
         }
         // Create and Options held together open 52in1's bar: that pair means nothing here.
@@ -753,8 +819,10 @@ mod pad_script_tests {
         assert_eq!(frames.len(), 6);
         assert!(frames[2].1 && frames[2].0.tap == vec![PadButton::Down]);
         assert_eq!(frames[3].0.hold, vec![PadButton::Cross, PadButton::Triangle]);
-        let named = PadScript::parse("1 hold=Cross,R2 tap=Options\n").unwrap();
+        let named = PadScript::parse("1 hold=Cross,R2 tap=Options\n2 pad=2 tap=Cross\n").unwrap();
         assert_eq!(named.steps[0].hold, vec![PadButton::Cross, PadButton::R2]);
+        assert_eq!((named.steps[0].pad, named.steps[1].pad), (1, 2));
+        assert!(PadScript::parse("1 pad=7").is_err());
         assert_eq!(frames[5].0.left, Vec2::new(0.5, -1.0));
         assert!(PadScript::parse("x tap=A").is_err());
         assert!(PadScript::parse("1 tap=Q").is_err());

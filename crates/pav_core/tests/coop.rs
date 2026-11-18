@@ -80,3 +80,22 @@ fn same_inputs_same_world() {
     };
     assert_eq!(run(), run());
 }
+
+#[test]
+fn a_local_players_press_acts_once_and_they_join_at_the_heros_level() {
+    // Same-screen co-op sets a member's input once a frame; a frame can span two ticks.
+    let mut sim = round_sim(9, 1, "wanderer");
+    sim.add_party_hero(1, "kestrel");
+    sim.set_party_level(1, 7);
+    let g = sim.state.game.as_ref().unwrap();
+    assert_eq!(g.party[0].hero.level, 7);
+    let potions = g.party[0].hero.potions;
+    sim.set_party_input(1, InputFrame { held: buttons::POTION, pressed: buttons::POTION, ..Default::default() });
+    sim.step(&InputFrame::default());
+    let after = sim.state.game.as_ref().unwrap().party[0].input;
+    assert_eq!(after.pressed, 0, "the press was used up");
+    assert_eq!(after.held, buttons::POTION, "what is held stays held");
+    sim.step(&InputFrame::default());
+    // (A full hero may keep the potion: never more than one drunk for one press.)
+    assert!(sim.state.game.as_ref().unwrap().party[0].hero.potions + 1 >= potions);
+}

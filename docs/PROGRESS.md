@@ -27,8 +27,8 @@ The current state, kept to one page because every session reads it (Claude Code 
 - **The game opens in the Pavilion** (2026-11-13): Shardfall (through a rift) and the engine's
   tools are stations on the plaza (`pav_core::plaza`); the pause menu leads back there.
 - **On 52in1** (2026-11-17, `docs/AI_HUB.md`): one page plays every online mode (parallel, ghost,
-  shared-world co-op and versus, four moments) and follows the player's 52in1 settings; every
-  word a line in any language; `scripts/hub_check.py` plays the hub's harness, headless.
+  shared-world co-op and versus, four moments), couch co-op on one screen, the player's 52in1
+  settings, any language; `scripts/hub_check.py` plays the hub's harness, headless.
 - Builds (2026-11-02): no hosted site; the user plays one-file builds sent in chat (`CLAUDE.md`).
   Pavilion Lite (`pavilion-lite/`) is frozen.
 

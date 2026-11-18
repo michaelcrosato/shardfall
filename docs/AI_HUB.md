@@ -21,8 +21,8 @@ web/hub.json` writes the hub's head:
   (the model that wrote the build, as its maker names it: never written into the repository),
   the emblem as the icon (an SVG, made in the packer);
 - `hub:players` 1-4, `hub:multiplayer` (`parallel 1-4, ghost 1-4, shared-world co-op 1-4,
-  shared-world versus 2-4, moments 1-4`) and `hub:dualsense` (the DualSense's extras the game
-  uses);
+  shared-world versus 2-4, moments 1-4, same-screen co-op 2-4`) and `hub:dualsense` (the
+  DualSense's extras the game uses);
 - the session tags (`hub:session` 1, shared world as the mode when nothing says which, 1-4
   players, goal, how-to, 8 minutes), each online mode's own goal (`hub:session-goal-parallel`,
   `-ghost`, `-co-op`, `-versus`, `-moments`) and one `hub:moment` tag per moment;
@@ -34,6 +34,15 @@ passes the game's calls on. As a safety net, a copy whose frame is too slow to a
 within half the grace period reports its last standing from the page. Outside a session (no
 client, or not in the hub's frame) it does nothing and the game opens on the Pavilion's plaza,
 as it does anywhere.
+
+## On one screen: same-screen co-op
+Outside a session the game itself offers co-op on one screen (`pav_app::couch`): a controller
+that is not the player's own shows "✕ Join"; Cross or Options there adds a hero for it (the
+shared world's party, at the hero's level: Kestrel, Ysolde, then the Wanderer), and holding
+Options takes it out again. The camera frames the party and draws back as it spreads, and a
+player who strays too far is brought back beside the hero, so everyone stays in view. Local
+players fight, pick up gold and level up; trading and the hero's windows stay the hero's. In a
+session the hub's own modes play instead.
 
 ## The player's settings
 In 52in1 the game finds the player's settings at `window.AIHubSettings` (the hub's companion
