@@ -165,6 +165,10 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "touch.tips.jump.how" = "the corner buttons"
 "touch.tips.dismiss" = "Swipe this away to play"
 
+# At the wheel of a pavilion car: its automatic gearbox's gear, big in a corner dial.
+"drive.gear" = "gear"
+"drive.reverse" = "R"
+
 # The engine's own entries in the pause menu (developer text: translation skips dev. lines).
 "dev.menu.room" = "Room: {room}"
 "dev.menu.room_info" = "Room info"
@@ -837,6 +841,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "power.orbit_blades" = "A unique item's power. {count} is a number of blades, {b} a percentage."
 "tweak.count" = "A passive tree upgrade to one skill: the skill's name, then what changes."
 "difficulty.heading" = "In the pause menu: sliders for play-testers to make the game easier or harder."
+"drive.gear" = "A small label under the gear number on a car's dial (the HUD while driving), like a car's dashboard."
+"drive.reverse" = "The reverse gear on a car's dial, where the gear number shows: a letter or the sign a dashboard uses."
 "touch.jump" = "A round touch-screen button in the engine's rooms: one short word, in capitals where the language has them."
 "touch.cancel" = "Over a skill button while aiming by hand, when letting go there cancels the skill."
 
@@ -858,6 +864,8 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "touch.bomb" = 6
 "touch.duck" = 6
 "touch.use" = 6
+"drive.gear" = 8
+"drive.reverse" = 2
 "doll.weapon" = 8
 "doll.offhand" = 8
 "doll.helmet" = 8
