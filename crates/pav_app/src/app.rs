@@ -194,6 +194,8 @@ pub struct App {
     pad_fx: crate::pad_fx::PadFx,
     /// A DualSense's motion aim in 52in1 (`motion`).
     motion_aim: crate::motion::MotionAim,
+    /// Shout to roar in 52in1: a shout's press of War Cry's button (`voice`).
+    roar: crate::voice::Roar,
     /// Same-screen co-op: local players on controllers of their own (`couch`).
     couch: crate::couch::Couch,
     game_frame: Option<std::sync::Arc<pav_core::arpg::GameFrame>>,
@@ -315,6 +317,7 @@ impl App {
             ui_zoom: 1.0,
             pad_fx: Default::default(),
             motion_aim: Default::default(),
+            roar: Default::default(),
             couch: Default::default(),
             game_frame: None,
             game_place: None,
@@ -1094,6 +1097,15 @@ impl App {
         if crate::hub::settings_changed() {
             self.hub_settings = crate::hub::settings();
         }
+        // Shout to roar (voice.rs): the page listens while it is on and the player is in
+        // Shardfall with a hero (the plaza, the studios and the pavilion's rooms keep the
+        // microphone closed), and what it heard is taken every frame (a shout while the player
+        // can't play goes unused).
+        let shouted = {
+            let (hub, pref) = (self.hub_settings.as_ref(), self.prefs.shout_roar);
+            let in_game = self.game_frame.as_ref().is_some_and(|g| g.hero.is_some());
+            crate::voice::take_shout(crate::voice::on(hub, pref) && in_game) && crate::voice::listening(hub, pref)
+        };
         // Devices.
         let extra = crate::pad_fx::read_extra();
         self.input.poll_gamepad(&extra);
@@ -1308,10 +1320,16 @@ impl App {
         if game_input {
             held |= intent.held;
             pressed |= intent.pressed;
-            // A touch screen's assist in a shooter (the blaster rooms): it fires by itself while
-            // the thumb steers, as auto-attack does in Shardfall (Settings' auto-attack).
+            // A touch screen's assist in a shooter (the blaster rooms): it fires by itself at the
+            // foes in reach while the thumb steers, as auto-attack does in Shardfall (Settings'
+            // auto-attack); with none near it holds fire.
             let blaster = self.sim_config.bombs.weapon == pav_core::character::Weapon::Blaster;
-            if self.input.last_device == Device::Touch && blaster && curr.game.is_none() && self.prefs.auto_attack {
+            if self.input.last_device == Device::Touch
+                && blaster
+                && curr.game.is_none()
+                && self.prefs.auto_attack
+                && curr.hud.foe_near
+            {
                 held |= pav_core::input::buttons::USE;
             }
         }
@@ -1338,6 +1356,15 @@ impl App {
         if !studio_active && self.editor.update(host, &self.rig, self.input.cursor, size, left, left_tap, room_id) {
             held &= !pav_core::input::buttons::PRIMARY;
             pressed &= !pav_core::input::buttons::PRIMARY;
+        }
+        // A shout presses War Cry's button for a frame, when it is on the bar and ready; "Roar!"
+        // once it goes off.
+        let hero = curr.game.as_ref().and_then(|g| g.hero.as_ref());
+        let (roar, roared) = self.roar.step(shouted && game_input, hero, dt);
+        pressed |= roar;
+        if roared {
+            crate::voice::roared();
+            self.toast = Some((pav_core::t!("hud.roar"), Instant::now()));
         }
         // A DualSense in 52in1 with Motion aim on: the gyro is read every frame (while the game
         // reads it the hub leaves the right stick alone), and its turns add to the pad's aim.
@@ -1632,8 +1659,13 @@ impl App {
         }
         let toast = self.toast.as_ref().filter(|(_, t)| t.elapsed().as_secs_f32() < 3.0).map(|(m, _)| m.clone());
         let card_visible = !studio_active && self.hud.card_visible();
-        let guide_visible =
-            !studio_active && self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
+        // (Not in a 52in1 round: the hub's card has said how to play, and a moment's fresh page
+        // lasts about as long as the guide would, covering the life orb throughout.)
+        let guide_visible = !studio_active
+            && self.app_settings.show_guide
+            && self.round.is_none()
+            && self.started.elapsed().as_secs_f32() < 25.0
+            && !card_visible;
         let device = self.input.last_device;
         let touch_ui = device == Device::Touch;
         pav_ui::controls::set_current(device, self.prefs.pad_style);

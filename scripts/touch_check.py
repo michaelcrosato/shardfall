@@ -9,11 +9,14 @@ usage: python3 -P scripts/touch_check.py PAGE.html OUT_DIR [--query Q]
        (-P, not -I: Playwright is a user package)
 
 Upright (390x844), then sideways (844x390), in Emberwatch:
-1. the HUD and the touch controls;
+1. the HUD and the touch controls; the "Playing by touch" card swiped away (a notification);
 2. two fingers at once: the left thumb pushes the stick up while the right one holds a skill
    (both show pressed: the stick's ring and the skill's button);
 3. the bag button: the bag opens, fitted to the screen;
 4. a quick sideways flick across the bag: it goes away.
+Then, sideways in the Proving Grounds: one tap to say it's a touch screen, and no more input
+for a while: auto-attack (Settings, on by default on touch) fights the waves by itself; the
+kills on the HUD show it.
 The control rects come from `pav ui device=touch width=W height=H` (the same layout).
 """
 import argparse
@@ -26,8 +29,10 @@ FLAGS = ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-vulkan=swi
 
 # Where the controls sit in each orientation (centres, in CSS pixels), from the `ui` tool.
 LAYOUTS = {
-    "upright": {"size": (390, 844), "bag": (311, 33), "skill": (193, 723), "stick": (70, 640), "bag_body": (110, 560)},
-    "sideways": {"size": (844, 390), "bag": (765, 33), "skill": (647, 269), "stick": (110, 300), "bag_body": (560, 300)},
+    "upright": {"size": (390, 844), "bag": (311, 33), "skill": (193, 723), "stick": (70, 640), "bag_body": (110, 560),
+                "card": (150, 400)},
+    "sideways": {"size": (844, 390), "bag": (765, 33), "skill": (647, 269), "stick": (110, 300), "bag_body": (560, 300),
+                 "card": (380, 150)},
 }
 
 
@@ -51,8 +56,19 @@ async def run(browser, page_url, out, name, lay):
     p.on("pageerror", lambda e: errors.append(str(e)))
     await p.goto(page_url)
     cdp = await ctx.new_cdp_session(p)
-    await p.wait_for_timeout(35000)
+    await p.wait_for_timeout(28000)
     await p.screenshot(path=str(out / f"{name}-1-hud.png"))
+    # The "Playing by touch" card swiped away sideways (it would leave by itself only later).
+    cx, cy = lay["card"]
+    await gesture(
+        cdp,
+        event("touchStart", [(5, (cx, cy))]),
+        event("touchMove", [(5, (cx + 90, cy + 3))]),
+        event("touchMove", [(5, (cx + 200, cy + 5))]),
+        event("touchEnd", []),
+    )
+    await p.wait_for_timeout(3500)
+    await p.screenshot(path=str(out / f"{name}-1b-card-swiped.png"))
     # Two thumbs at once: the stick pushed up, a skill held.
     sx, sy = lay["stick"]
     await gesture(cdp, event("touchStart", [(1, (sx, sy)), (2, lay["skill"])]), event("touchMove", [(1, (sx, sy - 56)), (2, lay["skill"])]))
@@ -78,6 +94,22 @@ async def run(browser, page_url, out, name, lay):
     await ctx.close()
 
 
+async def auto_attack(browser, page_url, out):
+    """Sideways in the Proving Grounds: one tap, then hands off while the waves come."""
+    ctx = await browser.new_context(viewport={"width": 844, "height": 390}, is_mobile=True, has_touch=True, device_scale_factor=1)
+    p = await ctx.new_page()
+    await p.goto(page_url)
+    cdp = await ctx.new_cdp_session(p)
+    await p.wait_for_timeout(25000)
+    await gesture(cdp, event("touchStart", [(7, (420, 200))]), event("touchEnd", []))
+    await p.wait_for_timeout(2000)
+    await p.screenshot(path=str(out / "arena-1-start.png"))
+    await p.wait_for_timeout(50000)
+    await p.screenshot(path=str(out / "arena-2-hands-off.png"))
+    print("arena auto-attack: screenshots taken")
+    await ctx.close()
+
+
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("page")
@@ -91,6 +123,7 @@ async def main():
         browser = await pw.chromium.launch(args=FLAGS)
         for name, lay in LAYOUTS.items():
             await run(browser, url, out, name, lay)
+        await auto_attack(browser, pathlib.Path(a.page).resolve().as_uri() + "?scene=arena&seed=3", out)
         await browser.close()
 
 

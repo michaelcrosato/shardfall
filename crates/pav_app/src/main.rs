@@ -34,6 +34,7 @@ mod settings;
 mod simhost;
 mod ui;
 mod uiinput;
+mod voice;
 
 use pav_ui::{arpg_items, arpg_ui, touch};
 

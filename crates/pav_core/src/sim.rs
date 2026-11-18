@@ -179,6 +179,10 @@ pub struct Sim {
 
 const MAX_RECORDING_TICKS: u64 = 60 * 60 * 60;
 
+/// How near a shootable foe is "in reach" for touch's auto-fire: the bullet hell's emitters
+/// fire from 13 m (15 the boss), and a shot lives for 35 m.
+pub const FOE_REACH: f32 = 16.0;
+
 impl Sim {
     /// An empty world.
     pub fn empty(seed: u64) -> Self {
@@ -1003,6 +1007,7 @@ impl Sim {
             view: c.view.clone(),
             view_serial: c.view_serial,
             boss: self.boss_bar(),
+            foe_near: self.foe_near(FOE_REACH),
             pad_note: c.pad_note.clone(),
             lines: self.play_hud(),
             prompts: self.play_prompts(),

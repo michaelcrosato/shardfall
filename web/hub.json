@@ -31,7 +31,8 @@
     "haptics",
     "motion",
     "touchpad",
-    "speaker"
+    "speaker",
+    "microphone"
   ],
   "session_mode": "shared-world",
   "session_players": "1-4",

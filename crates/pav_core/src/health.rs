@@ -67,6 +67,17 @@ impl Sim {
     }
 
     /// The boss bar for the HUD: name and health fraction of the first `bar` enemy.
+    /// Something with health still standing within `range` of the player, in the room it is in:
+    /// a shooter's foe in reach (touch's auto-fire waits for one).
+    pub fn foe_near(&self, range: f32) -> bool {
+        let Some(me) = self.player() else { return false };
+        let here = self.state.world.current_room.map(crate::statics::RegionKey::Room);
+        self.state.entities.iter().any(|e| {
+            let near = !self.state.world.enabled || e.region.is_none() || e.region == here;
+            e.id != me.id && near && e.health.as_ref().is_some_and(|h| h.hp > 0.0) && (e.pos - me.pos).length() <= range
+        })
+    }
+
     pub fn boss_bar(&self) -> Option<(String, f32)> {
         // Only the room you are in (other rooms' bosses live on in the world).
         let here = self.state.world.current_room.map(crate::statics::RegionKey::Room);
