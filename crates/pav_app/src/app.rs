@@ -667,8 +667,10 @@ impl App {
             taps: dirs,
             stick: pad.left,
             scroll: pad.right.y,
-            cross: pad.cross_held,
-            square: pad.square_held,
+            // (A press shorter than a frame counts as held for that frame, as keys do: a quick
+            // tap on a slow TV frame still clicks.)
+            cross: pad.cross_held || taps.contains(&B::Cross),
+            square: pad.square_held || taps.contains(&B::Square),
             triangle: pad.triangle_held,
             dt,
         };
@@ -1366,9 +1368,11 @@ impl App {
                 // still drives as before.
                 if let Some(fwd) = car_forward(&curr).filter(|_| self.input.last_device == Device::Gamepad) {
                     let pad = &self.input.pad;
-                    if pad.r2 > 0.05 {
+                    // (Past the car's own dead zone, 0.1, and never less than the stick asks: a
+                    // finger resting on R2 doesn't hold back a pushed stick.)
+                    if pad.r2 > 0.1 {
                         let dir = if axis.length() > 0.2 { self.rig.relative_move(axis).normalize_or(fwd) } else { fwd };
-                        i.move_dir = dir * pad.r2.min(1.0);
+                        i.move_dir = dir * pad.r2.max(axis.length()).min(1.0);
                     }
                     if pad.l2 > 0.3 {
                         i.held |= pav_core::input::buttons::CROUCH;
@@ -1613,6 +1617,12 @@ impl App {
         let state = self.egui_state.as_mut().unwrap();
         let mut raw = state.take(&gfx.window);
         raw.events.append(&mut self.pad_events);
+        // A pad in use is the player at this window, whether or not the system (or the page
+        // around 52in1's frame) gave it keyboard focus: a slider the D-pad moves needs egui to
+        // count the window as focused.
+        if self.input.last_device == Device::Gamepad {
+            raw.focused = true;
+        }
         let padnav = &self.padnav;
         let couch = &self.couch;
         let couch_allowed = self.round.is_none() && !self.menu_open;

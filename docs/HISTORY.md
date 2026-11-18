@@ -5,6 +5,34 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Review of #95: sliders on a pad, the tree card, quick taps, the throttle — 2026-11-17
+
+An adversarial review of #95 (a workflow: four reviewers by area, three skeptics per finding
+trying to refute it; 25 agents, about 2.4M subagent tokens) confirmed 3 of 7 findings. The live
+check of the first fix turned up two more; all are fixed:
+- **Sliders were out of the pad's reach.** egui's slider rail only drags (no click), and padnav
+  took only clickable widgets, so in Settings the D-pad skipped the sound-effects slider (its
+  value box took the ring, and a click there types) and touch's "no flick on a slider" never
+  matched one. Padnav now takes drag-only widgets shaped like a rail (wide, at most 64 points
+  tall); thin strips that drag (scroll bars, a window's resize edges, under 16 points) are no
+  stops at all, so Right in a scrolling menu no longer lands on its scroll bar.
+- **The window has to count as focused for a pad.** egui hands keys to a focused widget only
+  while the window has the system's focus; a pad player's window may not (a 52in1 frame never
+  clicked, a TV browser, Xvfb): while a pad is in use the app tells egui the window is focused,
+  so the D-pad's left and right move a slider.
+- **A press shorter than a frame clicks** (Cross and Square in menus count their taps, as keys
+  do): a quick tap on a slow TV frame was lost.
+- **The tree's docked card is shown, not touched** (`interactable(false)`, tooltip order): over
+  the nodes it covers it took the hover, so it blinked every other frame and swallowed Cross.
+- **R2 at the wheel** acts past the car's own dead zone (0.1) and never asks less than the stick:
+  a finger resting on R2 stalled a car driven by the stick.
+- Rejected after checking: three readings of the unmapped-pad wrapper (axis order, hat axis,
+  the script sharing a block with the 52in1 bridge).
+- Checked: a real-egui test (the D-pad reaches a slider, Right and Left move it by its steps, a
+  finger on it marks a slide, scroll bars and resize edges are no stops), and the native game
+  on Xvfb with a pad script: Options, Settings, down to the sound-effects slider, three lefts
+  took it from 100% to 70% with the ring staying on it.
+
 ## Any pad, the triggers at the wheel, cards that sit still, a phone's bag — 2026-11-17
 
 The controls pass's last gaps, each checked live rather than only by unit tests:
