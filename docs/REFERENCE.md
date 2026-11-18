@@ -315,7 +315,7 @@ touchpad swipe turn them), Options the menu.
 Menus on a controller (`pav_ui::padnav`, every egui window as it is): the D-pad or the left stick
 moves between the items (a gold ring shows which), Cross takes and Square is the item's other
 action (right click), each on the press however long it is held, Triangle is Shift, the right stick scrolls, Circle goes back; a slider
-takes the D-pad's left and right; on the passive tree the stick moves a pointer and the D-pad
+takes the D-pad's left and right (scroll bars are no stops); on the passive tree the stick moves a pointer and the D-pad
 hops to the nearest node that way (`padnav::SNAP_POINTS`), whose card docks at the tree's right
 edge; item cards dock beside their window (`arpg_items::item_card`), a mouse's at the pointer. The pad starts from the item the mouse was on (hovering moves the focus). PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,

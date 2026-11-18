@@ -356,8 +356,11 @@ impl TreeUi {
                     let taken = reached(n.id);
                     let mut r2 = resp.clone();
                     if self.pad {
+                        // Shown, not touched: an interactable card would take the hover and the
+                        // press from the nodes under it.
                         egui::Area::new(egui::Id::new("tree_card"))
-                            .order(egui::Order::Foreground)
+                            .order(egui::Order::Tooltip)
+                            .interactable(false)
                             .anchor(
                                 Align2::RIGHT_TOP,
                                 EVec2::new(-(ui.ctx().content_rect().right() - rect.right()) - 12.0, rect.top() + 12.0),

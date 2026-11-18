@@ -311,7 +311,7 @@ fn stick_dir(s: glam::Vec2) -> Option<Dir> {
     })
 }
 
-/// A slider (or anything else a finger drags sideways: clicks and drags, wide and short) under
+/// A slider (or anything else a finger drags sideways: it drags, and is wide and short) under
 /// `pos` in the last frame: touch doesn't flick its window away (`touch::Touch::on_slider`).
 pub fn slider_at(ctx: &Context, pos: Pos2) -> bool {
     items(ctx).iter().any(|i| i.slider && i.rect.contains(pos))
@@ -336,11 +336,17 @@ fn items(ctx: &Context) -> Vec<Item> {
             let list: Vec<Item> = w
                 .get_layer(*layer)
                 .filter(|r| r.id != background && r.id != title)
-                .filter(|r| r.enabled && r.sense.senses_click() && r.rect.is_positive() && screen.intersects(r.rect))
+                // Clickable things, and sliders: egui's slider rail only drags (no click), so it
+                // is taken by its shape (a scroll area's drag-only body is tall).
+                .filter(|r| r.enabled && r.rect.is_positive() && screen.intersects(r.rect))
+                // A scroll bar or a window's resize edge (a thin strip that drags) is no stop: the
+                // right stick scrolls.
+                .filter(|r| !(r.sense.senses_drag() && r.rect.width().min(r.rect.height()) < 16.0))
+                .filter(|r| r.sense.senses_click() || (r.sense.senses_drag() && slider_shaped(r.rect)))
                 .map(|r| {
                     let rect = r.rect.intersect(screen);
                     let canvas = rect.area() > screen.area() * 0.2;
-                    let slider = r.sense.senses_drag() && !canvas && rect.width() > rect.height() * 3.0;
+                    let slider = r.sense.senses_drag() && !canvas && slider_shaped(rect);
                     Item { id: r.id, rect, layer: *layer, slider, canvas }
                 })
                 .collect();
@@ -417,6 +423,11 @@ fn snap(points: &[Pos2], from: Pos2, d: Dir) -> Option<Pos2> {
         })
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(q, _)| q)
+}
+
+/// Wide and short: a slider's rail (or a single-line text field).
+fn slider_shaped(r: Rect) -> bool {
+    r.width() > r.height() * 3.0 && r.height() <= 64.0
 }
 
 /// How far apart two ranges are (0 when they overlap).
@@ -527,6 +538,85 @@ mod egui_tests {
         assert_eq!(pass(&ctx, ev), None, "held, it does not click again");
         let ev = nav.frame(&ctx, &PadIn { cross: false, dt: 0.016, ..Default::default() }, None);
         assert_eq!(pass(&ctx, ev), None);
+    }
+}
+
+#[cfg(test)]
+mod slider_tests {
+    use super::*;
+
+    /// A window like Settings: a choice button, then a slider (with its value box), then a button.
+    fn pass(ctx: &Context, events: Vec<Event>, value: &mut f32) {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(raw, |ui| {
+            egui::Window::new("settings").show(ui.ctx(), |ui| {
+                let _ = ui.add_sized([300.0, 40.0], egui::Button::new("vibration"));
+                ui.spacing_mut().slider_width = 300.0;
+                ui.add(egui::Slider::new(value, 0.0..=100.0).step_by(10.0));
+                let _ = ui.add_sized([300.0, 40.0], egui::Button::new("size"));
+                // A list that scrolls: its scroll bar is no stop.
+                egui::ScrollArea::vertical().max_height(90.0).show(ui, |ui| {
+                    for i in 0..6 {
+                        let _ = ui.add_sized([300.0, 40.0], egui::Button::new(format!("row {i}")));
+                    }
+                });
+            });
+        });
+        out.textures_delta.clear();
+    }
+
+    #[test]
+    fn the_dpad_reaches_a_slider_and_moves_it_and_a_finger_on_it_slides() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        let mut v = 50.0;
+        pass(&ctx, vec![], &mut v);
+        pass(&ctx, vec![], &mut v);
+        let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, None);
+        pass(&ctx, ev, &mut v);
+        // Down from the first button: the slider's rail (egui's rail only drags, never clicks).
+        let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 0.016, ..Default::default() }, None);
+        pass(&ctx, ev, &mut v);
+        let rail = nav.focused().expect("an item");
+        assert!(rail.width() > rail.height() * 3.0, "the ring is on the slider: {rail:?}");
+        // Right: the slider takes it, a step up.
+        for _ in 0..2 {
+            let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Right], dt: 0.016, ..Default::default() }, None);
+            pass(&ctx, ev, &mut v);
+        }
+        assert!(v > 50.0, "right moves the slider: {v}");
+        // From the top, left three times, frames apart (as a pad's taps come): it comes down.
+        v = 100.0;
+        for _ in 0..3 {
+            let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Left], dt: 0.016, ..Default::default() }, None);
+            pass(&ctx, ev, &mut v);
+            for _ in 0..3 {
+                let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, None);
+                pass(&ctx, ev, &mut v);
+            }
+        }
+        assert_eq!(v, 70.0, "three steps left");
+        assert_eq!(nav.focused(), Some(rail), "the ring stays on the slider");
+        // A finger landing on the rail slides it: touch won't flick the window away.
+        assert!(slider_at(&ctx, rail.center()));
+        assert!(!slider_at(&ctx, rail.center() + vec2(0.0, 30.0)), "not on the button below");
+        // The window's resize edges and the list's scroll bar (thin strips that drag) are neither
+        // sliders nor stops.
+        let strips: Vec<Id> = ctx.viewport(|v| {
+            v.prev_pass
+                .widgets
+                .layers()
+                .flat_map(|(_, w)| w.iter())
+                .filter(|r| r.sense.senses_drag() && r.rect.is_positive() && r.rect.width().min(r.rect.height()) < 16.0)
+                .map(|r| r.id)
+                .collect()
+        });
+        assert!(!strips.is_empty(), "the window has thin strips that drag");
+        assert!(items(&ctx).iter().all(|i| !strips.contains(&i.id)));
     }
 }
 
