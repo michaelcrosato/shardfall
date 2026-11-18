@@ -226,7 +226,7 @@ fn controls_page(ui: &mut egui::Ui, device: Device, style: PadStyle, game: bool)
     };
     ui.label(RichText::new(label).size(18.0).strong());
     if device == Device::Touch {
-        for (a, k) in crate::input::game_guide(Device::Touch) {
+        for (a, k) in crate::input::touch_guide() {
             ui.horizontal_wrapped(|ui| {
                 ui.label(RichText::new(a).size(17.0).strong());
                 ui.label(RichText::new(k).size(17.0));

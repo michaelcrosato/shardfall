@@ -5,6 +5,22 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Prompts everywhere: the skills window, room cards, hints in a corner — 2026-11-17
+
+The last sweep of the controls pass, found by looking at the game on each device:
+- **The Skills window** named its slots "Left mouse, Right mouse, Q..." on every device: its
+  slots are now the device's glyphs (□ △ ○ R1 L1 R2 on a pad), as the skill bar's are.
+- **Room cards** (the pavilion) showed key names on a pad: a controller or touch screen sees the
+  pavilion's controls in its own glyphs (`input::room_rows`); the room's own keyboard words stay
+  for keys. The old text tables (`input::guide`, `game_guide`'s key and pad rows) are gone, and
+  with them the line book's unused `controls.keys.*` and `controls.pad.*` lines.
+- **Hints in play** sit in a column in the bottom right corner (the bottom row ran into the
+  potion's label and the experience bar at 960 x 720); the pavilion keeps its row.
+- Checked: the native game on keys (the corner column, the skill bar's keycaps and mouse
+  buttons); the skills window read on a pad (Square, Triangle, Circle, R1, L1, R2); 52in1's
+  harness passes its ten cases and the catalogue checker the package (122 checks, covers taken
+  from the final page).
+
 ## Touch: the blaster fires by itself — 2026-11-17
 
 A follow-up to the controls pass's touch assists ("automate common, low-skill actions...

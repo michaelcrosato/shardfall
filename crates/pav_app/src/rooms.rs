@@ -13,7 +13,7 @@ use pav_core::params;
 use pav_core::room::Device as RoomDevice;
 use pav_view::{CameraParams, CameraRig};
 
-use crate::input::{Device, guide};
+use crate::input::Device;
 
 /// One entry of the teleport menu.
 #[derive(Clone, Debug)]
@@ -140,11 +140,13 @@ impl RoomHud {
                 if primary != last_device {
                     ui.label(RichText::new("(you're using the other device: best-effort mapping)").small().weak());
                 }
-                egui::Grid::new("room_guide").show(ui, |ui| {
-                    if def.controls.is_empty() {
-                        for (a, k) in guide(last_device) {
-                            ui.label(*a);
-                            ui.label(RichText::new(*k).monospace());
+                egui::Grid::new("room_guide").spacing([12.0, 6.0]).show(ui, |ui| {
+                    // The room's own words are written for keys; a controller or a touch screen
+                    // sees the pavilion's controls in its own glyphs.
+                    if def.controls.is_empty() || last_device != Device::KeyboardMouse {
+                        for (glyphs, what) in crate::input::room_rows(last_device) {
+                            crate::menu::glyph_cell(ui, &glyphs, 20.0, pav_ui::controls::current().1);
+                            ui.label(what);
                             ui.end_row();
                         }
                     } else {

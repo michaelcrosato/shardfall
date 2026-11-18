@@ -1807,7 +1807,7 @@ impl App {
                 }
             }
             if !touch_ui && !menu_open {
-                ui::hint_bar(&ctx, &hint_prompts(device, game_frame.is_some()), pad_style);
+                ui::hint_bar(&ctx, &hint_prompts(device, game_frame.is_some()), pad_style, game_frame.is_some());
             }
         });
         self.menu_page = menu_page;

@@ -139,23 +139,32 @@ pub fn crash_banner(root: &mut egui::Ui, msg: &str) {
     });
 }
 
-/// Prompts along the bottom of the screen ("Options Menu   ↓ Inventory..."), drawn as the device's
-/// glyphs.
-pub fn hint_bar(ctx: &egui::Context, prompts: &[pav_ui::glyph::Prompt], style: pav_ui::glyph::PadStyle) {
+/// Prompts as the device's glyphs: along the bottom (the pavilion), or in play a column in the
+/// bottom right corner, clear of the orbs, the skill bar and the experience bar.
+pub fn hint_bar(ctx: &egui::Context, prompts: &[pav_ui::glyph::Prompt], style: pav_ui::glyph::PadStyle, in_play: bool) {
     if prompts.is_empty() {
         return;
     }
     let screen = ctx.content_rect();
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::new("hints")));
-    pav_ui::glyph::row(
-        &p,
-        screen.center_bottom() - egui::vec2(0.0, 14.0),
-        egui::Align2::CENTER_BOTTOM,
-        prompts,
-        18.0,
-        style,
-        Color32::from_white_alpha(215),
-    );
+    let color = Color32::from_white_alpha(215);
+    if in_play {
+        let h = 18.0;
+        for (i, prompt) in prompts.iter().rev().enumerate() {
+            let at = screen.right_bottom() - egui::vec2(14.0, 14.0 + i as f32 * (h + 8.0));
+            pav_ui::glyph::row(&p, at, egui::Align2::RIGHT_BOTTOM, std::slice::from_ref(prompt), h, style, color);
+        }
+    } else {
+        pav_ui::glyph::row(
+            &p,
+            screen.center_bottom() - egui::vec2(0.0, 14.0),
+            egui::Align2::CENTER_BOTTOM,
+            prompts,
+            18.0,
+            style,
+            color,
+        );
+    }
 }
 
 /// The controls, bottom left, for the first seconds: the device's own glyphs.
