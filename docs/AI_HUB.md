@@ -226,7 +226,7 @@ the game's asks for the microphone and the speaker before and after 52in1 allows
 ```bash
 git clone -q --filter=blob:none --no-checkout --depth 1 https://github.com/michaelcrosato/52in1.git target/hubtest/52in1
 cd target/hubtest/52in1 && git sparse-checkout init --no-cone
-printf '/lib/\n/assets/\n/cloudflare/\n/scripts/*.mjs\n/scripts/lib/\n/*.html\n/*.json\n/*.js\n' > .git/info/sparse-checkout
+printf '/lib/\n/assets/\n/cloudflare/\n/scripts/*.mjs\n/scripts/lib/\n/*.html\n/*.json\n/*.js\n/session/\n/world/\n/friends/\n/game-night/\n/couch/\n' > .git/info/sparse-checkout
 git checkout -q main && mkdir -p data games covers/shardfall
 ```
 
@@ -234,6 +234,17 @@ then write `data/games.json` with Shardfall's entry from `https://52in1.com/data
 (`path` and its build's `path` set to `/games/shardfall-v3.html`), copy the page there, install
 Node's Playwright 1.63 in a folder of its own, and from that folder run `node
 .../scripts/hub_live.mjs target/hubtest/52in1 OUT_DIR` (OUT_DIR/hub_live.json).
+
+Real sessions: `scripts/hub_session.mjs` (same checkout and folder) plays one round of each mode
+the page declares through the hub's own session page, lobby, card, round coordinator, bridge and
+results, with two players: two tabs on the local transport, and two browser contexts over the
+real WebRTC mesh (`--relay=co-op,ghost`, the script standing in for the night's relay). It
+records what each copy saw, the game traffic between them and the hub's standings
+(`OUT_DIR/hub_session.json`). Two things it found about the hub, not the game: a seat whose only
+WebGPU adapter is a fallback one (SwiftShader, headless) is dealt no `hub:webgpu required` game,
+so the script tells the hub page its adapter is real; and the live wall's entry for Shardfall
+carries no `multiplayer` or `moments` fields, so the live hub deals only shared-world co-op until
+it scans a new page's `hub:*` tags (the script serves the entry as a scan would write it).
 
 ## The package
 `scripts/hub-package.sh --model NAME --effort LEVEL` builds the page, puts it in

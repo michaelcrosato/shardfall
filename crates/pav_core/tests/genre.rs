@@ -116,6 +116,25 @@ fn guards_spot_you_in_plain_sight_but_not_behind_walls_or_low() {
 }
 
 #[test]
+fn a_foe_in_reach_is_known_only_near_the_shooters_enemies() {
+    // Touch's auto-fire waits for a foe in reach: none at the bullet hell's door, some once the
+    // player stands among its drones, none in a room without enemies.
+    let mut sim = Sim::new("world", 1).unwrap();
+    assert!(sim.teleport_to_room("bullet_hell"));
+    sim.run(30, &InputFrame::default());
+    let foes: Vec<glam::Vec3> = sim.state.entities.iter().filter(|e| e.health.is_some()).map(|e| e.pos).collect();
+    assert!(!foes.is_empty(), "bullet hell has shootable foes");
+    let me = sim.player().unwrap().pos;
+    let nearest = foes.iter().map(|f| (*f - me).length()).fold(f32::MAX, f32::min);
+    assert_eq!(sim.foe_near(pav_core::sim::FOE_REACH), nearest <= pav_core::sim::FOE_REACH);
+    assert!(sim.foe_near(nearest + 0.5), "a foe at {nearest} m is in a reach just past it");
+    assert!(!sim.foe_near(nearest - 0.5), "and not in one just short of it");
+    assert!(sim.teleport_to_room("stealth"));
+    sim.run(30, &InputFrame::default());
+    assert!(!sim.foe_near(1000.0), "no shootable foes in the stealth room");
+}
+
+#[test]
 fn the_boss_bar_only_shows_in_the_bosses_room() {
     let mut sim = Sim::new("world", 1).unwrap();
     assert!(sim.teleport_to_room("bullet_hell"));

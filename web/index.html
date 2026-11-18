@@ -276,6 +276,11 @@
         }
         try {
           mic.stream = stream;
+          // A microphone that goes away (a DualSense unplugged) ends its track: let it go, and
+          // the game's next frame asks again (the device's own microphone, now).
+          for (const tr of stream.getAudioTracks()) {
+            tr.addEventListener('ended', () => { if (mic.stream === stream) micStop(); });
+          }
           mic.src = ctx.createMediaStreamSource(stream);
           mic.an = ctx.createAnalyser();
           mic.an.fftSize = 32768;
@@ -385,7 +390,8 @@
         bridge.settingsChanged = true;
         // The microphone taken back: its stream goes at once. One 52in1 didn't give (null) is
         // asked for again once the player's settings change.
-        if (!window.AIHubSettings.mic) {
+        const ended = mic.stream && mic.stream.getAudioTracks().every((tr) => tr.readyState === 'ended');
+        if (!window.AIHubSettings.mic || ended) {
           if (mic.want) micStop();
         } else if (mic.want && !mic.stream && !mic.asking) {
           mic.want = false;

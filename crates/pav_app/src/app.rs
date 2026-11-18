@@ -1097,11 +1097,14 @@ impl App {
         if crate::hub::settings_changed() {
             self.hub_settings = crate::hub::settings();
         }
-        // Shout to roar (voice.rs): the page listens while it is on, and what it heard is taken
-        // every frame (a shout while the player can't play goes unused).
+        // Shout to roar (voice.rs): the page listens while it is on and the player is in
+        // Shardfall with a hero (the plaza, the studios and the pavilion's rooms keep the
+        // microphone closed), and what it heard is taken every frame (a shout while the player
+        // can't play goes unused).
         let shouted = {
             let (hub, pref) = (self.hub_settings.as_ref(), self.prefs.shout_roar);
-            crate::voice::take_shout(crate::voice::on(hub, pref)) && crate::voice::listening(hub, pref)
+            let in_game = self.game_frame.as_ref().is_some_and(|g| g.hero.is_some());
+            crate::voice::take_shout(crate::voice::on(hub, pref) && in_game) && crate::voice::listening(hub, pref)
         };
         // Devices.
         let extra = crate::pad_fx::read_extra();
@@ -1317,10 +1320,16 @@ impl App {
         if game_input {
             held |= intent.held;
             pressed |= intent.pressed;
-            // A touch screen's assist in a shooter (the blaster rooms): it fires by itself while
-            // the thumb steers, as auto-attack does in Shardfall (Settings' auto-attack).
+            // A touch screen's assist in a shooter (the blaster rooms): it fires by itself at the
+            // foes in reach while the thumb steers, as auto-attack does in Shardfall (Settings'
+            // auto-attack); with none near it holds fire.
             let blaster = self.sim_config.bombs.weapon == pav_core::character::Weapon::Blaster;
-            if self.input.last_device == Device::Touch && blaster && curr.game.is_none() && self.prefs.auto_attack {
+            if self.input.last_device == Device::Touch
+                && blaster
+                && curr.game.is_none()
+                && self.prefs.auto_attack
+                && curr.hud.foe_near
+            {
                 held |= pav_core::input::buttons::USE;
             }
         }
@@ -1650,8 +1659,13 @@ impl App {
         }
         let toast = self.toast.as_ref().filter(|(_, t)| t.elapsed().as_secs_f32() < 3.0).map(|(m, _)| m.clone());
         let card_visible = !studio_active && self.hud.card_visible();
-        let guide_visible =
-            !studio_active && self.app_settings.show_guide && self.started.elapsed().as_secs_f32() < 25.0 && !card_visible;
+        // (Not in a 52in1 round: the hub's card has said how to play, and a moment's fresh page
+        // lasts about as long as the guide would, covering the life orb throughout.)
+        let guide_visible = !studio_active
+            && self.app_settings.show_guide
+            && self.round.is_none()
+            && self.started.elapsed().as_secs_f32() < 25.0
+            && !card_visible;
         let device = self.input.last_device;
         let touch_ui = device == Device::Touch;
         pav_ui::controls::set_current(device, self.prefs.pad_style);

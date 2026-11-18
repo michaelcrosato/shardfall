@@ -5,6 +5,45 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Shout to roar, auto-fire at foes, and Shardfall in real 52in1 sessions — 2026-11-17
+
+The standard's last open items, built by a workflow (a mic implementer in a worktree with two
+reviewers, and a session tester: 4 agents, about 0.9M subagent tokens), then fixed and checked:
+- **The microphone, offered through 52in1's permission** (`pav_app::voice`, the page's
+  `shardfallHub.shout`): Shout to roar. While 52in1 allows the microphone (`mic`) and the
+  setting is on (its default then), a loud shout (RMS 0.15 for 0.12 s, then 1.5 s of rest) casts
+  War Cry when it is on the bar and can be cast; the bar's button works as ever. Settings shows
+  the row in 52in1 only: greyed with a line saying where 52in1 allows the microphone, or (with
+  `micLater`) to open the game again; muted, it says so and hears nothing. The page asks
+  `openMicrophone()` (never `getUserMedia`), only in a Shardfall scene with a hero (review fix:
+  it opened on the plaza too), stops the tracks when off, and asks again when a microphone goes
+  away (a DualSense unplugged; review fix). A shout presses War Cry again each frame for up to
+  0.7 s until it goes off (review fix: one frame was lost mid-swing), and Blood Magic heroes
+  (no mana) roar too (review fix). `hub:dualsense` adds `microphone`.
+- **Auto-fire at foes** (touch, the blaster rooms): the blaster fires by itself only while
+  something shootable is within 16 m (`Sim::foe_near`, `HudFrame::foe_near`); none near, it
+  holds fire (it fired all the time before).
+- **No controls guide in a 52in1 round:** the 25 s guide covered the life orb for most of a
+  moment (each moment is a fresh page); the hub's card has said how to play.
+- **Real 52in1 sessions** (`scripts/hub_session.mjs`, `docs/AI_HUB.md` "Testing"): two players
+  through the hub's own session page, lobby, card, round coordinator, bridge and results. On the
+  final build every round played to "finished", both copies loaded, each saw its mode, no errors:
+  parallel, ghost (430/441 messages), shared-world co-op (478/469), versus (479/478) and moments
+  on the local transport, and co-op (475/476) and ghost (425/422) over the real WebRTC mesh.
+  Moments: the session bot (0.3-4 frames a second here) missed them, but the game's own bot
+  clears champion, swarm and pack on seeds 1-3 without dying (`autoplay`).
+- **Checked live:** in 52in1's own hub (`hub_live.mjs`) the frame has no microphone until it is
+  allowed, the game asks nothing before, and once allowed asks `openMicrophone` once (and the
+  speaker once); `pad_check.py --dualsense` (Kestrel, War Cry on her fifth button, L1): 49 bursts, 48 shouts heard,
+  3 War Cries (the cooldown holds the rest), one `openMicrophone`, no `getUserMedia`, 259 gyro
+  reads, the level and potion cues from the speaker. `touch_check.py`, upright and sideways: the
+  "Playing by touch" card swiped away, two thumbs at once, the bag fitted and flicked away; in
+  the Proving Grounds one tap and 50 s hands-off took the hero from level 2 to 3 through two
+  waves (auto-attack). The touch use button by Hilda ("Trade") upright and sideways (`ui`).
+  Tests of pav_core, pav_ui, pav_app, pav_tools: 487 passed; clippy native and wasm32.
+- Not testable here: a physical DualSense (the gyro's feel, the speaker cues' sound, a real
+  shout's loudness against the threshold) and real iOS Safari.
+
 ## Gears, the DualSense's motion and speaker, screens for the sofa, and 52in1's own hub — 2026-11-17
 
 The controls standard's last named items, built by a workflow (three implementers in their own

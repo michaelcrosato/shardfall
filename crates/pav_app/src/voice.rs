@@ -30,6 +30,9 @@ const SLOT_BUTTONS: [u32; 6] =
 
 /// How long a shout's press waits to see War Cry go off (its cooldown start), in seconds.
 const WAIT: f32 = 1.5;
+/// For this long after a shout War Cry's button is pressed again each frame until it goes off:
+/// a swing already under way takes a press only near its end.
+const REPRESS: f32 = 0.7;
 
 /// What the player's 52in1 settings say of the microphone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,7 +72,10 @@ pub fn roar_slot(hero: &HeroHud) -> Option<usize> {
     }
     let slot = hero.slots.iter().take(SLOT_BUTTONS.len()).position(|s| s.key == SKILL)?;
     let s = &hero.slots[slot];
-    (s.cooldown <= 0.0 && s.affordable).then_some(slot)
+    // (Blood Magic has no mana, `mana_max` 0, and pays in life: the bar's "affordable" reads
+    // mana, so it would say no where the button casts.)
+    let affordable = s.affordable || hero.mana_max <= 0.0;
+    (s.cooldown <= 0.0 && affordable).then_some(slot)
 }
 
 /// Shout to roar between frames: a shout's press, waiting to see War Cry go off.
@@ -81,19 +87,26 @@ pub struct Roar {
 
 impl Roar {
     /// One frame: `shout` (a shout heard while the player can play), the hero's HUD and the
-    /// frame's seconds. Returns the button to press this frame (0 for none, else War Cry's slot's,
-    /// for this frame only) and whether War Cry went off after the last press (the HUD's
-    /// "Roar!").
+    /// frame's seconds. Returns the button to press this frame (0 for none, else War Cry's
+    /// slot's: on the shout's frame, and again each frame for `REPRESS` seconds while it can
+    /// still be cast and hasn't gone off) and whether War Cry went off after the last press
+    /// (the HUD's "Roar!").
     pub fn step(&mut self, shout: bool, hero: Option<&HeroHud>, secs: f32) -> (u32, bool) {
         let mut roared = false;
+        let mut press = 0;
         if let Some((slot, left)) = self.pressed.take() {
             match hero.and_then(|h| h.slots.get(slot)).filter(|s| s.key == SKILL) {
                 Some(s) if s.cooldown > 0.0 => roared = true,
-                Some(_) if left > secs => self.pressed = Some((slot, left - secs)),
+                Some(_) if left > secs => {
+                    let left = left - secs;
+                    self.pressed = Some((slot, left));
+                    if WAIT - left < REPRESS && hero.and_then(roar_slot) == Some(slot) {
+                        press = SLOT_BUTTONS[slot];
+                    }
+                }
                 _ => {}
             }
         }
-        let mut press = 0;
         if shout && self.pressed.is_none() {
             if let Some(slot) = hero.and_then(roar_slot) {
                 press = SLOT_BUTTONS[slot];
@@ -181,7 +194,7 @@ mod tests {
     }
 
     fn hero(slots: Vec<SlotHud>) -> HeroHud {
-        HeroHud { slots, ..Default::default() }
+        HeroHud { slots, mana_max: 50.0, ..Default::default() }
     }
 
     #[test]
@@ -217,11 +230,12 @@ mod tests {
         let mut r = Roar::default();
         // No shout: nothing.
         assert_eq!(r.step(false, Some(&h), 0.016), (0, false));
-        // A shout: War Cry's button (the fifth: SKILL5), for this frame only.
+        // A shout: War Cry's button (the fifth: SKILL5), and again each frame while a swing under
+        // way keeps it from going off.
         assert_eq!(r.step(true, Some(&h), 0.016), (buttons::SKILL5, false));
-        assert_eq!(r.step(false, Some(&h), 0.016), (0, false));
-        // Another shout while the first waits: no second press.
-        assert_eq!(r.step(true, Some(&h), 0.016), (0, false));
+        assert_eq!(r.step(false, Some(&h), 0.016), (buttons::SKILL5, false));
+        // Another shout while the first waits: the same press, not a second one.
+        assert_eq!(r.step(true, Some(&h), 0.016), (buttons::SKILL5, false));
         // War Cry's cooldown starts: it went off.
         h.slots[4].cooldown = 12.0;
         assert_eq!(r.step(false, Some(&h), 0.016), (0, true));
@@ -230,16 +244,31 @@ mod tests {
         assert_eq!(r.step(true, Some(&h), 0.016), (0, false));
         assert_eq!(r, Roar::default());
 
-        // A press that War Cry doesn't answer (a stagger, a freeze) is given up after WAIT.
+        // A press that War Cry doesn't answer (a stagger, a freeze): pressed again for REPRESS
+        // seconds, then left alone (the player's own buttons win again), given up after WAIT.
         h.slots[4].cooldown = 0.0;
         assert_eq!(r.step(true, Some(&h), 0.1).0, buttons::SKILL5);
-        let mut frames = 0;
+        let (mut frames, mut presses) = (0, 0);
         while r != Roar::default() {
-            assert_eq!(r.step(false, Some(&h), 0.1), (0, false));
+            let (b, roared) = r.step(false, Some(&h), 0.1);
+            assert!(!roared);
+            presses += (b != 0) as u32;
             frames += 1;
             assert!(frames < 100);
         }
         assert!(frames as f32 * 0.1 >= WAIT - 0.11, "{frames}");
+        assert!((5..=7).contains(&presses), "pressed again for REPRESS only: {presses}");
+        // It can't be cast any more (mana spent): no more presses.
+        h.slots[4].affordable = false;
+        h.mana_max = 50.0;
+        assert_eq!(r.step(true, Some(&h), 0.1).0, 0);
+        h.slots[4].affordable = true;
+        // Blood Magic (no mana, pays in life): the button casts, so a shout does.
+        h.slots[4].affordable = false;
+        h.mana_max = 0.0;
+        assert_eq!(roar_slot(&h), Some(4));
+        h.slots[4].affordable = true;
+        let mut r = Roar::default();
         // Then a shout presses again.
         assert_eq!(r.step(true, Some(&h), 0.1).0, buttons::SKILL5);
 

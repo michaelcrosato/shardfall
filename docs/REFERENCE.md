@@ -361,7 +361,7 @@ appears when something is in reach; top right: menu and bag. Swipe messages, ban
 minimap away; tap the minimap for the big map; tap the game outside a window, or flick a
 window sideways, to close it. Upright or sideways: the camera keeps its field of view across a
 tall screen; item grids (bag, stash, the smith's wares) size their cells to a phone's width. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
-it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself; at
+it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself while a foe is in reach (`Sim::foe_near`); at
 the wheel of a car the throttle stays full while steering (a pad drives with R2 as an analog
 throttle and L2 as the brake; on every device the car's gearbox shifts by itself). Mouse: a place's use prompt (the
 smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays

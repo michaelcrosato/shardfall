@@ -117,6 +117,17 @@ await context.addInitScript(() => {
     const gum = md.getUserMedia.bind(md);
     md.getUserMedia = (c) => { window.__micAsks++; return gum(c); };
   }
+  // The game's asks through 52in1 (the companion's own getUserMedia runs under openMicrophone,
+  // so __micAsks counts it too): wrapped as soon as the companion has made AIHubSettings.
+  window.__openMic = 0; window.__speakerAsks = 0;
+  const wrap = setInterval(() => {
+    const h = window.AIHubSettings;
+    if (!h) return;
+    clearInterval(wrap);
+    if (h.openMicrophone) { const f = h.openMicrophone.bind(h); h.openMicrophone = () => { window.__openMic++; return f(); }; }
+    const d = h.dualsense;
+    if (d && d.openSpeaker) { const f = d.openSpeaker.bind(d); d.openSpeaker = (c) => { window.__speakerAsks++; return f(c); }; }
+  }, 2);
 });
 
 const result = { errors: [] };
@@ -210,7 +221,7 @@ try {
   await game.evaluate(() => window.__pad.set({ 17: 0 }));
   await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(OUT, '4-touchpad-map.png') });
-  result.mic_asks_before_allowed = await game.evaluate(() => window.__micAsks);
+  result.mic_asks_before_allowed = await game.evaluate(() => ({ getUserMedia: window.__micAsks, openMicrophone: window.__openMic }));
 
   // 7a. Leaving: trigger let go, light given back.
   const kept = await page.evaluate(() => window.__reports.length);
@@ -240,13 +251,6 @@ try {
   await page.waitForTimeout(3000);
   game = await gameFrame();
   await game.evaluate(() => window.__pad.set({}));
-  // Count the game's own asks for the microphone and the controller's speaker.
-  await game.evaluate(() => {
-    window.__speakerAsks = 0; window.__openMic = 0;
-    const h = window.AIHubSettings;
-    if (h.dualsense && h.dualsense.openSpeaker) { const f = h.dualsense.openSpeaker.bind(h.dualsense); h.dualsense.openSpeaker = (c) => { window.__speakerAsks++; return f(c); }; }
-    if (h.openMicrophone) { const f = h.openMicrophone.bind(h); h.openMicrophone = () => { window.__openMic++; return f(); }; }
-  });
   for (let i = 0; i < 6; i++) {
     await game.evaluate(() => window.__pad.stick(0, -0.5));
     await page.waitForTimeout(1000);

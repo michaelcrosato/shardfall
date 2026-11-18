@@ -249,6 +249,8 @@ pub struct HudFrame {
     pub view_serial: u64,
     /// Boss health bar: name and remaining fraction.
     pub boss: Option<(String, f32)>,
+    /// Something shootable stands within a shooter's reach of the player (`Sim::foe_near`).
+    pub foe_near: bool,
     /// The last pad with a note the player stepped on: label, note, tick.
     pub pad_note: Option<(String, String, u64)>,
     /// A `games` game's HUD lines (`Game::hud`).
