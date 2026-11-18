@@ -292,7 +292,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "hero",
-        help: "Change the hero: play as another character (character=KEY: game/heroes.toml; each keeps their own hero, the stash is shared), level, gold, xp to add, a skill on a bar slot (slot=0..5 skill=key), full heal.",
+        help: "Change the hero: another character (character=KEY: game/heroes.toml; each has their own hero, a shared stash), level, gold, xp to add, a bar skill (slot=0..5 skill=key), full heal.",
         args: &[
             arg("character", "string", "play as this character (wanderer, kestrel, ysolde...)"),
             arg("level", "integer", "set the level"),
@@ -405,6 +405,7 @@ pub static TOOLS: &[Tool] = &[
             arg("device", "string", "mouse | pad | touch"),
             arg("hover", "array", "pointer at [x, y] (tooltips)"),
             arg("click", "array", "press at [x, y]; its commands run"),
+            arg("tree_zoom", "number", "tree zoom × its opening view (0: all out)"),
             arg("width", "integer", "default 1280"),
             arg("height", "integer", "default 720"),
             arg("image", "boolean", "draw it over a capture"),
@@ -414,7 +415,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "tree_map",
-        help: "Draw the passive tree (and the first Astral rings) to a PNG: sectors coloured, notables/keystones/masteries ringed, skill nodes blue-ringed, the hero's allocation highlighted.",
+        help: "Draw the passive tree (and the first Astral rings) to a PNG: sectors coloured, notables, keystones and masteries ringed, the hero's allocation highlighted.",
         args: &[
             arg("size", "integer", "image size in pixels (default 1200)"),
             arg("rings", "integer", "Astral rings to include (default 2)"),
@@ -844,7 +845,7 @@ pub static TOOLS: &[Tool] = &[
     // ---- agent tools for building and judging content (agent_tools.rs)
     Tool {
         name: "see",
-        help: "Screenshot with numbered marks on what matters (monsters, hero, townsfolk, loot, spots, level pieces; characters and named objects outside the game) plus a legend: what each number is, its kind, name, rarity, life, distance, world position.",
+        help: "Screenshot with numbered marks on what matters (monsters, hero, townsfolk, loot, spots, level pieces; named objects outside the game) and a legend: each mark's kind, name, rarity, life, distance, position.",
         args: &[
             arg("width", "integer", "default 1280"),
             arg("height", "integer", "default 720"),
@@ -860,7 +861,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "campaign",
-        help: "Balance pass: the bot plays down through the levels (from= a depth, to= the last) for up to seconds= of game time and reports each finished level: minutes, kills, deaths, damage taken, hero level in/out, gold.",
+        help: "Balance pass: the bot plays down the levels (from= a depth, to= the last) for up to seconds= of game time, reporting each level: minutes, kills, deaths, damage taken, hero level in/out, gold.",
         args: &[
             arg("from", "integer", "start at this depth (default: where the hero is)"),
             arg("to", "integer", "stop after this depth (default 12)"),
@@ -878,7 +879,7 @@ pub static TOOLS: &[Tool] = &[
     },
     Tool {
         name: "look",
-        help: "Looks and filter presets (Look & Filters): name= a whole look, section= with preset= / on= / enabled=, reset=true, compare=0.5 (filters on the right only). bench=all or a list of looks renders each. No args lists them.",
+        help: "Looks and filter presets: name= a whole look, section= with preset= / on= / enabled=, reset=true, compare=0.5 (filters on the right only). bench=all or a list of looks renders each. No args lists them.",
         args: &[
             arg("name", "string", "a whole look (e.g. Pixel heroes, HD-2D, Game Boy world)"),
             arg("section", "string", "pixel, shading, outlines, palette, grading, scanlines, grain, screen, glow"),

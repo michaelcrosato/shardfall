@@ -101,7 +101,8 @@ fn the_field_guide_and_tool_list_stay_compact() {
     // `capture ui=` (the game UI) by trimming game_cmd, turntable, look, anim_preview, anim_edit,
     // clip_import, mocap, creature_edit and animsheet help. `lines` (AI Hub Languages) by trimming
     // clip_import, clips, creature_edit, creature_preview, anim_edit, anim_preview, look, mocap,
-    // asset_import and animsheet help.
+    // asset_import and animsheet help. `ui tree_zoom=` by trimming hero, see, campaign,
+    // look and tree_map help.
     assert!(chars <= 48_000, "tools/list is {chars} chars");
     let tools = list["tools"].as_array().unwrap();
     let edit = tools.iter().find(|t| t["name"] == "asset_edit").unwrap();

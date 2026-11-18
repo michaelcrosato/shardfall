@@ -167,7 +167,7 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 # Settings in 52in1: Shout to roar, the game's voice feature (any controller, or keys: the
 # microphone is the DualSense's or the device's own).
 "settings.roar" = "Shout to roar"
-"settings.roar.about" = "A loud shout into the microphone casts {skill}, while it is on your skill bar and ready."
+"settings.roar.about" = "Hold a loud shout into the microphone for about half a second: it casts {skill}, while it is on your skill bar and ready."
 "settings.roar.hub_off" = "To shout to roar, allow games the microphone in 52in1's Settings, under Sound."
 "settings.roar.hub_later" = "Allowed after Shardfall opened: open it again to use the microphone."
 "settings.roar.muted" = "The microphone is muted: the controller's mute button turns it back on."

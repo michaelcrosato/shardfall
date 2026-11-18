@@ -13,7 +13,8 @@ Upright (390x844), then sideways (844x390), in Emberwatch:
 2. two fingers at once: the left thumb pushes the stick up while the right one holds a skill
    (both show pressed: the stick's ring and the skill's button);
 3. the bag button: the bag opens, fitted to the screen;
-4. a quick sideways flick across the bag: it goes away.
+4. a quick sideways flick across the bag: it goes away;
+5. the pause button: the pause menu opens; a flick across it closes it (menus swipe away too).
 Then, sideways in the Proving Grounds: one tap to say it's a touch screen, and no more input
 for a while: auto-attack (Settings, on by default on touch) fights the waves by itself; the
 kills on the HUD show it.
@@ -30,9 +31,9 @@ FLAGS = ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-vulkan=swi
 # Where the controls sit in each orientation (centres, in CSS pixels), from the `ui` tool.
 LAYOUTS = {
     "upright": {"size": (390, 844), "bag": (311, 33), "skill": (193, 723), "stick": (70, 640), "bag_body": (110, 560),
-                "card": (150, 400)},
+                "card": (150, 400), "menu": (357, 33), "menu_body": (110, 420)},
     "sideways": {"size": (844, 390), "bag": (765, 33), "skill": (647, 269), "stick": (110, 300), "bag_body": (560, 300),
-                 "card": (380, 150)},
+                 "card": (380, 150), "menu": (811, 33), "menu_body": (330, 200)},
 }
 
 
@@ -90,6 +91,20 @@ async def run(browser, page_url, out, name, lay):
     )
     await p.wait_for_timeout(4000)
     await p.screenshot(path=str(out / f"{name}-4-flicked.png"))
+    # The pause menu: its button, then a flick across it.
+    await gesture(cdp, event("touchStart", [(11, lay["menu"])]), event("touchEnd", []))
+    await p.wait_for_timeout(4000)
+    await p.screenshot(path=str(out / f"{name}-5-menu.png"))
+    mx, my = lay["menu_body"]
+    await gesture(
+        cdp,
+        event("touchStart", [(12, (mx, my))]),
+        event("touchMove", [(12, (mx + 90, my + 3))]),
+        event("touchMove", [(12, (mx + 190, my + 6))]),
+        event("touchEnd", []),
+    )
+    await p.wait_for_timeout(4000)
+    await p.screenshot(path=str(out / f"{name}-6-menu-flicked.png"))
     print(name, "page errors:", errors[:3] if errors else "none")
     await ctx.close()
 

@@ -193,8 +193,8 @@ contract. This is an authoring/preview stage; gameplay spawning of these rigs is
   input frame, so replays include it). The game UI: `ui` reads what the player sees as text
   (the HUD, each open window by title, touch controls with their rects); `ui open=inventory,tree`
   / `close=all`, `device=touch width=844 height=390` (a phone), `hover=[x,y]` (a tooltip),
-  `click=[x,y]` (presses what is there; its commands run) and `image=true` (the game with the UI
-  over it). `capture` draws the UI too when a game runs (`ui=false` leaves it out); the windows
+  `click=[x,y]` (presses what is there; its commands run), `tree_zoom=0.5` (the passive tree at
+  half its opening zoom; 0 all the way out) and `image=true` (the game with the UI over it). `capture` draws the UI too when a game runs (`ui=false` leaves it out); the windows
   `ui` opened stay open for later captures. `tree find=fire`, `tree take=Unbowed` (allocates the
   path), `tree_map` (PNG of the generated passive tree), `genome seed=7 parts=wings,horns`
   (grow a creature), `turntable seed=7` / `family=` / `boss=` (render it from all sides),
@@ -328,7 +328,13 @@ The hero's screens read at ten feet, the same on every device. The passive tree 
 (the start and the sectors' first levels fill the canvas; the Astral rings wait past its edges
 until the player zooms out; Centre brings the fitted view back), with the points to spend big
 and framed in gold; its search field and the shapes' legend are the mouse's (a pad's docked card
-and a finger's panel name a node's kind). The Skills window is six big rows (the button's glyph,
+and a finger's panel name a node's kind). Zoomed out past the opening view it has a level of
+detail (`arpg_tree::detail`): the start, notables, keystones, masteries, skill upgrades, the
+Astral stars, the path taken, what can be taken now, search hits and the node under the pointer
+keep full strength; ordinary minor nodes and their links fade smoothly (main-tree minors to faint
+dots, the Astral rings' to nothing, their stars outlining them) and the sector names move out
+over their sectors. The D-pad snaps only to nodes drawn at least 2 points in radius and at half
+strength or more (`Look::selectable`); the pointer still names any node under it. The Skills window is six big rows (the button's glyph,
 the skill's picture, name, mana and what it does on one line); pressing a row opens a chooser of
 every hero skill as cards (one not learned yet greyed with its level, another button's skill
 marked with that button's glyph, since choosing it swaps the two; a pad reads the ringed card in
@@ -368,8 +374,8 @@ smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_che
 the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
 doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the
 touchpad, motion aim (gyro reads), the speaker's cues, Shout to roar as Kestrel with a stand-in
-microphone: openMicrophone asks, shouts heard, War Cries cast, getUserMedia never); `scripts/touch_check.py` drives it with real touch events on an
-emulated phone, upright and sideways (two thumbs at once, the bag, a flick that closes it).
+microphone: openMicrophone asks, shouts heard, War Cries cast, getUserMedia only to reopen 52in1's device with gain control off); `scripts/touch_check.py` drives it with real touch events on an
+emulated phone, upright and sideways (the touch card swiped away, two thumbs at once, the bag and the pause menu each flicked closed, auto-attack fighting hands-off).
 Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,

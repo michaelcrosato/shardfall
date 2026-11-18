@@ -26,6 +26,138 @@
 </head>
 <body>
 <div id="msg" role="status" aria-live="polite"></div>
+<script id="shout-detector">
+  // Shout to roar's ear: arithmetic on samples, no audio and no page (the bridge below feeds it
+  // what the microphone hears; scripts/shout_check.mjs runs it in Node on made-up sounds). It
+  // weighs BLOCK-second blocks: their power (RMS squared, of 1) and how voiced they are (how well
+  // a block repeats itself at a pitch period of 2-14 ms, 0 to 1: a vowel or a note does, noise
+  // doesn't).
+  // - A shout is HOLD seconds of blocks in a row that are loud, voiced (VOICED or more) and
+  //   steady (none under STEADY times the loudest, in RMS): a held vowel, where a clap or a
+  //   syllable of talk is shorter, a cough falls away, a laugh comes in "ha"s and a breath is
+  //   noise. It counts if REST seconds have passed since the last one; the first WARM seconds
+  //   only listen, and while muted (the DualSense's mute button) nothing counts or is learned.
+  // - Loud: over the bar, FLOOR RMS (a shout into any microphone is louder; a quiet room or the
+  //   game's sound through the speakers isn't) or RATIO times the RANK quantile of either of
+  //   two rings, if that is more:
+  //   - now: every block of the NOW seconds before the last HOLD. Sound that goes on (music, a
+  //     louder voice) raises the bar within a second; a shout can't raise its own.
+  //   - talk: the last TALK seconds of voice: voiced blocks OVER times the QUIET quantile of
+  //     "now" or more (over the room, a hum, a steady music bed), but those of a stretch held
+  //     over the bar it began at for HOLD (a shout, an "aaah", a note as music starts) and HOLD
+  //     either side of one. Silence, noise and a steady background don't move it, so a pause,
+  //     however long, leaves it where the talk left it (a radio, voiced and with gaps, counts as
+  //     voice: over one, a pause longer than TALK can), and a shout doesn't raise the bar for
+  //     the next.
+  //   (`tune` overrides any of these, for checks.)
+  window.shoutDetector = (rate, tune = {}) => {
+    const { BLOCK = 0.02, HOLD = 0.25, VOICED = 0.5, STEADY = 0.5, REST = 1.5, WARM = 1.5 } = tune;
+    const { FLOOR = 0.05, RATIO = 1.6, RANK = 0.9, NOW = 3, TALK = 15, QUIET = 0.1, OVER = 3 } = tune;
+    const size = Math.max(1, Math.round(BLOCK * rate)), dt = size / rate;
+    const blocks = (seconds) => Math.max(1, Math.round(seconds / dt));
+    const hold = blocks(HOLD), warm = blocks(WARM);
+    // The block's samples, summed in threes or so (16 kHz), and how voiced they are: the best
+    // correlation of the block (less its mean: a microphone's offset isn't a pitch; `e`, its
+    // running energy) with itself shifted by a pitch period (70-500 Hz).
+    const skip = Math.max(1, Math.round(rate / 16000)), m = Math.floor(size / skip), x = new Float64Array(m);
+    const lag0 = Math.round(rate / skip / 500), lag1 = Math.min(m - 8, Math.round(rate / skip / 70));
+    const e = new Float64Array(m + 1);
+    const voicing = () => {
+      let mean = 0;
+      for (let i = 0; i < m; i++) mean += x[i] / m;
+      for (let i = 0; i < m; i++) {
+        x[i] -= mean;
+        e[i + 1] = e[i] + x[i] * x[i];
+      }
+      let best = 0;
+      for (let lag = lag0; lag <= lag1; lag++) {
+        let xy = 0;
+        for (let i = 0; i + lag < m; i++) xy += x[i] * x[i + lag];
+        const xx = e[m - lag], yy = e[m] - e[lag];
+        if (xy > 0 && xy * xy > best * best * xx * yy) best = xy / Math.sqrt(xx * yy);
+      }
+      return best;
+    };
+    // The last 2 HOLD of blocks (power, voicing, whether it is out of the talk ring), newest
+    // at `at - 1`; the rings, each with its quantile.
+    const D = 2 * hold, power = new Float64Array(D), voiced = new Float64Array(D), out = new Uint8Array(D);
+    const ring = (n) => ({ v: new Float64Array(n), sorted: new Float64Array(n), at: 0, len: 0, q: 0, quiet: 0 });
+    const now = ring(blocks(NOW)), talk = ring(blocks(TALK));
+    const learn = (r, p) => {
+      r.v[r.at] = p;
+      r.at = (r.at + 1) % r.v.length;
+      r.len = Math.min(r.len + 1, r.v.length);
+      const v = r.sorted.subarray(0, r.len);
+      v.set(r.v.subarray(0, r.len));
+      v.sort();
+      r.q = v[Math.floor(RANK * r.len)];
+      r.quiet = v[Math.floor(QUIET * r.len)];
+    };
+    const s = { acc: 0, n: 0, seen: 0, at: 0, run: 0, over: 0, ref: 0, mark: 0, until: -Infinity };
+    const bar = () => Math.max(FLOOR * FLOOR, RATIO * RATIO * Math.max(now.q, talk.q));
+    const back = (k) => (s.at - 1 - k + D) % D;
+    // One block's power p, ending at time t: whether a shout counts with it.
+    const step = (p, t, muted) => {
+      if (muted) {
+        s.run = s.over = 0;
+        return false;
+      }
+      const b = bar();
+      // The block leaving (2 HOLD old) joins the talk ring if it is voice.
+      if (s.seen >= D && !out[s.at] && voiced[s.at] >= VOICED && power[s.at] >= OVER * OVER * now.quiet) learn(talk, power[s.at]);
+      power[s.at] = p;
+      voiced[s.at] = voicing();
+      out[s.at] = s.mark > 0 ? 1 : 0;
+      s.at = (s.at + 1) % D;
+      if (s.mark > 0) s.mark--;
+      // A stretch over the bar it began at: held for HOLD, it and HOLD either side stay out.
+      if (p >= (s.over ? s.ref : b)) {
+        if (!s.over++) s.ref = b;
+      } else s.over = 0;
+      if (s.over >= hold) {
+        out.fill(1);
+        s.mark = hold;
+      }
+      // The block HOLD old joins "now".
+      if (s.seen >= hold) learn(now, power[back(hold)]);
+      s.run = p >= b ? s.run + 1 : 0;
+      if (s.seen++ < warm || s.run < hold || t < s.until) return false;
+      let lo = Infinity, hi = 0;
+      for (let k = 0; k < hold; k++) {
+        if (voiced[back(k)] < VOICED) return false;
+        lo = Math.min(lo, power[back(k)]);
+        hi = Math.max(hi, power[back(k)]);
+      }
+      if (lo < STEADY * STEADY * hi) return false;
+      s.until = t + REST;
+      return true;
+    };
+    return {
+      // Samples buf[from..to), the last of them at time `end` (seconds): the time of a shout
+      // among them, or null. A block may span calls.
+      feed(buf, from, to, end, muted) {
+        let heard = null;
+        for (let i = from; i < to; i++) {
+          const v = buf[i], k = Math.floor(s.n / skip);
+          s.acc += v * v;
+          if (k < m) x[k] = s.n % skip ? x[k] + v : v;
+          if (++s.n < size) continue;
+          const p = s.acc / s.n, t = end - (to - 1 - i) / rate;
+          s.acc = s.n = 0;
+          if (step(p, t, muted)) heard = t;
+        }
+        return heard;
+      },
+      // Samples were lost (a look longer than the analyser holds): the block and the stretch
+      // start over.
+      gap() { s.acc = s.n = s.run = s.over = 0; },
+      // For checks: the levels' RMS now (the louder, and each) and the bar's.
+      get level() { return Math.sqrt(Math.max(now.q, talk.q)); },
+      get levels() { return { now: Math.sqrt(now.q), talk: Math.sqrt(talk.q) }; },
+      get threshold() { return Math.sqrt(bar()); },
+    };
+  };
+</script>
 <script>
   // The page's own words, before the game runs: lines from the game-lines block (and a
   // translation's, when the page has one for ?lang= or the browser's language). The game
@@ -230,6 +362,11 @@
       },
       // A shout cast War Cry (the game says so once it went off): counted for checks.
       roared: () => { bridge.roars++; },
+      // For checks: the shouts the page heard, taken by the game or not (seconds since it began
+      // listening, the last 50), and what its ear makes of the microphone now (RMS, of 1).
+      shoutsHeard: [],
+      hearing: () => (mic.ear ? { listening: mic.an.context.currentTime - mic.t0, level: mic.ear.level,
+                                  threshold: mic.ear.threshold } : null),
     });
     // The page's own audio context (the speaker's cues, the microphone's listening), made the
     // first time one needs it. The browser lets it start after a click or key press.
@@ -243,19 +380,48 @@
       for (const type of ['pointerdown', 'keydown']) addEventListener(type, wake, { capture: true, passive: true });
       return audio;
     };
-    // Shout to roar's listening: the hub's stream into an analyser, and the loudness (RMS, of
-    // 1) of what came in since the last look, in BLOCK-second blocks (a look every 30 ms and
-    // every frame; the analyser holds the last 0.7 s, so slow frames lose nothing). A shout is
-    // LOUD for HOLD seconds (a clap, a button's click on the controller is shorter); after one,
-    // REST seconds pass before the next counts.
-    const LOUD = 0.15, HOLD = 0.12, REST = 1.5, BLOCK = 0.02;
+    // Shout to roar's listening: the hub's stream into an analyser, and what came in since the
+    // last look (a look every 30 ms and every frame; the analyser holds the last 0.7 s, so slow
+    // frames lose nothing) into the ear (window.shoutDetector, above), which remembers how loud
+    // this microphone gets without a shout and hears a shout well over that.
     const mic = { want: false, asking: false, gen: 0, stream: null, src: null, an: null, sink: null, buf: null,
-                  timer: 0, at: 0, acc: 0, n: 0, run: 0, until: 0, heard: null };
+                  timer: 0, at: 0, t0: 0, ear: null, heard: null };
+    // 52in1 opens the microphone with the browser's own processing, gain control included (it
+    // asks for `audio: true`), and Chrome won't turn gain control off on a track already open
+    // (applyConstraints answers yes and leaves it on). Gain control lifts talk's loud syllables
+    // to where a shout is and holds the shout down: measured on Chrome's capture of
+    // scripts/make_voice_wav.py's voice, talk's loudest 1% of 20 ms blocks reached 0.22 RMS and a
+    // shout's quietest tenth 0.20, where without it they were 0.10 and 0.16. So, once 52in1 has
+    // given a stream (the player allowed the microphone, and 52in1 chose the device: a DualSense
+    // on a cable, or the device's own), the same device is opened again with gain control off
+    // (echo cancellation and noise suppression kept) and 52in1's stream is let go. If that
+    // fails, 52in1's stream is kept as it is. (While 52in1 says muted, no shout counts: the
+    // DualSense's mute button holds either way.)
+    // (Chrome keeps one processing setup per open device: 52in1's stream is let go first, so the
+    // device opens afresh with the new one; if that fails, 52in1 is asked again.)
+    const withoutGainControl = async (stream, hub) => {
+      const tr = stream && stream.getAudioTracks()[0];
+      const set = tr && tr.getSettings ? tr.getSettings() : {};
+      const md = navigator.mediaDevices;
+      if (!tr || !set.autoGainControl || !md || !md.getUserMedia) return stream;
+      const audio = { autoGainControl: false, echoCancellation: true, noiseSuppression: true };
+      if (set.deviceId) audio.deviceId = { exact: set.deviceId };
+      stream.getTracks().forEach((t) => t.stop());
+      try {
+        return await md.getUserMedia({ audio });
+      } catch {
+        try {
+          return (await hub.openMicrophone()) || null;
+        } catch {
+          return null;
+        }
+      }
+    };
     const micOpen = (s) => {
       mic.want = true;
       mic.asking = true;
       const gen = ++mic.gen;
-      Promise.resolve().then(() => s.openMicrophone()).then((st) => st || null, () => null).then((stream) => {
+      Promise.resolve().then(() => s.openMicrophone()).then((st) => st || null, () => null).then((st) => withoutGainControl(st, s)).then((stream) => {
         if (gen !== mic.gen) {
           // Turned off while 52in1 answered.
           if (stream) stream.getTracks().forEach((tr) => tr.stop());
@@ -266,13 +432,6 @@
         if (!ctx) {
           if (stream) stream.getTracks().forEach((tr) => tr.stop());
           return;
-        }
-        for (const tr of stream.getAudioTracks()) {
-          // A shout should be louder than talk: the browser's gain control evens them out.
-          try {
-            const p = tr.applyConstraints({ autoGainControl: false, echoCancellation: true, noiseSuppression: true });
-            if (p && p.catch) p.catch(() => {});
-          } catch { /* the track keeps its settings */ }
         }
         try {
           mic.stream = stream;
@@ -294,7 +453,8 @@
           return;
         }
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        mic.at = ctx.currentTime;
+        mic.at = mic.t0 = ctx.currentTime;
+        mic.ear = window.shoutDetector(ctx.sampleRate);
         mic.timer = setInterval(micListen, 30);
       });
     };
@@ -305,35 +465,28 @@
       clearInterval(mic.timer);
       for (const node of [mic.src, mic.an, mic.sink]) if (node) try { node.disconnect(); } catch { /* gone */ }
       if (mic.stream) mic.stream.getTracks().forEach((tr) => tr.stop());
-      Object.assign(mic, { stream: null, src: null, an: null, sink: null, timer: 0, acc: 0, n: 0, run: 0, heard: null });
+      Object.assign(mic, { stream: null, src: null, an: null, sink: null, timer: 0, ear: null, heard: null });
     };
     const micListen = () => {
       const an = mic.an;
-      if (!an) return;
-      const ctx = an.context, now = ctx.currentTime, rate = ctx.sampleRate, size = an.fftSize;
-      let fresh = Math.round((now - mic.at) * rate);
+      if (!an || !mic.ear) return;
+      const ctx = an.context, now = ctx.currentTime, size = an.fftSize;
+      let fresh = Math.round((now - mic.at) * ctx.sampleRate);
       if (fresh <= 0) return;
       mic.at = now;
       if (fresh > size) {
         // Longer than the analyser holds: start over from what it has.
         fresh = size;
-        mic.acc = mic.n = mic.run = 0;
+        mic.ear.gap();
       }
       if (!mic.buf || mic.buf.length !== size) mic.buf = new Float32Array(size);
       an.getFloatTimeDomainData(mic.buf);
       const muted = !!(window.AIHubSettings && window.AIHubSettings.muted);
-      const block = Math.max(1, Math.round(BLOCK * rate));
-      for (let i = size - fresh; i < size; i++) {
-        mic.acc += mic.buf[i] * mic.buf[i];
-        if (++mic.n < block) continue;
-        const loud = !muted && Math.sqrt(mic.acc / mic.n) >= LOUD;
-        mic.acc = mic.n = 0;
-        mic.run = loud ? mic.run + block / rate : 0;
-        if (mic.run >= HOLD && now >= mic.until) {
-          mic.heard = now;
-          mic.until = now + REST;
-          mic.run = 0;
-        }
+      const at = mic.ear.feed(mic.buf, size - fresh, size, now, muted);
+      if (at !== null) {
+        mic.heard = now;
+        bridge.shoutsHeard.push(Math.round((at - mic.t0) * 100) / 100);
+        if (bridge.shoutsHeard.length > 50) bridge.shoutsHeard.shift();
       }
     };
     // The speaker's cues, made of tones and a little noise (no files): short and distinct, in

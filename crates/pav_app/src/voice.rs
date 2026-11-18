@@ -12,10 +12,11 @@
 //! - Any controller, or the keyboard: the hub gives the DualSense's microphone when one is
 //!   plugged in by USB and the device's own otherwise.
 //! - The page listens (web/index.html, `shardfallHub.shout`): it asks the hub's
-//!   `openMicrophone()` once while the setting is on, never `getUserMedia` itself; a shout is
-//!   the samples' loudness (RMS) above a threshold for 0.12 s, then 1.5 s pass before the next
-//!   one counts. While `muted` (the DualSense's mute button) none counts. Turned off, or the
-//!   microphone taken back, the page stops the stream.
+//!   `openMicrophone()` once while the setting is on, never `getUserMedia` itself; its ear
+//!   (`window.shoutDetector`, checked by scripts/shout_check.mjs) learns the microphone's
+//!   background and hears a shout as loudness (RMS) 2.6 times over it held for 0.25 s, then
+//!   1.5 s pass before the next one counts. While `muted` (the DualSense's mute button) none
+//!   counts. Turned off, or the microphone taken back, the page stops the stream.
 //! - Natively there is no hub: nothing here runs.
 
 use pav_core::arpg::HeroHud;

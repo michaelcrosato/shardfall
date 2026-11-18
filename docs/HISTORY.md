@@ -5,6 +5,48 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## A shout heard through Chrome's own capture, the tree's overview, menus flicked away — 2026-11-18
+
+The standard's open points that could still be closed here, by two workflows (implementers in
+worktrees with two reviewers each, then a fixer and an adversarial tester for the shout ear over
+two rounds: 10 agents, about 2.3M subagent tokens) and checks run here:
+- **The shout ear** (`<script id="shout-detector">` in `web/index.html`, `scripts/shout_check.mjs`):
+  the fixed "RMS 0.15" guess became an ear that weighs 20 ms blocks against both the room now
+  (3 s) and this player's remembered talk (15 s of voiced blocks), and asks a shout to be loud
+  (over 1.6 times the louder, and over 0.05 RMS), voiced (a pitch 70-500 Hz) and steady for
+  0.25 s. 78 made-up cases pass (talk at three levels with pauses, a quiet microphone, music,
+  coughs, laughs, breaths, the game's own sounds, muting, slow frames); shouts 4x over talk are
+  caught 200/200. An adversary's second round still found limits (a shout needs about 0.4 s,
+  about 3 s between loud sounds, a recurring tone can count, animated talk a stray roar every
+  minute or two): left as they are and written down (`docs/AI_HUB.md`); Settings now says "hold
+  a loud shout for about half a second".
+- **Chrome's gain control** (found by `hub_live.mjs --voice`, which plays
+  `scripts/make_voice_wav.py`'s voice through Chromium's real capture): 52in1 opens the
+  microphone with `audio: true`, gain control on, and Chrome won't turn it off on an open track.
+  It lifted talk's loudest blocks to a shout's level (0.22 against 0.20), and the ear heard 0 of
+  6 shouts. The page now lets 52in1's stream go and opens the same device again with gain
+  control off (echo cancellation and noise suppression kept); the ear then heard 6 of 6 shouts
+  and nothing else, through 52in1's own hub. That reopen is the page's only `getUserMedia`,
+  always after `openMicrophone()`.
+- **The passive tree's overview** (`arpg_tree.rs`): level of detail by zoom. At the opening
+  zoom and closer nothing changed (captures byte-identical); zoomed out, the start, notables,
+  keystones, masteries, skill upgrades, the allocation, takeable nodes and search hits keep full
+  strength, ordinary minor nodes shrink to faint dots, the Astral rings fade to their stars, and
+  sector names (beside their roads, not on them: a review fix) mark the regions. The D-pad snaps
+  only to nodes drawn big enough; the card still names any node under the pointer. The `ui`
+  tool takes `tree_zoom=`. Search hits are kept per language and tree data (a review fix).
+- **Menus and notices swipe away, live:** `touch_check.py` now also opens the pause menu with its
+  button and flicks it closed, upright and sideways (no button under the finger clicked); with
+  the touch card swiped away and the bag flicked closed. Aim assist and auto-attack: their
+  touch tests pass (`touch::assist_tests`, `auto_attack_strikes_the_nearest_foe_in_reach`).
+- Checked: `pad_check.py --dualsense` (47 shouts heard, 3 War Cries, 244 gyro reads, the
+  speaker's cues, no `getUserMedia`); `hub_live.mjs --voice` in 52in1's own hub (6/6 shouts, the
+  light bar and trigger reports, no microphone before it is allowed); tests 491 passed;
+  `shout_check.mjs` 78/78; clippy native and wasm32.
+- Still only a physical DualSense and a real voice can say how the gyro feels, how the speaker's
+  cues sound and whether a real shout clears the ear; 52in1's live listing shows Shardfall's
+  online modes once it ingests the new page (the hub's step).
+
 ## Shout to roar, auto-fire at foes, and Shardfall in real 52in1 sessions — 2026-11-17
 
 The standard's last open items, built by a workflow (a mic implementer in a worktree with two
