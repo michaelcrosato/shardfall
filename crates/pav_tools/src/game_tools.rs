@@ -1439,9 +1439,10 @@ fn b_contains(l: &pav_core::arpg::levelgen::Layout, p: Vec3) -> bool {
 /// The game UI as the player sees it: the HUD, the open windows and the touch controls, read
 /// as text (every line with where it is, grouped by window) and, with `image=true`, drawn over
 /// a capture. `open=`/`close=` toggle windows, `device=` picks mouse, pad or touch, `hover=`
-/// shows a tooltip, `click=` presses what is there (its game commands run, a tick each).
+/// shows a tooltip, `click=` presses what is there (its game commands run, a tick each),
+/// `tree_zoom=` zooms the passive tree (times its opening view).
 pub fn t_ui(s: &mut Session, a: &Args) -> Result<Output> {
-    const ARGS: [&str; 9] = ["open", "close", "device", "hover", "click", "width", "height", "image", "out"];
+    const ARGS: [&str; 10] = ["open", "close", "device", "hover", "click", "tree_zoom", "width", "height", "image", "out"];
     for key in a.keys() {
         if !ARGS.contains(&key.as_str()) {
             let fix = pav_core::issue::suggestion(key, ARGS).map(|f| format!(" — {f}")).unwrap_or_default();
@@ -1477,6 +1478,9 @@ pub fn t_ui(s: &mut Session, a: &Args) -> Result<Output> {
             "touch" => pav_ui::Device::Touch,
             o => bail!("device: \"{o}\" is not mouse, pad or touch"),
         };
+    }
+    if a.contains_key("tree_zoom") {
+        s.ui.game.tree.set_zoom(get_f32(a, "tree_zoom", 1.0)?);
     }
     let point = |key: &str| -> Result<Option<egui::Pos2>> {
         match vec_arg(a, key)? {
