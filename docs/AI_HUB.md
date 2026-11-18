@@ -57,7 +57,8 @@ The hub holds the controller; the game reads what the player allows through
 `window.AIHubSettings.dualsense` (the page's bridge, `window.shardfallHub`) and never opens it
 itself. Each extra adds to a control that works on any pad and on keys; the page's
 `hub:dualsense` names them, each once, in the catalogue's order: `light bar, adaptive triggers,
-haptics, motion, touchpad, speaker` (`web/hub.json`; the packer refuses a name twice).
+haptics, motion, touchpad, speaker, microphone` (`web/hub.json`; the packer refuses a name
+twice).
 
 - **Light bar, adaptive triggers, haptics, touchpad** (`pav_app::pad_fx`): the hero's life on
   the light bar, R2 stiff while its skill can't be cast, short rumbles that say something, the
@@ -85,12 +86,35 @@ haptics, motion, touchpad, speaker` (`web/hub.json`; the packer refuses a name t
   volume x 52in1's. A `null` node plays nothing more (asked again when the player's settings
   change), and a speaker that goes away and comes back is asked for a fresh node. Without `speaker`
   (it needs a DualSense on a cable and the microphone allowed) the row shows off with a line
-  saying where 52in1 allows it.
-- **Microphone: never.** Shardfall has no voice feature: it never calls `openMicrophone()` or
-  `getUserMedia()`, so `mic`, `micLater` and `muted` change nothing and Settings shows no voice
-  row (the catalogue asks for its line only for voice features a game has). `pad_check.py
-  --dualsense` counts any request and expects none.
-- Natively there is no hub: no motion aim, no speaker, no rows.
+  saying where 52in1 allows it. The page's one AudioContext serves the speaker and the microphone.
+- **Microphone: Shout to roar** (`pav_app::voice`, the page's `shardfallHub.shout`): a loud
+  shout casts the hero's War Cry, as a press of its button on the skill bar does, when War Cry
+  is on the bar (Kestrel starts with it as her fifth skill; others can put it there from level
+  6), alive, off cooldown and affordable; otherwise nothing happens, and the bar's button works
+  as it always did. Not DualSense-only: the hub gives the DualSense's microphone on a cable and
+  the device's own otherwise, so it plays on any controller or the keys. Settings' Shout to roar
+  row shows whenever the game runs in 52in1. Only once `mic` (the player allowed games the
+  microphone, 52in1's Settings, under Sound) is the row live, on by default (`Prefs::shout_roar`
+  None follows `mic`); before that it shows off, greyed, with a line saying where 52in1 allows
+  it, or, while `micLater` (allowed after the game opened), to open Shardfall again; while
+  `muted` a line says the controller's mute button has it off. The game never asks for the
+  microphone until then. With the row on and `mic` true, the game tells the page so every frame
+  (`shout(on)`); the page asks 52in1's `openMicrophone()` once (never `getUserMedia()`; a
+  `null` stream is asked for again only when the player's settings change), feeds the stream
+  through an AnalyserNode (into the speakers at no volume; the track is asked to turn the
+  browser's gain control off, so a shout stays louder than talk) and reads what came in since its
+  last look, every 30 ms and every frame, in 20 ms blocks: a shout is RMS 0.15 or more for
+  0.12 s (a clap, a click of the controller's buttons is shorter), then 1.5 s pass before the
+  next counts, and none counts while `muted`. The analyser holds 0.7 s, so frames a second
+  apart lose no shout. The game takes the shout (`shout()` returns it and clears it, and drops
+  one older than a second) and, while the player can play (no menu, a game scene with a hero),
+  presses War Cry's slot's button (the same input bit as the pad, the keys or the mouse) for
+  one frame; once War Cry's cooldown starts it shows "Roar!" (`hud.roar`) and tells the page
+  (`shardfallHub.roars` counts them). The row turned off, or `mic` taken back (the page listens
+  to the hub's `change`): the page stops the stream's tracks and disconnects. `pad_check.py
+  --dualsense` plays Kestrel with a stand-in microphone (a tone, loud 0.5 s every 4 s) and
+  counts the asks, the shouts and the War Cries.
+- Natively there is no hub: no motion aim, no speaker, no microphone, no rows.
 
 ## A round
 `pav_app::round` (the app's side) and `pav_core::arpg::round` (the game's):

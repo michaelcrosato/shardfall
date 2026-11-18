@@ -87,7 +87,7 @@
   (() => {
     const hub = window.AIHub;
     const bridge = { active: !!(hub && hub.active), info: null, waiting: false, events: [], score: 0, won: false,
-                     reported: false, settingsChanged: false };
+                     reported: false, settingsChanged: false, roars: 0 };
     const tag = (n) => (document.querySelector(`meta[name="${n}"]`) || {}).content;
     if (bridge.active) {
       const seats = (tag('hub:session-players') || '1-4').split('-').map(Number);
@@ -197,19 +197,12 @@
       // openSpeaker() gives in the page's own audio context, made on the first cue. With no
       // node (no DualSense on a cable, the microphone not allowed) nothing more plays: the
       // game's own sounds already do. The game calls it only while its Controller speaker
-      // setting is on. Never the microphone: Shardfall has no voice feature.
+      // setting is on.
       speaker: (cue, volume) => {
         const ds = window.AIHubSettings && window.AIHubSettings.dualsense;
         if (!ds || !ds.connected || !ds.speaker || typeof ds.openSpeaker !== 'function' || !(volume > 0)) return;
         const sp = bridge.speakerOut || (bridge.speakerOut = { ctx: null, opening: null });
-        if (!sp.ctx) {
-          const Ctx = window.AudioContext || window.webkitAudioContext;
-          if (!Ctx) return;
-          try { sp.ctx = new Ctx(); } catch { return; }
-          // The browser lets a context start after a click or key press.
-          const wake = () => { if (sp.ctx.state === 'suspended') sp.ctx.resume().catch(() => {}); };
-          for (const type of ['pointerdown', 'keydown']) addEventListener(type, wake, { capture: true, passive: true });
-        }
+        if (!sp.ctx && !(sp.ctx = pageAudio())) return;
         if (!sp.opening) {
           sp.opening = Promise.resolve().then(() => ds.openSpeaker(sp.ctx)).then((node) => node || null, () => null);
         }
@@ -219,7 +212,125 @@
           speakerCue(sp.ctx, node, cue, Math.min(1, volume));
         });
       },
+      // Shout to roar (voice.rs), the game's voice feature. `on`: the game's Shout to roar is
+      // on. While it is and the player's 52in1 settings allow games the microphone (`mic`), the
+      // page asks 52in1's openMicrophone() once (never getUserMedia itself) and listens in its
+      // own audio context; turned off, or the microphone taken back, it lets the stream go.
+      // Returns whether a shout came since the last call: none while `muted` (the DualSense's
+      // mute button), and nothing at all outside 52in1.
+      shout: (on) => {
+        const s = window.AIHubSettings;
+        const want = !!(on && s && s.mic && typeof s.openMicrophone === 'function');
+        if (want && !mic.want) micOpen(s);
+        else if (!want && mic.want) micStop();
+        micListen();
+        const heard = mic.heard !== null && !(s && s.muted) && mic.an && mic.an.context.currentTime - mic.heard < 1;
+        mic.heard = null;
+        return !!heard;
+      },
+      // A shout cast War Cry (the game says so once it went off): counted for checks.
+      roared: () => { bridge.roars++; },
     });
+    // The page's own audio context (the speaker's cues, the microphone's listening), made the
+    // first time one needs it. The browser lets it start after a click or key press.
+    let audio = null;
+    const pageAudio = () => {
+      if (audio) return audio;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      try { audio = new Ctx(); } catch { return null; }
+      const wake = () => { if (audio.state === 'suspended') audio.resume().catch(() => {}); };
+      for (const type of ['pointerdown', 'keydown']) addEventListener(type, wake, { capture: true, passive: true });
+      return audio;
+    };
+    // Shout to roar's listening: the hub's stream into an analyser, and the loudness (RMS, of
+    // 1) of what came in since the last look, in BLOCK-second blocks (a look every 30 ms and
+    // every frame; the analyser holds the last 0.7 s, so slow frames lose nothing). A shout is
+    // LOUD for HOLD seconds (a clap, a button's click on the controller is shorter); after one,
+    // REST seconds pass before the next counts.
+    const LOUD = 0.15, HOLD = 0.12, REST = 1.5, BLOCK = 0.02;
+    const mic = { want: false, asking: false, gen: 0, stream: null, src: null, an: null, sink: null, buf: null,
+                  timer: 0, at: 0, acc: 0, n: 0, run: 0, until: 0, heard: null };
+    const micOpen = (s) => {
+      mic.want = true;
+      mic.asking = true;
+      const gen = ++mic.gen;
+      Promise.resolve().then(() => s.openMicrophone()).then((st) => st || null, () => null).then((stream) => {
+        if (gen !== mic.gen) {
+          // Turned off while 52in1 answered.
+          if (stream) stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        mic.asking = false;
+        const ctx = stream && pageAudio();
+        if (!ctx) {
+          if (stream) stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        for (const tr of stream.getAudioTracks()) {
+          // A shout should be louder than talk: the browser's gain control evens them out.
+          try {
+            const p = tr.applyConstraints({ autoGainControl: false, echoCancellation: true, noiseSuppression: true });
+            if (p && p.catch) p.catch(() => {});
+          } catch { /* the track keeps its settings */ }
+        }
+        try {
+          mic.stream = stream;
+          mic.src = ctx.createMediaStreamSource(stream);
+          mic.an = ctx.createAnalyser();
+          mic.an.fftSize = 32768;
+          // Into the speakers at no volume: a graph that ends nowhere may not run.
+          mic.sink = ctx.createGain();
+          mic.sink.gain.value = 0;
+          mic.src.connect(mic.an).connect(mic.sink).connect(ctx.destination);
+        } catch {
+          micStop();
+          mic.want = true;
+          return;
+        }
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        mic.at = ctx.currentTime;
+        mic.timer = setInterval(micListen, 30);
+      });
+    };
+    const micStop = () => {
+      mic.gen++;
+      mic.want = false;
+      mic.asking = false;
+      clearInterval(mic.timer);
+      for (const node of [mic.src, mic.an, mic.sink]) if (node) try { node.disconnect(); } catch { /* gone */ }
+      if (mic.stream) mic.stream.getTracks().forEach((tr) => tr.stop());
+      Object.assign(mic, { stream: null, src: null, an: null, sink: null, timer: 0, acc: 0, n: 0, run: 0, heard: null });
+    };
+    const micListen = () => {
+      const an = mic.an;
+      if (!an) return;
+      const ctx = an.context, now = ctx.currentTime, rate = ctx.sampleRate, size = an.fftSize;
+      let fresh = Math.round((now - mic.at) * rate);
+      if (fresh <= 0) return;
+      mic.at = now;
+      if (fresh > size) {
+        // Longer than the analyser holds: start over from what it has.
+        fresh = size;
+        mic.acc = mic.n = mic.run = 0;
+      }
+      if (!mic.buf || mic.buf.length !== size) mic.buf = new Float32Array(size);
+      an.getFloatTimeDomainData(mic.buf);
+      const muted = !!(window.AIHubSettings && window.AIHubSettings.muted);
+      const block = Math.max(1, Math.round(BLOCK * rate));
+      for (let i = size - fresh; i < size; i++) {
+        mic.acc += mic.buf[i] * mic.buf[i];
+        if (++mic.n < block) continue;
+        const loud = !muted && Math.sqrt(mic.acc / mic.n) >= LOUD;
+        mic.acc = mic.n = 0;
+        mic.run = loud ? mic.run + block / rate : 0;
+        if (mic.run >= HOLD && now >= mic.until) {
+          mic.heard = now;
+          mic.until = now + REST;
+          mic.run = 0;
+        }
+      }
+    };
     // The speaker's cues, made of tones and a little noise (no files): short and distinct, in
     // the range a controller's small speaker plays well.
     const speakerCue = (ctx, out, cue, volume) => {
@@ -272,6 +383,13 @@
       let speakerWas = !!(window.AIHubSettings.dualsense && window.AIHubSettings.dualsense.connected && window.AIHubSettings.dualsense.speaker);
       window.AIHubSettings.addEventListener('change', () => {
         bridge.settingsChanged = true;
+        // The microphone taken back: its stream goes at once. One 52in1 didn't give (null) is
+        // asked for again once the player's settings change.
+        if (!window.AIHubSettings.mic) {
+          if (mic.want) micStop();
+        } else if (mic.want && !mic.stream && !mic.asking) {
+          mic.want = false;
+        }
         const ds = window.AIHubSettings.dualsense;
         const speakerNow = !!(ds && ds.connected && ds.speaker);
         const out = bridge.speakerOut;
