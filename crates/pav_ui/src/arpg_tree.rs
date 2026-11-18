@@ -1,6 +1,11 @@
 //! The passive tree window: a pan-and-zoom canvas of the generated tree. Hover a node for what
 //! it does; click to take it (shift-click takes the whole path to it), right-click to give it
 //! back for gold; allocated masteries open their options. Search lights up matching nodes.
+//!
+//! Read from a sofa: it opens on the tree's core (the start and its sectors fill the canvas; the
+//! endless Astral rings wait past the edges until the player zooms out), the points to spend
+//! are the biggest thing in the header, and what only a mouse uses (the search field, the
+//! shapes' legend) shows only with a mouse.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Shape, Stroke, Vec2 as EVec2};
 use glam::Vec2;
@@ -16,6 +21,9 @@ pub struct TreeUi {
     /// Canvas centre in tree units and pixels per tree unit.
     pan: Vec2,
     zoom: f32,
+    /// The zoom follows the canvas, filled with the tree's core (`core_zoom`), until the player
+    /// zooms (Centre brings it back).
+    fit: bool,
     /// On a gamepad: hints name its buttons.
     pub pad: bool,
     /// On a touch screen: the first tap on a node shows it, the second takes it; two fingers zoom.
@@ -33,6 +41,7 @@ impl Default for TreeUi {
             open: false,
             pan: Vec2::ZERO,
             zoom: 21.0,
+            fit: true,
             search: String::new(),
             mastery: None,
             pad: false,
@@ -48,6 +57,23 @@ pub const TREE_WINDOW: &str = "passive_tree";
 fn col(c: [f32; 3], k: f32) -> Color32 {
     let to = |x: f32| ((x * k).clamp(0.0, 1.0).powf(1.0 / 2.2) * 255.0) as u8;
     Color32::from_rgb(to(c[0]), to(c[1]), to(c[2]))
+}
+
+/// How far from the start (tree units) the canvas's shorter side shows when the tree opens: the
+/// start, the sectors' first levels and their masteries.
+const CORE: f32 = 8.0;
+
+/// Pixels per tree unit that fill `rect` with the tree's core, with the Astral rings (which start
+/// `astral` units out) past the longer side's edges: zooming out reaches them.
+fn core_zoom(rect: Rect, astral: f32) -> f32 {
+    let half = rect.size() * 0.5;
+    (half.min_elem() / CORE).max(half.max_elem() / (astral - 0.6).max(CORE)).clamp(4.0, 90.0)
+}
+
+/// Where the Astral rings start, in tree units from the start.
+fn astral_start(t: &Tree) -> f32 {
+    let r = t.nodes.iter().filter(|n| n.ring > 0).map(|n| n.pos.length()).fold(f32::INFINITY, f32::min);
+    if r.is_finite() { r } else { t.nodes.iter().map(|n| n.pos.length()).fold(CORE, f32::max) + 1.0 }
 }
 
 fn radius(n: &Node) -> f32 {
@@ -84,16 +110,25 @@ impl TreeUi {
             .resizable(false)
             .fixed_rect(area)
             .show(ctx, |ui| {
+                // Only a mouse comes with a keyboard to search by, and needs the shapes' legend.
+                let mouse = !self.pad && !self.touch;
                 ui.horizontal_wrapped(|ui| {
-                    ui.label(RichText::new(t!("tree.points", count = inv.points)).strong().color(if inv.points > 0 {
-                        Color32::from_rgb(255, 215, 120)
-                    } else {
-                        Color32::from_white_alpha(180)
-                    }));
+                    // The points to spend, big, and framed in gold while there are some: what the
+                    // tree is opened for.
+                    let some = inv.points > 0;
+                    let gold = Color32::from_rgb(255, 215, 120);
+                    egui::Frame::new()
+                        .fill(if some { Color32::from_rgba_unmultiplied(255, 200, 90, 30) } else { Color32::TRANSPARENT })
+                        .stroke(Stroke::new(1.5, if some { gold } else { Color32::from_white_alpha(40) }))
+                        .corner_radius(6)
+                        .inner_margin(egui::Margin::symmetric(10, 2))
+                        .show(ui, |ui| {
+                            let points = RichText::new(t!("tree.points", count = inv.points)).size(24.0).strong();
+                            ui.label(points.color(if some { gold } else { Color32::from_white_alpha(170) }));
+                        });
+                    ui.label(RichText::new(t!("tree.allocated", count = inv.tree.len())).color(Color32::from_white_alpha(170)));
                     ui.separator();
-                    ui.label(t!("tree.allocated", count = inv.tree.len()));
-                    ui.separator();
-                    if !self.touch {
+                    if mouse {
                         ui.label(t!("tree.search"));
                         ui.add(egui::TextEdit::singleline(&mut self.search).desired_width(160.0));
                         ui.separator();
@@ -103,30 +138,33 @@ impl TreeUi {
                     }
                     if ui.button(t!("tree.centre")).clicked() {
                         self.pan = Vec2::ZERO;
-                        self.zoom = 21.0;
-                    }
-                    if self.pad {
-                        // What the pad's buttons do here, drawn as its own buttons.
-                        let g = |a: &str| crate::controls::glyphs(a, crate::Device::Gamepad);
-                        let both = |a: &str, b: &str| [g(a), g(b)].concat();
-                        let prompts = [
-                            (g("confirm"), t!("tree.pad.take")),
-                            (both("alt", "confirm"), t!("tree.pad.path")),
-                            (g("more"), t!("tree.pad.refund")),
-                            (g("scroll"), t!("tree.pad.zoom")),
-                            (g("back"), t!("hint.close")),
-                        ]
-                        .map(|(glyphs, label)| crate::glyph::Prompt { glyphs, label });
-                        crate::glyph::row_ui(ui, &prompts, 18.0, Color32::from_white_alpha(210));
-                    } else {
-                        let help = if self.touch { t!("tree.help.touch") } else { pav_core::t_rich!("tree.help") };
-                        crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
+                        self.fit = true;
                     }
                 });
+                if self.pad {
+                    // What the pad's buttons do here, drawn as its own buttons.
+                    let g = |a: &str| crate::controls::glyphs(a, crate::Device::Gamepad);
+                    let both = |a: &str, b: &str| [g(a), g(b)].concat();
+                    let prompts = [
+                        (g("confirm"), t!("tree.pad.take")),
+                        (both("alt", "confirm"), t!("tree.pad.path")),
+                        (g("more"), t!("tree.pad.refund")),
+                        (g("scroll"), t!("tree.pad.zoom")),
+                        (g("back"), t!("hint.close")),
+                    ]
+                    .map(|(glyphs, label)| crate::glyph::Prompt { glyphs, label });
+                    crate::glyph::row_ui(ui, &prompts, 20.0, Color32::from_white_alpha(210));
+                } else {
+                    let help = if self.touch { t!("tree.help.touch") } else { pav_core::t_rich!("tree.help") };
+                    crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
+                }
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
                 let p = ui.painter_at(rect);
                 p.rect_filled(rect, 4.0, Color32::from_rgb(14, 13, 18));
-                // Pan and zoom.
+                if self.fit {
+                    self.zoom = core_zoom(rect, astral_start(t));
+                }
+                // Pan and zoom (zooming lets go of the fitted view).
                 if resp.dragged() {
                     let dlt = resp.drag_delta();
                     self.pan -= Vec2::new(dlt.x, dlt.y) / self.zoom;
@@ -134,12 +172,16 @@ impl TreeUi {
                 // Two fingers: pinch to zoom round their middle.
                 if let Some(mt) = ui.input(|i| i.multi_touch()).filter(|m| rect.contains(m.center_pos)) {
                     let before = self.to_tree(rect, mt.center_pos);
+                    if (mt.zoom_delta - 1.0).abs() > 1e-3 {
+                        self.fit = false;
+                    }
                     self.zoom = (self.zoom * mt.zoom_delta).clamp(4.0, 90.0);
                     self.pan += before - self.to_tree(rect, mt.center_pos);
                 }
                 if resp.hovered() {
                     let scroll = ui.input(|i| i.smooth_scroll_delta.y);
                     if scroll != 0.0 {
+                        self.fit = false;
                         let before = self.to_tree(rect, ui.input(|i| i.pointer.hover_pos()).unwrap_or(rect.center()));
                         self.zoom = (self.zoom * (1.0 + scroll * 0.0015)).clamp(4.0, 90.0);
                         let after = self.to_tree(rect, ui.input(|i| i.pointer.hover_pos()).unwrap_or(rect.center()));
@@ -148,7 +190,8 @@ impl TreeUi {
                 }
                 let alloc = &inv.tree;
                 let reached = |id: u32| id == start_id() || alloc.contains(&id);
-                let search = self.search.to_lowercase();
+                // (The search lights nodes up only where its field shows: with a mouse.)
+                let search = if mouse { self.search.to_lowercase() } else { String::new() };
                 let matches = |n: &Node| {
                     !search.is_empty()
                         && (lines::tree_node_name(t, n).to_lowercase().contains(&search)
@@ -295,7 +338,7 @@ impl TreeUi {
                             at,
                             Align2::CENTER_CENTER,
                             lines::sector_name(t, i),
-                            FontId::proportional(13.0),
+                            FontId::proportional(if self.touch { 13.0 } else { 16.0 }),
                             col(s.color, 1.0),
                         );
                     }
@@ -435,20 +478,30 @@ impl TreeUi {
                         self.mastery = None;
                     }
                 }
-                // Legend.
-                let legend = rect.left_bottom() + EVec2::new(12.0, -14.0);
-                p.text(
-                    legend,
-                    Align2::LEFT_BOTTOM,
-                    t!("tree.legend"),
-                    FontId::proportional(13.0),
-                    Color32::from_white_alpha(120),
-                );
+                // The shapes' legend, for a mouse (a pad's docked card and a finger's panel name the
+                // node's kind), on a dark strip that keeps it off the nodes under it.
+                if mouse {
+                    let galley = p.layout(
+                        t!("tree.legend"),
+                        FontId::proportional(13.0),
+                        Color32::from_white_alpha(170),
+                        (rect.width() - 40.0).max(80.0),
+                    );
+                    let at = rect.left_bottom() + EVec2::new(10.0, -10.0);
+                    let strip = Align2::LEFT_BOTTOM.anchor_size(at, galley.size() + EVec2::new(16.0, 8.0));
+                    p.rect_filled(strip, 4.0, Color32::from_black_alpha(190));
+                    p.galley(strip.min + EVec2::new(8.0, 4.0), galley, Color32::WHITE);
+                }
             });
         if !open {
             self.open = false;
             self.mastery = None;
         }
+    }
+
+    /// Circle or Esc: a mastery's options close first. False when none were open.
+    pub fn back(&mut self) -> bool {
+        self.mastery.take().is_some()
     }
 
     fn to_screen(&self, rect: Rect, p: Vec2) -> Pos2 {
@@ -514,5 +567,75 @@ fn node_info(ui: &mut egui::Ui, t: &Tree, n: &Node, inv: &InvView, taken: bool, 
     }
     if !taken && !path.is_empty() {
         ui.label(RichText::new(t!("tree.points_away", count = path.len())).small());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every text `shape` draws.
+    fn collect(shape: &Shape, out: &mut Vec<String>) {
+        match shape {
+            Shape::Vec(list) => list.iter().for_each(|s| collect(s, out)),
+            Shape::Text(t) => out.push(t.galley.text().to_string()),
+            _ => {}
+        }
+    }
+
+    /// The texts the open tree draws on a 720p screen, and its zoom then.
+    fn draw(tree: &mut TreeUi) -> (Vec<String>, f32) {
+        let ctx = egui::Context::default();
+        let inv = InvView { points: 3, ..Default::default() };
+        let mut out = Vec::new();
+        let mut texts = Vec::new();
+        for _ in 0..3 {
+            let raw = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, EVec2::new(1280.0, 720.0))),
+                ..Default::default()
+            };
+            let mut full = ctx.run_ui(raw, |ui| tree.ui(ui.ctx(), &inv, &mut out));
+            full.textures_delta.clear();
+            texts.clear();
+            full.shapes.iter().for_each(|s| collect(&s.shape, &mut texts));
+        }
+        (texts, tree.zoom)
+    }
+
+    #[test]
+    fn the_tree_opens_on_its_core_with_the_astral_rings_past_the_edges() {
+        let t = &data().tree;
+        let astral = astral_start(t);
+        assert!(astral > CORE + 4.0, "the Astral rings start at {astral}");
+        // A TV's canvas, a phone held upright and one held sideways.
+        for size in [EVec2::new(1110.0, 518.0), EVec2::new(360.0, 560.0), EVec2::new(820.0, 200.0)] {
+            let rect = Rect::from_center_size(Pos2::ZERO, size);
+            let zoom = core_zoom(rect, astral);
+            assert!(zoom * CORE >= size.min_elem() * 0.5 - 0.5, "the core fills the shorter side: {size:?} {zoom}");
+            let shown = t.nodes.iter().filter(|n| n.ring > 0).filter(|n| rect.contains(Pos2::new(n.pos.x, n.pos.y) * zoom));
+            assert_eq!(shown.count(), 0, "no Astral node on a {size:?} canvas at {zoom}");
+        }
+        // Opened, the tree takes that zoom; once the player has zoomed, it keeps theirs.
+        let mut tree = TreeUi { open: true, ..Default::default() };
+        let (_, zoom) = draw(&mut tree);
+        assert!(zoom > 25.0, "opens zoomed in on the core: {zoom}");
+        tree.fit = false;
+        tree.zoom = 10.0;
+        assert_eq!(draw(&mut tree).1, 10.0);
+    }
+
+    #[test]
+    fn the_search_field_and_the_legend_are_the_mouses() {
+        let legend = t!("tree.legend");
+        let mut tree = TreeUi { open: true, ..Default::default() };
+        let (mouse, _) = draw(&mut tree);
+        assert!(mouse.contains(&t!("tree.search")) && mouse.contains(&legend), "{mouse:?}");
+        assert!(mouse.contains(&t!("tree.points", count = 3)), "{mouse:?}");
+        for (pad, touch) in [(true, false), (false, true)] {
+            let mut tree = TreeUi { open: true, pad, touch, ..Default::default() };
+            let (texts, _) = draw(&mut tree);
+            assert!(!texts.contains(&t!("tree.search")) && !texts.contains(&legend), "pad {pad}: {texts:?}");
+            assert!(texts.contains(&t!("tree.points", count = 3)), "{texts:?}");
+        }
     }
 }

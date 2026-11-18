@@ -467,7 +467,6 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 # The hero's windows: inventory, character, skills, the passive tree.
 "inventory.title" = "Inventory"
 "inventory.sort" = "Sort"
-"inventory.auto_pickup" = "Auto-pickup:"
 "inventory.auto_pickup.everything" = "everything"
 "inventory.auto_pickup.magic" = "magic +"
 "inventory.auto_pickup.rare" = "rare +"
@@ -554,6 +553,17 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "tree.name.astral" = "Astral {sector}"
 "tree.name.astral_star" = "Astral {sector} Star"
 "tree.name.bridge" = "{first} & {second}"
+
+# The hero's windows at ten feet: the bag's auto-pickup button, the skill bar's rows and the
+# chooser of skills that opens from one.
+"inventory.auto_pickup.button" = "Auto-pickup: {level}"
+"skills.cost" = { one = "{count} mana", other = "{count} mana" }
+"skills.free" = "No mana cost"
+"skills.change" = "Change"
+"skills.chooser.title" = "Choose a skill"
+"skills.chooser.pick" = "What should this button do? A skill on another button swaps places with it."
+"skills.chooser.choose" = "Choose"
+"skills.chooser.back" = "Back"
 
 # The town's windows: the smith, the stash, the gambler, the alchemist, the portal, the Hall
 # of Heroes and the Menagerie.
@@ -810,13 +820,16 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "compare.lose" = "In an item's comparison: something the hero loses by wearing it. {what} is a modifier (stat.*) or a power (power.*)."
 "hint.bag.wear.pad" = "On a gamepad: {key:...} is drawn as the button (Cross or A, Square or X)."
 "inventory.footer" = "Small, under the bag: {hint} is a hint.bag line, then the key that closes the window."
-"inventory.auto_pickup" = "Which items the hero picks up by walking over them."
+"inventory.auto_pickup.button" = "A button under the bag: which items the hero picks up by walking over them; {level} is one of the inventory.auto_pickup.* words. Pressing it steps to the next."
 "inventory.auto_pickup.magic" = "Magic items and better ones."
 "character.regen" = "Life or mana on the character sheet: the most, then how much comes back per second."
 "character.percent" = "A bonus on the character sheet: {value} is a signed number ('+12', '-5')."
 "character.damage.all" = "A damage bonus on the character sheet: {value} is a signed number, then which damage."
 "character.damage.more" = "'More' damage multiplies (where 'increased' adds); capitals for emphasis."
 "skills.key.button" = "Touch screens: one of the skill buttons, numbered."
+"skills.cost" = "On a skill's card: the mana it costs each use."
+"skills.change" = "Next to the pad's confirm button under the skill bar's rows: open the chooser for the row."
+"skills.chooser.pick" = "Top of the chooser that opens from a skill bar button (drawn beside it): the player picks the skill it fires."
 "tree.points" = "Passive points the hero can spend on the passive skill tree."
 "tree.legend" = "Bottom of the passive tree: what the node shapes mean."
 "tree.name.astral" = "A node of the endless rings round the passive tree: {sector} is a sector's name (tree.sector.*)."
