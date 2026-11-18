@@ -245,7 +245,7 @@ pub fn build_arena(sim: &mut Sim) {
     build_arena_with(sim, None);
 }
 
-fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
+pub(crate) fn build_arena_with(sim: &mut Sim, game: Option<Game>) {
     game_movement(sim);
     let half = 20.0f32;
     let st = &mut sim.state;

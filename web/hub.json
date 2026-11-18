@@ -1,22 +1,46 @@
 {
-  "_about": "The AI Hub's catalogue and session tags for Shardfall (docs/AI_HUB.md). scripts/pack_single_html.py --hub writes them into the page's <head>; hub:model and hub:effort come from its --model and --effort, given when the package is made.",
+  "_about": "52in1's catalogue and session tags for Shardfall (AI Hub Catalogue v1 and Session Protocol v1, docs/AI_HUB.md). scripts/pack_single_html.py --hub writes them into the page's <head>; hub:model and hub:effort come from its --model and --effort, given when the package is made. moments must match pav_core::arpg::moments::MOMENTS (crates/pav_core/tests/moments.rs checks).",
   "name": "Shardfall",
   "tagline": "A hack-and-slash descent into a shattered world",
   "description": "A fast hack-and-slash action RPG: take a hero down through a shattered underworld, cut through monsters, gather loot and grow a passive tree. Up to four players descend together.",
   "theme_color": "#e8b45a",
   "type": "Game",
   "genre": "RPG",
-  "tags": ["3d", "action-rpg", "loot", "procedural"],
-  "controls": "WASD to move; mouse to aim; click or right click to attack; Q / E / R / F for skills; Space to dodge; 1 to drink a potion; G to use; Esc for the menu",
+  "tags": [
+    "action-rpg",
+    "loot",
+    "procedural",
+    "gamepad",
+    "touch"
+  ],
+  "controls": "WASD to move; mouse to aim; click or right click to attack; Q / E / R / F for skills; Space to dodge; 1 for a potion; G to use; Esc for menu; gamepad to play",
   "harness": "Claude Code",
   "webgpu": "required",
+  "players": "1-4",
+  "multiplayer": [
+    "parallel 1-4",
+    "ghost 1-4",
+    "shared-world co-op 1-4",
+    "shared-world versus 2-4",
+    "moments 1-4"
+  ],
+  "dualsense": [],
   "session_mode": "shared-world",
   "session_players": "1-4",
   "session_minutes": 8,
   "goals": {
+    "default": "Clear the depths together before time runs out",
     "parallel": "Descend as deep as you can before time runs out",
     "ghost": "Descend as deep as you can before time runs out",
-    "shared-world": "Clear the depths together before time runs out"
+    "co-op": "Clear the depths together before time runs out",
+    "versus": "Slay more monsters than the others before time runs out",
+    "moments": "Clear each moment's goal before its time runs out"
   },
-  "session_howto": "WASD move · mouse aim · click, Q, E, R, F skills · Space dodge · 1 potion"
+  "session_howto": "WASD or stick to move · mouse aim · click, Q, E, R, F skills · Space dodge",
+  "moments": [
+    "pack defeat 25 Defeat every monster in the pack",
+    "champion defeat 30 Slay the champion and its guards",
+    "swarm survive 20 Stay alive while the swarm closes in",
+    "gold collect 20 Grab every pile of gold before time runs out"
+  ]
 }

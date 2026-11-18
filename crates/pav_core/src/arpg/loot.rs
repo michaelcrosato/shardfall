@@ -48,6 +48,10 @@ fn pop(sim: &mut Sim, at: Vec3) -> (Vec3, Vec3) {
 impl Game {
     /// Drops from a slain monster (item level = its level).
     pub(crate) fn drop_loot(&mut self, sim: &mut Sim, at: Vec3, level: u32, rarity: Rarity, events: &mut Vec<SimEvent>) {
+        // A moment drops nothing: its goal is the only thing on the ground.
+        if self.moment.is_some() {
+            return;
+        }
         let d = data();
         let (item_rarity, gold_find) = match self.hero_actor() {
             Some(h) => (h.sheet.item_rarity, h.sheet.gold_find),

@@ -1,30 +1,48 @@
-# Shardfall on the AI Hub
+# Shardfall on 52in1
 
-How Shardfall takes part in the AI Hub (https://github.com/michaelcrosato/ai-hub): its sessions
-(AI Hub Session Protocol v1, `lib/hub/README.md`), its wall (AI Hub Catalogue v1,
-`lib/hub/catalogue.md`) and its languages (AI Hub Languages v1, `lib/hub/languages.md`; how
-the game does that is `docs/LANGUAGES.md`).
+How Shardfall takes part in 52in1 (https://52in1.com; the repository is
+`michaelcrosato/52in1`): its sessions (AI Hub Session Protocol v1,
+https://52in1.com/lib/hub/README.md), its wall and the player's settings (AI Hub Catalogue v1,
+https://52in1.com/lib/hub/catalogue.md) and its languages (AI Hub Languages v1,
+https://52in1.com/lib/hub/languages.md; how the game does that is `docs/LANGUAGES.md`).
+Players know the hub as 52in1: whatever a player sees says 52in1, never AI Hub (the protocol's
+own name).
 
 ## The page
-`scripts/build-hub.sh --model NAME [--effort LEVEL]` builds the browser game once and packs one
-page per session mode into `target/hub/pages/` (`shardfall-shared-world.html`, `-ghost.html`,
-`-parallel.html`). `scripts/pack_single_html.py --hub web/hub.json` writes the hub's head:
+`scripts/build-hub.sh --model NAME [--effort LEVEL]` builds the browser game and packs one page,
+`target/hub/pages/shardfall.html`, that plays every way the game plays together: the hub picks
+the online mode each round from its `hub:multiplayer`. `scripts/pack_single_html.py --hub
+web/hub.json` writes the hub's head:
 
-- the session client (`web/hub/session.js`, the hub's own file, unmodified) as the first script,
-  right after `<meta charset>`;
+- the session client (`web/hub/session.js`, the hub's own file, unmodified: client 1.4.0) as the
+  first script, right after `<meta charset>`;
 - the catalogue's tags from `web/hub.json` (name, tagline, description, theme colour, type, genre,
   tags, controls, harness, `hub:webgpu`), `hub:model` and `hub:effort` from the command line
   (the model that wrote the build, as its maker names it: never written into the repository),
   the emblem as the icon (an SVG, made in the packer);
-- the session tags (`hub:session` 1, the mode, 1-4 players, goal, how-to, 8 minutes); the
-  tags follow the mode: `co-op` and `hub:players` for a shared world, `race` for ghost;
+- `hub:players` 1-4, `hub:multiplayer` (`parallel 1-4, ghost 1-4, shared-world co-op 1-4,
+  shared-world versus 2-4, moments 1-4`) and `hub:dualsense` (the DualSense's extras the game
+  uses);
+- the session tags (`hub:session` 1, shared world as the mode when nothing says which, 1-4
+  players, goal, how-to, 8 minutes), each online mode's own goal (`hub:session-goal-parallel`,
+  `-ghost`, `-co-op`, `-versus`, `-moments`) and one `hub:moment` tag per moment;
 - the `game-lines` block (`pav lines`), then the fonts as `font-NAME` blocks before `</body>`.
 
 `web/index.html` holds the page's bridge to the client (`window.shardfallHub`): it connects as
-the page loads, keeps the hub's events for the game, and passes the game's calls on. As a safety
-net, a copy whose frame is too slow to answer time-up within half the grace period reports its
-last standing from the page. Outside a session (no client, or not in the hub's frame) it does
-nothing and the game opens on the Pavilion's plaza, as it does anywhere.
+the page loads with every online mode the page names, keeps the hub's events for the game, and
+passes the game's calls on. As a safety net, a copy whose frame is too slow to answer time-up
+within half the grace period reports its last standing from the page. Outside a session (no
+client, or not in the hub's frame) it does nothing and the game opens on the Pavilion's plaza,
+as it does anywhere.
+
+## The player's settings
+In 52in1 the game finds the player's settings at `window.AIHubSettings` (the hub's companion
+script puts it there on every game page, in a session or not); the bridge hands them to the
+game as JSON (`hub::settings`), and again whenever the player changes them over the game.
+Shardfall has no music, so `effects` multiplies the game's own effects volume and `music` has
+nothing to scale; the hub applies the master volume and scales every rumble by `vibration`
+itself. The game uses no feature that needs a permission (no microphone, no voice), so nothing
+waits on `mic`. Outside 52in1 there are no settings and the game plays as it is.
 
 ## A round
 `pav_app::round` (the app's side) and `pav_core::arpg::round` (the game's):
@@ -50,6 +68,29 @@ nothing and the game opens on the Pavilion's plaza, as it does anywhere.
   still takes 0.5-1 s a frame (4-5 s for the first, while it compiles), whatever is switched off:
   the logic above is what keeps a round right there.
 
+### Moments: "Clear each moment's goal before its time runs out"
+A round of moments is three short moments, each loaded afresh: `info.moment` names one of
+`pav_core::arpg::moments::MOMENTS` (the scene `moment/<id>` in the tools). Each is the Proving
+Grounds with one goal and a fixed hero, the same on every copy (built from the round's seed and
+the moment's name): no portal, no waves of its own, no loot.
+
+| Moment | Verb | Seconds | Goal |
+|---|---|---|---|
+| `pack` | defeat | 25 | Defeat every monster in the pack |
+| `champion` | defeat | 30 | Slay the champion and its guards |
+| `swarm` | survive | 20 | Stay alive while the swarm closes in |
+| `gold` | collect | 20 | Grab every pile of gold before time runs out |
+
+The game decides the outcome in the simulation (`moments::update`): every monster down or every
+pile picked up clears it, a fallen hero fails it (no respawn), and the clock running out clears
+`swarm` and fails the rest. The copy reports `result({ won, time })` once, the moment it is
+decided, then holds the world still; at `time-up` a moment still going is reported as it stands
+(the page reports it itself if the frame is too slow). The HUD shows the goal, the time left as a
+bar, how many are left, and the outcome as a banner; in `gold` each pile has a ring, and an arrow
+on the screen's edge points to piles out of view. Measured with `autoplay` (seeds 1-5), the bot
+clears pack 5 of 5 and champion 3 of 5 and survives the swarm 5 of 5 at 40-100% life;
+`pav_core/tests/moments.rs` walks the gold in under 80% of its time on seeds 1-5.
+
 ### Parallel and ghost: "Descend as deep as you can"
 Each copy plays its own round from the same start. Progress about once a second: the score is
 depth x 1000 + kills (`round::score`), the label `session.progress` ("Depth 3, 41 kills") in the
@@ -60,7 +101,7 @@ times a second where it is and its pose (`PuppetState`, unreliable). The others'
 where they are, on the same depth, with the seat's colour and the player's name over them. They
 are view objects added to the frame (`Round::ghost_objects`): this copy's world never sees them.
 
-### Shared world: "Clear the depths together"
+### Shared world: co-op "Clear the depths together", versus "Slay more monsters than the others"
 All players' heroes in one world, run by the host (`pav_app::coop`, `pav_core::arpg::party`):
 
 - **The game.** Besides the game's own hero, `Game::party` holds the other players' heroes, each
@@ -81,7 +122,9 @@ All players' heroes in one world, run by the host (`pav_app::coop`, `pav_core::a
   (the hub's server) runs the world and draws little.
 - **Leaving and the end.** The host marks a player's leaving in the bundle (their hero leaves at
   that tick on every copy). The host finishes the round: at time-up, or when the party reaches
-  depth 4 (`coop::GOAL_DEPTH`, then `won`). Standings by kills, scores the kills.
+  depth 4 (`coop::GOAL_DEPTH`). The hub says how the round plays (`info.play`): in co-op every
+  player shares one place in the standings and `won` says whether the party got deep enough; in
+  versus the standings go by kills, most first. The kills are the scores either way.
 
 ## Testing
 `pav_core/tests/coop.rs` checks the party (each hero by its own input, a member's casts and
@@ -89,20 +132,22 @@ respawn, the same inputs giving the same world). The hub's harness plays the hub
 
 ```bash
 mkdir -p .cache/harness && cd .cache/harness
-for f in harness.html bridge.js round.js; do curl -fsSO https://raw.githubusercontent.com/michaelcrosato/ai-hub/main/lib/hub/$f; done
-cp ../../target/hub/pages/*.html . && python3 -m http.server 8765
+for f in harness.html bridge.js round.js; do curl -fsSO https://52in1.com/lib/hub/$f; done
+cp ../../target/hub/pages/shardfall.html . && python3 -m http.server 8765
 ```
 
-then open `http://localhost:8765/harness.html?game=shardfall-shared-world.html&players=2&auto=1`
-(and `players=4&latency=150&jitter=50&loss=5`, `scenario=host-leave`, `players=2&scenario=server`;
-the ghost and parallel pages the same way) in Chromium with WebGPU; it passes when
-`window.__hubCheck.pass` is true. Headless, Chromium needs `--enable-unsafe-webgpu
---enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader`.
+then open `http://localhost:8765/harness.html?game=shardfall.html&players=2&auto=1` with
+`&mode=parallel`, `&mode=ghost`, `&mode=shared-world&how=co-op`, `&mode=shared-world&how=versus`
+or `&mode=moments` (`&moment=pack,gold,swarm` picks the moments), and the hub's own cases
+(`players=4&latency=150&jitter=50&loss=5`, `scenario=host-leave`, `players=2&scenario=server`)
+in Chromium with WebGPU; it passes when `window.__hubCheck.pass` is true. Headless, Chromium
+needs `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader
+--use-angle=swiftshader`.
 
 ## The package
-`scripts/hub-package.sh --model NAME --effort LEVEL` builds the pages, puts the shared-world one
-in `target/hub/package/games/shardfall.html`, takes the three screenshots with
-`scripts/hub-covers.js` (`covers/shardfall/0.jpg` the opening view on the plaza, `1.jpg` the Proving Grounds,
+`scripts/hub-package.sh --model NAME --effort LEVEL` builds the page, puts it in
+`target/hub/package/games/shardfall.html`, takes the three screenshots with
+`scripts/hub_covers.py` (`covers/shardfall/0.jpg` the opening view on the plaza, `1.jpg` the Proving Grounds,
 `2.jpg` a descent level: 640 x 480 baseline JPEG at quality 58, from a 960 x 720 window at scale
 2/3) and runs the hub's checker on the folder. The package is handed over, not committed (it
 holds the build and its images); importing it into the hub is the hub's step (`pnpm ingest`).

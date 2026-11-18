@@ -32,6 +32,13 @@ pub struct Info {
     pub server: bool,
     #[serde(default)]
     pub mode: String,
+    /// A shared world's play, when the page's `hub:multiplayer` names it: `co-op`, `versus` or
+    /// `other` (none: the shared world as it always played, co-op).
+    #[serde(default)]
+    pub play: Option<String>,
+    /// Moments: the moment this load plays (`arpg::moments`).
+    #[serde(default)]
+    pub moment: Option<String>,
     #[serde(default)]
     pub round: u32,
     #[serde(default)]
@@ -45,8 +52,16 @@ impl Info {
     pub fn ghost(&self) -> bool {
         self.mode == "ghost" || self.mode == "race"
     }
+    pub fn moments(&self) -> bool {
+        self.mode == "moments"
+    }
+    /// One world for every player, run by the host (`co-op` and `versus` are older names).
     pub fn shared(&self) -> bool {
-        !self.parallel() && !self.ghost()
+        matches!(self.mode.as_str(), "shared-world" | "co-op" | "versus")
+    }
+    /// A shared world played against each other: the standings say who won.
+    pub fn versus(&self) -> bool {
+        self.play.as_deref() == Some("versus") || (self.mode == "versus" && self.play.is_none())
     }
     /// This copy has a player of its own (not a hub-run server).
     pub fn playing(&self) -> bool {
@@ -152,6 +167,12 @@ mod js {
         pub fn finish(json: &str);
         #[wasm_bindgen(js_namespace = shardfallHub)]
         pub fn fail(message: &str);
+        #[wasm_bindgen(js_namespace = shardfallHub, js_name = momentStanding)]
+        pub fn moment_standing(won: bool);
+        #[wasm_bindgen(js_namespace = shardfallHub, js_name = settingsJson)]
+        pub fn settings_json() -> String;
+        #[wasm_bindgen(js_namespace = shardfallHub, js_name = takeSettingsChanged)]
+        pub fn take_settings_changed() -> bool;
     }
 }
 
@@ -245,6 +266,68 @@ pub fn finish(outcome: &serde_json::Value) {
     let _ = outcome;
 }
 
+/// Moments: what the page reports at time-up if the game can't answer in time (a slow frame).
+pub fn moment_standing(won: bool) {
+    #[cfg(target_arch = "wasm32")]
+    js::moment_standing(won);
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = won;
+}
+
+/// The player's 52in1 settings (`window.AIHubSettings`), as the hub hands them to every game it
+/// opens. None outside 52in1 (the game's own page, a native build): the game plays as it is.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Settings {
+    /// Music volume, 0 to 1 (Shardfall has no music: kept for what may come).
+    pub music: f32,
+    /// Every other sound, 0 to 1: multiplies the game's own effects volume.
+    pub effects: f32,
+    /// Controller vibration, 0 (off) to 1. The hub scales every rumble by it itself.
+    pub vibration: f32,
+    /// The player allowed games the microphone (before this game opened).
+    pub mic: bool,
+    pub mic_later: bool,
+    pub muted: bool,
+    pub dualsense: DualSense,
+}
+
+/// What a connected DualSense's extras allow (catalogue v1, "The DualSense").
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct DualSense {
+    pub connected: bool,
+    pub lightbar: bool,
+    pub triggers: bool,
+    pub motion: bool,
+    pub touchpad: bool,
+    pub speaker: bool,
+    pub aim: bool,
+}
+
+/// The player's 52in1 settings, when the hub runs the game.
+pub fn settings() -> Option<Settings> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let text = js::settings_json();
+        if text.is_empty() {
+            return None;
+        }
+        serde_json::from_str(&text).map_err(|e| log::warn!("52in1 settings: {e}")).ok()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    None
+}
+
+/// The player changed their 52in1 settings since the last call (they can open Settings over
+/// the game from the hub's bar).
+pub fn settings_changed() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    return js::take_settings_changed();
+    #[cfg(not(target_arch = "wasm32"))]
+    false
+}
+
 /// The game can't run here.
 pub fn fail(message: &str) {
     #[cfg(target_arch = "wasm32")]
@@ -266,5 +349,24 @@ mod tests {
         assert!(matches!(&e[2], super::Event::Leave { id: 1, reason } if reason == "left"));
         assert!(matches!(e[3], super::Event::TimeUp { grace_ms } if grace_ms == 5000.0));
         assert!(matches!(&e[4], super::Event::End { reason, .. } if reason == "finished"));
+    }
+
+    #[test]
+    fn modes_and_settings_read() {
+        let i: super::Info = serde_json::from_str(
+            r##"{"me":1,"players":[{"id":0,"name":"A","color":"#e8443a"},{"id":1,"name":"B","color":"#3b82f6"}],"host":0,"isHost":false,"mode":"shared-world","play":"versus","round":2,"seed":9,"limitMs":480000}"##,
+        )
+        .unwrap();
+        assert!(i.shared() && i.versus() && !i.moments());
+        let m: super::Info = serde_json::from_str(r#"{"me":0,"mode":"moments","moment":"gold","seed":3}"#).unwrap();
+        assert!(m.moments() && !m.shared() && m.moment.as_deref() == Some("gold"));
+        let old: super::Info = serde_json::from_str(r#"{"me":0,"mode":"co-op"}"#).unwrap();
+        assert!(old.shared() && !old.versus());
+        let s: super::Settings = serde_json::from_str(
+            r#"{"music":0.5,"effects":0.25,"vibration":1,"mic":false,"micLater":true,"muted":false,"dualsense":{"connected":true,"lightbar":true,"triggers":false,"motion":true,"touchpad":true,"speaker":false,"aim":true}}"#,
+        )
+        .unwrap();
+        assert_eq!(s.effects, 0.25);
+        assert!(s.mic_later && s.dualsense.connected && s.dualsense.lightbar && !s.dualsense.triggers);
     }
 }

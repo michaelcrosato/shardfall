@@ -235,7 +235,8 @@ fields); keep rooms as data wherever possible.
 and the engine's tools are stations: `pav_core::plaza`), `world/<room>` (start in a room),
 `<room key>` (that room alone, no terrain), `test`, `empty`, and Shardfall's `town` (Emberwatch,
 through the plaza's rift; the saved hero is loaded into any game scene), `arena`, `lab` (the
-Menagerie of creatures) and `level/<n>` (depth n: 1-12 designed, then the endless Depths).
+Menagerie of creatures), `level/<n>` (depth n: 1-12 designed, then the endless Depths) and
+`moment/<id>` (52in1's short moments: `docs/AI_HUB.md`).
 Games built on the hook (`pav_core::games::GAMES`) are scenes by their key: `starter` today.
 Code scenes live in `scenes.rs` (Shardfall places in `arpg/scene.rs`).
 

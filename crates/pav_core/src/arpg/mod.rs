@@ -18,6 +18,7 @@ pub mod levelgen;
 pub mod lines;
 pub mod loot;
 pub mod mechanics;
+pub mod moments;
 pub mod party;
 pub mod powers;
 pub mod round;
@@ -196,6 +197,9 @@ pub struct Game {
     pub party: Vec<party::PartyMember>,
     #[serde(default)]
     pub seat: u32,
+    /// A moment on the 52in1 hub (`moments.rs`): one goal, cleared or failed in seconds.
+    #[serde(default)]
+    pub moment: Option<moments::MomentState>,
 }
 
 impl Game {
@@ -242,6 +246,7 @@ impl Game {
             round_seed: None,
             party: Vec::new(),
             seat: 0,
+            moment: None,
         }
     }
 
@@ -1036,6 +1041,7 @@ impl Game {
         self.shake *= (-9.0 * raw_dt).exp();
         self.level_flash += raw_dt;
         scene::update_arena(self, sim, dt);
+        moments::update(self, sim, dt);
         mechanics::update_level(self, sim, dt, events);
         scene::update_npcs(self, sim, dt, events);
         hall::update(self, sim, dt);
@@ -1342,6 +1348,10 @@ impl Game {
 
     /// A fallen hero gets back up at the place's start after a moment.
     fn respawn_tick(&mut self, sim: &mut Sim, dt: f32) {
+        // A moment is lost when the hero falls: nobody gets back up.
+        if self.moment.is_some() {
+            return;
+        }
         let Some(hid) = self.hero_id else { return };
         if self.actors.get(&hid).is_some_and(|a| a.dead) {
             self.respawn -= dt;
@@ -1640,6 +1650,8 @@ pub struct GameFrame {
     pub message: Option<String>,
     pub wave: u32,
     pub monsters: usize,
+    /// A moment on the 52in1 hub: its goal, clock and outcome.
+    pub moment: Option<moments::MomentView>,
 }
 
 impl Game {
@@ -1808,6 +1820,7 @@ impl Game {
             message: self.message.as_ref().map(|m| m.0.clone()),
             wave: self.arena.as_ref().map(|a| a.wave).unwrap_or(0),
             monsters: self.monsters_alive(),
+            moment: self.moment.as_ref().map(|m| m.view(self)),
         }
     }
 }
