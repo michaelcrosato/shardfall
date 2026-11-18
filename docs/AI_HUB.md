@@ -99,34 +99,61 @@ twice).
   it, or, while `micLater` (allowed after the game opened), to open Shardfall again; while
   `muted` a line says the controller's mute button has it off. The game never asks for the
   microphone until then. With the row on and `mic` true, the game tells the page so every frame
-  (`shout(on)`); the page asks 52in1's `openMicrophone()` once (never `getUserMedia()`; a
+  (`shout(on)`); the page asks 52in1's `openMicrophone()` once (never `getUserMedia()` first; a
   `null` stream is asked for again only when the player's settings change), feeds the stream
   through an AnalyserNode (into the speakers at no volume; the track is asked to turn the
   browser's gain control off, so a shout stays louder than talk) and hands what came in since
   its last look, every 30 ms and every frame, to its ear (`window.shoutDetector`, a script
-  block of its own). The ear weighs 20 ms blocks against the background it learns from this
-  microphone (the room, the game's sound through the speakers, talk: the 75th percentile of the
-  last 8 s of blocks that weren't loud, held through pauses): a shout is 2.6 times the
-  background's RMS or more, and at least RMS 0.01, held for 0.25 s (a clap, a click of the
-  controller's buttons or a syllable of talk is shorter); one counts per loud stretch, then
-  1.5 s pass before the next, and none counts while `muted`. So a quiet microphone, or gain
-  control left on, still hears a shout over its own background, and talk or a steady game sound
-  doesn't count. Loudness that goes on (one stretch of 4 s, or three in 2.5 s) becomes the
-  background: music starting, or talk straight out of silence, can count once first. The
-  analyser holds 0.7 s, so slow frames lose no shout. `node scripts/shout_check.mjs` runs the
-  ear in Node over made-up sounds (silence then a shout; talk at RMS 0.02, 0.05 and 0.1, with
-  pauses; shouts 4x over each; a quiet microphone; a music bed; claps; muting; slow frames;
-  `--sweep=N` many voices, a rate: talk's drawn-out, stressed syllables come close to a shout,
-  and about one per 10 minutes of talk counts). The game takes the shout (`shout()` returns it
-  and clears it, and drops one older than a second) and, while the player can play (no menu, a
-  game scene with a hero), presses War Cry's slot's button (the same input bit as the pad, the
-  keys or the mouse) for one frame; once War Cry's cooldown starts it shows "Roar!"
-  (`hud.roar`) and tells the page (`shardfallHub.roars` counts them; `shoutsHeard` lists the
-  shouts the page heard, taken or not, and `hearing()` its background and threshold). The row
-  turned off, or `mic` taken back (the page listens to the hub's `change`): the page stops the
-  stream's tracks and disconnects. `pad_check.py --dualsense` plays Kestrel with a stand-in
-  microphone (a tone, loud 0.5 s every 4 s) and counts the asks, the shouts and the War Cries;
-  `hub_live.mjs --voice=` plays a made-up voice through Chrome's real capture ("Testing").
+  block of its own). The ear weighs 20 ms blocks: a shout is 0.25 s of them in a row that are
+  voiced (a vowel repeats itself at a pitch; a breath, a cough or a fan is noise), steady (a
+  laugh comes in "ha"s, a cough falls away) and loud: at RMS 0.05 (-26 dBFS, which a quiet room
+  or the game's sound through the speakers doesn't reach) and at 1.6 times the louder of two
+  levels, each the 90th percentile of its blocks: what it heard in the 3 s before the last
+  0.25 s (so music, or a voice that gets louder, raises the bar within a second, while a shout
+  can't raise its own) and how loud the player talks (the last 15 s of voice: silence, noise, a
+  steady background and a stretch held over the bar, a shout or a long "aaah", stay out, so a
+  pause however long or a test shout doesn't move it). One counts, then 1.5 s pass before the
+  next, none in the first 1.5 s or while `muted`; a sound that loud out of the blue (the first
+  words out of silence, music starting, a voice suddenly 6 dB louder) can count once before the
+  ear has heard it. The floor is the trade-off: on a microphone ten times quieter than usual
+  (talk around RMS 0.005) a shout only 4x over the talk stays under it, while a full shout
+  (about 10x) is heard. The analyser holds 0.7 s, so slow frames lose no shout.
+  Known limits, measured by an adversarial tester on made-up sounds and left as they are (a
+  loudness ear can't be perfect, and a stray roar only casts a buff): a shout needs about 0.4 s
+  of sound in all (Settings says "hold a loud shout for about half a second"; a 0.3 s "HEY!"
+  is missed); after a loud held sound the next shout counts only about 3 s later (War Cry's own
+  cooldown is longer); a tone that comes back every 3.5 s or more (an alarm, a phone) can count
+  each time; very animated talk can make a false roar about once a minute or two; a voice that
+  drops 6 dB needs 20-30 s before a 4x shout clears the remembered talk; a strong tremolo or a
+  low growl is often missed; a fast compressor left on in the microphone's chain hides shouts.
+  All of these are worth checking with a real microphone and a DualSense.
+  Chrome's own gain control: 52in1 opens the microphone with `audio: true`, so gain control is
+  on, and Chrome won't turn it off on an open track (`applyConstraints` says yes and leaves it
+  on). Measured on Chrome's capture of `scripts/make_voice_wav.py`'s voice, it lifts talk's
+  loudest 20 ms blocks to a shout's level (talk's loudest 1% at 0.22 RMS, a shout's quietest
+  tenth at 0.20; without it 0.10 and 0.16), and the ear heard none of the shouts. So once
+  52in1 has given a stream, the page lets it go and opens the same device again (its
+  `deviceId`) with gain control off, echo cancellation and noise suppression kept (Chrome keeps
+  one processing setup per open device, so 52in1's goes first); if that fails it asks 52in1
+  again. That reopen is the page's only `getUserMedia`, always after `openMicrophone()` has
+  given the microphone. Through 52in1's own hub and Chrome's real capture (`hub_live.mjs
+  --voice`), the ear then heard 6 of 6 shouts and nothing else.
+  `node scripts/shout_check.mjs` runs the ear in Node over made-up sounds (silence then a shout;
+  talk at RMS 0.02, 0.05 and 0.1, with pauses; shouts 4x over each; a quiet microphone; music
+  beds, tunes, accents and choruses; claps, coughs, laughs and breaths; muting; slow frames;
+  on-and-off talk with pauses of 3 to 90 s; the game's sounds in a quiet room; a test shout
+  while it warms up; long "aaah"s; a voice that gets louder; `--sweep=N` many voices, a rate:
+  talk's drawn-out, stressed syllables come close to a shout, and about one per 20 minutes of
+  talk counts). The game takes the shout (`shout()` returns it and clears it, and drops one
+  older than a second) and, while the player can play (no menu, a game scene with a hero),
+  presses War Cry's slot's button (the same input bit as the pad, the keys or the mouse) for one
+  frame; once War Cry's cooldown starts it shows "Roar!" (`hud.roar`) and tells the page
+  (`shardfallHub.roars` counts them; `shoutsHeard` lists the shouts the page heard, taken or
+  not, and `hearing()` its level and threshold). The row turned off, or `mic` taken back (the
+  page listens to the hub's `change`): the page stops the stream's tracks and disconnects.
+  `pad_check.py --dualsense` plays Kestrel with a stand-in microphone (a tone, loud 0.5 s every
+  4 s) and counts the asks, the shouts and the War Cries; `hub_live.mjs --voice=` plays a
+  made-up voice through Chrome's real capture ("Testing").
 - Natively there is no hub: no motion aim, no speaker, no microphone, no rows.
 
 ## A round
@@ -264,7 +291,7 @@ voice through Chrome's capture and audio processing. Step 6 plays on until the s
 recording through, and `voice` in hub_live.json holds the shouts the game took
 (`shouts_detected`, their times since the stream came), the ones the page heard
 (`page_heard_s`, since it began listening: frames are slow headless, and a shout the game takes
-more than a second late is dropped), its background and threshold (`hearing`), and how they
+more than a second late is dropped), its level and threshold (`hearing`), and how they
 line up with the recording's (`match`: due, matched, missed, stray; `match_best_offset` if the
 file didn't start with the stream). The hero is the Wanderer, without War Cry: the test measures
 hearing, not roaring.

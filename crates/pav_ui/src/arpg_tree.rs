@@ -281,13 +281,20 @@ impl TreeUi {
                 // (The search lights nodes up only where its field shows: with a mouse.) Its hits, by
                 // node index, are kept while the search stays the same.
                 let search = if mouse { self.search.to_lowercase() } else { String::new() };
-                if self.lit.0 != search || (!search.is_empty() && self.lit.1.len() != t.nodes.len()) {
+                // (Keyed by the language and the tree's data too: names and descriptions change
+                // with them, the search's text doesn't.)
+                let key = if search.is_empty() {
+                    String::new()
+                } else {
+                    format!("{}\u{1}{:p}\u{1}{}\u{1}{search}", pav_core::lines::language(), t, t.nodes.len())
+                };
+                if self.lit.0 != key {
                     let matches = |n: &Node| {
                         lines::tree_node_name(t, n).to_lowercase().contains(&search)
                             || t.describe(n).iter().any(|l| l.to_lowercase().contains(&search))
                     };
                     let hits = if search.is_empty() { Vec::new() } else { t.nodes.iter().map(matches).collect() };
-                    self.lit = (search, hits);
+                    self.lit = (key, hits);
                 }
                 let lit = &self.lit.1;
                 let hit = |i: usize| lit.get(i).copied().unwrap_or(false);
@@ -462,7 +469,9 @@ impl TreeUi {
                     }
                 }
                 // Sector names around the start. Zoomed out they move out over their sectors, to the
-                // gap before the Astral rings, on a dark backing: the overview's regions.
+                // gap before the Astral rings, on a dark backing: the overview's regions. They sit
+                // beside the sector's road (its angle), not on it: the road carries its keystone,
+                // notables and the hero's path.
                 let fade = 1.0 - detail;
                 for (i, s) in t.sectors.iter().enumerate() {
                     if self.zoom <= 14.0 && fade == 0.0 {
@@ -474,7 +483,10 @@ impl TreeUi {
                     let color = col(s.color, 1.0);
                     let font = FontId::proportional(if self.touch { 13.0 } else { 16.0 });
                     let galley = p.layout_no_wrap(lines::sector_name(t, i), font, color);
-                    let label = Align2::CENTER_CENTER.anchor_size(at, galley.size());
+                    // (The road runs along (sin a, -cos a) on screen; beside it is (cos a, sin a).)
+                    let side = EVec2::new(a.cos(), a.sin());
+                    let beside = (galley.size().x * 0.5 * side.x.abs() + galley.size().y * 0.5 * side.y.abs() + 12.0) * fade;
+                    let label = Align2::CENTER_CENTER.anchor_size(at + side * beside, galley.size());
                     if fade > 0.0 {
                         p.rect_filled(label.expand2(EVec2::new(5.0, 1.0)), 4.0, Color32::from_black_alpha((170.0 * fade) as u8));
                     }

@@ -374,8 +374,8 @@ smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_che
 the browser build with a virtual pad (standard mapping, `--unmapped` a hat-switch pad Chrome
 doesn't map, `--dualsense` with 52in1's settings injected: light bar, triggers, rumbles, the
 touchpad, motion aim (gyro reads), the speaker's cues, Shout to roar as Kestrel with a stand-in
-microphone: openMicrophone asks, shouts heard, War Cries cast, getUserMedia never); `scripts/touch_check.py` drives it with real touch events on an
-emulated phone, upright and sideways (two thumbs at once, the bag, a flick that closes it).
+microphone: openMicrophone asks, shouts heard, War Cries cast, getUserMedia only to reopen 52in1's device with gain control off); `scripts/touch_check.py` drives it with real touch events on an
+emulated phone, upright and sideways (the touch card swiped away, two thumbs at once, the bag and the pause menu each flicked closed, auto-attack fighting hands-off).
 Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,

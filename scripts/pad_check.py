@@ -28,7 +28,7 @@ usage: python3 -P scripts/pad_check.py PAGE.html OUT_DIR [--unmapped] [--dualsen
   tone from an OscillatorNode through a MediaStreamAudioDestinationNode, loud (0.8) for 0.5 s
   every 4 s and silent between, from two seconds after the call (the page listens 1.5 s before
   it counts a shout). Recorded: the calls to openMicrophone() (1: the game asks once) and to
-  getUserMedia() (0: never), the tone's bursts so far, the shouts the page's
+  getUserMedia() (0 here: the stand-in stream has no gain control to turn off, so the page never reopens it), the tone's bursts so far, the shouts the page's
   shardfallHub.shout() reported (about one a burst: none lost, even at a frame a second) and
   the War Cries they cast (shardfallHub.roars, counted once War Cry went off: at least 1, at
   most one each 12 s cooldown; a shout while mana is short, the hero dead or War Cry cooling

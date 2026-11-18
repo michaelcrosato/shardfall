@@ -178,6 +178,9 @@ await context.addInitScript(() => {
     const gum = md.getUserMedia.bind(md);
     md.getUserMedia = (c) => { window.__micAsks++; return gum(c); };
   }
+  // (Once 52in1's openMicrophone has given a stream, the page opens the same device again with
+  // Chrome's gain control off, its one getUserMedia: so 2 asks after the microphone is allowed,
+  // none before.)
   // The game's asks through 52in1 (the companion's own getUserMedia runs under openMicrophone,
   // so __micAsks counts it too), and when the stream came (__micStreamAt, performance.now()):
   // wrapped as soon as the companion has made AIHubSettings (a frame without it, a minute on,
