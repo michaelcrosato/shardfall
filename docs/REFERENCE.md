@@ -312,8 +312,8 @@ right use, D-pad left or the touchpad's press map, D-pad down the hero's panels 
 touchpad swipe turn them), Options the menu.
 
 Menus on a controller (`pav_ui::padnav`, every egui window as it is): the D-pad or the left stick
-moves between the items (a gold ring shows which), Cross takes, Square is the item's other
-action (right click), Triangle is Shift, the right stick scrolls, Circle goes back; a slider
+moves between the items (a gold ring shows which), Cross takes and Square is the item's other
+action (right click), each on the press however long it is held, Triangle is Shift, the right stick scrolls, Circle goes back; a slider
 takes the D-pad's left and right; on the passive tree the stick moves a pointer. The pad starts
 from the item the mouse was on. PS and Create + Options together are 52in1's: unused. The pause
 menu (menu.rs) is one column of big buttons with pages: Settings (button prompts, vibration,
@@ -339,8 +339,11 @@ cast, back onto the button to cancel · hold: keep casting), potion, and a "use"
 appears when something is in reach; top right: menu and bag. Swipe messages, banners and the
 minimap away; tap the minimap for the big map; tap the game outside a window, or flick a
 window sideways, to close it. Upright or sideways: the camera keeps its field of view across a
-tall screen. Assists for a thumb: auto-attack in Shardfall, and in the blaster rooms (Bullet
-Hell) the blaster fires by itself; the drift car's throttle is how far the stick is pushed.
+tall screen. Assists for a thumb: auto-attack in Shardfall; a skill dragged near a foe aims at
+it (`touch::assist_aim`); in the blaster rooms (Bullet Hell) the blaster fires by itself; at
+the wheel of a car the throttle stays full while steering. Mouse: a place's use prompt (the
+smith's "G: trade") is a button; loot names pick up on a click. `scripts/pad_check.py` plays
+the browser build with a virtual standard-mapping pad.
 Graphics quality and auto-attack are in the pause menu's Settings.
 
 H (world demo): how the room you are in works (the station guide: steps, pads, live settings,

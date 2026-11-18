@@ -5,6 +5,39 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Text for the sofa, the mouse on the world, assists for a thumb, any pad in the browser — 2026-11-17
+
+What a review of the controls pass found missing, closed:
+- **Text at ten feet** (`pav_ui::game_style`): the game's windows used egui's desktop sizes
+  (small print 9 pt). Outside the studios the text is now sized for a TV (small 12.5, body 15.5,
+  headings 22, with `ten_foot_zoom` on top: body about 22 px at 1080p), so item tooltips, the
+  passive tree's node cards and every window read from the sofa; the studios keep a desk's
+  sizes, touch its own. The tree stays a graph: its words and prompts are what grew.
+- **The mouse on the world:** a place's use prompt (Hilda's "G: trade", the stash, the portal)
+  is a button now, so a click uses the place the hero stands by, as G or the pad's button
+  does (loot names already were). Moving the mouse counts as using it: the item it points at
+  is where a controller picks up (hover moves the focus), not only after a click.
+- **A press acts once, on the frame it goes down** (the 52in1 guide's rule): in menus Cross and
+  Square click at once, however long they are held or slow the frame (egui counts a press
+  held past 0.8 s as no click, which a TV frame on a slow GPU easily is). The passive tree,
+  a canvas, keeps hold-and-move to drag.
+- **Assists for a thumb:** a skill aimed by hand turns onto a foe close to where the thumb
+  points (`touch::assist_aim`: within about 15 degrees for missiles, 2.5 m of the landing
+  point for ground skills); at the wheel of a car, steering is enough and the throttle stays
+  full (the car has one gear: nothing to shift). The use button already pops up only when
+  something is in reach, named for what it does (Trade, Stash, Travel, Descend).
+- **Any pad in the browser:** `scripts/pad_check.py` plays the browser build with a virtual
+  controller in the standard mapping (an Xbox pad by default) through the game's own input
+  path: Options opens the menu, D-pad down moves the ring, Cross opens Settings. A pad the
+  browser does not map (no standard mapping) reaches gilrs as raw buttons with no names: the
+  game plays every pad the browser maps, which is what Chrome and Edge do for the common ones.
+- **The Windows build** needs mingw-w64; this machine had none and no passwordless sudo:
+  Homebrew's `mingw-w64` (user space) builds it (`scripts/build-windows.sh`).
+- **Checked:** `pav_ui` tests (aim assist, a press clicking once, the pad picking up where the
+  mouse points), `pav_tools/tests/game_ui.rs` (a click on a loot name picks it up, a click on
+  the smith's prompt opens her shop with the bag), the browser build with a virtual Xbox pad,
+  captures at 1080p (inventory, tree, character sheet) and touch upright by the smith.
+
 ## Prompts everywhere: the skills window, room cards, hints in a corner — 2026-11-17
 
 The last sweep of the controls pass, found by looking at the game on each device:

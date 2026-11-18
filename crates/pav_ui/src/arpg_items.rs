@@ -207,7 +207,7 @@ fn cell(ui: &mut egui::Ui, d: &Data, item: Option<&Item>, size: f32, empty: &str
             p.rect_filled(rect, 4.0, Color32::from_rgb(22, 20, 24));
             p.rect_stroke(rect, 4.0, Stroke::new(1.0, Color32::from_rgb(70, 60, 50)), StrokeKind::Inside);
             if !empty.is_empty() {
-                p.text(rect.center(), Align2::CENTER_CENTER, empty, FontId::proportional(10.0), Color32::from_white_alpha(70));
+                p.text(rect.center(), Align2::CENTER_CENTER, empty, FontId::proportional(12.0), Color32::from_white_alpha(90));
             }
         }
     }
@@ -393,7 +393,11 @@ impl GameUi {
                 self.panel = None;
             }
         }
-        labels(ctx, g, proj, &mut out, self.touch);
+        let mut spot_clicked = false;
+        labels(ctx, g, proj, &mut out, self.touch, &mut spot_clicked);
+        if spot_clicked {
+            out.extend(self.interact(g));
+        }
         let Some(inv) = g.inv.clone() else { return out };
         if self.inventory {
             self.inventory_window(ctx, &d, &inv, &mut out);
@@ -1256,7 +1260,7 @@ fn skills_window(ctx: &egui::Context, open: &mut bool, d: &Data, inv: &InvView, 
 }
 
 /// Names over items on the ground (click to pick up) and over usable spots.
-fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<GameCmd>, touch: bool) {
+fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<GameCmd>, touch: bool, spot_clicked: &mut bool) {
     let mut placed: Vec<Rect> = Vec::new();
     let mut loot: Vec<_> = g.loot.iter().filter(|l| l.rest || l.age > 0.4).collect();
     loot.sort_by_key(|l| std::cmp::Reverse(l.rarity));
@@ -1316,14 +1320,32 @@ fn labels(ctx: &egui::Context, g: &GameFrame, proj: &Projector, out: &mut Vec<Ga
                 SpotKind::Hero => t!("spot.verb.hero"),
                 SpotKind::Gate => t!("tools.gate.use"),
             };
-            crate::arpg_ui::rich(
-                &p,
-                at + EVec2::new(0.0, 20.0),
-                Align2::CENTER_CENTER,
-                &pav_core::t_rich!("spot.hint", action = what),
-                15.0,
-                Color32::from_white_alpha(230),
-            );
+            // The prompt is a button too: the mouse clicks the place it stands by, as the key
+            // or the pad's button uses it.
+            let text = pav_core::t_rich!("spot.hint", action = what);
+            let style = crate::controls::current().1;
+            let w = crate::glyph::rich_width(&p, &text, 15.0, &crate::controls::current_glyphs, style) + 16.0;
+            let rect = Rect::from_center_size(at + EVec2::new(0.0, 21.0), EVec2::new(w, 26.0));
+            egui::Area::new(egui::Id::new(("spot_use", i)))
+                .fixed_pos(rect.min)
+                .order(egui::Order::Background)
+                .interactable(true)
+                .show(ctx, |ui| {
+                    let (r, resp) = ui.allocate_exact_size(rect.size(), Sense::click());
+                    let bg = if resp.hovered() { Color32::from_black_alpha(220) } else { Color32::from_black_alpha(120) };
+                    ui.painter().rect_filled(r, 6.0, bg);
+                    crate::arpg_ui::rich(
+                        ui.painter(),
+                        r.center(),
+                        Align2::CENTER_CENTER,
+                        &text,
+                        15.0,
+                        Color32::from_white_alpha(235),
+                    );
+                    if resp.clicked() {
+                        *spot_clicked = true;
+                    }
+                });
         }
     }
 }

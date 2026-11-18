@@ -277,7 +277,7 @@ impl TreeUi {
                             c + EVec2::new(0.0, r + 8.0),
                             Align2::CENTER_CENTER,
                             lines::tree_node_name(t, n),
-                            FontId::proportional(11.0),
+                            FontId::proportional(13.0),
                             Color32::from_white_alpha(170),
                         );
                     }
@@ -415,7 +415,7 @@ impl TreeUi {
                     legend,
                     Align2::LEFT_BOTTOM,
                     t!("tree.legend"),
-                    FontId::proportional(11.0),
+                    FontId::proportional(13.0),
                     Color32::from_white_alpha(120),
                 );
             });
