@@ -208,12 +208,22 @@ impl PadNav {
             events.push(Event::ModifiersChanged(modifiers));
         }
         let on_slider = current.is_some_and(|c| c.slider);
+        let on_canvas = current.is_some_and(|c| c.canvas);
         for (now, was, button) in [
             (input.cross && !on_slider, self.buttons.0, PointerButton::Primary),
             (input.square, self.buttons.1, PointerButton::Secondary),
         ] {
-            if now != was {
-                events.push(Event::PointerButton { pos: pointer, button, pressed: now, modifiers });
+            if on_canvas {
+                // A canvas (the passive tree) is a mouse's: held is held, so holding Cross and
+                // moving drags it.
+                if now != was {
+                    events.push(Event::PointerButton { pos: pointer, button, pressed: now, modifiers });
+                }
+            } else if now && !was {
+                // Elsewhere a press acts once, on the frame it goes down: a whole click, however
+                // long the button stays down (and however slow the frame).
+                events.push(Event::PointerButton { pos: pointer, button, pressed: true, modifiers });
+                events.push(Event::PointerButton { pos: pointer, button, pressed: false, modifiers });
             }
         }
         self.buttons = (input.cross && !on_slider, input.square, input.triangle);
@@ -235,7 +245,9 @@ impl PadNav {
     /// Lets go of the pointer's buttons (the menus closed with one held).
     pub fn release(&mut self) -> Vec<Event> {
         let mut out = Vec::new();
-        if let Some(pos) = self.pointer {
+        // (Only a canvas holds a button down; elsewhere a press was a whole click.)
+        let canvas = self.snapped.is_some_and(|s| s.canvas);
+        if let Some(pos) = self.pointer.filter(|_| canvas) {
             for (held, button) in [(self.buttons.0, PointerButton::Primary), (self.buttons.1, PointerButton::Secondary)] {
                 if held {
                     out.push(Event::PointerButton { pos, button, pressed: false, modifiers: Default::default() });
@@ -473,11 +485,13 @@ mod egui_tests {
         pass(&ctx, ev);
         let second = nav.focused().unwrap();
         assert!(second.top() > first.top(), "{first:?} -> {second:?}");
-        // Cross down, then up: a click on it.
+        // Cross goes down: the click lands at once, however long it is held.
         let ev = nav.frame(&ctx, &PadIn { cross: true, dt: 0.016, ..Default::default() }, None);
-        assert_eq!(pass(&ctx, ev), None);
-        let ev = nav.frame(&ctx, &PadIn { cross: false, dt: 0.016, ..Default::default() }, None);
         assert_eq!(pass(&ctx, ev), Some(1));
+        let ev = nav.frame(&ctx, &PadIn { cross: true, dt: 2.0, ..Default::default() }, None);
+        assert_eq!(pass(&ctx, ev), None, "held, it does not click again");
+        let ev = nav.frame(&ctx, &PadIn { cross: false, dt: 0.016, ..Default::default() }, None);
+        assert_eq!(pass(&ctx, ev), None);
     }
 }
 
@@ -518,5 +532,52 @@ mod opening_tests {
         }
         let top = nav.focused().expect("an item");
         assert!(top.top() < 215.0, "starts on the first button, not the middle one: {top:?}");
+    }
+}
+
+#[cfg(test)]
+mod hover_tests {
+    use super::*;
+
+    #[test]
+    fn the_pad_picks_up_where_the_mouse_points() {
+        let ctx = Context::default();
+        let run = |ctx: &Context, events: Vec<Event>| {
+            let raw = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+                events,
+                ..Default::default()
+            };
+            let mut out = ctx.run_ui(raw, |ui| {
+                egui::Window::new("m").title_bar(false).fixed_pos([300.0, 100.0]).show(ui.ctx(), |ui| {
+                    for i in 0..5 {
+                        let _ = ui.add_sized([200.0, 40.0], egui::Button::new(format!("b{i}")));
+                    }
+                });
+            });
+            out.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            run(&ctx, vec![]);
+        }
+        // The mouse rests on the third button (hover); then the pad takes over.
+        let third = ctx.viewport(|v| {
+            let mut rects: Vec<Rect> = v
+                .prev_pass
+                .widgets
+                .layer_ids()
+                .flat_map(|l| v.prev_pass.widgets.get_layer(l).map(|w| w.rect).collect::<Vec<_>>())
+                .collect();
+            rects.retain(|r| r.width() > 150.0 && r.height() < 60.0);
+            rects.sort_by(|a, b| a.top().total_cmp(&b.top()));
+            rects[2]
+        });
+        let mut nav = PadNav::default();
+        let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, Some(third.center()));
+        run(&ctx, ev);
+        assert_eq!(nav.focused(), Some(third), "the pad starts on the hovered item");
+        let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 0.016, ..Default::default() }, Some(third.center()));
+        run(&ctx, ev);
+        assert!(nav.focused().unwrap().top() > third.top(), "and steps on from it");
     }
 }

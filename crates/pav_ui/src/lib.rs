@@ -36,16 +36,22 @@ pub fn ten_foot_zoom(height: f32, size: f32, touch: bool) -> f32 {
 }
 
 /// Touch screens: bigger targets, a little bigger text, thicker scroll bars, and dragging
-/// scrolls. `on = false` puts the desktop sizes back.
+/// scrolls. `on = false` puts the screen's sizes back (`game_style`).
 pub fn touch_style(ctx: &egui::Context, on: bool) {
+    game_style(ctx, on, false);
+}
+
+/// The game UI's style. Touch screens: bigger targets and text for fingers. Otherwise, text
+/// sized to read from a sofa ten feet from a TV (with `ten_foot_zoom` on top: body text about
+/// 22 pixels at 1080p), small print included; the studios (`studio`) keep a desk's sizes. No
+/// label is selectable: a game's text is read, never a click target or a stop for the pad.
+pub fn game_style(ctx: &egui::Context, touch: bool, studio: bool) {
     use egui::{FontId, TextStyle};
     ctx.all_styles_mut(|s| {
         s.spacing = egui::style::Spacing::default();
         s.text_styles = egui::style::default_text_styles();
-        // A game's labels are read, not selected: no label is a click target (nor a stop for a
-        // controller moving through a menu, `padnav`).
         s.interaction.selectable_labels = false;
-        if on {
+        if touch {
             let sp = &mut s.spacing;
             sp.interact_size = egui::vec2(44.0, 34.0);
             sp.button_padding = egui::vec2(12.0, 7.0);
@@ -62,6 +68,21 @@ pub fn touch_style(ctx: &egui::Context, on: bool) {
                 s.text_styles.insert(style, FontId::proportional(size));
             }
             s.interaction.tooltip_delay = 0.35;
+        } else if !studio {
+            let sp = &mut s.spacing;
+            sp.interact_size = egui::vec2(40.0, 24.0);
+            sp.button_padding = egui::vec2(8.0, 4.0);
+            sp.item_spacing = egui::vec2(9.0, 6.0);
+            for (style, size) in [
+                (TextStyle::Body, 15.5),
+                (TextStyle::Button, 15.5),
+                (TextStyle::Small, 12.5),
+                (TextStyle::Monospace, 14.0),
+                (TextStyle::Heading, 22.0),
+            ] {
+                s.text_styles.insert(style, FontId::proportional(size));
+            }
+            s.text_styles.insert(TextStyle::Monospace, FontId::monospace(14.0));
         }
     });
 }

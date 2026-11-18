@@ -372,7 +372,7 @@ impl Touch {
             } else {
                 sl.range.clamp(3.0, 12.0)
             };
-            Some(feet + dir * far)
+            Some(assist_aim(feet, dir, feet + dir * far, &foes, sl.ground, sl.range))
         };
         // Skills.
         for s in 0..6u8 {
@@ -774,6 +774,30 @@ pub fn pick_target(me: Vec3, stick: Vec2, foes: &[Foe], reach: f32) -> Option<(u
 
 // --------------------------------------------------------------------------------- swipes
 
+/// Aim assist for a skill aimed by hand: a foe close to where the thumb points takes it. A
+/// missile turns onto a foe within about 15 degrees of the drag (in its range); a ground skill
+/// lands on a foe within 2.5 m of where it would have. Otherwise the aim is the thumb's.
+pub fn assist_aim(feet: Vec3, dir: Vec3, aim: Vec3, foes: &[Foe], ground: bool, range: f32) -> Vec3 {
+    foes.iter()
+        .filter_map(|f| {
+            let to = flat(f.pos - feet);
+            let dist = to.length();
+            if dist < 0.1 {
+                return None;
+            }
+            if ground {
+                let off = flat_dist(f.pos, aim) - f.radius;
+                (off < 2.5).then_some((f, off))
+            } else {
+                let angle = to.normalize().dot(flat(dir).normalize_or_zero()).clamp(-1.0, 1.0).acos();
+                (angle < 0.26 && dist - f.radius <= range.max(10.0)).then_some((f, angle))
+            }
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(f, _)| if ground { Vec3::new(f.pos.x, aim.y, f.pos.z) } else { f.pos + Vec3::Y * 0.6 })
+        .unwrap_or(aim)
+}
+
 /// Temporary things on screen that a finger can swipe away. Each one asks [`Swipes::place`]
 /// where to draw itself every frame; once swiped it stays away until its content changes.
 #[derive(Default)]
@@ -891,6 +915,27 @@ pub fn key(x: impl std::hash::Hash) -> u64 {
     let mut h = DefaultHasher::new();
     x.hash(&mut h);
     h.finish()
+}
+
+#[cfg(test)]
+mod assist_tests {
+    use super::*;
+
+    #[test]
+    fn a_thumb_close_to_a_foe_aims_at_it_and_a_wide_one_does_not() {
+        let foe = |x: f32, z: f32| Foe { pos: Vec3::new(x, 0.0, z), radius: 0.5, aggro: false };
+        let foes = [foe(8.0, 1.0), foe(0.0, -6.0)];
+        let east = Vec3::X;
+        // A missile dragged east: the foe 7 degrees off takes it.
+        let a = assist_aim(Vec3::ZERO, east, east * 10.0, &foes, false, 12.0);
+        assert!((a.x - 8.0).abs() < 0.01 && (a.z - 1.0).abs() < 0.01, "{a:?}");
+        // Dragged north-east, 45 degrees from both: the thumb's own aim.
+        let ne = Vec3::new(1.0, 0.0, 1.0).normalize();
+        assert_eq!(assist_aim(Vec3::ZERO, ne, ne * 10.0, &foes, false, 12.0), ne * 10.0);
+        // A ground skill landing 2 m from a foe lands on it.
+        let g = assist_aim(Vec3::ZERO, east, Vec3::new(7.0, 0.0, 2.5), &foes, true, 12.0);
+        assert!((g.x - 8.0).abs() < 0.01 && (g.z - 1.0).abs() < 0.01, "{g:?}");
+    }
 }
 
 #[cfg(test)]

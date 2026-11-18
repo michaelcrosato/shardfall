@@ -108,3 +108,60 @@ fn the_plaza_names_its_stations_and_its_cards_open_them() {
     let r = call(&mut s, "ui", json!({"click": at})).unwrap();
     assert_eq!(r["station"], "shardfall", "{r}");
 }
+
+#[test]
+fn the_mouse_clicks_things_in_the_world() {
+    // An item on the ground by the hero: its name over it is a button, and a click picks it up.
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    // (Auto-pickup off, or the hero would take it back where it lands.)
+    call(&mut s, "game_cmd", json!({"do": "auto_loot", "rarity": 4})).unwrap();
+    let given = call(&mut s, "give", json!({"rarity": "rare", "level": 5, "slot": "weapon"})).unwrap();
+    let id = given["item"]["id"].as_u64().unwrap();
+    let name = given["item"]["name"].as_str().unwrap().to_string();
+    call(&mut s, "game_cmd", json!({"do": "drop", "id": id})).unwrap();
+    s.step(120);
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    // (Each label is an area of its own: the reading lists it with the windows.)
+    let all: Vec<Value> = r["hud"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .cloned()
+        .chain(r["windows"].as_array().unwrap().iter().flat_map(|w| w["text"].as_array().unwrap().clone()))
+        .collect();
+    let label = all
+        .iter()
+        .find(|t| t["text"].as_str().is_some_and(|t| t.contains(name.as_str())))
+        .unwrap_or_else(|| panic!("no label for {name}: {r}"));
+    let at = [label["at"][0].as_f64().unwrap() + 6.0, label["at"][1].as_f64().unwrap() + 6.0];
+    let r = call(&mut s, "ui", json!({"click": at})).unwrap();
+    assert!(r["did"].as_array().unwrap().iter().any(|d| d.as_str().unwrap().contains("Pickup")), "{r}");
+}
+
+#[test]
+fn the_mouse_clicks_the_place_the_hero_stands_by() {
+    // By Hilda's forge, the "use" prompt under her name is a button: a click opens her shop.
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(10);
+    let smith = s.sim.state.game.as_ref().unwrap().spots.iter().find(|p| p.kind == pav_core::arpg::SpotKind::Vendor).unwrap().pos;
+    let id = s.sim.state.player.unwrap();
+    s.sim.set_position(id, smith + glam::Vec3::new(0.0, 0.0, 1.2));
+    s.step(5);
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let all: Vec<Value> = r["hud"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .cloned()
+        .chain(r["windows"].as_array().unwrap().iter().flat_map(|w| w["text"].as_array().unwrap().clone()))
+        .collect();
+    let prompt = all
+        .iter()
+        .find(|t| t["text"].as_str().is_some_and(|t| t.to_lowercase().contains("trade")))
+        .unwrap_or_else(|| panic!("no prompt: {r}"));
+    let at = [prompt["at"][0].as_f64().unwrap() + 4.0, prompt["at"][1].as_f64().unwrap() + 6.0];
+    call(&mut s, "ui", json!({"click": at})).unwrap();
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    assert!(r["open"].as_array().unwrap().contains(&json!("inventory")), "the shop opens with the bag: {r}");
+}

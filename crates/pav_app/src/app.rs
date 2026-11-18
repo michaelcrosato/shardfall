@@ -200,8 +200,8 @@ pub struct App {
     touch: crate::touch::Touch,
     /// The browser says this is a touch screen (or a finger has touched it).
     touch_screen: bool,
-    /// The egui style has the touch sizes.
-    touch_styled: bool,
+    /// The egui style applied: (touch sizes, a studio's desk sizes).
+    touch_styled: (bool, bool),
     /// Touch screens draw at most 60 frames a second: when the next one is due.
     next_draw: Instant,
     /// Auto-attack, graphics quality, tips seen (saved).
@@ -317,7 +317,7 @@ impl App {
             game_place: None,
             touch: Default::default(),
             touch_screen,
-            touch_styled: false,
+            touch_styled: (false, false),
             next_draw: Instant::now(),
             prefs: crate::save::load_prefs(),
             scaler: Default::default(),
@@ -350,8 +350,9 @@ impl App {
         }
         crate::lang::init(&app.settings.lang, &app.prefs);
         crate::lang::install_fonts(&app.egui_ctx, &[]);
-        // The game's base style (no selectable labels); touch screens switch to theirs below.
-        pav_ui::touch_style(&app.egui_ctx, false);
+        // The game's base style (sized for a TV, no selectable labels); touch screens and the
+        // studios switch to theirs each frame (`game_style`).
+        pav_ui::game_style(&app.egui_ctx, false, false);
         if touch_screen {
             // Phones: touch controls from the start, none of the desktop's diagnostics.
             app.input.last_device = Device::Touch;
@@ -1344,7 +1345,12 @@ impl App {
         {
             let mut i = host.shared.input.lock().unwrap();
             if game_input {
-                let axis = (self.input.move_axis() + intent.move_axis).clamp_length_max(1.0);
+                let mut axis = (self.input.move_axis() + intent.move_axis).clamp_length_max(1.0);
+                // A touch screen's assist at the wheel: steering is enough, the car keeps its
+                // throttle full (it has one gear, so there is nothing to shift).
+                if self.input.last_device == Device::Touch && driving_car(&curr) && axis.length() > 0.15 {
+                    axis = axis.normalize();
+                }
                 i.move_dir = match intent.move_world {
                     // Auto-attack stepping in to a foe (only while the stick is still).
                     Some(m) if axis == Vec2::ZERO => m,
@@ -1573,9 +1579,9 @@ impl App {
             self.ui_zoom = zoom;
             self.egui_ctx.set_zoom_factor(zoom);
         }
-        if touch_ui != self.touch_styled {
-            self.touch_styled = touch_ui;
-            pav_ui::touch_style(&self.egui_ctx, touch_ui);
+        if (touch_ui, studio_open) != self.touch_styled {
+            self.touch_styled = (touch_ui, studio_open);
+            pav_ui::game_style(&self.egui_ctx, touch_ui, studio_open);
         }
         self.game_ui.touch = touch_ui;
         self.game_ui.tree.touch = touch_ui;
@@ -2587,6 +2593,9 @@ impl ApplicationHandler for App {
                 }
                 if (p - self.mouse.pos).length() > 2.0 {
                     self.input.last_device = Device::KeyboardMouse;
+                    // Pointing counts as using the mouse: the item it hovers is where a
+                    // controller picks up from (hover moves the focus).
+                    self.input.mouse_active = true;
                 }
                 self.mouse.pos = p;
                 self.input.cursor = p;
@@ -2641,6 +2650,11 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
         .collect();
     v.sort_by(|a, b| (&a.wing, &a.name).cmp(&(&b.wing, &b.name)));
     v
+}
+
+/// The player is at the wheel of a car (a pavilion vehicle room).
+fn driving_car(frame: &pav_core::RenderFrame) -> bool {
+    frame.objects.iter().any(|o| o.vehicle.as_ref().is_some_and(|v| v.driven && v.kind == pav_core::vehicle::VehicleKind::Car))
 }
 
 /// The prompts along the bottom of the screen: the few things worth a reminder, as the device's
