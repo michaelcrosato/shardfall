@@ -382,7 +382,11 @@ impl App {
             P::Started => {
                 // (The root layer is everywhere; only windows and labels over the game count.)
                 let under = self.egui_ctx.layer_id_at(pos).filter(|l| *l != egui::LayerId::background());
-                self.touch.down(t.id, pos, under)
+                let to_egui = self.touch.down(t.id, pos, under);
+                if under.is_some() && pav_ui::padnav::slider_at(&self.egui_ctx, pos) {
+                    self.touch.on_slider(t.id);
+                }
+                to_egui
             }
             P::Moved => self.touch.moved(t.id, pos),
             P::Ended => self.touch.up(t.id, pos, false),
@@ -1357,6 +1361,21 @@ impl App {
                     _ => self.rig.relative_move(axis),
                 };
                 i.held = held;
+                // At the wheel on a pad, the triggers are the pedals: R2 the throttle as far as
+                // it is pulled (the stick steers, or straight on), L2 the brake. The stick alone
+                // still drives as before.
+                if let Some(fwd) = car_forward(&curr).filter(|_| self.input.last_device == Device::Gamepad) {
+                    let pad = &self.input.pad;
+                    if pad.r2 > 0.05 {
+                        let dir = if axis.length() > 0.2 { self.rig.relative_move(axis).normalize_or(fwd) } else { fwd };
+                        i.move_dir = dir * pad.r2.min(1.0);
+                    }
+                    if pad.l2 > 0.3 {
+                        i.held |= pav_core::input::buttons::CROUCH;
+                    }
+                    // (R2 and L2 are the bomb and slow walk on foot: not at the wheel.)
+                    i.held &= !(pav_core::input::buttons::USE | pav_core::input::buttons::FOCUS);
+                }
                 i.pressed |= pressed;
                 i.aim = aim;
                 if let Some(t) = self.latency.pending.take() {
@@ -2654,7 +2673,17 @@ fn room_entries(sim: &Sim) -> Vec<RoomEntry> {
 
 /// The player is at the wheel of a car (a pavilion vehicle room).
 fn driving_car(frame: &pav_core::RenderFrame) -> bool {
-    frame.objects.iter().any(|o| o.vehicle.as_ref().is_some_and(|v| v.driven && v.kind == pav_core::vehicle::VehicleKind::Car))
+    car_forward(frame).is_some()
+}
+
+/// The way the car the player drives faces, on the ground (None: not at a car's wheel).
+fn car_forward(frame: &pav_core::RenderFrame) -> Option<Vec2> {
+    let car = frame
+        .objects
+        .iter()
+        .find(|o| o.vehicle.as_ref().is_some_and(|v| v.driven && v.kind == pav_core::vehicle::VehicleKind::Car))?;
+    let f = car.rot * Vec3::Z;
+    Vec2::new(f.x, f.z).try_normalize()
 }
 
 /// The prompts along the bottom of the screen: the few things worth a reminder, as the device's

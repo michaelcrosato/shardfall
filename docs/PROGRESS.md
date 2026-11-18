@@ -22,15 +22,15 @@ The current state, kept to one page because every session reads it (Claude Code 
   `pav_core::games` (rules, HUD text, status, a bot), its level a room file, `play bot=true
   seeds=10`. `START_HERE.md` routes and prompts; `scripts/check-handoff.sh` checks the archive.
 - **Controller first** (2026-11-17): one controls table (`pav_ui::controls`), drawn prompts that
-  follow the device (PlayStation or Xbox glyphs, keys), D-pad menus (`padnav`), a TV's scale,
-  the DualSense's extras in 52in1, touch upright or sideways; `ui` reads and clicks it all.
+  follow the device (PlayStation or Xbox glyphs, keys), D-pad menus (`padnav`), any pad, a TV's
+  scale, the DualSense's extras in 52in1, touch upright or sideways; `ui`, `pad_check.py` and
+  `touch_check.py` check it.
 - **The game opens in the Pavilion** (2026-11-13): Shardfall (through a rift) and the engine's
   tools are stations on the plaza (`pav_core::plaza`); the pause menu leads back there.
 - **On 52in1** (2026-11-17, `docs/AI_HUB.md`): one page plays every online mode (parallel, ghost,
   shared-world co-op and versus, four moments), couch co-op on one screen, the player's 52in1
   settings, any language; `scripts/hub_check.py` plays the hub's harness, headless.
-- Builds (2026-11-02): no hosted site; the user plays one-file builds sent in chat (`CLAUDE.md`).
-  Pavilion Lite (`pavilion-lite/`) is frozen.
+- Builds (2026-11-02): one-file builds sent in chat, no hosted site (`CLAUDE.md`); Lite is frozen.
 
 ## Next
 - **Gameplay and content:** add data (themes, levels, families, affixes, uniques, tree clusters,

@@ -57,6 +57,57 @@ fn fit<'a>(w: egui::Window<'a>, ctx: &egui::Context, touch: bool) -> egui::Windo
     w.vscroll(true).max_height((s.height() - 66.0).max(120.0)).max_width(s.width() - 16.0)
 }
 
+/// An item grid's columns and cell size: as given, except on a touch screen too narrow for them
+/// (a phone held upright is about 390 points wide), where the cells shrink to fit across it and,
+/// rather than go under a thumb's 38 points, the rows get shorter.
+fn grid_fit(ctx: &egui::Context, touch: bool, cols: usize, size: f32, gap: f32) -> (usize, f32) {
+    if !touch {
+        return (cols, size);
+    }
+    // The window's margins, its scroll bar, and `fit`'s 16 points of screen edge.
+    let room = ctx.content_rect().width() - 16.0 - ctx.global_style().spacing.window_margin.sum().x - 14.0;
+    let cell = |n: usize| (room - gap * (n - 1) as f32) / n as f32;
+    let mut cols = cols;
+    while cols > 5 && cell(cols) < 38.0 {
+        cols -= 1;
+    }
+    (cols, cell(cols).min(size).floor())
+}
+
+/// An item's card: at the pointer for a mouse; on a controller, docked beside the window the item
+/// is in (on the side toward the middle of the screen, where the other panel's items are too),
+/// in the body's size, for as long as the ring is on the item: read from the sofa, not chased
+/// around the screen.
+fn item_card(pad: bool, ui: &egui::Ui, resp: egui::Response, add: impl FnOnce(&mut egui::Ui)) {
+    if !pad {
+        resp.on_hover_ui(add);
+        return;
+    }
+    if !resp.hovered() {
+        return;
+    }
+    let ctx = ui.ctx();
+    let win = ctx.memory(|m| m.area_rect(ui.layer_id().id)).unwrap_or(ui.clip_rect());
+    let screen = ctx.content_rect();
+    let (pivot, at) = if win.center().x > screen.center().x {
+        (Align2::RIGHT_TOP, egui::pos2(win.left() - 10.0, win.top()))
+    } else {
+        (Align2::LEFT_TOP, egui::pos2(win.right() + 10.0, win.top()))
+    };
+    egui::Area::new(egui::Id::new("item_card"))
+        .order(egui::Order::Tooltip)
+        .interactable(false)
+        .pivot(pivot)
+        .fixed_pos(at)
+        .constrain(true)
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).inner_margin(egui::Margin::same(14)).show(ui, |ui| {
+                ui.set_max_width(380.0);
+                add(ui);
+            });
+        });
+}
+
 /// Touch screens: windows sit below the buttons in the top right (`TOUCH_DROP` down from where
 /// they would be centred, or this far from the top).
 const TOUCH_DROP: f32 = 25.0;
@@ -577,7 +628,7 @@ impl GameUi {
                         } else if resp.clicked() || resp.secondary_clicked() {
                             out.push(GameCmd::Unequip(slot.index() as u8));
                         }
-                        resp.on_hover_ui(|ui| {
+                        item_card(self.pad, ui, resp, |ui| {
                             item_tooltip(ui, d, it, Some(&slot_title(slot)));
                             if self.pad {
                                 crate::glyph::rich_label(
@@ -605,11 +656,12 @@ impl GameUi {
                     _ if stash => t!("hint.bag.stash"),
                     _ => t!("hint.bag.wear"),
                 };
-                egui::Grid::new("bag").spacing(EVec2::splat(4.0)).show(ui, |ui| {
+                let (cols, size) = grid_fit(ctx, touch, 8, if touch { 40.0 } else { 42.0 }, 4.0);
+                egui::Grid::new("bag").spacing(EVec2::splat(4.0)).min_col_width(size).show(ui, |ui| {
                     for i in 0..pav_core::arpg::hero::INVENTORY_SIZE {
                         let it = inv.inventory.get(i);
                         let better = it.is_some_and(|it| is_upgrade(d, inv, it));
-                        let resp = cell(ui, d, it, if touch { 40.0 } else { 42.0 }, "", better);
+                        let resp = cell(ui, d, it, size, "", better);
                         if let Some(it) = it {
                             if touch && resp.clicked() {
                                 self.picked = Some((it.id, Picked::Bag));
@@ -647,7 +699,7 @@ impl GameUi {
                                 }
                             });
                             if !touch {
-                                resp.on_hover_ui(|ui| {
+                                item_card(pad, ui, resp, |ui| {
                                     ui.horizontal_top(|ui| {
                                         ui.vertical(|ui| {
                                             item_tooltip(ui, d, it, None);
@@ -661,7 +713,7 @@ impl GameUi {
                                 });
                             }
                         }
-                        if (i + 1) % 8 == 0 {
+                        if (i + 1) % cols == 0 {
                             ui.end_row();
                         }
                     }
@@ -725,11 +777,12 @@ impl GameUi {
             .show(ctx, |ui| {
                 ui.label(RichText::new(t!("vendor.greeting")).italics().color(Color32::from_rgb(200, 170, 130)));
                 ui.separator();
-                egui::Grid::new("wares").spacing(EVec2::splat(6.0)).show(ui, |ui| {
+                let (cols, size) = grid_fit(ctx, touch, 6, 50.0, 6.0);
+                egui::Grid::new("wares").spacing(EVec2::splat(6.0)).min_col_width(size).show(ui, |ui| {
                     for (i, it) in inv.vendor.iter().enumerate() {
                         let price = pav_core::arpg::cmd::buy_price(it);
                         ui.vertical(|ui| {
-                            let resp = cell(ui, d, Some(it), 50.0, "", is_upgrade(d, inv, it));
+                            let resp = cell(ui, d, Some(it), size, "", is_upgrade(d, inv, it));
                             let afford = inv.gold >= price;
                             ui.label(RichText::new(format!("{price}")).small().color(if afford {
                                 Color32::from_rgb(255, 205, 70)
@@ -745,7 +798,7 @@ impl GameUi {
                             if resp.clicked() {
                                 out.push(GameCmd::Buy(it.id));
                             }
-                            resp.on_hover_ui(|ui| {
+                            item_card(self.pad, ui, resp, |ui| {
                                 item_tooltip(ui, d, it, None);
                                 compare(ui, d, it, worn_for(inv, d, it));
                                 if self.pad {
@@ -759,7 +812,7 @@ impl GameUi {
                                 }
                             });
                         });
-                        if (i + 1) % 6 == 0 {
+                        if (i + 1) % cols == 0 {
                             ui.end_row();
                         }
                     }
@@ -779,7 +832,7 @@ impl GameUi {
                             if resp.clicked() {
                                 out.push(GameCmd::Buy(it.id));
                             }
-                            resp.on_hover_ui(|ui| {
+                            item_card(self.pad, ui, resp, |ui| {
                                 item_tooltip(ui, d, it, None);
                                 ui.label(
                                     RichText::new(t!("vendor.buy_back_for", count = it.value()))
@@ -815,10 +868,11 @@ impl GameUi {
             .anchor(Align2::LEFT_CENTER, if self.touch { EVec2::new(8.0, TOUCH_DROP) } else { EVec2::new(16.0, -40.0) })
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
-                    egui::Grid::new("stash").spacing(EVec2::splat(4.0)).show(ui, |ui| {
+                    let (cols, size) = grid_fit(ctx, touch, 10, 40.0, 4.0);
+                    egui::Grid::new("stash").spacing(EVec2::splat(4.0)).min_col_width(size).show(ui, |ui| {
                         for i in 0..pav_core::arpg::hero::STASH_SIZE {
                             let it = inv.stash.get(i);
-                            let resp = cell(ui, d, it, 40.0, "", false);
+                            let resp = cell(ui, d, it, size, "", false);
                             if let Some(it) = it {
                                 if touch {
                                     if resp.clicked() {
@@ -827,12 +881,12 @@ impl GameUi {
                                 } else if resp.clicked() {
                                     out.push(GameCmd::Take(it.id));
                                 }
-                                resp.on_hover_ui(|ui| {
+                                item_card(self.pad, ui, resp, |ui| {
                                     item_tooltip(ui, d, it, None);
                                     compare(ui, d, it, worn_for(inv, d, it));
                                 });
                             }
-                            if (i + 1) % 10 == 0 {
+                            if (i + 1) % cols == 0 {
                                 ui.end_row();
                             }
                         }
@@ -1096,15 +1150,40 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
             // One stat to a row, big enough to read across a room; a modifier still at its base
             // ("+0%") stays off the sheet until something changes it.
             let some = |v: f32| v.abs() > 0.5;
-            egui::Grid::new("sheet").num_columns(2).striped(true).spacing([24.0, 7.0]).show(ui, |ui| {
-                let mut row = |k: &str, v: String| {
-                    ui.label(RichText::new(t!(k)).size(16.0));
-                    ui.label(RichText::new(v).size(16.0).color(Color32::from_rgb(235, 225, 200)));
-                    ui.end_row();
-                };
-                row("character.life", t!("character.regen", value = s.life_max.round() as i64, regen = places(s.life_regen, 1)));
-                row("character.mana", t!("character.regen", value = s.mana_max.round() as i64, regen = places(s.mana_regen, 1)));
-                row(
+            let value = Color32::from_rgb(235, 225, 200);
+            // Life and mana first, big: the two numbers a fight turns on.
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                for (k, v, regen, col) in [
+                    ("character.life", s.life_max, s.life_regen, Color32::from_rgb(230, 90, 80)),
+                    ("character.mana", s.mana_max, s.mana_regen, Color32::from_rgb(110, 150, 255)),
+                ] {
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new(t!(k)).size(15.0).color(Color32::from_white_alpha(170)));
+                        ui.label(RichText::new((v.round() as i64).to_string()).size(30.0).strong().color(col));
+                        ui.label(RichText::new(t!("character.per_second", value = places(regen, 1))).size(14.0).weak());
+                    });
+                    ui.add_space(36.0);
+                }
+            });
+            // Then a section each: offense, defense, the rest; one stat to a row, and a
+            // modifier still at its base ("+0%") left off.
+            let section = |ui: &mut egui::Ui, key: &str, rows: Vec<(&str, String)>| {
+                if rows.is_empty() {
+                    return;
+                }
+                ui.add_space(8.0);
+                ui.label(RichText::new(t!(key)).size(17.0).strong().color(Color32::from_rgb(240, 198, 112)));
+                egui::Grid::new(key).num_columns(2).spacing([24.0, 6.0]).show(ui, |ui| {
+                    for (k, v) in rows {
+                        ui.label(RichText::new(t!(k)).size(16.0));
+                        ui.label(RichText::new(v).size(16.0).color(value));
+                        ui.end_row();
+                    }
+                });
+            };
+            let mut offense = vec![
+                (
                     "character.weapon",
                     t!(
                         "character.weapon.value",
@@ -1113,29 +1192,26 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                         max = w.phys[1].round() as i64,
                         speed = places(w.aps, 2)
                     ),
-                );
-                if some((s.attack_speed - 1.0) * 100.0) {
-                    row("character.attack_speed", t!("character.percent", value = pct((s.attack_speed - 1.0) * 100.0)));
-                }
-                if some((s.cast_speed - 1.0) * 100.0) {
-                    row("character.cast_speed", t!("character.percent", value = pct((s.cast_speed - 1.0) * 100.0)));
-                }
-                row(
+                ),
+                (
                     "character.crit",
                     t!(
                         "character.crit.value",
                         chance = places(w.crit * s.crit_inc + s.crit_flat, 1),
                         multiplier = (s.crit_multi * 100.0).round() as i64
                     ),
-                );
-                row("character.armour", (s.armor.round() as i64).to_string());
-                if some(s.evasion) || some(s.block) {
-                    row(
-                        "character.evade_block",
-                        t!("character.evade_block.value", evade = s.evasion.round() as i64, block = s.block.round() as i64),
-                    );
-                }
-                row(
+                ),
+            ];
+            if some((s.attack_speed - 1.0) * 100.0) {
+                offense.push(("character.attack_speed", t!("character.percent", value = pct((s.attack_speed - 1.0) * 100.0))));
+            }
+            if some((s.cast_speed - 1.0) * 100.0) {
+                offense.push(("character.cast_speed", t!("character.percent", value = pct((s.cast_speed - 1.0) * 100.0))));
+            }
+            section(ui, "character.offense", offense);
+            let mut defense = vec![
+                ("character.armour", (s.armor.round() as i64).to_string()),
+                (
                     "character.resists",
                     t!(
                         "character.resists.value",
@@ -1144,26 +1220,35 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
                         lightning = s.res[3].round() as i64,
                         poison = s.res[4].round() as i64
                     ),
-                );
-                if some((s.move_speed - 1.0) * 100.0) {
-                    row("character.movement", t!("character.percent", value = pct((s.move_speed - 1.0) * 100.0)));
-                }
-                if some((s.cooldown - 1.0) * 100.0) {
-                    row("character.cooldowns", t!("character.faster", value = pct((s.cooldown - 1.0) * 100.0)));
-                }
-                if some((s.area - 1.0) * 100.0) {
-                    row("character.area", t!("character.percent", value = pct((s.area - 1.0) * 100.0)));
-                }
-                if some(s.item_rarity) || some(s.gold_find) {
-                    row(
-                        "character.rarity_gold",
-                        t!("character.rarity_gold.value", rarity = pct(s.item_rarity), gold = pct(s.gold_find)),
-                    );
-                }
-                if some((s.xp_gain - 1.0) * 100.0) {
-                    row("character.experience", t!("character.percent", value = pct((s.xp_gain - 1.0) * 100.0)));
-                }
-            });
+                ),
+            ];
+            if some(s.evasion) || some(s.block) {
+                defense.push((
+                    "character.evade_block",
+                    t!("character.evade_block.value", evade = s.evasion.round() as i64, block = s.block.round() as i64),
+                ));
+            }
+            section(ui, "character.defense", defense);
+            let mut utility = Vec::new();
+            if some((s.move_speed - 1.0) * 100.0) {
+                utility.push(("character.movement", t!("character.percent", value = pct((s.move_speed - 1.0) * 100.0))));
+            }
+            if some((s.cooldown - 1.0) * 100.0) {
+                utility.push(("character.cooldowns", t!("character.faster", value = pct((s.cooldown - 1.0) * 100.0))));
+            }
+            if some((s.area - 1.0) * 100.0) {
+                utility.push(("character.area", t!("character.percent", value = pct((s.area - 1.0) * 100.0))));
+            }
+            if some(s.item_rarity) || some(s.gold_find) {
+                utility.push((
+                    "character.rarity_gold",
+                    t!("character.rarity_gold.value", rarity = pct(s.item_rarity), gold = pct(s.gold_find)),
+                ));
+            }
+            if some((s.xp_gain - 1.0) * 100.0) {
+                utility.push(("character.experience", t!("character.percent", value = pct((s.xp_gain - 1.0) * 100.0))));
+            }
+            section(ui, "character.utility", utility);
             let m = &s.mods;
             let incs: Vec<String> = [
                 (Stat::DamageInc, "all"),

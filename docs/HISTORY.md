@@ -5,6 +5,55 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Any pad, the triggers at the wheel, cards that sit still, a phone's bag — 2026-11-17
+
+The controls pass's last gaps, each checked live rather than only by unit tests:
+- **Any controller** (`web/index.html`): Chrome leaves a pad it doesn't know unmapped (mapping
+  `''`: a cheap USB pad), and gilrs in WebAssembly reads only standard-mapped pads, so such a pad
+  did nothing. The page now reads it in the standard layout before gilrs sees it: buttons in
+  order, the sticks from the first four axes, the D-pad from the hat switch (axis 9, or the
+  buttons it has). Natively gilrs maps pads through SDL's controller database. Checked:
+  `scripts/pad_check.py --unmapped` (a 12-button pad, the D-pad a hat on axis 9) opens the menu,
+  moves the ring and takes Settings.
+- **At the wheel on a pad:** R2 is the throttle by how far it is pulled (the stick steers; with
+  the stick at rest the car keeps straight on), L2 brakes. The car has one gear, so there is no
+  gear change to automate: a gearbox would be a new car, not a control (the goal's "if the
+  automation is complicated, don't"). Touch keeps its full throttle while steering.
+- **Cards that sit still on a pad:** the passive tree's D-pad hops to the nearest node in that
+  direction (`padnav::SNAP_POINTS`, which any canvas can publish) instead of nudging a pointer 40
+  points, and the node's card docks at the tree's right edge in body text. Items do the same:
+  on a pad the bag's, the paper doll's, the smith's and the stash's item card docks beside its
+  window, on the side toward the screen's middle, at the window's top (`item_card`); a mouse
+  still gets it at the pointer.
+- **The character sheet** reads at a distance: Life and Mana as big numbers with their
+  regeneration, then Offense, Defense and Utility, each listing only what differs from a fresh
+  hero (`character.offense` etc.); damage and powers follow as before.
+- **A phone held upright:** the bag (8 across), the stash (10) and the smith's wares overflowed a
+  390-point screen (the bag's first column off the left edge: egui's touch-sized 44-point minimum
+  column width under 40-point cells). Item grids size their cells to the screen on touch
+  (`grid_fit`), and the stash takes fewer columns rather than cells under 38 points.
+- **Flicks:** a window flick counts when quick in time or within one frame (a slow frame no
+  longer turns it into a drag), and never starts on a slider (`padnav::slider_at`): a quick
+  slide of a volume bar no longer closes the menu.
+- **Pad scripts** count as the device in use only when a step presses, holds or pushes (an idle
+  step left the prompts on pad glyphs while a mouse was being tested).
+- **Checked live:**
+  - Mouse, native game on Xvfb driven by xdotool: a real click on Hilda's "G: trade" opened her
+    shop and the bag; Escape opened the pause menu, the mouse rested on Controls, and the pad
+    script's D-pad down then ringed Difficulty (the item after the mouse's, not Settings).
+  - Touch, `scripts/touch_check.py` (CDP touch events, a gesture's events sent together as a
+    phone delivers them), upright 390x844 and sideways 844x390: the stick and a held skill at
+    once, the bag opening fitted, a flick closing it; no page errors.
+  - DualSense, `pad_check.py --dualsense` (52in1's player settings injected as its companion
+    script gives them; the Proving Grounds): the light bar followed life (`#20c060`, `#ffb020`,
+    `#ff2a14`, `#401006`, dead `#300000`), R2 got the weapon trigger while its skill was ready,
+    14 rumbles, the touchpad's press opened the map, and nothing asked for the microphone. The
+    game uses no microphone or speaker, so there is nothing for the 52in1 permission to gate. A
+    real DualSense and a live 52in1 session aren't available on this machine.
+  - The `ui` tool at 1080p: the docked item card on a pad, the pointer card on a mouse.
+- A quirk of the `ui` tool, not the game: right after `give`, the first reading lists no
+  windows until a `step` runs.
+
 ## Text for the sofa, the mouse on the world, assists for a thumb, any pad in the browser — 2026-11-17
 
 What a review of the controls pass found missing, closed:

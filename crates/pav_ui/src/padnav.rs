@@ -78,6 +78,10 @@ pub struct PadNav {
     layers: Vec<LayerId>,
 }
 
+/// Where a canvas wants the D-pad to snap (egui temp data under this id: screen points), such as
+/// the passive tree's nodes in view.
+pub const SNAP_POINTS: &str = "padnav_snap_points";
+
 /// Stick past this is a push.
 const PUSH: f32 = 0.55;
 const FIRST_REPEAT: f32 = 0.38;
@@ -141,11 +145,13 @@ impl PadNav {
         let mut dirs = input.taps.clone();
         let canvas = current.is_some_and(|c| c.canvas);
         if canvas {
-            // The stick moves the pointer freely; the D-pad nudges it.
+            // The stick moves the pointer freely; the D-pad snaps it to the next point the
+            // canvas offers that way (a tree's nodes), or nudges it.
             let speed = 260.0 + 900.0 * input.stick.length().powi(2);
             pointer += vec2(input.stick.x, -input.stick.y) * speed * input.dt;
+            let points: Vec<Pos2> = ctx.data(|d| d.get_temp(Id::new(SNAP_POINTS))).unwrap_or_default();
             for d in dirs.drain(..) {
-                pointer += d.vec() * 40.0;
+                pointer = snap(&points, pointer, d).unwrap_or(pointer + d.vec() * 40.0);
             }
             self.held = None;
         } else {
@@ -305,6 +311,12 @@ fn stick_dir(s: glam::Vec2) -> Option<Dir> {
     })
 }
 
+/// A slider (or anything else a finger drags sideways: clicks and drags, wide and short) under
+/// `pos` in the last frame: touch doesn't flick its window away (`touch::Touch::on_slider`).
+pub fn slider_at(ctx: &Context, pos: Pos2) -> bool {
+    items(ctx).iter().any(|i| i.slider && i.rect.contains(pos))
+}
+
 /// The clickable items the last frame drew in the open windows (the topmost popup's alone when
 /// one is open: a combo box's list), not the world's labels under them.
 fn items(ctx: &Context) -> Vec<Item> {
@@ -393,6 +405,20 @@ fn step(items: &[Item], current: Option<Id>, from: Rect, d: Dir) -> Option<Item>
     best.map(|(_, i)| i)
 }
 
+/// The nearest point from `from` in direction `d`, favouring those in line.
+fn snap(points: &[Pos2], from: Pos2, d: Dir) -> Option<Pos2> {
+    let dir = d.vec();
+    points
+        .iter()
+        .filter_map(|q| {
+            let to = *q - from;
+            let ahead = to.dot(dir);
+            (ahead > 4.0).then(|| (*q, ahead + (to - dir * ahead).length() * 2.5))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(q, _)| q)
+}
+
 /// How far apart two ranges are (0 when they overlap).
 fn gap(a: egui::Rangef, b: egui::Rangef) -> f32 {
     if a.max < b.min {
@@ -434,6 +460,15 @@ mod tests {
         with_button.push(Item { rect: Rect::from_min_size(pos2(0.0, 110.0), vec2(140.0, 30.0)), ..item(9, 0.0, 0.0) });
         assert_eq!(step(&with_button, Some(items[5].id), at(5), Dir::Down).unwrap().id, Id::new(9u32));
         assert_eq!(first(&with_button).unwrap().id, items[0].id);
+    }
+
+    #[test]
+    fn the_dpad_snaps_to_points_on_a_canvas() {
+        let pts = [pos2(100.0, 100.0), pos2(160.0, 104.0), pos2(150.0, 40.0), pos2(40.0, 100.0)];
+        assert_eq!(snap(&pts, pos2(100.0, 100.0), Dir::Right), Some(pos2(160.0, 104.0)));
+        assert_eq!(snap(&pts, pos2(100.0, 100.0), Dir::Up), Some(pos2(150.0, 40.0)));
+        assert_eq!(snap(&pts, pos2(100.0, 100.0), Dir::Left), Some(pos2(40.0, 100.0)));
+        assert_eq!(snap(&pts, pos2(100.0, 100.0), Dir::Down), None);
     }
 
     #[test]

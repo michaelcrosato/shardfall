@@ -84,6 +84,8 @@ struct Finger {
     travel: f32,
     /// The window it landed on (egui's layer), if any.
     layer: Option<egui::LayerId>,
+    /// It landed on a slider: moving sideways slides it, never flicks the window away.
+    slides: bool,
 }
 
 impl Finger {
@@ -197,8 +199,10 @@ impl Touch {
         } else {
             Owner::World
         };
-        self.fingers
-            .insert(id, Finger { owner, start: pos, pos, anchor: pos, t0: Instant::now(), frames: 0, travel: 0.0, layer });
+        self.fingers.insert(
+            id,
+            Finger { owner, start: pos, pos, anchor: pos, t0: Instant::now(), frames: 0, travel: 0.0, layer, slides: false },
+        );
         if owner == Owner::Egui && self.egui_finger.is_none() {
             self.egui_finger = Some(id);
         }
@@ -206,6 +210,13 @@ impl Touch {
     }
 
     /// A finger moved. Returns true when egui should get it.
+    /// The finger `id` landed on a slider (`padnav::slider_at`): no flick.
+    pub fn on_slider(&mut self, id: u64) {
+        if let Some(f) = self.fingers.get_mut(&id) {
+            f.slides = true;
+        }
+    }
+
     pub fn moved(&mut self, id: u64, pos: Pos2) -> bool {
         let Some(f) = self.fingers.get_mut(&id) else { return false };
         f.pos = pos;
@@ -250,8 +261,9 @@ impl Touch {
             }
             Owner::Swipe(s) => self.swipes.release(s, pos - f.start, f.quick(), f.tap() && !cancelled),
             Owner::Stick | Owner::World if f.tap() && !cancelled => self.world_tap = true,
-            Owner::Egui if !cancelled && f.age() < FLICK_TIME => {
-                // A quick sideways flick across a window sends it away.
+            Owner::Egui if !cancelled && !f.slides && (f.age() < FLICK_TIME || f.frames <= 1) => {
+                // A quick sideways flick across a window sends it away (quick: in time, or
+                // within a frame, however slow the frame).
                 let d = pos - f.start;
                 if d.x.abs() > FLICK && d.x.abs() > 2.0 * d.y.abs() {
                     self.flicked = f.layer;
@@ -998,6 +1010,42 @@ mod tests {
         assert!(!t.down(4, Pos2::new(300.0, 100.0), None));
         t.up(4, Pos2::new(301.0, 100.0), false);
         assert!(t.intent(None, |v| v, true).world_tap);
+    }
+
+    #[test]
+    fn three_fingers_at_once_and_a_flick_sends_a_window_away() {
+        let button = |c, x: f32| Placed {
+            control: c,
+            rect: Rect::from_center_size(Pos2::new(x, 340.0), EVec2::splat(50.0)),
+            round: true,
+            top: false,
+        };
+        let mut t = Touch { placed: vec![button(Control::Potion, 600.0), button(Control::Dodge, 700.0)], ..Default::default() };
+        // The stick, the potion and the dodge, three fingers in the same frame.
+        assert!(!t.down(1, Pos2::new(100.0, 300.0), None));
+        t.moved(1, Pos2::new(100.0, 300.0 - STICK_R));
+        assert!(!t.down(2, Pos2::new(600.0, 340.0), None));
+        assert!(!t.down(3, Pos2::new(700.0, 340.0), None));
+        let it = t.intent(None, |v| v, true);
+        assert!(it.move_axis.y > 0.9, "the stick pushes up: {}", it.move_axis);
+        assert!(it.pressed & buttons::DODGE != 0 && it.pressed & buttons::POTION != 0, "both buttons");
+        for id in 1..=3 {
+            t.up(id, Pos2::new(0.0, 0.0), true);
+        }
+        // A quick sideways flick across a window sends it away...
+        let w = egui::LayerId::new(egui::Order::Middle, egui::Id::new("inventory"));
+        assert!(t.down(4, Pos2::new(400.0, 200.0), Some(w)));
+        t.moved(4, Pos2::new(560.0, 210.0));
+        t.up(4, Pos2::new(560.0, 210.0), false);
+        assert_eq!(t.intent(None, |v| v, true).flicked, Some(w));
+        // ...a drag down it (scrolling the bag) does not, nor does a slide along a slider.
+        assert!(t.down(5, Pos2::new(400.0, 200.0), Some(w)));
+        t.up(5, Pos2::new(410.0, 360.0), false);
+        assert_eq!(t.intent(None, |v| v, true).flicked, None);
+        assert!(t.down(6, Pos2::new(400.0, 200.0), Some(w)));
+        t.on_slider(6);
+        t.up(6, Pos2::new(560.0, 200.0), false);
+        assert_eq!(t.intent(None, |v| v, true).flicked, None);
     }
 
     #[test]
