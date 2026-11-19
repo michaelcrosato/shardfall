@@ -7,22 +7,30 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Three rounds of independent review followed, each with three or
+#103 merged without a review. Four rounds of independent review followed, each with three or
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
-most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, then 5, then 4
+most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, then 1
 findings. Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
 - **Who decides where the pad lands** (`padnav::FOCUS`): `GameUi` clears the request at the start
   of each pass, and the panels ask again as they draw. The tree asks for its canvas, whatever the
   device, unless a panel drawn before it asked this pass, and not while a mastery's options are
-  up. The Skills window asks for its row and its chooser for a card, and they are drawn first, so
-  they win. The bag and the sheet never ask, so beside them the canvas gets the pad. Found:
+  up. The Skills window's chooser asks for a card, and the Skills window for the row it was
+  opened from, while the chooser is up and through the frame after it closes (`chose`, then no
+  more). They are drawn first, so they win. The bag and the sheet never ask, so beside them, or
+  beside an idle Skills window, the canvas gets the pad. Found:
   - With the keys' P then K, the tree's request, written last, overrode the chooser's. It opened
     on its first card and went back to the wrong row (#103's regression).
   - P then a pad started on the Bag tab: the tree asked only once a pad was in hand.
   - With I then P, a pad landed on the bag's slots hidden under the tree.
-  - After a mastery's options closed beside another panel, the pad left the tree.
+  - After a mastery's options closed beside another panel, the pad left the tree; beside a
+    Skills window whose chooser had been used once, the row's standing request took it (round
+    four), even to a row hidden under the tree, where Cross clicked a node nobody aimed at.
+- **Covered items** (`padnav::items`): an item another window covers at all nine sample points
+  (its middle, corners and edges) is neither a stop nor a landing place. Two panels the keys
+  opened can overlap, and the ring sat on hidden bag slots or Skills rows while Cross clicked the
+  window on top. A big canvas whose middle a window covers still counts, by its edges.
 - **A mastery's options** are a Foreground popup, as the skill chooser is. The D-pad used to step
   out of them to the tree's Reset all, where Cross refunded every node for gold. They ask for the
   option chosen, else the first free one.
@@ -40,13 +48,15 @@ rules are simpler:
 - **Shift:** `release()` lets go of Triangle wherever the pad was. A held Shift stuck in egui and
   made a later tree click take a whole path.
 - **Tests**, each failing on the code before: `padnav` (a drag lets go; back to the node; a
-  rescaled canvas; the mouse's point; Shift; the first press only shows the pad), and an `OnPad`
+  rescaled canvas; the mouse's point; Shift; the first press only shows the pad; a covered item
+  is stepped over), and an `OnPad`
   harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
   the app's order:
   - the chooser beside the tree keeps its place;
   - P then a pad lands on the canvas;
   - with I then P, the pad lands on the canvas, stays in a mastery's options and comes back to
-    the node.
+    the node;
+  - after the chooser was used, K then P, a mastery's options closed: back on the node.
 
   `TreeUi::show_mastery` opens the options for tests.
 

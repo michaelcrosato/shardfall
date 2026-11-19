@@ -381,6 +381,20 @@ pub fn slider_at(ctx: &Context, pos: Pos2) -> bool {
 /// The clickable items the last frame drew in the open windows (the topmost popup's alone when
 /// one is open: a combo box's list), not the world's labels under them.
 fn items(ctx: &Context) -> Vec<Item> {
+    // An item another window covers (two panels the keys opened, one over the other) is no stop
+    // nor place to land: the ring would sit on something hidden, and Cross click the window on
+    // top. (Seen anywhere, it counts: a big canvas whose middle a window covers still shows.)
+    let shown = |i: &Item| {
+        const AT: [(f32, f32); 9] =
+            [(0.5, 0.5), (0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9), (0.5, 0.1), (0.5, 0.9), (0.1, 0.5), (0.9, 0.5)];
+        AT.iter().any(|&(x, y)| ctx.layer_id_at(i.rect.lerp_inside(vec2(x, y))).is_none_or(|top| top == i.layer))
+    };
+    let mut list = collect_items(ctx);
+    list.retain(shown);
+    list
+}
+
+fn collect_items(ctx: &Context) -> Vec<Item> {
     let screen = ctx.content_rect();
     let order: Vec<LayerId> = ctx.memory(|m| m.layer_ids().collect());
     let visible = ctx.memory(|m| m.areas().visible_layer_ids());
@@ -1112,5 +1126,58 @@ mod hover_tests {
         let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 0.016, ..Default::default() }, Some(third.center()));
         run(&ctx, ev);
         assert!(nav.focused().unwrap().top() > third.top(), "and steps on from it");
+    }
+}
+
+#[cfg(test)]
+mod cover_tests {
+    use super::*;
+
+    /// A window of three items, and a panel without items drawn over the middle one (two panels
+    /// the keys opened, one over the other).
+    fn pass(ctx: &Context, events: Vec<Event>) -> [Id; 3] {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let mut ids = [Id::NULL; 3];
+        let mut out = ctx.run_ui(raw, |ui| {
+            let ctx = ui.ctx().clone();
+            egui::Window::new("back").title_bar(false).fixed_pos([20.0, 20.0]).show(&ctx, |ui| {
+                for (i, id) in ids.iter_mut().enumerate() {
+                    *id = ui.add_sized([200.0, 40.0], egui::Button::new(format!("item {i}"))).id;
+                }
+            });
+            egui::Window::new("front").id(Id::new("front")).title_bar(false).resizable(false).fixed_pos([10.0, 66.0]).show(
+                &ctx,
+                |ui| {
+                    ui.set_min_size(vec2(260.0, 36.0));
+                    ui.label("over");
+                },
+            );
+        });
+        out.textures_delta.clear();
+        ids
+    }
+
+    fn rect(ctx: &Context, id: Id) -> Rect {
+        ctx.viewport(|v| v.prev_pass.widgets.get(id).map(|w| w.rect)).expect("drawn")
+    }
+
+    #[test]
+    fn an_item_another_window_covers_is_stepped_over() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        pass(&ctx, vec![]);
+        let ids = pass(&ctx, vec![]);
+        let front = ctx.memory(|m| m.area_rect(Id::new("front"))).expect("drawn");
+        assert!(front.contains_rect(rect(&ctx, ids[1])), "the panel covers the middle item: {front:?}");
+        let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, None);
+        pass(&ctx, ev);
+        assert_eq!(nav.focused(), Some(rect(&ctx, ids[0])), "on the first item");
+        let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 0.016, ..Default::default() }, None);
+        pass(&ctx, ev);
+        assert_eq!(nav.focused(), Some(rect(&ctx, ids[2])), "over the covered one, to the third");
     }
 }

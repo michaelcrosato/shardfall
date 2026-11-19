@@ -406,14 +406,12 @@ fn a_pad_picked_up_on_a_tree_the_keys_opened_lands_on_its_canvas() {
 /// The keys open the bag, then the tree (I, then P): a pad picked up lands on the tree's canvas,
 /// and there opens a taken mastery's options: the pad stays in them (Up doesn't step out to the
 /// tree's Reset all behind them), and Circle brings it back to the node, not to the bag.
-#[test]
-fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
-    let _one = serial();
+/// A hero at level 20 in town with the mastery nearest the start taken (and the way to it).
+fn mastery_hero() -> (Session, u32) {
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
     call(&mut s, "hero", json!({"level": 20})).unwrap();
     s.step(1);
-    // The mastery nearest the start, taken (with the way to it).
     let d = pav_core::arpg::data::data();
     let none = std::collections::BTreeSet::new();
     let (mastery, _) = d
@@ -426,6 +424,13 @@ fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
         .expect("a mastery");
     call(&mut s, "tree", json!({"take": mastery.to_string()})).unwrap();
     s.step(1);
+    (s, mastery)
+}
+
+#[test]
+fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
+    let _one = serial();
+    let (mut s, mastery) = mastery_hero();
     let frame = s.sim.frame();
     let g = frame.game.as_deref().expect("a game");
     assert!(g.inv.as_ref().is_some_and(|i| i.tree.contains(&mastery)), "the mastery is taken");
@@ -468,5 +473,63 @@ fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
         p.frame(g, Some(pad()), None);
     }
     assert!(p.nav.free(), "back on the tree's canvas, not the bag: {:?}", p.nav.focused());
+    assert!(p.nav.pointer.is_some_and(|q| q.distance(node) < 1.0), "back at {node:?}: {:?}", p.nav.pointer);
+}
+
+/// Once the skill chooser has been used, an idle Skills window doesn't keep the pad from the tree:
+/// K, then P (the tree comes up over the Skills window), a pad picked up on the tree's canvas,
+/// a mastery's options closed: the pad is back on the node, not on a Skills row hidden under it.
+#[test]
+fn after_the_chooser_the_skills_window_leaves_the_tree_the_pad() {
+    let _one = serial();
+    let (mut s, mastery) = mastery_hero();
+    let frame = s.sim.frame();
+    let g = frame.game.as_deref().expect("a game");
+    let mut p = OnPad::new();
+    let pad = pav_ui::padnav::PadIn::default;
+    let cross = || pav_ui::padnav::PadIn { cross: true, ..pad() };
+    p.ui.skills = true;
+    for _ in 0..3 {
+        p.frame(g, None, None);
+    }
+    // The chooser, on the pad: the first row, then the card it starts on.
+    let row = egui::Id::new(("skill_slot", 0usize));
+    let at = p.rect(row).expect("the first row is drawn");
+    p.frame(g, Some(pad()), Some(at.center()));
+    p.frame(g, Some(pad()), None);
+    p.frame(g, Some(cross()), None);
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    let did = p.frame(g, Some(cross()), None);
+    assert!(did.iter().any(|c| matches!(c, pav_core::arpg::GameCmd::Bar(0, _))), "chose: {did:?}");
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    assert_eq!(p.nav.focused(), p.rect(row), "back on the row");
+    // The keys open the tree over it; the pad picked up on the tree's canvas, clear of the Skills
+    // window, goes to a node.
+    for _ in 0..5 {
+        p.frame(g, None, None);
+    }
+    p.ui.tree.open = true;
+    for _ in 0..3 {
+        p.frame(g, None, None);
+    }
+    let tree = p.ctx.memory(|m| m.area_rect(egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW))).expect("the tree is open");
+    p.frame(g, Some(pad()), Some(egui::pos2(tree.left() + 150.0, tree.center().y)));
+    p.frame(g, Some(pad()), None);
+    assert!(p.nav.free(), "on the canvas: {:?}", p.nav.focused());
+    let node = p.nav.pointer.expect("a pointer");
+    // Its options, then Circle: back on the node.
+    p.ui.tree.show_mastery(mastery);
+    for _ in 0..3 {
+        p.frame(g, Some(pad()), None);
+    }
+    p.ui.back();
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    assert!(p.nav.free(), "back on the tree's canvas, not a Skills row: {:?}", p.nav.focused());
     assert!(p.nav.pointer.is_some_and(|q| q.distance(node) < 1.0), "back at {node:?}: {:?}", p.nav.pointer);
 }
