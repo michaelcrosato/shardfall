@@ -5,6 +5,34 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## On 52in1's wall: build v9 replaces v8; the final build checked in the browser — 2026-11-19
+
+The build from #104 (main `07e9f9b`) went through the browser checks first, on the one-file page:
+`pad_check.py` (the pause menu on a pad: Resume, a step down, Settings with PlayStation glyphs),
+`touch_check.py` (a phone upright and sideways: the touch card swiped away, two fingers, the bag
+and its tabs to the tree, a window flicked shut, the menu and a flick; the Proving Grounds played
+hands off, a melee hero's auto-attack reaching wave 2 and a ranged hero's auto-fire wave 4) and
+`tree_browser_slow.py` (R1 lands on the tree's canvas; the stick zooms). No page errors.
+
+Then onto the live wall by 52in1's procedure (`docs/adding-a-game.md`), as v8 was: v8 removed,
+`hub-package.sh --build v9` (catalogue checker: 124 checks), v8's nine languages carried into the
+page with 52in1's own helpers (`gameBlocks`, `withTranslations`), `pnpm ingest` with SwiftShader's
+WebGPU (its session harness: may be dealt, every run passing: parallel 1-2, ghost 2-4, shared-world
+co-op 2-4 and its server, versus 2-4, moments 1-2, the host leaving, alone), v8's date kept, the
+package's frames as the strip, check-pages, hub-check --draws-only, the one new line
+(`tree.reset.confirm`) and Arabic's six missing `float.xp` forms translated with Haiku 5.5 medium
+($0.014), 52in1's 752 tests, today's PATCH-NOTES line for Shardfall widened rather than a second
+one, pushed to its main (commit 8bdc6285: its Workers Builds check passed, 52in1.com serves the page
+with only the hub's companion script added to its head, and v8's address is gone). `fill.mjs` hides
+`navigator.gpu`; a local, uncommitted copy that leaves it on, given the SwiftShader flags, finds the
+game fills the window wide, ultra-wide and square. An earlier try at this import, under load from
+other sessions' browsers, timed out in the three-player versus run and was discarded; this one ran
+with the machine quieter.
+
+Not checkable here, left for the user's hardware: a physical DualSense (light bar, adaptive
+triggers, haptics, touchpad, gyro, speaker), a real microphone for the shout, and iOS Safari
+(WebKit with an iPhone profile is the closest; the build needs WebGPU).
+
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
 #103 merged without a review. Twelve rounds of independent review followed, each with two to
