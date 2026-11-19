@@ -17,12 +17,16 @@ Upright (390x844), then sideways (844x390), in Emberwatch:
 5. the pause button: the pause menu opens; a flick across it closes it (menus swipe away too).
 Then, sideways in the Proving Grounds: one tap to say it's a touch screen, and no more input
 for a while: auto-attack (Settings, on by default on touch) fights the waves by itself; the
-kills on the HUD show it.
+kills on the HUD show it. And again as Ysolde with Fireball as her first skill (a new save put
+in the page): auto-attack then fires at the nearest foe in Fireball's range, the shooter's
+"auto-fire at nearby enemies" (the first skill is what auto-attack uses).
 The control rects come from `pav ui device=touch width=W height=H` (the same layout).
 """
 import argparse
 import asyncio
+import json
 import pathlib
+import tomllib
 
 from playwright.async_api import async_playwright
 
@@ -109,19 +113,40 @@ async def run(browser, page_url, out, name, lay):
     await ctx.close()
 
 
-async def auto_attack(browser, page_url, out):
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def ranged_save():
+    """A new Ysolde whose first skill is Fireball, as the game's save (localStorage
+    `shardfall_save`, save.rs)."""
+    heroes = tomllib.loads((ROOT / "game" / "heroes.toml").read_text())
+    items = tomllib.loads((ROOT / "game" / "items.toml").read_text())
+    c = heroes["ysolde"]
+    bar = ["fireball"] + [k for k in c["bar"] if k != "fireball"]
+    equipment = [None] * 10
+    weapon = c.get("weapon")
+    if weapon in items:
+        equipment[0] = {"id": 1, "base": weapon, "level": 1, "rarity": "normal", "name": items[weapon].get("name", weapon)}
+    hero = {"name": c.get("name", "Ysolde"), "character": "ysolde", "bar": bar, "equipment": equipment, "next_item": 2}
+    return json.dumps({"version": 1, "hero": hero})
+
+
+async def auto_attack(browser, page_url, out, name="arena", save=None):
     """Sideways in the Proving Grounds: one tap, then hands off while the waves come."""
     ctx = await browser.new_context(viewport={"width": 844, "height": 390}, is_mobile=True, has_touch=True, device_scale_factor=1)
+    if save:
+        await ctx.add_init_script("try { localStorage.setItem('shardfall_save', %s); } catch (e) {}" % json.dumps(save))
     p = await ctx.new_page()
     await p.goto(page_url)
     cdp = await ctx.new_cdp_session(p)
     await p.wait_for_timeout(25000)
     await gesture(cdp, event("touchStart", [(7, (420, 200))]), event("touchEnd", []))
     await p.wait_for_timeout(2000)
-    await p.screenshot(path=str(out / "arena-1-start.png"))
-    await p.wait_for_timeout(50000)
-    await p.screenshot(path=str(out / "arena-2-hands-off.png"))
-    print("arena auto-attack: screenshots taken")
+    await p.screenshot(path=str(out / f"{name}-1-start.png"))
+    for k in range(5):
+        await p.wait_for_timeout(10000)
+        await p.screenshot(path=str(out / f"{name}-2-hands-off-{k}.png"))
+    print(name, "auto-attack: screenshots taken")
     await ctx.close()
 
 
@@ -130,15 +155,19 @@ async def main():
     ap.add_argument("page")
     ap.add_argument("out")
     ap.add_argument("--query", default="?scene=town")
+    ap.add_argument("--only-ranged", action="store_true", help="only the hands-off run with Fireball first")
     a = ap.parse_args()
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     url = pathlib.Path(a.page).resolve().as_uri() + a.query
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(args=FLAGS)
-        for name, lay in LAYOUTS.items():
+        for name, lay in ({} if a.only_ranged else LAYOUTS).items():
             await run(browser, url, out, name, lay)
-        await auto_attack(browser, pathlib.Path(a.page).resolve().as_uri() + "?scene=arena&seed=3", out)
+        arena = pathlib.Path(a.page).resolve().as_uri() + "?scene=arena&seed=3"
+        if not a.only_ranged:
+            await auto_attack(browser, arena, out)
+        await auto_attack(browser, arena, out, "ranged", ranged_save())
         await browser.close()
 
 

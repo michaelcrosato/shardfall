@@ -32,30 +32,35 @@
   // weighs BLOCK-second blocks: their power (RMS squared, of 1) and how voiced they are (how well
   // a block repeats itself at a pitch period of 2-14 ms, 0 to 1: a vowel or a note does, noise
   // doesn't).
-  // - A shout is HOLD seconds of blocks in a row that are loud, voiced (VOICED or more) and
-  //   steady (none under STEADY times the loudest, in RMS): a held vowel, where a clap or a
-  //   syllable of talk is shorter, a cough falls away, a laugh comes in "ha"s and a breath is
-  //   noise. It counts if REST seconds have passed since the last one; the first WARM seconds
-  //   only listen, and while muted (the DualSense's mute button) nothing counts or is learned.
+  // - A shout is HOLD seconds of blocks that are loud (all but DIPS of them), voiced (VOICED or
+  //   more) and steady (none under STEADY times the loudest, in RMS): a held vowel, where a clap
+  //   or a syllable of talk is shorter, a cough falls away, a laugh comes in "ha"s and a breath
+  //   is noise. It counts if REST seconds have passed since the last one and the sound has been
+  //   under the bar since (a cry counts once); the first WARM seconds only listen, the first
+  //   SETTLE (little talk heard yet) want all of HOLD loud and within 6 dB, and while muted (the
+  //   DualSense's mute button) nothing counts or is learned.
   // - Loud: over the bar, FLOOR RMS (a shout into any microphone is louder; a quiet room or the
-  //   game's sound through the speakers isn't) or RATIO times the RANK quantile of either of
-  //   two rings, if that is more:
+  //   game's sound through the speakers isn't) or RATIO times the level, the RANK quantile of
+  //   either of two rings, if that is more:
   //   - now: every block of the NOW seconds before the last HOLD. Sound that goes on (music, a
-  //     louder voice) raises the bar within a second; a shout can't raise its own.
+  //     louder voice) raises the bar within a second. But a stretch over the bar it began at,
+  //     and a spell (such a stretch held for HOLD, until the sound falls back under the level
+  //     that bar was set from) for its first LATE seconds, join it only after: a cry is judged
+  //     against the bar it began at, however it rises and dips (and counts once in that time).
   //   - talk: the last TALK seconds of voice: voiced blocks OVER times the QUIET quantile of
-  //     "now" or more (over the room, a hum, a steady music bed), but those of a stretch held
-  //     over the bar it began at for HOLD (a shout, an "aaah", a note as music starts) and HOLD
-  //     either side of one. Silence, noise and a steady background don't move it, so a pause,
-  //     however long, leaves it where the talk left it (a radio, voiced and with gaps, counts as
-  //     voice: over one, a pause longer than TALK can), and a shout doesn't raise the bar for
-  //     the next.
+  //     "now" or more (over the room, a hum, a steady music bed), but those of a spell (a shout,
+  //     an "aaah", a note as music starts: all of it, however it falls, until it is back under
+  //     that level) and HOLD either side. Silence, noise and a steady background don't move it,
+  //     so a pause, however long, leaves it where the talk left it (a radio, voiced and with
+  //     gaps, counts as voice: over one, a pause longer than TALK can), and a shout doesn't raise
+  //     the bar for the next.
   //   (`tune` overrides any of these, for checks.)
   window.shoutDetector = (rate, tune = {}) => {
-    const { BLOCK = 0.02, HOLD = 0.25, VOICED = 0.5, STEADY = 0.5, REST = 1.5, WARM = 1.5 } = tune;
-    const { FLOOR = 0.05, RATIO = 1.6, RANK = 0.9, NOW = 3, TALK = 15, QUIET = 0.1, OVER = 3 } = tune;
+    const { BLOCK = 0.02, HOLD = 0.25, DIPS = 1, VOICED = 0.4, STEADY = 0.4, REST = 1.5, WARM = 1.5, SETTLE = 8 } = tune;
+    const { FLOOR = 0.05, RATIO = 1.6, RANK = 0.9, NOW = 3, LATE = 2, TALK = 15, QUIET = 0.1, OVER = 3 } = tune;
     const size = Math.max(1, Math.round(BLOCK * rate)), dt = size / rate;
     const blocks = (seconds) => Math.max(1, Math.round(seconds / dt));
-    const hold = blocks(HOLD), warm = blocks(WARM);
+    const hold = blocks(HOLD), warm = blocks(WARM), settle = blocks(SETTLE);
     // The block's samples, summed in threes or so (16 kHz), and how voiced they are: the best
     // correlation of the block (less its mean: a microphone's offset isn't a pitch; `e`, its
     // running energy) with itself shifted by a pitch period (70-500 Hz).
@@ -93,13 +98,23 @@
       r.q = v[Math.floor(RANK * r.len)];
       r.quiet = v[Math.floor(QUIET * r.len)];
     };
-    const s = { acc: 0, n: 0, seen: 0, at: 0, run: 0, over: 0, ref: 0, mark: 0, until: -Infinity };
-    const bar = () => Math.max(FLOOR * FLOOR, RATIO * RATIO * Math.max(now.q, talk.q));
+    // The stretch (`over` blocks over `ref`, the bar it began at), the spell (`held`, `age`
+    // blocks old, until a block under `base`), the blocks held back from "now" (`np` of them in
+    // `pending`) and whether a shout counted since the sound was last under the bar (`once`).
+    const s = { acc: 0, n: 0, seen: 0, at: 0, over: 0, ref: 0, held: 0, age: 0, base: 0, mark: 0, np: 0, once: 0, until: -Infinity };
+    const level = () => Math.max(now.q, talk.q);
+    const bar = () => Math.max(FLOOR * FLOOR, RATIO * RATIO * level());
     const back = (k) => (s.at - 1 - k + D) % D;
+    const late = blocks(LATE), pending = new Float64Array(hold + late + 4), win = new Float64Array(hold);
+    const young = () => s.held && s.age <= late;
+    const flush = () => {
+      for (let i = 0; i < s.np; i++) learn(now, pending[i]);
+      s.np = 0;
+    };
     // One block's power p, ending at time t: whether a shout counts with it.
     const step = (p, t, muted) => {
       if (muted) {
-        s.run = s.over = 0;
+        s.over = 0;
         return false;
       }
       const b = bar();
@@ -107,29 +122,46 @@
       if (s.seen >= D && !out[s.at] && voiced[s.at] >= VOICED && power[s.at] >= OVER * OVER * now.quiet) learn(talk, power[s.at]);
       power[s.at] = p;
       voiced[s.at] = voicing();
-      out[s.at] = s.mark > 0 ? 1 : 0;
+      out[s.at] = s.mark > 0 || s.held ? 1 : 0;
       s.at = (s.at + 1) % D;
       if (s.mark > 0) s.mark--;
-      // A stretch over the bar it began at: held for HOLD, it and HOLD either side stay out.
+      // The stretch; held for HOLD, a spell starts (one that starts while warming up is never
+      // young); it ends under its base, and HOLD after it stays out too.
       if (p >= (s.over ? s.ref : b)) {
         if (!s.over++) s.ref = b;
       } else s.over = 0;
-      if (s.over >= hold) {
+      if (s.over === hold && !young()) {
+        s.held = 1;
+        s.age = s.seen < warm ? late + 1 : 0;
+        s.base = s.ref / (RATIO * RATIO);
         out.fill(1);
+      } else if (s.held && s.over < hold && p < s.base) {
+        s.held = 0;
         s.mark = hold;
       }
-      // The block HOLD old joins "now".
-      if (s.seen >= hold) learn(now, power[back(hold)]);
-      s.run = p >= b ? s.run + 1 : 0;
-      if (s.seen++ < warm || s.run < hold || t < s.until) return false;
-      let lo = Infinity, hi = 0;
+      if (s.held) s.age++;
+      // The block HOLD old joins "now", or waits while a stretch is on or the spell young.
+      const wait = s.seen >= warm && ((s.over > 0 && !s.held) || young());
+      if (!wait || s.np === pending.length) flush();
+      if (s.seen >= hold) {
+        if (wait) pending[s.np++] = power[back(hold)];
+        else learn(now, power[back(hold)]);
+      }
+      // The bar as it is now (a spell's blocks just let into "now" have raised it).
+      const c = bar();
+      if (p < c && !young()) s.once = 0;
+      if (s.seen++ < warm || s.once || t < s.until) return false;
+      // The last HOLD: voiced, steady, and all but DIPS over the bar (in the first SETTLE
+      // seconds, with little talk heard yet: all of them, and within 6 dB).
       for (let k = 0; k < hold; k++) {
         if (voiced[back(k)] < VOICED) return false;
-        lo = Math.min(lo, power[back(k)]);
-        hi = Math.max(hi, power[back(k)]);
+        win[k] = power[back(k)];
       }
-      if (lo < STEADY * STEADY * hi) return false;
+      win.sort();
+      const early = s.seen < settle, dips = early ? 0 : DIPS, st = early ? Math.max(STEADY, 0.5) : STEADY;
+      if (win[Math.min(dips, hold - 1)] < c || win[0] < st * st * win[hold - 1]) return false;
       s.until = t + REST;
+      s.once = 1;
       return true;
     };
     return {
@@ -150,7 +182,7 @@
       },
       // Samples were lost (a look longer than the analyser holds): the block and the stretch
       // start over.
-      gap() { s.acc = s.n = s.run = s.over = 0; },
+      gap() { s.acc = s.n = s.over = 0; },
       // For checks: the levels' RMS now (the louder, and each) and the bar's.
       get level() { return Math.sqrt(Math.max(now.q, talk.q)); },
       get levels() { return { now: Math.sqrt(now.q), talk: Math.sqrt(talk.q) }; },

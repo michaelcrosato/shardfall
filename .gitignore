@@ -28,3 +28,4 @@
 .claude/worktrees/
 /assets/props/workshop/
 /assets/materials/workshop/
+__pycache__/

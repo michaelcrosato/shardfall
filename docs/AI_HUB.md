@@ -104,20 +104,26 @@ twice).
   through an AnalyserNode (into the speakers at no volume; the track is asked to turn the
   browser's gain control off, so a shout stays louder than talk) and hands what came in since
   its last look, every 30 ms and every frame, to its ear (`window.shoutDetector`, a script
-  block of its own). The ear weighs 20 ms blocks: a shout is 0.25 s of them in a row that are
-  voiced (a vowel repeats itself at a pitch; a breath, a cough or a fan is noise), steady (a
-  laugh comes in "ha"s, a cough falls away) and loud: at RMS 0.05 (-26 dBFS, which a quiet room
-  or the game's sound through the speakers doesn't reach) and at 1.6 times the louder of two
-  levels, each the 90th percentile of its blocks: what it heard in the 3 s before the last
-  0.25 s (so music, or a voice that gets louder, raises the bar within a second, while a shout
-  can't raise its own) and how loud the player talks (the last 15 s of voice: silence, noise, a
-  steady background and a stretch held over the bar, a shout or a long "aaah", stay out, so a
-  pause however long or a test shout doesn't move it). One counts, then 1.5 s pass before the
-  next, none in the first 1.5 s or while `muted`; a sound that loud out of the blue (the first
-  words out of silence, music starting, a voice suddenly 6 dB louder) can count once before the
-  ear has heard it. The floor is the trade-off: on a microphone ten times quieter than usual
-  (talk around RMS 0.005) a shout only 4x over the talk stays under it, while a full shout
-  (about 10x) is heard. The analyser holds 0.7 s, so slow frames lose no shout.
+  block of its own). The ear weighs 20 ms blocks: a shout is 0.25 s of them that are voiced (a
+  vowel repeats itself at a pitch; a breath, a cough or a fan is noise), steady (within 8 dB: a
+  laugh comes in "ha"s, a cough falls away) and loud, all but one block: at RMS 0.05 (-26 dBFS,
+  which a quiet room or the game's sound through the speakers doesn't reach) and at 1.6 times
+  the louder of two levels, each the 90th percentile of its blocks: what it heard in the 3 s
+  before the last 0.25 s (so music, or a voice that gets louder, raises the bar within a
+  second) and how loud the player talks (the last 15 s of voice: silence, noise and a steady
+  background stay out, so a pause however long doesn't move it). A cry is judged against the
+  bar it began at: while a sound is over that bar, and for 2 s once it has held there for
+  0.25 s, its blocks wait to join the 3 s level, so a cry that wavers or dips at first is still
+  heard when it holds (once in that time); and all of a held cry, until it falls back under the
+  level the bar was set from, stays out of the talk level, so a shout (a test shout, a long
+  "aaah") doesn't raise the bar for the next. One counts, then 1.5 s pass, and the sound has
+  been under the bar, before the next; none in the first 1.5 s or while `muted`, and in the
+  first 8 s, with little talk heard yet, all of the 0.25 s must be loud and within 6 dB; a
+  sound that loud out of the blue (the first words out of silence, music starting, a voice
+  suddenly 6 dB louder) can count once before the ear has heard it. The floor is the
+  trade-off: on a microphone ten times quieter than usual (talk around RMS 0.005) a shout only
+  4x over the talk stays under it, while a full shout (about 10x) is heard. The analyser holds
+  0.7 s, so slow frames lose no shout.
   Known limits, measured by an adversarial tester on made-up sounds and left as they are (a
   loudness ear can't be perfect, and a stray roar only casts a buff): a shout needs about 0.4 s
   of sound in all (Settings says "hold a loud shout for about half a second"; a 0.3 s "HEY!"
@@ -126,6 +132,33 @@ twice).
   each time; very animated talk can make a false roar about once a minute or two; a voice that
   drops 6 dB needs 20-30 s before a 4x shout clears the remembered talk; a strong tremolo or a
   low growl is often missed; a fast compressor left on in the microphone's chain hides shouts.
+  Measured on real voices (2026-11-18; neither the audio nor the harness is shipped or
+  committed: they sit in the git-ignored `.cache/voice` and `target/tmp/voice_test`): talk
+  read by eight LibriVox readers and a seven-reader LibriVox play (public domain), shouts cut
+  from 40 Freesound previews (CC0 and CC BY 4.0; 61 takes of 0.3-3 s), spliced into the talk at
+  its pauses 6, 10 and 14 dB over the talk's active level. In 75 minutes of talk (56 read
+  straight, 13 clips of 90 s, some over a game bed or a fan) no shout was heard, in Node and,
+  on the clips, through Chromium's real capture of the page (at the readers' level, 0.035
+  RMS; see the independent check below for louder talk). Shouts heard, each alone after
+  20 s of talk (488 a level) or one every ~10 s among talk (64 a level): +14 dB 85% and 83%
+  (before this ear 67% and 64%), +10 dB 69% and 55% (54% and 31%), +6 dB 19% and 6% (8% and
+  5%); through Chromium, one every ~10 s, +14 dB 81-83% (66%) and +10 dB 58% (41%). Held cries
+  do best (80% at +10 dB, 89% at +14), short ones under 0.65 s (39%, 73%) and shouted words
+  (56%, 79%) less well; the bar sits about 9 dB over the talk's level (1.6 times its 90th
+  percentile), so a +10 dB shout from a reader whose loud syllables reach far over her usual
+  level stays under it. An ear that opens in the middle of talk counted a loud word in its
+  first seconds in 1 of 488 such starts (as before; the stricter first 8 s keep it there). A
+  lower bar (1.5 times) hears more shouts alone but makes false roars in the read talk and the
+  made-up checks; so does judging steadiness against a cry's median instead of its peak.
+  An independent check of this ear found where it does make false roars, all rare: on a hot
+  microphone (talk at 0.15 RMS, loud words clipping) one exclamation in the play counts, about
+  once in 50 minutes (the ear before it: none); a loud sound held over a steady music bed that
+  was already playing when the ear opened can keep the talk level from being learned for most
+  of a minute (4 false roars in 80 minutes of talk over such a bed; before: none); and ears that
+  open in the middle of talk count a loud word in the first seconds somewhat more often at loud
+  levels (21 against 9 in 852 starts at talk 0.15). A cap on how long a loud stretch counts as
+  a shout fixed the music-bed case but broke shouts over a bed, so it was left out: more shouts
+  heard was judged worth these rare stray roars (War Cry is a buff).
   All of these are worth checking with a real microphone and a DualSense.
   Chrome's own gain control: 52in1 opens the microphone with `audio: true`, so gain control is
   on, and Chrome won't turn it off on an open track (`applyConstraints` says yes and leaves it
@@ -142,7 +175,8 @@ twice).
   talk at RMS 0.02, 0.05 and 0.1, with pauses; shouts 4x over each; a quiet microphone; music
   beds, tunes, accents and choruses; claps, coughs, laughs and breaths; muting; slow frames;
   on-and-off talk with pauses of 3 to 90 s; the game's sounds in a quiet room; a test shout
-  while it warms up; long "aaah"s; a voice that gets louder; `--sweep=N` many voices, a rate:
+  while it warms up; long "aaah"s; a voice that gets louder; a long cry, then a shout 10 s
+  later, and cries that waver at first, twelve voices each; `--sweep=N` many voices, a rate:
   talk's drawn-out, stressed syllables come close to a shout, and about one per 20 minutes of
   talk counts). The game takes the shout (`shout()` returns it and clears it, and drops one
   older than a second) and, while the player can play (no menu, a game scene with a hero),
