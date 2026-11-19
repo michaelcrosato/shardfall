@@ -5,7 +5,7 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
-## The map only where there is one; v9 under a stand-in DualSense, a voice and WebKit — 2026-11-19
+## The map only where there is one (v10); v9 under a stand-in DualSense, a voice, WebKit — 2026-11-19
 
 After v9 went on the wall, the checks that stand in for hardware ran again on it. In 52in1's own hub
 at its newest main (`hub_live.mjs` with `--voice`): the light bar's colours and the right trigger's
@@ -31,6 +31,12 @@ Now the prompt shows only on a level (`hint_prompts` takes `map`), the keys and 
 only there (`App::has_map`), and the flag is cleared wherever there is no level. Touch already did
 this (its map button shows only on a level). A test checks the prompt for the pad and for keys and
 mouse.
+
+The fix went onto 52in1 as v10 the same way v9 did (52in1 commit b7992edb): the session harness
+passed all 21 runs on import, check-pages, hub-check --draws-only, the fill check (with WebGPU on)
+fills wide, ultra-wide and square, v9's translations carried in with no line added or changed, the
+game's date kept, a Fixes line in PATCH-NOTES, 52in1's 752 tests. The package's own frames show the
+fix: no "Map" in the Proving Grounds, "Map" on level 6.
 
 ## On 52in1's wall: build v9 replaces v8; the final build checked in the browser — 2026-11-19
 
