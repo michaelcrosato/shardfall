@@ -5,6 +5,42 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The shout ear on real voices, the tree's farthest view, auto-fire for a ranged hero — 2026-11-18
+
+Two more workflows (a real-voice tester, a tuner and its independent check; a tree implementer,
+a follow-up and reviewers: 8 agents, about 1.8M subagent tokens), then fixes and checks here:
+- **The ear on real voices** (`docs/AI_HUB.md`, the microphone's Known limits): eight LibriVox
+  readers and a LibriVox play (public domain) for talk, 61 shouts cut from 40 Freesound previews
+  (CC0, CC BY 4.0), spliced in and played in Node and through Chromium's real capture; the
+  audio and the harness stay in the git-ignored `.cache/voice` and `target/tmp/voice_test`. The
+  ear before missed too many real shouts (+10 dB over the talker: 54% alone, 31% one every 10 s)
+  though it never fired on real talk. Tuned: voicing 0.4 (rough voices), a cry judged against
+  the bar it began at and kept out of the remembered talk (a shout no longer raises the bar for
+  the next), one dip allowed, 8 dB of steadiness, a stricter first 8 s. Now +10 dB 69% alone and
+  55% in sequence, +14 dB 85% and 83% (Chromium: 58% and 81% in sequence); `shout_check.mjs`
+  80/80; no false shout in 75 minutes of real talk at the readers' level. Its independent check
+  found rare false roars (a hot microphone, about one in 50 minutes; talk over a music bed that
+  was playing when the ear opened; loud first words just after it opens): written down and left
+  (a cap on a loud stretch's length fixed one and broke shouts over a bed). A stray roar casts a
+  buff; a missed one makes the feature feel broken.
+- **The passive tree's farthest view** (`arpg_tree.rs`): on a pad or a finger the view stops at
+  the hero's rings: the main tree and, per sector wedge, the Astral rings out to one past the
+  deepest the hero reached there, framed to fit; farther rings are faint outlines (the mouse
+  keeps the whole endless field). Panning reaches every node the hero could take with their
+  points, and a phone can drag its lowest nodes above the tap panel. Review fixes: near rings
+  per wedge (one spoke deep no longer brings back every wedge's star rows); framed by what is
+  near; the farthest fitted view centres on what is near (a sideways phone, a hero deep in one
+  wedge).
+- **Auto-fire for a ranged hero, live:** `touch_check.py` plays Ysolde with Fireball as her
+  first skill hands-off in the Proving Grounds: auto-attack fires Fireballs at the nearest foes
+  (explosions, a Fireball in flight, mana spent, the wave from 6 to 3). Auto-fire stays touch's:
+  the standard says assists make up for touch and must not change pad or keys.
+- Checked: tests 497 passed; clippy native and wasm32; fmt; `hub_live.mjs --voice` in 52in1's
+  own hub (6/6 shouts, none stray; no microphone before it is allowed); `pad_check.py
+  --dualsense` (41 shouts heard, 3 War Cries, 229 gyro reads, the speaker's cues, no
+  `getUserMedia`); the tree's farthest view on a pad and a sideways phone for a hero deep in
+  Fury's wedge.
+
 ## A shout heard through Chrome's own capture, the tree's overview, menus flicked away — 2026-11-18
 
 The standard's open points that could still be closed here, by two workflows (implementers in
