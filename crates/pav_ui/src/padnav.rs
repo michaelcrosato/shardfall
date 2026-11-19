@@ -95,6 +95,11 @@ pub struct PadNav {
     /// The pad has had a frame on these menus: false on its first, just picked up or the menus
     /// just come up (`reset`), whose presses only show where it is.
     seen: bool,
+    /// The right stick scrolled the pointer onto nothing that shows (text between rows, locked
+    /// cards): it rests there with no ring, as a mouse would, until the stick or the D-pad moves.
+    drifting: bool,
+    /// A scroll is open in egui (a touchpad's phases: applied at once, with no glide after it).
+    touching: bool,
 }
 
 /// Where a canvas wants the D-pad to snap (egui temp data under this id: screen points), such as
@@ -120,6 +125,8 @@ impl PadNav {
         self.canvas_at = None;
         self.layers.clear();
         self.seen = false;
+        self.drifting = false;
+        self.touching = false;
     }
 
     /// Whether the pointer sits on a canvas, where the stick moves it freely.
@@ -138,10 +145,11 @@ impl PadNav {
         let mut events = Vec::new();
         let woke = !self.seen;
         self.seen = true;
-        // Every item, and the ones no other window covers: the pad stays on the item it is on
-        // even while something passes over it (a toast), but steps and lands only where it shows.
+        // Every item, and the ones that show (no other window covers them, no list has scrolled
+        // them out of sight): the pad stays on the item it is on even while something passes over
+        // it (a toast), but steps and lands only where it shows.
         let all = collect_items(ctx);
-        let items: Vec<Item> = all.iter().filter(|i| shown(ctx, i.rect, i.layer)).copied().collect();
+        let items: Vec<Item> = all.iter().filter(|i| i.clip.is_positive() && shown(ctx, i.rect, i.layer)).copied().collect();
         let screen = ctx.content_rect();
         // A window that just opened takes the pad; otherwise keep the item we are on (its rect
         // may have moved), or find one to start from.
@@ -156,13 +164,38 @@ impl PadNav {
         let fresh = self.layers.is_empty();
         self.layers = layers;
         let mut current = self.snapped.and_then(|s| all.iter().find(|i| i.id == s.id).copied()).filter(|_| !opened);
-        // The item went (a menu turned a page): start again at the top, not wherever it was.
-        let lost = self.snapped.is_some() && current.is_none();
+        let scrolling = input.scroll.abs() > 0.1;
+        // The item went: scrolled away under the right stick, the pointer drifts on where it is
+        // (below); otherwise (a menu turned a page) start again at the top, not wherever it was.
+        let gone = self.snapped.is_some() && current.is_none() && !opened;
+        if gone && (scrolling || self.touching) {
+            self.drifting = true;
+        }
+        let lost = self.snapped.is_some() && current.is_none() && !self.drifting;
         if opened || lost {
             self.pointer = None;
+            self.drifting = false;
+        }
+        // An item a list has scrolled out of sight while the pad rested on it (the window's
+        // content changed): the nearest one that shows in its window takes the pad, else the
+        // pointer drifts where it is. (Scrolled away under the right stick: below.)
+        if let Some(c) = current.filter(|c| !c.canvas && !c.clip.is_positive() && !scrolling && !self.touching) {
+            let at = self.pointer.unwrap_or(c.rect.center());
+            current = items
+                .iter()
+                .filter(|i| i.layer == c.layer)
+                .min_by(|a, b| a.aim().distance(at).total_cmp(&b.aim().distance(at)))
+                .copied();
+            match current {
+                Some(n) => self.pointer = Some(n.aim()),
+                None => self.drifting = self.pointer.is_some(),
+            }
         }
         let mouse = mouse.filter(|_| !lost);
-        if current.is_none() {
+        // Whether the pad lands on an item this frame (it starts, or the D-pad steps), which a
+        // list then scrolls fully into view.
+        let mut landed = false;
+        if current.is_none() && !self.drifting {
             let from = self.pointer.or(mouse);
             // Where the screen asks, for a window the pad opened or an item it lost (picking
             // the pad up starts from the item under the mouse instead).
@@ -189,9 +222,10 @@ impl PadNav {
                 // screen asks for a canvas: the passive tree's, not the tab above it.)
                 .or_else(|| asked().filter(|i| i.canvas))
                 .or_else(|| first(&items));
+            landed = current.is_some();
             if let Some(c) = current {
                 if !c.canvas {
-                    self.pointer = Some(c.rect.center());
+                    self.pointer = Some(c.aim());
                 } else if self.pointer.is_none() {
                     // Back on a canvas it was on (a dialog over it closed): where it was. Picked up
                     // with the mouse on it: where the mouse is (the node it points at). Else its
@@ -208,7 +242,6 @@ impl PadNav {
         // on it, not where it was. While the right stick scrolls, the pointer stays put, as a
         // mouse's does under its wheel (a list scrolls only under the pointer), and the item is
         // whatever scrolls under it (below). (On a canvas the pointer is the pad's own.)
-        let scrolling = input.scroll.abs() > 0.1;
         let mut pointer = current
             .filter(|c| !c.canvas && !(scrolling && self.pointer.is_some()))
             .map(|c| c.aim())
@@ -272,16 +305,24 @@ impl PadNav {
                     ctx.memory_mut(|m| m.surrender_focus(current.unwrap().id));
                 }
                 current = Some(next);
-                pointer = next.rect.center();
+                pointer = next.aim();
+                self.drifting = false;
+                landed = true;
             }
         }
         pointer = pointer.clamp(screen.min, screen.max - vec2(2.0, 2.0));
         // On a canvas, or while a list scrolls, the item is whatever shows under the pointer now
         // (dragging, still the canvas, as a mouse's drag is: crossing a button on the way doesn't
-        // land on it).
+        // land on it). Scrolling over nothing that shows, the ring stays on its item while that
+        // shows, then the pointer drifts on with no ring.
         if (canvas || scrolling) && !(self.grabbed.0 || self.grabbed.1) {
-            current =
-                items.iter().filter(|i| i.clip.contains(pointer)).min_by(|a, b| area(a).total_cmp(&area(b))).copied().or(current);
+            let under = items.iter().filter(|i| i.clip.contains(pointer)).min_by(|a, b| area(a).total_cmp(&area(b))).copied();
+            if canvas {
+                current = under.or(current);
+            } else {
+                current = under.or(current.filter(|c| c.clip.is_positive()));
+                self.drifting = current.is_none();
+            }
         }
         events.push(Event::PointerMoved(pointer));
         let modifiers = egui::Modifiers { shift: input.triangle, ..Default::default() };
@@ -321,17 +362,39 @@ impl PadNav {
             }
         }
         self.buttons = (input.cross && !on_slider, input.square, input.triangle);
-        if input.scroll.abs() > 0.1 {
-            events.push(Event::MouseWheel {
-                unit: egui::MouseWheelUnit::Point,
-                phase: egui::TouchPhase::Move,
-                delta: vec2(0.0, input.scroll * 900.0 * input.dt),
-                modifiers: Default::default(),
-            });
+        // The right stick scrolls; an item the pad lands on that a list shows only in part is
+        // scrolled fully into view (not one the stick scrolled under the pointer: that would undo
+        // the stick). As a touchpad's scroll (its phases), which egui applies at once: a mouse
+        // wheel's glide would carry the list on after the stick let go.
+        let mut wheel = EVec2::ZERO;
+        if scrolling {
+            wheel.y = input.scroll * 900.0 * input.dt;
+        } else if let Some(c) = current.filter(|c| landed && !c.canvas && c.clip.is_positive()) {
+            let (r, v) = (c.rect, c.clip);
+            for d in 0..2 {
+                if r.min[d] < v.min[d] - 0.5 {
+                    wheel[d] = v.min[d] - r.min[d] + 6.0;
+                } else if r.max[d] > v.max[d] + 0.5 {
+                    wheel[d] = v.max[d] - r.max[d] - 6.0;
+                }
+            }
+        }
+        let scroll =
+            |phase, delta| Event::MouseWheel { unit: egui::MouseWheelUnit::Point, phase, delta, modifiers: Default::default() };
+        if wheel != EVec2::ZERO {
+            if !self.touching {
+                events.push(scroll(egui::TouchPhase::Start, EVec2::ZERO));
+                self.touching = true;
+            }
+            events.push(scroll(egui::TouchPhase::Move, wheel));
+        } else if self.touching {
+            events.push(scroll(egui::TouchPhase::End, EVec2::ZERO));
+            self.touching = false;
         }
         // With nothing to be on (the window not drawn yet), no pointer is kept: the next frame
-        // starts on the window's first item, not on whatever lies under the screen's middle.
-        self.pointer = current.is_some().then_some(pointer);
+        // starts on the window's first item, not on whatever lies under the screen's middle. (A
+        // pointer drifting over a list keeps its place.)
+        self.pointer = (current.is_some() || self.drifting).then_some(pointer);
         if let Some(c) = current.filter(|c| c.canvas) {
             self.canvas_at = Some((c.id, c.rect, pointer));
         }
@@ -355,6 +418,15 @@ impl PadNav {
         // says nothing until a key of its own changes, and a stuck Shift takes whole paths).
         if self.buttons.2 {
             out.push(Event::ModifiersChanged(Default::default()));
+        }
+        if self.touching {
+            out.push(Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                phase: egui::TouchPhase::End,
+                delta: EVec2::ZERO,
+                modifiers: Default::default(),
+            });
+            self.touching = false;
         }
         self.buttons = (false, false, false);
         self.grabbed = (false, false);
@@ -1239,9 +1311,22 @@ mod cover_tests {
 mod scroll_tests {
     use super::*;
 
+    /// What a list's row is: a button, plain text, or a button that is locked (disabled).
+    #[derive(Clone, Copy, PartialEq)]
+    enum Row {
+        Button,
+        Text,
+        Locked,
+    }
+
     /// A label over a list of twelve rows in a scroll area 150 tall (a stash, the waypoints): the
     /// rows' ids, and the row clicked this pass.
     fn pass(ctx: &Context, events: Vec<Event>) -> (Vec<Id>, Option<usize>) {
+        list(ctx, events, &[Row::Button; 12])
+    }
+
+    /// The same with these rows (a field guide's text between its links, locked skill cards).
+    fn list(ctx: &Context, events: Vec<Event>, rows: &[Row]) -> (Vec<Id>, Option<usize>) {
         let raw = egui::RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
             events,
@@ -1253,8 +1338,16 @@ mod scroll_tests {
             egui::Window::new("list").title_bar(false).fixed_pos([20.0, 20.0]).show(&ctx, |ui| {
                 ui.label("Waypoints");
                 egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
-                    for i in 0..12 {
-                        let r = ui.add_sized([200.0, 40.0], egui::Button::new(format!("row {i}")));
+                    for (i, row) in rows.iter().enumerate() {
+                        let r = match row {
+                            Row::Text => ui.add_sized([200.0, 40.0], egui::Label::new(format!("text {i}"))),
+                            _ => {
+                                ui.add_enabled_ui(*row == Row::Button, |ui| {
+                                    ui.add_sized([200.0, 40.0], egui::Button::new(format!("row {i}")))
+                                })
+                                .inner
+                            }
+                        };
                         ids.push(r.id);
                         if r.clicked() {
                             clicked = Some(i);
@@ -1304,5 +1397,92 @@ mod scroll_tests {
         assert!(shows(&ctx, ids[row]) > 30.0, "the ringed row {row} shows");
         let clicked = go(&mut nav, PadIn { cross: true, ..Default::default() });
         assert_eq!(clicked, Some(row), "Cross takes the ringed row");
+    }
+    /// The pad on a list of `rows`, settled: the context, the pad and the rows' ids.
+    fn on(rows: &[Row]) -> (Context, PadNav, Vec<Id>) {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        list(&ctx, vec![], rows);
+        let (ids, _) = list(&ctx, vec![], rows);
+        for _ in 0..2 {
+            let ev = nav.frame(&ctx, &PadIn { dt: 1.0 / 60.0, ..Default::default() }, None);
+            list(&ctx, ev, rows);
+        }
+        (ctx, nav, ids)
+    }
+
+    fn step(ctx: &Context, nav: &mut PadNav, rows: &[Row], input: PadIn) -> Option<usize> {
+        let ev = nav.frame(ctx, &PadIn { dt: 1.0 / 60.0, ..input }, None);
+        list(ctx, ev, rows).1
+    }
+
+    /// The ring is on a row that shows, if it is on one.
+    fn ring_shows(ctx: &Context, nav: &PadNav, ids: &[Id]) -> bool {
+        nav.focused().is_none_or(|r| {
+            ids.iter().any(|id| {
+                ctx.viewport(|v| v.prev_pass.widgets.get(*id).is_some_and(|w| w.rect == r && w.interact_rect.height() > 1.0))
+            })
+        })
+    }
+
+    #[test]
+    fn short_flicks_of_the_right_stick_reach_the_end_of_a_list_and_come_back() {
+        let rows = [Row::Button; 12];
+        let (ctx, mut nav, ids) = on(&rows);
+        for up in [false, true] {
+            for _ in 0..30 {
+                for _ in 0..3 {
+                    step(&ctx, &mut nav, &rows, PadIn { scroll: if up { 1.0 } else { -1.0 }, ..Default::default() });
+                }
+                for _ in 0..3 {
+                    step(&ctx, &mut nav, &rows, PadIn::default());
+                }
+                assert!(ring_shows(&ctx, &nav, &ids), "at rest, the ring is on a row that shows");
+            }
+            let end = if up { ids[0] } else { ids[11] };
+            assert!(shows(&ctx, end) > 30.0, "flicks reach the {} row", if up { "first" } else { "last" });
+        }
+    }
+
+    #[test]
+    fn scrolling_past_text_and_locked_rows_keeps_scrolling_and_stays_in_the_list() {
+        use Row::*;
+        for filler in [Text, Locked] {
+            let rows = [Button, Button, filler, filler, filler, filler, filler, filler, filler, filler, Button, Button];
+            let (ctx, mut nav, ids) = on(&rows);
+            for _ in 0..16 {
+                for _ in 0..5 {
+                    step(&ctx, &mut nav, &rows, PadIn { scroll: -1.0, ..Default::default() });
+                }
+                for _ in 0..2 {
+                    step(&ctx, &mut nav, &rows, PadIn::default());
+                }
+                assert!(ring_shows(&ctx, &nav, &ids), "at rest, the ring is on a row that shows, or none");
+            }
+            assert!(shows(&ctx, ids[11]) > 30.0, "scrolled to the last row past the filler");
+            for _ in 0..80 {
+                step(&ctx, &mut nav, &rows, PadIn { scroll: 1.0, ..Default::default() });
+            }
+            step(&ctx, &mut nav, &rows, PadIn::default());
+            assert!(shows(&ctx, ids[0]) > 30.0, "and back to the first");
+        }
+    }
+
+    #[test]
+    fn the_dpad_walks_down_a_list_scrolling_each_row_into_view() {
+        let rows = [Row::Button; 12];
+        let (ctx, mut nav, ids) = on(&rows);
+        for want in 1..12 {
+            step(&ctx, &mut nav, &rows, PadIn { taps: vec![Dir::Down], ..Default::default() });
+            for _ in 0..2 {
+                step(&ctx, &mut nav, &rows, PadIn::default());
+            }
+            let ringed =
+                ids.iter().position(|id| ctx.viewport(|v| v.prev_pass.widgets.get(*id).map(|w| w.rect)) == nav.focused());
+            assert_eq!(ringed, Some(want), "Down lands on the next row");
+            assert!(shows(&ctx, ids[want]) > 39.0, "row {want} scrolled into view: {}", shows(&ctx, ids[want]));
+        }
+        let clicked = step(&ctx, &mut nav, &rows, PadIn { cross: true, ..Default::default() });
+        assert_eq!(clicked, Some(11), "Cross takes the last row");
     }
 }
