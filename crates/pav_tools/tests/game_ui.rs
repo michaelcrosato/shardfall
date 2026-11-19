@@ -279,14 +279,18 @@ struct OnPad {
     nav: pav_ui::padnav::PadNav,
     ui: pav_ui::arpg_items::GameUi,
     time: f64,
+    /// The screen in points: 1280x720 is a 16:9 screen at the menu's Medium size, 1067x600 at
+    /// Large.
+    size: egui::Vec2,
 }
 
 impl OnPad {
     fn new() -> Self {
         let ctx = egui::Context::default();
         pav_ui::fonts::install_embedded(&ctx, &pav_core::lines::language(), &[]);
+        pav_ui::game_style(&ctx, false, false);
         pav_ui::controls::set_current(pav_ui::Device::Gamepad, pav_ui::controls::current().1);
-        Self { ctx, nav: Default::default(), ui: Default::default(), time: 0.0 }
+        Self { ctx, nav: Default::default(), ui: Default::default(), time: 0.0, size: egui::vec2(1280.0, 720.0) }
     }
 
     /// One frame at 1280x720: the pad when it is in hand (`pad`, with the mouse where it last was),
@@ -307,7 +311,7 @@ impl OnPad {
         };
         self.ui.pad = pad.is_some();
         self.ui.tree.pad = pad.is_some();
-        let size = egui::vec2(1280.0, 720.0);
+        let size = self.size;
         let raw = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
             focused: true,
@@ -363,6 +367,7 @@ fn a_pad_beside_the_tree_keeps_the_skill_choosers_place() {
     let pad = pav_ui::padnav::PadIn::default;
     p.frame(g, Some(pad()), Some(at.center()));
     p.frame(g, Some(pad()), None);
+
     assert_eq!(p.nav.focused(), Some(at), "picked up on the row under the mouse");
     // Cross: the chooser opens on the card of the skill the button has.
     p.frame(g, Some(pav_ui::padnav::PadIn { cross: true, ..pad() }), None);
@@ -536,44 +541,77 @@ fn after_the_chooser_the_skills_window_leaves_the_tree_the_pad() {
 
 /// K, the chooser opened on the pad, then P: the tree comes up over the Skills window. Choosing a
 /// card closes the chooser, and the row it was opened from is hidden under the tree: the pad lands
-/// on the tree's canvas, not on whatever comes first.
+/// on the tree's canvas, never on a button that lies over the row (Reset all, at the Large size).
+/// Every row of a mid-game hero (skill upgrades lengthen the rows), at Medium and Large.
 #[test]
 fn a_chooser_closed_under_the_tree_gives_the_pad_to_the_tree() {
     let _one = serial();
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
+    call(&mut s, "hero", json!({"level": 30, "gold": 5000})).unwrap();
+    s.step(1);
     let frame = s.sim.frame();
     let g = frame.game.as_deref().expect("a game");
-    let mut p = OnPad::new();
     let pad = pav_ui::padnav::PadIn::default;
     let cross = || pav_ui::padnav::PadIn { cross: true, ..pad() };
-    p.ui.skills = true;
-    for _ in 0..3 {
-        p.frame(g, None, None);
+    for size in [egui::vec2(1280.0, 720.0), egui::vec2(1067.0, 600.0)] {
+        for slot in 0..3usize {
+            let mut p = OnPad::new();
+            p.size = size;
+            p.ui.skills = true;
+            for _ in 0..3 {
+                p.frame(g, None, None);
+            }
+            let row = egui::Id::new(("skill_slot", slot));
+            let at = p.rect(row).expect("the row is drawn");
+            p.frame(g, Some(pad()), Some(at.center()));
+            p.frame(g, Some(pad()), None);
+            p.frame(g, Some(cross()), None);
+            for _ in 0..4 {
+                p.frame(g, Some(pad()), None);
+            }
+            assert!(p.ctx.memory(|m| m.area_rect(egui::Id::new("skill_chooser"))).is_some(), "the chooser is open");
+            // P on the keyboard: the tree comes up over the Skills window (the chooser on top).
+            p.ui.tree.open = true;
+            for _ in 0..4 {
+                p.frame(g, None, None);
+            }
+            // The pad again: on the chooser's card; Cross takes it.
+            p.frame(g, Some(pad()), None);
+            p.frame(g, Some(pad()), None);
+            let did = p.frame(g, Some(cross()), None);
+            assert!(did.iter().any(|c| matches!(c, pav_core::arpg::GameCmd::Bar(b, _) if *b as usize == slot)), "chose: {did:?}");
+            for _ in 0..4 {
+                p.frame(g, Some(pad()), None);
+            }
+            let at = format!("row {slot} at {size:?}");
+            assert!(p.nav.free(), "{at}: on the tree's canvas, not {:?}", p.nav.focused());
+            // And Cross there takes or shows a node: it refunds nothing.
+            let did = p.frame(g, Some(cross()), None);
+            assert!(!did.iter().any(|c| matches!(c, pav_core::arpg::GameCmd::Respec)), "{at}: {did:?}");
+        }
     }
-    let row = egui::Id::new(("skill_slot", 2usize));
-    let at = p.rect(row).expect("the third row is drawn");
-    p.frame(g, Some(pad()), Some(at.center()));
-    p.frame(g, Some(pad()), None);
-    p.frame(g, Some(cross()), None);
-    for _ in 0..4 {
-        p.frame(g, Some(pad()), None);
-    }
-    assert!(p.ctx.memory(|m| m.area_rect(egui::Id::new("skill_chooser"))).is_some(), "the chooser is open");
-    // P on the keyboard: the tree comes up over the Skills window (the chooser stays on top).
-    p.ui.tree.open = true;
-    for _ in 0..4 {
-        p.frame(g, None, None);
-    }
-    let tree = p.ctx.memory(|m| m.area_rect(egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW))).expect("the tree is open");
-    assert!(p.rect(row).is_some_and(|r| tree.contains_rect(r)), "the row lies under the tree");
-    // The pad again: on the chooser's card; Cross takes it.
-    p.frame(g, Some(pad()), None);
-    p.frame(g, Some(pad()), None);
-    let did = p.frame(g, Some(cross()), None);
-    assert!(did.iter().any(|c| matches!(c, pav_core::arpg::GameCmd::Bar(2, _))), "chose: {did:?}");
-    for _ in 0..4 {
-        p.frame(g, Some(pad()), None);
-    }
-    assert!(p.nav.free(), "on the tree's canvas, not something hidden or first: {:?}", p.nav.focused());
+}
+
+/// Reset all refunds every node for gold: its first press asks (the button says so), the second
+/// does it; one press left alone for a few seconds asks again next time.
+#[test]
+fn reset_all_asks_before_it_refunds_the_tree() {
+    let _one = serial();
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    call(&mut s, "hero", json!({"level": 10, "gold": 5000})).unwrap();
+    s.step(1);
+    let r = call(&mut s, "ui", json!({"open": "tree", "width": 1280, "height": 720})).unwrap();
+    let reset =
+        |r: &Value| texts(&window(r, "Passive Tree")["text"]).into_iter().find(|t| t.contains("eset all")).expect("Reset all");
+    let first = reset(&r);
+    assert!(first.starts_with("Reset all"), "{first}");
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Passive Tree", &first)})).unwrap();
+    assert_eq!(r["did"], json!([]), "the first press only asks: {r}");
+    let r = call(&mut s, "ui", json!({})).unwrap();
+    let again = reset(&r);
+    assert!(again.starts_with("Again to reset all"), "{again}");
+    let r = call(&mut s, "ui", json!({"click": at(&r, "Passive Tree", &again)})).unwrap();
+    assert_eq!(r["did"], json!(["Respec"]), "the second does it: {r}");
 }

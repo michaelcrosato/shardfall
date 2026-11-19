@@ -43,6 +43,8 @@ pub struct TreeUi {
     lit: (String, Vec<bool>),
     /// Mastery node whose options are shown.
     mastery: Option<u32>,
+    /// When Reset all was pressed once: a second press within a few seconds refunds every node.
+    respec_armed: Option<f64>,
 }
 
 impl Default for TreeUi {
@@ -55,6 +57,7 @@ impl Default for TreeUi {
             search: String::new(),
             lit: Default::default(),
             mastery: None,
+            respec_armed: None,
             pad: false,
             touch: false,
             picked: None,
@@ -64,6 +67,9 @@ impl Default for TreeUi {
 
 /// The passive tree window's id (its layer's): a flick across it pans, never closes it.
 pub const TREE_WINDOW: &str = "passive_tree";
+
+/// Seconds a first press of Reset all waits for the second.
+const RESPEC_CONFIRM: f64 = 4.0;
 
 fn col(c: [f32; 3], k: f32) -> Color32 {
     let to = |x: f32| ((x * k).clamp(0.0, 1.0).powf(1.0 / 2.2) * 255.0) as u8;
@@ -369,8 +375,25 @@ impl TreeUi {
                         ui.add(egui::TextEdit::singleline(&mut self.search).desired_width(160.0));
                         ui.separator();
                     }
-                    if ui.button(t!("tree.reset", count = inv.respec_cost)).clicked() {
-                        out.push(GameCmd::Respec);
+                    // Reset all refunds every node for gold: the first press asks, the second
+                    // (within a few seconds) does it, on every device.
+                    let now = ui.input(|i| i.time);
+                    if self.respec_armed.is_some_and(|t| now - t > RESPEC_CONFIRM) {
+                        self.respec_armed = None;
+                    }
+                    let armed = self.respec_armed.is_some();
+                    let reset = if armed {
+                        t!("tree.reset.confirm", count = inv.respec_cost)
+                    } else {
+                        t!("tree.reset", count = inv.respec_cost)
+                    };
+                    if ui.button(reset).clicked() {
+                        if armed {
+                            out.push(GameCmd::Respec);
+                            self.respec_armed = None;
+                        } else {
+                            self.respec_armed = Some(now);
+                        }
                     }
                     if ui.button(t!("tree.centre")).clicked() {
                         self.pan = Vec2::ZERO;

@@ -159,12 +159,13 @@ impl PadNav {
             // the pad up starts from the item under the mouse instead).
             let wanted: Option<Id> = ctx.data(|d| d.get_temp(Id::new(FOCUS)));
             // (Asked for something another window hides, such as a Skills row under the passive
-            // tree: whatever shows there, the tree's canvas.)
+            // tree: the canvas of the window on top there, the tree's; never a button that happens
+            // to lie over it, such as Reset all.)
             let asked = || {
                 wanted.and_then(|id| {
                     items.iter().find(|i| i.id == id).copied().or_else(|| {
-                        let hid = all.iter().find(|i| i.id == id)?.rect.center();
-                        items.iter().filter(|i| i.rect.contains(hid)).min_by(|a, b| area(a).total_cmp(&area(b))).copied()
+                        let top = ctx.layer_id_at(all.iter().find(|i| i.id == id)?.rect.center())?;
+                        items.iter().find(|i| i.canvas && i.layer == top).copied()
                     })
                 })
             };
@@ -193,7 +194,10 @@ impl PadNav {
                 }
             }
         }
-        let mut pointer = self.pointer.unwrap_or(screen.center());
+        // On an item, the pointer is its middle as it is drawn now: a window that grows or shrinks
+        // (a pad's prompts in for the keys', a list scrolled) moves the item, and a press must
+        // land on it, not where it was. (On a canvas the pointer is the pad's own.)
+        let mut pointer = current.filter(|c| !c.canvas).map(|c| c.rect.center()).or(self.pointer).unwrap_or(screen.center());
         // The directions asked for this frame: D-pad taps, and the stick's pushes with repeat.
         let mut dirs = input.taps.clone();
         let canvas = current.is_some_and(|c| c.canvas);

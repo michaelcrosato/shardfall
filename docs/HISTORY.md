@@ -7,9 +7,9 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Five rounds of independent review followed, each with two to
+#103 merged without a review. Six rounds of independent review followed, each with two to
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
-most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, then 2
+most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, then 1
 findings. Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
@@ -20,8 +20,9 @@ rules are simpler:
   opened from, while the chooser is up and through the frame after it closes (`chose`, then no
   more). They are drawn first, so they win. The bag and the sheet never ask, so beside them, or
   beside an idle Skills window, the canvas gets the pad. A request for something another window
-  hides lands the pad on what shows there instead: a Skills row under the tree, its canvas.
-  Found:
+  hides lands the pad on the canvas of the window on top there, a Skills row under the tree on
+  its canvas, and never on a button over it: in round six, at the menu's Large size, the
+  "smallest item there" was Reset all. Found:
   - With the keys' P then K, the tree's request, written last, overrode the chooser's. It opened
     on its first card and went back to the wrong row (#103's regression).
   - P then a pad started on the Bag tab: the tree asked only once a pad was in hand.
@@ -47,6 +48,14 @@ rules are simpler:
   from the mouse's (a clamped zoom, the prompt row for the help line), and the first Cross used
   to take or refund a node the player wasn't looking at. The rule also stops a Cross still held as
   a menu comes up (the one that opened a vendor) from clicking its first item.
+- **The pointer follows its item:** on an ordinary item the pad's pointer is the item's middle as
+  drawn now. Picking up the pad swaps the panels' key prompts for glyphs, so the Skills window
+  (anchored at the bottom) changed height and its rows moved 32 pt. The pointer stayed where the
+  row had been, and Cross clicked the gap or the next row. The harness showed it once it drew
+  with the game's own style (`game_style`): the bare egui sizes had hidden it.
+- **Reset all asks first** (`tree.reset.confirm`): the first press says "Again to reset all
+  (N gold)", and a second within 4 s refunds every node; on every device. Two rounds found a way
+  for the pad to land on it by accident.
 - **Drags** (`PadNav::grabbed`): a press made on a canvas is held until the button comes up,
   wherever the pointer has gone. A drag that crossed onto a tab never let go, and crossing a tab
   no longer lands on it.
@@ -62,7 +71,11 @@ rules are simpler:
   - with I then P, the pad lands on the canvas, stays in a mastery's options and comes back to
     the node;
   - after the chooser was used, K then P, a mastery's options closed: back on the node;
-  - the chooser closed with the tree opened over its row: the pad on the tree's canvas.
+  - the chooser closed with the tree opened over its row: the pad on the tree's canvas, for
+    each of three rows at both the Medium and the Large size, and its next Cross refunds nothing;
+  - Reset all asks before it refunds.
+
+  The harness now draws with the game's style and can take a screen size.
 
   `TreeUi::show_mastery` opens the options for tests.
 
