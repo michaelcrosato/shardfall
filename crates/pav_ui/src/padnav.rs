@@ -61,9 +61,18 @@ pub struct PadIn {
 struct Item {
     id: Id,
     rect: Rect,
+    /// The part of it that shows (clipped by a scroll area): where the pointer goes.
+    clip: Rect,
     layer: LayerId,
     slider: bool,
     canvas: bool,
+}
+
+impl Item {
+    /// Where the pointer goes on it: the middle of what shows.
+    fn aim(&self) -> Pos2 {
+        if self.clip.is_positive() { self.clip.center() } else { self.rect.center() }
+    }
 }
 
 #[derive(Default)]
@@ -194,10 +203,17 @@ impl PadNav {
                 }
             }
         }
-        // On an item, the pointer is its middle as it is drawn now: a window that grows or shrinks
-        // (a pad's prompts in for the keys', a list scrolled) moves the item, and a press must
-        // land on it, not where it was. (On a canvas the pointer is the pad's own.)
-        let mut pointer = current.filter(|c| !c.canvas).map(|c| c.rect.center()).or(self.pointer).unwrap_or(screen.center());
+        // On an item, the pointer is the middle of what shows of it as drawn now: a window that
+        // grows or shrinks (a pad's prompts in for the keys') moves the item, and a press must land
+        // on it, not where it was. While the right stick scrolls, the pointer stays put, as a
+        // mouse's does under its wheel (a list scrolls only under the pointer), and the item is
+        // whatever scrolls under it (below). (On a canvas the pointer is the pad's own.)
+        let scrolling = input.scroll.abs() > 0.1;
+        let mut pointer = current
+            .filter(|c| !c.canvas && !(scrolling && self.pointer.is_some()))
+            .map(|c| c.aim())
+            .or(self.pointer)
+            .unwrap_or(screen.center());
         // The directions asked for this frame: D-pad taps, and the stick's pushes with repeat.
         let mut dirs = input.taps.clone();
         let canvas = current.is_some_and(|c| c.canvas);
@@ -260,11 +276,12 @@ impl PadNav {
             }
         }
         pointer = pointer.clamp(screen.min, screen.max - vec2(2.0, 2.0));
-        // On a canvas, the item is whatever the pointer is over now (dragging, still the canvas,
-        // as a mouse's drag is: crossing a button on the way doesn't land on it).
-        if canvas && !(self.grabbed.0 || self.grabbed.1) {
+        // On a canvas, or while a list scrolls, the item is whatever shows under the pointer now
+        // (dragging, still the canvas, as a mouse's drag is: crossing a button on the way doesn't
+        // land on it).
+        if (canvas || scrolling) && !(self.grabbed.0 || self.grabbed.1) {
             current =
-                items.iter().filter(|i| i.rect.contains(pointer)).min_by(|a, b| area(a).total_cmp(&area(b))).copied().or(current);
+                items.iter().filter(|i| i.clip.contains(pointer)).min_by(|a, b| area(a).total_cmp(&area(b))).copied().or(current);
         }
         events.push(Event::PointerMoved(pointer));
         let modifiers = egui::Modifiers { shift: input.triangle, ..Default::default() };
@@ -435,9 +452,10 @@ fn collect_items(ctx: &Context) -> Vec<Item> {
                 .filter(|r| r.sense.senses_click() || (r.sense.senses_drag() && slider_shaped(r.rect)))
                 .map(|r| {
                     let rect = r.rect.intersect(screen);
+                    let clip = r.interact_rect.intersect(rect);
                     let canvas = rect.area() > screen.area() * 0.2;
                     let slider = r.sense.senses_drag() && !canvas && slider_shaped(rect);
-                    Item { id: r.id, rect, layer: *layer, slider, canvas }
+                    Item { id: r.id, rect, clip, layer: *layer, slider, canvas }
                 })
                 .collect();
             if !list.is_empty() {
@@ -543,13 +561,8 @@ mod tests {
     use egui::pos2;
 
     fn item(id: u32, x: f32, y: f32) -> Item {
-        Item {
-            id: Id::new(id),
-            rect: Rect::from_min_size(pos2(x, y), vec2(40.0, 40.0)),
-            layer: LayerId::new(Order::Middle, Id::new("w")),
-            slider: false,
-            canvas: false,
-        }
+        let rect = Rect::from_min_size(pos2(x, y), vec2(40.0, 40.0));
+        Item { id: Id::new(id), rect, clip: rect, layer: LayerId::new(Order::Middle, Id::new("w")), slider: false, canvas: false }
     }
 
     #[test]
@@ -1219,5 +1232,77 @@ mod cover_tests {
             go(&mut nav, PadIn::default(), front);
             assert_eq!(nav.focused(), Some(middle), "still on the middle item (front: {front})");
         }
+    }
+}
+
+#[cfg(test)]
+mod scroll_tests {
+    use super::*;
+
+    /// A label over a list of twelve rows in a scroll area 150 tall (a stash, the waypoints): the
+    /// rows' ids, and the row clicked this pass.
+    fn pass(ctx: &Context, events: Vec<Event>) -> (Vec<Id>, Option<usize>) {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let (mut ids, mut clicked) = (Vec::new(), None);
+        let mut out = ctx.run_ui(raw, |ui| {
+            let ctx = ui.ctx().clone();
+            egui::Window::new("list").title_bar(false).fixed_pos([20.0, 20.0]).show(&ctx, |ui| {
+                ui.label("Waypoints");
+                egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                    for i in 0..12 {
+                        let r = ui.add_sized([200.0, 40.0], egui::Button::new(format!("row {i}")));
+                        ids.push(r.id);
+                        if r.clicked() {
+                            clicked = Some(i);
+                        }
+                    }
+                });
+            });
+        });
+        out.textures_delta.clear();
+        (ids, clicked)
+    }
+
+    /// How much of a row shows (its clipped height).
+    fn shows(ctx: &Context, id: Id) -> f32 {
+        ctx.viewport(|v| v.prev_pass.widgets.get(id).map_or(0.0, |w| w.interact_rect.height()))
+    }
+
+    #[test]
+    fn the_right_stick_scrolls_a_list_all_the_way_and_back_and_cross_takes_the_ringed_row() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        pass(&ctx, vec![]);
+        let (ids, _) = pass(&ctx, vec![]);
+        let go = |nav: &mut PadNav, input: PadIn| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, None);
+            pass(&ctx, ev).1
+        };
+        go(&mut nav, PadIn::default());
+        go(&mut nav, PadIn::default());
+        assert!(shows(&ctx, ids[0]) > 30.0 && shows(&ctx, ids[11]) < 1.0, "the list starts at the top");
+        // The right stick down, held: the list scrolls to its end.
+        for _ in 0..80 {
+            go(&mut nav, PadIn { scroll: -1.0, ..Default::default() });
+        }
+        go(&mut nav, PadIn::default());
+        assert!(shows(&ctx, ids[11]) > 30.0, "scrolled to the last row: {}", shows(&ctx, ids[11]));
+        // And back up to the top.
+        for _ in 0..80 {
+            go(&mut nav, PadIn { scroll: 1.0, ..Default::default() });
+        }
+        go(&mut nav, PadIn::default());
+        assert!(shows(&ctx, ids[0]) > 30.0, "back at the first row: {}", shows(&ctx, ids[0]));
+        // The ring is on a row that shows, and Cross takes that row.
+        let ringed = nav.focused().expect("on a row");
+        let row = ids.iter().position(|id| ctx.viewport(|v| v.prev_pass.widgets.get(*id).map(|w| w.rect)) == Some(ringed));
+        let row = row.expect("the ring is on a row");
+        assert!(shows(&ctx, ids[row]) > 30.0, "the ringed row {row} shows");
+        let clicked = go(&mut nav, PadIn { cross: true, ..Default::default() });
+        assert_eq!(clicked, Some(row), "Cross takes the ringed row");
     }
 }

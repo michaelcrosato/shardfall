@@ -7,10 +7,10 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Six rounds of independent review followed, each with two to
+#103 merged without a review. Seven rounds of independent review followed, each with two to
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
-most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, then 1
-findings. Some were older defects in the code touched; some came from the previous round's
+most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, then
+1 findings. Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
 - **Who decides where the pad lands** (`padnav::FOCUS`): `GameUi` clears the request at the start
@@ -48,11 +48,16 @@ rules are simpler:
   from the mouse's (a clamped zoom, the prompt row for the help line), and the first Cross used
   to take or refund a node the player wasn't looking at. The rule also stops a Cross still held as
   a menu comes up (the one that opened a vendor) from clicking its first item.
-- **The pointer follows its item:** on an ordinary item the pad's pointer is the item's middle as
-  drawn now. Picking up the pad swaps the panels' key prompts for glyphs, so the Skills window
-  (anchored at the bottom) changed height and its rows moved 32 pt. The pointer stayed where the
-  row had been, and Cross clicked the gap or the next row. The harness showed it once it drew
-  with the game's own style (`game_style`): the bare egui sizes had hidden it.
+- **The pointer follows its item:** on an ordinary item the pad's pointer is the middle of what
+  shows of it (its clipped rect) as drawn now. Picking up the pad swaps the panels' key prompts
+  for glyphs, so the Skills window (anchored at the bottom) changed height and its rows moved
+  32 pt. The pointer stayed where the row had been, and Cross clicked the gap or the next row.
+  The harness showed it once it drew with the game's own style (`game_style`): the bare egui
+  sizes had hidden it.
+- **The right stick scrolls under a still pointer**, as a mouse wheel does, and the ring moves to
+  whatever row scrolls under it. In round seven the following pointer went out of the list with
+  its row, and a list scrolls only under the pointer: in the stash and the portal's waypoints the
+  stick scrolled 23-35 pt, then stopped both ways, with the ring on a hidden row.
 - **Reset all asks first** (`tree.reset.confirm`): the first press says "Again to reset all
   (N gold)", and a second within 4 s refunds every node; on every device. Two rounds found a way
   for the pad to land on it by accident.
@@ -63,7 +68,8 @@ rules are simpler:
   made a later tree click take a whole path.
 - **Tests**, each failing on the code before: `padnav` (a drag lets go; back to the node; a
   rescaled canvas; the mouse's point; Shift; the first press only shows the pad; a covered item
-  is stepped over; a toast leaves the pad where it is), and an `OnPad`
+  is stepped over; a toast leaves the pad where it is; the right stick scrolls a list to its end
+  and back, and Cross takes the ringed row), and an `OnPad`
   harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
   the app's order:
   - the chooser beside the tree keeps its place;
