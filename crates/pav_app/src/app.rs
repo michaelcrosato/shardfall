@@ -405,6 +405,11 @@ impl App {
         }
     }
 
+    /// The place on screen has a map: only a descent level does.
+    fn has_map(&self) -> bool {
+        self.game_frame.as_ref().is_some_and(|g| g.level.is_some())
+    }
+
     /// A tap on the open game closes what is open over it, one thing at a time.
     fn close_on_tap(&mut self) {
         if self.menu_open {
@@ -939,7 +944,9 @@ impl App {
                     return;
                 }
                 KeyCode::KeyM => {
-                    ui.map = !ui.map;
+                    if self.game_frame.as_ref().is_some_and(|g| g.level.is_some()) {
+                        ui.map = !ui.map;
+                    }
                     return;
                 }
                 KeyCode::KeyT => {
@@ -1114,7 +1121,7 @@ impl App {
             self.set_menu(open);
         }
         // The map: D-pad left or the touchpad's press (in a menu the D-pad moves between items).
-        if self.input.pad.map_pressed && !self.pad_ui_active() {
+        if self.input.pad.map_pressed && !self.pad_ui_active() && self.has_map() {
             self.game_ui.map = !self.game_ui.map;
         }
         // A swipe on the touchpad turns the hero's panels, as L1 / R1 do.
@@ -1267,6 +1274,11 @@ impl App {
             if !game_mode {
                 self.game_ui.close_all();
                 self.game_place = None;
+            }
+            // Only a descent level has a map: anywhere else the big map stays shut, so it doesn't
+            // open by itself on the next level.
+            if !self.has_map() {
+                self.game_ui.map = false;
             }
             if let Some(g) = &curr.game {
                 if self.game_place != Some(g.place) {
@@ -1922,7 +1934,8 @@ impl App {
                 }
             }
             if !touch_ui && !menu_open {
-                ui::hint_bar(&ctx, &hint_prompts(device, game_frame.is_some()), pad_style, game_frame.is_some());
+                let map = game_frame.as_ref().is_some_and(|g| g.level.is_some());
+                ui::hint_bar(&ctx, &hint_prompts(device, game_frame.is_some(), map), pad_style, game_frame.is_some());
             }
         });
         self.menu_page = menu_page;
@@ -2777,8 +2790,9 @@ fn car_forward(frame: &pav_core::RenderFrame) -> Option<Vec2> {
 }
 
 /// The prompts along the bottom of the screen: the few things worth a reminder, as the device's
-/// glyphs (the HUD shows the skills', the potion's and anything in reach's).
-fn hint_prompts(device: Device, game: bool) -> Vec<pav_ui::glyph::Prompt> {
+/// glyphs (the HUD shows the skills', the potion's and anything in reach's). `map`: the place has
+/// one (a descent level).
+fn hint_prompts(device: Device, game: bool, map: bool) -> Vec<pav_ui::glyph::Prompt> {
     use pav_ui::glyph::Prompt;
     let p = |action: &str, label: String| Prompt { glyphs: pav_ui::controls::glyphs(action, device), label };
     let mut out = vec![p("menu", pav_core::t!("controls.menu"))];
@@ -2791,7 +2805,9 @@ fn hint_prompts(device: Device, game: bool) -> Vec<pav_ui::glyph::Prompt> {
             out.push(p("tree", pav_core::t!("hint.passives")));
             out.push(p("town", pav_core::t!("controls.town_portal")));
         }
-        out.push(p("map", pav_core::t!("controls.map")));
+        if map {
+            out.push(p("map", pav_core::t!("controls.map")));
+        }
     } else if device == Device::KeyboardMouse {
         out.push(p("tuning", "Tuning".into()));
         out.push(p("rooms", "Rooms".into()));
@@ -2864,4 +2880,20 @@ fn round_frame(
         }
     }
     out.input
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The map's prompt shows only where there is a map (a descent level), on every device.
+    #[test]
+    fn map_prompt_only_where_there_is_a_map() {
+        let map = pav_core::t!("controls.map");
+        for device in [Device::Gamepad, Device::KeyboardMouse] {
+            let has = |m| hint_prompts(device, true, m).iter().any(|p| p.label == map);
+            assert!(has(true), "{device:?} on a level");
+            assert!(!has(false), "{device:?} in town or the Proving Grounds");
+        }
+    }
 }
