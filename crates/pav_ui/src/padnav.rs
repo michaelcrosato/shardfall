@@ -141,14 +141,17 @@ impl PadNav {
             // Where the screen asks, for a window the pad opened or an item it lost (picking
             // the pad up starts from the item under the mouse instead).
             let wanted: Option<Id> = ctx.data(|d| d.get_temp(Id::new(FOCUS)));
-            current = wanted
+            let asked = || wanted.and_then(|id| items.iter().find(|i| i.id == id).copied());
+            current = asked()
                 .filter(|_| (opened || lost) && !fresh)
-                .and_then(|id| items.iter().find(|i| i.id == id).copied())
                 .or_else(|| {
                     from.and_then(|p| {
                         items.iter().filter(|i| i.rect.contains(p)).min_by(|a, b| area(a).total_cmp(&area(b))).copied()
                     })
                 })
+                // (Picked up fresh with nothing under the mouse, the pad starts at the top, unless the
+                // screen asks for a canvas: the passive tree's, not the tab above it.)
+                .or_else(|| asked().filter(|i| i.canvas))
                 .or_else(|| first(&items));
             if let Some(c) = current {
                 if !c.canvas || self.pointer.is_none() {
@@ -692,6 +695,47 @@ mod opening_tests {
         }
         let top = nav.focused().expect("an item");
         assert!(top.top() < 215.0, "starts on the first button, not the middle one: {top:?}");
+    }
+}
+
+#[cfg(test)]
+mod canvas_focus_tests {
+    use super::*;
+
+    /// A window with a tab over a big canvas that asks for the pad (the passive tree).
+    fn run(ctx: &Context, events: Vec<Event>) -> Id {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 700.0))),
+            events,
+            ..Default::default()
+        };
+        let mut canvas = Id::NULL;
+        let mut out = ctx.run_ui(raw, |ui| {
+            let ctx = ui.ctx().clone();
+            egui::Window::new("tree").title_bar(false).fixed_pos([20.0, 20.0]).show(&ctx, |ui| {
+                let _ = ui.add_sized([120.0, 40.0], egui::Button::new("Bag"));
+                let (_, r) = ui.allocate_exact_size(vec2(900.0, 560.0), egui::Sense::click_and_drag());
+                canvas = r.id;
+                ui.ctx().data_mut(|d| d.insert_temp(Id::new(FOCUS), r.id));
+            });
+        });
+        out.textures_delta.clear();
+        canvas
+    }
+
+    #[test]
+    fn a_pad_picked_up_lands_on_the_canvas_the_screen_asks_for() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        let mut canvas = run(&ctx, vec![]);
+        for _ in 0..3 {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, None);
+            canvas = run(&ctx, ev);
+        }
+        // On the canvas (no item ring: the pointer is the pad's there), not on the tab above it.
+        assert_eq!(nav.focused(), None, "not on the tab");
+        let rect = ctx.viewport(|v| v.prev_pass.widgets.get(canvas).map(|w| w.rect)).expect("drawn");
+        assert!(nav.pointer.is_some_and(|p| rect.contains(p)), "the pointer is on the canvas: {:?} in {rect:?}", nav.pointer);
     }
 }
 

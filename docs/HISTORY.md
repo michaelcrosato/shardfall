@@ -5,6 +5,21 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The passive tree on a pad in the browser starts on the tree — 2026-11-18
+
+Checked in the browser build (Chromium, WebGPU on SwiftShader, a pad in the standard mapping at
+1920x1080): turning to the passive tree with R1 put the pad's ring on the "Bag" tab above it, so
+the right stick moved focus instead of zooming (natively it zoomed). A pad picked up fresh with
+nothing under the mouse started at the first item, the tab, and ignored the screen's request.
+- **Fix:** the tree asks for its canvas (`padnav::FOCUS`) while a pad is in hand and no
+  mastery's options are up, and `padnav` honours a request for a canvas even when the pad is
+  picked up fresh (a button's request still waits, as before, so the mouse's place wins).
+  Test: `padnav::canvas_focus_tests`.
+- **Checked:** in the browser the stick now zooms out to the farthest rings and back; on a phone
+  held upright, two-finger pinches reach the same farthest view. 52in1's `fill.mjs`, run on a
+  local copy that leaves `navigator.gpu` in place, grades Shardfall "fills" at 16:9, 21:9 and
+  4:3.
+
 ## On 52in1's wall: build v8 replaces v2 — 2026-11-18
 
 At the user's word, the build was brought onto the live wall by 52in1's own procedure
