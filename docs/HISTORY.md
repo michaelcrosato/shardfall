@@ -7,9 +7,9 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Eight rounds of independent review followed, each with two to
+#103 merged without a review. Nine rounds of independent review followed, each with two to
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
-most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, 1,
+most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, 1, 4,
 then 4 findings. Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
@@ -60,8 +60,17 @@ rules are simpler:
   dropping to the window's first item. The stick's scroll goes to egui as a touchpad's
   (`TouchPhase` Start, Move, End), which egui applies at once: as a mouse wheel's it glided on
   after the stick let go, and the ring's row carried the pointer out of the list.
-  - An item scrolled out of sight is no stop; one the pad lands on that shows only in part is
-    scrolled fully into view, so the D-pad walks a whole list.
+  - The D-pad steps onto rows its list has scrolled away, in the window it is on, and a screen
+    may ask for one (the skill chooser's card for a skill near the end). Landing on a row that
+    shows in part or not at all asks egui to scroll it into view: egui centres it in its own
+    list (AccessKit's ScrollIntoView, as a screen reader asks), so the rows either side show and
+    the D-pad walks a whole list both ways. My first reveal guessed a margin of 6 pt, the game's
+    own row spacing, and left the next row at 0 pt: the D-pad stopped at the sixth waypoint and
+    Up left the list (round nine). The scroll tests now draw with `game_style`.
+  - egui lays a list out where it has scrolled a pass late (a row seen showing can be gone a frame
+    later): the scroll counts as going on for two frames after the stick lets go (`settling`),
+    and a row being scrolled into view keeps the pad for a few frames (`revealing`). A short
+    flick had left the ring on the title bar's collapse arrow that way.
   - Found: in the stash and the portal's waypoints the stick stalled after 23-35 pt with the ring
     on a hidden row. In the Field guide a push carried the ring out and onto the title bar's
     collapse arrow. Over locked skill cards the ring stayed on a card that scrolled away. And the
@@ -78,7 +87,9 @@ rules are simpler:
   rescaled canvas; the mouse's point; Shift; the first press only shows the pad; a covered item
   is stepped over; a toast leaves the pad where it is; the right stick scrolls a list to its end
   and back, and Cross takes the ringed row; short flicks reach the end and back; scrolling past
-  text and locked rows; the D-pad walks a list, each row scrolled into view), and an `OnPad`
+  text and locked rows; the D-pad walks a list down, and back up from its end, each row scrolled
+  into view; a screen asking for a row out of sight gets it in view; no flick of 3-8 frames ends
+  on a title bar), and an `OnPad`
   harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
   the app's order:
   - the chooser beside the tree keeps its place;
