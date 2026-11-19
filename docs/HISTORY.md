@@ -7,10 +7,11 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Eleven rounds of independent review followed, each with two to
+#103 merged without a review. Twelve rounds of independent review followed, each with two to
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
 most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, 1, 4,
-4, 2, then 6 findings. Some were older defects in the code touched; some came from the previous round's
+4, 2, 6, then 1 findings: the last a pick among the list's own stops that round eleven took
+from the one best step anywhere (the pause menu beside a station guide skipped its visible rows). Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
 - **Who decides where the pad lands** (`padnav::FOCUS`): `GameUi` clears the request at the start
@@ -65,9 +66,10 @@ rules are simpler:
     edge, as tall as the view), its left edge from its rows; a row scrolled out of sight has
     egui's clipped rect empty, its near side on the view's edge. From the item, or the drifting
     pointer, inside a view, the rows past its edge the way the D-pad goes are stops, scored as any
-    step is, and the next of them wins over anything outside the view (the stash's Sort under it,
-    a title bar, the bag beside the stash), however much text lies between (the station guide's
-    sections, more than a screen apart). Only what shows inside the view, nearer, comes first.
+    step is, together with what shows inside the view; only when the list has nothing more that
+    way does the pad leave it for anything outside (the stash's Sort under it, a title bar, the
+    bag beside the stash, the pause menu beside a guide), however much text lies between (the
+    station guide's sections, more than a screen apart).
     A screen may ask for a row out of sight (the skill chooser's card for a skill near the end).
   - Found on the way (rounds ten and eleven): rows scrolled up behind the portal's place buttons
     took the pad from them (reopened still scrolled, Down from Arena skipped Lab); rows a screen
@@ -105,7 +107,8 @@ rules are simpler:
   on a title bar; rows behind the place buttons never take the pad from them; a list running past
   the screen; across a screen of text and back; a list before the button under it; a list beside
   another window; Up while drifting goes to a list row; a lone last card in another column; a
-  window taller than the screen keeps the pad on it), and an `OnPad`
+  window taller than the screen keeps the pad on it; a list walks its visible rows whatever the
+  window beside it offers), and an `OnPad`
   harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
   the app's order:
   - the chooser beside the tree keeps its place;

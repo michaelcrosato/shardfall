@@ -331,20 +331,19 @@ impl PadNav {
             // list's view, the rows the list has scrolled away past that view's edge, that way, are
             // stops too, scored as any step is; and the next of them wins over anything that shows
             // outside the view (the window's buttons below a list, a title bar above it, another
-            // window), however far its text runs. Only what shows inside the view, nearer, comes
-            // first. (A list's view is read from its scroll bar: `scroll_bars`, `view_at`.)
-            let shown_pick = step(&items, current.map(|c| c.id), from, d);
+            // window), however far its text runs. What shows inside the view, nearer, comes first;
+            // only when the list has nothing more that way does the pad leave it. (A list's view
+            // is read from its scroll bar: `scroll_bars`, `view_at`.)
             let at = current.map(|c| c.clip.center()).unwrap_or(pointer);
             let window = current.map(|c| c.layer).or_else(|| ctx.layer_id_at(pointer));
-            let hidden_pick = window.and_then(|w| {
+            let in_list = window.and_then(|w| {
                 let (view, rows) = view_at(&views, &listed, w, at)?;
-                let rows: Vec<Item> = rows.into_iter().filter(|i| past_edge(i, d).is_some_and(|e| on_edge(view, e, d))).collect();
-                Some((step(&rows, current.map(|c| c.id), from, d)?, view))
+                let shows = items.iter().filter(|i| i.layer == w && view.contains(i.clip.center()));
+                let past = rows.into_iter().filter(|i| past_edge(i, d).is_some_and(|e| on_edge(view, e, d)));
+                let pool: Vec<Item> = shows.copied().chain(past).collect();
+                step(&pool, current.map(|c| c.id), from, d)
             });
-            let pick = match (shown_pick, hidden_pick) {
-                (Some(s), Some((h, view))) => Some(if view.contains(s.clip.center()) { s } else { h }),
-                (s, h) => s.or(h.map(|(h, _)| h)),
-            };
+            let pick = in_list.or_else(|| step(&items, current.map(|c| c.id), from, d));
             if let Some(next) = pick {
                 if current.is_some_and(|c| c.slider) {
                     ctx.memory_mut(|m| m.surrender_focus(current.unwrap().id));
@@ -2017,6 +2016,53 @@ mod scroll_tests {
             tall(&ctx, ev);
         }
         assert!(nav.focused().is_some_and(|r| r.max.y > 10.0), "Up never goes off the screen: {:?}", nav.focused());
+    }
+
+    /// A guide beside a menu that overlaps its left edge, the menu's buttons spaced more widely
+    /// than the guide's rows (the pause menu beside a station guide). The guide's rows' ids.
+    fn guide_and_menu(ctx: &Context, events: Vec<Event>) -> Vec<Id> {
+        let mut ids = Vec::new();
+        draw_with(ctx, events, |ctx| {
+            ids.clear();
+            egui::Window::new("menu").title_bar(false).fixed_pos([60.0, 30.0]).show(ctx, |ui| {
+                ui.spacing_mut().item_spacing.y = 12.0;
+                for i in 0..9 {
+                    let _ = ui.add_sized([280.0, 40.0], egui::Button::new(format!("menu {i}")));
+                }
+            });
+            egui::Window::new("guide").title_bar(false).fixed_pos([300.0, 20.0]).show(ctx, |ui| {
+                egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                    for i in 0..24 {
+                        ids.push(ui.add_sized([200.0, 26.0], egui::Button::new(format!("row {i}"))).id);
+                    }
+                });
+            });
+        });
+        ids
+    }
+
+    #[test]
+    fn a_list_walks_its_visible_rows_whatever_the_window_beside_it_offers() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        guide_and_menu(&ctx, vec![]);
+        let ids = guide_and_menu(&ctx, vec![]);
+        let go = |nav: &mut PadNav, taps: Vec<Dir>, mouse: Option<Pos2>| {
+            let ev = nav.frame(&ctx, &PadIn { taps, dt: 1.0 / 60.0, ..Default::default() }, mouse);
+            guide_and_menu(&ctx, ev);
+        };
+        go(&mut nav, vec![], Some(rect(&ctx, ids[0]).center() + vec2(60.0, 0.0)));
+        for _ in 0..3 {
+            go(&mut nav, vec![], None);
+        }
+        assert_eq!(nav.focused(), Some(rect(&ctx, ids[0])), "on the guide's first row");
+        for (want, id) in ids.iter().enumerate().skip(1) {
+            go(&mut nav, vec![Dir::Down], None);
+            for _ in 0..4 {
+                go(&mut nav, vec![], None);
+            }
+            assert_eq!(nav.focused(), Some(rect(&ctx, *id)), "Down to row {want}, no row skipped");
+        }
     }
 
     #[test]
