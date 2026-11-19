@@ -182,6 +182,7 @@ impl PadNav {
             .filter(|i| !i.canvas && !i.clip.is_positive() && items.iter().any(|j| j.layer == i.layer))
             .copied()
             .collect();
+        let views = scroll_bars(ctx);
         // The right stick scrolls this frame, or let go of it this frame (its scroll still open).
         let scrolling = input.scroll.abs() > 0.1;
         let flowing = scrolling || self.touching || self.settling > 0;
@@ -326,36 +327,22 @@ impl PadNav {
                 continue;
             }
             let from = current.map(|c| c.rect).unwrap_or(Rect::from_center_size(pointer, EVec2::splat(1.0)));
-            // A list scrolls before the pad leaves it: from an item inside a list's view, the rows
-            // the list has scrolled away past that view's edge, that way, are stops too, and
-            // the next of them wins over anything that shows beyond the edge (the window's
-            // buttons below a list, a title bar above it), however far its text runs. (Rows
-            // scrolled up behind a list's own buttons lie past its top: going down they never
-            // compete with those buttons.)
+            // A list scrolls before the pad leaves it. From the item (or the drifting pointer) in a
+            // list's view, the rows the list has scrolled away past that view's edge, that way, are
+            // stops too, scored as any step is; and the next of them wins over anything that shows
+            // outside the view (the window's buttons below a list, a title bar above it, another
+            // window), however far its text runs. Only what shows inside the view, nearer, comes
+            // first. (A list's view is read from its scroll bar: `scroll_bars`, `view_at`.)
             let shown_pick = step(&items, current.map(|c| c.id), from, d);
-            let hidden_pick = current.and_then(|c| {
-                let inside = |edge: f32| match d {
-                    Dir::Down => c.clip.max.y <= edge + 0.5,
-                    Dir::Up => c.clip.min.y >= edge - 0.5,
-                    Dir::Right => c.clip.max.x <= edge + 0.5,
-                    Dir::Left => c.clip.min.x >= edge - 0.5,
-                };
-                let rows: Vec<Item> = listed
-                    .iter()
-                    .filter(|i| i.layer == c.layer && across(c.rect, i.rect, d) && past_edge(i, d).is_some_and(inside))
-                    .copied()
-                    .collect();
-                let next = step(&rows, Some(c.id), from, d)?;
-                Some((next, past_edge(&next, d)?))
+            let at = current.map(|c| c.clip.center()).unwrap_or(pointer);
+            let window = current.map(|c| c.layer).or_else(|| ctx.layer_id_at(pointer));
+            let hidden_pick = window.and_then(|w| {
+                let (view, rows) = view_at(&views, &listed, w, at)?;
+                let rows: Vec<Item> = rows.into_iter().filter(|i| past_edge(i, d).is_some_and(|e| on_edge(view, e, d))).collect();
+                Some((step(&rows, current.map(|c| c.id), from, d)?, view))
             });
-            let beyond = |s: &Item, edge: f32| match d {
-                Dir::Down => s.rect.min.y >= edge - 0.5,
-                Dir::Up => s.rect.max.y <= edge + 0.5,
-                Dir::Right => s.rect.min.x >= edge - 0.5,
-                Dir::Left => s.rect.max.x <= edge + 0.5,
-            };
             let pick = match (shown_pick, hidden_pick) {
-                (Some(s), Some((h, edge))) => Some(if beyond(&s, edge) { h } else { s }),
+                (Some(s), Some((h, view))) => Some(if view.contains(s.clip.center()) { s } else { h }),
                 (s, h) => s.or(h.map(|(h, _)| h)),
             };
             if let Some(next) = pick {
@@ -562,13 +549,63 @@ pub fn shown(ctx: &Context, rect: Rect, layer: LayerId) -> bool {
     AT.iter().any(|&(x, y)| ctx.layer_id_at(rect.lerp_inside(vec2(x, y))).is_none_or(|top| top == layer))
 }
 
-/// Whether `to` lines up with `from` across the way `d` goes: they overlap by half the narrower.
-fn across(from: Rect, to: Rect, d: Dir) -> bool {
-    let (a, b) = match d {
-        Dir::Up | Dir::Down => (from.x_range(), to.x_range()),
-        Dir::Left | Dir::Right => (from.y_range(), to.y_range()),
+/// The vertical scroll bars on screen: each runs down the right edge of a list's view, as tall as
+/// the view, a thin strip egui senses for clicks and drags (only while the list has more than it
+/// shows). Its layer and rect.
+fn scroll_bars(ctx: &Context) -> Vec<(LayerId, Rect)> {
+    let visible = ctx.memory(|m| m.areas().visible_layer_ids());
+    ctx.viewport(|v| {
+        let w = &v.prev_pass.widgets;
+        visible
+            .iter()
+            .filter(|l| matches!(l.order, Order::Middle | Order::Foreground))
+            .flat_map(|l| {
+                w.get_layer(*l)
+                    .filter(|r| {
+                        r.sense.senses_click()
+                            && r.sense.senses_drag()
+                            && r.rect.width() < 16.0
+                            && r.rect.height() > 3.0 * r.rect.width()
+                    })
+                    .map(|r| (*l, r.rect))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    })
+}
+
+/// The list's view `at` lies in, in window `layer`, and that list's rows out of sight: the view's
+/// top, bottom and right edge are its scroll bar's, its left edge its rows' (a row past its top or
+/// bottom has egui's clipped rect empty on that edge). The innermost one.
+fn view_at(bars: &[(LayerId, Rect)], listed: &[Item], layer: LayerId, at: Pos2) -> Option<(Rect, Vec<Item>)> {
+    bars.iter()
+        .filter(|(l, b)| *l == layer && b.y_range().contains(at.y) && at.x <= b.max.x + 1.0)
+        .filter_map(|(_, b)| {
+            let rows: Vec<Item> = listed
+                .iter()
+                .filter(|i| {
+                    i.layer == layer
+                        && i.rect.max.x <= b.max.x + 1.0
+                        && (past_edge(i, Dir::Up).is_some_and(|e| (e - b.min.y).abs() < 1.5)
+                            || past_edge(i, Dir::Down).is_some_and(|e| (e - b.max.y).abs() < 1.5))
+                })
+                .copied()
+                .collect();
+            let left = rows.iter().map(|i| i.rect.min.x).fold(f32::INFINITY, f32::min);
+            let view = Rect::from_min_max(egui::pos2(left - 1.0, b.min.y), b.max);
+            view.contains(at).then_some((view, rows))
+        })
+        .min_by(|a, b| a.0.area().total_cmp(&b.0.area()))
+}
+
+/// Whether `edge` is the side of `view` the D-pad goes toward.
+fn on_edge(view: Rect, edge: f32, d: Dir) -> bool {
+    let side = match d {
+        Dir::Down => view.max.y,
+        Dir::Up => view.min.y,
+        Dir::Right | Dir::Left => return false,
     };
-    (a.max.min(b.max) - a.min.max(b.min)).max(0.0) >= 0.5 * a.span().min(b.span())
+    (edge - side).abs() < 1.5
 }
 
 /// The edge of its list's view that a row lies past, going `d`, when the list has scrolled it out
@@ -1829,6 +1866,157 @@ mod scroll_tests {
             let name = if want == 12 { "Sort, after the last cell".to_string() } else { format!("cell {want}") };
             assert_eq!(nav.focused(), Some(rect(&ctx, *id)), "Down to {name}");
         }
+    }
+
+    /// One pass of `draw` on an 800x600 screen with the game's style.
+    fn draw_with(ctx: &Context, events: Vec<Event>, mut draw: impl FnMut(&Context)) {
+        crate::game_style(ctx, false, false);
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(raw, |ui| draw(&ui.ctx().clone()));
+        out.textures_delta.clear();
+    }
+
+    /// The stash beside the bag: a list of 12 cells, and next to it another window with a column of
+    /// cells reaching below the list. The list's ids.
+    fn stash_and_bag(ctx: &Context, events: Vec<Event>) -> Vec<Id> {
+        let mut ids = Vec::new();
+        draw_with(ctx, events, |ctx| {
+            ids.clear();
+            egui::Window::new("stash").title_bar(false).fixed_pos([20.0, 20.0]).show(ctx, |ui| {
+                egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                    for i in 0..12 {
+                        ids.push(ui.add_sized([200.0, 26.0], egui::Button::new(format!("cell {i}"))).id);
+                    }
+                });
+            });
+            egui::Window::new("bag").title_bar(false).fixed_pos([300.0, 20.0]).show(ctx, |ui| {
+                for i in 0..12 {
+                    let _ = ui.add_sized([120.0, 30.0], egui::Button::new(format!("bag {i}")));
+                }
+            });
+        });
+        ids
+    }
+
+    #[test]
+    fn a_list_beside_another_window_walks_its_own_rows_first() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        stash_and_bag(&ctx, vec![]);
+        let ids = stash_and_bag(&ctx, vec![]);
+        // Picked up with the mouse on the first cell, then down the whole list.
+        let ev = nav.frame(&ctx, &PadIn { dt: 1.0 / 60.0, ..Default::default() }, Some(rect(&ctx, ids[0]).center()));
+        stash_and_bag(&ctx, ev);
+        for (want, id) in ids.iter().enumerate().skip(1) {
+            let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 1.0 / 60.0, ..Default::default() }, None);
+            stash_and_bag(&ctx, ev);
+            for _ in 0..4 {
+                let ev = nav.frame(&ctx, &PadIn { dt: 1.0 / 60.0, ..Default::default() }, None);
+                stash_and_bag(&ctx, ev);
+            }
+            assert_eq!(nav.focused(), Some(rect(&ctx, *id)), "Down to cell {want}, not into the bag beside");
+        }
+    }
+
+    #[test]
+    fn drifting_over_text_up_goes_to_a_row_of_the_list_not_the_title_bar() {
+        use Row::*;
+        let rows = [Button, Button, Text, Text, Text, Text, Text, Text, Text, Text, Button, Button];
+        let (ctx, mut nav, ids) = on(&rows);
+        for _ in 0..7 {
+            step(&ctx, &mut nav, &rows, PadIn { scroll: -1.0, ..Default::default() });
+        }
+        for _ in 0..4 {
+            step(&ctx, &mut nav, &rows, PadIn::default());
+        }
+        assert!(nav.focused().is_none(), "drifting over the text, no ring");
+        step(&ctx, &mut nav, &rows, PadIn { taps: vec![Dir::Up], ..Default::default() });
+        for _ in 0..4 {
+            step(&ctx, &mut nav, &rows, PadIn::default());
+        }
+        let row = ids.iter().position(|id| ctx.viewport(|v| v.prev_pass.widgets.get(*id).map(|w| w.rect)) == nav.focused());
+        assert!(matches!(row, Some(0 | 1)), "Up goes to a row of the list: {:?}", nav.focused());
+    }
+
+    /// A grid of cards three across in a short scroll area, the last row holding one card, in the
+    /// first column. The cards' ids.
+    fn cards(ctx: &Context, events: Vec<Event>) -> Vec<Id> {
+        let mut ids = Vec::new();
+        draw_with(ctx, events, |ctx| {
+            ids.clear();
+            egui::Window::new("cards").title_bar(false).fixed_pos([20.0, 20.0]).show(ctx, |ui| {
+                egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                    egui::Grid::new("grid").spacing([10.0, 10.0]).show(ui, |ui| {
+                        for i in 0..13 {
+                            ids.push(ui.add_sized([120.0, 60.0], egui::Button::new(format!("card {i}"))).id);
+                            if i % 3 == 2 {
+                                ui.end_row();
+                            }
+                        }
+                    });
+                });
+            });
+        });
+        ids
+    }
+
+    #[test]
+    fn down_reaches_a_lone_last_card_in_another_column() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        cards(&ctx, vec![]);
+        let ids = cards(&ctx, vec![]);
+        let go = |nav: &mut PadNav, taps: Vec<Dir>, mouse: Option<Pos2>| {
+            let ev = nav.frame(&ctx, &PadIn { taps, dt: 1.0 / 60.0, ..Default::default() }, mouse);
+            cards(&ctx, ev);
+        };
+        // On the middle card of the first row, then down the middle column to its last card.
+        go(&mut nav, vec![], Some(rect(&ctx, ids[1]).center()));
+        for _ in 0..3 {
+            go(&mut nav, vec![Dir::Down], None);
+            for _ in 0..4 {
+                go(&mut nav, vec![], None);
+            }
+        }
+        assert_eq!(nav.focused(), Some(rect(&ctx, ids[10])), "on the middle card of the fourth row");
+        go(&mut nav, vec![Dir::Down], None);
+        for _ in 0..4 {
+            go(&mut nav, vec![], None);
+        }
+        assert_eq!(nav.focused(), Some(rect(&ctx, ids[12])), "Down reaches the lone last card, in the first column");
+    }
+
+    #[test]
+    fn a_window_taller_than_the_screen_keeps_the_pad_on_it() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        // A window reaching above the screen (as the bag does at the Large size), with no list.
+        let tall = |ctx: &Context, events: Vec<Event>| -> Vec<Id> {
+            let mut ids = Vec::new();
+            draw_with(ctx, events, |ctx| {
+                ids.clear();
+                egui::Window::new("tall").title_bar(false).current_pos([20.0, -120.0]).show(ctx, |ui| {
+                    for i in 0..20 {
+                        ids.push(ui.add_sized([200.0, 40.0], egui::Button::new(format!("slot {i}"))).id);
+                    }
+                });
+            });
+            ids
+        };
+        tall(&ctx, vec![]);
+        let ids = tall(&ctx, vec![]);
+        let top = ids.iter().copied().find(|id| shows(&ctx, *id) > 30.0).expect("a slot on the screen");
+        let ev = nav.frame(&ctx, &PadIn { dt: 1.0 / 60.0, ..Default::default() }, Some(rect(&ctx, top).center()));
+        tall(&ctx, ev);
+        for _ in 0..3 {
+            let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Up], dt: 1.0 / 60.0, ..Default::default() }, None);
+            tall(&ctx, ev);
+        }
+        assert!(nav.focused().is_some_and(|r| r.max.y > 10.0), "Up never goes off the screen: {:?}", nav.focused());
     }
 
     #[test]
