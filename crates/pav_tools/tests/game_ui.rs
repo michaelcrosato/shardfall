@@ -533,3 +533,47 @@ fn after_the_chooser_the_skills_window_leaves_the_tree_the_pad() {
     assert!(p.nav.free(), "back on the tree's canvas, not a Skills row: {:?}", p.nav.focused());
     assert!(p.nav.pointer.is_some_and(|q| q.distance(node) < 1.0), "back at {node:?}: {:?}", p.nav.pointer);
 }
+
+/// K, the chooser opened on the pad, then P: the tree comes up over the Skills window. Choosing a
+/// card closes the chooser, and the row it was opened from is hidden under the tree: the pad lands
+/// on the tree's canvas, not on whatever comes first.
+#[test]
+fn a_chooser_closed_under_the_tree_gives_the_pad_to_the_tree() {
+    let _one = serial();
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    let frame = s.sim.frame();
+    let g = frame.game.as_deref().expect("a game");
+    let mut p = OnPad::new();
+    let pad = pav_ui::padnav::PadIn::default;
+    let cross = || pav_ui::padnav::PadIn { cross: true, ..pad() };
+    p.ui.skills = true;
+    for _ in 0..3 {
+        p.frame(g, None, None);
+    }
+    let row = egui::Id::new(("skill_slot", 2usize));
+    let at = p.rect(row).expect("the third row is drawn");
+    p.frame(g, Some(pad()), Some(at.center()));
+    p.frame(g, Some(pad()), None);
+    p.frame(g, Some(cross()), None);
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    assert!(p.ctx.memory(|m| m.area_rect(egui::Id::new("skill_chooser"))).is_some(), "the chooser is open");
+    // P on the keyboard: the tree comes up over the Skills window (the chooser stays on top).
+    p.ui.tree.open = true;
+    for _ in 0..4 {
+        p.frame(g, None, None);
+    }
+    let tree = p.ctx.memory(|m| m.area_rect(egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW))).expect("the tree is open");
+    assert!(p.rect(row).is_some_and(|r| tree.contains_rect(r)), "the row lies under the tree");
+    // The pad again: on the chooser's card; Cross takes it.
+    p.frame(g, Some(pad()), None);
+    p.frame(g, Some(pad()), None);
+    let did = p.frame(g, Some(cross()), None);
+    assert!(did.iter().any(|c| matches!(c, pav_core::arpg::GameCmd::Bar(2, _))), "chose: {did:?}");
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    assert!(p.nav.free(), "on the tree's canvas, not something hidden or first: {:?}", p.nav.focused());
+}

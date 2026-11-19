@@ -400,8 +400,9 @@ impl TreeUi {
                 // D-pad walks the nodes from there. Asked whatever the device (the pad reads it only
                 // while it drives the menus: P opened the tree, then the pad was picked up), but not
                 // over a panel drawn before it that asked this pass (the Skills window for its row,
-                // its chooser for a card; `GameUi` clears the request each pass), nor while a
-                // mastery's options are up (they ask for their own).
+                // its chooser for a card; `GameUi` clears the request each pass: a row the tree
+                // hides lands the pad on the canvas over it), nor while a mastery's options are up
+                // (they ask for their own).
                 let focus = egui::Id::new(crate::padnav::FOCUS);
                 let other = ui.ctx().data(|d| d.get_temp::<egui::Id>(focus)).is_some_and(|id| id != resp.id);
                 if !other && self.mastery.is_none() {

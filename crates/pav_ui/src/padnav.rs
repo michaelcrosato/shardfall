@@ -129,12 +129,15 @@ impl PadNav {
         let mut events = Vec::new();
         let woke = !self.seen;
         self.seen = true;
-        let items = items(ctx);
+        // Every item, and the ones no other window covers: the pad stays on the item it is on
+        // even while something passes over it (a toast), but steps and lands only where it shows.
+        let all = collect_items(ctx);
+        let items: Vec<Item> = all.iter().filter(|i| shown(ctx, i.rect, i.layer)).copied().collect();
         let screen = ctx.content_rect();
         // A window that just opened takes the pad; otherwise keep the item we are on (its rect
         // may have moved), or find one to start from.
         let mut layers: Vec<LayerId> = Vec::new();
-        for i in &items {
+        for i in &all {
             if !layers.contains(&i.layer) {
                 layers.push(i.layer);
             }
@@ -143,7 +146,7 @@ impl PadNav {
         // The pad's first frame on these menus (picked up, or they just came up).
         let fresh = self.layers.is_empty();
         self.layers = layers;
-        let mut current = self.snapped.and_then(|s| items.iter().find(|i| i.id == s.id).copied()).filter(|_| !opened);
+        let mut current = self.snapped.and_then(|s| all.iter().find(|i| i.id == s.id).copied()).filter(|_| !opened);
         // The item went (a menu turned a page): start again at the top, not wherever it was.
         let lost = self.snapped.is_some() && current.is_none();
         if opened || lost {
@@ -155,7 +158,16 @@ impl PadNav {
             // Where the screen asks, for a window the pad opened or an item it lost (picking
             // the pad up starts from the item under the mouse instead).
             let wanted: Option<Id> = ctx.data(|d| d.get_temp(Id::new(FOCUS)));
-            let asked = || wanted.and_then(|id| items.iter().find(|i| i.id == id).copied());
+            // (Asked for something another window hides, such as a Skills row under the passive
+            // tree: whatever shows there, the tree's canvas.)
+            let asked = || {
+                wanted.and_then(|id| {
+                    items.iter().find(|i| i.id == id).copied().or_else(|| {
+                        let hid = all.iter().find(|i| i.id == id)?.rect.center();
+                        items.iter().filter(|i| i.rect.contains(hid)).min_by(|a, b| area(a).total_cmp(&area(b))).copied()
+                    })
+                })
+            };
             current = asked()
                 .filter(|_| (opened || lost) && !fresh)
                 .or_else(|| {
@@ -375,23 +387,22 @@ fn stick_dir(s: glam::Vec2) -> Option<Dir> {
 /// A slider (or anything else a finger drags sideways: it drags, and is wide and short) under
 /// `pos` in the last frame: touch doesn't flick its window away (`touch::Touch::on_slider`).
 pub fn slider_at(ctx: &Context, pos: Pos2) -> bool {
-    items(ctx).iter().any(|i| i.slider && i.rect.contains(pos))
+    collect_items(ctx).iter().any(|i| i.slider && i.rect.contains(pos))
 }
 
 /// The clickable items the last frame drew in the open windows (the topmost popup's alone when
 /// one is open: a combo box's list), not the world's labels under them.
-fn items(ctx: &Context) -> Vec<Item> {
-    // An item another window covers (two panels the keys opened, one over the other) is no stop
-    // nor place to land: the ring would sit on something hidden, and Cross click the window on
-    // top. (Seen anywhere, it counts: a big canvas whose middle a window covers still shows.)
-    let shown = |i: &Item| {
-        const AT: [(f32, f32); 9] =
-            [(0.5, 0.5), (0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9), (0.5, 0.1), (0.5, 0.9), (0.1, 0.5), (0.9, 0.5)];
-        AT.iter().any(|&(x, y)| ctx.layer_id_at(i.rect.lerp_inside(vec2(x, y))).is_none_or(|top| top == i.layer))
-    };
-    let mut list = collect_items(ctx);
-    list.retain(shown);
-    list
+/// The nine points `shown` looks at: a rect's middle, corners and edges.
+const AT: [(f32, f32); 9] =
+    [(0.5, 0.5), (0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9), (0.5, 0.1), (0.5, 0.9), (0.1, 0.5), (0.9, 0.5)];
+
+/// Whether a widget at `rect` on `layer` shows: no other window covers it at all nine points (its
+/// middle, corners and edges). One covered (two panels the keys opened, one over the other) is no
+/// stop nor place to land, nor a screen's to ask for: the ring would sit on something hidden and
+/// Cross click the window on top. (Seen anywhere, it counts: a big canvas whose middle a window
+/// covers still shows.)
+pub fn shown(ctx: &Context, rect: Rect, layer: LayerId) -> bool {
+    AT.iter().any(|&(x, y)| ctx.layer_id_at(rect.lerp_inside(vec2(x, y))).is_none_or(|top| top == layer))
 }
 
 fn collect_items(ctx: &Context) -> Vec<Item> {
@@ -729,7 +740,7 @@ mod slider_tests {
                 .collect()
         });
         assert!(!strips.is_empty(), "the window has thin strips that drag");
-        assert!(items(&ctx).iter().all(|i| !strips.contains(&i.id)));
+        assert!(collect_items(&ctx).iter().all(|i| !strips.contains(&i.id)));
     }
 }
 
@@ -1136,6 +1147,11 @@ mod cover_tests {
     /// A window of three items, and a panel without items drawn over the middle one (two panels
     /// the keys opened, one over the other).
     fn pass(ctx: &Context, events: Vec<Event>) -> [Id; 3] {
+        drawn(ctx, events, true)
+    }
+
+    /// The same, the panel over it only while `front` (a toast that comes and goes).
+    fn drawn(ctx: &Context, events: Vec<Event>, front: bool) -> [Id; 3] {
         let raw = egui::RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
             events,
@@ -1149,13 +1165,13 @@ mod cover_tests {
                     *id = ui.add_sized([200.0, 40.0], egui::Button::new(format!("item {i}"))).id;
                 }
             });
-            egui::Window::new("front").id(Id::new("front")).title_bar(false).resizable(false).fixed_pos([10.0, 66.0]).show(
-                &ctx,
-                |ui| {
+            if front {
+                let panel = egui::Window::new("front").id(Id::new("front")).title_bar(false).resizable(false);
+                panel.fixed_pos([10.0, 66.0]).show(&ctx, |ui| {
                     ui.set_min_size(vec2(260.0, 36.0));
                     ui.label("over");
-                },
-            );
+                });
+            }
         });
         out.textures_delta.clear();
         ids
@@ -1179,5 +1195,25 @@ mod cover_tests {
         let ev = nav.frame(&ctx, &PadIn { taps: vec![Dir::Down], dt: 0.016, ..Default::default() }, None);
         pass(&ctx, ev);
         assert_eq!(nav.focused(), Some(rect(&ctx, ids[2])), "over the covered one, to the third");
+    }
+    #[test]
+    fn a_toast_over_the_item_the_pad_is_on_leaves_it_there() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        drawn(&ctx, vec![], false);
+        let ids = drawn(&ctx, vec![], false);
+        let go = |nav: &mut PadNav, input: PadIn, front: bool| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, None);
+            drawn(&ctx, ev, front);
+        };
+        go(&mut nav, PadIn::default(), false);
+        go(&mut nav, PadIn { taps: vec![Dir::Down], ..Default::default() }, false);
+        let middle = rect(&ctx, ids[1]);
+        assert_eq!(nav.focused(), Some(middle), "on the middle item");
+        // Something passes over it (a toast), then goes: the pad stays on it throughout.
+        for front in [true, true, true, false, false] {
+            go(&mut nav, PadIn::default(), front);
+            assert_eq!(nav.focused(), Some(middle), "still on the middle item (front: {front})");
+        }
     }
 }
