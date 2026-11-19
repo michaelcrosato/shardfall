@@ -5,6 +5,52 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Review of #103: where the pad lands beside the tree, in a mastery's options, after a drag — 2026-11-19
+
+#103 merged without a review; an independent one (three reviewers on different lenses, each
+finding put to two skeptics who tried to refute it) confirmed one regression and three older
+defects in the code it touched. All four are fixed:
+- **Skills beside the tree** (the regression; the keys open both, P then K): the tree's canvas
+  request, written every pass after the Skills window's, overrode it, so with a pad the skill
+  chooser opened on its first card and choosing went back to the wrong row. Now `GameUi` clears
+  the request (`padnav::FOCUS`) at the start of each pass and the panels drawn ask again; the
+  tree asks only as the one hero panel open (`TreeUi::alone`).
+- **P, then a pad:** the tree asked only once a pad was in hand, a pass after the pad's first
+  frame read the request, so the pad started on the Bag tab. It asks whatever the device now
+  (the pad reads it only while it drives the menus).
+- **A mastery's options** ask for the option chosen, else the first free one (else Close), as
+  the skill chooser does; the pad landed on whichever option lay under the canvas's middle.
+  Closing them, the pad comes back to where it was on the canvas, the mastery node
+  (`PadNav::canvas_at`), not the canvas's middle.
+- **A drag that left the canvas** (Cross held, the stick carrying the pointer onto a tab) never
+  let go: the release was sent only on a canvas. A press made on a canvas is now held until the
+  button comes up, wherever the pointer is (`PadNav::grabbed`), and crossing a tab doesn't land
+  on it.
+- **Tests** (each fails on the code before): `padnav`'s canvas tests (a drag lets go; back to the
+  node after a dialog), and in `pav_tools/tests/game_ui.rs` an `OnPad` harness that drives the
+  real `GameUi` with the real `PadNav` between passes, in the app's order: the chooser beside the
+  tree keeps its place, and P then a pad lands on the canvas.
+
+A second review of those fixes (four lenses, the same skeptics, harnesses on the real `GameUi`)
+upheld five more, two of them from the first round's fixes; all fixed:
+- **A mastery's options were a plain window** (older): the D-pad stepped out of them to the
+  tree's Reset all behind, and Cross there refunded every node for gold. They are a Foreground
+  popup now, as the skill chooser is, so the pad stays in them.
+- **Beside the bag or the sheet**, closing the options sent the pad to that window's first item,
+  often under the tree (from `alone`): the tree now asks for its canvas after its options close,
+  whatever is beside it, until the pointer is back on it (`TreeUi::returning`).
+- **`canvas_at` after a rescale** (the UI's size changed, a phone turned, while a dialog was up)
+  put the pad on an old screen point, now another node: it keeps the canvas's rect and comes
+  back only to the same one, else to the middle.
+- **Shift stuck** (older): Triangle held as the pad left the menus stayed down in egui unless the
+  pad was on a canvas, and a later click on the tree took a whole path. `release()` lets go of it
+  wherever the pad was.
+- **A pad picked up with the mouse on a node** (older) started at the canvas's middle, so its
+  first Cross took or refunded another node: it starts where the mouse points now.
+- **Tests:** `padnav` (a rescaled canvas, the mouse's point, Shift let go) and `game_ui.rs` (a
+  mastery's options beside the bag keep the pad and give it back to the node; removing either
+  fix fails it where the reviewers saw it). `TreeUi::show_mastery` opens the options for tests.
+
 ## The passive tree on a pad in the browser starts on the tree — 2026-11-18
 
 Checked in the browser build (Chromium, WebGPU on SwiftShader, a pad in the standard mapping at

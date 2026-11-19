@@ -77,9 +77,10 @@ pub struct PadNav {
     /// Cross and Square went down on a canvas and egui still holds them (a drag): each is let go
     /// when its button comes up, wherever the pointer has gone by then.
     grabbed: (bool, bool),
-    /// Where the pointer last was on a canvas: the pad comes back there (to the node a dialog
-    /// opened from), not to the canvas's middle.
-    canvas_at: Option<(Id, Pos2)>,
+    /// Where the pointer last was on a canvas, and the canvas's rect then: the pad comes back
+    /// there (to the node a dialog opened from), not to the canvas's middle, unless the canvas has
+    /// changed size or place since (the UI's scale, a turned phone), which moves its nodes.
+    canvas_at: Option<(Id, Rect, Pos2)>,
     /// The windows with items last frame: a new one (a menu, a popup) takes the pad.
     layers: Vec<LayerId>,
 }
@@ -164,9 +165,13 @@ impl PadNav {
                 if !c.canvas {
                     self.pointer = Some(c.rect.center());
                 } else if self.pointer.is_none() {
-                    // Back on a canvas it was on (a dialog over it closed): where it was.
-                    let back = self.canvas_at.filter(|(id, p)| *id == c.id && c.rect.contains(*p)).map(|(_, p)| p);
-                    self.pointer = Some(back.unwrap_or(c.rect.center()));
+                    // Back on a canvas it was on (a dialog over it closed): where it was. Picked up
+                    // with the mouse on it: where the mouse is (the node it points at). Else its
+                    // middle.
+                    let same = |r: Rect| (r.min - c.rect.min).length() < 1.0 && (r.max - c.rect.max).length() < 1.0;
+                    let back = self.canvas_at.filter(|(id, r, _)| *id == c.id && same(*r)).map(|(_, _, p)| p);
+                    let under = mouse.filter(|p| fresh && c.rect.contains(*p));
+                    self.pointer = Some(back.or(under).unwrap_or(c.rect.center()));
                 }
             }
         }
@@ -282,7 +287,7 @@ impl PadNav {
         // starts on the window's first item, not on whatever lies under the screen's middle.
         self.pointer = current.is_some().then_some(pointer);
         if let Some(c) = current.filter(|c| c.canvas) {
-            self.canvas_at = Some((c.id, pointer));
+            self.canvas_at = Some((c.id, c.rect, pointer));
         }
         self.snapped = current;
         events
@@ -293,16 +298,17 @@ impl PadNav {
         let mut out = Vec::new();
         // (Only a canvas holds a button down; elsewhere a press was a whole click. The window
         // may have gone already: the release goes where the pointer last was on it.)
-        let canvas = self.snapped.is_some_and(|s| s.canvas);
-        if let Some(pos) = self.pointer.or(self.canvas_at.map(|(_, p)| p)) {
+        if let Some(pos) = self.pointer.or(self.canvas_at.map(|(_, _, p)| p)) {
             for (held, button) in [(self.grabbed.0, PointerButton::Primary), (self.grabbed.1, PointerButton::Secondary)] {
                 if held {
                     out.push(Event::PointerButton { pos, button, pressed: false, modifiers: Default::default() });
                 }
             }
-            if self.buttons.2 && canvas {
-                out.push(Event::ModifiersChanged(Default::default()));
-            }
+        }
+        // Triangle is Shift on every item: held as the pad leaves, it is let go too (the keyboard
+        // says nothing until a key of its own changes, and a stuck Shift takes whole paths).
+        if self.buttons.2 {
+            out.push(Event::ModifiersChanged(Default::default()));
         }
         self.buttons = (false, false, false);
         self.grabbed = (false, false);
@@ -773,6 +779,11 @@ mod canvas_focus_tests {
     /// The tree's shape: a tab over a canvas that asks for the pad; while `dialog`, a mastery's
     /// options over it instead, which ask for their option.
     fn scene(ctx: &Context, events: Vec<Event>, dialog: bool) -> Drawn {
+        sized(ctx, events, dialog, vec2(900.0, 560.0))
+    }
+
+    /// The same with the canvas `size` (the UI's scale changed, a phone turned).
+    fn sized(ctx: &Context, events: Vec<Event>, dialog: bool, size: EVec2) -> Drawn {
         let raw = egui::RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 700.0))),
             events,
@@ -785,7 +796,7 @@ mod canvas_focus_tests {
                 let tab = ui.add_sized([120.0, 40.0], egui::Button::new("Bag"));
                 drawn.tab = tab.id;
                 drawn.tab_clicked = tab.clicked();
-                let (_, r) = ui.allocate_exact_size(vec2(900.0, 560.0), egui::Sense::click_and_drag());
+                let (_, r) = ui.allocate_exact_size(size, egui::Sense::click_and_drag());
                 drawn.canvas = r.id;
                 if !dialog {
                     ui.ctx().data_mut(|d| d.insert_temp(Id::new(FOCUS), r.id));
@@ -880,6 +891,76 @@ mod canvas_focus_tests {
         }
         assert!(nav.free(), "on the canvas");
         assert!(nav.pointer.is_some_and(|p| p.distance(node) < 1.0), "back at {node:?}: {:?}", nav.pointer);
+    }
+
+    #[test]
+    fn a_canvas_that_changed_size_under_a_dialog_takes_the_pad_to_its_middle() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        scene(&ctx, vec![], false);
+        let go = |nav: &mut PadNav, input: PadIn, dialog: bool, size: EVec2| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, None);
+            sized(&ctx, ev, dialog, size)
+        };
+        let (big, small) = (vec2(900.0, 560.0), vec2(700.0, 480.0));
+        for _ in 0..3 {
+            go(&mut nav, PadIn::default(), false, big);
+        }
+        for _ in 0..12 {
+            go(&mut nav, PadIn { stick: glam::Vec2::new(-0.6, -0.5), ..Default::default() }, false, big);
+        }
+        let node = nav.pointer.expect("on the canvas");
+        // The dialog is up while the UI's scale changes: the node is drawn elsewhere now.
+        for _ in 0..3 {
+            go(&mut nav, PadIn::default(), true, big);
+        }
+        let mut drawn = go(&mut nav, PadIn::default(), true, small);
+        for _ in 0..3 {
+            drawn = go(&mut nav, PadIn::default(), false, small);
+        }
+        let middle = rect(&ctx, drawn.canvas).center();
+        assert!(
+            nav.pointer.is_some_and(|p| p.distance(middle) < 1.0),
+            "at the middle {middle:?}, not the old {node:?}: {:?}",
+            nav.pointer
+        );
+    }
+
+    #[test]
+    fn a_pad_picked_up_with_the_mouse_on_the_canvas_starts_where_it_points() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        let drawn = scene(&ctx, vec![], false);
+        scene(&ctx, vec![], false);
+        let at = rect(&ctx, drawn.canvas).center() + vec2(-210.0, 130.0);
+        let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, Some(at));
+        scene(&ctx, ev, false);
+        assert!(nav.free(), "on the canvas");
+        assert_eq!(nav.pointer, Some(at), "where the mouse was, not the canvas's middle");
+    }
+
+    #[test]
+    fn shift_held_on_a_button_is_let_go_when_the_pad_leaves() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        let drawn = scene(&ctx, vec![], false);
+        scene(&ctx, vec![], false);
+        let tab = rect(&ctx, drawn.tab);
+        let go = |nav: &mut PadNav, input: PadIn, mouse: Option<Pos2>| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, mouse);
+            scene(&ctx, ev, false);
+        };
+        // Picked up with the mouse on the tab, then Triangle (Shift) held there.
+        go(&mut nav, PadIn::default(), Some(tab.center()));
+        go(&mut nav, PadIn::default(), None);
+        assert_eq!(nav.focused(), Some(tab), "on the tab");
+        go(&mut nav, PadIn { triangle: true, ..Default::default() }, None);
+        assert!(ctx.input(|i| i.modifiers.shift), "Shift down");
+        let out = nav.release();
+        assert!(
+            out.iter().any(|e| matches!(e, Event::ModifiersChanged(m) if !m.shift)),
+            "the pad lets go of Shift as it leaves: {out:?}"
+        );
     }
 }
 

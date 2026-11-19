@@ -402,3 +402,66 @@ fn a_pad_picked_up_on_a_tree_the_keys_opened_lands_on_its_canvas() {
     }
     assert!(p.nav.free() && p.nav.focused().is_none(), "on the canvas, not a tab: {:?}", p.nav.focused());
 }
+
+/// The keys open the bag, then the tree (I, then P), and a pad on the tree opens a taken
+/// mastery's options: the pad stays in them (Up doesn't step out to the tree's Reset all behind
+/// them), and Circle brings it back to the node, not to the bag beside the tree.
+#[test]
+fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
+    let _one = serial();
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    call(&mut s, "hero", json!({"level": 20})).unwrap();
+    s.step(1);
+    // The mastery nearest the start, taken (with the way to it).
+    let d = pav_core::arpg::data::data();
+    let none = std::collections::BTreeSet::new();
+    let (mastery, _) = d
+        .tree
+        .nodes
+        .iter()
+        .filter(|n| n.kind == pav_core::arpg::tree::NodeKind::Mastery && n.ring == 0)
+        .filter_map(|n| d.tree.path_to(&none, n.id).map(|p| (n.id, p.len())))
+        .min_by_key(|(_, len)| *len)
+        .expect("a mastery");
+    call(&mut s, "tree", json!({"take": mastery.to_string()})).unwrap();
+    s.step(1);
+    let frame = s.sim.frame();
+    let g = frame.game.as_deref().expect("a game");
+    assert!(g.inv.as_ref().is_some_and(|i| i.tree.contains(&mastery)), "the mastery is taken");
+    let mut p = OnPad::new();
+    p.ui.inventory = true;
+    for _ in 0..3 {
+        p.frame(g, None, None);
+    }
+    p.ui.tree.open = true;
+    for _ in 0..3 {
+        p.frame(g, None, None);
+    }
+    // Picked up with the mouse on the tree: the pad is on its canvas, where the mouse was.
+    let tree = p.ctx.memory(|m| m.area_rect(egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW))).expect("the tree is open");
+    let pad = pav_ui::padnav::PadIn::default;
+    p.frame(g, Some(pad()), Some(tree.center()));
+    p.frame(g, Some(pad()), None);
+    assert!(p.nav.free(), "on the canvas");
+    let node = p.nav.pointer.expect("a pointer");
+    // The mastery's options: the pad is on one of them, and Up keeps it there.
+    p.ui.tree.show_mastery(mastery);
+    for _ in 0..3 {
+        p.frame(g, Some(pad()), None);
+    }
+    let options = p.ctx.memory(|m| m.area_rect(egui::Id::new("mastery"))).expect("the options are open");
+    let inside = |p: &OnPad| p.nav.focused().is_some_and(|r| options.contains_rect(r));
+    assert!(inside(&p), "on an option: {:?} in {options:?}", p.nav.focused());
+    for _ in 0..4 {
+        p.frame(g, Some(pav_ui::padnav::PadIn { taps: vec![pav_ui::padnav::Dir::Up], ..pad() }), None);
+        assert!(inside(&p), "Up stays in the options: {:?} in {options:?}", p.nav.focused());
+    }
+    // Circle: back on the node, beside the bag all the same.
+    p.ui.back();
+    for _ in 0..4 {
+        p.frame(g, Some(pad()), None);
+    }
+    assert!(p.nav.free(), "back on the tree's canvas, not the bag: {:?}", p.nav.focused());
+    assert!(p.nav.pointer.is_some_and(|q| q.distance(node) < 1.0), "back at {node:?}: {:?}", p.nav.pointer);
+}
