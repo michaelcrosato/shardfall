@@ -5,6 +5,20 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## On 52in1's wall: build v8 replaces v2 — 2026-11-18
+
+At the user's word, the build was brought onto the live wall by 52in1's own procedure
+(`docs/adding-a-game.md` in its repository): v2 removed, the v8 package imported (`pnpm ingest`,
+its session harness at the door: may be dealt), v2's date kept, the package's three frames as
+the strip, the game's 1,842 lines translated into the hub's nine languages with Haiku 5.5
+medium ($0.85) and its description and controls with Sonnet 5.5 medium ($0.13), check-pages,
+hub-check --draws-only, 52in1's 745 tests, a PATCH-NOTES line, pushed to its main (commit
+d49d055a). The wall's tests caught a real gap: a game that plays in shared-world sessions must
+carry `co-op` or `versus` among its tags, and #89 had swapped `co-op` out for `gamepad` and
+`touch`; `web/hub.json` now has `action-rpg, loot, co-op, gamepad, touch` (five at most, so
+`procedural` went). `fill.mjs` can't measure a WebGPU-only game: it hides `navigator.gpu` on
+purpose, so it sees the "needs WebGPU" notice.
+
 ## The hero's panels as tabs: a phone reaches the sheet, the skills and the tree — 2026-11-18
 
 Found while checking the passive tree on a phone: a touch screen could open only the bag (its
