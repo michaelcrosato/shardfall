@@ -7,10 +7,10 @@ Shardfall's (G1–G6) at the end.
 
 ## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
 
-#103 merged without a review. Nine rounds of independent review followed, each with two to
+#103 merged without a review. Ten rounds of independent review followed, each with two to
 four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
 most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, 1, 4,
-then 4 findings. Some were older defects in the code touched; some came from the previous round's
+4, then 2 findings. Some were older defects in the code touched; some came from the previous round's
 fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
 rules are simpler:
 - **Who decides where the pad lands** (`padnav::FOCUS`): `GameUi` clears the request at the start
@@ -60,8 +60,15 @@ rules are simpler:
   dropping to the window's first item. The stick's scroll goes to egui as a touchpad's
   (`TouchPhase` Start, Move, End), which egui applies at once: as a mouse wheel's it glided on
   after the stick let go, and the ring's row carried the pointer out of the list.
-  - The D-pad steps onto rows its list has scrolled away, in the window it is on, and a screen
-    may ask for one (the skill chooser's card for a skill near the end). Landing on a row that
+  - A list scrolls before the pad leaves it. egui's clipped rect of a row scrolled out of sight is
+    empty, and its near side is the edge of the list's view: from an item inside that view, the
+    rows past its edge the way the D-pad goes are stops, and the next of them wins over anything
+    beyond the edge (the stash's Sort under its list, a title bar above), however much text lies
+    between (the station guide's sections, more than a screen apart, round ten). Rows scrolled up
+    behind a list's own buttons lie past its top, so going down from those buttons they never
+    compete: in round ten, with the portal reopened still scrolled, Down from Arena skipped Lab
+    for a waypoint behind it. A screen may ask for a row out of sight (the skill chooser's card
+    for a skill near the end). Landing on a row that
     shows in part or not at all asks egui to scroll it into view: egui centres it in its own
     list (AccessKit's ScrollIntoView, as a screen reader asks), so the rows either side show and
     the D-pad walks a whole list both ways. My first reveal guessed a margin of 6 pt, the game's
@@ -89,7 +96,8 @@ rules are simpler:
   and back, and Cross takes the ringed row; short flicks reach the end and back; scrolling past
   text and locked rows; the D-pad walks a list down, and back up from its end, each row scrolled
   into view; a screen asking for a row out of sight gets it in view; no flick of 3-8 frames ends
-  on a title bar), and an `OnPad`
+  on a title bar; rows behind the place buttons never take the pad from them; a list running past
+  the screen; across a screen of text and back; a list before the button under it), and an `OnPad`
   harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
   the app's order:
   - the chooser beside the tree keeps its place;
