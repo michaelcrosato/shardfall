@@ -34,6 +34,9 @@ pub struct TreeUi {
     fit: Option<f32>,
     /// On a gamepad: hints name its buttons.
     pub pad: bool,
+    /// The only hero panel open (`GameUi` says): a pad lands on the canvas. Beside the bag, the
+    /// sheet or the Skills window (the keys open them together), the tree leaves that to them.
+    pub alone: bool,
     /// On a touch screen: the first tap on a node shows it, the second takes it; two fingers zoom.
     pub touch: bool,
     /// Touch: the node shown.
@@ -56,6 +59,7 @@ impl Default for TreeUi {
             lit: Default::default(),
             mastery: None,
             pad: false,
+            alone: true,
             touch: false,
             picked: None,
         }
@@ -396,8 +400,10 @@ impl TreeUi {
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
                 // A pad lands on the canvas when the tree opens (or loses the item it was on), not on
                 // the tabs or the header: the stick zooms and the D-pad walks the nodes from there.
-                // (Not while a mastery's options are up: they take the pad.)
-                if self.pad && self.mastery.is_none() {
+                // Asked whatever the device (the pad reads it only while it drives the menus: P
+                // opened the tree, then the pad was picked up), but not beside another hero panel,
+                // nor while a mastery's options are up (they ask for their own).
+                if self.alone && self.mastery.is_none() {
                     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), resp.id));
                 }
                 let p = ui.painter_at(rect);
@@ -807,6 +813,8 @@ impl TreeUi {
                                 .resizable(false)
                                 .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
                                 .show(ctx, |ui| {
+                                    // The pad starts on the option chosen, else the first one free.
+                                    let mut land = None;
                                     for (i, (name, stats, power)) in m.options.iter().enumerate() {
                                         // The option's name, then what it does, a line each.
                                         let mut text = lines::mastery_option(&n.mastery, i, name);
@@ -821,14 +829,20 @@ impl TreeUi {
                                             *nid != mid && *o == i as u8 && t.node(*nid).is_some_and(|x| x.mastery == n.mastery)
                                         });
                                         let b = ui.add_enabled(!taken_elsewhere, egui::Button::selectable(chosen, text));
+                                        if !taken_elsewhere && (chosen || land.is_none()) {
+                                            land = Some(b.id);
+                                        }
                                         if b.clicked() {
                                             out.push(GameCmd::Mastery(mid, i as u8));
                                             keep = false;
                                         }
                                     }
-                                    if ui.button(t!("ui.close")).clicked() {
+                                    let close = ui.button(t!("ui.close"));
+                                    if close.clicked() {
                                         keep = false;
                                     }
+                                    let land = land.unwrap_or(close.id);
+                                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), land));
                                 });
                         }
                     }

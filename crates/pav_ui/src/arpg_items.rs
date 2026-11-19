@@ -495,6 +495,10 @@ impl GameUi {
         if spot_clicked {
             out.extend(self.interact(g));
         }
+        // Where the pad lands (`padnav::FOCUS`) is asked afresh each pass by the panels drawn
+        // now (the Skills window, its chooser, the tree, a mastery's options): one left by a
+        // panel that closed or stopped asking never decides it.
+        ctx.data_mut(|d| d.remove::<egui::Id>(egui::Id::new(crate::padnav::FOCUS)));
         let Some(inv) = g.inv.clone() else { return out };
         if self.inventory {
             self.inventory_window(ctx, &d, &inv, &mut out);
@@ -507,6 +511,7 @@ impl GameUi {
         } else {
             self.choosing = None;
         }
+        self.tree.alone = !(self.inventory || self.character || self.skills);
         self.tree.ui(ctx, &inv, &mut out);
         // A tab turned the panels.
         if let Some(i) = ctx.data_mut(|d| d.remove_temp::<usize>(egui::Id::new(PANEL_TAB))) {

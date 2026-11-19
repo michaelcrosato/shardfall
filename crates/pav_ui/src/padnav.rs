@@ -74,6 +74,12 @@ pub struct PadNav {
     /// The stick's held direction and the time to its next step.
     held: Option<(Dir, f32)>,
     buttons: (bool, bool, bool),
+    /// Cross and Square went down on a canvas and egui still holds them (a drag): each is let go
+    /// when its button comes up, wherever the pointer has gone by then.
+    grabbed: (bool, bool),
+    /// Where the pointer last was on a canvas: the pad comes back there (to the node a dialog
+    /// opened from), not to the canvas's middle.
+    canvas_at: Option<(Id, Pos2)>,
     /// The windows with items last frame: a new one (a menu, a popup) takes the pad.
     layers: Vec<LayerId>,
 }
@@ -98,6 +104,7 @@ impl PadNav {
         self.pointer = None;
         self.snapped = None;
         self.held = None;
+        self.canvas_at = None;
         self.layers.clear();
     }
 
@@ -154,8 +161,12 @@ impl PadNav {
                 .or_else(|| asked().filter(|i| i.canvas))
                 .or_else(|| first(&items));
             if let Some(c) = current {
-                if !c.canvas || self.pointer.is_none() {
+                if !c.canvas {
                     self.pointer = Some(c.rect.center());
+                } else if self.pointer.is_none() {
+                    // Back on a canvas it was on (a dialog over it closed): where it was.
+                    let back = self.canvas_at.filter(|(id, p)| *id == c.id && c.rect.contains(*p)).map(|(_, p)| p);
+                    self.pointer = Some(back.unwrap_or(c.rect.center()));
                 }
             }
         }
@@ -222,8 +233,9 @@ impl PadNav {
             }
         }
         pointer = pointer.clamp(screen.min, screen.max - vec2(2.0, 2.0));
-        // On a canvas, the item is whatever the pointer is over now.
-        if canvas {
+        // On a canvas, the item is whatever the pointer is over now (dragging, still the canvas,
+        // as a mouse's drag is: crossing a button on the way doesn't land on it).
+        if canvas && !(self.grabbed.0 || self.grabbed.1) {
             current =
                 items.iter().filter(|i| i.rect.contains(pointer)).min_by(|a, b| area(a).total_cmp(&area(b))).copied().or(current);
         }
@@ -234,21 +246,27 @@ impl PadNav {
         }
         let on_slider = current.is_some_and(|c| c.slider);
         let on_canvas = current.is_some_and(|c| c.canvas);
-        for (now, was, button) in [
-            (input.cross && !on_slider, self.buttons.0, PointerButton::Primary),
-            (input.square, self.buttons.1, PointerButton::Secondary),
+        for (now, was, button, grabbed) in [
+            (input.cross && !on_slider, self.buttons.0, PointerButton::Primary, &mut self.grabbed.0),
+            (input.square, self.buttons.1, PointerButton::Secondary, &mut self.grabbed.1),
         ] {
-            if on_canvas {
-                // A canvas (the passive tree) is a mouse's: held is held, so holding Cross and
-                // moving drags it.
-                if now != was {
-                    events.push(Event::PointerButton { pos: pointer, button, pressed: now, modifiers });
+            if *grabbed {
+                // Down on a canvas: egui holds it until the button comes up, wherever the pointer
+                // is then (a drag that crossed onto the header lets go too).
+                if !now {
+                    events.push(Event::PointerButton { pos: pointer, button, pressed: false, modifiers });
+                    *grabbed = false;
                 }
             } else if now && !was {
-                // Elsewhere a press acts once, on the frame it goes down: a whole click, however
-                // long the button stays down (and however slow the frame).
+                // A canvas (the passive tree) is a mouse's: held is held, so holding Cross and
+                // moving drags it. Elsewhere a press acts once, on the frame it goes down: a
+                // whole click, however long the button stays down (and however slow the frame).
                 events.push(Event::PointerButton { pos: pointer, button, pressed: true, modifiers });
-                events.push(Event::PointerButton { pos: pointer, button, pressed: false, modifiers });
+                if on_canvas {
+                    *grabbed = true;
+                } else {
+                    events.push(Event::PointerButton { pos: pointer, button, pressed: false, modifiers });
+                }
             }
         }
         self.buttons = (input.cross && !on_slider, input.square, input.triangle);
@@ -263,6 +281,9 @@ impl PadNav {
         // With nothing to be on (the window not drawn yet), no pointer is kept: the next frame
         // starts on the window's first item, not on whatever lies under the screen's middle.
         self.pointer = current.is_some().then_some(pointer);
+        if let Some(c) = current.filter(|c| c.canvas) {
+            self.canvas_at = Some((c.id, pointer));
+        }
         self.snapped = current;
         events
     }
@@ -270,19 +291,21 @@ impl PadNav {
     /// Lets go of the pointer's buttons (the menus closed with one held).
     pub fn release(&mut self) -> Vec<Event> {
         let mut out = Vec::new();
-        // (Only a canvas holds a button down; elsewhere a press was a whole click.)
+        // (Only a canvas holds a button down; elsewhere a press was a whole click. The window
+        // may have gone already: the release goes where the pointer last was on it.)
         let canvas = self.snapped.is_some_and(|s| s.canvas);
-        if let Some(pos) = self.pointer.filter(|_| canvas) {
-            for (held, button) in [(self.buttons.0, PointerButton::Primary), (self.buttons.1, PointerButton::Secondary)] {
+        if let Some(pos) = self.pointer.or(self.canvas_at.map(|(_, p)| p)) {
+            for (held, button) in [(self.grabbed.0, PointerButton::Primary), (self.grabbed.1, PointerButton::Secondary)] {
                 if held {
                     out.push(Event::PointerButton { pos, button, pressed: false, modifiers: Default::default() });
                 }
             }
-            if self.buttons.2 {
+            if self.buttons.2 && canvas {
                 out.push(Event::ModifiersChanged(Default::default()));
             }
         }
         self.buttons = (false, false, false);
+        self.grabbed = (false, false);
         out
     }
 
@@ -736,6 +759,127 @@ mod canvas_focus_tests {
         assert_eq!(nav.focused(), None, "not on the tab");
         let rect = ctx.viewport(|v| v.prev_pass.widgets.get(canvas).map(|w| w.rect)).expect("drawn");
         assert!(nav.pointer.is_some_and(|p| rect.contains(p)), "the pointer is on the canvas: {:?} in {rect:?}", nav.pointer);
+    }
+
+    /// What one pass of `scene` drew: the canvas's and the tab's ids, the dialog's button, and
+    /// whether the tab was clicked.
+    struct Drawn {
+        canvas: Id,
+        tab: Id,
+        dialog: Option<Id>,
+        tab_clicked: bool,
+    }
+
+    /// The tree's shape: a tab over a canvas that asks for the pad; while `dialog`, a mastery's
+    /// options over it instead, which ask for their option.
+    fn scene(ctx: &Context, events: Vec<Event>, dialog: bool) -> Drawn {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 700.0))),
+            events,
+            ..Default::default()
+        };
+        let mut drawn = Drawn { canvas: Id::NULL, tab: Id::NULL, dialog: None, tab_clicked: false };
+        let mut out = ctx.run_ui(raw, |ui| {
+            let ctx = ui.ctx().clone();
+            egui::Window::new("tree").title_bar(false).fixed_pos([20.0, 20.0]).show(&ctx, |ui| {
+                let tab = ui.add_sized([120.0, 40.0], egui::Button::new("Bag"));
+                drawn.tab = tab.id;
+                drawn.tab_clicked = tab.clicked();
+                let (_, r) = ui.allocate_exact_size(vec2(900.0, 560.0), egui::Sense::click_and_drag());
+                drawn.canvas = r.id;
+                if !dialog {
+                    ui.ctx().data_mut(|d| d.insert_temp(Id::new(FOCUS), r.id));
+                }
+            });
+            if dialog {
+                egui::Window::new("options").fixed_pos([400.0, 300.0]).show(&ctx, |ui| {
+                    let _ = ui.button("first");
+                    let chosen = ui.button("chosen");
+                    drawn.dialog = Some(chosen.id);
+                    ui.ctx().data_mut(|d| d.insert_temp(Id::new(FOCUS), chosen.id));
+                });
+            }
+        });
+        out.textures_delta.clear();
+        drawn
+    }
+
+    fn rect(ctx: &Context, id: Id) -> Rect {
+        ctx.viewport(|v| v.prev_pass.widgets.get(id).map(|w| w.rect)).expect("drawn")
+    }
+
+    #[test]
+    fn a_drag_that_leaves_the_canvas_lets_go_when_cross_comes_up() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        scene(&ctx, vec![], false);
+        let go = |nav: &mut PadNav, input: PadIn| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, None);
+            scene(&ctx, ev, false)
+        };
+        let mut drawn = go(&mut nav, PadIn::default());
+        for _ in 0..2 {
+            drawn = go(&mut nav, PadIn::default());
+        }
+        // Under the tab, still on the canvas.
+        let tab = rect(&ctx, drawn.tab);
+        for _ in 0..80 {
+            if nav.pointer.is_some_and(|p| p.x < tab.center().x) {
+                break;
+            }
+            go(&mut nav, PadIn { stick: glam::Vec2::new(-1.0, 0.0), ..Default::default() });
+        }
+        assert!(nav.free(), "still on the canvas");
+        // Cross held, the stick up: the drag carries the pointer onto the tab.
+        let mut clicked = false;
+        for _ in 0..80 {
+            if nav.pointer.is_some_and(|p| tab.contains(p)) {
+                break;
+            }
+            drawn = go(&mut nav, PadIn { cross: true, stick: glam::Vec2::new(0.0, 1.0), ..Default::default() });
+            clicked |= drawn.tab_clicked;
+        }
+        assert!(nav.pointer.is_some_and(|p| tab.contains(p)), "the drag reached the tab: {:?} {tab:?}", nav.pointer);
+        assert!(ctx.input(|i| i.pointer.primary_down()), "held while dragging");
+        // Cross comes up over the tab: egui lets go, and the tab isn't clicked on the way.
+        for _ in 0..2 {
+            drawn = go(&mut nav, PadIn::default());
+            clicked |= drawn.tab_clicked;
+        }
+        assert!(!ctx.input(|i| i.pointer.any_down()), "let go");
+        assert!(!clicked, "a drag across the tab doesn't click it");
+    }
+
+    #[test]
+    fn a_pad_comes_back_to_where_it_was_on_the_canvas_when_a_dialog_closes() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        scene(&ctx, vec![], false);
+        let go = |nav: &mut PadNav, input: PadIn, dialog: bool| {
+            let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..input }, None);
+            scene(&ctx, ev, dialog)
+        };
+        let mut drawn = go(&mut nav, PadIn::default(), false);
+        for _ in 0..2 {
+            drawn = go(&mut nav, PadIn::default(), false);
+        }
+        // Off the canvas's middle, to a node.
+        for _ in 0..12 {
+            drawn = go(&mut nav, PadIn { stick: glam::Vec2::new(1.0, -0.5), ..Default::default() }, false);
+        }
+        let node = nav.pointer.expect("on the canvas");
+        assert!(node.distance(rect(&ctx, drawn.canvas).center()) > 100.0, "moved off the middle: {node:?}");
+        // The node's options open over the tree: the pad is on the option they ask for.
+        for _ in 0..3 {
+            drawn = go(&mut nav, PadIn::default(), true);
+        }
+        assert_eq!(nav.focused(), Some(rect(&ctx, drawn.dialog.expect("drawn"))), "on the option asked for");
+        // They close: back on the node, not the canvas's middle.
+        for _ in 0..3 {
+            go(&mut nav, PadIn::default(), false);
+        }
+        assert!(nav.free(), "on the canvas");
+        assert!(nav.pointer.is_some_and(|p| p.distance(node) < 1.0), "back at {node:?}: {:?}", nav.pointer);
     }
 }
 
