@@ -35,13 +35,16 @@
  * louder chorus) counts once at most as it starts (as a sound that loud out of the blue is a
  * shout's start); (o) a voice that gets 1.8-2.5x louder may count once in its first 2 s (its
  * first loud syllables are as far over the talk heard so far as a shout), never later; (p)
- * coughs, laughs and breaths don't count.
+ * coughs, laughs and breaths don't count; (q) a long cry that falls under the bar it began at
+ * doesn't raise the bar for a shout 10 s later, and a cry that wavers for its first 0.5 s is
+ * heard once it holds (twelve voices each).
  * The voices: a glottal pulse train through three formant resonators, in syllables (talk at
  * ~140 Hz, some drawn out and stressed, the odd "umm"), one held vowel (a shout: higher,
- * brighter) or "ha"s (a laugh), from a seeded generator; the game's sounds: gliding notes with
- * harmonics, low-passed noise, a chord with a beat, a tune of harmonic notes; coughs and breaths:
- * shaped low-passed noise. The sounds and `listen` are exported for tuning scripts
- * (`listen(x, { tune: { RATIO: 1.7 } })` overrides the detector's constants).
+ * brighter; a cry that falls or wavers) or "ha"s (a laugh), from a seeded generator; the
+ * game's sounds: gliding notes with harmonics, low-passed noise, a chord with a beat, a tune of
+ * harmonic notes; coughs and breaths: shaped low-passed noise. The sounds and `listen` are
+ * exported for tuning scripts (`listen(x, { tune: { RATIO: 1.7 } })` overrides the detector's
+ * constants).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -187,6 +190,15 @@ function noise(seconds, level, seed = 7) {
   const r = rng(seed);
   return Float32Array.from({ length: sec(seconds) }, () => level * gauss(r));
 }
+// A long cry: a shout whose level falls to `fall` of its start over its middle fifth (as a
+// breath runs out).
+function cry(seconds, seed, level, fall) {
+  const y = shout(seconds, seed, level), n = y.length;
+  return y.map((v, i) => v * (i < 0.4 * n ? 1 : i > 0.6 * n ? fall : 1 - (1 - fall) * (i - 0.4 * n) / (0.2 * n)));
+}
+// A cry that wavers (its level +-`depth` at 7 Hz) for its first `rough` seconds, then holds.
+const wavering = (seconds, seed, level, rough, depth) =>
+  shout(seconds, seed, level).map((v, i) => v * (i < sec(rough) ? 1 + depth * Math.sin(2 * Math.PI * 7 * i / RATE) : 1));
 // A music bed: a slow chord with a little tremolo and a soft beat every half second.
 function music(seconds, level, seed = 11) {
   const r = rng(seed), n = sec(seconds), out = new Float32Array(n), notes = [110, 164.8, 220, 277.2, 329.6];
@@ -372,6 +384,23 @@ function check(name, sc, { look, muted, max, once, first, quiet = false } = {}) 
   if (args.verbose || !ok) {
     console.log(`        heard at ${heard.map((t) => t.toFixed(2)).join(' ') || '-'}; shouts ${spans.map(([a, b]) => `${a.toFixed(1)}-${b.toFixed(1)}`).join(' ') || '-'}; level ${level.toFixed(4)}, threshold ${thr.toFixed(4)} RMS at the end`);
   }
+}
+// The same as `check` (each shout heard once, nothing else) over `n` voices, one result.
+function voices(name, make, n = 12) {
+  if (args.only && !name.includes(args.only)) return;
+  const inSpan = (t, [a, b]) => t >= a + 0.1 && t <= b + 0.25, bad = [];
+  let once = 0, due = 0, stray = 0;
+  for (let v = 0; v < n; v++) {
+    const sc = make(v), { heard } = listen(sc.x), per = sc.shouts.map((s) => heard.filter((t) => inSpan(t, s)).length);
+    const wrong = heard.filter((t) => !sc.shouts.some((s) => inSpan(t, s))).length;
+    once += per.filter((k) => k === 1).length;
+    due += per.length;
+    stray += wrong;
+    if (wrong || per.some((k) => k !== 1)) bad.push(`${v}:${per.join('')}${wrong ? `+${wrong}` : ''}`);
+  }
+  const ok = once === due && !stray;
+  results.push({ name, ok });
+  console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}: ${once}/${due} shouts heard once, ${stray} stray${bad.length ? ` (voice:times heard ${bad.join(' ')})` : ''}`);
 }
 // Talk with shouts `k` times its level every ~7 s.
 function talkWithShouts(level, k, seed, n = 5) {
@@ -618,6 +647,24 @@ function runCases() {
     for (let i = 0; i < 5; i++) breaths.push({ x: breath(0.1, 250 + i) }, gap(2.5));
     check('(p) breaths into a headset (0.85 s of noise, the loudest 20 ms at 0.1 RMS) in a quiet room', scene(breaths), { quiet: true });
   }
+  // (q) A cry doesn't raise the bar for the next shout, nor its own start the bar over the rest
+  // of it. Talk at 0.05, then three times a long cry (3 s at 0.2, falling to 0.7 of that in its
+  // middle: under the bar it began at, over the talk) and a shout as loud 10 s after it; or four
+  // cries that waver (+-60% at 7 s^-1) for their first 0.5 s, then hold for 1.2 s, between talk.
+  // Twelve voices each.
+  voices('(q) talk at 0.05, a long cry falling to 0.7 of 0.2 then a shout at 0.2 10 s after it, three times, twelve voices: each heard', (v) => {
+    const pieces = [{ x: talk(15, 500 + v, 0.05) }];
+    for (let i = 0; i < 3; i++) {
+      pieces.push({ x: cry(3, 510 + 10 * v + i, 0.2, 0.7), shout: true }, { x: talk(7, 520 + 10 * v + i, 0.05) });
+      pieces.push({ x: shout(0.7, 530 + 10 * v + i, 0.2), shout: true }, { x: talk(9.3, 540 + 10 * v + i, 0.05) });
+    }
+    return scene(pieces);
+  });
+  voices('(q) talk at 0.05 and four cries at 0.2 that waver for their first 0.5 s, twelve voices: each heard', (v) => {
+    const pieces = [{ x: talk(15, 600 + v, 0.05) }];
+    for (let i = 0; i < 4; i++) pieces.push({ x: wavering(1.7, 610 + 10 * v + i, 0.2, 0.5, 0.6), shout: true }, { x: talk(9, 620 + 10 * v + i, 0.05) });
+    return scene(pieces);
+  });
 }
 
 // ---- A recording --------------------------------------------------------------------------------
@@ -713,7 +760,7 @@ function stats() {
   }
   for (const seed of [1, 2, 3]) console.log('shout', seed, blocks(shout(0.7, seed, 1)).map((v) => v.toFixed(2)).join(' '));
 }
-export { RATE, rng, talk, shout, scene, gap, talkWithShouts, onAndOff, gameSound, music, melody, clap, cough, laugh, breath, louder, listen, sec, shoutDetector };
+export { RATE, rng, talk, shout, cry, wavering, scene, gap, talkWithShouts, onAndOff, gameSound, music, melody, clap, cough, laugh, breath, louder, listen, sec, shoutDetector };
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (args.stats) stats();
   else if (args.sweep) sweep(Number(args.sweep) || 20);
