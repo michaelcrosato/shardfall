@@ -5,6 +5,33 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The map only where there is one; v9 under a stand-in DualSense, a voice and WebKit — 2026-11-19
+
+After v9 went on the wall, the checks that stand in for hardware ran again on it. In 52in1's own hub
+at its newest main (`hub_live.mjs` with `--voice`): the light bar's colours and the right trigger's
+weapon mode reached the stand-in DualSense as HID reports, with rumbles; the game reads the gyro
+itself, so the hub leaves the right stick alone; nothing asked for the microphone before 52in1
+allowed it, then `openMicrophone` once and the speaker once; leaving gave the trigger back (mode
+0x05) and the light bar; and the voice recording's shouts were all heard (6 due over a loop and a
+bit, 6 matched, none missed, none stray). Its first run logged 70 404s: the test checkout, moved to
+52in1's newest main, had lost Shardfall's covers, which the wall asks for again and again; with them
+back the run had none. `pad_check.py --dualsense` on the one-file page: 48 bursts, 47 shouts, 3 War
+Cries, one `openMicrophone`, no `getUserMedia`, 294 gyro reads, the level and potion cues from the
+speaker, no page errors.
+
+WebKit 26.6 (Playwright's, with the iPhone 17 Pro profiles upright and sideways) has no
+`navigator.gpu` on Linux, so the game shows its notice ("needs WebGPU ... Safari (iOS 26 or
+later)"), laid out for both, with no page errors. Real iOS Safari 26 has WebGPU; only an iPhone can
+show the game there.
+
+Found on the way: the touchpad's press (and D-pad left, and M) toggles the big map, which only a
+descent level draws, yet the bottom prompts offered "Map" in town and the Proving Grounds, the press
+did nothing visible there, and the flag it flipped opened the big map by itself on the next level.
+Now the prompt shows only on a level (`hint_prompts` takes `map`), the keys and the pad toggle it
+only there (`App::has_map`), and the flag is cleared wherever there is no level. Touch already did
+this (its map button shows only on a level). A test checks the prompt for the pad and for keys and
+mouse.
+
 ## On 52in1's wall: build v9 replaces v8; the final build checked in the browser — 2026-11-19
 
 The build from #104 (main `07e9f9b`) went through the browser checks first, on the one-file page:
