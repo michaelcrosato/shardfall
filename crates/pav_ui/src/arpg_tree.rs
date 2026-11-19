@@ -340,6 +340,11 @@ impl TreeUi {
             .resizable(false)
             .fixed_rect(area)
             .show(ctx, |ui| {
+                // (Not on a short touch screen, a phone held sideways: the canvas needs the room,
+                // and the bag's tabs and this window's X lead everywhere the tabs would.)
+                if !(self.touch && ctx.content_rect().height() < 500.0) {
+                    crate::arpg_items::panel_tabs(ui, 3, inv.points);
+                }
                 // Only a mouse comes with a keyboard to search by, and needs the shapes' legend.
                 let mouse = !self.pad && !self.touch;
                 ui.horizontal_wrapped(|ui| {

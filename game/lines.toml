@@ -737,6 +737,11 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "hint.more" = "More"
 "hint.close" = "Close"
 "hint.panels" = "Panels"
+"panel.tab.bag" = "Bag"
+"panel.tab.hero" = "Hero"
+"panel.tab.skills" = "Skills"
+"panel.tab.passives" = "Passives"
+"panel.tab.passives_points" = "{name} · {count}"
 "hint.upgrade" = "Green frame: an upgrade"
 "character.per_second" = "+{value} a second"
 "character.offense" = "Offense"
@@ -762,6 +767,11 @@ Item names are built from parts: a magic item is "{prefix} {base} {suffix}" (ite
 "controls.touch.close" = "tap the game outside it"
 
 [notes]
+"panel.tab.bag" = "A tab along the top of the hero's panels: the inventory (items carried and worn). Short: one word if it can."
+"panel.tab.hero" = "A tab along the top of the hero's panels: the character sheet (life, mana, damage, defences). Short."
+"panel.tab.skills" = "A tab along the top of the hero's panels: which skill each button casts. Short."
+"panel.tab.passives" = "A tab along the top of the hero's panels: the passive skill tree. Short."
+"panel.tab.passives_points" = "The passive tree's tab while there are points to spend: {name} is panel.tab.passives, {count} the points."
 "menu.graphics" = "Over the graphics quality buttons in the pause menu's settings; {percent} is a whole number."
 "settings.prompts" = "Settings: which controller's button names the game shows. The choices are the consoles' names: keep them as they are."
 "settings.prompts.playstation" = "A console's name: keep it."

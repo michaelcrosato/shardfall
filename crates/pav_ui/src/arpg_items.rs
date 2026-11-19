@@ -83,6 +83,32 @@ fn touch_room(ctx: &egui::Context) -> f32 {
     ctx.content_rect().width() - 16.0 - ctx.global_style().spacing.window_margin.sum().x - 14.0
 }
 
+/// Where a tab of the hero's panels asked to turn (egui's temp data): read once the panels are
+/// drawn.
+const PANEL_TAB: &str = "panel_tab_request";
+
+/// The hero's four panels as tabs along the top of each: the bag, the hero (the character
+/// sheet), skills and the passive tree, its points to spend on its tab. A click or a tap turns to
+/// another, as L1/R1 (and a touchpad's swipe) or I/C/K/P do; on a touch screen it is the only way
+/// from the bag (its button) to the others.
+pub fn panel_tabs(ui: &mut egui::Ui, current: usize, points: u32) {
+    let gold = Color32::from_rgb(255, 215, 120);
+    ui.horizontal(|ui| {
+        let tabs = [t!("panel.tab.bag"), t!("panel.tab.hero"), t!("panel.tab.skills"), t!("panel.tab.passives")];
+        for (i, name) in tabs.into_iter().enumerate() {
+            let text = if i == 3 && points > 0 {
+                RichText::new(t!("panel.tab.passives_points", name = name.as_str(), count = points as i64)).color(gold)
+            } else {
+                RichText::new(name)
+            };
+            if ui.add(egui::Button::selectable(i == current, text)).clicked() && i != current {
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(PANEL_TAB), i));
+            }
+        }
+    });
+    ui.separator();
+}
+
 /// An item's card: at the pointer for a mouse; on a controller, docked beside the window the item
 /// is in (on the side toward the middle of the screen, where the other panel's items are too),
 /// in the body's size, for as long as the ring is on the item: read from the sofa, not chased
@@ -482,6 +508,13 @@ impl GameUi {
             self.choosing = None;
         }
         self.tree.ui(ctx, &inv, &mut out);
+        // A tab turned the panels.
+        if let Some(i) = ctx.data_mut(|d| d.remove_temp::<usize>(egui::Id::new(PANEL_TAB))) {
+            self.inventory = i == 0;
+            self.character = i == 1;
+            self.skills = i == 2;
+            self.tree.open = i == 3;
+        }
         if inv.points > 0 && !self.tree.open && !self.touch && g.moment.is_none() {
             // A nudge above the experience bar.
             let screen = ctx.content_rect();
@@ -624,12 +657,17 @@ impl GameUi {
         let vendor = self.panel == Some(SpotKind::Vendor);
         let stash = self.panel == Some(SpotKind::Stash);
         let touch = self.touch;
+        // (Not beside a shop, a stash or another place's window: the bag belongs to it then.)
+        let tabs = self.panel.is_none();
         fit(egui::Window::new(t!("inventory.title")).id(egui::Id::new("inventory")), ctx, touch)
             .open(&mut open)
             .resizable(false)
             .collapsible(false)
             .anchor(Align2::RIGHT_CENTER, if touch { EVec2::new(-8.0, TOUCH_DROP) } else { EVec2::new(-16.0, -40.0) })
             .show(ctx, |ui| {
+                if tabs {
+                    panel_tabs(ui, 0, inv.points);
+                }
                 // Paper doll.
                 let size = 54.0;
                 let (area, _) = ui.allocate_exact_size(EVec2::new(4.7 * (size + 8.0), 4.0 * (size + 6.0)), Sense::hover());
@@ -1153,6 +1191,7 @@ fn character_window(ctx: &egui::Context, open: &mut bool, inv: &InvView, g: &Gam
         .collapsible(false)
         .anchor(Align2::LEFT_TOP, if touch { EVec2::new(8.0, TOUCH_TOP) } else { EVec2::new(16.0, 60.0) })
         .show(ctx, |ui| {
+            panel_tabs(ui, 1, inv.points);
             if let Some(h) = &g.hero {
                 ui.label(RichText::new(t!("character.heading", name = &h.name, level = h.level)).size(17.0).strong());
             }
@@ -1463,6 +1502,7 @@ impl GameUi {
                 EVec2::new(0.0, if touch { TOUCH_DROP } else { -140.0 }),
             )
             .show(ctx, |ui| {
+                panel_tabs(ui, 2, inv.points);
                 ui.label(RichText::new(t!("skills.choose")).color(Color32::from_white_alpha(185)));
                 ui.add_space(2.0);
                 for slot in 0..inv.bar.len() {
