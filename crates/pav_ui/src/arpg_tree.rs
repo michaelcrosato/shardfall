@@ -394,6 +394,12 @@ impl TreeUi {
                     crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
                 }
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
+                // A pad lands on the canvas when the tree opens (or loses the item it was on), not on
+                // the tabs or the header: the stick zooms and the D-pad walks the nodes from there.
+                // (Not while a mastery's options are up: they take the pad.)
+                if self.pad && self.mastery.is_none() {
+                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), resp.id));
+                }
                 let p = ui.painter_at(rect);
                 p.rect_filled(rect, 4.0, Color32::from_rgb(14, 13, 18));
                 let astral = astral_start(t);
