@@ -12,7 +12,8 @@ Upright (390x844), then sideways (844x390), in Emberwatch:
 1. the HUD and the touch controls; the "Playing by touch" card swiped away (a notification);
 2. two fingers at once: the left thumb pushes the stick up while the right one holds a skill
    (both show pressed: the stick's ring and the skill's button);
-3. the bag button: the bag opens, fitted to the screen;
+3. the bag button: the bag opens, fitted to the screen; its Passives tab opens the passive tree
+   and the tree's Bag tab comes back (the tabs are a touch screen's way to every hero panel);
 4. a quick sideways flick across the bag: it goes away;
 5. the pause button: the pause menu opens; a flick across it closes it (menus swipe away too).
 Then, sideways in the Proving Grounds: one tap to say it's a touch screen, and no more input
@@ -35,9 +36,11 @@ FLAGS = ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-vulkan=swi
 # Where the controls sit in each orientation (centres, in CSS pixels), from the `ui` tool.
 LAYOUTS = {
     "upright": {"size": (390, 844), "bag": (311, 33), "skill": (193, 723), "stick": (70, 640), "bag_body": (110, 560),
-                "card": (150, 400), "menu": (357, 33), "menu_body": (110, 420)},
+                "card": (150, 400), "menu": (357, 33), "menu_body": (110, 420),
+                "tab_passives": (250, 300), "tree_tab_bag": (45, 121)},
     "sideways": {"size": (844, 390), "bag": (765, 33), "skill": (647, 269), "stick": (110, 300), "bag_body": (560, 300),
-                 "card": (380, 150), "menu": (811, 33), "menu_body": (330, 200)},
+                 "card": (380, 150), "menu": (811, 33), "menu_body": (330, 200),
+                 "tab_passives": (704, 121), "tree_tab_bag": None},
 }
 
 
@@ -84,6 +87,20 @@ async def run(browser, page_url, out, name, lay):
     await gesture(cdp, event("touchStart", [(9, lay["bag"])]), event("touchEnd", []))
     await p.wait_for_timeout(4000)
     await p.screenshot(path=str(out / f"{name}-3-bag.png"))
+    # The bag's Passives tab: the tree; the tree's Bag tab: back.
+    await gesture(cdp, event("touchStart", [(13, lay["tab_passives"])]), event("touchEnd", []))
+    await p.wait_for_timeout(4000)
+    await p.screenshot(path=str(out / f"{name}-3b-tree-tab.png"))
+    # (Sideways the tree keeps its canvas's height and has no tabs: its X closes it.)
+    if lay["tree_tab_bag"]:
+        await gesture(cdp, event("touchStart", [(14, lay["tree_tab_bag"])]), event("touchEnd", []))
+        await p.wait_for_timeout(4000)
+        await p.screenshot(path=str(out / f"{name}-3c-bag-tab.png"))
+    else:
+        await gesture(cdp, event("touchStart", [(14, lay["bag"])]), event("touchEnd", []))
+        await p.wait_for_timeout(3000)
+        await gesture(cdp, event("touchStart", [(15, lay["bag"])]), event("touchEnd", []))
+        await p.wait_for_timeout(4000)
     # A quick flick sideways across the bag.
     bx, by = lay["bag_body"]
     await gesture(

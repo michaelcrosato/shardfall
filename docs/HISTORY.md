@@ -5,6 +5,25 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## The hero's panels as tabs: a phone reaches the sheet, the skills and the tree — 2026-11-18
+
+Found while checking the passive tree on a phone: a touch screen could open only the bag (its
+button); the character sheet, the Skills window and the passive tree had no way in (a pad turns
+panels with L1/R1 or the touchpad, keys have C, K and P). A touch-only player could not spend
+passive points or change skills.
+- **Tabs** (`arpg_items::panel_tabs`): along the top of the bag, the character sheet, the Skills
+  window and the tree, "Bag · Hero · Skills · Passives", the points to spend on the tree's tab
+  in gold. A click or a tap turns to another (egui's temp data carries the request to
+  `GameUi::ui`); every device gets them, so the screens stay the same (a pad reaches them with
+  the D-pad too, and L1/R1 still turn). The bag shows none beside a shop or a stash; the tree
+  shows none on a short touch screen (a phone held sideways), where its canvas needs the height
+  and its X and the bag's tabs lead everywhere.
+- **Checked:** `pav_tools/tests/game_ui.rs` (a phone: the bag's Passives tab opens the tree, the
+  tree's Hero tab the sheet); `touch_check.py` in the browser, upright and sideways (the bag's
+  Passives tab opens the tree; upright its Bag tab comes back); captures at 1080p on a pad.
+  The game UI tests now take a lock: the device whose glyphs are drawn is the process's, and a
+  test on a phone raced one reading the keyboard's.
+
 ## The shout ear on real voices, the tree's farthest view, auto-fire for a ranged hero — 2026-11-18
 
 Two more workflows (a real-voice tester, a tuner and its independent check; a tree implementer,

@@ -4,6 +4,13 @@
 use pav_tools::{Output, Session};
 use serde_json::{Value, json};
 
+/// The device whose glyphs the UI draws is the process's (`pav_ui::controls::current`), and these
+/// tests read glyphs on one device or switch to another: one at a time.
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn call(s: &mut Session, tool: &str, args: Value) -> anyhow::Result<Value> {
     match pav_tools::call(s, tool, args.as_object().unwrap())? {
         Output::Json(value) => Ok(value),
@@ -22,6 +29,7 @@ fn window<'a>(r: &'a Value, title: &str) -> &'a Value {
 
 #[test]
 fn ui_reads_the_hud_windows_and_touch_controls() {
+    let _one = serial();
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
     let r = call(&mut s, "ui", json!({})).unwrap();
@@ -69,6 +77,7 @@ fn at(r: &Value, title: &str, text: &str) -> [f64; 2] {
 /// `pav_ui::arpg_tree`'s tests.)
 #[test]
 fn skill_rows_open_a_chooser_and_the_bag_steps_auto_pickup() {
+    let _one = serial();
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
     let r = call(&mut s, "ui", json!({"open": "skills", "width": 1920, "height": 1080})).unwrap();
@@ -119,6 +128,7 @@ fn skill_rows_open_a_chooser_and_the_bag_steps_auto_pickup() {
 
 #[test]
 fn captures_draw_the_game_ui() {
+    let _one = serial();
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
     let (w, h) = (640u32, 360u32);
@@ -140,6 +150,7 @@ fn captures_draw_the_game_ui() {
 
 #[test]
 fn ui_reads_a_hook_games_hud() {
+    let _one = serial();
     let mut s = Session::new("starter", 1).unwrap();
     let r = call(&mut s, "ui", json!({})).unwrap();
     assert_eq!(texts(&window(&r, "Shards 0/5")["text"]), ["Shards 0/5", "Lives 3"], "{r}");
@@ -151,6 +162,7 @@ fn ui_reads_a_hook_games_hud() {
 /// brings up its card, and the card's button names the station for the window to open.
 #[test]
 fn the_plaza_names_its_stations_and_its_cards_open_them() {
+    let _one = serial();
     let mut s = Session::new("world", 1).unwrap();
     let r = call(&mut s, "ui", json!({})).unwrap();
     let hud: Vec<&str> = r["hud"].as_array().unwrap().iter().filter_map(|t| t["text"].as_str()).collect();
@@ -173,6 +185,7 @@ fn the_plaza_names_its_stations_and_its_cards_open_them() {
 
 #[test]
 fn the_mouse_clicks_things_in_the_world() {
+    let _one = serial();
     // An item on the ground by the hero: its name over it is a button, and a click picks it up.
     let mut s = Session::new("town", 1).unwrap();
     s.step(30);
@@ -203,6 +216,7 @@ fn the_mouse_clicks_things_in_the_world() {
 
 #[test]
 fn the_mouse_clicks_the_place_the_hero_stands_by() {
+    let _one = serial();
     // By Hilda's forge, the "use" prompt under her name is a button: a click opens her shop.
     let mut s = Session::new("town", 1).unwrap();
     s.step(10);
@@ -226,4 +240,34 @@ fn the_mouse_clicks_the_place_the_hero_stands_by() {
     call(&mut s, "ui", json!({"click": at})).unwrap();
     let r = call(&mut s, "ui", json!({})).unwrap();
     assert!(r["open"].as_array().unwrap().contains(&json!("inventory")), "the shop opens with the bag: {r}");
+}
+
+/// The hero's panels as tabs: on a phone the bag's button opens the bag, and its tabs reach the
+/// tree (its points to spend on its tab), whose tabs reach the hero's sheet: without them a touch
+/// screen had no way to the sheet, the skills or the tree.
+#[test]
+fn the_panels_tabs_reach_every_panel_on_a_phone() {
+    let _one = serial();
+    let mut s = Session::new("town", 1).unwrap();
+    s.step(30);
+    call(&mut s, "hero", json!({"level": 5})).unwrap();
+    s.step(2);
+    let phone = |extra: Value| {
+        let mut a = json!({"device": "touch", "width": 390, "height": 844});
+        for (k, v) in extra.as_object().unwrap() {
+            a[k] = v.clone();
+        }
+        a
+    };
+    call(&mut s, "ui", phone(json!({"open": "inventory"}))).unwrap();
+    let r = call(&mut s, "ui", phone(json!({}))).unwrap();
+    let tabs = texts(&window(&r, "Inventory")["text"]);
+    for tab in ["Bag", "Hero", "Skills", "Passives · 4"] {
+        assert!(tabs.iter().any(|t| t == tab), "the bag's tabs: {tabs:?}");
+    }
+    let r = call(&mut s, "ui", phone(json!({"click": at(&r, "Inventory", "Passives · 4")}))).unwrap();
+    assert_eq!(r["open"], json!(["tree"]), "{r}");
+    let r = call(&mut s, "ui", phone(json!({}))).unwrap();
+    let r = call(&mut s, "ui", phone(json!({"click": at(&r, "Passive Tree", "Hero")}))).unwrap();
+    assert_eq!(r["open"], json!(["character"]), "{r}");
 }
