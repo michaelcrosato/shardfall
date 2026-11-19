@@ -453,8 +453,14 @@ impl TreeUi {
                         room(rect, framed, self.zoom, below).union(room(rect, bounds(t, &takeable), self.zoom, below))
                     };
                     // (Fitted, the view is on the start as far as that frames them: only moving
-                    // the view, which lets go of the fit, moves it off.)
-                    let pan = if self.fit.is_some() { Vec2::ZERO } else { self.pan };
+                    // the view, which lets go of the fit, moves it off. At the farthest zoom it is
+                    // on the middle of what is near instead: a hero deep in one wedge on a short
+                    // canvas (a sideways phone) sees the middle of the way, not its empty side.)
+                    let pan = match self.fit {
+                        Some(_) if self.zoom <= floor * 1.01 => Vec2::new(framed.center().x, framed.center().y),
+                        Some(_) => Vec2::ZERO,
+                        None => self.pan,
+                    };
                     self.pan = pan.clamp(Vec2::new(leash.min.x, leash.min.y), Vec2::new(leash.max.x, leash.max.y));
                 }
                 // (The search lights nodes up only where its field shows: with a mouse.) Its hits, by
