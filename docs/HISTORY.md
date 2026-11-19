@@ -5,6 +5,125 @@ way. Search it when you need the background on something; don't read it whole. T
 state is `docs/PROGRESS.md`. The engine milestones (M1–M10) are in the middle of this file and
 Shardfall's (G1–G6) at the end.
 
+## Review of #103: where the pad lands on the tree and beside it, its first press, drags — 2026-11-19
+
+#103 merged without a review. Twelve rounds of independent review followed, each with two to
+four reviewers on different lenses, every finding put to two skeptics who tried to refute it,
+most with harnesses driving the real `GameUi` and `PadNav`. They upheld 4, 5, 4, 1, 2, 1, 1, 4,
+4, 2, 6, then 1 findings: the last a pick among the list's own stops that round eleven took
+from the one best step anywhere (the pause menu beside a station guide skipped its visible rows). Some were older defects in the code touched; some came from the previous round's
+fixes, which added flags (`alone`, then `returning`) to decide when the tree may ask. The final
+rules are simpler:
+- **Who decides where the pad lands** (`padnav::FOCUS`): `GameUi` clears the request at the start
+  of each pass, and the panels ask again as they draw. The tree asks for its canvas, whatever the
+  device, unless a panel drawn before it asked this pass, and not while a mastery's options are
+  up. The Skills window's chooser asks for a card, and the Skills window for the row it was
+  opened from, while the chooser is up and through the frame after it closes (`chose`, then no
+  more). They are drawn first, so they win. The bag and the sheet never ask, so beside them, or
+  beside an idle Skills window, the canvas gets the pad. A request for something another window
+  hides lands the pad on the canvas of the window on top there, a Skills row under the tree on
+  its canvas, and never on a button over it: in round six, at the menu's Large size, the
+  "smallest item there" was Reset all. Found:
+  - With the keys' P then K, the tree's request, written last, overrode the chooser's. It opened
+    on its first card and went back to the wrong row (#103's regression).
+  - P then a pad started on the Bag tab: the tree asked only once a pad was in hand.
+  - With I then P, a pad landed on the bag's slots hidden under the tree.
+  - After a mastery's options closed beside another panel, the pad left the tree; beside a
+    Skills window whose chooser had been used once, the row's standing request took it (round
+    four), even to a row hidden under the tree, where Cross clicked a node nobody aimed at.
+- **Covered items** (`padnav::shown`): an item another window covers at all nine sample points
+  (its middle, corners and edges) is neither a stop nor a landing place. Two panels the keys
+  opened can overlap, and the ring sat on hidden bag slots or Skills rows while Cross clicked the
+  window on top. A big canvas whose middle a window covers still counts, by its edges. The item
+  the pad is on stays its own while something passes over it: in round five a toast (the Field
+  guide's "copied") over the ringed phrase sent the pad to the row's go-there link, so the next
+  Cross teleported.
+- **A mastery's options** are a Foreground popup, as the skill chooser is. The D-pad used to step
+  out of them to the tree's Reset all, where Cross refunded every node for gold. They ask for the
+  option chosen, else the first free one.
+- **Back on a canvas** (`PadNav::canvas_at`): when a dialog over it closes, the pad returns to the
+  point it left (the mastery node), if the canvas's rect is unchanged. A rescale (the UI's size,
+  a turned phone) moves the nodes, so then it goes to the middle.
+- **Picking up the pad:** its first frame's presses only show where it is (`PadNav::seen`), and
+  the next press acts. On the tree it starts where the mouse points. The pad's view can differ
+  from the mouse's (a clamped zoom, the prompt row for the help line), and the first Cross used
+  to take or refund a node the player wasn't looking at. The rule also stops a Cross still held as
+  a menu comes up (the one that opened a vendor) from clicking its first item.
+- **The pointer follows its item:** on an ordinary item the pad's pointer is the middle of what
+  shows of it (its clipped rect) as drawn now. Picking up the pad swaps the panels' key prompts
+  for glyphs, so the Skills window (anchored at the bottom) changed height and its rows moved
+  32 pt. The pointer stayed where the row had been, and Cross clicked the gap or the next row.
+  The harness showed it once it drew with the game's own style (`game_style`): the bare egui
+  sizes had hidden it.
+- **Lists on a pad** (rounds seven and eight). The right stick scrolls under a still pointer, as
+  a mouse wheel does, and the ring is on whatever row shows under it. Over text or locked cards it
+  stays on its row while that shows, then the pointer drifts on with no ring (`drifting`), never
+  dropping to the window's first item. The stick's scroll goes to egui as a touchpad's
+  (`TouchPhase` Start, Move, End), which egui applies at once: as a mouse wheel's it glided on
+  after the stick let go, and the ring's row carried the pointer out of the list.
+  - A list scrolls before the pad leaves it. A list's view is read from its scroll bar (egui
+    senses it for clicks and drags while a list overflows: a thin strip down the view's right
+    edge, as tall as the view), its left edge from its rows; a row scrolled out of sight has
+    egui's clipped rect empty, its near side on the view's edge. From the item, or the drifting
+    pointer, inside a view, the rows past its edge the way the D-pad goes are stops, scored as any
+    step is, together with what shows inside the view; only when the list has nothing more that
+    way does the pad leave it for anything outside (the stash's Sort under it, a title bar, the
+    bag beside the stash, the pause menu beside a guide), however much text lies between (the
+    station guide's sections, more than a screen apart).
+    A screen may ask for a row out of sight (the skill chooser's card for a skill near the end).
+  - Found on the way (rounds ten and eleven): rows scrolled up behind the portal's place buttons
+    took the pad from them (reopened still scrolled, Down from Arena skipped Lab); rows a screen
+    away were never stops; guesses at a list's extent by lining rows up let the bag beside the
+    stash win, missed a lone last card in another column and copy buttons at odd places, read a
+    window taller than the screen (the bag at Large) as a list, and found nothing while drifting.
+    The scroll bar's view ends the guessing. Landing on a row that
+    shows in part or not at all asks egui to scroll it into view: egui centres it in its own
+    list (AccessKit's ScrollIntoView, as a screen reader asks), so the rows either side show and
+    the D-pad walks a whole list both ways. My first reveal guessed a margin of 6 pt, the game's
+    own row spacing, and left the next row at 0 pt: the D-pad stopped at the sixth waypoint and
+    Up left the list (round nine). The scroll tests now draw with `game_style`.
+  - egui lays a list out where it has scrolled a pass late (a row seen showing can be gone a frame
+    later): the scroll counts as going on for two frames after the stick lets go (`settling`),
+    and a row being scrolled into view keeps the pad for a few frames (`revealing`). A short
+    flick had left the ring on the title bar's collapse arrow that way.
+  - Found: in the stash and the portal's waypoints the stick stalled after 23-35 pt with the ring
+    on a hidden row. In the Field guide a push carried the ring out and onto the title bar's
+    collapse arrow. Over locked skill cards the ring stayed on a card that scrolled away. And the
+    D-pad stepped onto hidden waypoints, where Cross travelled somewhere unseen.
+- **Reset all asks first** (`tree.reset.confirm`): the first press says "Again to reset all
+  (N gold)", and a second within 4 s refunds every node; on every device. Two rounds found a way
+  for the pad to land on it by accident.
+- **Drags** (`PadNav::grabbed`): a press made on a canvas is held until the button comes up,
+  wherever the pointer has gone. A drag that crossed onto a tab never let go, and crossing a tab
+  no longer lands on it.
+- **Shift:** `release()` lets go of Triangle wherever the pad was. A held Shift stuck in egui and
+  made a later tree click take a whole path.
+- **Tests**, each failing on the code before: `padnav` (a drag lets go; back to the node; a
+  rescaled canvas; the mouse's point; Shift; the first press only shows the pad; a covered item
+  is stepped over; a toast leaves the pad where it is; the right stick scrolls a list to its end
+  and back, and Cross takes the ringed row; short flicks reach the end and back; scrolling past
+  text and locked rows; the D-pad walks a list down, and back up from its end, each row scrolled
+  into view; a screen asking for a row out of sight gets it in view; no flick of 3-8 frames ends
+  on a title bar; rows behind the place buttons never take the pad from them; a list running past
+  the screen; across a screen of text and back; a list before the button under it; a list beside
+  another window; Up while drifting goes to a list row; a lone last card in another column; a
+  window taller than the screen keeps the pad on it; a list walks its visible rows whatever the
+  window beside it offers), and an `OnPad`
+  harness in `pav_tools/tests/game_ui.rs` that drives the real `GameUi` with the real `PadNav` in
+  the app's order:
+  - the chooser beside the tree keeps its place;
+  - P then a pad lands on the canvas;
+  - with I then P, the pad lands on the canvas, stays in a mastery's options and comes back to
+    the node;
+  - after the chooser was used, K then P, a mastery's options closed: back on the node;
+  - the chooser closed with the tree opened over its row: the pad on the tree's canvas, for
+    each of three rows at both the Medium and the Large size, and its next Cross refunds nothing;
+  - Reset all asks before it refunds.
+
+  The harness now draws with the game's style and can take a screen size.
+
+  `TreeUi::show_mastery` opens the options for tests.
+
 ## The passive tree on a pad in the browser starts on the tree — 2026-11-18
 
 Checked in the browser build (Chromium, WebGPU on SwiftShader, a pad in the standard mapping at

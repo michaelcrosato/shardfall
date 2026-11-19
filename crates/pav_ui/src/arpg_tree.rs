@@ -43,6 +43,8 @@ pub struct TreeUi {
     lit: (String, Vec<bool>),
     /// Mastery node whose options are shown.
     mastery: Option<u32>,
+    /// When Reset all was pressed once: a second press within a few seconds refunds every node.
+    respec_armed: Option<f64>,
 }
 
 impl Default for TreeUi {
@@ -55,6 +57,7 @@ impl Default for TreeUi {
             search: String::new(),
             lit: Default::default(),
             mastery: None,
+            respec_armed: None,
             pad: false,
             touch: false,
             picked: None,
@@ -64,6 +67,9 @@ impl Default for TreeUi {
 
 /// The passive tree window's id (its layer's): a flick across it pans, never closes it.
 pub const TREE_WINDOW: &str = "passive_tree";
+
+/// Seconds a first press of Reset all waits for the second.
+const RESPEC_CONFIRM: f64 = 4.0;
 
 fn col(c: [f32; 3], k: f32) -> Color32 {
     let to = |x: f32| ((x * k).clamp(0.0, 1.0).powf(1.0 / 2.2) * 255.0) as u8;
@@ -321,6 +327,7 @@ fn look(n: &Node, marked: bool, near: bool, zoom: f32, detail: f32) -> Look {
 impl TreeUi {
     pub fn ui(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         if !self.open {
+            self.mastery = None;
             return;
         }
         let d = data();
@@ -368,8 +375,25 @@ impl TreeUi {
                         ui.add(egui::TextEdit::singleline(&mut self.search).desired_width(160.0));
                         ui.separator();
                     }
-                    if ui.button(t!("tree.reset", count = inv.respec_cost)).clicked() {
-                        out.push(GameCmd::Respec);
+                    // Reset all refunds every node for gold: the first press asks, the second
+                    // (within a few seconds) does it, on every device.
+                    let now = ui.input(|i| i.time);
+                    if self.respec_armed.is_some_and(|t| now - t > RESPEC_CONFIRM) {
+                        self.respec_armed = None;
+                    }
+                    let armed = self.respec_armed.is_some();
+                    let reset = if armed {
+                        t!("tree.reset.confirm", count = inv.respec_cost)
+                    } else {
+                        t!("tree.reset", count = inv.respec_cost)
+                    };
+                    if ui.button(reset).clicked() {
+                        if armed {
+                            out.push(GameCmd::Respec);
+                            self.respec_armed = None;
+                        } else {
+                            self.respec_armed = Some(now);
+                        }
                     }
                     if ui.button(t!("tree.centre")).clicked() {
                         self.pan = Vec2::ZERO;
@@ -394,11 +418,18 @@ impl TreeUi {
                     crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
                 }
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
-                // A pad lands on the canvas when the tree opens (or loses the item it was on), not on
-                // the tabs or the header: the stick zooms and the D-pad walks the nodes from there.
-                // (Not while a mastery's options are up: they take the pad.)
-                if self.pad && self.mastery.is_none() {
-                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), resp.id));
+                // A pad lands on the canvas when the tree opens (or loses the item it was on: a
+                // mastery's options closed), not on the tabs or the header: the stick zooms and the
+                // D-pad walks the nodes from there. Asked whatever the device (the pad reads it only
+                // while it drives the menus: P opened the tree, then the pad was picked up), but not
+                // over a panel drawn before it that asked this pass (the Skills window for its row,
+                // its chooser for a card; `GameUi` clears the request each pass: a row the tree
+                // hides lands the pad on the canvas over it), nor while a mastery's options are up
+                // (they ask for their own).
+                let focus = egui::Id::new(crate::padnav::FOCUS);
+                let other = ui.ctx().data(|d| d.get_temp::<egui::Id>(focus)).is_some_and(|id| id != resp.id);
+                if !other && self.mastery.is_none() {
+                    ui.ctx().data_mut(|d| d.insert_temp(focus, resp.id));
                 }
                 let p = ui.painter_at(rect);
                 p.rect_filled(rect, 4.0, Color32::from_rgb(14, 13, 18));
@@ -803,10 +834,16 @@ impl TreeUi {
                             let title = lines::mastery_name(&n.mastery, &m.name);
                             egui::Window::new(title)
                                 .id(egui::Id::new("mastery"))
+                                // Over the tree, as the skill chooser is: the pad stays in it (it
+                                // can't step out to Reset all behind it) and the tree can't come
+                                // up over it.
+                                .order(egui::Order::Foreground)
                                 .collapsible(false)
                                 .resizable(false)
                                 .anchor(Align2::CENTER_CENTER, EVec2::ZERO)
                                 .show(ctx, |ui| {
+                                    // The pad starts on the option chosen, else the first one free.
+                                    let mut land = None;
                                     for (i, (name, stats, power)) in m.options.iter().enumerate() {
                                         // The option's name, then what it does, a line each.
                                         let mut text = lines::mastery_option(&n.mastery, i, name);
@@ -821,14 +858,20 @@ impl TreeUi {
                                             *nid != mid && *o == i as u8 && t.node(*nid).is_some_and(|x| x.mastery == n.mastery)
                                         });
                                         let b = ui.add_enabled(!taken_elsewhere, egui::Button::selectable(chosen, text));
+                                        if !taken_elsewhere && (chosen || land.is_none()) {
+                                            land = Some(b.id);
+                                        }
                                         if b.clicked() {
                                             out.push(GameCmd::Mastery(mid, i as u8));
                                             keep = false;
                                         }
                                     }
-                                    if ui.button(t!("ui.close")).clicked() {
+                                    let close = ui.button(t!("ui.close"));
+                                    if close.clicked() {
                                         keep = false;
                                     }
+                                    let land = land.unwrap_or(close.id);
+                                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), land));
                                 });
                         }
                     }
@@ -867,6 +910,12 @@ impl TreeUi {
     /// Circle or Esc: a mastery's options close first. False when none were open.
     pub fn back(&mut self) -> bool {
         self.mastery.take().is_some()
+    }
+
+    /// Shows the options of mastery node `node` (as clicking it does, once taken): for the tools
+    /// and tests.
+    pub fn show_mastery(&mut self, node: u32) {
+        self.mastery = Some(node);
     }
 
     fn to_screen(&self, rect: Rect, p: Vec2) -> Pos2 {

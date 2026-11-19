@@ -35,9 +35,9 @@ pub struct GameUi {
     /// Touch: the item picked, and where it is.
     picked: Option<(u32, Picked)>,
     /// The skill bar slot whose chooser is open (`skill_chooser`), and the one opened last (the
-    /// pad comes back to its row).
+    /// pad comes back to its row) with the frame its chooser closed.
     choosing: Option<u8>,
-    chose: Option<u8>,
+    chose: Option<(u8, Option<u64>)>,
     /// A tool for the app to open: the Pavilion Gate leads to the pavilion (`Tool::Tour`).
     pub tool: Option<crate::tools::Tool>,
 }
@@ -495,6 +495,10 @@ impl GameUi {
         if spot_clicked {
             out.extend(self.interact(g));
         }
+        // Where the pad lands (`padnav::FOCUS`) is asked afresh each pass by the panels drawn
+        // now (the Skills window, its chooser, the tree, a mastery's options): one left by a
+        // panel that closed or stopped asking never decides it.
+        ctx.data_mut(|d| d.remove::<egui::Id>(egui::Id::new(crate::padnav::FOCUS)));
         let Some(inv) = g.inv.clone() else { return out };
         if self.inventory {
             self.inventory_window(ctx, &d, &inv, &mut out);
@@ -1509,7 +1513,7 @@ impl GameUi {
                     let resp = slot_row(ui, d, inv, slot, width, touch, self.choosing == Some(slot as u8));
                     if resp.clicked() {
                         self.choosing = Some(slot as u8);
-                        self.chose = self.choosing;
+                        self.chose = Some((slot as u8, None));
                     }
                     // A mouse reads the whole of what the skill does over its row.
                     if let Some(id) = inv.bar.get(slot).and_then(|k| d.skill_id(k)).filter(|_| !touch && !pad) {
@@ -1541,8 +1545,23 @@ impl GameUi {
             self.skills = false;
             self.choosing = None;
         }
-        // The pad comes back from the chooser to the row it was opened from.
-        if let Some(slot) = self.chose {
+        // The pad comes back from the chooser to the row it was opened from: asked while the
+        // chooser is up (it asks for its card over this) and through the frame after it closes
+        // (every pass of it), then no more: an idle Skills window doesn't keep the pad from the
+        // tree beside it.
+        let now = ctx.cumulative_frame_nr();
+        let spent = match &mut self.chose {
+            Some((_, closed)) if self.choosing.is_none() => now > *closed.get_or_insert(now) + 1,
+            Some((_, closed)) => {
+                *closed = None;
+                false
+            }
+            None => false,
+        };
+        if spent {
+            self.chose = None;
+        }
+        if let Some((slot, _)) = self.chose {
             ctx.data_mut(|m| m.insert_temp(egui::Id::new(crate::padnav::FOCUS), egui::Id::new(("skill_slot", slot as usize))));
         }
         self.skill_chooser(ctx, d, inv, out);
