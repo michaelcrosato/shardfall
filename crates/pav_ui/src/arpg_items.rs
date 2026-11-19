@@ -511,7 +511,6 @@ impl GameUi {
         } else {
             self.choosing = None;
         }
-        self.tree.alone = !(self.inventory || self.character || self.skills);
         self.tree.ui(ctx, &inv, &mut out);
         // A tab turned the panels.
         if let Some(i) = ctx.data_mut(|d| d.remove_temp::<usize>(egui::Id::new(PANEL_TAB))) {

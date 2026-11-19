@@ -403,9 +403,9 @@ fn a_pad_picked_up_on_a_tree_the_keys_opened_lands_on_its_canvas() {
     assert!(p.nav.free() && p.nav.focused().is_none(), "on the canvas, not a tab: {:?}", p.nav.focused());
 }
 
-/// The keys open the bag, then the tree (I, then P), and a pad on the tree opens a taken
-/// mastery's options: the pad stays in them (Up doesn't step out to the tree's Reset all behind
-/// them), and Circle brings it back to the node, not to the bag beside the tree.
+/// The keys open the bag, then the tree (I, then P): a pad picked up lands on the tree's canvas,
+/// and there opens a taken mastery's options: the pad stays in them (Up doesn't step out to the
+/// tree's Reset all behind them), and Circle brings it back to the node, not to the bag.
 #[test]
 fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
     let _one = serial();
@@ -438,12 +438,17 @@ fn a_masterys_options_keep_the_pad_and_give_it_back_to_the_node() {
     for _ in 0..3 {
         p.frame(g, None, None);
     }
-    // Picked up with the mouse on the tree: the pad is on its canvas, where the mouse was.
-    let tree = p.ctx.memory(|m| m.area_rect(egui::Id::new(pav_ui::arpg_tree::TREE_WINDOW))).expect("the tree is open");
+    // Picked up with the mouse elsewhere: on the tree's canvas (it is on top), not on the bag's
+    // first slot hidden under it. Then off to a node.
     let pad = pav_ui::padnav::PadIn::default;
-    p.frame(g, Some(pad()), Some(tree.center()));
     p.frame(g, Some(pad()), None);
-    assert!(p.nav.free(), "on the canvas");
+    p.frame(g, Some(pad()), None);
+    assert!(p.nav.free(), "on the canvas, not the bag: {:?}", p.nav.focused());
+    for _ in 0..8 {
+        p.frame(g, Some(pav_ui::padnav::PadIn { stick: glam::Vec2::new(0.5, 0.4), ..pad() }), None);
+    }
+    p.frame(g, Some(pad()), None);
+    assert!(p.nav.free(), "still on the canvas");
     let node = p.nav.pointer.expect("a pointer");
     // The mastery's options: the pad is on one of them, and Up keeps it there.
     p.ui.tree.show_mastery(mastery);

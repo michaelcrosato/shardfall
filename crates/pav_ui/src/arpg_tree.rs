@@ -34,9 +34,6 @@ pub struct TreeUi {
     fit: Option<f32>,
     /// On a gamepad: hints name its buttons.
     pub pad: bool,
-    /// The only hero panel open (`GameUi` says): a pad lands on the canvas. Beside the bag, the
-    /// sheet or the Skills window (the keys open them together), the tree leaves that to them.
-    pub alone: bool,
     /// On a touch screen: the first tap on a node shows it, the second takes it; two fingers zoom.
     pub touch: bool,
     /// Touch: the node shown.
@@ -46,9 +43,6 @@ pub struct TreeUi {
     lit: (String, Vec<bool>),
     /// Mastery node whose options are shown.
     mastery: Option<u32>,
-    /// A mastery's options just closed: the canvas asks for the pad (back to the node), even
-    /// beside another panel, until the pointer is on it again.
-    returning: bool,
 }
 
 impl Default for TreeUi {
@@ -61,9 +55,7 @@ impl Default for TreeUi {
             search: String::new(),
             lit: Default::default(),
             mastery: None,
-            returning: false,
             pad: false,
-            alone: true,
             touch: false,
             picked: None,
         }
@@ -330,7 +322,6 @@ impl TreeUi {
     pub fn ui(&mut self, ctx: &egui::Context, inv: &InvView, out: &mut Vec<GameCmd>) {
         if !self.open {
             self.mastery = None;
-            self.returning = false;
             return;
         }
         let d = data();
@@ -404,17 +395,17 @@ impl TreeUi {
                     crate::glyph::rich_label(ui, &help, 12.0, Color32::from_white_alpha(150));
                 }
                 let (rect, resp) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
-                // A pad lands on the canvas when the tree opens (or loses the item it was on), not on
-                // the tabs or the header: the stick zooms and the D-pad walks the nodes from there.
-                // Asked whatever the device (the pad reads it only while it drives the menus: P
-                // opened the tree, then the pad was picked up), but not beside another hero panel,
-                // nor while a mastery's options are up (they ask for their own). When they close,
-                // it asks until the pointer is back on it, beside another panel too.
-                if resp.hovered() {
-                    self.returning = false;
-                }
-                if (self.alone || self.returning) && self.mastery.is_none() {
-                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(crate::padnav::FOCUS), resp.id));
+                // A pad lands on the canvas when the tree opens (or loses the item it was on: a
+                // mastery's options closed), not on the tabs or the header: the stick zooms and the
+                // D-pad walks the nodes from there. Asked whatever the device (the pad reads it only
+                // while it drives the menus: P opened the tree, then the pad was picked up), but not
+                // over a panel drawn before it that asked this pass (the Skills window for its row,
+                // its chooser for a card; `GameUi` clears the request each pass), nor while a
+                // mastery's options are up (they ask for their own).
+                let focus = egui::Id::new(crate::padnav::FOCUS);
+                let other = ui.ctx().data(|d| d.get_temp::<egui::Id>(focus)).is_some_and(|id| id != resp.id);
+                if !other && self.mastery.is_none() {
+                    ui.ctx().data_mut(|d| d.insert_temp(focus, resp.id));
                 }
                 let p = ui.painter_at(rect);
                 p.rect_filled(rect, 4.0, Color32::from_rgb(14, 13, 18));
@@ -862,7 +853,6 @@ impl TreeUi {
                     }
                     if !keep {
                         self.mastery = None;
-                        self.returning = true;
                     }
                 }
                 // The shapes' legend, for a mouse (a pad's docked card and a finger's panel name the
@@ -883,7 +873,6 @@ impl TreeUi {
         if !open {
             self.open = false;
             self.mastery = None;
-            self.returning = false;
         }
     }
 
@@ -896,9 +885,7 @@ impl TreeUi {
 
     /// Circle or Esc: a mastery's options close first. False when none were open.
     pub fn back(&mut self) -> bool {
-        let closed = self.mastery.take().is_some();
-        self.returning |= closed;
-        closed
+        self.mastery.take().is_some()
     }
 
     /// Shows the options of mastery node `node` (as clicking it does, once taken): for the tools

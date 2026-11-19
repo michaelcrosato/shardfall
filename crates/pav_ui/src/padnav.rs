@@ -83,6 +83,9 @@ pub struct PadNav {
     canvas_at: Option<(Id, Rect, Pos2)>,
     /// The windows with items last frame: a new one (a menu, a popup) takes the pad.
     layers: Vec<LayerId>,
+    /// The pad has had a frame on these menus: false on its first, just picked up or the menus
+    /// just come up (`reset`), whose presses only show where it is.
+    seen: bool,
 }
 
 /// Where a canvas wants the D-pad to snap (egui temp data under this id: screen points), such as
@@ -107,6 +110,7 @@ impl PadNav {
         self.held = None;
         self.canvas_at = None;
         self.layers.clear();
+        self.seen = false;
     }
 
     /// Whether the pointer sits on a canvas, where the stick moves it freely.
@@ -123,6 +127,8 @@ impl PadNav {
     /// `mouse` is where the mouse last was (the pad starts from the item under it).
     pub fn frame(&mut self, ctx: &Context, input: &PadIn, mouse: Option<Pos2>) -> Vec<Event> {
         let mut events = Vec::new();
+        let woke = !self.seen;
+        self.seen = true;
         let items = items(ctx);
         let screen = ctx.content_rect();
         // A window that just opened takes the pad; otherwise keep the item we are on (its rect
@@ -170,7 +176,7 @@ impl PadNav {
                     // middle.
                     let same = |r: Rect| (r.min - c.rect.min).length() < 1.0 && (r.max - c.rect.max).length() < 1.0;
                     let back = self.canvas_at.filter(|(id, r, _)| *id == c.id && same(*r)).map(|(_, _, p)| p);
-                    let under = mouse.filter(|p| fresh && c.rect.contains(*p));
+                    let under = mouse.filter(|p| woke && c.rect.contains(*p));
                     self.pointer = Some(back.or(under).unwrap_or(c.rect.center()));
                 }
             }
@@ -251,6 +257,13 @@ impl PadNav {
         }
         let on_slider = current.is_some_and(|c| c.slider);
         let on_canvas = current.is_some_and(|c| c.canvas);
+        if woke {
+            // The press that picks the pad up (or one still held as the menus come up: the Cross
+            // that opened a vendor) only shows where the pad is: the screen may have moved under it
+            // (a pad's prompts and view differ from a mouse's). The next press acts.
+            self.buttons.0 = input.cross && !on_slider;
+            self.buttons.1 = input.square;
+        }
         for (now, was, button, grabbed) in [
             (input.cross && !on_slider, self.buttons.0, PointerButton::Primary, &mut self.grabbed.0),
             (input.square, self.buttons.1, PointerButton::Secondary, &mut self.grabbed.1),
@@ -605,6 +618,25 @@ mod egui_tests {
         assert_eq!(pass(&ctx, ev), None, "held, it does not click again");
         let ev = nav.frame(&ctx, &PadIn { cross: false, dt: 0.016, ..Default::default() }, None);
         assert_eq!(pass(&ctx, ev), None);
+    }
+
+    #[test]
+    fn the_press_that_picks_the_pad_up_only_shows_where_it_is() {
+        let ctx = Context::default();
+        let mut nav = PadNav::default();
+        pass(&ctx, vec![]);
+        pass(&ctx, vec![]);
+        // Cross picks the pad up (or is still held as the menu comes up): no click, held or not.
+        for _ in 0..2 {
+            let ev = nav.frame(&ctx, &PadIn { cross: true, dt: 0.016, ..Default::default() }, None);
+            assert_eq!(pass(&ctx, ev), None, "the first press only shows the pad");
+        }
+        assert!(nav.focused().is_some(), "it shows where it is");
+        let ev = nav.frame(&ctx, &PadIn { dt: 0.016, ..Default::default() }, None);
+        pass(&ctx, ev);
+        // The next press acts.
+        let ev = nav.frame(&ctx, &PadIn { cross: true, dt: 0.016, ..Default::default() }, None);
+        assert_eq!(pass(&ctx, ev), Some(0));
     }
 }
 
